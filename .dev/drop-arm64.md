@@ -1,6 +1,6 @@
 # drop-arm64
 
-phase:    red
+phase:    green
 repo:     gophersys/.devcontainer
 branch:   feat/drop-arm64
 worktree: ~/code/.worktrees/dc-drop-arm64
@@ -72,7 +72,43 @@ One declaration, one membership rule, every path through it.
   asserts the published manifest carries exactly the sanctioned set.
 - Every document that would become untrue is rewritten.
 
-## Proven
+## Proven — phase 2, red
+
+3 hermetic test files under `_ctl/tests/`, run directly with `bash <file>` because
+no runner exists yet; exit status read on its own line, never through a pipe.
+
+  platform-policy.test.sh   10 checks, 6 failed
+  guard.test.sh             11 checks,  2 failed (+5 conservation guards, green)
+  verify-published.test.sh   6 checks,  5 failed
+
+The 2 guard reds are the new rule: with `IMAGE_PLATFORMS=linux/amd64,linux/arm64`
+the push is ACCEPTED today and exits 0. The log line also revealed that
+`IMAGE_PLATFORMS` is ignored entirely right now — the baseline run pushed
+`linux/amd64,linux/arm64` even with the variable set to amd64.
+
+The 5 conservation guards are GREEN from the first run and say so. Their power is
+proven by counter-stimulus: 2 baselines exit 0, and each guard flips exactly 1
+variable and exits non-zero.
+
+`verify-published` fails with "the verb does not exist yet" in those words, rather
+than a shell error a reader would misdiagnose. Satisfiability proved outside the
+repository with 3 throwaway implementations: a correct one passes 6 of 6; one that
+COUNTS manifest entries fails only the attestation check; one that says "no
+variants found" on a read failure fails only that check.
+
+**The test author caught and removed 2 FALSE PASSES of its own before committing** —
+a check that passed on an accepted push because the info log prints the platform
+string, and 2 that passed because an unknown verb exits non-zero while printing a
+usage block containing `linux/arm64`. A status and its message are now 1 check.
+
+**Pre-existing, surfaced not caused:** `.ci/providers/github/build-and-push.yml`
+differs from the workflow by 5 `timeout-minutes: 90` blocks, from commit d9089b2,
+while `.claude/rules/00-identity.md` calls the 2 byte-for-byte identical. Nothing
+checked it before this file.
+
+`shellcheck -x -S style` clean on all 6 shell files.
+
+## Proven — phase 0
 
 - Measured on ghcr.io/gophersys/base:e0c6bc5 by running each manifest variant:
   amd64 -> uname x86_64, dpkg amd64, gofumpt ELF x86-64, consistent.
@@ -87,8 +123,21 @@ One declaration, one membership rule, every path through it.
 
 Nothing.
 
+## Seams the implementer must honour
+
+The test author named 4 contracts. Breaking any makes a test undrivable:
+1. the platform list stays OVERRIDABLE from the environment
+   (`: "${IMAGE_PLATFORMS:=$SANCTIONED_PLATFORMS}"`), the shape
+   `MULTI_ARCH_PLATFORMS` has today. A hard assignment makes the 2 new guard
+   checks impossible to drive.
+2. `verify-published` is a PER-IMAGE verb, reached as
+   `bash base/ctl.sh verify-published`, and it appears in the usage block.
+3. the manifest is read with `docker manifest inspect` OR
+   `docker buildx imagetools inspect --raw` — the stub models both.
+4. the old-name tripwire fires at SOURCE time on the variable being SET, not
+   inside the guard on its value.
+
 ## Next
 
-Phase 2: dev-test-author writes 3 hermetic test files and proves each red.
-Mateo auto-approved the plans on 2026-08-12, so phase 1 stops are waived for this
-feature and the next 2.
+Phase 3: dev-implementer makes the 13 red checks green, then COMMIT before
+phase 4.
