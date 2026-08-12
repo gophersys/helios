@@ -1,10 +1,10 @@
 # golangci-parallel
 
-phase:    pr
+phase:    wait
 repo:     gophersys/libs
 branch:   fix/golangci-parallel
 worktree: ~/code/.worktrees/libs-golangci-parallel
-pr:       -
+pr:       6
 attempt:  0/2
 
 ## Goal
@@ -217,4 +217,5 @@ committed. So regeneration is safe the moment the contract change is approved.
 
 ## Next
 
-Phase 5: open the pull request.
+Phase 6: poll the checks. A pending check with no runner for over 5 minutes is a
+suspected stuck runner, not a slow one.
