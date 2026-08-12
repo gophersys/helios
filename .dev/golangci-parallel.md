@@ -1,6 +1,6 @@
 # golangci-parallel
 
-phase:    plan
+phase:    red
 repo:     gophersys/libs
 branch:   fix/golangci-parallel
 worktree: ~/code/.worktrees/libs-golangci-parallel
@@ -19,7 +19,8 @@ failure it was.
 
 ## Plan
 
-AWAITING MATEO'S APPROVAL. Written by `dev-planner`, phase 1.
+APPROVED by Mateo on 2026-08-11, including the CI wiring in the same pull
+request. Written by `dev-planner`, phase 1.
 
 **The fix is a config key, not a CLI flag.** `run.allow-parallel-runners: true`
 in `.golangci.yml` is discovered by all 4 call sites at once, so the collision
@@ -75,8 +76,7 @@ cause. It is also the only half that is deterministically testable.
 
 ## Blocked
 
-Waiting for Mateo to approve the plan, and to answer 1 open question: whether to
-wire the new test into CI in this same pull request.
+Nothing. The plan is approved and the CI wiring is in scope.
 
 ## The risk that matters most
 
@@ -90,4 +90,5 @@ never executed unless it is wired in.
 
 ## Next
 
-STOP. Mateo approves or rejects the plan.
+Phase 2: `dev-test-author` writes the 5 tests and PROVES each one fails for the
+reason the feature is about, before any fix exists.
