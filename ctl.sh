@@ -86,8 +86,16 @@ function count_libs_in() {
 }
 
 function find_all_ctl_scripts() {
-  # Every ctl.sh under the repo, including the top-level one.
-  find "$PROJECT_ROOT" -type f -name ctl.sh -not -path '*/node_modules/*' -not -path '*/.venv/*' -not -path '*/target/*' -not -path '*/.git/*' | sort
+  # Every control script under the repo: each project's ctl.sh (including the
+  # top-level one) AND the shared verb bodies under <lang>/_ctl/ that those
+  # dispatchers source. The _ctl half was covered by nothing until 2026-08, so
+  # go/_ctl/lib.sh — the file holding every gate verb — was the one place in the
+  # repo where a defect could not be caught by a gate.
+  find "$PROJECT_ROOT" -type f \( -name ctl.sh -o -path '*/_ctl/*.sh' \) -not -path '*/node_modules/*' -not -path '*/.venv/*' -not -path '*/target/*' -not -path '*/.git/*' | sort
+}
+
+function find_all_test_scripts() {
+  find "$PROJECT_ROOT" -type f -name '*_test.sh' -not -path '*/node_modules/*' -not -path '*/.venv/*' -not -path '*/target/*' -not -path '*/.git/*' | sort
 }
 
 function find_all_project_jsons() {
@@ -190,6 +198,19 @@ function cmd_validate() {
     fi
   done
 
+  local test_scripts
+  mapfile -t test_scripts < <(find_all_test_scripts)
+  log_info "running ${#test_scripts[@]} shell test suite(s) (*_test.sh)"
+  for script in "${test_scripts[@]:-}"; do
+    [[ -z "$script" ]] && continue
+    if bash "$script"; then
+      log_info "  ok: ${script#"$PROJECT_ROOT"/}"
+    else
+      log_error "  test suite failed: ${script#"$PROJECT_ROOT"/}"
+      failures=$((failures + 1))
+    fi
+  done
+
   if [[ "$failures" -gt 0 ]]; then
     log_error "validate: $failures issue(s)"
     exit 1
@@ -224,8 +245,9 @@ Usage: ./ctl.sh <command> [args...]
 
 Commands:
   status       Inventory: count libraries per language subtree
-  validate     Run shellcheck on every ctl.sh, validate every project.json,
-               and report drift between targets and usage blocks
+  validate     Run shellcheck on every ctl.sh and every <lang>/_ctl/*.sh,
+               validate every project.json, report drift between targets and
+               usage blocks, and run every *_test.sh shell suite
   propagate    Fan out this repo's current commit to every consuming project
                monorepo (must be invoked from within brain/shared/libs/)
   help         Show this message

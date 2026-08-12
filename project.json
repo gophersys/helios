@@ -23,7 +23,9 @@
         "{projectRoot}/ctl.sh",
         "{projectRoot}/project.json",
         "{projectRoot}/**/ctl.sh",
-        "{projectRoot}/**/project.json"
+        "{projectRoot}/**/project.json",
+        "{projectRoot}/**/_ctl/*.sh",
+        "{projectRoot}/**/*_test.sh"
       ]
     },
     "propagate": {

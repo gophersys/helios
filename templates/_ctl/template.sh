@@ -135,7 +135,7 @@ cmd_fmt() {
 
 cmd_lint() {
   require_cmd go gofumpt golangci-lint
-  local gofumpt_bin golangci_bin unformatted
+  local gofumpt_bin golangci_bin unformatted golangci_rc
   gofumpt_bin="$(have_cmd gofumpt)"; golangci_bin="$(have_cmd golangci-lint)"
   log_info "lint: gofumpt -l ."
   unformatted="$( cd "$PROJECT_ROOT" && "$gofumpt_bin" -l . )"
@@ -147,8 +147,18 @@ cmd_lint() {
   log_info "lint: go vet ./..."
   go_in_app vet ./... || { log_error "go vet reported problems"; exit 1; }
   log_info "lint: golangci-lint run --config $EDEN_GOLANGCI_CONFIG ./... (the shared strict set)"
+  # golangci-lint 2.x: 0 clean, 1 findings, anything else the RUN failed (a lost file
+  # lock, an invalid config, a panic, an OOM kill). Reporting every non-zero exit as
+  # findings sent readers hunting for lint output that was never produced, so the
+  # message branches on the code and always names it.
+  golangci_rc=0
   ( cd "$PROJECT_ROOT" && "$golangci_bin" run --timeout=180s --config "$EDEN_GOLANGCI_CONFIG" ./... ) \
-    || { log_error "golangci-lint found issues"; exit 1; }
+    || golangci_rc=$?
+  case "$golangci_rc" in
+    0) ;;
+    1) log_error "golangci-lint found issues"; exit 1 ;;
+    *) log_error "golangci-lint failed to run (exit $golangci_rc) — a run failure, not a lint finding"; exit 1 ;;
+  esac
   log_success "lint: OK"
 }
 
