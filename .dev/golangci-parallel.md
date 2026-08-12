@@ -64,8 +64,14 @@ cause. It is also the only half that is deterministically testable.
 
 ## Proven — phase 3, green
 
-`bash go/_ctl/lib_test.sh` -> rc 0, "all 5 test(s) hold, and each is proven able
-to fail". The exit-3 arm now prints
+`bash go/_ctl/lib_test.sh` -> rc 0, "5 test(s) hold; 4 of 5 proven able to fail;
+1 stated no counter".
+
+An earlier version of this line quoted "all 5 test(s) hold, and each is proven
+able to fail". That sentence overstated the suite: `t_concurrent_lints_do_not_collide`
+declares no counter-stimulus, so it is not proven able to fail. The suite now
+COUNTS the proof instead of claiming it, and this line quotes what it really
+prints. The exit-3 arm now prints
 `golangci-lint failed to run (exit 3) — a run failure, not a lint finding`.
 
 `shellcheck -S style ctl.sh go/_ctl/lib.sh templates/_ctl/template.sh` -> rc 0.
