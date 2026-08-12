@@ -75,15 +75,22 @@ REAL_TIMEOUT="$(command -v timeout)"
 
 # ── the fixture builders ────────────────────────────────────────────────────
 
-# new_fixture prints a fresh tree holding a copy of the ctl.sh under test at its root,
-# so PROJECT_ROOT resolves to the fixture. The tree carries one green *_test.sh because
-# cmd_validate counts "zero suites found" as a failure of its own.
-new_fixture() {
+# new_bare_fixture <runner-name> prints a fresh, EMPTY tree holding a copy of the ctl.sh under
+# test under the given name, so PROJECT_ROOT resolves to the fixture. The name is a parameter
+# because a copy called ctl.sh is itself a dispatcher, and a tree whose dispatcher list must be
+# empty cannot hold one.
+new_bare_fixture() {
   local fix
   fix="$(mktemp -d "$WORK/fix.XXXXXX")"
-  cp "$CTL" "$fix/ctl.sh"
-  chmod +x "$fix/ctl.sh"
-  cat > "$fix/suite_test.sh" <<'SUITE'
+  cp "$CTL" "$fix/$1"
+  chmod +x "$fix/$1"
+  printf '%s' "$fix"
+}
+
+# write_passing_suite <path> — a green, shellcheck-clean suite, in one home because most fixtures
+# need one: cmd_validate counts "zero suites found" as a failure of its own.
+write_passing_suite() {
+  cat > "$1" <<'SUITE'
 #!/usr/bin/env bash
 #
 # A green, shellcheck-clean suite. It exists so the fixture clears cmd_validate's
@@ -91,6 +98,14 @@ new_fixture() {
 set -Eeuo pipefail
 printf 'fixture suite: ok\n'
 SUITE
+}
+
+# new_fixture prints the ordinary tree: the runner is the root ctl.sh, and one green suite clears
+# the suite floor.
+new_fixture() {
+  local fix
+  fix="$(new_bare_fixture ctl.sh)"
+  write_passing_suite "$fix/suite_test.sh"
   printf '%s' "$fix"
 }
 
@@ -363,11 +378,11 @@ TAIL
 
 # ── the harness ─────────────────────────────────────────────────────────────
 
-# run_validate <fix> runs the copied ctl.sh over the fixture and sets OUT and RC.
+# run_validate <fix> [runner-name] runs the copied ctl.sh over the fixture and sets OUT and RC.
 # cmd_validate calls `exit 1`, so it is run as a separate bash.
 run_validate() {
   RC=0
-  OUT="$(bash "$1/ctl.sh" validate 2>&1)" || RC=$?
+  OUT="$(bash "$1/${2:-ctl.sh}" validate 2>&1)" || RC=$?
 }
 
 # run_validate_bounded <fix> is run_validate with the fixture's bin/ first on PATH and a hard
@@ -544,6 +559,60 @@ t_a_help_that_hangs_is_a_counted_failure() {
   [[ "$RC" -eq 1 ]] || fail "validate exited $RC although a dispatcher's help had to be killed: $OUT"
 }
 
+# The masking pair, first direction. cmd_validate walks three lists, and each one carries its own
+# floor of 1, because 0 files found is indistinguishable from 0 files checked: a rename, a move or
+# a broken find predicate deletes a whole class of checks and still reports green. The floors have
+# to be counted PER LIST — while the two shell lists were gathered into one array, a full suite
+# list vouched for an empty dispatcher list, and validate would check no dispatcher at all and say
+# so nowhere. Here a suite IS present and the dispatcher list is empty, which is the only shape
+# that can tell the two apart.
+t_a_suite_without_a_dispatcher_is_not_a_pass() {
+  local fix
+  # The runner is copied as validate.sh: a copy named ctl.sh would itself be the dispatcher the
+  # fixture must not have.
+  fix="$(new_bare_fixture validate.sh)"
+  write_passing_suite "$fix/suite_test.sh"
+  if [[ "$VARIANT" == "counter" ]]; then
+    # The tree gains a real library, so neither list is empty and neither floor fires.
+    write_posix_dispatcher "$fix" generate
+    write_project_json "$fix/lib/project.json" generate
+  fi
+  run_validate "$fix" validate.sh
+  assert_validate_ran
+  out_has 'no ctl.sh or <lang>/_ctl/*.sh found' ||
+    fail "the dispatcher list is empty and validate never said so; the suite list vouched for it: $OUT"
+  out_has 'no project.json found' ||
+    fail "there is no project.json to compare against and validate never said so: $OUT"
+  # The other half of counting per list: a suite IS present, so that floor must stay quiet.
+  ! out_has 'no *_test.sh found' ||
+    fail "suite_test.sh is present and the suite list was reported empty: $OUT"
+  [[ "$RC" -eq 1 ]] || fail "validate exited $RC over a tree it checked no dispatcher in: $OUT"
+}
+
+# The masking pair, second direction: 2 dispatchers and 1 project.json present, and NO suite. The
+# shell suites are the only mechanical proof of the ctl verbs, so a tree with none is a validate
+# that proved nothing — and a dispatcher list must no more vouch for an empty suite list than the
+# reverse.
+t_a_dispatcher_without_a_suite_is_not_a_pass() {
+  local fix
+  fix="$(new_bare_fixture ctl.sh)"
+  write_posix_dispatcher "$fix" generate
+  write_project_json "$fix/lib/project.json" generate
+  if [[ "$VARIANT" == "counter" ]]; then
+    # The suite comes back, so the suite floor is met and nothing is reported.
+    write_passing_suite "$fix/suite_test.sh"
+  fi
+  run_validate "$fix"
+  assert_validate_ran
+  out_has 'no *_test.sh found' ||
+    fail "the tree holds no *_test.sh and validate never said so; the dispatcher list vouched for it: $OUT"
+  ! out_has 'no ctl.sh or <lang>/_ctl/*.sh found' ||
+    fail "2 dispatchers are present and the dispatcher list was reported empty: $OUT"
+  ! out_has 'no project.json found' ||
+    fail "lib/project.json is present and the project.json list was reported empty: $OUT"
+  [[ "$RC" -eq 1 ]] || fail "validate exited $RC over a tree that ran no suite at all: $OUT"
+}
+
 # The shell suites are the only mechanical proof of the ctl verbs, and nothing checks
 # the suites themselves: find_all_ctl_scripts covers ctl.sh and <lang>/_ctl/*.sh only.
 # A *_test.sh can therefore carry a real finding, exit 0, and be reported as ok.
@@ -585,6 +654,8 @@ TESTS=(
   t_a_help_that_fails_is_a_counted_failure
   t_a_help_that_documents_no_verbs_is_a_counted_failure
   t_a_help_that_hangs_is_a_counted_failure
+  t_a_suite_without_a_dispatcher_is_not_a_pass
+  t_a_dispatcher_without_a_suite_is_not_a_pass
   t_a_test_script_is_shellchecked
 )
 
@@ -601,6 +672,8 @@ stimulus_for() {
     t_a_help_that_fails_is_a_counted_failure|\
     t_a_help_that_documents_no_verbs_is_a_counted_failure|\
     t_a_help_that_hangs_is_a_counted_failure|\
+    t_a_suite_without_a_dispatcher_is_not_a_pass|\
+    t_a_dispatcher_without_a_suite_is_not_a_pass|\
     t_a_test_script_is_shellchecked) printf 'good' ;;
     *) die "no phase-1 stimulus is declared for $1" ;;
   esac
@@ -624,6 +697,10 @@ counter_for() {
       printf 'counter:the same usage is printed on stdout instead of stderr' ;;
     t_a_help_that_hangs_is_a_counted_failure)
       printf 'counter:help returns at once instead of blocking' ;;
+    t_a_suite_without_a_dispatcher_is_not_a_pass)
+      printf 'counter:the tree gains a dispatcher and a project.json, so neither list is empty' ;;
+    t_a_dispatcher_without_a_suite_is_not_a_pass)
+      printf 'counter:the tree gains a suite, so the suite list is not empty' ;;
     t_a_test_script_is_shellchecked)
       printf 'counter:the cd in probe_test.sh is guarded, so shellcheck is clean' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
