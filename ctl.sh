@@ -198,8 +198,15 @@ function cmd_validate() {
     fi
   done
 
+  # A floor of 1, because 0 suites found is indistinguishable from 0 suites run: a
+  # rename, a move, or a broken find predicate would delete the only mechanical proof
+  # of the ctl verbs and still report a green validate.
   local test_scripts
   mapfile -t test_scripts < <(find_all_test_scripts)
+  if [[ ${#test_scripts[@]} -eq 0 ]]; then
+    log_error "no *_test.sh found under $PROJECT_ROOT; the shell suites are the only mechanical proof of the ctl.sh verbs, so finding none is a failure, not a pass"
+    failures=$((failures + 1))
+  fi
   log_info "running ${#test_scripts[@]} shell test suite(s) (*_test.sh)"
   for script in "${test_scripts[@]:-}"; do
     [[ -z "$script" ]] && continue

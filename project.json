@@ -25,7 +25,9 @@
         "{projectRoot}/**/ctl.sh",
         "{projectRoot}/**/project.json",
         "{projectRoot}/**/_ctl/*.sh",
-        "{projectRoot}/**/*_test.sh"
+        "{projectRoot}/**/*_test.sh",
+        "{projectRoot}/.golangci.yml",
+        "{projectRoot}/**/testdata/**/*"
       ]
     },
     "propagate": {
