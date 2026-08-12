@@ -61,13 +61,16 @@ die()  { printf '\033[0;31m[test]\033[0m %s\n' "$*" >&2; exit 1; }
 # fail ends the test it is called from. Each test runs in its own subshell.
 fail() { printf '       %s\n' "$*" >&2; exit 1; }
 
-# FAIL-NOT-SKIP (ADR-0020): a missing tool is a failure that names the tool.
-for _tool in shellcheck jq mktemp find awk grep; do
-  command -v "$_tool" >/dev/null || die "this host has no $_tool; the suite cannot run"
-done
 # ctl.sh uses mapfile, which bash 3.2 (the macOS /bin/bash) does not have. Running the
 # suite there would exercise nothing, so it is a failure that names the reason.
 type -t mapfile >/dev/null || die "this bash (${BASH_VERSION}) has no mapfile, so ctl.sh cannot run here; run the suite in the devcontainer"
+# FAIL-NOT-SKIP (ADR-0020): a missing tool is a failure that names the tool.
+for _tool in shellcheck jq timeout mktemp find awk grep; do
+  command -v "$_tool" >/dev/null || die "this host has no $_tool; the suite cannot run"
+done
+# Resolved BEFORE any fixture plants a `timeout` shim on PATH, so the harness's own bound is
+# always the real tool.
+REAL_TIMEOUT="$(command -v timeout)"
 [[ -f "$CTL" ]] || die "the script under test is missing: $CTL"
 
 # ── the fixture builders ────────────────────────────────────────────────────
@@ -207,6 +210,114 @@ TAIL
   chmod +x "$fix/lib/ctl.sh"
 }
 
+# write_usage_stream_dispatcher <fix> <stdout|stderr> <verb>... — a dispatcher that documents
+# its verbs on the named stream. `help` exits 0 either way, so on stderr it is the shape that
+# LOOKS healthy and yields nothing: the verbs never reach the reader of its stdout.
+write_usage_stream_dispatcher() {
+  local fix="$1" stream="$2" verb redirect=""
+  shift 2
+  if [[ "$stream" == "stderr" ]]; then
+    redirect=' >&2'
+  fi
+  mkdir -p "$fix/lib"
+  {
+    cat <<'HEAD'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+run_verb() { printf 'fixture: %s\n' "$1"; }
+
+usage() {
+HEAD
+    printf "  cat <<'EOF'%s\n" "$redirect"
+    printf 'Usage: ./ctl.sh <command>\n\n'
+    for verb in "$@"; do
+      printf '  %-10s run the %s verb\n' "$verb" "$verb"
+    done
+    cat <<'MID'
+  help       Show this message
+EOF
+}
+
+case "${1:-help}" in
+MID
+    for verb in "$@"; do
+      printf '  %s) run_verb %s ;;\n' "$verb" "$verb"
+    done
+    cat <<'TAIL'
+  help|"") usage ;;
+  *) printf 'unknown command: %s\n' "$1" >&2; usage; exit 1 ;;
+esac
+TAIL
+  } > "$fix/lib/ctl.sh"
+  chmod +x "$fix/lib/ctl.sh"
+}
+
+# write_slow_help_dispatcher <fix> <sleep-seconds> <verb>... — `help` PRINTS its verbs and then
+# blocks. A reader that waits forever hangs the whole gate on one bad dispatcher, so the verb list
+# has to be bounded. The sleep's own output goes to /dev/null: an orphan that inherited the
+# captured pipe would hold the harness open long after the dispatcher was killed.
+write_slow_help_dispatcher() {
+  local fix="$1" seconds="$2" verb
+  shift 2
+  mkdir -p "$fix/lib"
+  {
+    cat <<'HEAD'
+#!/usr/bin/env bash
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+run_verb() { printf 'fixture: %s\n' "$1"; }
+
+usage() {
+  cat <<'EOF'
+Usage: ./ctl.sh <command>
+
+HEAD
+    for verb in "$@"; do
+      printf '  %-10s run the %s verb\n' "$verb" "$verb"
+    done
+    cat <<'MID'
+  help       Show this message
+EOF
+}
+
+case "${1:-help}" in
+MID
+    for verb in "$@"; do
+      printf '  %s) run_verb %s ;;\n' "$verb" "$verb"
+    done
+    if [[ "$seconds" -gt 0 ]]; then
+      printf '  help|"") usage; sleep %s >/dev/null 2>&1 ;;\n' "$seconds"
+    else
+      printf '  help|"") usage ;;\n'
+    fi
+    cat <<'TAIL'
+  *) printf 'unknown command: %s\n' "$1" >&2; usage; exit 1 ;;
+esac
+TAIL
+  } > "$fix/lib/ctl.sh"
+  chmod +x "$fix/lib/ctl.sh"
+}
+
+# write_timeout_shim <fix> — a `timeout` that keeps the real tool's semantics and shortens the
+# budget, so the hang branch is driven in ~1 second instead of the 10 a dispatcher is allowed.
+# It shims the TOOL, never the script under test: the call has to come from ctl.sh for the shim
+# to run at all, and a ctl.sh that stopped bounding `help` would leave the hang unbounded — which
+# the outer bound in run_validate_bounded turns into a failed assertion instead of a hung suite.
+write_timeout_shim() {
+  local fix="$1"
+  mkdir -p "$fix/bin"
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf '# Drop the duration the caller asked for; keep every other argument.\n'
+    printf 'shift\n'
+    printf 'exec %s 1 "$@"\n' "$REAL_TIMEOUT"
+  } > "$fix/bin/timeout"
+  chmod +x "$fix/bin/timeout"
+}
+
 # write_legacy_dispatcher <fix> <help-exit-code> <verb>... — the ONE shape today's
 # scraper does read (`function usage() {` + an unquoted `cat <<EOF`), so the scraper
 # finds no drift in it. `help` PRINTS the usage and THEN exits with the given code:
@@ -257,6 +368,14 @@ TAIL
 run_validate() {
   RC=0
   OUT="$(bash "$1/ctl.sh" validate 2>&1)" || RC=$?
+}
+
+# run_validate_bounded <fix> is run_validate with the fixture's bin/ first on PATH and a hard
+# outer bound of 30s. The bound is the harness's own safety: it is not the behaviour under test,
+# it is what makes an UNBOUNDED help a failed assertion instead of a suite that never returns.
+run_validate_bounded() {
+  RC=0
+  OUT="$(PATH="$1/bin:$PATH" "$REAL_TIMEOUT" 30 bash "$1/ctl.sh" validate 2>&1)" || RC=$?
 }
 
 out_has()  { grep -Fq -- "$1" <<< "$OUT"; }
@@ -377,6 +496,54 @@ t_a_help_that_fails_is_a_counted_failure() {
   [[ "$RC" -eq 1 ]] || fail "validate exited $RC although a dispatcher's help failed: $OUT"
 }
 
+# The anti-vacuity guard, and the reason the whole approach is safe: an EMPTY verb list makes the
+# usage-to-targets half of the drift loop vacuous, which IS the original defect. So "help said
+# nothing" must be a counted failure of its own, never a clean sheet. The fixture documents its
+# verbs on STDERR — the drift a real dispatcher could acquire without anyone noticing, since its
+# help still looks right on a terminal and still exits 0.
+t_a_help_that_documents_no_verbs_is_a_counted_failure() {
+  local fix stream=stderr
+  if [[ "$VARIANT" == "counter" ]]; then
+    # The same verbs on stdout: the list is no longer empty and the test must fail.
+    stream=stdout
+  fi
+  fix="$(new_fixture)"
+  write_usage_stream_dispatcher "$fix" "$stream" generate verify
+  write_project_json "$fix/lib/project.json" generate verify
+  run_validate "$fix"
+  assert_validate_ran
+  out_hasE "(lib/ctl\.sh.*no verbs|no verbs.*lib/ctl\.sh)" ||
+    fail "lib/ctl.sh printed its verbs on $stream, so help yielded none, and validate never said so: $OUT"
+  # Without the guard the empty list turns every declared target into invented drift, which names
+  # the wrong file and hides the real fault.
+  ! out_has "target 'generate' missing from ctl.sh usage" ||
+    fail "an empty verb list was reported as drift in project.json instead of as a broken help: $OUT"
+  [[ "$RC" -eq 1 ]] || fail "validate exited $RC although a dispatcher documented no verbs: $OUT"
+}
+
+# A dispatcher that blocks must not block the gate. `help` here PRINTS a correct verb list and
+# THEN hangs, so a reader that takes the verbs and ignores how the process ended sees a healthy
+# script. The fixture puts a `timeout` on PATH that keeps the real tool and shortens its budget
+# to 1 second, so the branch is driven for real in about a second instead of ten.
+t_a_help_that_hangs_is_a_counted_failure() {
+  local fix seconds=600
+  if [[ "$VARIANT" == "counter" ]]; then
+    # help returns at once, nothing is killed, and the test must fail.
+    seconds=0
+  fi
+  fix="$(new_fixture)"
+  write_timeout_shim "$fix"
+  write_slow_help_dispatcher "$fix" "$seconds" generate
+  write_project_json "$fix/lib/project.json" generate
+  run_validate_bounded "$fix"
+  [[ "$RC" -ne 124 ]] ||
+    fail "validate did not return within 30s: the dispatcher's help is not bounded at all: $OUT"
+  assert_validate_ran
+  out_hasE "(lib/ctl\.sh.*124|124.*lib/ctl\.sh)" ||
+    fail "lib/ctl.sh hangs in help and validate never reported the timeout: $OUT"
+  [[ "$RC" -eq 1 ]] || fail "validate exited $RC although a dispatcher's help had to be killed: $OUT"
+}
+
 # The shell suites are the only mechanical proof of the ctl verbs, and nothing checks
 # the suites themselves: find_all_ctl_scripts covers ctl.sh and <lang>/_ctl/*.sh only.
 # A *_test.sh can therefore carry a real finding, exit 0, and be reported as ok.
@@ -416,6 +583,8 @@ TESTS=(
   t_a_verb_with_no_target_is_drift
   t_a_target_with_no_verb_is_drift
   t_a_help_that_fails_is_a_counted_failure
+  t_a_help_that_documents_no_verbs_is_a_counted_failure
+  t_a_help_that_hangs_is_a_counted_failure
   t_a_test_script_is_shellchecked
 )
 
@@ -430,6 +599,8 @@ stimulus_for() {
     t_a_verb_with_no_target_is_drift|\
     t_a_target_with_no_verb_is_drift|\
     t_a_help_that_fails_is_a_counted_failure|\
+    t_a_help_that_documents_no_verbs_is_a_counted_failure|\
+    t_a_help_that_hangs_is_a_counted_failure|\
     t_a_test_script_is_shellchecked) printf 'good' ;;
     *) die "no phase-1 stimulus is declared for $1" ;;
   esac
@@ -449,6 +620,10 @@ counter_for() {
       printf "counter:the usage is extended to document 'verify'" ;;
     t_a_help_that_fails_is_a_counted_failure)
       printf 'counter:help exits 0 instead of 3' ;;
+    t_a_help_that_documents_no_verbs_is_a_counted_failure)
+      printf 'counter:the same usage is printed on stdout instead of stderr' ;;
+    t_a_help_that_hangs_is_a_counted_failure)
+      printf 'counter:help returns at once instead of blocking' ;;
     t_a_test_script_is_shellchecked)
       printf 'counter:the cd in probe_test.sh is guarded, so shellcheck is clean' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
