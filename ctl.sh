@@ -102,6 +102,21 @@ function find_all_project_jsons() {
   find "$PROJECT_ROOT" -type f -name project.json -not -path '*/node_modules/*' -not -path '*/.venv/*' -not -path '*/target/*' -not -path '*/.git/*' | sort
 }
 
+function _usage_verbs() {
+  # The verbs a dispatcher documents, one per line, taken from the program itself:
+  # `<ctl> help`, first token of every line indented exactly two spaces. Reading the
+  # source text instead was blind to three shapes in this repo — the POSIX `usage() {`,
+  # the quoted `cat <<'EOF'`, and a usage that arrives from a sourced file — and each
+  # blind spot yielded an EMPTY list, which made the usage-to-targets half of the drift
+  # check vacuously green. .ci/ctl.sh:200 (cmd_list_verbs, invoked as `__verbs`) already
+  # sets the rule: ask the dispatcher, do not parse it.
+  #
+  # A failing help exits non-zero here, and the caller counts it. stderr is left alone so
+  # a dispatcher's own diagnostic reaches the reader.
+  local ctl="$1"
+  timeout 10 bash "$ctl" help | awk '/^  [a-z][a-z0-9-]*([[:space:]]|$)/ { print $1 }' | sort -u
+}
+
 # -------- commands --------
 function cmd_status() {
   log_info "gophersys/libs — inventory"
@@ -119,12 +134,15 @@ function cmd_status() {
 }
 
 function cmd_validate() {
-  require_cmd shellcheck jq
+  require_cmd shellcheck jq timeout
   local failures=0
 
-  log_info "validating all ctl.sh scripts via shellcheck"
+  # The *_test.sh suites are shellchecked alongside the dispatchers they prove: a suite
+  # was the one shell file no gate read, so it could carry a real finding, exit 0, and be
+  # reported ok.
+  log_info "validating all ctl.sh and *_test.sh scripts via shellcheck"
   local ctl_scripts
-  mapfile -t ctl_scripts < <(find_all_ctl_scripts)
+  mapfile -t ctl_scripts < <(find_all_ctl_scripts; find_all_test_scripts)
   for script in "${ctl_scripts[@]}"; do
     if shellcheck "$script"; then
       log_info "  ok: ${script#"$PROJECT_ROOT"/}"
@@ -161,17 +179,21 @@ function cmd_validate() {
     local targets
     targets="$(jq -r '.targets // {} | keys[]' "$pj" 2>/dev/null | sort -u || true)"
 
-    # Extract command names from ctl.sh usage block: lines between `cat <<EOF`
-    # and `EOF` inside the usage() function. Take the first token per line
-    # that starts with two spaces and a word character.
-    local usage_cmds
-    usage_cmds="$(awk '
-      /^function usage\(\) \{/ { in_usage = 1; next }
-      in_usage && /^\}/        { in_usage = 0 }
-      in_usage && /cat <<EOF/  { in_heredoc = 1; next }
-      in_usage && in_heredoc && /^EOF$/ { in_heredoc = 0 }
-      in_usage && in_heredoc && /^  [A-Za-z]/ { print $1 }
-    ' "$ctl" | sort -u || true)"
+    # Ask the dispatcher for its verbs. A help that fails, or that documents nothing,
+    # is its own counted failure naming the script: an empty verb list would make the
+    # usage-to-targets half of the loop below vacuous, and report a clean sheet.
+    local usage_cmds help_rc=0
+    usage_cmds="$(_usage_verbs "$ctl")" || help_rc=$?
+    if [[ "$help_rc" -ne 0 ]]; then
+      log_error "  ${ctl#"$PROJECT_ROOT"/}: 'help' exited $help_rc, so the verbs it printed cannot be trusted"
+      failures=$((failures + 1))
+      continue
+    fi
+    if [[ -z "$usage_cmds" ]]; then
+      log_error "  ${ctl#"$PROJECT_ROOT"/}: 'help' documented no verbs, so its targets cannot be checked"
+      failures=$((failures + 1))
+      continue
+    fi
 
     # Drift detection: every target must appear in usage, and every usage
     # entry (except the conventional "help") must appear as a target.
@@ -252,9 +274,10 @@ Usage: ./ctl.sh <command> [args...]
 
 Commands:
   status       Inventory: count libraries per language subtree
-  validate     Run shellcheck on every ctl.sh and every <lang>/_ctl/*.sh,
-               validate every project.json, report drift between targets and
-               usage blocks, and run every *_test.sh shell suite
+  validate     Run shellcheck on every ctl.sh, every <lang>/_ctl/*.sh and every
+               *_test.sh, validate every project.json, report drift between
+               targets and the verbs each dispatcher's own help prints, and run
+               every *_test.sh shell suite
   propagate    Fan out this repo's current commit to every consuming project
                monorepo (must be invoked from within brain/shared/libs/)
   help         Show this message

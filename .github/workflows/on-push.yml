@@ -18,7 +18,7 @@ permissions:
 jobs:
   # Post-merge re-check: the pr-tier verbs over what the push changed.
   pr:
-    name: pr tier (ci-drift, affected-gate-fast)
+    name: pr tier (ci-drift, validate, affected-gate-fast)
     runs-on: arc-org
     timeout-minutes: 15
     steps:
@@ -31,6 +31,10 @@ jobs:
         env:
           NX_BASE: origin/main~1
         run: bash .ci/ctl.sh ci-drift
+      - name: bash .ci/ctl.sh validate
+        env:
+          NX_BASE: origin/main~1
+        run: bash .ci/ctl.sh validate
       - name: bash .ci/ctl.sh affected-gate-fast
         env:
           NX_BASE: origin/main~1
