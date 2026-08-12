@@ -1,6 +1,6 @@
 # golangci-parallel
 
-phase:    red
+phase:    green
 repo:     gophersys/libs
 branch:   fix/golangci-parallel
 worktree: ~/code/.worktrees/libs-golangci-parallel
@@ -62,7 +62,32 @@ cause. It is also the only half that is deterministically testable.
   exits 0. YAML accepts the typo silently, so test 5 is what catches it.
 - No shell test harness exists anywhere in libs: 0 `*_test.sh`, 0 `.bats`.
 
-## Proven
+## Proven — phase 2, red
+
+`bash go/_ctl/lib_test.sh` -> EXIT 1, "4 failure(s) across both phases".
+
+- `t_a_collision_is_not_reported_as_findings` RED. A stub exiting 3 with the real
+  collision text produces `[error] golangci-lint found issues`. That is the
+  defect, seen directly.
+- `t_the_shared_config_is_schema_valid` RED. The key is absent from
+  `.golangci.yml`. Its counter-arm proves the schema half works: the misspelling
+  gives `additional properties 'allow-parallel-runner' not allowed`.
+- `t_concurrent_lints_do_not_collide` RED. 3 of 8 real golangci-lint 2.12.2 runs
+  exited 3. Red on 6 of 6 isolated runs. It is a lock race, so it is stable here
+  and not guaranteed on a slower host.
+- `t_real_findings_are_still_reported_as_findings` GREEN in phase 1, RED in phase
+  2: the same test passes under exit 1 AND exit 3, because lib.sh prints 1
+  message for both. The blindness, named.
+- `t_a_clean_run_passes` GREEN, and correct to be green. A conservation guard
+  against the fix over-correcting. Its counter-arm fails as it must.
+
+The test author proved the GREEN direction out of tree, without touching the real
+config: a temp copy with the key appended gave `config verify` exit 0 and 8 of 8
+concurrent runs clean.
+
+`shellcheck -S style go/_ctl/lib_test.sh` -> exit 0.
+
+## Proven — phase 0
 
 - The defect is on 1 line, `libs/go/_ctl/lib.sh:158`:
   `( cd "$PROJECT_ROOT" && "$golangci_bin" run --timeout=180s ./... ) || { log_error "golangci-lint found issues"; exit 1; }`
@@ -88,7 +113,14 @@ today, and root `validate` never runs in libs CI.
 That is why this defect shipped. It also means a new test would be believed and
 never executed unless it is wired in.
 
+## What the implementer is bound to
+
+The assertions bind to these. Breaking either turns a test red for the wrong
+reason:
+1. the failure message on exit 3 must NAME the code — it must match `exit[^0-9]*3`
+2. the string `golangci-lint found issues` must be ABSENT on exit 3 and PRESENT
+   on exit 1
+
 ## Next
 
-Phase 2: `dev-test-author` writes the 5 tests and PROVES each one fails for the
-reason the feature is about, before any fix exists.
+Phase 3: `dev-implementer` makes the red tests green, then COMMIT before phase 4.
