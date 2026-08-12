@@ -1,6 +1,6 @@
 # wire-validate-into-pr
 
-phase:    intake
+phase:    plan
 repo:     gophersys/libs
 branch:   ci/wire-validate-into-pr
 worktree: ~/code/.worktrees/libs-wire-validate
@@ -22,7 +22,49 @@ the `_ctl` shellcheck coverage gate real changes.
 
 ## Plan
 
-Not yet written. Phase 1 delegates to `dev-planner`.
+AWAITING MATEO'S APPROVAL.
+
+**The earlier reading was wrong, and I repeated it.** It said the 3 template
+failures were false positives because those dispatchers have no local `usage()`
+and delegate to a sourced one. The planner opened the files: `persistence/ctl.sh:43`
+and `clients/go/ctl.sh:44` DO hold a local `usage()` listing exactly the right
+verbs. The parser misses them for 2 different reasons — it matches only
+`^function usage() {` and they use the POSIX `usage() {`, and it matches only
+`cat <<EOF` and they use `cat <<'EOF'`. Only 1 of the 3 matches the sourced-usage
+story.
+
+**The parser is also blind to REAL drift.** With an empty usage list, its
+usage-to-targets loop is vacuously green. So it never reported that
+`templates/go/http-gateway/ctl.sh` documents AND dispatches `openapi`,
+`verify-openapi` and `gen-client` with no matching `project.json` target. Fixing
+the parser turns 17 false messages into 4 true ones.
+
+The real count is 17 messages / 4 counted failures, not the 5 recorded at intake.
+
+**The fix: ask the program, do not parse it.** Replace the source-text scraper in
+`ctl.sh` with `bash <ctl> help`, and take the verbs from its output. A `help` that
+exits non-zero, or yields no verbs, is its OWN counted failure naming the script —
+never a silent empty list.
+
+Prior art in this repository: `.ci/ctl.sh:200 cmd_list_verbs` (`__verbs`), which
+`cictl` already runs rather than reading case arms. This adopts that rule. Three
+regex patches would be the band-aid, and a 4th dispatcher shape would defeat them.
+
+Files: `ctl.sh` (the parser, plus `require_cmd timeout`, plus shellcheck over
+`*_test.sh`), `ctl_test.sh` (new, 6 tests), `.ci/project.json` (+ci-drift target),
+`templates/go/http-gateway/project.json` (+3 real targets), `.ci/ci.contract.yaml`
+(pr verbs become ci-drift, validate, affected-gate-fast), and the 2 REGENERATED
+workflows.
+
+## Cost, and the thing to expect
+
+The pr tier is 8 seconds today. Measured locally: shellcheck 1.3s, jq+drift 0.6s.
+The cost is `go/_ctl/lib_test.sh`, which runs 8 concurrent REAL golangci-lint
+invocations. Estimated ~90 seconds total in CI, and the planner marked that
+estimate UNVERIFIED — the first CI run settles it. Against a 15-minute timeout.
+
+**Expect the lane to go red on the first run.** `lib_test.sh` has never executed
+on an ARC runner. That is the intended outcome of this change, not a defect.
 
 ## Proven
 
@@ -42,5 +84,4 @@ Nothing yet.
 
 ## Next
 
-Phase 1: `dev-planner` decides which of the 4 are real, and how to wire `validate`
-into the `pr` tier without turning the lane red on someone else's debt.
+STOP. Mateo approves or rejects.
