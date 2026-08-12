@@ -4,7 +4,7 @@
 # lifecycle:
 #   ghcr.io/gophersys/base
 #
-# The image verbs build/build-multi-arch/push/pull/inspect come from
+# The image verbs build/push/verify-published/pull/inspect come from
 # _ctl/lib.sh, where their bodies live 1 time only.
 #
 # This image adds the lifecycle verbs, which no other image has:

@@ -31,14 +31,6 @@
       },
       "cache": false
     },
-    "ci-.devcontainer-build-all-multi-arch": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "bash ./ctl.sh build-all-multi-arch",
-        "cwd": "{projectRoot}"
-      },
-      "cache": false
-    },
     "ci-.devcontainer-push-all": {
       "executor": "nx:run-commands",
       "options": {

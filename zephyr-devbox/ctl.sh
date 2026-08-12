@@ -5,7 +5,7 @@
 #
 # Thin dispatcher. The body of every verb is in _ctl/lib.sh, 1 time only.
 # Run `bash ./ctl.sh help` for the interface, and read _ctl/lib.sh for the
-# multi-arch policy that `push` enforces.
+# platform policy that `push` enforces.
 #
 set -Eeuo pipefail
 IFS=$'\n\t'

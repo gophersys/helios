@@ -1,11 +1,15 @@
 name: build-and-push
 
 # Publishes the IDP image set (base + base-runner + flutter + zephyr + zephyr-devbox)
-# to the GitHub Container Registry. Every image is built multi-arch
-# (linux/amd64 + linux/arm64) on every push to main. On semver tag pushes
-# (v*) we also publish a :v<semver> tag. Flutter and zephyr consume base —
-# and zephyr-devbox consumes zephyr — via BASE_TAG build-arg set to the
-# commit short SHA so the child layer FROMs the freshly pushed parent.
+# to the GitHub Container Registry. Every image is built for linux/amd64 on every
+# push to main. On semver tag pushes (v*) we also publish a :v<semver> tag.
+# Flutter and zephyr consume base — and zephyr-devbox consumes zephyr — via
+# BASE_TAG build-arg set to the commit short SHA so the child layer FROMs the
+# freshly pushed parent.
+#
+# Every job reads back the manifest it just pushed, at the SHA tag it pushed
+# rather than at :latest, so a concurrent run cannot make the assertion describe
+# somebody else's image.
 
 on:
   push:
@@ -14,7 +18,7 @@ on:
   workflow_dispatch:
 
 # Supersede an in-flight run for the same ref so a rapid second push doesn't run two
-# expensive multi-arch builds in parallel.
+# expensive image builds in parallel.
 concurrency:
   group: build-and-push-${{ github.ref }}
   cancel-in-progress: true
@@ -22,20 +26,15 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   OWNER: gophersys
-  # Devcontainer images are multi-arch: they are opened on an arm64 Mac and on
-  # amd64 Linux, so both are real consumers.
-  PLATFORMS: linux/amd64,linux/arm64
-  # Runner images are NOT. A runner image only ever runs as an ARC pod, and every
-  # node in that cluster is amd64 (`kubectl get nodes -o wide`). Building its arm64
-  # half means compiling Go under QEMU for an architecture nothing runs, which
-  # measured ~13 minutes for what is otherwise a thin layer. Build the arch you
-  # deploy to.
-  PLATFORMS_RUNNER: linux/amd64
-  # zephyr-devbox is a remote dev box: it only ever runs as a Kubernetes pod, and
-  # every node in that cluster is amd64 (verified: its 3 live pods sit on k3s-w-1,
-  # k3s-w-3 and k3s-w-4). It is never opened locally, so its arm64 half had no
-  # consumer and it was the most expensive emulated build in this workflow.
-  PLATFORMS_DEVBOX: linux/amd64
+  # 1 platform for every image in this workflow. There were 3 keys here, and the
+  # 2 narrow ones each carried a measurement: the ARC nodes are amd64, and the 3
+  # live zephyr-devbox pods sit on amd64 nodes. The wide one had no such
+  # measurement. No arm64 consumer can be verified for any image
+  # (gophersys/infrastructure docs/debt-register.md D42), and the arm64 base that
+  # was published was an amd64 Ubuntu userland carrying aarch64 Go binaries.
+  # This value must equal SANCTIONED_PLATFORMS in _ctl/lib.sh, and the
+  # verify-published step in each job is what proves the registry agrees.
+  PLATFORMS: linux/amd64
 
 jobs:
   base:
@@ -52,9 +51,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Free up runner disk
-        # The hosted runner ships ~14 GB free; a multi-arch (amd64+arm64) build of these large
-        # images exhausts it ("No space left on device"). Reclaim ~25-30 GB of preinstalled SDKs
-        # we never use, keeping docker/buildx intact.
+        # The hosted runner ships ~14 GB free; a build of these large images exhausts it
+        # ("No space left on device") on 1 platform as well as on 2. Reclaim ~25-30 GB of
+        # preinstalled SDKs we never use, keeping docker/buildx intact.
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
           tool-cache: true
@@ -63,7 +62,6 @@ jobs:
           haskell: true
           large-packages: true
           swap-storage: true
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -93,6 +91,11 @@ jobs:
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/base:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=base
           cache-to: type=gha,mode=max,scope=base
+      - name: verify the published manifest
+        # A push DECLARES a platform; this reads what the registry actually
+        # holds. At the SHA tag, never at :latest, so a concurrent run cannot
+        # make this describe somebody else's image.
+        run: bash ./ctl.sh verify-published base ${{ steps.sha.outputs.short }}
 
   # The `+ runner` layer: base plus the GitHub Actions runner and nothing else.
   # It is the image the ARC pools run as their runner container, so the kubelet
@@ -113,8 +116,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Free up runner disk
-        # buildx materializes the multi-arch parent before layering, so this job
-        # needs the same headroom the parent build does.
+        # buildx materializes the parent image before layering, so this job needs
+        # the same headroom the parent build does.
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
           tool-cache: true
@@ -123,7 +126,6 @@ jobs:
           haskell: true
           large-packages: true
           swap-storage: true
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -142,7 +144,7 @@ jobs:
         with:
           context: runner
           file: runner/Dockerfile
-          platforms: ${{ env.PLATFORMS_RUNNER }}
+          platforms: ${{ env.PLATFORMS }}
           push: true
           build-args: |
             BASE_IMAGE=${{ env.REGISTRY }}/${{ env.OWNER }}/base:${{ needs.base.outputs.short }}
@@ -152,9 +154,16 @@ jobs:
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/base-runner:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=base-runner
           cache-to: type=gha,mode=max,scope=base-runner
+      - name: verify the published manifest
+        # A push DECLARES a platform; this reads what the registry actually
+        # holds. At the SHA tag, never at :latest, so a concurrent run cannot
+        # make this describe somebody else's image.
+        run: bash ./ctl.sh verify-published base-runner ${{ needs.base.outputs.short }}
       - name: smoke test (native amd64)
-        # The Dockerfile deliberately runs no --version checks: they fail under
-        # QEMU. This is where kubeconform and the runner binary are actually proven.
+        # The Dockerfile deliberately runs no --version checks: they could not run
+        # while this image was cross-built under QEMU, and removing them is not
+        # this feature's call. This is where kubeconform and the runner binary
+        # are actually proven.
         run: bash .ci/smoke.sh base-runner
 
   flutter:
@@ -170,9 +179,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Free up runner disk
-        # The hosted runner ships ~14 GB free; a multi-arch (amd64+arm64) build of these large
-        # images exhausts it ("No space left on device"). Reclaim ~25-30 GB of preinstalled SDKs
-        # we never use, keeping docker/buildx intact.
+        # The hosted runner ships ~14 GB free; a build of these large images exhausts it
+        # ("No space left on device") on 1 platform as well as on 2. Reclaim ~25-30 GB of
+        # preinstalled SDKs we never use, keeping docker/buildx intact.
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
           tool-cache: true
@@ -181,7 +190,6 @@ jobs:
           haskell: true
           large-packages: true
           swap-storage: true
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -210,6 +218,11 @@ jobs:
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/flutter:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=flutter
           cache-to: type=gha,mode=max,scope=flutter
+      - name: verify the published manifest
+        # A push DECLARES a platform; this reads what the registry actually
+        # holds. At the SHA tag, never at :latest, so a concurrent run cannot
+        # make this describe somebody else's image.
+        run: bash ./ctl.sh verify-published flutter ${{ needs.base.outputs.short }}
 
   zephyr:
     # A job with no limit inherits the GitHub default of 360 minutes. On a self-
@@ -224,9 +237,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Free up runner disk
-        # The hosted runner ships ~14 GB free; a multi-arch (amd64+arm64) build of these large
-        # images exhausts it ("No space left on device"). Reclaim ~25-30 GB of preinstalled SDKs
-        # we never use, keeping docker/buildx intact.
+        # The hosted runner ships ~14 GB free; a build of these large images exhausts it
+        # ("No space left on device") on 1 platform as well as on 2. Reclaim ~25-30 GB of
+        # preinstalled SDKs we never use, keeping docker/buildx intact.
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
           tool-cache: true
@@ -235,7 +248,6 @@ jobs:
           haskell: true
           large-packages: true
           swap-storage: true
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -264,6 +276,11 @@ jobs:
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=zephyr
           cache-to: type=gha,mode=max,scope=zephyr
+      - name: verify the published manifest
+        # A push DECLARES a platform; this reads what the registry actually
+        # holds. At the SHA tag, never at :latest, so a concurrent run cannot
+        # make this describe somebody else's image.
+        run: bash ./ctl.sh verify-published zephyr ${{ needs.base.outputs.short }}
 
   zephyr-devbox:
     # A job with no limit inherits the GitHub default of 360 minutes. On a self-
@@ -281,9 +298,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Free up runner disk
-        # The hosted runner ships ~14 GB free; a multi-arch (amd64+arm64) build of these large
-        # images exhausts it ("No space left on device"). Reclaim ~25-30 GB of preinstalled SDKs
-        # we never use, keeping docker/buildx intact.
+        # The hosted runner ships ~14 GB free; a build of these large images exhausts it
+        # ("No space left on device") on 1 platform as well as on 2. Reclaim ~25-30 GB of
+        # preinstalled SDKs we never use, keeping docker/buildx intact.
         uses: jlumbroso/free-disk-space@v1.3.1
         with:
           tool-cache: true
@@ -292,7 +309,6 @@ jobs:
           haskell: true
           large-packages: true
           swap-storage: true
-      - uses: docker/setup-qemu-action@v3
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -311,7 +327,7 @@ jobs:
         with:
           context: zephyr-devbox
           file: zephyr-devbox/Dockerfile
-          platforms: ${{ env.PLATFORMS_DEVBOX }}
+          platforms: ${{ env.PLATFORMS }}
           push: true
           build-args: |
             BASE_TAG=${{ needs.base.outputs.short }}
@@ -321,3 +337,8 @@ jobs:
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr-devbox:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=zephyr-devbox
           cache-to: type=gha,mode=max,scope=zephyr-devbox
+      - name: verify the published manifest
+        # A push DECLARES a platform; this reads what the registry actually
+        # holds. At the SHA tag, never at :latest, so a concurrent run cannot
+        # make this describe somebody else's image.
+        run: bash ./ctl.sh verify-published zephyr-devbox ${{ needs.base.outputs.short }}

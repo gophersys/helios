@@ -18,17 +18,20 @@
 # Conventions enforced by this Dockerfile:
 #   - Every tool version is an ARG at the top with a "latest LTS as of" comment.
 #   - No hardcoded versions in RUN statements — always reference an ARG.
-#   - Multi-arch-aware: every binary install resolves ARCH from TARGETPLATFORM.
+#   - Architecture-aware: every binary install resolves ARCH from TARGETPLATFORM.
 #   - oh-my-zsh is the default shell; SHELL switches to zsh after install so
 #     later RUN layers run under zsh.
 #   - Non-root `dev` user (uid 1000). The ubuntu 24.04 default `ubuntu` user
 #     at uid 1000 is removed first.
 
-FROM --platform=${BUILDPLATFORM:-linux/amd64} ubuntu:24.04
+# No --platform here. It pinned the userland to the BUILD host's architecture
+# while buildx labelled the result with the TARGET platform, which is how the
+# published linux/arm64 image came to be an amd64 Ubuntu userland carrying
+# aarch64 Go binaries. Plain FROM makes the userland follow the target.
+FROM ubuntu:24.04
 
-# Buildx-injected platform vars. Declared so RUN layers can branch on arch.
+# Buildx-injected platform var. Declared so RUN layers can branch on arch.
 ARG TARGETPLATFORM
-ARG BUILDPLATFORM
 
 # -------------------------------------------------------------------------
 # Tool versions — all pinned ARGs. Every value below is the latest LTS or
@@ -56,7 +59,7 @@ ARG UV_VERSION=0.11.7                                                  # latest 
 
 # Go — official tarball. Matches the workspace `go.work` toolchain directive so the agent-pod
 # image bakes it rather than auto-downloading the toolchain on first `go` invocation per pod.
-ARG GO_VERSION=1.26.4                                                  # latest LTS as of 2026-06-13
+ARG GO_VERSION=1.26.5                                                  # latest LTS as of 2026-08-12
 
 # Rust — rustup channel, not a pinned version.
 ARG RUST_CHANNEL=stable                                                # latest LTS as of 2026-04-19

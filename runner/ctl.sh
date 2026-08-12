@@ -23,11 +23,12 @@ IMAGE_NAME="${RUNNER_PARENT}-runner"
 # The parent is a build argument, not a second Dockerfile.
 IMAGE_BUILD_ARGS=(--build-arg "BASE_IMAGE=${BASE_IMAGE}")
 
-# A runner image only ever runs as an ARC pod, and every node in that cluster
-# is amd64. Its arm64 half would be Go compiled under QEMU for an architecture
-# that nothing runs. That measured ~13 minutes for an otherwise thin layer. The
-# devcontainer images stay multi-arch. This image builds the arch it deploys to.
-MULTI_ARCH_PLATFORMS="linux/amd64"
+# This image declared linux/amd64 for itself while the library still defaulted to
+# 2 platforms: it only ever runs as an ARC pod, and every node in that cluster is
+# amd64. Its arm64 half was Go compiled under QEMU for an architecture nothing
+# runs, and it measured ~13 minutes on an otherwise thin layer. Every image is
+# amd64 only now, so the declaration is the library default and is not repeated
+# here.
 
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../_ctl/lib.sh

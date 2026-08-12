@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 #
-# .ci/smoke.sh — post-build native-arch smoke test for a single image.
+# .ci/smoke.sh — post-build smoke test for a single image.
 #
 # Dockerfiles in this repo deliberately do NOT run `bw --version`,
-# `gh --version`, etc inside RUN steps because those binaries are native and
-# fail under QEMU cross-arch builds. This script re-introduces those checks
-# as a post-build step that runs the already-built image on its NATIVE arch.
-# QEMU is not involved here.
+# `gh --version`, etc inside RUN steps: those binaries are built for the target,
+# and they could not run while an image was cross-built under QEMU. This script
+# re-introduces those checks as a post-build step that runs the already-built
+# image. Nothing is emulated here, and nothing is cross-built any more either.
 #
 # Usage: bash .ci/smoke.sh <image>
 # where <image> ∈ {base, flutter, zephyr, zephyr-devbox, base-runner}

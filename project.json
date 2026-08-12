@@ -22,6 +22,8 @@
       "inputs": [
         "{projectRoot}/ctl.sh",
         "{projectRoot}/_ctl/lib.sh",
+        "{projectRoot}/_ctl/tests/**/*.sh",
+        "{projectRoot}/.ci/*.sh",
         "{projectRoot}/project.json",
         "{projectRoot}/*/ctl.sh",
         "{projectRoot}/*/Dockerfile",

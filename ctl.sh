@@ -5,10 +5,10 @@
 # Builds, pushes, lists, and validates every image under the repo root.
 # Delegates per-image work to <name>/ctl.sh.
 #
-# Multi-arch policy:
-#   - `build`               native single-arch (fast dev loop)
-#   - `build-multi-arch`    explicit buildx multi-arch build (no push)
-#   - `push`                ENFORCED multi-arch via buildx (guarded)
+# Platform policy:
+#   - `build`               the sanctioned platform, explicitly (fast dev loop)
+#   - `push`                buildx + --push, guarded (see _ctl/lib.sh)
+#   - `verify-published`    the published manifest must carry that same set
 #
 # Usage: ./ctl.sh <command> [args...]
 #
@@ -17,13 +17,13 @@ IFS=$'\n\t'
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# The logging, the tool gate and the multi-arch guard live in _ctl/lib.sh, 1
-# time only. This script owns the repo-wide verbs, which act on the whole set.
+# The logging, the tool gate and the push guard live in _ctl/lib.sh, 1 time
+# only. This script owns the repo-wide verbs, which act on the whole set.
 #
-# This script does NOT call require_buildx_and_multi_arch, and that is
-# deliberate. The guard enforces the platform list of 1 image, and the list is
-# not the same for every image: a runner image is amd64 only. `push` delegates
-# to the per-image ctl.sh, which calls the guard with its own list.
+# This script does NOT call require_buildx_and_platforms, and that is
+# deliberate. The guard enforces the platform list of 1 image, and an image is
+# free to declare a measured narrower list. `push` delegates to the per-image
+# ctl.sh, which calls the guard with its own list.
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=_ctl/lib.sh
 source "$PROJECT_ROOT/_ctl/lib.sh"
@@ -84,16 +84,6 @@ function cmd_build() {
   image_ctl "$name" build "$@"
 }
 
-function cmd_build_multi_arch() {
-  local name="${1:-}"
-  if [[ -z "$name" ]]; then
-    log_error "usage: ./ctl.sh build-multi-arch <image>"
-    exit 2
-  fi
-  shift
-  image_ctl "$name" build-multi-arch "$@"
-}
-
 function cmd_push() {
   local name="${1:-}"
   if [[ -z "$name" ]]; then
@@ -102,6 +92,16 @@ function cmd_push() {
   fi
   shift
   image_ctl "$name" push "$@"
+}
+
+function cmd_verify_published() {
+  local name="${1:-}"
+  if [[ -z "$name" ]]; then
+    log_error "usage: ./ctl.sh verify-published <image> [tag]"
+    exit 2
+  fi
+  shift
+  image_ctl "$name" verify-published "$@"
 }
 
 function cmd_pull() {
@@ -134,30 +134,52 @@ function cmd_list() {
   done
 }
 
-# Validate: shellcheck every ctl.sh, jq every project.json, hadolint every
-# Dockerfile (warn if missing), and refuse Dockerfiles that hardcode a
-# semver-shaped version inside a RUN line instead of threading an ARG.
+# Test: run every hermetic test file under _ctl/tests/. A suite that finds no
+# test file is a FAILURE and not a pass — a glob that matched nothing is the
+# exact way a green result can mean nothing was checked.
+function cmd_test() {
+  local -a files=()
+  local f
+  for f in "$PROJECT_ROOT"/_ctl/tests/*.test.sh; do
+    [[ -f "$f" ]] && files+=("$f")
+  done
+  if [[ ${#files[@]} -eq 0 ]]; then
+    log_error "no test file matched _ctl/tests/*.test.sh — nothing ran, so nothing is proven"
+    return 1
+  fi
+
+  local rc=0
+  for f in "${files[@]}"; do
+    log_info "test: ${f#"$PROJECT_ROOT"/}"
+    bash "$f" || rc=1
+  done
+
+  if [[ $rc -eq 0 ]]; then
+    log_info "test: OK (${#files[@]} files)"
+  else
+    log_error "test: FAILED"
+  fi
+  return "$rc"
+}
+
+# Validate: shellcheck every shell script, jq every project.json, hadolint every
+# Dockerfile, and refuse Dockerfiles that hardcode a semver-shaped version inside
+# a RUN line instead of threading an ARG.
 function cmd_validate() {
   require_cmd shellcheck jq
   local rc=0
   local name dir script
 
-  log_info "shellcheck: ctl.sh"
-  shellcheck -x "$PROJECT_ROOT/ctl.sh" || rc=1
-
-  # The shared library holds the body of every per-image verb, so it is the
-  # most important script in the repository. shellcheck it explicitly. A
-  # missing file makes shellcheck exit non-zero, which fails validate.
-  log_info "shellcheck: _ctl/lib.sh"
-  shellcheck -x "$PROJECT_ROOT/_ctl/lib.sh" || rc=1
+  # Every *.sh in the repository, not a hand-kept list. The list version missed
+  # .ci/ctl.sh and .ci/smoke.sh, which no linter ran at all. -x follows the
+  # source line, so each dispatcher is checked together with _ctl/lib.sh.
+  while IFS= read -r script; do
+    log_info "shellcheck: ${script#"$PROJECT_ROOT"/}"
+    shellcheck -x -S style "$script" || rc=1
+  done < <(find "$PROJECT_ROOT" -name '*.sh' -not -path '*/.git/*' | sort)
 
   for name in "${BUILD_ORDER[@]}"; do
     dir="$(image_dir "$name")"
-    # Every shell script an image dir ships (ctl.sh, entrypoints, ...).
-    for script in "$dir"/*.sh; do
-      log_info "shellcheck: ${name}/$(basename "$script")"
-      shellcheck -x "$script" || rc=1
-    done
 
     log_info "jq parse: ${name}/project.json"
     jq empty "$dir/project.json" || rc=1
@@ -242,18 +264,20 @@ Usage: ./ctl.sh <command> [args...]
 Images (build order): ${order}
 
 Per-image commands (take <image> as first arg):
-  build <image>              Native single-arch build (fast dev loop)
-  build-multi-arch <image>   Explicit buildx multi-arch build (no push)
-  push <image>               ENFORCED multi-arch buildx build + push
-  pull <image>               docker pull ghcr.io/gophersys/<image>:latest
-  inspect <image>            docker image inspect ghcr.io/gophersys/<image>:latest
+  build <image>                    Build for the sanctioned platform (fast dev loop)
+  push <image>                     GUARDED buildx build + push
+  verify-published <image> [tag]   Assert the published manifest carries exactly
+                                   the sanctioned platform set
+  pull <image>                     docker pull ghcr.io/gophersys/<image>:latest
+  inspect <image>                  docker image inspect ghcr.io/gophersys/<image>:latest
 
 Repo-wide commands:
-  list                       Print managed image refs
-  validate                   shellcheck, jq, hadolint, ARG-discipline checks
-  propagate                  Fan out submodule bumps (delegates to brain)
-  release                    Cut a release (delegates to brain)
-  help                       Show this message
+  list                             Print managed image refs
+  validate                         shellcheck, jq, hadolint, ARG-discipline checks
+  test                             Run every _ctl/tests/*.test.sh
+  propagate                        Fan out submodule bumps (delegates to brain)
+  release                          Cut a release (delegates to brain)
+  help                             Show this message
 EOF
 }
 
@@ -263,12 +287,13 @@ function main() {
   shift || true
   case "$cmd" in
     build)              cmd_build             "$@" ;;
-    build-multi-arch)   cmd_build_multi_arch  "$@" ;;
     push)               cmd_push              "$@" ;;
+    verify-published)   cmd_verify_published  "$@" ;;
     pull)               cmd_pull              "$@" ;;
     inspect)            cmd_inspect           "$@" ;;
     list)               cmd_list              "$@" ;;
     validate)           cmd_validate          "$@" ;;
+    test)               cmd_test              "$@" ;;
     propagate)          cmd_propagate         "$@" ;;
     release)            cmd_release           "$@" ;;
     help|"")            usage ;;
