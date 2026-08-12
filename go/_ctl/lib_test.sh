@@ -61,8 +61,17 @@ done
 
 # ── the sandbox ─────────────────────────────────────────────────────────────
 
-# stub_output_for <code> prints what golangci-lint 2.12.2 really writes for that
-# exit code, captured by running it against the fixture module.
+# stub_output_for <code> prints golangci-lint 2.12.2 output for that exit code.
+# Each string was captured from a real run, and each is reproducible:
+#   0  the fixture module as it stands (`golangci-lint run ./...` in testdata/parallelfixture).
+#   1  a THROWAWAY copy of the fixture with `func unusedThing() {}` appended, which
+#      lands on line 8. The committed fixture stays clean on purpose: it is the
+#      baseline for the concurrency test, where any non-zero exit must be
+#      unambiguous, so the finding is provoked in a copy and discarded.
+#   3  concurrent runs of the fixture module, one of which lost the lock. This one
+#      no longer reproduces against the committed config, because
+#      run.allow-parallel-runners now prevents it — that is the point of the fix.
+#      To see it again, copy .golangci.yml with the key stripped and run 8 at once.
 stub_output_for() {
   case "$1" in
     0) printf '0 issues.' ;;
@@ -251,6 +260,8 @@ if [[ $# -gt 0 ]]; then
 fi
 
 failures=0
+proven=0
+unproven=0
 t=""
 
 info "phase 1 — behaviour: ${#TESTS[@]} test(s) against go/_ctl/lib.sh and .golangci.yml"
@@ -269,6 +280,7 @@ for t in "${TESTS[@]}"; do
   spec="$(counter_for "$t")"
   if ! apply "$spec"; then
     info "$t — no counter-stimulus: ${spec#none:}"
+    unproven=$((unproven + 1))
     continue
   fi
   if ( set -Eeuo pipefail; "$t" ); then
@@ -276,10 +288,14 @@ for t in "${TESTS[@]}"; do
     failures=$((failures + 1))
   else
     ok "$t fails under $spec"
+    proven=$((proven + 1))
   fi
 done
 
 if [[ "$failures" -ne 0 ]]; then
   die "$failures failure(s) across both phases"
 fi
-info "all ${#TESTS[@]} test(s) hold, and each is proven able to fail"
+# The summary is COUNTED, never asserted. An earlier version ended with "each is
+# proven able to fail", which was false for any test carrying a `none:` counter —
+# a summary that overstates its own rigour is the defect this suite exists to catch.
+info "${#TESTS[@]} test(s) hold; $proven of ${#TESTS[@]} proven able to fail; $unproven stated no counter"
