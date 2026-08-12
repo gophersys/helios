@@ -72,6 +72,12 @@ to fail". The exit-3 arm now prints
 `cd go/errors && bash ./ctl.sh lint` -> `0 issues.` rc 0. A real library still
 lints clean under the new config and the new handler.
 
+`bash ./ctl.sh validate` in the container -> **rc 1, 4 pre-existing issues**. The
+gate FAILED. Its parts are listed below because they are informative, but the
+exit code is the result, and an earlier version of this section listed the parts
+without it. The 4 issues pre-date this branch, proven by running the same
+container against a pristine `origin/main`: the same 4, byte for byte.
+
 `bash ./ctl.sh validate` CANNOT run on this host: /bin/bash is 3.2.57 and has no
 mapfile, so the pre-existing script dies rc 127. The implementer built an
 ubuntu 24.04 container with bash 5.2 and ran it there: 29 scripts shellchecked
