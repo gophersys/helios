@@ -8,11 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { render } from '@testing-library/svelte';
 import { generateTheme, C21_SEED } from '@eden/theme';
 import StreamingText from './streaming-text.svelte';
-import {
-  deriveStreamingTextTokens,
-  streamingTextStyleVars,
-  appendChunk,
-} from './tokens.js';
+import { deriveStreamingTextTokens, streamingTextStyleVars, appendChunk } from './tokens.js';
 
 describe('deriveStreamingTextTokens — the pure derivation contract', () => {
   const theme = generateTheme(C21_SEED);
@@ -51,7 +47,9 @@ describe('streamingTextStyleVars — the exact emission', () => {
 
 describe('StreamingText.svelte — the real component', () => {
   it('renders a polite live region carrying the accumulated text', () => {
-    const { getByRole } = render(StreamingText, { props: { text: 'Hello world', streaming: true } });
+    const { getByRole } = render(StreamingText, {
+      props: { text: 'Hello world', streaming: true },
+    });
     const el = getByRole('status');
     expect(el.getAttribute('aria-live')).toBe('polite');
     expect(el.textContent).toContain('Hello world');
