@@ -65,6 +65,13 @@ jobs:
       - name: contracts and charts structure
         run: bash scripts/verify-structure.sh
 
+      # The queue rule reads its own fixtures, so it needs no network and no
+      # token. It ran nowhere before this step existed, and a suite that nothing
+      # runs is a check that never runs. gh and jq are both on the runner image;
+      # the suite exits 127 and names the tool if either one goes missing.
+      - name: runner-queue rule — fixture tests
+        run: bash scripts/test-verify-runner-queue.sh
+
       - name: qBittorrent config-enforce — tests + drift guard
         run: |
           set -euo pipefail
