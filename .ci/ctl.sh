@@ -71,7 +71,22 @@ function affected_projects() {
 function run_phase_gate_over_affected() {
   local selector="$1"
   local -a projects=()
-  mapfile -t projects < <(affected_projects)
+  local listing="" status=0
+
+  # Read the STATUS of the producer, never the length of its stream. A failing cictl and a
+  # cictl that ran and found nothing print the same empty listing, so the exit status is the
+  # only byte that tells them apart. Consuming that listing through `< <(affected_projects)`
+  # threw it away: a process substitution is a subshell, so require_cmd's `exit 127` — and
+  # any other failure, a bad base ref, a shallow clone, a git fault — killed only the
+  # subshell, mapfile read an empty stream, and the tier reported a clean no-op over
+  # libraries it had never looked at. Capture, check, then split; every tier verb reaches
+  # this one helper, so the check cannot be reintroduced per-verb.
+  listing="$(affected_projects)" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    log_error "cictl affected failed (exit $status) for base '${NX_BASE}'; the affected set is unknown, so nothing was gated"
+    return "$status"
+  fi
+  [[ -z "$listing" ]] || mapfile -t projects <<<"$listing"
 
   if [[ ${#projects[@]} -eq 0 ]]; then
     log_info "no affected projects for base '${NX_BASE}' — clean no-op"
