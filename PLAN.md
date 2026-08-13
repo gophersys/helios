@@ -62,7 +62,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 ## P5 — Eyes as a supplement, proofs as the authority
 
-- [ ] Integrate a Playwright-MCP (or CDP) interaction loop for gesture-level
+- [ ] ⏳ 2026-08-13T23:58Z (loop) Integrate a Playwright-MCP (or CDP) interaction loop for gesture-level
       verification (drags, menus, wheel), replacing ad-hoc CDP scripts.
 - [ ] `docs/eyes.md`: when screenshots may be consulted (anatomy discovery)
       and when they may not (never to pass a gate).
