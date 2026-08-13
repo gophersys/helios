@@ -2,7 +2,7 @@
 #
 # libs/go/_ctl/lib_test.sh — prove that lib.sh's gate can FAIL, and names the failure it had.
 #
-# Two defects, one suite, because both live in this file:
+# Three defects, one suite, because all three live in this file:
 #
 #   1. `cmd_lint` mis-reports a golangci-lint RUN failure as lint findings (tests 1-5).
 #   2. `cmd_phase_gate`'s `all` arm records PASS for a verb whose tool exited non-zero
@@ -15,6 +15,20 @@
 #      trusts. lib.sh:1007-1020 already documents and fixes the trap INSIDE `_gate_run`;
 #      the neutral position has to hold at the CALL SITE too, or the suppression comes
 #      straight back.
+#   3. The substrate lanes state NO time budget (tests 8-12). `cmd_integration` runs
+#      `go test -tags integration ./... -count=1` with no `-timeout`, so Go's own default
+#      of 10 minutes PER PACKAGE applies silently. `workspaceprovider/kubernetesadapter`
+#      stands up 8 clusters (6 k3d + 2 kind, one per test) and measures 601.3s isolated /
+#      544.1s in-lane against that 600.0s wall — a coin flip at 91-100% of it, which is
+#      why it reads as flake rather than as a budget. `_cover_profile` omits `-timeout`
+#      the same way, and cover-floor is a dimension of BOTH `phase-gate testing` and
+#      `phase-gate qa`, so the same 8 clusters run under the same silent default one verb
+#      over. The budget has to be STATED (`EDEN_SUBSTRATE_TIMEOUT`), it has to be REFUSED
+#      when it is unbounded — a lane with no budget cannot report a hang, and a hang is
+#      exactly how a real-cluster suite fails — and it has to reach `go test`, not just
+#      the log line. Test 10 is the one that proves the last part: it runs a REAL `go`
+#      against a fixture that sleeps past its budget, so the timeout is proven by
+#      BEHAVIOUR in seconds instead of by shape, or by waiting 10 minutes.
 #
 # `cmd_lint` reports EVERY non-zero golangci-lint exit as "golangci-lint found
 # issues". golangci-lint 2.12.2 exits 0 clean, 1 for findings and 3 when the RUN
@@ -43,7 +57,12 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LIB="$HERE/lib.sh"
+# LIB_SOURCE is the file under test as it stands in the tree; LIB is the copy the NEXT run
+# drives. They are the same file for every behaviour run, and a `mutant:` counter-stimulus
+# repoints LIB at a surgically mutated copy — the same shape as `typo_config` below, which
+# has repointed CONFIG at a mutated .golangci.yml since this suite was written.
+LIB_SOURCE="$HERE/lib.sh"
+LIB="$LIB_SOURCE"
 REPO_ROOT="$(cd "$HERE/../.." && pwd)"
 SHARED_CONFIG="$REPO_ROOT/.golangci.yml"
 FIXTURE="$HERE/testdata/parallelfixture"
@@ -59,11 +78,20 @@ STIMULUS=""
 CONFIG="$SHARED_CONFIG"
 GO_BUILD_RC=0
 ABSENT_TOOL=""
-# OUT and RC hold the last run_lint / run_phase_gate result; ARGV holds what the
-# phase-gate sandbox's stubs recorded of their own invocations.
+# SUBSTRATE_TIMEOUT_PRESENT distinguishes "EDEN_SUBSTRATE_TIMEOUT is not in the environment
+# at all" (0 — the state of the 14 non-cluster libraries, which must keep Go's own default)
+# from "it is set, possibly to the empty string" (1). SUBSTRATE_TIMEOUT is the value.
+# REFUSE_VALUES is the set of budgets the lane must REFUSE.
+SUBSTRATE_TIMEOUT_PRESENT=0
+SUBSTRATE_TIMEOUT=""
+REFUSE_VALUES=("0" "0s" "")
+# OUT and RC hold the last run_lint / run_phase_gate / run_verb / run_real_lane result;
+# ARGV holds what the sandbox's stubs recorded of their own invocations; ELAPSED_MS is the
+# wall time of the last run_real_lane, so "reported in seconds" is a number, not an adjective.
 OUT=""
 RC=0
 ARGV=""
+ELAPSED_MS=0
 
 info() { printf '\033[0;36m[test]\033[0m %s\n' "$*"; }
 ok()   { printf '\033[0;32m  ok  \033[0m %s\n' "$*"; }
@@ -73,10 +101,11 @@ die()  { printf '\033[0;31m[test]\033[0m %s\n' "$*" >&2; exit 1; }
 fail() { printf '       %s\n' "$*" >&2; exit 1; }
 
 # FAIL-NOT-SKIP (ADR-0020): a missing tool is a failure that names the tool.
-for _tool in go golangci-lint mktemp awk grep; do
+# `date` is required because test 10 MEASURES the wall time of a real timed-out lane.
+for _tool in go golangci-lint mktemp awk grep date; do
   command -v "$_tool" >/dev/null || die "this host has no $_tool; the suite cannot run"
 done
-[[ -f "$LIB" ]]           || die "the library under test is missing: $LIB"
+[[ -f "$LIB_SOURCE" ]]    || die "the library under test is missing: $LIB_SOURCE"
 [[ -f "$SHARED_CONFIG" ]] || die "the shared config is missing: $SHARED_CONFIG"
 [[ -f "$FIXTURE/go.mod" ]] || die "the parallel fixture module is missing: $FIXTURE"
 
@@ -283,6 +312,29 @@ run_phase_gate() {
   assert_gate_harness_intact
 }
 
+# run_verb <verb> — drive ONE verb through the per-lib dispatcher in the same sandbox, exactly
+# as `./ctl.sh <verb>` does. The sandbox already records every stub's ARGV, which is what makes
+# "the lane states its budget" an assertion about the command that RAN rather than about the
+# sentence lib.sh printed. Sets OUT, RC and ARGV.
+run_verb() {
+  local verb="$1" sb
+  [[ -n "$verb" ]] || die "run_verb needs a verb"
+  sb="$(make_gate_sandbox)"
+  # env -i means EDEN_SUBSTRATE_TIMEOUT is genuinely ABSENT unless this run sets it, so the
+  # default-budget test measures the state every non-cluster library is in.
+  local -a env_extra=()
+  if [[ "$SUBSTRATE_TIMEOUT_PRESENT" -eq 1 ]]; then
+    env_extra+=("EDEN_SUBSTRATE_TIMEOUT=$SUBSTRATE_TIMEOUT")
+  fi
+  RC=0
+  OUT="$(env -i PATH="$sb/bin" HOME="$sb" TMPDIR="$sb" \
+    EDEN_GOWORK="$sb/absent.go.work" EDEN_LIB_UNDER_TEST="$LIB" \
+    ${env_extra[@]+"${env_extra[@]}"} \
+    bash "$sb/proj/ctl.sh" "$verb" 2>&1)" || RC=$?
+  ARGV="$(cat "$sb/argv")"
+  assert_gate_harness_intact
+}
+
 # assert_gate_harness_intact — a red produced by a broken sandbox is not evidence. A utility
 # the sandbox failed to provide surfaces as "command not found", which would make almost any
 # verb fail for a reason that has nothing to do with lib.sh, so it aborts the suite instead of
@@ -291,6 +343,196 @@ assert_gate_harness_intact() {
   if grep -q 'command not found' <<< "$OUT"; then
     die "the sandbox is missing a utility, so this run measured the harness, not lib.sh: $OUT"
   fi
+}
+
+# ── the real-substrate-lane fixture (test 10) ───────────────────────────────
+#
+# A stub `go` can be handed any flag and will exit 0, so a stubbed run proves the flag was
+# SPELLED, never that it was OBEYED. Test 10 therefore drives a REAL `go` over a throwaway
+# module whose one integration-tagged test sleeps past every budget it is given.
+#
+# The numbers, and why these numbers. Measured inside ghcr.io/gophersys/base (amd64) on an
+# arm64 host, so every second below is a QEMU-EMULATED second — the slow direction:
+#   cold build of the fixture           2.56s
+#   warm lane at -timeout=2s            2.70s  (exit 1, "test timed out after 2s")
+#   warm lane with NO -timeout          5.39s  (exit 0 — the counter-stimulus's behaviour)
+# make_real_lane_fixture WARMS the build cache before the measured run, so the wall time is
+# the lane's, not the compiler's. The ceiling is 6000ms:
+#   - 2.1x the 2.8s measured warm run, which is the margin against a loaded/emulated host;
+#   - and strictly BELOW the fixture's own 10s sleep, so a lane that ignored its budget
+#     cannot slip under the ceiling even if it somehow exited non-zero for another reason.
+# The sleep is 10s rather than 5s for that second property: it buys the ceiling 4s of room
+# underneath the un-budgeted wall while costing the suite 10s once, in phase 2.
+HANG_SLEEP_SECONDS=10
+HANG_BUDGET=2s
+HANG_CEILING_MS=6000
+
+# make_real_lane_fixture prints the path of a throwaway module + per-lib ctl.sh, with the test
+# binary already built (a build failure here is a HARNESS failure and aborts the suite, because
+# a cold compile inside the measured window would report the compiler as if it were the lane).
+make_real_lane_fixture() {
+  local sb rc=0
+  sb="$(mktemp -d "$WORK/hang.XXXXXX")"
+  mkdir -p "$sb/proj"
+  printf '%s\n' 'module example.com/hangfixture' '' 'go 1.24' > "$sb/proj/go.mod"
+  printf '%s\n' \
+    '// Package hangfixture is the throwaway module the substrate-budget test drives.' \
+    'package hangfixture' > "$sb/proj/doc.go"
+  printf '%s\n' \
+    '//go:build integration' \
+    '' \
+    'package hangfixture' \
+    '' \
+    'import (' \
+    '	"testing"' \
+    '	"time"' \
+    ')' \
+    '' \
+    '// TestSleepsPastTheBudget outlives every budget the lane is given, so the only way this' \
+    '// test ends is the timeout the lane must impose on it.' \
+    'func TestSleepsPastTheBudget(t *testing.T) {' \
+    "	time.Sleep(${HANG_SLEEP_SECONDS} * time.Second)" \
+    '}' > "$sb/proj/hang_test.go"
+
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'set -Eeuo pipefail\n'
+    printf "IFS=\$'\\\\n\\\\t'\n"
+    # shellcheck disable=SC2016 # the fixture's own body, expanded when the fixture runs
+    printf '%s\n' 'PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' 'export PROJECT_ROOT'
+    printf 'EDEN_LIB_NAME="hangfixture"\n'
+    printf 'EDEN_INTEGRATION_CMDS="go"\n'
+    printf 'export EDEN_LIB_NAME EDEN_INTEGRATION_CMDS\n'
+    # shellcheck disable=SC2016 # the fixture resolves these at run time, not here
+    printf '%s\n' 'source "$EDEN_LIB_UNDER_TEST"' 'lib_main "$@"'
+  } > "$sb/proj/ctl.sh"
+  chmod +x "$sb/proj/ctl.sh"
+
+  ( cd "$sb/proj" && env GOWORK=off go test -tags integration -c -o "$sb/warm.test" . ) || rc=$?
+  [[ "$rc" -eq 0 ]] ||
+    die "the hang fixture does not build (exit $rc); a run from here would measure the harness, not the budget"
+  printf '%s' "$sb"
+}
+
+# run_real_lane <fixture> — `./ctl.sh integration` against a REAL go, timed. Sets OUT, RC and
+# ELAPSED_MS. The environment is inherited (PATH, HOME, GOCACHE) because the point is the real
+# toolchain; only GOWORK is pinned off, so no ambient go.work can redirect the module.
+run_real_lane() {
+  local fixture="$1" started ended
+  [[ -n "$fixture" ]] || die "run_real_lane needs a fixture"
+  local -a env_extra=()
+  if [[ "$SUBSTRATE_TIMEOUT_PRESENT" -eq 1 ]]; then
+    env_extra+=("EDEN_SUBSTRATE_TIMEOUT=$SUBSTRATE_TIMEOUT")
+  fi
+  started="$(date +%s%N)"
+  RC=0
+  OUT="$(env GOWORK=off EDEN_GOWORK="$fixture/absent.go.work" EDEN_LIB_UNDER_TEST="$LIB" \
+    ${env_extra[@]+"${env_extra[@]}"} \
+    bash "$fixture/proj/ctl.sh" integration 2>&1)" || RC=$?
+  ended="$(date +%s%N)"
+  ELAPSED_MS=$(( (ended - started) / 1000000 ))
+}
+
+# ── the lib.sh mutants (the counter-stimuli for tests 8-12) ─────────────────
+#
+# The defect lives INSIDE lib.sh, so its counter-stimulus is a mutated lib.sh — the same shape
+# as `typo_config`, which mutates .golangci.yml for the same reason. Each mutant is surgical
+# and spelling-independent: it is anchored on the INVOCATION (the line that runs `go test`,
+# never a `log_*` line or a comment), so it survives any reasonable spelling of the fix.
+#
+# Every mutant DIES if it changed nothing. A counter-stimulus that mutated nothing proves
+# nothing, and the message names the anchor it could not find — which, before the fix lands,
+# is exactly the true statement "lib.sh has no such argument yet".
+mutant_lib() {
+  local spec="$1" dir dst rc=0
+  dir="$(mktemp -d "$WORK/mut.XXXXXX")"
+  dst="$dir/lib.sh"
+  # is_log: a log_* call or a comment DESCRIBES the lane; it does not run it. Mutating those
+  # would let a fix that only prints the budget survive, which is the very thing test 10 exists
+  # to catch — so the invocation-only anchor is load-bearing, not cosmetic.
+  local common='
+    function is_log(l) { return (l ~ /log_(info|success|error|warn|dim)/ || l ~ /^[[:space:]]*#/) }
+  '
+  case "$spec" in
+    # THE COUNTER FOR "the lane states its budget" AND FOR "a hang is reported in seconds":
+    # drop -timeout from the integration INVOCATION and leave the log line boasting about it.
+    integration-untimed)
+      awk "$common"'
+        /-tags[[:space:]]*"?integration/ && !is_log($0) {
+          if (sub(/[[:space:]]+-timeout(=[^[:space:]]+|[[:space:]]+[^[:space:]]+)/, "")) changed++
+        }
+        { print }
+        END { if (!changed) exit 3 }
+      ' "$LIB_SOURCE" > "$dst" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' mutant changed nothing: no non-log line in $LIB_SOURCE runs '-tags integration' with a -timeout, so the counter-stimulus cannot be applied"
+      ;;
+    # THE SECOND COUNTER FOR "the lane states its budget": keep -timeout, but hard-code Go's
+    # 10m instead of reading the knob. The log line still says 7m, so only a test that reads
+    # the ARGV catches it.
+    integration-hardcoded)
+      awk "$common"'
+        /-tags[[:space:]]*"?integration/ && !is_log($0) {
+          if (sub(/-timeout(=[^[:space:]]+|[[:space:]]+[^[:space:]]+)/, "-timeout=10m")) changed++
+        }
+        { print }
+        END { if (!changed) exit 3 }
+      ' "$LIB_SOURCE" > "$dst" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' mutant changed nothing: no non-log line in $LIB_SOURCE runs '-tags integration' with a -timeout, so the counter-stimulus cannot be applied"
+      ;;
+    # THE COUNTER FOR "cover-floor carries the same budget": fix ONLY cmd_integration. This is
+    # what turns the budget from a case into a rule.
+    cover-untimed)
+      awk "$common"'
+        /-coverprofile=/ && !is_log($0) {
+          if (sub(/[[:space:]]+-timeout(=[^[:space:]]+|[[:space:]]+[^[:space:]]+)/, "")) changed++
+        }
+        { print }
+        END { if (!changed) exit 3 }
+      ' "$LIB_SOURCE" > "$dst" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' mutant changed nothing: no non-log line in $LIB_SOURCE runs -coverprofile= with a -timeout, so the counter-stimulus cannot be applied"
+      ;;
+    # THE COUNTER FOR "the default is 10m": move the default off Go's own, which is what would
+    # change behaviour for the 14 libraries that never set the knob.
+    default-25m)
+      # `:?[=-]` covers all four default operators. `${VAR=10m}` — assign only when UNSET, so an
+      # EXPLICITLY empty value still reaches the guard — is the spelling this defect wants, and
+      # an anchor that only knew `:=` would have died on the very fix it exists to test. The
+      # mutant normalises the operator to `:=`, which is irrelevant to the VALUE it changes.
+      awk '
+        /EDEN_SUBSTRATE_TIMEOUT:?[=-]/ {
+          if (sub(/EDEN_SUBSTRATE_TIMEOUT:?[=-][^}"]*/, "EDEN_SUBSTRATE_TIMEOUT:=25m")) changed++
+        }
+        { print }
+        END { if (!changed) exit 3 }
+      ' "$LIB_SOURCE" > "$dst" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' mutant changed nothing: $LIB_SOURCE declares no EDEN_SUBSTRATE_TIMEOUT default, so the counter-stimulus cannot be applied"
+      ;;
+    # THE COUNTER FOR "an unbounded budget is refused": pull the guard's teeth. Every `exit N` /
+    # `return N` within 8 lines of a mention of the knob becomes `:`, so the guard still reads
+    # the value, still logs, and no longer stops the lane. Anchoring on the knob's NAME rather
+    # than on a function name is what makes this independent of how the guard is written.
+    guard-toothless)
+      awk '
+        /EDEN_SUBSTRATE_TIMEOUT/ { window = 8 }
+        window > 0 {
+          if (sub(/(exit|return)[[:space:]]+[1-9][0-9]*/, ":")) changed++
+        }
+        { if (window > 0) window--; print }
+        END { if (!changed) exit 3 }
+      ' "$LIB_SOURCE" > "$dst" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' mutant changed nothing: no exit/return sits within 8 lines of an EDEN_SUBSTRATE_TIMEOUT mention in $LIB_SOURCE, so there is no guard to disarm"
+      ;;
+    *) die "unknown lib.sh mutant: $spec" ;;
+  esac
+  if cmp -s "$LIB_SOURCE" "$dst"; then
+    die "the '$spec' mutant reported a change but produced an identical file: $LIB_SOURCE"
+  fi
+  printf '%s' "$dst"
 }
 
 # ── the tests ───────────────────────────────────────────────────────────────
@@ -405,6 +647,83 @@ t_phase_gate_all_is_green_when_every_tool_passes() {
     fail "phase-gate all did not report GREEN although every tool exited 0: $OUT"
 }
 
+# THE SUBSTRATE-BUDGET DEFECT. The integration lane runs `go test -tags integration ./...
+# -count=1` with no -timeout, so Go's silent 10m/package is the budget nobody chose. The
+# recorded ARGV — not the sentence lib.sh prints — is what says the lane actually carries it.
+t_the_substrate_lane_states_its_budget() {
+  run_verb integration
+  grep -qE '^go[[:space:]]+test[[:space:]].*-tags[[:space:]]+"?integration' <<< "$ARGV" ||
+    fail "the integration lane never ran 'go test -tags integration', so this run proves nothing: [$ARGV]"
+  grep -qE '^go[[:space:]]+test[[:space:]].*-timeout[= ]7m([[:space:]]|$)' <<< "$ARGV" ||
+    fail "the lane ran with no 7m budget although EDEN_SUBSTRATE_TIMEOUT=7m — Go's silent 10m default still decides: [$ARGV]"
+  grep -qE '\[info\].*integration.*7m' <<< "$OUT" ||
+    fail "no [info] line states the 7m budget, so a reader waiting on the lane cannot know what it is: $OUT"
+}
+
+# An unbounded lane cannot report a hang, and a hang is exactly how a real-cluster suite fails.
+# `0` is the value someone reaches for when the number is inconvenient; the empty string is the
+# value a half-written per-lib override leaves behind. Both must be refused BY NAME, so the
+# reader is sent to the knob instead of to a lane that never returns.
+t_an_unbounded_budget_is_refused() {
+  local value shown
+  # A for-loop over an empty list returns 0, which would make this test report a pass having
+  # asserted nothing — the "0 tests ran, exit 0" class this suite exists to delete.
+  [[ "${#REFUSE_VALUES[@]}" -gt 0 ]] || fail "no budget values were supplied, so this run asserted nothing"
+  for value in "${REFUSE_VALUES[@]}"; do
+    shown="${value:-<empty>}"
+    SUBSTRATE_TIMEOUT_PRESENT=1
+    SUBSTRATE_TIMEOUT="$value"
+    run_verb integration
+    [[ "$RC" -ne 0 ]] ||
+      fail "EDEN_SUBSTRATE_TIMEOUT=${shown} was accepted (exit 0): the lane would run unbounded and could never report a hang: $OUT"
+    grep -q 'EDEN_SUBSTRATE_TIMEOUT' <<< "$OUT" ||
+      fail "the refusal of ${shown} never names EDEN_SUBSTRATE_TIMEOUT, so the reader cannot find the knob to fix: $OUT"
+  done
+}
+
+# THE ONE THAT PROVES BEHAVIOUR RATHER THAN SHAPE. A stub `go` accepts any flag and exits 0, so
+# every other test here proves the budget was SPELLED. This one runs a REAL `go` over a module
+# whose only test sleeps 10s, gives the lane 2s, and demands the failure arrive in seconds.
+# A sibling feature shipped a guard tested by shape alone and the verifier caught it.
+t_a_hang_is_reported_in_seconds() {
+  local fixture
+  fixture="$(make_real_lane_fixture)"
+  SUBSTRATE_TIMEOUT_PRESENT=1
+  SUBSTRATE_TIMEOUT="$HANG_BUDGET"
+  run_real_lane "$fixture"
+  info "the real lane returned in ${ELAPSED_MS}ms with rc=${RC}, against a ${HANG_SLEEP_SECONDS}s sleep and a ${HANG_BUDGET} budget"
+  [[ "$RC" -ne 0 ]] ||
+    fail "the lane exited 0 although its only test sleeps ${HANG_SLEEP_SECONDS}s under a ${HANG_BUDGET} budget: the budget reached the log line but never 'go test': $OUT"
+  grep -q "test timed out after ${HANG_BUDGET}" <<< "$OUT" ||
+    fail "the lane failed without reporting a timeout, so it did not fail for the budget: $OUT"
+  [[ "$ELAPSED_MS" -lt "$HANG_CEILING_MS" ]] ||
+    fail "the hang was reported after ${ELAPSED_MS}ms, over the ${HANG_CEILING_MS}ms ceiling and near the ${HANG_SLEEP_SECONDS}s the test would have slept — a budget reported in minutes is the defect"
+}
+
+# The same landmine sits one verb over: _cover_profile omits -timeout too, and cover-floor is a
+# dimension of BOTH `phase-gate testing` and `phase-gate qa`, so the same clusters run under the
+# same silent default twice more. This is the test that makes the budget a RULE, not a case.
+t_cover_floor_carries_the_same_budget() {
+  run_verb cover-floor
+  grep -qE '^go[[:space:]]+test[[:space:]].*-coverprofile=' <<< "$ARGV" ||
+    fail "cover-floor never ran a coverage 'go test', so this run proves nothing: [$ARGV]"
+  grep -qE '^go[[:space:]]+test[[:space:]](.*-timeout[= ]7m.*-coverprofile=|.*-coverprofile=.*-timeout[= ]7m)' <<< "$ARGV" ||
+    fail "the coverage lane carries no 7m budget, so cover-floor still runs the cluster suites under Go's silent 10m: [$ARGV]"
+}
+
+# CONSERVATION. With the knob absent — the state of every library that does not override it —
+# the budget must be Go's own 10m, so the 14 non-cluster libraries change behaviour not at all;
+# only the number stops being implied. And it must be STATED, or it is implied again.
+t_the_default_budget_is_ten_minutes_and_is_stated() {
+  run_verb integration
+  grep -qE '^go[[:space:]]+test[[:space:]].*-tags[[:space:]]+"?integration' <<< "$ARGV" ||
+    fail "the integration lane never ran 'go test -tags integration', so this run proves nothing: [$ARGV]"
+  grep -qE '^go[[:space:]]+test[[:space:]].*-timeout[= ]10m([[:space:]]|$)' <<< "$ARGV" ||
+    fail "with no override the lane does not carry Go's own 10m, so the 14 non-cluster libraries changed behaviour: [$ARGV]"
+  grep -qE '\[info\].*integration.*10m' <<< "$OUT" ||
+    fail "no [info] line states the default 10m budget, so it is implied again: $OUT"
+}
+
 TESTS=(
   t_a_collision_is_not_reported_as_findings
   t_real_findings_are_still_reported_as_findings
@@ -413,6 +732,11 @@ TESTS=(
   t_the_shared_config_is_schema_valid
   t_phase_gate_all_never_records_pass_for_a_failing_verb
   t_phase_gate_all_is_green_when_every_tool_passes
+  t_the_substrate_lane_states_its_budget
+  t_an_unbounded_budget_is_refused
+  t_a_hang_is_reported_in_seconds
+  t_cover_floor_carries_the_same_budget
+  t_the_default_budget_is_ten_minutes_and_is_stated
 )
 
 # ── the stimulus tables ─────────────────────────────────────────────────────
@@ -420,34 +744,65 @@ TESTS=(
 # stimulus_for <test> — what phase 1 drives the test with.
 stimulus_for() {
   case "$1" in
-    t_a_collision_is_not_reported_as_findings)      printf 'exit:3' ;;
-    t_real_findings_are_still_reported_as_findings) printf 'exit:1' ;;
-    t_a_clean_run_passes)                           printf 'exit:0' ;;
-    t_concurrent_lints_do_not_collide)              printf 'real'   ;;
-    t_the_shared_config_is_schema_valid)            printf 'real'   ;;
-    t_phase_gate_all_never_records_pass_for_a_failing_verb) printf 'gobuild:1' ;;
-    t_phase_gate_all_is_green_when_every_tool_passes)       printf 'gobuild:0' ;;
+    t_a_collision_is_not_reported_as_findings)      printf 'exit:3\n' ;;
+    t_real_findings_are_still_reported_as_findings) printf 'exit:1\n' ;;
+    t_a_clean_run_passes)                           printf 'exit:0\n' ;;
+    t_concurrent_lints_do_not_collide)              printf 'real\n'   ;;
+    t_the_shared_config_is_schema_valid)            printf 'real\n'   ;;
+    t_phase_gate_all_never_records_pass_for_a_failing_verb) printf 'gobuild:1\n' ;;
+    t_phase_gate_all_is_green_when_every_tool_passes)       printf 'gobuild:0\n' ;;
+    t_the_substrate_lane_states_its_budget)                 printf 'substrate:7m\n' ;;
+    t_an_unbounded_budget_is_refused)                       printf 'refuse:unbounded\n' ;;
+    # The budget is supplied by the test itself (HANG_BUDGET), because the fixture's sleep and
+    # the budget are one calibrated pair — splitting them across the table would let one drift.
+    t_a_hang_is_reported_in_seconds)                        printf 'real\n' ;;
+    t_cover_floor_carries_the_same_budget)                  printf 'substrate:7m\n' ;;
+    t_the_default_budget_is_ten_minutes_and_is_stated)      printf 'substrate:absent\n' ;;
     *) die "no phase-1 stimulus is declared for $1" ;;
   esac
 }
 
-# counter_for <test> — what must BREAK the test. A `none:` entry states its
-# reason out loud, so a test can never lose its counter quietly.
+# counter_for <test> — what must BREAK the test, ONE SPEC PER LINE. A test may declare several,
+# and then EVERY one must break it: a defect with two ways of being half-fixed needs a counter
+# for each half. A `none:` entry states its reason out loud, so a test can never lose its
+# counter quietly.
 counter_for() {
   case "$1" in
-    t_a_collision_is_not_reported_as_findings)      printf 'exit:1' ;;
-    t_real_findings_are_still_reported_as_findings) printf 'exit:3' ;;
-    t_a_clean_run_passes)                           printf 'exit:3' ;;
-    t_the_shared_config_is_schema_valid)            printf 'config:typo' ;;
-    t_concurrent_lints_do_not_collide)              printf 'none:the counter is a config without the key, and a lock race is probabilistic; it is measured in phase 1, never asserted here' ;;
+    t_a_collision_is_not_reported_as_findings)      printf 'exit:1\n' ;;
+    t_real_findings_are_still_reported_as_findings) printf 'exit:3\n' ;;
+    t_a_clean_run_passes)                           printf 'exit:3\n' ;;
+    t_the_shared_config_is_schema_valid)            printf 'config:typo\n' ;;
+    t_concurrent_lints_do_not_collide)              printf 'none:the counter is a config without the key, and a lock race is probabilistic; it is measured in phase 1, never asserted here\n' ;;
     # A green `go build` makes the build dimension legitimately PASS, which is exactly the row
     # the test forbids — so a test that stopped reading the summary cannot survive this.
-    t_phase_gate_all_never_records_pass_for_a_failing_verb) printf 'gobuild:0' ;;
+    t_phase_gate_all_never_records_pass_for_a_failing_verb) printf 'gobuild:0\n' ;;
     # NOT `gobuild:1`: that is the defect's own stimulus, and while the defect stands the gate
     # still reports GREEN under it, so the counter would not break this test. An absent hnslint
     # exits 127 through require_cmd's explicit `exit`, which survives the errexit suppression
     # that defeats every other verb — and it lands AFTER `go build`, so the argv floor still holds.
-    t_phase_gate_all_is_green_when_every_tool_passes)       printf 'absent:hnslint' ;;
+    t_phase_gate_all_is_green_when_every_tool_passes)       printf 'absent:hnslint\n' ;;
+    # TWO counters, because there are two ways to half-fix this: not passing the budget at all,
+    # and passing a hard-coded one while the log line still reads the knob. A test that read
+    # only the log line survives the second; a test that read only "some -timeout is present"
+    # survives it too. Both must go red.
+    t_the_substrate_lane_states_its_budget)
+      printf 'mutant:integration-untimed\n'
+      printf 'mutant:integration-hardcoded\n' ;;
+    # TWO counters again. `refuse:bounded` proves the test reads the exit code and the message
+    # rather than always failing — a bounded 7m must be ACCEPTED. `mutant:guard-toothless`
+    # proves it reads the GUARD: the lane then runs -timeout=0 and exits 0.
+    t_an_unbounded_budget_is_refused)
+      printf 'refuse:bounded\n'
+      printf 'mutant:guard-toothless\n' ;;
+    # Exactly the brief's counter: let the budget reach log_info and not `go test`. The fixture
+    # then sleeps its full 10s and the lane exits 0 — which is what a test written against the
+    # message instead of the behaviour would have called a pass.
+    t_a_hang_is_reported_in_seconds)                  printf 'mutant:integration-untimed\n' ;;
+    # Fix only cmd_integration and leave the coverage lane silent.
+    t_cover_floor_carries_the_same_budget)            printf 'mutant:cover-untimed\n' ;;
+    # Move the default off Go's own 10m: the one change that would alter behaviour for the 14
+    # libraries which never set the knob.
+    t_the_default_budget_is_ten_minutes_and_is_stated) printf 'mutant:default-25m\n' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
 }
@@ -459,11 +814,27 @@ apply() {
   CONFIG="$SHARED_CONFIG"
   GO_BUILD_RC=0
   ABSENT_TOOL=""
+  LIB="$LIB_SOURCE"
+  SUBSTRATE_TIMEOUT_PRESENT=0
+  SUBSTRATE_TIMEOUT=""
+  REFUSE_VALUES=("0" "0s" "")
   case "$1" in
     exit:*)      STIMULUS="${1#exit:}" ;;
-    config:typo) CONFIG="$(typo_config)" ;;
+    # A `die` inside a command substitution exits only the SUBSHELL, and apply is called from a
+    # condition context where the driver reads a non-zero return as "this test declared no
+    # counter-stimulus". Re-raise it here, or a stimulus that could not be built is reported as
+    # a clean skip — the exact shape of check this suite exists to delete.
+    config:typo) CONFIG="$(typo_config)" || die "the 'config:typo' stimulus could not be built (see the message above)" ;;
     gobuild:*)   GO_BUILD_RC="${1#gobuild:}" ;;
     absent:*)    ABSENT_TOOL="${1#absent:}" ;;
+    substrate:absent) SUBSTRATE_TIMEOUT_PRESENT=0 ;;
+    substrate:*) SUBSTRATE_TIMEOUT_PRESENT=1; SUBSTRATE_TIMEOUT="${1#substrate:}" ;;
+    refuse:unbounded) REFUSE_VALUES=("0" "0s" "") ;;
+    refuse:bounded)   REFUSE_VALUES=("7m") ;;
+    mutant:*)
+      LIB="$(mutant_lib "${1#mutant:}")" ||
+        die "the '${1#mutant:}' counter-stimulus could not be built (see the message above)"
+      [[ -f "$LIB" ]] || die "the '${1#mutant:}' counter-stimulus produced no lib.sh" ;;
     real)        : ;;
     none:*)      return 1 ;;
     *) die "unknown stimulus spec: $1" ;;
@@ -489,6 +860,7 @@ fi
 failures=0
 proven=0
 unproven=0
+stimuli=0
 t=""
 
 info "phase 1 — behaviour: ${#TESTS[@]} test(s) against go/_ctl/lib.sh and .golangci.yml"
@@ -502,21 +874,29 @@ for t in "${TESTS[@]}"; do
   fi
 done
 
-info "phase 2 — discrimination: each test under its counter-stimulus must fail"
+# A test may declare MORE THAN ONE counter-stimulus, one per line, and every one of them must
+# break it. `broke` records whether this test was proven able to fail AT ALL, so the summary
+# still counts TESTS proven, not counter-stimuli fired — those are counted separately.
+info "phase 2 — discrimination: each test under every counter-stimulus it declares must fail"
 for t in "${TESTS[@]}"; do
-  spec="$(counter_for "$t")"
-  if ! apply "$spec"; then
-    info "$t — no counter-stimulus: ${spec#none:}"
-    unproven=$((unproven + 1))
-    continue
-  fi
-  if ( set -Eeuo pipefail; "$t" ); then
-    bad "$t still passed under $spec; it does not read what it claims to read"
-    failures=$((failures + 1))
-  else
-    ok "$t fails under $spec"
-    proven=$((proven + 1))
-  fi
+  broke=0
+  while IFS= read -r spec || [[ -n "$spec" ]]; do
+    [[ -n "$spec" ]] || continue
+    if ! apply "$spec"; then
+      info "$t — no counter-stimulus: ${spec#none:}"
+      unproven=$((unproven + 1))
+      continue
+    fi
+    stimuli=$((stimuli + 1))
+    if ( set -Eeuo pipefail; "$t" ); then
+      bad "$t still passed under $spec; it does not read what it claims to read"
+      failures=$((failures + 1))
+    else
+      ok "$t fails under $spec"
+      broke=1
+    fi
+  done < <(counter_for "$t")
+  proven=$((proven + broke))
 done
 
 if [[ "$failures" -ne 0 ]]; then
@@ -525,4 +905,4 @@ fi
 # The summary is COUNTED, never asserted. An earlier version ended with "each is
 # proven able to fail", which was false for any test carrying a `none:` counter —
 # a summary that overstates its own rigour is the defect this suite exists to catch.
-info "${#TESTS[@]} test(s) hold; $proven of ${#TESTS[@]} proven able to fail; $unproven stated no counter"
+info "${#TESTS[@]} test(s) hold; $proven of ${#TESTS[@]} proven able to fail across $stimuli counter-stimuli; $unproven stated no counter"
