@@ -189,13 +189,18 @@ Top-level infrastructure control. Delegates to machines/, clusters/, etc.
 
 Commands:
   status            Summarize counts of hosts, clusters, providers, platform, charts
-  validate          Lint all project.json + bash scripts (shellcheck when available)
+  validate          Lint all project.json + bash scripts (jq + shellcheck REQUIRED)
   generate-index    Regenerate machines/README.md + machines/ledger.md from hosts/
+  verify-access     Assert every machine in contracts/access.yaml is reachable
+  verify-exposure   Assert every hostname matches contracts/exposure.yaml
   verify-registry   Assert every in-repo Argo Application path resolves
   verify-structure  Assert contract front-matter/sections + chart READMEs
   verify-runner-image <tag>  Assert a runner image works in the ARC pod shape
   verify-image-arch <ref>    Assert every manifest variant IS the arch it declares
   help              Show this message
+
+Every verb in the dispatcher below must appear in this list. Two did not
+(verify-access, verify-exposure) and both are wired into CI.
 EOF
 }
 

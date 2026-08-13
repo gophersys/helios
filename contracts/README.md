@@ -18,14 +18,18 @@ sees a change.
 
 ## One file per contract
 
-| Contract              | Fulfilled by                                                 |
-|-----------------------|--------------------------------------------------------------|
-| `observability.md`    | `platform/services/observability/`                           |
-| `secrets.md`          | `platform/core/secrets-operator/`                            |
-| `databases.md`        | `platform/services/databases/*`                              |
-| `ingress.md`          | `platform/core/ingress/` + `platform/core/cert-manager/`     |
-| `identity.md`         | `platform/services/identity-sso/`                            |
-| `messaging.md`        | `platform/services/messaging/*`                              |
+Each contract names its own implementation in its front-matter. That front-matter
+is the source of truth. To print the current set:
+
+```
+grep -H '^fulfilled_by:' contracts/*.md
+```
+
+A table stood here and listed the same 6 values by hand. It drifted in both
+directions. It gave `ingress.md` the paths `platform/core/ingress/` and
+`platform/core/cert-manager/`, and neither directory exists. It also gave
+`messaging.md` the path `platform/services/messaging/*`, where the contract
+itself reads `platform/services/messaging/nats/`.
 
 ## What a contract document contains
 

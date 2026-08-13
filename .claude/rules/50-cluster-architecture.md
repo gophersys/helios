@@ -235,7 +235,7 @@ Next year (enterprise-ready):
 | This rule (cluster arch map)   | `.claude/rules/50-cluster-architecture.md`              |
 | Cluster-level conventions      | `clusters/CONVENTIONS.md`                               |
 | Chart authoring conventions    | `charts/CONVENTIONS.md`                                 |
-| Policy catalog                 | `platform/core/policy/CATALOG.md`                       |
+| Policy model — REMOVED         | §4 of this rule + debt-register D21                     |
 | Namespace provisioning         | `platform/core/namespace-provisioner/README.md`         |
 | App-platform contracts         | `contracts/README.md` + `contracts/<name>.md`           |
 | Per-archetype knobs            | `charts/<archetype>/README.md`                          |

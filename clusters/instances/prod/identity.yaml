@@ -43,10 +43,11 @@ node_role_assignments:
   code-kit-server: data    # OCI A1.Flex ARM 2/12 — control-plane + etcd, Postgres/CouchDB
   agent-00:        apps    # OCI A1.Flex ARM 2/12 — Vaultwarden + all PVCs
 
-# Admission policies installed on this cluster. "baseline" enforces
-# everything in platform/core/policy/CATALOG.md; swap to a stricter or
-# looser profile per cluster. Lab clusters might use "audit-only".
-policy_profile: none            # Kyverno removed repo-wide 2026-08-09 (D21)
+# Admission policies installed on this cluster. `none` is the only value that
+# any cluster can use today: Kyverno was removed repo-wide on 2026-08-09, so
+# there is no policy engine, no platform/core/policy/ directory and no catalog
+# of profiles. See .claude/rules/50-cluster-architecture.md §4 and D21.
+policy_profile: none
 
 # Projects hosted on this cluster. Namespace-provisioner enforces that
 # every <project>-<env> namespace created on this cluster has <project>
@@ -143,8 +144,11 @@ cost_envelope:
   monthly_usd_ceiling: 100
   note: "Always-free OCI core + ~$14/mo E4.Flex + ~$4/mo AWS EBS"
 
-# Protection rules for this cluster. Enforced by providers/oracle/ +
-# platform/core/policy/.
+# Protection rules for this cluster. Nothing reads this block. The node half is
+# enforced, but from each node's own Terraform: `prevent_destroy = true` in
+# clusters/instances/prod/nodes/*/main.tf. The namespace half needed
+# platform/core/policy/, and Kyverno was removed on 2026-08-09, so
+# namespace_delete_requires_override enforces nothing. See D21.
 protection:
   irreplaceable_nodes:
     - server-00
