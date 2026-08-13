@@ -212,3 +212,13 @@ dial re-checks its floor). 49 tests; fidelity golden untouched; Arial chain
 green. Also: test job green on the fleet twice now. Note to self repeated
 once more and now twice-earned: READ the ruff-formatted source before
 patching — the first patch attempt died on a stale match again.
+
+## 2026-08-13T22:55Z — DejaVu round 4: dgrid ink gaps, fixed by arithmetic
+The solver now clears DejaVu (rounds 1-3 fixes held); the failure moved to
+the rendered-ink audit: clabel gaps 1.4px and 1.8px in the display grid —
+the last hand-sized text geometry. Fixed by the violation numbers themselves
+(cells gap +2, dgrid column gap +7); fidelity and Arial chains both green
+incl. sweep. The DEEP fix — dgrid tracks from font advances via a grid_rows
+solver model — added to P6: no text track should be hand-sized anywhere.
+Each fleet round has moved the refusal one layer deeper: solver floors →
+solver labels → rendered ink. The proof battery is doing its job.

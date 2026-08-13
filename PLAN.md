@@ -75,6 +75,9 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 - [ ] Empirically probe the forbidden-zone thresholds (1.03/1.45) on generated
       panels; record method + result.
 - [ ] Extend typo-math with the fonts actually used here (per-face cap tables).
+- [ ] dgrid tracks from font advances (a grid_rows solver model) — the display
+      grid is the last hand-sized text geometry; DejaVu round 4 proved it
+      (clabel ink gaps 1.4/1.8px), current fix is gap arithmetic only.
 
 ## P7 — Instrumentation
 
