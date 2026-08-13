@@ -249,3 +249,11 @@ from advances, the channel table with stale = dash AND red. Gate-2 tests
 recorded as UNRUN until a render exists — the blind demo's audits will check
 build-vs-spec, there being no bitmap to drift toward. HANDOFF: panel.toml
 mechanically from this file, then the page. Containerized CI v2 in flight.
+
+## 2026-08-13T23:01Z — container proven; one ink violation left and fixed
+The GITHUB_TOKEN pull worked: geometry ran INSIDE dense-ui-ci (debian
+chromium), solver and ratio green, battery down to ONE violation —
+num(release) ink 0.6px into num(timeVel): dgrid col3 was Ableton-sized 58,
+DejaVu's "50.0 ms" needs ~65. Widened 58->68 per the arithmetic; both local
+chains green. This is the last hand-track patch on principle — P6's
+grid_rows solver model owns the real fix, now with three pieces of evidence.
