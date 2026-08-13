@@ -1,6 +1,6 @@
 # drop-arm64
 
-phase:    verify
+phase:    pr
 repo:     gophersys/.devcontainer
 branch:   feat/drop-arm64
 worktree: ~/code/.worktrees/dc-drop-arm64
@@ -71,6 +71,42 @@ One declaration, one membership rule, every path through it.
 - `build-multi-arch` deleted from all 24 sites; new `verify-published` verb
   asserts the published manifest carries exactly the sanctioned set.
 - Every document that would become untrue is rewritten.
+
+## Proven — phase 4, refuted then closed
+
+The verifier returned 9 findings, 3 of them gates that could not fail, and 1 that
+defeated the feature's own purpose.
+
+**The hole.** `require_sanctioned_platforms` was wired into the PUSH path only, so
+on any developer host `IMAGE_PLATFORMS=linux/arm64 bash base/ctl.sh build`
+produced `docker build --platform linux/arm64 -t ghcr.io/gophersys/base:latest` —
+an arm64 image tagged as the official one, which is exactly the mislabelling D42
+describes. `.claude/rules/00-identity.md:154-155` asserted that `build` used the
+guard, so the document was covering for the gap.
+
+Closed, and verified by the orchestrator:
+  env IMAGE_PLATFORMS=linux/arm64 bash base/ctl.sh build -> rc 1
+    [error] unsanctioned platform: linux/arm64
+    [error] the sanctioned set is linux/amd64, declared in _ctl/lib.sh
+
+**3 gates that could not fail**, each proven by deleting the thing and watching
+the suite stay green: the `--platform` argument, the tripwire, and a shellcheck
+loop that printed `validate: OK` having linted 0 files — the same commit had
+added exactly that guard to `cmd_test` 2 functions away.
+
+Also fixed: hadolint is called unpinned while the Dockerfile pins 2.14.0, so the
+gate's verdict depended on the host's tool; the Nx mirror lost 6 targets and
+gained none; a stub script with no `.sh` extension escaped the linter; a stale
+binfmt hint.
+
+  bash ./ctl.sh test -> rc 0, 5 files, 36 checks
+
+**A race, handled correctly.** The implementer landed the `build` fix while the
+test author was still writing the test for it, so those tests were green on their
+first run. The test author refused to accept that, rebuilt the pre-fix library
+from c6141a9, and produced the red there. Its red is real, and it is against the
+tree as it stood before the parallel fix — recorded here because that distinction
+matters.
 
 ## Proven — phase 3, green
 
@@ -188,4 +224,4 @@ The test author named 4 contracts. Breaking any makes a test undrivable:
 
 ## Next
 
-Phase 4: dev-verifier tries to REFUTE that this is done.
+Phase 5: open the pull request.
