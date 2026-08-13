@@ -67,3 +67,12 @@ region with a divider (NEAREST, no smoothing — pixels must stay honest) and
 find_color_row() locates a device edge in a page screenshot. Tests verify the
 layout arithmetic, that each half really shows its own source, the divider
 colour, and the absent-colour negative. 34 green. P1 remaining: the CLI.
+
+## 2026-08-13T21:49Z — P1 CLI ✓ — PHASE 1 COMPLETE
+`uv run densui <solve|audit|zoom|compare>`: solve prints positions JSON from a
+TOML spec; audit runs probe + battery from a [probe]/[rules] config with
+optional sweep JS and exits 1 on violations; zoom and compare wrap the
+forensics tools. 4 CLI tests incl. an end-to-end audit on a deliberately
+overlapping fixture page (exit 1 proven) and a fail-loud bad-spec case.
+38 tests green. P1 done: probe, audit, solve, measure, compare, CLI — the
+whole calculus is now importable and shell-usable. Next: P2 panel.toml.

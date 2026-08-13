@@ -28,7 +28,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
       gridline crops, colour sampling, 8x anatomy zooms) from the session's
       ad-hoc scripts; Pillow as optional extra `[measure]`.
 - [x] `densui compare`: ref-vs-built composite generator (the A/B strips).
-- [ ] ⏳ 2026-08-13T21:48Z CLI entry point: `uv run densui <solve|audit|sweep|measure|compare>`.
+- [x] CLI entry point: `uv run densui <solve|audit|sweep|measure|compare>`.
 
 ## P2 — The panel spec (make a new panel a data file, not a code fork)
 
