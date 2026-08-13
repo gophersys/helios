@@ -97,3 +97,13 @@ diff: old output == new output, byte for byte, after two emitter fixes
 order). The golden is committed as expected_positions.css and assemble now
 FAILS on any drift from it — intended changes must regenerate the
 expectation deliberately. Full demo chain green.
+
+## 2026-08-13T22:04Z — P2 spec validation ✓ — PHASE 2 COMPLETE
+densui.spec.load_panel(): every problem reported at once with its full path
+and difflib did-you-mean ("units[0]: unknown key 'widst' (did you mean
+'widest'?)"), plus existence checks (font path) and shape checks (ratio rows
+are [want, tol]). Wired into the operator emitter before solving; docs/spec.md
+updated. 4 tests: docs example validates; typo suggestion; multi-error
+accumulation; missing font named. 44 green; demo chain green (drift guard
+doubles as proof the emitter is untouched). P2 done: a panel is a validated
+data file end to end. Next: P3 gates in CI.

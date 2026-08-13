@@ -98,6 +98,6 @@ dial = [28, 1]
 
 The `[solve]` table is passed verbatim (with `[font]`) to
 `densui.solve.solve()`; `[probe]` + `[rules]` are exactly the `densui audit`
-CLI config. Loader-side validation with named errors is a separate PLAN box
-(P2.3); until it lands, tomllib syntax + the consumers' own fail-loud checks
-are the guard.
+CLI config. `densui.spec.load_panel()` validates the file with NAMED errors — every
+problem at once, full path, did-you-mean suggestions — before any consumer
+runs. The operator emitter validates on load.

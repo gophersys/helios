@@ -12,6 +12,7 @@ import sys
 import tomllib
 
 from densui.solve import SolveError, solve
+from densui.spec import SpecError, load_panel
 
 HERE = pathlib.Path(__file__).resolve().parent
 PANEL = HERE.parent / "panel.toml"
@@ -20,6 +21,11 @@ PANEL = HERE.parent / "panel.toml"
 def main() -> None:
     with open(PANEL, "rb") as fh:
         data = tomllib.load(fh)
+    try:
+        load_panel(data)
+    except SpecError as exc:
+        print(f"SPEC INVALID: {exc}", file=sys.stderr)
+        sys.exit(1)
     try:
         out = solve({"font": data["font"], **data["solve"]})
     except SolveError as exc:

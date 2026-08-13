@@ -37,7 +37,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
       `docs/spec.md`.
 - [x] Rewrite the Operator demo's solver inputs as `demos/operator/panel.toml`;
       byte-identical solved CSS proves the migration.
-- [ ] ⏳ 2026-08-13T22:02Z Schema validation with named errors (a spec typo must fail loudly).
+- [x] Schema validation with named errors (a spec typo must fail loudly).
 
 ## P3 — Gates in CI (all six proofs on every push)
 
