@@ -104,9 +104,10 @@ build target.
   at the start of a session. It lints every edit of a `*.go` file (PostToolUse). It gates
   `git commit` and `git push` (PreToolUse). Install it with
   `claude plugin marketplace add ./libs && claude plugin install project-go@eden-libs`.
-- **`hnslint`** is the structural check for HNS-1. It is at `tools/hnslint`. Install it with
-  `(cd tools/hnslint && GOWORK=off go install ./cmd/hnslint)`. The shared configuration of the
-  linter is `libs/.golangci.yml`.
+- **`hnslint`** is the structural check for HNS-1. Use the pinned `hnslint` on `PATH` in the
+  devcontainer (see "hnslint comes from its own repository now" above). Never build it from
+  `tools/hnslint`: a binary in `GOPATH/bin` takes precedence on `PATH` and hides the pinned one.
+  The shared configuration of the linter is `libs/.golangci.yml`.
 
 ## Library pipeline (ADR-0020)
 

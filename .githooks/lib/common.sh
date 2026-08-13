@@ -193,16 +193,17 @@ hook_golangci_module_full() {
   ( cd "$module_dir" && env ${gw:+$gw} "$bin" run --timeout=180s ./... ) 1>&2
 }
 
-# hook_hnslint_lib <lib-dir> — the structural HNS-1 check (ADR-0018, tools/hnslint):
+# hook_hnslint_lib <lib-dir> — the structural HNS-1 check (ADR-0018):
 # module path = github.com/gophersys/libs/go/<slug>, package name = separator-free
-# lowercase of the slug, directory = the slug. hnslint is a Go analyzer; until it is
-# built (Layer 1, sibling task), we fall back to an inline structural check so this hook
-# is useful from day one and gains precision once the analyzer lands.
+# lowercase of the slug, directory = the slug. On a host that has no hnslint we fall back
+# to an inline structural check, so this hook is still useful outside the devcontainer.
 hook_hnslint_lib() {
   local lib_dir="$1" bin slug rc=0
   slug="$(basename "$lib_dir")"
-  # The real analyzer (tools/hnslint) takes lib *directory* paths and exits 1 on any
-  # violation. Install it with: (cd tools/hnslint && GOWORK=off go install ./cmd/hnslint)
+  # The real analyzer takes lib *directory* paths and exits 1 on any violation. Use the
+  # pinned hnslint on PATH (CLAUDE.md, "hnslint comes from its own repository now"). Never
+  # build it from tools/hnslint: a binary in GOPATH/bin takes precedence on PATH and hides
+  # the pinned one.
   if bin="$(hook_have hnslint)"; then
     "$bin" "$REPO_ROOT/$lib_dir" 1>&2 || rc=$?
     return $rc
@@ -237,7 +238,7 @@ hook_hnslint_lib() {
     fi
   fi
   if [[ $rc -ne 0 ]]; then
-    hook_dim "    (inline HNS-1 fallback — install tools/hnslint for the full structural analyzer)"
+    hook_dim "    (inline HNS-1 fallback — run in the devcontainer for the full structural analyzer)"
   fi
   return $rc
 }
