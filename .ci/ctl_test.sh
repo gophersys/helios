@@ -36,6 +36,36 @@
 # cictl with the SAME empty output, so the ONLY difference between the 2 runs is the exit
 # status — which is the byte the defect throws away.
 #
+# WHERE THE SWALLOW MOVES TO. Reading the status at the call site is not enough on its own,
+# because of WHERE the status is read. In
+#
+#     listing="$(affected_projects)" || status=$?
+#
+# the producer sits on the LEFT of `||`, and bash disables errexit for the WHOLE of a
+# function invoked in a condition. Only the LAST command's status becomes the function's
+# status; every earlier command's status is discarded — the same defect, moved one function
+# inward. It is harmless only while the producer's body holds nothing that can fail before
+# its last line, which is an accident of today's 2-line body, not a property. Adding one
+# ordinary line (`git fetch` the base before diffing it) restores the false green in full.
+# So 2 more tests, each reading the hazard a different way:
+#
+#   behaviour  a fault is PLANTED before the producing command, and the tier must fail.
+#              This is the only stimulus that can show the fault, because today's body has
+#              no command that can fail before its last one — the hazard is latent, and a
+#              latent hazard has to be woken to be measured.
+#   shape      shellcheck's own `check-set-e-suppressed` (SC2310) reads the whole file, so
+#              it also covers call sites this suite never drives. It is OPTIONAL, and
+#              `cmd_validate` runs shellcheck bare, so the gate is blind to it: this test is
+#              where that check is switched on for this 1 file. The 2 tests are complements
+#              — the linter reads shapes but no behaviour, and a lint can be suppressed with
+#              a comment while a planted fault cannot.
+#
+# WHAT 127 MEANS. Rule 20 states the value: "an absent tool is a gate failure (exit 127),
+# not a skip". The absent-tool tests therefore pin 127 exactly, not merely "non-zero" — a
+# refactor that coerces the status to 1 would keep the gate failing while destroying the
+# signal that says WHY. Where no rule states a value (a cictl that ran and failed), the
+# tests require failure only, and leave the value to the implementation.
+#
 # 2 phases, after ctl_test.sh and go/_ctl/lib_test.sh:
 #
 #   phase 1  behaviour      — each test asserts what the tier verb must do.
@@ -68,9 +98,15 @@ TIER_VERBS=(affected-gate-fast affected-gate-substrate gate-all)
 # the CI runner image, which does carry one — can reach the script under test.
 SANDBOX_TOOLS=(bash git dirname basename cat mktemp rm sed awk grep tr sort uniq wc head tail env true false)
 
-# CICTL is the stimulus: which cictl the next run finds. The driver repoints it between
-# phase 1 and phase 2.
+# The shellcheck check that reads the "invoked where set -e is suppressed" shape. It is
+# OPTIONAL, so it is named here once and its presence is asserted before it is trusted.
+ERREXIT_CHECK="check-set-e-suppressed"
+
+# CICTL is the stimulus: which cictl the next run finds. MUTATION is the second stimulus:
+# an edit to the COPY of the script under test, for the hazards that today's source cannot
+# express on its own. The driver repoints both between phase 1 and phase 2.
 CICTL="absent"
+MUTATION="none"
 # OUT, RC and GATED hold the last run_verb result: its merged output, its exit status, and
 # the record of which fixture library was gated with which verb.
 OUT=""
@@ -89,7 +125,7 @@ fail() { printf '       %s\n' "$*" >&2; exit 1; }
 type -t mapfile >/dev/null ||
   die "this bash (${BASH_VERSION}) has no mapfile, so .ci/ctl.sh cannot run here; run the suite in ghcr.io/gophersys/base"
 # FAIL-NOT-SKIP (ADR-0020): a missing tool is a failure that names the tool.
-for _tool in "${SANDBOX_TOOLS[@]}" chmod mkdir cp; do
+for _tool in "${SANDBOX_TOOLS[@]}" chmod mkdir cp cmp shellcheck; do
   command -v "$_tool" >/dev/null || die "this host has no $_tool; the suite cannot run"
 done
 # Resolved BEFORE any fixture replaces PATH, so the harness always starts the real bash.
@@ -115,6 +151,71 @@ PROJECT
   chmod +x "$fix/$project/ctl.sh"
 }
 
+# install_mutation <fixture> edits the COPY of the script under test. Two hazards in this
+# feature cannot be driven from outside the file: one is latent until the producer gains a
+# command that can fail, and one is a SHAPE. Each mutation is a change a reviewer would
+# plausibly make, and each is proven to have taken — an anchor that is gone, an edit that
+# changed nothing, or a result that does not parse is a LOUD failure of this suite, because
+# a mutation that did not apply leaves a test asserting a stimulus that never happened.
+#
+# Each anchor is stated with the test that needs it. They are the price of reaching a hazard
+# that lives INSIDE the producer: a test that refuses to name any structure could not reach
+# this class at all, and this class is the one that survived the first fix.
+install_mutation() {
+  local fix="$1" target mutated
+  target="$fix/.ci/ctl.sh"
+  mutated="$target.mutated"
+  case "$MUTATION" in
+    none)
+      return 0
+      ;;
+    # ANCHOR: the single `cictl affected -C …` invocation, wherever it lives — inside the
+    # producer function or inlined at the call site. A fault is planted on the line BEFORE
+    # it, so the producing command is no longer the first command that can fail.
+    fault-before-the-producer)
+      # shellcheck disable=SC2016  # the awk program must emit a literal $REPO_ROOT, not its value
+      awk '
+        /cictl affected -C/ {
+          match($0, /^[ \t]*/)
+          print substr($0, 1, RLENGTH) "git -C \"$REPO_ROOT\" fetch --quiet origin \"$NX_BASE\""
+          hits++
+        }
+        { print }
+        END { if (hits != 1) { exit 3 } }
+      ' "$target" > "$mutated" ||
+        fail "the fault could not be planted: there is no single 'cictl affected -C' invocation to plant it before. The producer has been refactored, so this test must be re-read rather than repaired"
+      ;;
+    # No anchor at all: the shape is APPENDED after main, where it never runs and only the
+    # linter reads it. It is the counter-stimulus for the shape test, and it doubles as the
+    # proof that the optional check really looked at this file.
+    suppressed-call-appended)
+      cp "$target" "$mutated"
+      cat >> "$mutated" <<'PROBE'
+
+# Appended by .ci/ctl_test.sh as a counter-stimulus. It is the shape the check exists to
+# find: a producer invoked on the left of ||, where set -e is disabled for its whole body.
+function _probe_producer() {
+  git -C "$REPO_ROOT" rev-parse --show-toplevel
+  printf 'probe\n'
+}
+
+function _probe_consumer() {
+  local out="" status=0
+  out="$(_probe_producer)" || status=$?
+  printf '%s %s\n' "$out" "$status"
+}
+PROBE
+      ;;
+    *) die "unknown mutation: $MUTATION" ;;
+  esac
+  if cmp -s "$target" "$mutated"; then
+    fail "the '$MUTATION' mutation changed nothing, so the run would prove nothing"
+  fi
+  bash -n "$mutated" ||
+    fail "the '$MUTATION' mutation left a file bash cannot parse, so any failure below would be the mutation's, not the script's"
+  mv "$mutated" "$target"
+}
+
 # new_fixture prints a fresh tree: a git root (.ci/ctl.sh resolves REPO_ROOT with
 # `git rev-parse`), a copy of the script under test, a sandbox PATH, and 2 libraries for a
 # reporting cictl to name. .ci/ctl.sh reads a project's ctl.sh and nothing else, so a
@@ -125,6 +226,7 @@ new_fixture() {
   fix="$(cd "$fix" && pwd -P)"
   mkdir -p "$fix/.ci" "$fix/bin"
   cp "$CTL" "$fix/.ci/ctl.sh"
+  install_mutation "$fix"
   git -C "$fix" init --quiet ||
     die "git init failed in $fix; .ci/ctl.sh resolves its repository root with git, so the fixture needs one"
   for tool in "${SANDBOX_TOOLS[@]}"; do
@@ -229,8 +331,11 @@ t_a_missing_cictl_fails_the_tier() {
   assert_verb_ran affected-gate-fast
   ! out_has 'no affected projects' ||
     fail "no cictl was reachable, and the tier still reported an empty affected set — it never looked (rc=$RC): $OUT"
-  [[ "$RC" -ne 0 ]] ||
-    fail "no cictl was reachable and the tier exited 0; every affected library went ungated and the gate reported PASS: $OUT"
+  # 127 exactly, not merely non-zero. Rule 20 states the value — "an absent tool is a gate
+  # failure (exit 127), not a skip" — so a status coerced to 1 keeps the gate failing while
+  # destroying the byte that says the TOOL was missing rather than the gate having run.
+  [[ "$RC" -eq 127 ]] ||
+    fail "no cictl was reachable and the tier exited $RC, not 127; rule 20 states 127 for an absent tool: $OUT"
   out_has 'cictl' ||
     fail "the tier failed without naming the tool it could not find: $OUT"
   [[ -z "$GATED" ]] ||
@@ -304,9 +409,58 @@ t_every_tier_verb_refuses_a_missing_cictl() {
     assert_verb_ran "$verb"
     ! out_has 'no affected projects' ||
       fail "$verb reported an empty affected set with no cictl to ask (rc=$RC): $OUT"
-    [[ "$RC" -ne 0 ]] ||
-      fail "$verb exited 0 with no cictl to ask; the swallow is in the shared helper, so every tier verb carries it: $OUT"
+    [[ "$RC" -eq 127 ]] ||
+      fail "$verb exited $RC, not 127, with no cictl to ask; the swallow is in the shared helper, so the value has to hold at every tier verb, not at one: $OUT"
   done
+}
+
+# 6. The swallow one function inward, and the reason the fix has to be structural. The
+# producer is invoked on the LEFT of `||`, so bash disables errexit for its whole body and
+# only its LAST command's status survives. Today's body cannot show that — `require_cmd`
+# EXITS rather than returns, and the only other command is the last one — so the fault is
+# PLANTED: a `git fetch` of the base before the diff, which is an ordinary thing to add and
+# which fails in this fixture because the fixture has no remote. cictl then SUCCEEDS, so the
+# producer's last command is green and the tier is told everything is well.
+#
+# The stimulus names a structure (the `cictl affected -C` invocation) and this test cannot
+# be written without doing so, because the hazard is latent in the source as it stands. The
+# anchor is a LOUD failure when it is gone, never a silent pass.
+t_a_fault_inside_the_producer_fails_the_tier() {
+  local fix
+  fix="$(new_fixture)"
+  install_cictl "$fix"
+  run_verb "$fix" affected-gate-fast
+  assert_verb_ran affected-gate-fast
+  # The stimulus first: a planted fault that did not fail would make everything below vacuous.
+  out_has 'does not appear to be a git repository' ||
+    fail "no failing command ran inside the producer in this run, so the assertions below would prove nothing (rc=$RC): $OUT"
+  [[ "$RC" -ne 0 ]] ||
+    fail "a command inside the producer failed, its diagnostic reached the log, and the tier still exited 0; only the producer's LAST status is being read: $OUT"
+  ! out_has 'affected project(s) green' ||
+    fail "the tier declared the affected projects green over a listing produced after a failure it never saw: $OUT"
+}
+
+# 7. The same hazard read as a SHAPE, over the whole file rather than over the 1 path this
+# suite drives. shellcheck states it exactly (SC2310, "invoked in an || condition so set -e
+# will be disabled"), but the check is OPTIONAL and cmd_validate runs shellcheck bare, so
+# the repository gate cannot see it. Here it is switched on for this 1 file.
+#
+# The check's own presence is asserted before it is trusted: an unknown -o name makes the
+# linter fail loudly rather than pass quietly, but a check merely RENAMED in a later release
+# would silently examine nothing, and that is the one outcome a gate must never have. The
+# counter-stimulus appends the shape after main, which also proves the option really looked
+# at this file.
+t_the_producer_is_not_invoked_where_errexit_is_suppressed() {
+  local fix out="" rc=0
+  fix="$(new_fixture)"
+  shellcheck --list-optional | grep -Fq -- "$ERREXIT_CHECK" ||
+    fail "this shellcheck does not list the optional check '$ERREXIT_CHECK', so switching it on would examine nothing: $(shellcheck --version | tr '\n' ' ')"
+  out="$(shellcheck -o "$ERREXIT_CHECK" -f gcc "$fix/.ci/ctl.sh" 2>&1)" || rc=$?
+  # 0 is clean and 1 is findings; anything else is shellcheck failing to read the file at all.
+  [[ "$rc" -eq 0 || "$rc" -eq 1 ]] ||
+    fail "shellcheck exited $rc, so it never read the file and its silence means nothing: $out"
+  ! grep -Fq 'SC2310' <<<"$out" ||
+    fail "the affected-set producer is invoked where set -e is suppressed, so only its LAST command's status can ever reach the tier: $out"
 }
 
 TESTS=(
@@ -315,6 +469,8 @@ TESTS=(
   t_an_empty_affected_set_is_a_clean_pass
   t_a_partial_listing_that_fails_is_not_a_green_tier
   t_every_tier_verb_refuses_a_missing_cictl
+  t_a_fault_inside_the_producer_fails_the_tier
+  t_the_producer_is_not_invoked_where_errexit_is_suppressed
 )
 
 # ── the stimulus tables ─────────────────────────────────────────────────────
@@ -328,6 +484,9 @@ stimulus_for() {
     t_an_empty_affected_set_is_a_clean_pass)       printf 'empty'   ;;
     t_a_partial_listing_that_fails_is_not_a_green_tier) printf 'partial' ;;
     t_every_tier_verb_refuses_a_missing_cictl)     printf 'absent'  ;;
+    t_a_fault_inside_the_producer_fails_the_tier)  printf 'reports,fault-before-the-producer' ;;
+    # The shape test never runs the script, so which cictl the fixture holds cannot reach it.
+    t_the_producer_is_not_invoked_where_errexit_is_suppressed) printf 'absent' ;;
     *) die "no phase-1 stimulus is declared for $1" ;;
   esac
 }
@@ -346,18 +505,29 @@ counter_for() {
       printf 'reports:cictl lists go/alpha + go/beta and exits 0, so the listing is whole' ;;
     t_every_tier_verb_refuses_a_missing_cictl)
       printf 'reports:cictl is on PATH and lists go/alpha + go/beta' ;;
+    t_a_fault_inside_the_producer_fails_the_tier)
+      printf 'reports:no fault is planted, so every command in the producer succeeds' ;;
+    t_the_producer_is_not_invoked_where_errexit_is_suppressed)
+      printf 'absent,suppressed-call-appended:the suppressed-invocation shape is appended after main' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
 }
 
-# apply <spec> points the next run at the named stimulus. <spec> is the stimulus, optionally
-# followed by ':' and the prose the driver prints.
+# apply <spec> points the next run at the named stimulus. <spec> is
+# <cictl>[,<mutation>][:<the prose the driver prints>].
 apply() {
-  local spec="$1"
-  CICTL="${spec%%:*}"
+  local spec="$1" head
+  head="${spec%%:*}"
+  CICTL="${head%%,*}"
+  MUTATION="none"
+  [[ "$head" != *,* ]] || MUTATION="${head#*,}"
   case "$CICTL" in
     absent|failing|empty|partial|reports) ;;
-    *) die "unknown stimulus spec: $spec" ;;
+    *) die "unknown cictl in stimulus spec: $spec" ;;
+  esac
+  case "$MUTATION" in
+    none|fault-before-the-producer|suppressed-call-appended) ;;
+    *) die "unknown mutation in stimulus spec: $spec" ;;
   esac
 }
 
