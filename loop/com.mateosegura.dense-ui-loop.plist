@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+  <key>Label</key><string>com.mateosegura.dense-ui-loop</string>
+  <key>ProgramArguments</key>
+  <array><string>/bin/zsh</string><string>/Users/mateo/code/dense-ui/loop/claude-loop.sh</string></array>
+  <key>StartInterval</key><integer>600</integer>
+  <key>StandardErrorPath</key><string>/Users/mateo/code/dense-ui/loop/runs/launchd.err</string>
+</dict></plist>
