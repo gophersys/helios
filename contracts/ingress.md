@@ -1,7 +1,7 @@
 ---
 contract: ingress
 version: 0.1.0-draft
-fulfilled_by: platform/core/ingress/ + platform/core/cert-manager/
+fulfilled_by: platform/core/edge/ingress-controller/ + platform/core/edge/tls/
 ---
 
 # ingress

@@ -7,10 +7,23 @@ is that no state is hidden: anything load-bearing must be reproducible from git,
 or recorded here as accepted-imperative with the steps to recreate it.
 
 Status legend: 🔴 open (reliability or security risk) · 🟠 open (reproducibility) ·
-🟡 minor or accepted · ✅ resolved (captured declaratively).
+🟡 minor or accepted · ✅ resolved (captured declaratively) · ➡️ merged into
+another entry, and kept so that its number never dangles.
 
-Last updated: 2026-08-11 (hnslint has its own public repository and is pinned in
-the base image — see D39).
+**Every `### D<n>` heading carries exactly one of those markers.** A heading
+without one is invisible to the scan that finds the high items. D40 through D44
+carried none until 2026-08-12, and D40 says "the bump must not merge until this
+is understood" — so the entry that most needed the scan was the one it could not
+see. D40 is marked 🔴 from that sentence; change it if you read it differently.
+
+For the date of the last change to this file, ask git rather than a line here:
+
+```
+git log -1 --format='%ad %s' --date=short -- docs/debt-register.md
+```
+
+A hand-written date goes stale on the next commit that forgets it. The one that
+stood here still described D39 while the newest entry was D44.
 
 ---
 
@@ -222,7 +235,7 @@ The private key is held in 2 failure domains:
 encrypted recovery bundle.
 **Residual risk (tracked as D16):** a single cloud, and no alert on failure.
 
-### D16 🟠 Backups are single-cloud and unmonitored — OPEN
+### D16 🟠 Backups are single-cloud and unmonitored — OPEN (deferred by decision)
 The backups from D14 land in OCI Object Storage. That is a different service and
 a different durability domain from the block volume, so the backups survive the
 loss of an instance and the loss of a disk. They do **not** survive the loss of
@@ -231,6 +244,13 @@ workstation fetches from `eden-backups/vault/` on a schedule). Separately, a
 CronJob that stops working does not look different from one that works, and
 nothing raises an alert today. The PAR also expires **2027-08-10**, and the
 renewal is currently a calendar event, not an automated action.
+
+**Deferred deliberately on 2026-08-09**, and recorded so that nobody finds it
+again as a surprise. The restore itself is tested; see D14.
+
+**D23 was merged in here on 2026-08-12.** It stated the same 2 facts — a single
+cloud, and no alert on a CronJob that stops — and it held 1 fact this entry did
+not: the deferral date above.
 
 ### D15 🟠 The node name `code-kit-server` is stale and cannot be renamed in place
 The OCI instance, the boot volume and the OS hostname are all `server-00`. Only
@@ -307,13 +327,14 @@ Stale: (4) `sentinel-00` and `sentinel-01` (the instances are terminated) and 2
 laptops offline for 153 days still hold tailnet identities. Every tailnet device
 is a possible entry point.
 
-### D23 🟠 Backups have no alerting — OPEN (noted, deferred by decision)
-The nightly vault backup CronJob works and the restore is tested, but a job that
-stops does not look different from one that works. Nothing would tell you. The
-backups are also still on a single cloud: they survive the loss of a disk and the
-loss of an instance, but not the loss of the Oracle account. Deferred
-deliberately on 2026-08-09, and recorded here so nobody finds it again as a
-surprise.
+### D23 ➡️ Backups have no alerting — MERGED into D16 (2026-08-12)
+This was D16 written a second time. Both entries said the same 2 things: the
+backups sit on a single cloud, and a CronJob that stops looks exactly like one
+that works. The 1 fact that only D23 held — the deliberate deferral on
+2026-08-09 — is now in D16, which also carries the PAR expiry date.
+
+Read D16. The number stays here so that no link to D23 dangles, and the entry is
+not deleted, because a merged duplicate is still part of the record.
 
 ### D24 🟡 The CI pull secret uses a token with far too many permissions — OPEN
 `arc-runners/ghcr-pull` materializes `shared/github/pat-godmode` into a
@@ -332,7 +353,7 @@ Remedy: create a classic PAT with **only** `read:packages`, store it as
 That is 1 line, and no other change.
 
 
-### D25 ✅ Argo's repo credential was hand-applied and per-repo — RESOLVED (2026-08-10)
+### D25 ✅ Argo's repo credential was hand-applied and per-repo — RESOLVED (2026-08-10), 1 cleanup outstanding
 `repo-infrastructure` was a Secret applied with `kubectl apply`. It held a
 classic PAT, it had no record in git, and it had no source of truth outside the
 cluster. Every new private repo would have needed another one by hand.
@@ -344,7 +365,14 @@ Adding `gophersys/home`, or the next repo, needs no cluster change at all.
 
 The token was not regenerated. The existing token was moved into the vault as
 `shared/github/argocd-repo`, so the value now has a home outside the cluster.
-Retire `repo-infrastructure` after the org-wide entry has proven itself.
+
+**The cleanup that is outstanding, merged in from D35 on 2026-08-12.**
+`repo-infrastructure` is still in the cluster. It is the hand-applied Secret that
+holds the classic PAT, and it was left in place on purpose until the org-wide
+credential proved itself. `gophersys-repo-creds` is `SecretSynced`. **Delete
+`repo-infrastructure` after the org-wide credential has served a week with no
+error, and write the date here.** The heading of this entry names the cleanup, so
+that a reader who scans for ✅ does not read it as finished work.
 
 ### D26 🔴 eden CI is red: 5 workflows use `container:` on a self-hosted pool — OPEN
 `eden/.github/workflows/{on-pr,on-push,harness-conformance}.yml` set
@@ -358,14 +386,28 @@ authenticates to a private package with `GITHUB_TOKEN`, which returns 403.
 **Fix:** give eden a `.ci/ci.contract.yaml` with `runner.container: false` and
 generate its workflows, as `libs` now does. Do this after `libs` is green.
 
-### D27 🟠 `validate.yml` still downloads shellcheck — OPEN
+### D27 ✅ `validate.yml` downloaded shellcheck — RESOLVED (2026-08-10)
 The `manifests` job stopped installing tools when the pool moved to the dev
-image. The `shellcheck` job still runs
-`curl ... shellcheck-v0.10.0 ... | tar xJ` and calls the extracted binary. The
+image. The `shellcheck` job still ran
+`curl ... shellcheck-v0.10.0 ... | tar xJ` and called the extracted binary. The
 runner image already carries shellcheck. `docs/ci-substrate.md` claimed the whole
 file had no tool-install step, which was not true.
 
-**Fix:** call `shellcheck` from PATH and delete the download.
+**Resolved** in `08ad452`, "fix(ci): no advisory steps — shellcheck fails,
+yamllint is deleted". The job calls `shellcheck` from PATH at full strictness.
+The same commit removed the 4 ways the job stayed green without linting:
+`continue-on-error` on the step, `|| exit 0` on the download, `|| true` on the
+run, and a `-S warning` filter that dropped the findings `ctl.sh` says must fail
+the build.
+
+Measured on this branch. `grep` exits 1 because the workflow holds no `curl` at
+all, not only no shellcheck download:
+
+```
+$ grep -c 'curl' .github/workflows/validate.yml; echo "rc=$?"
+0
+rc=1
+```
 
 ### D28 🟠 17 of 20 repositories have no `.ci/ctl.sh` — OPEN
 The CI contract generates workflows whose only step form is
@@ -449,13 +491,14 @@ free and these images are near 10 GB.
 **Fix:** measure which reclaim flags actually matter, and remove the rest. A
 faster fix is to stop building what nothing consumes: see D33.
 
-### D35 🟡 The old Argo repository secret is still in the cluster — OPEN
-`repo-infrastructure` is a hand-applied Secret that holds a classic PAT. The
-org-wide `gophersys-repo-creds` ExternalSecret replaced it and is `SecretSynced`.
-The old Secret was left in place until the new one proved itself.
+### D35 ➡️ The old Argo repository secret is still in the cluster — MERGED into D25 (2026-08-12)
+This was the last line of D25 written out as its own entry. D25 already said
+"retire `repo-infrastructure` after the org-wide entry has proven itself", and
+this entry said the same thing with a week-long waiting period attached.
 
-**Fix:** delete `repo-infrastructure` after the org-wide credential has served a
-week without an error, and record the date here.
+The action survives in D25, and the heading of D25 now names it, so the cleanup
+does not hide inside a ✅ entry. Read D25. The number stays here so that no link
+to D35 dangles.
 
 ### D36 🟠 The container user model is decided for macOS, not for Kubernetes — OPEN
 The runner image runs as root, and the dev images keep the unprivileged `dev`
@@ -595,7 +638,7 @@ verb no longer builds it. The 2 changes go together: while both existed, the
 `PATH`, so a developer ran their own copy and CI ran `v0.1.0`. To change the
 version now, cut a release in `gophersys/hnslint` and raise the pin.
 
-### D40
+### D40 🔴 omp 17.2.12 does not reach a terminal event — OPEN, blocks the bump
 
 **omp 17.2.12 does not reach a terminal event.**
 
@@ -612,7 +655,7 @@ gophersys/libs#2, and the deadline branch there is proven in both directions.
 terminating is not a version to pin. The decision is Mateo's: raise the deadline,
 take it upstream, or reject the bump.
 
-### D41
+### D41 ✅ The shared reviewer was unpinned in every repository — RESOLVED (#148)
 
 **The shared reviewer was unpinned in every repository.**
 
@@ -627,7 +670,7 @@ fell back to a default branch would defeat the pin silently. `cictl v0.2.0` is t
 first pinned version.
 
 
-### D42
+### D42 🟠 The published `linux/arm64` base image is not arm64 — OPEN
 
 **The published `linux/arm64` base image is not arm64.**
 
@@ -738,7 +781,7 @@ tool that a human runs, and this paragraph is the record that CI does not enforc
 it.
 
 
-### D43
+### D43 🟡 `cictl` is pinned twice, at 2 versions — OPEN
 
 **`cictl` is pinned twice, at 2 versions, and nothing keeps the 2 in step.**
 
@@ -763,7 +806,7 @@ Either give the 2 consumers 1 pin, or add a check that fails when the version in
 `runner/Dockerfile` is behind the newest tag whose diff touches a `.go` file.
 
 
-### D44 — RESOLVED
+### D44 ✅ 4 Argo applications were permanently OutOfSync — RESOLVED (#166)
 
 **Resolved on 2026-08-11** by #166: `ServerSideApply` is now set only where a
 resource measurably needs it, and never on an Application that manages an
@@ -771,7 +814,7 @@ resource measurably needs it, and never on an Application that manages an
 The history below is kept because 3 hypotheses were refuted on the way, and each
 one is a path nobody should walk again.
 
-### D44 — the history
+#### D44 — the history
 
 **4 Argo applications are permanently OutOfSync, and the difference is not in the
 spec.**
@@ -892,7 +935,17 @@ match git, so a blanket ignore would hide a real drift without fixing anything.
 
 ## Resolved
 
-Resolved items stay in the ledger above, marked ✅ with the PR that captured them.
-So far: **D41** (#148); **D1** (#29), **D3** (#30), **D4** (#32), **D5** (#32), **D6** (#33 +
-workspaces#1), **D7** (#34), **D8** (#34); **D2** (#40); **D5** (#32, #36-#38,
-login verified).
+Resolved items stay in the ledger above, marked ✅ with the PR or the date that
+captured them. **Do not write a second list of them here.** The ledger is the
+source. To print the current set:
+
+```
+grep -n '^### D.*✅' docs/debt-register.md
+```
+
+Change the marker for any other status: 🔴, 🟠, 🟡 or ➡️.
+
+The list that stood here was maintained by hand and it had drifted. It named D5
+twice, it gave no date, and it omitted 7 entries that the ledger above had
+already marked ✅: D10, D14, D17, D25, D38, D39 and D44. That is the whole
+argument for the command.

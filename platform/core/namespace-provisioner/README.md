@@ -55,8 +55,11 @@ generate the required resources into that namespace:
 | `platform-<component>`   | `platform-ingress`, `platform-monitoring`   | `<component>` matches a known platform component                        |
 | `kube-*`                 | `kube-system`                               | Skipped by the generator (Kubernetes reserved)                          |
 
-The companion validating policy `namespace-naming-enforced` rejects a name
-outside these patterns. See `platform/core/policy/CATALOG.md`.
+Nothing rejects a name outside these patterns today. The companion validating
+policy `namespace-naming-enforced` was part of the Kyverno design, and Kyverno
+was removed on 2026-08-09. There is no `platform/core/policy/` directory and no
+policy catalog. See `.claude/rules/50-cluster-architecture.md` §4 and
+debt-register D21.
 
 ## How the project registry works
 

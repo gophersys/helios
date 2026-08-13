@@ -57,10 +57,12 @@ boundary: a module source path or a chart dependency. Nothing reaches up.
 ## Submodule lifecycle
 
 A change lands here on a feature branch, then a PR, then a merge to `main`. The
-parent monorepo bumps the consuming submodule pointers (in
-`brain/shared/infrastructure/` and `brain/projects/<p>/infrastructure/`) with the
-`propagate` verb (top-level `ctl.sh propagate`). Nobody starts propagation from
-inside this repo.
+parent monorepo — Eden, at `eden/infrastructure` — then bumps its submodule
+pointer. Nobody starts that from inside this repo.
+
+There is no `propagate` verb. This paragraph named one, and named 2
+`brain/...` paths that do not exist. Run `bash ctl.sh help` for the verbs this
+repo has, and do not trust a verb name that only prose supplies.
 
 ## What is deliberately NOT here
 

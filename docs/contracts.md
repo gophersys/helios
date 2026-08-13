@@ -20,8 +20,12 @@ infrastructure expects from an application in return.
 
    - An `Ingress` controller and a cert-manager ClusterIssuer named
      `letsencrypt-prod` (and `letsencrypt-staging` in a dev cluster).
-   - An `ExternalSecrets` SecretStore named `bitwarden-tenant-default` that
-     points at the tenant's Bitwarden org.
+   - An `ExternalSecrets` `ClusterSecretStore`. Read its name from the manifest
+     that declares it,
+     `platform/core/secrets-operator/manifests/clustersecretstore.yaml`, and
+     never from this document. This line read `bitwarden-tenant-default` from
+     2026-04-19. The store has been named `vaultwarden` since it was created on
+     2026-07-04, and it has never carried another name.
    - A Postgres control plane reachable through cnpg `Database` CRs in any
      namespace.
    - A NATS cluster at `nats://nats.messaging.svc.cluster.local:4222`.
