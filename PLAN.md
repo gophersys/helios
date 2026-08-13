@@ -81,7 +81,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 ## P7 — Instrumentation
 
-- [ ] Repo `.claude/skills/`: repo-scoped ui-reason / ui-layout / ui-bind that
+- [ ] ⏳ 2026-08-13T23:28Z (loop) Repo `.claude/skills/`: repo-scoped ui-reason / ui-layout / ui-bind that
       cite THIS repo's framework files; keep the personal `~/.claude` copies as
       pointers (single canonical source: this repo). Update
       `~/.claude/CLAUDE.md` instrumentation list accordingly.
