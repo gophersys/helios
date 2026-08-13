@@ -664,6 +664,52 @@ WRONG_REPLACE_LIB="agentruntime"
 WRONG_REPLACE_MODULE="observability"
 WRONG_REPLACE_DECOY="gitrepository"
 
+# The anchor for `repaired-with-a-moved-version`. It must be a NON-sibling requirement, so moving
+# it cannot perturb the sibling scan and the only assertion left to fire is the replace-only one.
+MOVED_VERSION_LIB="agentruntime"
+MOVED_VERSION_MODULE="go.uber.org/goleak"
+MOVED_VERSION_TO="v9.9.9"
+
+# The anchor for `transitive-replace-dropped`: a replace for a module the library reaches THROUGH
+# a dependency (agentruntime -> secrets -> envelope) and does not require directly. Dropping it
+# leaves every direct-requirement check green and breaks the module graph.
+TRANSITIVE_LIB="agentruntime"
+TRANSITIVE_MODULE="envelope"
+
+# The anchor for `exempt-library-repaired`: an EXEMPT library and the one replace that resolves
+# its graph. Measured, not assumed — adding this single line to agentsession takes
+# `GOWORK=off go list -m all` from exit 1 to exit 0.
+EXEMPT_REPAIR_LIB="agentsession"
+EXEMPT_REPAIR_MODULE="envelope"
+
+# ── the full-module-graph exemption table (test 21) ─────────────────────────
+#
+# `go list -m all` is red for 7 of the 16 libraries on this tree, and this table names every one
+# of them, with the module that does not resolve and the reason. It is a DEBT REGISTER, not a
+# mute button, and it is enforced in BOTH directions by t_every_library_resolves_its_full_module_graph:
+#   - a library that is red and NOT listed here fails the gate;
+#   - a library that is listed here and now RESOLVES also fails the gate, naming the stale entry.
+# So the list can only ever shrink, and it cannot outlive the defect it records.
+#
+# Two distinct causes, neither of them this change's:
+#   envelope     6 libraries reach `secrets`, `secrets` requires `envelope`, and none of them
+#                replaces it. Same defect class as this change, one line each, but 6 libraries
+#                the plan does not touch — widening the fix is a scope decision, not a detail.
+#   go.sum       `dependencies` and `errors` are missing a go.sum entry for
+#                github.com/stretchr/testify@v1.11.1. Manifest drift, task #37's class.
+# All 7 have GREEN `go build`, `go vet` and `go test` standalone, which is exactly why a
+# build-shaped gate never reported them.
+MODULE_GRAPH_EXEMPT=(
+  "agentsession      envelope is unreplaced (reached through secrets) — not in this change's scope"
+  "forge             envelope is unreplaced (reached through secrets) — not in this change's scope"
+  "gitrepository     envelope is unreplaced (reached through secrets) — not in this change's scope"
+  "objectstorage     envelope is unreplaced (reached through secrets) — deferred to task #37"
+  "orchestrator      envelope is unreplaced (reached through secrets) — deferred to task #37"
+  "workspaceprovider envelope is unreplaced (reached through secrets) — not in this change's scope"
+  "dependencies      missing go.sum entry for github.com/stretchr/testify@v1.11.1 — manifest drift"
+  "errors            missing go.sum entry for github.com/stretchr/testify@v1.11.1 — manifest drift"
+)
+
 # One go.mod parser, three outputs, so the scan and the repair can never disagree about what a
 # manifest says. `-v mode=`:
 #   report   SCANNED <lib> requires=<n> replaces=<n>      (the census, for the vacuity floor)
@@ -678,11 +724,6 @@ WRONG_REPLACE_DECOY="gitrepository"
 # dynamic regex matches anything.
 # shellcheck disable=SC2016 # the awk program is literal; $0 and $1 are awk's fields, not bash's
 SIBLING_SCAN_AWK='
-function replace_once(s, old, new,   p) {
-  p = index(s, old)
-  if (p == 0) return s
-  return substr(s, 1, p - 1) new substr(s, p + length(old))
-}
 {
   line = $0
   sub(/\/\/.*/, "", line)
@@ -758,6 +799,10 @@ scan_sibling_replaces() {
 
 # copy_module_tree <tree> — prints the path of a throwaway copy of <tree>'s go.mod files, so a
 # counter-stimulus never writes inside the repository.
+#
+# go.sum comes with go.mod. `go list -m all` (test 21) loads the FULL module graph, which means
+# verifying the go.mod of every module in it, which means go.sum. A copy without it reports
+# "missing go.sum entry" for every library and the tree measures the copier, not the manifests.
 copy_module_tree() {
   local src="$1" dst lib manifest copied=0
   dst="$(mktemp -d "$WORK/tree.XXXXXX")"
@@ -766,6 +811,9 @@ copy_module_tree() {
     lib="$(basename "$(dirname "$manifest")")"
     mkdir -p "$dst/$lib"
     cp "$manifest" "$dst/$lib/go.mod"
+    if [[ -f "${manifest%.mod}.sum" ]]; then
+      cp "${manifest%.mod}.sum" "$dst/$lib/go.sum"
+    fi
     copied=$((copied + 1))
   done
   [[ "$copied" -gt 0 ]] ||
@@ -795,10 +843,22 @@ repair_tree() {
   done
 }
 
-# ── the module-tree stimuli (tests 18-20) ───────────────────────────────────
+# ── the module-tree stimuli (tests 18-21) ───────────────────────────────────
 #
 # Every mutant DIES if it changed nothing, the same discipline as mutant_lib: a counter-stimulus
 # that mutated nothing proves nothing, and the message names the anchor it could not find.
+#
+# CENSUS_BEFORE_MUTATION is written into every mutated tree, holding the SCANNED lines as they
+# stood BEFORE the breaking edit. Test 20 reads it to assert the edit was COUNT-NEUTRAL — the
+# only formulation that proves a counting check is blind to the mutant. The earlier form
+# asserted `requires == replaces`, which was never a property of this tree: the census already
+# showed envelope, forge and objectstorage at 2 requires / 4 replaces, because a replace may
+# legitimately cover a module reached THROUGH a dependency rather than required directly.
+# Completing agentruntime's closure made it the fourth, and the guard went red for a tree that
+# was more correct than before. Equality was an accident of the library the anchor picked;
+# neutrality is the thing actually being claimed.
+CENSUS_BEFORE_MUTATION=".census-before-mutation"
+
 mutant_tree() {
   local spec="$1" tree manifest target rc=0
   tree="$(copy_module_tree "$MODULE_TREE_SOURCE")"
@@ -821,6 +881,9 @@ mutant_tree() {
       target="$SIBLING_PREFIX$WRONG_REPLACE_MODULE"
       [[ -f "$manifest" ]] ||
         die "the '$spec' tree mutant has no $WRONG_REPLACE_LIB/go.mod to mutate in $tree"
+      # This mutant is deliberately NOT count-neutral — it deletes a replace — and the census is
+      # recorded for exactly that reason: it is what proves test 20's neutrality arm can fire.
+      scan_sibling_replaces "$tree" > "$tree/$CENSUS_BEFORE_MUTATION"
       awk -v target="$target" '
         {
           arrow = index($0, "=>")
@@ -844,6 +907,7 @@ mutant_tree() {
       target="$SIBLING_PREFIX$WRONG_REPLACE_MODULE"
       [[ -f "$manifest" ]] ||
         die "the '$spec' tree mutant has no $WRONG_REPLACE_LIB/go.mod to mutate in $tree"
+      scan_sibling_replaces "$tree" > "$tree/$CENSUS_BEFORE_MUTATION"
       awk -v target="$target" -v decoy="$SIBLING_PREFIX$WRONG_REPLACE_DECOY" \
           -v from="../$WRONG_REPLACE_MODULE" -v to="../$WRONG_REPLACE_DECOY" '
         function replace_once(s, old, new,   p) {
@@ -866,18 +930,85 @@ mutant_tree() {
         die "the '$spec' tree mutant changed nothing: $WRONG_REPLACE_LIB declares no replace for $target, so the counter-stimulus cannot be applied"
       mv "$manifest.mutant" "$manifest"
       ;;
+    # THE COUNTER THAT REACHES assert_only_replace_directives_differ. Every other tree stimulus
+    # trips an earlier assertion, so that one had never executed a failing path: a verifier
+    # neutered it to `after="$before"` and the whole suite stayed green while still reporting
+    # itself "proven able to fail". This mutant moves a VERSION and touches no sibling, so the
+    # sibling scan is still clean and the replace-only assertion is the only thing left to fire.
+    repaired-with-a-moved-version)
+      repair_tree "$tree"
+      manifest="$tree/$MOVED_VERSION_LIB/go.mod"
+      [[ -f "$manifest" ]] ||
+        die "the '$spec' tree mutant has no $MOVED_VERSION_LIB/go.mod to mutate in $tree"
+      awk -v target="$MOVED_VERSION_MODULE " -v bumped="$MOVED_VERSION_MODULE $MOVED_VERSION_TO" '
+        {
+          at = index($0, target)
+          if (at == 0 || index($0, "=>") > 0) { print; next }
+          print substr($0, 1, at - 1) bumped
+          changed++
+        }
+        END { if (!changed) exit 3 }
+      ' "$manifest" > "$manifest.mutant" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' tree mutant changed nothing: $MOVED_VERSION_LIB requires no $MOVED_VERSION_MODULE, so there is no version for the counter-stimulus to move"
+      mv "$manifest.mutant" "$manifest"
+      ;;
+    # THE COUNTER FOR THE FULL-GRAPH ASSERTION, and the demonstration of the gap it closes. It
+    # deletes ONE replace for a module the library does not require DIRECTLY — the exact edit
+    # 62c87f3 made in reverse. The direct-requirement scan (tests 18-20) stays GREEN over this
+    # tree, because nothing it reads changed; `go list -m all` goes red. That difference is why
+    # test 21 exists: `go build` and the sibling scan both read a graph that has been PRUNED,
+    # and both stayed green through the whole of this defect.
+    transitive-replace-dropped)
+      manifest="$tree/$TRANSITIVE_LIB/go.mod"
+      target="$SIBLING_PREFIX$TRANSITIVE_MODULE"
+      [[ -f "$manifest" ]] ||
+        die "the '$spec' tree mutant has no $TRANSITIVE_LIB/go.mod to mutate in $tree"
+      awk -v target="$target" '
+        {
+          arrow = index($0, "=>")
+          at    = index($0, target)
+          if (arrow == 0 || at == 0 || at > arrow) { print; next }
+          changed++
+        }
+        END { if (!changed) exit 3 }
+      ' "$manifest" > "$manifest.mutant" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' tree mutant changed nothing: $TRANSITIVE_LIB declares no replace for $target, so the closure it completes cannot be reopened"
+      mv "$manifest.mutant" "$manifest"
+      ;;
+    # THE COUNTER FOR THE STALE-EXEMPTION ARM of test 21. It gives ONE exempted library the
+    # single replace its graph is missing, so that library resolves while the table still calls
+    # it broken. Without this arm the exemption table is a graveyard: a debt that was paid would
+    # stay recorded as owing, and the check would go on reporting a library it no longer reads.
+    exempt-library-repaired)
+      manifest="$tree/$EXEMPT_REPAIR_LIB/go.mod"
+      [[ -f "$manifest" ]] ||
+        die "the '$spec' tree mutant has no $EXEMPT_REPAIR_LIB/go.mod to mutate in $tree"
+      if grep -q "$SIBLING_PREFIX$EXEMPT_REPAIR_MODULE .*=>" "$manifest"; then
+        die "the '$spec' tree mutant changed nothing: $EXEMPT_REPAIR_LIB already replaces $EXEMPT_REPAIR_MODULE, so its exemption is stale in the tree itself and the table must be updated, not the mutant"
+      fi
+      printf '\nreplace %s%s v0.0.0 => ../%s\n' \
+        "$SIBLING_PREFIX" "$EXEMPT_REPAIR_MODULE" "$EXEMPT_REPAIR_MODULE" >> "$manifest"
+      ;;
     *) die "unknown module-tree mutant: $spec" ;;
   esac
-  # `repaired` over an already-correct tree legitimately changes nothing, so only the two
-  # BREAKING mutants are held to "it must differ". A breaking mutant identical to its source
-  # would be read as a discrimination pass having broken nothing.
+  # `repaired` over an already-correct tree legitimately changes nothing, so only the BREAKING
+  # mutants are held to "it must differ". A breaking mutant identical to its source would be
+  # read as a discrimination pass having broken nothing.
+  local touched
   case "$spec" in
-    repaired-minus-one-replace | repaired-wrong-module)
-      if cmp -s "$MODULE_TREE_SOURCE/$WRONG_REPLACE_LIB/go.mod" "$tree/$WRONG_REPLACE_LIB/go.mod"; then
-        die "the '$spec' tree mutant reported a change but produced an identical $WRONG_REPLACE_LIB/go.mod"
-      fi
-      ;;
+    repaired-minus-one-replace | repaired-wrong-module) touched="$WRONG_REPLACE_LIB" ;;
+    repaired-with-a-moved-version)                      touched="$MOVED_VERSION_LIB" ;;
+    transitive-replace-dropped)                         touched="$TRANSITIVE_LIB" ;;
+    exempt-library-repaired)                            touched="$EXEMPT_REPAIR_LIB" ;;
+    *)                                                  touched="" ;;
   esac
+  if [[ -n "$touched" ]]; then
+    if cmp -s "$MODULE_TREE_SOURCE/$touched/go.mod" "$tree/$touched/go.mod"; then
+      die "the '$spec' tree mutant reported a change but produced an identical $touched/go.mod"
+    fi
+  fi
   printf '%s' "$tree"
 }
 
@@ -1175,6 +1306,14 @@ assert_the_scan_is_not_vacuous() {
 # assert_every_required_sibling_is_replaced — the property, over whatever MODULE_TREE points at.
 # The failure NAMES the library and every module it left unreplaced, because "a replace is
 # missing somewhere" sends a reader at 3am into 16 manifests to find out which.
+#
+# AND IT STATES ITS OWN LIMIT. This scan reads DIRECT requirements only, and Go IGNORES a replace
+# declared in a dependency's go.mod: only the MAIN module's replaces apply. So a library must
+# replace every sibling in its transitive closure, not just the ones it names — and this scan
+# cannot see the difference. Commit 5d78346 followed the earlier version of this message to the
+# letter, turned it green, and left the gate RED, because agentruntime reaches `envelope` through
+# `secrets` and replaced only what it required directly. A reader who stops here gets a green
+# test over a library that does not build. The message now sends them to test 21's command.
 assert_every_required_sibling_is_replaced() {
   local report unreplaced
   report="$(scan_sibling_replaces "$MODULE_TREE")"
@@ -1189,7 +1328,15 @@ assert_every_required_sibling_is_replaced() {
       "$unreplaced" \
       "" \
       "each line names the library and every module it must add 'replace <module> v0.0.0 =>" \
-      "../<slug>' for. Add the replace block; move no version and run no go mod tidy.")"
+      "../<slug>' for. Move no version and run no go mod tidy." \
+      "" \
+      "THAT IS NECESSARY AND NOT SUFFICIENT. This scan reads DIRECT requirements, and Go applies" \
+      "only the MAIN module's replaces — a replace inside a dependency's go.mod is ignored — so" \
+      "the library must also replace every sibling in its TRANSITIVE CLOSURE. Adding exactly the" \
+      "modules listed above is what commit 5d78346 did, and the gate stayed red. The command that" \
+      "actually proves the closure is complete, and the one test 21 runs:" \
+      "" \
+      "    cd go/<lib> && GOWORK=off go list -m all")"
   fi
 }
 
@@ -1233,12 +1380,19 @@ assert_only_replace_directives_differ() {
 }
 
 # THE ONE THAT SEPARATES A PER-MODULE CHECK FROM A COUNTING ONE. The tree it runs over has ONE
-# replace aimed at a sibling the library does not require: the replace COUNT is untouched, so
-# every count-based formulation calls it clean, and one required module is now covered by
-# nothing. The report must name that module, must name it ALONE, and the census must show the
-# counts still matching — otherwise this run does not prove which formulation is doing the work.
+# replace aimed at a sibling the library does not require, and one required module now covered by
+# nothing. The report must name that module and name it ALONE.
+#
+# The proof that a counting check is blind here is COUNT-NEUTRALITY: the mutation must leave both
+# the requires and the replaces count exactly where the un-mutated tree had them, so no
+# formulation that counts, subtracts or compares them can see it. The earlier version asserted
+# `requires == replaces` instead, which was never true of this tree — envelope, forge and
+# objectstorage carry 2 requires against 4 replaces, legitimately, because a replace may cover a
+# module reached through a dependency. Completing agentruntime's closure made it 6 against 7 and
+# the guard failed on a tree that had just been made MORE correct. Equality was an accident of
+# the anchor; neutrality is the claim.
 t_the_report_names_the_library_and_only_the_unreplaced_module() {
-  local report line modules census requires replaces
+  local report line modules baseline before after
   report="$(scan_sibling_replaces "$MODULE_TREE")"
   assert_the_scan_is_not_vacuous "$report"
   line="$(grep "^UNREPLACED ${WRONG_REPLACE_LIB}[[:space:]]" <<< "$report" || true)"
@@ -1247,12 +1401,94 @@ t_the_report_names_the_library_and_only_the_unreplaced_module() {
   modules="${line#*-> }"
   [[ "$modules" == "$WRONG_REPLACE_MODULE" ]] ||
     fail "the report names [$modules]; exactly $WRONG_REPLACE_MODULE is unreplaced in this tree, so any other module here means the check is not reading the module a replace points AT"
-  census="$(grep "^SCANNED ${WRONG_REPLACE_LIB}[[:space:]]" <<< "$report" || true)"
-  [[ -n "$census" ]] || fail "the scan produced no census line for $WRONG_REPLACE_LIB: [$report]"
-  requires="${census##*requires=}"; requires="${requires%% *}"
-  replaces="${census##*replaces=}"
-  [[ "$requires" -eq "$replaces" ]] ||
-    fail "this tree holds $requires sibling requires against $replaces replaces; the counts must MATCH here, or a count-based check would have flagged it too and this run proves nothing about the per-module form: [$census]"
+
+  baseline="$MODULE_TREE/$CENSUS_BEFORE_MUTATION"
+  [[ -f "$baseline" ]] ||
+    fail "the tree stimulus recorded no pre-mutation census at $baseline, so count-neutrality cannot be established and this run proves nothing about the per-module form"
+  before="$(grep "^SCANNED ${WRONG_REPLACE_LIB}[[:space:]]" "$baseline" || true)"
+  after="$(grep "^SCANNED ${WRONG_REPLACE_LIB}[[:space:]]" <<< "$report" || true)"
+  [[ -n "$before" && -n "$after" ]] ||
+    fail "no census line for $WRONG_REPLACE_LIB before [$before] or after [$after] the mutation"
+  [[ "$before" == "$after" ]] ||
+    fail "the mutation moved a COUNT: before [$before] after [$after]. It must be count-neutral, or a counting check would have flagged this tree too and the run says nothing about which formulation is doing the work"
+}
+
+# THE ONE THAT READS THE GRAPH GO ACTUALLY RESOLVES. `go build` and the sibling scan above both
+# read a PRUNED module graph, and both stayed GREEN through the entire agentruntime defect —
+# green while its closure was broken, and green while a break-test reproduced `missing go.sum
+# entry`. `go list -m all` loads the FULL graph, so an unreplaced v0.0.0 anywhere in the closure
+# is an error rather than a module nobody happened to look at. It is the assertion that would
+# have caught it, and it is one command per library.
+#
+# Measured inside ghcr.io/gophersys/base (amd64) on an arm64 host, so every number is a
+# QEMU-emulated second: 21.4s for all 16 libraries, of which ~17s is the 7 exempt ones falling
+# through the proxy to a `git ls-remote` that cannot authenticate. The 9 resolving libraries cost
+# 2.1s between them. That is the price of the register being enumerated rather than skipped, and
+# it shrinks to ~2s the moment the table is empty.
+t_every_library_resolves_its_full_module_graph() {
+  local manifest lib out rc exempt reason scanned=0 red=0
+  local -a unexpected=() stale=()
+  for manifest in "$MODULE_TREE"/*/go.mod; do
+    [[ -f "$manifest" ]] || continue
+    lib="$(basename "$(dirname "$manifest")")"
+    scanned=$((scanned + 1))
+    rc=0
+    # GOWORK=off is the whole point: eden's go.work would resolve every sibling by directory and
+    # this assertion would be about the workspace instead of about the library.
+    out="$( cd "$(dirname "$manifest")" && GOWORK=off go list -m all 2>&1 )" || rc=$?
+    # An `if` context, never a bare assignment: under errexit a plain `reason="$(...)"` whose
+    # substitution returns 1 — which is what "not exempt" IS — would kill the test outright.
+    exempt=1
+    reason=""
+    if reason="$(module_graph_exemption "$lib")"; then
+      exempt=0
+    fi
+    if [[ "$rc" -ne 0 ]]; then
+      red=$((red + 1))
+      if [[ "$exempt" -ne 0 ]]; then
+        unexpected+=("$(printf '%s (exit %s): %s' "$lib" "$rc" "$(head -2 <<< "$out")")")
+      fi
+    elif [[ "$exempt" -eq 0 ]]; then
+      stale+=("$lib — the table says: $reason")
+    fi
+  done
+  # A glob that matched nothing leaves every list empty and every arm silent.
+  [[ "$scanned" -gt 0 ]] ||
+    fail "no go.mod was read under $MODULE_TREE, so no module graph was loaded and this run asserted nothing"
+  info "go list -m all: $scanned librar(y|ies) read, $red red, ${#MODULE_GRAPH_EXEMPT[@]} on the exemption table"
+  if [[ ${#unexpected[@]} -gt 0 ]]; then
+    fail "$(printf '%s\n' \
+      "a library's FULL module graph does not resolve, and it is not on the exemption table." \
+      "'go build' will not tell you this: it reads the pruned graph. Reproduce with" \
+      "  cd go/<lib> && GOWORK=off go list -m all" \
+      "" \
+      "${unexpected[@]}" \
+      "" \
+      "the fix is a replace in THIS library's go.mod for the module named — a replace in a" \
+      "dependency's go.mod is ignored, only the main module's apply.")"
+  fi
+  if [[ ${#stale[@]} -gt 0 ]]; then
+    fail "$(printf '%s\n' \
+      "a library on the MODULE_GRAPH_EXEMPT table now resolves its full graph. The table is a" \
+      "debt register that may only shrink; an entry that outlives its defect is a check that" \
+      "has quietly stopped reading a library. Delete these entries:" \
+      "" \
+      "${stale[@]}")"
+  fi
+}
+
+# module_graph_exemption <lib> — prints the recorded reason and returns 0 when <lib> is exempt,
+# returns 1 otherwise. The table is `<lib> <reason>` and the library is the first field.
+module_graph_exemption() {
+  local lib="$1" entry name
+  for entry in ${MODULE_GRAPH_EXEMPT[@]+"${MODULE_GRAPH_EXEMPT[@]}"}; do
+    name="${entry%%[[:space:]]*}"
+    if [[ "$name" == "$lib" ]]; then
+      printf '%s' "${entry#"$name"}"
+      return 0
+    fi
+  done
+  return 1
 }
 
 TESTS=(
@@ -1276,6 +1512,7 @@ TESTS=(
   t_every_required_sibling_is_replaced
   t_a_repaired_module_tree_is_clean
   t_the_report_names_the_library_and_only_the_unreplaced_module
+  t_every_library_resolves_its_full_module_graph
 )
 
 # ── the stimulus tables ─────────────────────────────────────────────────────
@@ -1310,6 +1547,9 @@ stimulus_for() {
     t_every_required_sibling_is_replaced)                   printf 'tree:real\n' ;;
     t_a_repaired_module_tree_is_clean)                      printf 'tree:repaired\n' ;;
     t_the_report_names_the_library_and_only_the_unreplaced_module) printf 'tree:repaired-wrong-module\n' ;;
+    # The tree AS IT STANDS again, and for the same reason: the module graph this repository
+    # actually resolves is the subject, not a copy of it.
+    t_every_library_resolves_its_full_module_graph)         printf 'tree:real\n' ;;
     *) die "no phase-1 stimulus is declared for $1" ;;
   esac
 }
@@ -1381,16 +1621,32 @@ counter_for() {
       printf 'tree:repaired-minus-one-replace\n'
       printf 'tree:repaired-wrong-module\n'
       printf 'tree:empty\n' ;;
-    # The same three, against the conservation half: a "clean tree" test that stayed green with
-    # a replace deleted, or aimed at the wrong module, or with nothing to read, would be reading
-    # neither the tree nor the report.
+    # The same three, plus the one that reaches assert_only_replace_directives_differ. Without
+    # that fourth, the replace-only assertion never executed a failing path in this suite: every
+    # other stimulus trips an earlier arm, and discrimination is scored per TEST, so it counted
+    # as proven while a verifier could neuter it to `after="$before"` and keep the suite green.
+    # `repaired-with-a-moved-version` moves a version and touches no sibling, so the sibling scan
+    # stays clean and that assertion is the only thing left that can fire.
     t_a_repaired_module_tree_is_clean)
       printf 'tree:repaired-minus-one-replace\n'
       printf 'tree:repaired-wrong-module\n'
+      printf 'tree:repaired-with-a-moved-version\n'
       printf 'tree:empty\n' ;;
-    # The repaired tree names nothing, so every assertion about WHAT the report names loses its
-    # subject. This is what stops the test from being satisfied by a report it never read.
-    t_the_report_names_the_library_and_only_the_unreplaced_module) printf 'tree:repaired\n' ;;
+    # ONE COUNTER PER ARM. The repaired tree names nothing, so every assertion about WHAT the
+    # report names loses its subject — that is what stops the test being satisfied by a report it
+    # never read. `repaired-minus-one-replace` names the same module by the same line and is NOT
+    # count-neutral (a replace is gone), so it is the counter the NEUTRALITY arm itself fails
+    # under; without it that arm would be an assertion no stimulus ever executes.
+    t_the_report_names_the_library_and_only_the_unreplaced_module)
+      printf 'tree:repaired\n'
+      printf 'tree:repaired-minus-one-replace\n' ;;
+    # ONE COUNTER PER ARM. `transitive-replace-dropped` reopens exactly the closure 62c87f3
+    # closed, and it is the demonstration that this test reads something tests 18-20 cannot:
+    # they stay GREEN over that tree. `exempt-library-repaired` fixes an exempted library and
+    # proves the debt register cannot outlive its debt.
+    t_every_library_resolves_its_full_module_graph)
+      printf 'tree:transitive-replace-dropped\n'
+      printf 'tree:exempt-library-repaired\n' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
 }
