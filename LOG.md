@@ -348,3 +348,15 @@ rail, cold-read UNRUN (a blind demo cannot supply its own stranger), and the
 one taste call (hue family) the calculus does not claim. One path bug caught
 by a bare rc (../tools vs ../../tools). Next: the bench demo, where CONTRACT
 finally runs against a fake serial backend.
+
+## 2026-08-13T23:40Z — P4 bench: CONTRACT executes (sub-step 1)
+Stage 3 stopped being prose: densui.tree is the reference parameter tree
+(source-keyed sets, generation tokens, three-value sync, stream namespace
+with stale-not-zero incl. never-seen) and densui.fakes.FakeSerial is the
+Gate-3 fake backend (quantizing device, token echoes, disconnect). Six
+drills RUN as tests on every ctl.sh test, locally and on the fleet: echo-by-
+token with coercion adopted, unsolicited disagreement repainted, undo keyed
+to source=user, streams refusing set() and going stale, disconnect honesty,
+unknown-address throws. All green first execution — the design was fully
+specified by the framework before a line existed, which is the point.
+HANDOFF: rate/coalescing, under-cursor queueing, readAll resync, minimal UI.
