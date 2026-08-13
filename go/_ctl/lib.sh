@@ -83,16 +83,31 @@ log_dim()     { printf '%s%s%s\n'          "$_LC_DIM"  "$*" "$_LC_RST" >&2; }
 # its own budget, so a lib with nine packages can spend nine times the number and nothing here
 # caps that. The only AGGREGATE bound is the CI job's own timeoutMinutes.
 #
-# An unbounded budget is REFUSED rather than passed through. Go reads `-timeout=0` — and any other
-# non-positive duration — as "no limit", and a lane with no limit cannot report a hang, which is
-# exactly how a real-cluster suite fails; the empty string is the same hole with a different
-# spelling, left behind by a half-written per-lib override. Go rejects a MALFORMED duration loudly
-# on its own, so this only has to catch the values that parse and mean "never stop".
+# A budget that resolves to zero is REFUSED rather than passed through, because Go reads a
+# zero-or-negative `-timeout` as NO LIMIT, and a lane with no limit cannot report a hang — which is
+# exactly how a real-cluster suite fails. The empty string is the same hole left by a half-written
+# per-lib override.
+#
+# The two tests below are cheap and, TOGETHER, complete for that class. Go's duration grammar puts
+# digits only inside numeric components, and every unit is at least 1ns, so:
+#   - with no `.`, every component is a whole number, so one digit in 1-9 anywhere guarantees the
+#     total is >= 1ns — which is what the digit test asserts, and `1ns` really does bound a run.
+#   - with a `.`, that does not hold: Go TRUNCATES to whole nanoseconds, so `0.4ns` parses happily,
+#     becomes 0, and the lane runs unbounded. So a fractional budget is refused. This costs the
+#     legitimate `1.5h`, which is why the message says to write `90m` — an operational budget has no
+#     business needing a fraction, and refusing one is loud where accepting `0.4ns` is silent.
+# Everything else the guard lets through is judged by Go, which rejects a malformed duration loudly
+# (`0x1` is a parse error, not a silent zero). Nothing that passes both tests can mean "never stop".
 #
 # It sits here, below the logging block, because it reports through log_error.
 if [[ "$EDEN_SUBSTRATE_TIMEOUT" == -* || -z "${EDEN_SUBSTRATE_TIMEOUT//[!1-9]/}" ]]; then
-  log_error "EDEN_SUBSTRATE_TIMEOUT is unbounded (\"${EDEN_SUBSTRATE_TIMEOUT}\") — a lane with no time limit cannot report a hang, and a hang is how a real-cluster suite fails"
-  log_dim   "  set EDEN_SUBSTRATE_TIMEOUT to a positive Go duration (10m is the default; the cluster libs use 25m) in the per-lib ctl.sh. There is no value that means 'no budget'."
+  log_error "EDEN_SUBSTRATE_TIMEOUT (\"${EDEN_SUBSTRATE_TIMEOUT}\") is not a positive duration — it is empty, negative, or carries no non-zero digit. Go reads a zero or negative -timeout as NO LIMIT, and a lane with no limit cannot report a hang"
+  log_dim   "  set EDEN_SUBSTRATE_TIMEOUT to a whole positive Go duration in the per-lib ctl.sh (10m is the shared default; the cluster libs use 25m)."
+  exit 1
+fi
+if [[ "$EDEN_SUBSTRATE_TIMEOUT" == *.* ]]; then
+  log_error "EDEN_SUBSTRATE_TIMEOUT (\"${EDEN_SUBSTRATE_TIMEOUT}\") is fractional — Go truncates a duration to whole nanoseconds, so a small enough fraction becomes 0, which is NO LIMIT"
+  log_dim   "  write the budget in whole units instead: 90m, not 1.5h; 500ms, not 0.5s."
   exit 1
 fi
 
@@ -284,9 +299,10 @@ cmd_integration() {
   # elapsed time, which is the per-test cost baseline the lane has never had: the planner measured
   # workspaceprovider/kubernetesadapter at 601.3s isolated / 544.1s in-lane against Go's silent
   # 600.0s wall — a coin flip at 91-100% of it, which is why it reads as flake rather than as a
-  # budget. Those seconds are the planner's, measured natively on a dev host, not re-derived here.
-  # Attributing that wall to the tests that spend it needs the
-  # per-test numbers to exist in CI first, so this flag is the deferred real fix's evidence.
+  # budget. Those seconds are the planner's, measured natively on a dev host, not re-derived here;
+  # go/workspaceprovider/ctl.sh carries the command that makes them again, and what it needs.
+  # Attributing that wall to the tests that spend it needs the per-test numbers to exist in CI
+  # first, so this flag is the deferred real fix's evidence.
   log_info "integration: go test -tags integration ./... -count=1 -timeout=${EDEN_SUBSTRATE_TIMEOUT}/package -v (REAL ${EDEN_INTEGRATION_CMDS})"
   go_in_lib test -tags integration ./... -count=1 -timeout="$EDEN_SUBSTRATE_TIMEOUT" -v
   log_success "integration: OK"
