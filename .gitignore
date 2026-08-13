@@ -8,3 +8,4 @@ node_modules/
 .DS_Store
 loop/runs/
 demos/operator/operator.html
+demos/telemetry/telemetry.html

@@ -275,3 +275,14 @@ assertion on every gate run). The solver refused my own blind linspace by
 the inequality itself. The blind demo is now the same kind of truth as the
 operator: a spec the tools keep honest. HANDOFF: the page (widgets + shell)
 and its own assemble gates. Containerized v3 verdict still pending.
+
+## 2026-08-13T23:09Z — P4 telemetry: first blind render, audit-clean (sub-step 4)
+build/build.py generates the static render (Gate 2 form: defaults, no
+backend) entirely from panel.toml and judges it with `densui audit` reading
+the SAME file. First audit found two real defects: my vertical budget gave a
+68px knob stack a 44px row (layers.md's stacked-rails budget had gone stale
+when rails went side-by-side), and check_level false-positived multi-row
+plates — now line-clustered with a test. Second audit: failures: []. A page
+no human eye has ever seen passes the geometry battery that a spec, not a
+bitmap, defines. 52 tests green; render gitignored as a build artifact.
+HANDOFF: sweep config + ratio hook for the telemetry chain, then interaction.

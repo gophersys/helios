@@ -163,11 +163,26 @@ def check_breathing(parts: list[Part], containers: list[dict], rules: Rules) -> 
 
 
 def check_level(parts: list[Part], kind: str = "dial", tol: float = 1.0) -> list[str]:
+    """Same-LINE centres must be level; a plate may hold several lines. Parts
+    cluster into lines by vertical-band overlap first (the telemetry demo's
+    ilimit row false-positived the single-line version)."""
     fails = []
     for cid, plist in _by_container(parts).items():
-        ys = [(p["r"][1] + p["r"][3]) / 2 for p in plist if p["kind"] == kind]
-        if len(ys) > 1 and max(ys) - min(ys) > tol:
-            fails.append(f"{cid}: {kind} centres not level (spread {max(ys) - min(ys):.1f}px)")
+        items = [p for p in plist if p["kind"] == kind]
+        items.sort(key=lambda p: p["r"][1])
+        lines: list[list] = []
+        for p in items:
+            if lines and p["r"][1] < lines[-1][-1]["r"][3]:
+                lines[-1].append(p)
+            else:
+                lines.append([p])
+        for line in lines:
+            ys = [(p["r"][1] + p["r"][3]) / 2 for p in line]
+            if len(ys) > 1 and max(ys) - min(ys) > tol:
+                fails.append(
+                    f"{cid}: {kind} centres not level within a line "
+                    f"(spread {max(ys) - min(ys):.1f}px)"
+                )
     return fails
 
 

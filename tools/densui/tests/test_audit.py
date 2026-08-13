@@ -88,3 +88,11 @@ def test_run_battery_composes_and_passes_clean_input():
         ],
     }
     assert run_battery(out, RULES) == []
+
+
+def test_level_clusters_lines_before_judging():
+    top = [part("p", "dial", "a", (10, 10, 37, 37)), part("p", "dial", "b", (60, 10, 87, 37))]
+    low = part("p", "dial", "c", (10, 200, 37, 227))
+    assert check_level(top + [low]) == []  # two lines, each level
+    top[1]["r"] = [60, 13, 87, 40]
+    assert "within a line" in check_level(top + [low])[0]
