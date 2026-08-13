@@ -197,6 +197,8 @@ Commands:
   verify-structure  Assert contract front-matter/sections + chart READMEs
   verify-runner-image <tag>  Assert a runner image works in the ARC pod shape
   verify-image-arch <ref>    Assert every manifest variant IS the arch it declares
+  verify-runner-queue [repo] [workflow] [runs]
+                    Assert no job waited for a runner longer than it ran
   help              Show this message
 
 Every verb in the dispatcher below must appear in this list. Two did not
@@ -223,6 +225,14 @@ function cmd_verify_runner_image() {
   # can see a broken Docker socket, and two defects reached a published image
   # that way.
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-runner-image.sh" "$@"
+}
+
+function cmd_verify_runner_queue() {
+  # Assert no job waited for a runner longer than it used one. `timeout-minutes`
+  # counts execution only, so a job that waits 18 minutes for a slot and then
+  # runs for 151 seconds reports success and no dashboard notices. Read-only:
+  # it reads the runs and jobs APIs.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-runner-queue.sh" "$@"
 }
 
 function cmd_verify_registry() {
@@ -258,6 +268,7 @@ function main() {
     verify-structure) cmd_verify_structure "$@" ;;
     verify-image-arch)   cmd_verify_image_arch   "$@" ;;
     verify-runner-image) cmd_verify_runner_image "$@" ;;
+    verify-runner-queue) cmd_verify_runner_queue "$@" ;;
     generate-index) cmd_generate_index "$@" ;;
     help|"")        usage ;;
     *)              log_error "unknown command: '$cmd'"; usage; exit 1 ;;
