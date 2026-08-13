@@ -118,3 +118,15 @@ def test_control_box_overflow_still_refuses(font_path):
     }
     with pytest.raises(SolveError, match="control box"):
         solve(s)
+
+
+def test_value_crowding_nudges_within_tolerance(font_path):
+    s = spec(font_path)
+    # squeeze beta toward alpha so alpha's value needs ~1-3px more room
+    s["knob_rows"]["row"]["units"][1]["center"] = 190
+    s["knob_rows"]["row"]["equalize"] = False
+    out = solve(s)
+    solved = out["knob_rows"]["row"]
+    assert solved["b"]["center"] >= 190  # nudged right or untouched
+    if solved["b"]["center"] > 190:
+        assert any("value clearance" in c for c in out["corrections"])

@@ -145,3 +145,18 @@ corrects / control box still refuses); 46 green; fidelity + Arial geometry
 chains green locally. Also relearned: patch against source you have READ —
 ruff format had rewritten solve.py and my first patch died on a stale match.
 Box stays ⏳ pending a green fleet verdict.
+
+## 2026-08-13T22:34Z — UI CI image + devcontainer (Mateo directive) + font-portable solver
+Fleet round 2 failed on honest solver inequalities under DejaVu (value ink
+crowding the next dial by <1.5px). Two fixes landed together:
+(1) solver font-portability — a crowded neighbour nudges right within a
+declared anchor_tolerance (default 4px), reported as a correction; beyond it,
+refusal. Fidelity build produces zero nudges, golden untouched. New test.
+(2) The per-job chromium install is gone as an approach: ci/Dockerfile bakes
+chromium (playwright, build-time), DejaVu fonts, uv, node into
+ghcr.io/gophersys/dense-ui-ci with in-image proof (densui-chromium --version)
+before any tag moves; build-ci-image.yml mirrors hardware's; and the
+DEVCONTAINER builds FROM the CI image, so dev and CI cannot drift — Mateo's
+"develop in the same devcontainer" made structural. Sequencing: this push
+builds the image; the ci.yml/on-pr.yml flip to `container:` happens once the
+image is published (next run, on evidence).

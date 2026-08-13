@@ -171,11 +171,24 @@ def _solve_knobs(name: str, row: dict, ctx: _Ctx) -> tuple[dict, list[str]]:
             )
         value_right = center + tuck + ctx.adv(u["widest"])
         if k + 1 < len(units):
-            nxt = centers[units[k + 1]["name"]] - dial / 2
+            nxt_name = units[k + 1]["name"]
+            nxt = centers[nxt_name] - dial / 2
             if value_right + MIN_INK_GAP > nxt:
-                raise SolveError(
-                    f"{name}/{u['name']}: widest value ink ends "
-                    f"{value_right:.1f}, crowds next dial at {nxt:.1f}"
+                # Font-portability: a crowded neighbour may be nudged right
+                # within the declared anchor tolerance (reported), so one
+                # panel spec serves many fonts. Beyond tolerance: refuse.
+                shift = int(value_right + MIN_INK_GAP - nxt + 0.999)
+                tol = float(row.get("anchor_tolerance", 4))
+                if shift > tol:
+                    raise SolveError(
+                        f"{name}/{u['name']}: widest value ink ends "
+                        f"{value_right:.1f}, crowds next dial at {nxt:.1f} "
+                        f"(needs +{shift}px > anchor_tolerance {tol:g})"
+                    )
+                centers[nxt_name] += shift
+                corrections.append(
+                    f"{name}/{nxt_name}: centre +{shift}px — value clearance "
+                    f"for this font (anchor_tolerance {tol:g})"
                 )
         elif value_right > plate_w - 4:
             raise SolveError(

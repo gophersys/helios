@@ -15,7 +15,16 @@ import tomllib
 TOP = {"panel", "font", "census", "tracks", "solve", "probe", "rules", "ratio", "emit"}
 FLOW_ROW = {"pad", "right_edge", "units", "trailing"}
 FLOW_UNIT = {"name", "center", "box", "labels", "widest_value", "value_left_offset"}
-KNOB_ROW = {"plate_width", "dial", "tuck", "dial_floor", "label_floor", "equalize", "units"}
+KNOB_ROW = {
+    "anchor_tolerance",
+    "plate_width",
+    "dial",
+    "tuck",
+    "dial_floor",
+    "label_floor",
+    "equalize",
+    "units",
+}
 KNOB_UNIT = {"name", "center", "label", "widest"}
 RULES = {"graze_max_height", "graze_min_dx", "min_sibling_gap", "breathing_floor", "spill"}
 

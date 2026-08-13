@@ -1,0 +1,10 @@
+{
+  "name": "dense-ui",
+  "build": { "dockerfile": "Dockerfile" },
+  "postCreateCommand": "./ctl.sh test",
+  "customizations": {
+    "vscode": {
+      "settings": { "terminal.integrated.defaultProfile.linux": "zsh" }
+    }
+  }
+}
