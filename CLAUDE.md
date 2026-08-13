@@ -84,7 +84,7 @@ build target.
   It is now `gophersys/hnslint`, a public repository, pinned by `HNSLINT_VERSION` in the base
   Dockerfile. It is public because an image build cannot authenticate to a private repository,
   which is the same reason `gophersys/cictl` is public. Proven in the pod shape by
-  `bash ctl.sh verify-runner-image e0c6bc5`, which asserts `hnslint on PATH`.
+  `bash infrastructure/ctl.sh verify-runner-image e0c6bc5`, which asserts `hnslint on PATH`.
 - **The harness versions are pinned (ADR-0021).** The versions of `claude`, `omp` and `codex` are
   only in `harnesses/versions.env`. Never install the `latest` version of a harness implicitly.
   The `harness-conformance` CI job gates a change to a pin, and the job uses the real harness and
@@ -105,9 +105,11 @@ build target.
   `git commit` and `git push` (PreToolUse). Install it with
   `claude plugin marketplace add ./libs && claude plugin install project-go@eden-libs`.
 - **`hnslint`** is the structural check for HNS-1. Use the pinned `hnslint` on `PATH` in the
-  devcontainer (see "hnslint comes from its own repository now" above). Never build it from
-  `tools/hnslint`: a binary in `GOPATH/bin` takes precedence on `PATH` and hides the pinned one.
-  The shared configuration of the linter is `libs/.golangci.yml`.
+  devcontainer (see "hnslint comes from its own repository now" above). The base image does that
+  install, so the `.devcontainer` submodule pin of this repository must be current for the
+  container to hold the pinned binary. Never build it from `tools/hnslint`: a binary in
+  `GOPATH/bin` takes precedence on `PATH` and hides the pinned one. The shared configuration of
+  the linter is `libs/.golangci.yml`.
 
 ## Library pipeline (ADR-0020)
 
