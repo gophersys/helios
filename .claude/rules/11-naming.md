@@ -58,7 +58,9 @@ The constructor spine (10 §9) is `New(configuration, dependencies)`. Its two pa
 `Configuration` and `Dependencies` are rejected as full-spelled spine outliers, and
 `hnslint` fails a library that declares them.
 
-The rule follows the practice. Across the 17 libraries in this repository:
+The rule follows the practice. Across the **16 libraries** in this repository — every directory
+under `go/` except `go/_ctl`, the shared gate library the other 16 source, which is not itself
+a library under gate:
 
 | declaration | count | libraries |
 |---|---|---|
@@ -66,6 +68,11 @@ The rule follows the practice. Across the 17 libraries in this repository:
 | `type Deps struct` | 22 | the same 14 |
 | `type Configuration struct` | 0 | — |
 | `type Dependencies struct` | 0 | — |
+
+**16, not 17.** `ls -d go/*/` returns 17 because `_ctl` is one of them, and 17 is separately the
+verb-conservation PROJECT count — which does include `templates/go/http-gateway`. A template is
+an application skeleton, not a library at `go/<slug>`, so the two sets differ and neither number
+substitutes for the other. The rows above are measured over the 16.
 
 There is no counter-example to weigh against, so the shorter form is not a concession to
 brevity — it is the only form this codebase has ever used, and pinning it deletes a
