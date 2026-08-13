@@ -240,3 +240,12 @@ workflow, so the job's GITHUB_TOKEN pulls it — credentials switched to
 github.actor + GITHUB_TOKEN in both workflows. The eden convention was right
 for eden and wrong to copy verbatim: provenance of the package decides the
 credential, not the house style.
+
+## 2026-08-13T22:59Z — P4 telemetry stage 2 derivation (sub-step 2)
+demos/telemetry/layers.md: tracks solved by the modulo rule (1092 = 360+292+
+340+100, all mod-4), row anatomy from line-box arithmetic (304 decomposes
+exactly with the 24px destructive-isolation pitch), stream cells reserved
+from advances, the channel table with stale = dash AND red. Gate-2 tests
+recorded as UNRUN until a render exists — the blind demo's audits will check
+build-vs-spec, there being no bitmap to drift toward. HANDOFF: panel.toml
+mechanically from this file, then the page. Containerized CI v2 in flight.
