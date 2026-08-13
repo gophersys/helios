@@ -181,3 +181,13 @@ evidence: the ci workflow's GEOMETRY job on main is still queued behind the
 image build; the fleet box ticks only when that lane is green. Image flip to
 ghcr.io/gophersys/dense-ui-ci remains staged for when build-ci-image
 publishes.
+
+## 2026-08-13T22:41Z — image build failed on the playwright CDN; debian chromium instead
+Run 31750517561: all three playwright azureedge mirrors timed out (30s each)
+from inside the fleet's docker-build egress, while apt/nodesource/astral
+fetched fine — the CDN was the fragile dependency, not the network. Rebased
+the image on debian:bookworm-slim whose chromium is a real package; the
+symlink and DENSUI_CHROME contract are unchanged, build-time proof retained.
+Curious asymmetry recorded: the SAME playwright download works from runner
+pods (per-job installs were green) but not from dind builds — worth an
+infrastructure look someday, not worth blocking on.
