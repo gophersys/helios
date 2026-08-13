@@ -196,6 +196,8 @@ Commands:
   verify-exposure   Assert every hostname matches contracts/exposure.yaml
   verify-registry   Assert every in-repo Argo Application path resolves
   verify-structure  Assert contract front-matter/sections + chart READMEs
+  verify-vault-refs Assert every named vault item resolves to EXACTLY one item
+  verify-buildx-key Assert the arc-org pool mounts the macOS buildx SSH key
   verify-runner-image <tag>  Assert a runner image works in the ARC pod shape
   verify-image-arch <ref>    Assert every manifest variant IS the arch it declares
   help              Show this message
@@ -204,6 +206,12 @@ Every verb in the dispatcher below must appear in this list. Two did not
 (verify-access, verify-exposure). CI runs verify-exposure. CI does not run
 verify-access: that verb needs LAN and tailnet access, and a CI runner does not
 have it. Run verify-access by hand from a machine on the tailnet.
+
+LOCAL-ONLY VERBS: verify-access and verify-vault-refs. Both need something a
+runner does not have — the tailnet for one, an unlocked Vaultwarden session for
+the other. Neither is wired into CI, and neither degrades to a skip when what it
+needs is absent: it fails and names what is missing. Run both by hand after a
+change to a machine, a credential or a secret reference.
 EOF
 }
 
@@ -242,6 +250,21 @@ function cmd_verify_structure() {
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-structure.sh" "$@"
 }
 
+function cmd_verify_vault_refs() {
+  # Assert every vault item this repo names resolves to EXACTLY one item. Zero
+  # means the Secret never materialises; two means the webhook provider takes
+  # `$.data.data[0]` and silently delivers the wrong one. LOCAL-ONLY: it queries
+  # the real vault, so it needs an unlocked session and cannot run on a runner.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-vault-refs.sh" "$@"
+}
+
+function cmd_verify_buildx_key() {
+  # Assert the arc-org pool really receives the macOS buildx SSH key: vault-backed,
+  # mounted as a FILE, owner-only. A key mounted at the kubelet default 0644 is
+  # refused by ssh itself, and only at the first build.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-buildx-key.sh" "$@"
+}
+
 function cmd_verify_exposure() {
   # Assert every hostname is exposed the way contracts/exposure.yaml declares.
   # Read-only: DNS resolution + one HTTP probe per host. Changes nothing.
@@ -259,6 +282,8 @@ function main() {
     verify-access)   cmd_verify_access   "$@" ;;
     verify-registry) cmd_verify_registry "$@" ;;
     verify-structure) cmd_verify_structure "$@" ;;
+    verify-vault-refs) cmd_verify_vault_refs "$@" ;;
+    verify-buildx-key) cmd_verify_buildx_key "$@" ;;
     verify-image-arch)   cmd_verify_image_arch   "$@" ;;
     verify-runner-image) cmd_verify_runner_image "$@" ;;
     generate-index) cmd_generate_index "$@" ;;
