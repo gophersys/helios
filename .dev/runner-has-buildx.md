@@ -225,3 +225,94 @@ repo's shell scripts; version claim verified against the GitHub API
 Test author: F1 (the guard must not block the multi-platform edit), F3 (a
 hermetic PR-gate test), F6, F7. Then implementer: F2 (checksum), F5 and the stale
 rule sentence in `00-identity.md`.
+
+
+## Phase 5 — F1, F3, F6, F7 closed (`8963e06`)
+
+**F1 — a RESOLVER, not a refusal.** A smoke test does run one image, so it names
+one platform; the defect was the conclusion drawn from that. It now SELECTS, in
+order, and never runs on an unnamed platform:
+
+```
+SMOKE_PLATFORM when named   (and it must still be in the sanctioned list —
+                             a choice WITHIN the guard, not around it)
+else the DOCKER DAEMON's platform, when the list holds it
+else the only entry
+else FAIL, naming both the list and the daemon
+```
+
+It reads the **daemon**, not `uname -m`, because on Docker Desktop the host is
+darwin while the daemon is linux. Consequence: the moment a second architecture is
+sanctioned, the amd64 runner smokes amd64 and the arm64 builder smokes arm64, each
+natively, with no further edit here.
+
+Proven the same way it was proven broken — mirror copy, list widened to two:
+
+```
+SMOKE_PLATFORM=linux/amd64 ...   SMOKE EXIT STATUS: 0    <- was rc=1, asserting nothing
+no override                      picks the daemon (linux/arm64), natively
+SMOKE_PLATFORM=linux/riscv64     rc=1  not in IMAGE_PLATFORMS
+list without the daemon's arch   rc=1  cannot choose a platform to smoke
+```
+
+The guard is not deleted: an unsanctioned platform is still refused and an
+unresolvable one still fails closed.
+
+**A bonus defect found during that proof.** The presence check called
+`docker image inspect` without asking WHICH architecture the store held, so a
+local amd64 image satisfied it and `docker run --platform` then failed with
+`pull access denied ... may require 'docker login'` — a CREDENTIALS message for an
+ARCHITECTURE defect. It now compares `{{.Os}}/{{.Architecture}}` and says so.
+
+**F3 — a hermetic PR-gate test.** `_ctl/tests/dockerfile-args.test.sh`, 16 checks:
+every version-shaped `${NAME}` reference must be declared by an `ARG` in the same
+file. Red against the exact dangling-ARG construction, while `ctl.sh validate`
+stayed rc=0 — the finding reproduced.
+
+Its scope is narrow ON PURPOSE, and the reasoning is worth keeping: the WIDER rule
+(all `${...}`) needs an allowlist — `VERSION_CODENAME` from `/etc/os-release`,
+`WEST_VENV` from the parent image's ENV, `USERNAME` from zsh, and `${VAR}` written
+in prose. Version-shaped names need **zero exceptions across all five Dockerfiles,
+48 references**. *"An allowlist is a place for a real defect to hide"*, so none was
+opened.
+
+The fixture is a PERMANENT counter-stimulus: the test asserts the detector finds
+the dangling name, does NOT report the correctly-declared one, and does NOT read
+the one inside a comment. *"A detector that has only seen correct input has never
+been watched to fire."*
+
+**F6** — the header no longer claims nothing is emulated.
+
+**F7** — every message is now true, and it takes the LAST declaration of a name
+because that is the one Docker threads into the build. Two matching ARGs now fail
+saying it will not choose between them; an indented ARG and a leading-`v` value
+now both resolve correctly; `=latest` fails naming the shape it cannot read.
+
+```
+bash ./ctl.sh test       rc=0    6 files, dockerfile-args 16 checks 0 failed
+bash ./ctl.sh validate   rc=0
+bash .ci/smoke.sh base-runner <local>   rc=0, v0.36.1 matches the pin
+```
+
+### The self-catch worth recording
+
+`ctl.sh test` went red on the author's OWN explanatory comments —
+`platform-policy.test.sh` caught the forbidden architecture token on the named
+build path. That test file was within its ownership, so editing it was available.
+It rewrote its prose instead and wrote down why the token is absent, naming the
+alternative as "the paper-over move".
+
+### Its own account of the F1 miss, kept because it generalises
+
+> I reasoned correctly about the constraint (one image, one platform) and then
+> implemented the CHEAPEST response to it rather than the CORRECT one, in a file
+> whose whole purpose was to unblock the widening I was blocking. Unrecorded
+> drift is what let that sit unexamined — it was not in the plan, so nothing
+> asked what it did when the sanctioned set grows.
+
+## Next
+
+Implementer: F2 (the fetched binary is verified by nothing — upstream publishes
+checksums), F5 (the state-file sentence that implies smoke coverage CI does not
+give), the stale "1 edit" sentence in `.claude/rules/00-identity.md`, and
+`.ci/README.md:14`, now wrong on both halves.
