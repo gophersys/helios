@@ -32,7 +32,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 ## P2 — The panel spec (make a new panel a data file, not a code fork)
 
-- [ ] Define `panel.toml` (or yaml) schema covering census -> tracks ->
+- [ ] ⏳ 2026-08-13T21:53Z Define `panel.toml` (or yaml) schema covering census -> tracks ->
       anchors -> widgets -> declared legal overlaps -> gate tolerances; write
       `docs/spec.md`.
 - [ ] Rewrite the Operator demo's solver inputs as `demos/operator/panel.toml`;
