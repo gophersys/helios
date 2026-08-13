@@ -76,3 +76,13 @@ forensics tools. 4 CLI tests incl. an end-to-end audit on a deliberately
 overlapping fixture page (exit 1 proven) and a fail-loud bad-spec case.
 38 tests green. P1 done: probe, audit, solve, measure, compare, CLI — the
 whole calculus is now importable and shell-usable. Next: P2 panel.toml.
+
+## 2026-08-13T21:54Z — P2 panel.toml schema
+docs/spec.md defines the one-file panel format: [panel]/[font]/[census]/
+[tracks]/[solve]/[probe]/[rules]/[ratio], each section by design the exact
+input shape of its consumer, with the LAYOUT-MATH invariants stated (measured
+anchors, two legal size sources, reported corrections, cited exceptions).
+The canonical example is EXECUTABLE: a test extracts it from the doc, parses
+it, and solves it with a real font — and on first run it caught my example
+being geometrically impossible (gamma's widest value escaped the plate).
+Fixed with numbers that solve. 40 tests green.
