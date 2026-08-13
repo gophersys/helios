@@ -5,26 +5,39 @@
 #      bash scripts/test-verify-runner-queue.sh <name>...  # one case, by name
 #      bash scripts/test-verify-runner-queue.sh --list     # the case names
 #
-# WHAT IS WRONG TODAY
-# The verb FAILs a job when queue > execution. Measured on arc-org on
-# 2026-08-13, that rule fires on 17 of 36 jobs, and every one of the 17 is a
-# false alarm. Starting a runner pod costs a nearly fixed ~10 s, and an arc-org
-# job runs for 7 to 10 s, so `queue > execution` is true whenever the work is
-# short. The rule compares a fixed cost against a variable one.
+# WHAT WAS WRONG, AND WHAT REPLACED IT
+# The rule was `FAIL when queue > execution`. Measured on arc-org on 2026-08-13
+# it fired on 17 of 36 jobs, and every one of the 17 was a false alarm: a pod
+# start costs about 10 s and an arc-org job runs for 7 to 10 s, so the condition
+# was true whenever the work was short. It compared a fixed cost against a
+# variable one.
 #
-# THE MODEL THE NEW RULE MUST EXPRESS
+# THE MODEL THE RULE EXPRESSES
 #
-#   queue = dispatch    fixed cost to start a pod. A property of the pool and
-#                       of the image, not of the job.
+#   queue = dispatch    cost to give the job a runner. A property of the pool
+#                       and of the image, not of the job.
 #         + contention  variable. Waiting for somebody else's job to end.
 #
-# Alarm on contention only. Estimate dispatch as the FLOOR of the observed
-# queue times — the minimum, or a low percentile. NEVER the median: a median
-# holds contention inside it, so under load the median rises, and a
+# Alarm on contention only. Dispatch is estimated as a FLOOR of the observed
+# queue times — a low percentile over the whole sample. NEVER the median: a
+# median holds contention inside it, so under load the median rises, and a
 # median-based threshold would lift its own alarm level exactly when the pool
-# becomes saturated. A job that got a slot at once still paid dispatch, so the
-# floor IS dispatch, measured instead of invented. No constant enters the
-# script, and the rule follows the pool when the pool or the image gets faster.
+# becomes saturated.
+#
+# NEVER THE MINIMUM EITHER. Queue times are BIMODAL, measured over 69 arc-org
+# jobs on 2026-08-13:
+#
+#   1 to 7 s    14 of 69   a runner pod was already registered and idle. WARM.
+#   9 to 16 s   51 of 69   a new pod had to start. COLD.
+#   21 s and up  4 of 69   the tail, and only 3 of those are true waits.
+#
+# The sample MINIMUM is therefore the warm-start cost, not the pod-start cost.
+# An alarm at 3x that minimum sits at 3 s and fires on 57 of the 69 healthy
+# jobs — the original defect with the sign reversed. The estimator must clear
+# the warm cluster and sit at the bottom of the cold one. The script uses the
+# lower quartile. `estimator_clears_the_warm_start_cluster` is the case that
+# holds it there, and without that case the minimum and the lower quartile are
+# indistinguishable.
 #
 # The anchoring is NOT under test here and must not move. Two run-level anchors
 # were refuted before the jobs-API pair was adopted; see the header of
@@ -42,12 +55,15 @@
 #       saturation verdict it cannot support. FAIL-NOT-SKIP.
 #   C5  the floor is estimated over the WHOLE sample, never per run. A floor
 #       measured inside 1 saturated run rises with that run and hides it.
+#   C6  the estimator sits ABOVE the warm-start cluster and at or below the top
+#       of the cold-start cluster. Not the minimum, not the median.
 #
-# THE MARGIN IS DELIBERATELY NOT PINNED
-# These fixtures leave a wide corridor. A floor of 9 s must pass a queue of
-# 12 s and must fail a queue of 250 s, so any rule of the form
-# `queue > floor * K` with 1.4 <= K <= 27, or `contention > C` with
-# 3 s <= C <= 240 s, satisfies every case here. Pick one and say why.
+# WHAT IS DELIBERATELY NOT PINNED
+# The exact percentile and the exact factor stay free inside a corridor. With
+# the lower quartile these fixtures need a floor of 9 s to pass a queue of 12 s
+# and to fail a queue of 250 s, so `queue > floor * K` holds for K from 1.4 to
+# 20.8. Any low percentile that lands between 8 s and 16 s satisfies C6. Pick a
+# pair and say why in the script.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -63,6 +79,8 @@ uniform_saturation_still_fires
 sample_of_one_fails_loudly
 sample_of_none_fails_loudly
 long_queue_with_long_execution_fires
+estimator_clears_the_warm_start_cluster
+known_limitation_quartile_rises_when_most_jobs_wait
 "
 
 # A missing tool is a failure, never a skip. The subject needs both, and it
@@ -132,26 +150,48 @@ expect_no_line() { # <extended-regex> <why>
   fi
 }
 
-# The sharpest half of the floor-versus-median question. A median estimator
-# cannot report a low number on a contended window; a floor estimator must.
-expect_floor_at_most() { # <max-seconds> <why>
-  local line value
+# The reported floor is the only window onto the estimator, so C3 asks for it in
+# a shape a test can read. `floor_seconds` is empty when the contract is broken,
+# and the 2 bound checks below then say nothing more, because a missing number
+# has 1 cause and deserves 1 message.
+floor_seconds=""
+
+parse_floor() {
+  local line
+  floor_seconds=""
   line="$(printf '%s\n' "$out" | grep -E 'dispatch floor' | head -1)"
   if [ -z "$line" ]; then
-    bad "no 'dispatch floor' line in the output — $2 (C3)"
+    bad "no 'dispatch floor' line in the output (C3)"
     return 0
   fi
   case "$line" in
     *sample*) : ;;
     *) bad "the 'dispatch floor' line names no sample size: $line (C3)" ;;
   esac
-  value="$(printf '%s\n' "$line" | sed -n 's/.*dispatch floor[^0-9]*\([0-9][0-9]*\)s.*/\1/p')"
-  if [ -z "$value" ]; then
+  floor_seconds="$(printf '%s\n' "$line" |
+    sed -n 's/.*dispatch floor[^0-9]*\([0-9][0-9]*\)s.*/\1/p')"
+  if [ -z "$floor_seconds" ]; then
     bad "the 'dispatch floor' line carries no <N>s figure: $line (C3)"
-    return 0
   fi
-  if [ "$value" -gt "$1" ]; then
-    bad "dispatch floor is ${value}s, want at most ${1}s — $2"
+}
+
+# The sharpest half of the floor-versus-median question. A median estimator
+# cannot report a low number on a contended window; a floor estimator must.
+expect_floor_at_most() { # <max-seconds> <why>
+  parse_floor
+  [ -n "$floor_seconds" ] || return 0
+  if [ "$floor_seconds" -gt "$1" ]; then
+    bad "dispatch floor is ${floor_seconds}s, want at most ${1}s — $2"
+  fi
+}
+
+# The floor-versus-minimum question. The minimum of a bimodal sample is the
+# warm-start cost, and an alarm built on it fires on the healthy cold starts.
+expect_floor_at_least() { # <min-seconds> <why>
+  parse_floor
+  [ -n "$floor_seconds" ] || return 0
+  if [ "$floor_seconds" -lt "$1" ]; then
+    bad "dispatch floor is ${floor_seconds}s, want at least ${1}s — $2"
   fi
 }
 
@@ -244,6 +284,53 @@ test_long_queue_with_long_execution_fires() {
   expect_line 'FAIL.*late-but-long' \
     "a long execution does not excuse a long wait (C2)"
   expect_floor_at_most 60 "the floor of this window is 9 s"
+}
+
+# 7. THE SECOND DISCRIMINATOR: a floor is not the minimum. This window is the
+# real bimodal shape of the pool — 5 of 25 jobs found an idle runner pod and
+# started in 1 to 7 s, the other 20 waited 9 to 12 s for a pod to start. NOTHING
+# here is contended, so the verb must stay silent.
+#   lower quartile  9s -> alarm 27s -> silent. Correct.
+#   minimum         1s -> alarm  3s -> 20 of 25 healthy jobs fire.
+# The first 6 cases cannot tell those 2 estimators apart, because no fixture of
+# theirs holds a warm start: their minimum and their lower quartile are the same
+# number. Without this case the most consequential choice in the rule is
+# unpinned, and a refactor back to the minimum stays green while it alarms on
+# 4 of every 5 healthy jobs.
+test_estimator_clears_the_warm_start_cluster() {
+  run_fixture warm-and-cold-starts
+  expect_rc 0 "a warm start is dispatch too, not a reason to alarm (C1)"
+  expect_no_line 'FAIL[[:space:]]+[0-9]{6,}' \
+    "no job in this window waited for anybody"
+  expect_floor_at_least 8 \
+    "the minimum here is 1s, the warm-start cost. The floor must clear it (C6)"
+  expect_floor_at_most 16 \
+    "16s is the longest measured queue with no contention. Above it, a floor
+      is no longer a floor (C6)"
+}
+
+# 8. A KNOWN LIMITATION, WRITTEN DOWN AS A RUNNING CASE. Limitation 3 in the
+# header of verify-runner-queue.sh: when more than 3 of 4 jobs in the window are
+# contended, the lower quartile lands INSIDE the contended cluster and the alarm
+# goes quiet. This window is 16 of 20, which is 80%.
+#
+# READ THIS BEFORE YOU CHANGE THE CASE. It asserts what the rule DOES today, not
+# what it SHOULD do. A silent verdict on a window where 16 jobs waited between
+# 400 s and 900 s is NOT the behaviour anybody chose; it is the price of a
+# quartile, and the fix is a wider sample, which is the same fix limitation 1
+# needs. When that fix lands this case goes red. REWRITE it to assert the alarm.
+# Do not delete it, and do not weaken it to keep the suite green.
+#
+# It also records the cost of the estimator we chose. The minimum, which case 7
+# rejects, would have a floor of 9 s here and would fire. The quartile buys
+# quiet on healthy short jobs and pays for it exactly here.
+test_known_limitation_quartile_rises_when_most_jobs_wait() {
+  run_fixture mostly-contended
+  expect_floor_at_least 300 \
+    "the mechanism: 80% contended drags the quartile into the contended cluster"
+  expect_rc 0 \
+    "the consequence, and the limitation: the alarm is silent on a window that
+      a wider sample would report"
 }
 
 # -------- runner --------
