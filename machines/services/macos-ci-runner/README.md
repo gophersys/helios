@@ -1,9 +1,43 @@
-# macos-ci-runner (PLANNED)
+# macos-ci-runner (ENROLLED — the runner is not registered yet)
 
-The MacBook in the living room, used as a GitHub Actions runner for the gophersys
-org. The consumer is the release workflow of
+The Mac mini in the living room. It is the macOS CI host for the gophersys org.
+The planned consumer is the release workflow of
 `gophersys/audiomotion-visualizer`. In that workflow, change the `runs-on` of
-`build-mac` from `macos-14` to `[self-hosted, macOS, music-ci]`.
+`build-mac` from `macos-14` to `[self-hosted, macOS, music-ci]`. Do not make
+that change yet. The runner is not registered.
+
+## What is true today (measured on 2026-08-13)
+
+| Fact | Value |
+| --- | --- |
+| Model | `Macmini9,1` — Mac mini (M1, 2020). It is not a MacBook. |
+| CPU | arm64, 8 cores |
+| Memory | 8 GB |
+| macOS | 15.5 |
+| Free disk | 42 GiB |
+| Remote Login | ON. `sshd` answers at `10.168.0.92:22` (OpenSSH 9.9). |
+| Access | The dedicated key `~/.ssh/macos-ci-runner` (ed25519, no passphrase). |
+| Xcode | Full Xcode at `/Applications/Xcode.app/Contents/Developer`. |
+
+Prove the access from the workstation:
+
+```sh
+ssh -i ~/.ssh/macos-ci-runner -o BatchMode=yes -o IdentitiesOnly=yes \
+    mateo@10.168.0.92 'echo OK'
+```
+
+## What is NOT true yet
+
+Do not depend on any item below. None of them is done.
+
+1. **The tailnet.** Tailscale is not installed, so the machine does not appear
+   in `tailscale status`. The machine is on the LAN only. The name
+   `macos-ci-runner` is reserved in the tailnet, not live.
+2. **A container builder.** Docker, Colima and Podman are all absent. Homebrew,
+   Go and Tailscale are absent too. When the Linux VM is added, give it 4 GB of
+   swap, because the host has only 8 GB of memory.
+3. **The GitHub Actions runner.** It is not configured against the org. Until it
+   is, the release workflow keeps the hosted `macos-14` runner.
 
 ## Why a self-hosted runner instead of the hosted macos-14 runner used today
 - It costs 0 Actions minutes. GitHub bills macOS at 10 times the rate on a
@@ -12,20 +46,13 @@ org. The consumer is the release workflow of
   do: the TCC flows for screen recording, and a real capture of loopback audio
   (`--capture-test` while music plays).
 
-## Prerequisites — the owner does these once
-1. On the MacBook: System Settings → General → Sharing → set **Remote Login** to
-   ON. Record the Computer Name.
-2. Stop the machine from sleeping: Settings → Displays → Advanced → prevent sleep
-   on power. As an alternative, run `sudo pmset -c sleep 0 displaysleep 10` after
-   the enrollment.
-3. Create the vault item **`shared/macos-ci-runner/account-credentials`** with
-   the admin username and password. Put the machine name or the LAN IP in the
-   notes.
-
-## Enrollment runbook — remote, from any enrolled machine
-1. Open SSH with the vault credentials, then enroll the machine on the tailnet.
-   Use the `tailscale-authkey-*` pattern, or run `tailscale up` interactively.
-2. Install runner (as the login user, NOT root):
+## The work that remains — in order
+1. Stop the machine from sleeping: Settings → Displays → Advanced → prevent
+   sleep on power. As an alternative, run `sudo pmset -c sleep 0 displaysleep 10`.
+2. Join the tailnet. Use the `tailscale-authkey-*` pattern, or run
+   `tailscale up` interactively. Then change `address:` in
+   `contracts/access.yaml` from the LAN address to the tailnet address.
+3. Install the runner (as the login user, NOT root):
    ```sh
    mkdir ~/actions-runner && cd ~/actions-runner
    curl -o runner.tar.gz -L https://github.com/actions/runner/releases/latest/download/actions-runner-osx-arm64-<ver>.tar.gz
@@ -35,16 +62,19 @@ org. The consumer is the release workflow of
        --labels self-hosted,macOS,music-ci --unattended
    ./svc.sh install && ./svc.sh start    # launchd agent, GUI session
    ```
-3. The machine must stay logged in, with a GUI session, for the Electron smoke
+4. The machine must stay logged in, with a GUI session, for the Electron smoke
    tests.
-4. Install Node 20 or later. Without it the runner downloads a toolcache.
-5. Change the `runs-on` of `build-mac` in the workflow. Keep the hosted runner in
-   a comment, as the fallback.
-6. Set `status: active` in this identity file, and regenerate the machines index.
+5. Install Node 20 or later. Without it the runner downloads a toolcache.
+6. Change the `runs-on` of `build-mac` in the workflow. Keep the hosted runner
+   in a comment, as the fallback.
+7. Set `runner.registered: true` in `identity.yaml`, then regenerate the
+   machines index with `bash machines/ctl.sh generate-index`.
 
 ## Notes
 - The runner user should NOT have the Bitwarden vault unlocked. CI needs no access
   to the vault. It needs `GITHUB_TOKEN` only.
+- The vault item `shared/macos-ci-runner/account-credentials` holds the account
+  password. It is the break-glass path. The happy path is the key.
 - A deep-test lane in the future: a scheduled workflow that runs
   `--capture-test` against real system audio. That test has a purpose only on
   this machine.

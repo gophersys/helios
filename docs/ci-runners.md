@@ -113,7 +113,7 @@ for physical capability, images for software capability. See
 | Next | What it adds | Blocked on |
 |---|---|---|
 | Per-domain pools (`arc-zephyr`, `arc-kicad`, `arc-flutter`, `arc-usb`) | firmware, hardware, mobile | nothing — the procedure is in `ci-substrate.md` |
-| **Mac mini runner** | macOS builds, **iOS and Android** through 2 phones on USB with full device control | the phones are not connected yet (2026-08-10) — the machine is `macbook-mini` in `contracts/access.yaml` |
+| **Mac mini runner** | macOS builds, **iOS and Android** through 2 phones on USB with full device control | the machine is `macos-ci-runner` in `contracts/access.yaml`. It was enrolled on 2026-08-13 and it is reachable by key on the LAN. It is not on the tailnet, it has no container runtime, and the runner is not registered. The phones are not connected. |
 | Windows VM runner on `pve-03` | Windows builds | the licence choice |
 | Argo on the cloud cluster | closes debt D18 | nothing |
 
