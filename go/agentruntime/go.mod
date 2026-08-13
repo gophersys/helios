@@ -27,3 +27,12 @@ require (
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 )
+
+replace (
+	github.com/gophersys/libs/go/agentsession v0.0.0 => ../agentsession
+	github.com/gophersys/libs/go/dependencies v0.0.0 => ../dependencies
+	github.com/gophersys/libs/go/errors v0.0.0 => ../errors
+	github.com/gophersys/libs/go/observability v0.0.0 => ../observability
+	github.com/gophersys/libs/go/secrets v0.0.0 => ../secrets
+	github.com/gophersys/libs/go/testing v0.0.0 => ../testing
+)

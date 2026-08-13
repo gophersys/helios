@@ -11,3 +11,9 @@ require (
 	go.uber.org/goleak v1.3.0
 	pgregory.net/rapid v1.3.0
 )
+
+replace (
+	github.com/gophersys/libs/go/agentruntime v0.0.0 => ../agentruntime
+	github.com/gophersys/libs/go/agentsession v0.0.0 => ../agentsession
+	github.com/gophersys/libs/go/errors v0.0.0 => ../errors
+)
