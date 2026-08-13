@@ -1,0 +1,155 @@
+# Operator panel — data, not code. [solve] is densui.solve input verbatim
+# (docs/spec.md). Anchors are the measured reference centres (spec/ratios.md);
+# rhythm corrections are applied by the solver and reported.
+
+[panel]
+name = "operator"
+width = 1253
+height = 333
+
+[font]
+path = "/Applications/Ableton Live 12 Suite.app/Contents/App-Resources/Fonts/AbletonSansSmall-Regular.ttf"
+size = 16
+
+[census]
+file = "spec/census.md"
+
+[solve.flow_rows.rackL]
+pad = 10
+right_edge = 351
+
+[[solve.flow_rows.rackL.units]]
+name = "c-coarse"
+center = 25
+box = 27
+labels = ["Coarse", "Freq"]
+
+[[solve.flow_rows.rackL.units]]
+name = "c-fine"
+center = 125
+box = 27
+labels = ["Fine", "Multi"]
+
+[[solve.flow_rows.rackL.units]]
+name = "c-fixed"
+center = 201
+box = 15
+labels = ["Fixed"]
+
+[[solve.flow_rows.rackL.units]]
+name = "c-level"
+center = 252
+box = 27
+labels = ["Level"]
+widest_value = "-inf dB"
+value_left_offset = 24
+
+[solve.flow_rows.rackL.trailing]
+name = "badge"
+center = 333
+width = 18
+
+[solve.knob_rows.lfo]
+plate_width = 376
+dial = 28
+tuck = 10
+dial_floor = 152     # R chip right edge 149 + 3 ink gap
+label_floor = 73     # 'LFO' checklabel right 70 + 3
+
+[[solve.knob_rows.lfo.units]]
+name = "p-lfo-rate"
+center = 172
+label = "Rate"
+widest = "100.00"
+
+[[solve.knob_rows.lfo.units]]
+name = "p-lfo-amt"
+center = 262
+label = "Amount"
+widest = "100 %"
+
+[solve.knob_rows.filter]
+plate_width = 376
+dial = 28
+tuck = 10
+dial_floor = 171     # circuit/type dropdowns right 168 + 3
+label_floor = 171
+
+[[solve.knob_rows.filter.units]]
+name = "p-fl-freq"
+center = 193         # +1 from crop: the ink-gap inequality (see LOG)
+label = "Freq"
+widest = "20.0 kHz"
+
+[[solve.knob_rows.filter.units]]
+name = "p-fl-res"
+center = 287         # +4 from crop: freq sweep-value clearance
+label = "Res"
+widest = "125 %"
+
+[solve.knob_rows.pitch]
+plate_width = 376
+dial = 28
+tuck = 10
+dial_floor = 39      # checkbox right 36 + 3
+label_floor = 55     # glyph right 52 + 3
+
+[[solve.knob_rows.pitch.units]]
+name = "p-pt-env"
+center = 95
+label = "Pitch Env"
+widest = "-100 %"
+
+[[solve.knob_rows.pitch.units]]
+name = "p-pt-spread"
+center = 190
+label = "Spread"
+widest = "100 %"
+
+[[solve.knob_rows.pitch.units]]
+name = "p-pt-trans"
+center = 285
+label = "Transpose"
+widest = "-48 st"
+
+[solve.knob_rows.global]
+plate_width = 376
+dial = 28
+tuck = 10
+dial_floor = 81      # LEDs right 75 + 6
+label_floor = 3
+
+[[solve.knob_rows.global.units]]
+name = "p-gl-time"
+center = 105
+label = "Time"
+widest = "-100 %"
+
+[[solve.knob_rows.global.units]]
+name = "p-gl-tone"
+center = 197
+label = "Tone"
+widest = "100 %"
+
+[[solve.knob_rows.global.units]]
+name = "p-gl-vol"
+center = 292
+label = "Volume"
+widest = "-12.3 dB"
+
+# Static line-2 positions (measured from the gridline crops; not solver-owned)
+[emit]
+knob_row_order = ["lfo", "filter", "pitch", "global"]
+static = [
+  ".p-lfo-check { left: 15px; top: 6px; }",
+  ".p-lfo-wave  { left: 14px; top: 37px; width: 76px; }",
+  ".p-lfo-dest  { left: 95px; top: 37px; width: 30px; }",
+  ".p-lfo-r     { left: 130px; top: 37px; }",
+  ".p-fl-check  { left: 15px; top: 6px; }",
+  ".p-fl-type   { left: 102px; top: 5px; width: 66px; height: 22px; }",
+  ".p-fl-12     { left: 15px; top: 39px; width: 70px; }",
+  ".p-fl-circ   { left: 100px; top: 39px; width: 66px; }",
+  ".p-pt-glyph  { left: 22px; top: 7px; }",
+  ".p-pt-check  { left: 15px; top: 26px; }",
+  ".p-gl-leds   { left: 15px; top: 28px; }",
+]

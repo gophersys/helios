@@ -86,3 +86,14 @@ The canonical example is EXECUTABLE: a test extracts it from the doc, parses
 it, and solves it with a real font — and on first run it caught my example
 being geometrically impossible (gamma's widest value escaped the plate).
 Fixed with numbers that solve. 40 tests green.
+
+## 2026-08-13T21:59Z — P2 operator panel.toml ✓ (byte-identical proof)
+Every solver number the demo owned now lives in panel.toml (anchors with
+their measurement provenance in comments, floors, widest strings, static
+line-2 positions, emit order); build/solve_layout.py shrank to an emitter
+mapping densui.solve output onto the demo's selectors. Migration proven by
+diff: old output == new output, byte for byte, after two emitter fixes
+(float margin formatting; corrections precede the row, matching the old
+order). The golden is committed as expected_positions.css and assemble now
+FAILS on any drift from it — intended changes must regenerate the
+expectation deliberately. Full demo chain green.

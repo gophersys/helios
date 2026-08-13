@@ -1,0 +1,30 @@
+/* rackL: solved from anchors 25/125/201/252/333 + font advances */
+#rackL .plate { gap: 0; }
+#rackL .c-coarse { flex: none; width: 56px; margin-left: 2px; }
+#rackL .c-fine { flex: none; width: 42px; margin-left: 44px; }
+#rackL .c-fixed { flex: none; width: 43px; margin-left: 40px; }
+#rackL .c-level { flex: none; width: 42px; margin-left: 1px; }
+#rackL .badge { margin-right: 9px; }
+/* rackR: solved from measured centres; boxes reserved from advances */
+.p-lfo-check { left: 15px; top: 6px; }
+.p-lfo-wave  { left: 14px; top: 37px; width: 76px; }
+.p-lfo-dest  { left: 95px; top: 37px; width: 30px; }
+.p-lfo-r     { left: 130px; top: 37px; }
+.p-fl-check  { left: 15px; top: 6px; }
+.p-fl-type   { left: 102px; top: 5px; width: 66px; height: 22px; }
+.p-fl-12     { left: 15px; top: 39px; width: 70px; }
+.p-fl-circ   { left: 100px; top: 39px; width: 66px; }
+.p-pt-glyph  { left: 22px; top: 7px; }
+.p-pt-check  { left: 15px; top: 26px; }
+.p-gl-leds   { left: 15px; top: 28px; }
+.p-lfo-rate { left: 152px; top: 1px; width: 39px; }
+.p-lfo-amt { left: 230px; top: 1px; width: 64px; }
+.p-fl-freq { left: 174px; top: 1px; width: 39px; }
+.p-fl-res { left: 272px; top: 1px; width: 30px; }
+.p-pt-env { left: 58px; top: 1px; width: 75px; }
+.p-pt-spread { left: 161px; top: 1px; width: 58px; }
+.p-pt-trans { left: 243px; top: 1px; width: 84px; }
+/* rhythm-corrected: p-gl-tone centre 197 -> 198 */
+.p-gl-time { left: 85px; top: 1px; width: 40px; }
+.p-gl-tone { left: 178px; top: 1px; width: 41px; }
+.p-gl-vol { left: 262px; top: 1px; width: 61px; }

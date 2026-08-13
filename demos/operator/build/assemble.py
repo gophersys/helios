@@ -88,10 +88,15 @@ def main() -> None:
     print(f"wrote {OUT} ({mb:.2f} MB)")
 
     # Solved positions — geometry is computed, never hand-written.
-    r = subprocess.run(["uv", "run", "--with", "fonttools", "python3",
+    r = subprocess.run(["uv", "run", "--project",
+                        str((BUILD / "../../../tools/densui").resolve()), "python3",
                         str(BUILD / "solve_layout.py")], capture_output=True, text=True)
     if r.returncode != 0:
         die(f"layout solver failed: {r.stderr.strip()}")
+    expected = (BUILD / "expected_positions.css").read_text()
+    if r.stdout != expected:
+        die("solved positions drifted from expected_positions.css — if the "
+            "change is intended, regenerate the expectation deliberately")
     out_text = OUT.read_text()
     if out_text.count("/* @SOLVED_POSITIONS@ */") != 1:
         die("solved-positions placeholder count != 1")
