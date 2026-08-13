@@ -231,3 +231,12 @@ install is gone. on-pr additionally runs geometry, so PRs get the full proof
 battery in the same image developers open as their devcontainer. The review
 lane is untouched (arc-review pool owns its own env). This push's run is the
 flip's own test.
+
+## 2026-08-13T22:57Z — container flip round 2: self-owned package needs no borrowed secret
+The first containerized run died at template validation: GHCR_PULL_TOKEN is
+eden's secret (it pulls ANOTHER repo's base image) and is empty here, and the
+runner refuses empty credentials. dense-ui-ci is published by this repo's own
+workflow, so the job's GITHUB_TOKEN pulls it — credentials switched to
+github.actor + GITHUB_TOKEN in both workflows. The eden convention was right
+for eden and wrong to copy verbatim: provenance of the package decides the
+credential, not the house style.

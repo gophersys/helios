@@ -12,8 +12,8 @@ jobs:
     container:
       image: ghcr.io/gophersys/dense-ui-ci:latest   # browser + fonts + uv + node baked
       credentials:
-        username: mateosegura
-        password: ${{ secrets.GHCR_PULL_TOKEN }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
       options: --user root
     steps:
       - uses: actions/checkout@v4
@@ -25,8 +25,8 @@ jobs:
     container:
       image: ghcr.io/gophersys/dense-ui-ci:latest
       credentials:
-        username: mateosegura
-        password: ${{ secrets.GHCR_PULL_TOKEN }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
       options: --user root
     steps:
       - uses: actions/checkout@v4
