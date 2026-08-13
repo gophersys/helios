@@ -27,5 +27,10 @@ case "$cmd" in
       (cd demos/operator && python3 build/assemble.py --font "$font")
     fi
     ;;
+  test-review)
+    # The review standard is org-central: cictl/review/review.sh reviews PRs on
+    # the arc-review pool (wired in .github/workflows/on-pr.yml), and cictl
+    # itself proves every guard via review_test.sh. Nothing to run per-repo.
+    echo "test-review: consumed via on-pr.yml; guards proven in gophersys/cictl" ;;
   *) echo "ctl.sh: unknown target: $cmd" >&2; exit 2 ;;
 esac
