@@ -78,7 +78,7 @@ One declaration, one membership rule, every path through it.
   guard.test.sh             11 checks, 0 failed  (the 5 conservation guards still green)
   verify-published.test.sh   6 checks, 0 failed
   bash ./ctl.sh test        rc 0, 3 files
-  bash ./ctl.sh validate    validate: OK, rc 0
+  bash ./ctl.sh validate    rc 1 ON THIS HOST, and rc 0 under the pinned linter
 
 Proved by execution rather than asserted:
 - the tripwire fires: `MULTI_ARCH_PLATFORMS=... bash base/ctl.sh help` -> rc 1,
@@ -89,6 +89,14 @@ Proved by execution rather than asserted:
   proven"
 - `verify-published base-runner e0c6bc5` accepts amd64; `flutter` against the
   arm64 fixture -> rc 1, "published but not sanctioned: linux/arm64"
+
+**CORRECTION.** An earlier version of this section quoted `validate: OK, rc 0`
+flatly. On this host it is rc 1. The prose diagnosis below was right and the
+Proven line was not, which is the defect this file exists to prevent — a quote
+that cannot be reproduced. `ctl.sh` calls `hadolint` UNPINNED while
+`base/Dockerfile:83` pins 2.14.0, so the gate's verdict depends on whichever
+hadolint is on the host, and `ctl.sh:221` tells the operator to install the newer
+one. Phase 4 raised it and the implementer is pinning it.
 
 **hadolint, read exactly.** It was ABSENT, which failed `validate` naming the
 tool — the rule working. The implementer installed 2.15.1, which reported 13
