@@ -1,6 +1,6 @@
 # every-sibling-is-replaced
 
-phase:    fix — the verifier returned 6 findings
+phase:    fix — verifier round 2 returned 5 findings
 repo:     gophersys/libs
 branch:   fix/every-sibling-is-replaced
 worktree: ~/code/.worktrees/libs-replaces
@@ -238,3 +238,80 @@ causes, both consequences of the fix working:
 
 Test author: delete the 4 stale entries, and re-point the
 `exempt-library-repaired` mutant at a library that is still exempt.
+
+
+## Phase 8 — the gates, run for real by the verifier (155s and 983s, not fast greens)
+
+```
+bash go/_ctl/lib_test.sh    rc=0   155s
+   21 test(s) hold; 20 of 21 proven able to fail across 31 counter-stimuli; 1 stated no counter
+bash ./ctl.sh validate      rc=0   983s   validate: all checks passed
+   incl. verb_conservation_test.sh: 17 project record(s) hold; 3 mutant(s) caught
+shellcheck -S style go/_ctl/lib_test.sh     rc=0
+phase-gate implementation   rc=0  PASS=5 FAIL=0  for forge, agentsession,
+                                  gitrepository, workspaceprovider, agentruntime
+```
+
+Survived refutation, each attacked deliberately: all six `envelope` replace lines
+are LOAD-BEARING (removing any one gives rc=1); `go.sum` is byte-identical
+(sha256 equal to origin/main for all six); every added require ends `// indirect`
+(count of exceptions: 0); `exempt:stale` discriminates on a LIVE green case, not
+an empty one; the `die`-aborts-the-suite defect is genuinely closed (a stimulus
+that cannot be built is now a named failing assertion and the suite continues);
+`1 stated no counter` is honest — it is `t_concurrent_lints_do_not_collide`,
+unchanged from main, whose stated reason is a property of the check.
+
+## Phase 8 findings — MY WIDENING DECISION WAS HALF WRONG
+
+**F1 (HIGH). The table holds two SAME-CLASS defects, which is exactly what my own
+principle forbids.** I widened the scope on the rule that an exemption table may
+hold only a DIFFERENT-class defect. `objectstorage` and `orchestrator` are still
+missing the one-line `envelope` replace that the other four received. Measured:
+
+```
+objectstorage as-is                      -> envelope@v0.0.0: invalid version
+objectstorage + envelope replace         -> kr/pretty: missing go.sum entry   <- the TABLED reason
+orchestrator + observability only        -> envelope@v0.0.0: invalid version
+orchestrator + envelope only             -> observability@v0.0.0: invalid version
+orchestrator + envelope + observability  -> updates to go.mod needed          <- the TABLED reason
+```
+
+**The reasons written in the table are the errors that appear AFTER the fix, not
+the errors the tool reports today.** And `orchestrator` needs TWO replaces —
+`observability` as well as `envelope` — which is named nowhere: not in the table,
+not in this file, not in a commit message.
+
+Both added lines leave `go.sum` byte-identical, so guard 2 does not forbid them.
+I accepted "unfixable within the guards" from a report without measuring it.
+
+**F3 (MEDIUM, and the one that would bite a stranger).** Test 21 cannot tell "a
+sibling is unreplaced" from "the proxy is unreachable" — both are rc!=0 from
+`go list -m all`. With no network all 16 libraries go red, 12 are not on the
+table, and the failure tells the reader to add a replace for
+`github.com/antithesishq/antithesis-sdk-go@v0.7.0-default-no-op`, a third-party
+module for which no replace is correct. **This check now runs on every PR and
+push.** The discriminator exists: a transport error is not a
+`v0.0.0: invalid version`, and it should abort as a harness failure the way
+`assert_gate_harness_intact` already does.
+
+**F4 (LOW).** Test 21's `scanned -gt 0` vacuity floor has no counter-stimulus,
+while the comment above it claims "ONE COUNTER PER ARM". Tests 18 and 19 both
+carry `tree:empty` for exactly this. If the `MODULE_TREE` glob ever stops
+matching, test 21 passes having loaded zero graphs and is still scored proven.
+
+**F5 (LOW).** An exemption entry naming a library that does not exist is never
+policed — the stale arm only fires for a library the scan actually walked. Proven
+by adding `phantomlib` to the table: rc=0, green, no complaint.
+
+**F2 (MEDIUM, mine).** This file was stale: it still said the branch was RED and
+ordered work already finished, and `## Proven` stopped at phase 1 with no record
+of the phase-8 gates. Fixed by this entry. Note the phase-1 sweep logs it cites
+live in a scratchpad from a previous session and no longer exist, so that one
+proof is no longer re-readable by anyone.
+
+## Next
+
+Implementer: 3 replace lines — `envelope` for objectstorage, `envelope` +
+`observability` for orchestrator. Then test author: shrink the table to the true
+residual reasons, add the network discriminator (F3), the vacuity counter (F4)
+and the phantom-entry guard (F5).
