@@ -91,6 +91,11 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 - [ ] An `ui-verifier` agent definition: runs only the proof battery and
       refuses to pass on assertion.
 
+- [ ] Rebase dense-ui-ci as a gophersys/base CHILD image (house convention:
+      base -> domain children; browser via google-chrome-stable apt repo, not
+      snap/playwright-CDN). BLOCKED on the GHCR_PULL_TOKEN grant — see
+      BLOCKED.md 2026-08-14; devcontainer keeps building FROM dense-ui-ci.
+
 ## P8 — Repository hygiene
 
 - [ ] ADR system (`docs/adr/`) in the house style; ADR-0001: computed-not-
