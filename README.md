@@ -30,6 +30,8 @@ decomposes into a failed predicate with two names and a number.
 
 ## Provenance
 
+(Canary line: exercising the on-pr review lane; this PR merges trivially.)
+
 Extracted from a working session that built the Operator replica and, forced by
 each failure, the framework itself. The corrections log in
 `demos/operator/spec/ratios.md` records what eyeballing got wrong and what
