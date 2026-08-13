@@ -1,6 +1,6 @@
 # one-gate-library
 
-phase:    red
+phase:    red — HELD. The plan's hnslint half is REFUTED and needs Mateo.
 repo:     gophersys/libs
 branch:   refactor/one-gate-library
 worktree: ~/code/.worktrees/libs-one-gate
@@ -81,12 +81,80 @@ changes.
   with the correct argument still fails, because hnslint encodes the
   libs/go/<slug> layout and a template is not that.
 
+### Phase 2 — the false green is REPRODUCED, not inferred
+
+The pinned binary was confirmed first: `hnslint` in `ghcr.io/gophersys/base:latest`
+reports `mod github.com/gophersys/hnslint v0.1.0`, so this is the public tool and
+not the shadowing eden build.
+
+A fixture holding 1 Go file that does not compile, driven through the real entry
+point, exits **0**:
+
+```
+── phase-gate step: test
+FAIL  example.com/brokentemplate [build failed]
+[ok]  test: OK
+PASS  test
+[ok]  phase-gate testing: GREEN
+PHASE-GATE-TESTING-EXIT=0
+```
+
+The same verb ALONE exits 1. All 6 named verbs confirmed, including the case this
+file already quoted: `./...: not a directory` → `[ok] maintainability: OK` →
+`PASS maintainability`.
+
+**Root cause isolated.** Bash's errexit-ignore context for an `if` condition
+propagates into the subshell DESPITE the re-armed `set -Eeuo pipefail`.
+`go/_ctl/lib.sh:1009-1020` already documents and fixes this exact trap. So the
+false green is CAUSED BY THE DUPLICATION this feature exists to remove, which is
+the strongest possible argument for it. Today only lint, `require_cmd` and
+`_assert_*` — the paths with an explicit `exit` — can fail at all.
+
+3 red tests, each observed failing for the right reason, plus 2 conservation
+guards each observed failing under its own counter-stimulus, plus a 17-project
+verb-conservation record whose 3 planted mutants were all caught.
+
 ## Blocked
 
-Nothing.
+**The plan's hnslint half is REFUTED by the pinned binary, and it inverts. This
+needs Mateo before phase 3.**
+
+The plan assumed `Configuration` and `Dependencies` were defects to be spelled
+out. The pinned hnslint says the OPPOSITE:
+
+```
+persistence/persistence.go: exported type "Configuration" is a full-spelled spine outlier;
+  use Config as the type name (10 §5 founder ruling)
+persistence/persistence.go: exported type "Dependencies" is a full-spelled spine outlier;
+  use Deps as the type name (10 §5 founder ruling)
+internal/api/v1/resource/resource.go: exported type "Store" is a bare banned HNS-1 token
+```
+
+Only `Store` is a defect in the direction the plan assumed. So "the template
+violates HNS-1 naming" is true, but 2 of the 3 findings demand the SHORT form,
+while `rule 11`'s table bans `config`/`deps` and its narrow exemption merely
+PERMITS `Config`/`Deps` as type names. The tool REQUIRES what the rule permits.
+That gap is a decision, not a defect to code around, and it is task #34's
+territory.
+
+**Two further facts that kill the plan's accepted approach as written:**
+- hnslint v0.1.0 has NO FLAGS. `hnslint <dir> [dir...]` only; `-naming`, `-layout`
+  and `-h` are all read as directory arguments. "Let the caller select" needs a
+  real release of gophersys/hnslint, not a call-site change.
+- An argument error and a finding are BOTH exit 1. Only "no arguments" is
+  distinct, at exit 2. So "distinguish an argument error from a finding" cannot be
+  done by exit code alone at this version.
+
+**The shadowing warning was right, and it mattered.** This Mac's
+`/Users/mateo/go/bin/hnslint` is `github.com/gophersys/eden/tools/hnslint (devel)`.
+Against the same directory it prints only the 2 layout findings and ZERO naming
+findings — it cannot see the half the decision turns on. Anyone who had run this
+locally would have concluded the naming half did not exist.
 
 ## Next
 
-Phase 2, in this order, because the order is load-bearing: re-run the PINNED
-hnslint and record what it really says, then prove the template's gate reports
-PASS over a failing verb.
+STOP for Mateo on the hnslint question. The runner unification is unblocked and
+independent: phase 3 may fix the shared body so the gate can fail, which is the
+prerequisite for the hnslint step to matter at all. Do not land a declared skip
+for hnslint until the question above is answered — and if a skip does land, the
+argv floor test must be rewritten in the same change, visibly.
