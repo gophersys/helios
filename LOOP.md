@@ -45,6 +45,9 @@ follow it exactly.
 
 - Skip or soften a failing gate; a gate that cannot run is a failure.
 - Bypass `ctl.sh`: gates run through it, so CI and humans see the same truth.
+- Pipe a gate's output through grep/tail/head in the same command that decides
+  success — the pipeline's exit status masks the gate's (three real bites:
+  fmt rc, geometry rc twice). Run the gate BARE, capture rc, read output after.
 - Hand-edit solver-emitted geometry.
 - Commit fonts or vendor assets whose licence you have not read.
 - Rewrite PLAN.md phases (Mateo owns the plan; you own the checkboxes).

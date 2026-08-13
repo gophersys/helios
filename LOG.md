@@ -257,3 +257,12 @@ num(release) ink 0.6px into num(timeVel): dgrid col3 was Ableton-sized 58,
 DejaVu's "50.0 ms" needs ~65. Widened 58->68 per the arithmetic; both local
 chains green. This is the last hand-track patch on principle — P6's
 grid_rows solver model owns the real fix, now with three pieces of evidence.
+
+## 2026-08-13T23:03Z — corrective: col3 fix had broken fidelity; pipeline trap banned
+The 58->68 widening squeezed col4 and put Time<Vel ink 2.0px into Wave in the
+ABLETON build — and the broken commit shipped because my verification piped
+the gate through grep, reading grep's exit status (third bite of the same
+trap: fmt, geometry, geometry). Fixes: env col 284->292 restores col4's 8px —
+both fonts green with BARE runs and real exit codes (fidelity rc=0, arial
+rc=0, 2x no-illegal each); and LOOP.md now bans deciding success through a
+piped gate. The broken intermediate state lived on main for ~4 minutes.
