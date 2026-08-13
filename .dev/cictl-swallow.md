@@ -1,6 +1,6 @@
 # cictl-swallow
 
-phase:    verify
+phase:    fix
 repo:     gophersys/libs
 branch:   fix/cictl-swallow
 worktree: ~/code/.worktrees/libs-cictl-swallow
@@ -259,21 +259,41 @@ cictl genuinely absent (command -v cictl -> NO):
   gate-all                 rc=127   identical
 ```
 
-### A TRADE-OFF THAT WAS FORCED, NOT CHOSEN — and it needs Mateo
+### RETRACTED — the trade-off was NOT forced. I was wrong and I escalated it.
 
-The explicit failure sentence the old code printed —
-`cictl affected failed (exit N) ... the affected set is unknown, so nothing was
-gated` — is **GONE**, and it cannot come back in this shape.
+This section previously claimed the specific diagnostic could not return, because
+"any explicit status branch is a CONDITION, a condition is the SC2310 shape, and
+test 7 forbids that shape", and escalated the loss to Mateo as a DESIGN DECISION.
 
-Any explicit status branch is a CONDITION. A condition is the SC2310 shape. Test
-7 forbids that shape. So the diagnostic now comes from the failing command itself
-(`missing required tool(s): cictl`, or cictl's own stderr) after the tier has
-announced itself, with a non-zero exit.
+**That is false. SC2310 and SC2311 fire ONLY on FUNCTION invocations.** `cictl` is
+an external command, so the branch is legal, safe, and passes every gate. The
+verifier built it and measured it:
 
-That is honest and loud, but it is less specific than the sentence it replaced.
-Getting the sentence back needs a trap-based mechanism, which is a DESIGN
-DECISION rather than an implementation detail. Recording it here rather than
-quietly accepting the loss.
+```
+                              shipped        withdiag
+.ci/ctl_test.sh               rc=0, 7/7      rc=0, 7/7
+shellcheck -o all SC2310      0              0
+shellcheck -o all SC2311      0              0
+shellcheck -S style           rc=0           rc=0
+```
+
+An ERR-trap variant also gives 0/0, and `.ci/ctl.sh:52-56` ALREADY carries an
+`on_exit` trap reading `rc=$?` — the "trap-based mechanism" this file called a
+design decision is half-built in the same file.
+
+**The cost of the error, measured.** With cictl exiting non-zero and printing
+nothing (a silent tool fault), the shipped tier's entire CI log is one line:
+
+```
+shipped   rc=4   [info] affected-gate-fast: phase-gate implementation ...
+withdiag  rc=4   [info] affected-gate-fast: ...
+                 [error] cictl affected failed (exit 4) for base 'origin/main';
+                         the affected set is unknown, so nothing was gated
+```
+
+A red job whose log never names cictl. I took the implementer's reasoning without
+testing it, wrote it here as fact, and asked Mateo to rule on a constraint that
+does not exist. The escalation is withdrawn.
 
 ### An integrity note from the implementer, worth keeping
 
@@ -286,3 +306,79 @@ re-run into a uniquely-named file.
 ## Next
 
 Verifier: try to refute that this is done.
+
+
+## Phase 5 — verifier round 2, 6 findings
+
+**F1 (HIGH)** — the retraction above. Restore the diagnostic.
+
+**F2 (MEDIUM-HIGH). The `inherit_errexit` comment makes two FALSE claims, and no
+test guards the line.**
+
+- **(a) "That default is the swallow this file was fixed for" — FALSE.** The fixed
+  swallow was `mapfile < <(...)`, a PROCESS substitution. `inherit_errexit` covers
+  COMMAND substitution only. Measured WITH the shopt set:
+  `g(){ exit 127; }; mapfile -t a < <(g)` -> rc=0, n=0. The original defect
+  survives it untouched.
+- **(b) "closed for every substitution here" — FALSE.** `.ci/ctl.sh:195` is not
+  closed. With the shopt set and a corrupt `.git/index`, `git status` fails and the
+  guard reports REPORTED-CLEAN, rc=0.
+- **(c) Nothing guards the line.** Deleting the shopt keeps the suite at rc=0, 7/7,
+  and `shellcheck -o all` byte-identical.
+
+Honest verdict from the verifier: it IS a guard for the future, not a comfort
+blanket — a mutant with the shopt removed AND a multi-command producer
+reintroduced does restore a real swallow, and only test 6 catches it. But the
+comment sold it as fixing something it demonstrably does not fix.
+
+**F3 (MEDIUM). The same class survives at `.ci/ctl.sh:195`, in the file this
+change owns**, and shellcheck names it — the only SC2312 in the file:
+
+```sh
+if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
+```
+
+A failed `git status` is indistinguishable from a clean tree. On a stimulus where
+`status` fails and `fetch` does not, `release-check` prints `ready` over a dirty
+tree — the same false green this change exists to kill. The approved plan says
+"the class is the deliverable, not the line". Phase 4 recorded `ctl.sh:79` as
+out of scope; this one is unrecorded and sits in a changed file.
+
+**F4 (LOW).** `## Proven` quotes `cictl affected failed (exit 127) ... nothing was
+gated` for the three tier verbs. rc=127 and "names the tool" both hold, but the
+shipped code CANNOT emit that sentence — F1 is why. The quote is stale.
+
+**F5 (LOW).** Two defects in one line. `SC2311 = 0` is VACUOUS: the pinned
+ShellCheck 0.9.0 does not emit SC2311 for any of these shapes under any option, so
+reporting 0 is a green that checked nothing. And the baseline reference is off by
+one — `HEAD~1` is the fix (SC2310=0); attempt 1 is `HEAD~2` (SC2310=1). True when
+written, false once the docs commit landed on top.
+
+**F6 (LOW).** `TIER_VERBS` in `.ci/ctl_test.sh:92-94` says "a 4th verb has to be
+added here to be covered". Nothing enforces that. `.ci/ctl.sh` already ships a
+`__verbs` lister that could be cross-checked against the callers.
+
+## What the verifier could NOT refute
+
+All 7 tests seen RED against real broken code, on scratch copies, never in-tree:
+attempt 1's own file (tests 6,7); dropping the empty-listing guard (test 3);
+restoring the process substitution (tests 2,4 + 3's discrimination); coercing
+127->1 (tests 1,5); shopt removed AND a multi-command producer (test 6).
+
+**M8 is the one it attacked hardest and could not break**: reordering cictl's flags
+so test 6's anchor misses makes the suite fail LOUDLY — "the fault could not be
+planted ... must be re-read rather than repaired" — instead of silently passing.
+That is the correct failure mode for a structure-naming test.
+
+Behaviour, six stimuli: absent -> 127 on all three verbs; exit 3 -> rc=3; exit 0
+empty -> clean no-op rc=0; whitespace-only listing -> no phantom project; broken
+git repo -> rc=128; SIGKILL -> rc=137.
+
+`ctl.sh validate` rc=0, 18m49s, with `ok: .ci/ctl_test.sh` in the run.
+
+## Next
+
+Implementer: F1 (restore the diagnostic — it was never forbidden), F2(a)(b) (the
+comment must state what the shopt actually does), F3 (fix `:195` or record why
+not), F4 and F5 (this file's stale quotes — I will take those).
+Test author: F2(c) (guard the shopt), F6 (enforce TIER_VERBS).
