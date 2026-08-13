@@ -788,15 +788,21 @@ it.
 | consumer | pin | what it uses |
 | --- | --- | --- |
 | `.devcontainer/runner/Dockerfile` | `CICTL_VERSION=v0.1.0` | the `cictl` binary on PATH |
-| `pr-review.yml`, both repositories | `CICTL_VERSION=v0.2.0` | `review/review.sh` and its instructions |
+| `pr-review.yml`, both repositories | `CICTL_VERSION=v0.3.0` | `review/review.sh` and its instructions |
 
 The 2 consumers are real and separate: the image needs the compiled contract
 tool, and the review job needs the reviewer scripts. Pinning both is correct.
 Pinning them at different versions with nothing to notice is not.
 
 **This is not urgent today, and the measurement says so.** The only Go change
-between `v0.1.0` and `v0.2.0` is a 9-line comment in `cmd/cictl/run.go`, so the
+between `v0.1.0` and `v0.3.0` is a 9-line comment in `cmd/cictl/run.go`, so the
 binary is functionally identical. Everything else in that range is `review/`.
+
+The review pin moved `v0.2.0` -> `v0.3.0` on 2026-08-13, to take the fix that
+stops a paid review being discarded over its verdict line. The skew therefore
+widened by 1 minor version, and the conclusion above is UNCHANGED, because it was
+re-measured rather than assumed: `git diff --stat v0.2.0..v0.3.0 -- '*.go'` is
+EMPTY. Everything in that range is `review/`.
 
 **It becomes a defect on the next change to the Go sources.** Nothing then makes
 anyone raise `CICTL_VERSION` in the Dockerfile, the image keeps an older contract
