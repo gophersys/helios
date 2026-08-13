@@ -315,3 +315,77 @@ Implementer: 3 replace lines — `envelope` for objectstorage, `envelope` +
 `observability` for orchestrator. Then test author: shrink the table to the true
 residual reasons, add the network discriminator (F3), the vacuity counter (F4)
 and the phantom-entry guard (F5).
+
+
+## Phase 9 — the 3 lines landed, and MY PREDICTION WAS WRONG in an instructive way
+
+`6738f52`. 2 files, 3 insertions. Both errors changed exactly as measured:
+
+```
+BEFORE  objectstorage  envelope@v0.0.0: invalid version  +  kr/pretty missing go.sum entry
+        orchestrator   envelope + observability invalid  +  updates to go.mod needed
+AFTER   objectstorage  kr/pretty@v0.3.1: missing go.sum entry for go.mod file
+        orchestrator   updates to go.mod needed; to update it: go mod tidy
+```
+
+All 3 lines proven LOAD-BEARING — dropped one at a time with `go mod edit
+-dropreplace`, each restores an `invalid version` naming exactly that module.
+Guards held: 0 added `require` lines; `go.sum` sha256 IDENTICAL before and after
+for both libraries; `go mod edit -fmt` diff rc=0, so no block was reformatted.
+
+Suite rc=0 (67s), `ctl.sh validate` rc=0 in the container. `phase-gate
+implementation` still 5/5 FAIL for both, unchanged from the sweep, as intended.
+
+### THE FINDING — I predicted a table failure. There was none, and that is the defect.
+
+I told the implementer to expect the suite to go red and quote the table failure.
+**No such failure exists.** `t_every_library_resolves_its_full_module_graph`
+(`go/_ctl/lib_test.sh:1441`) has exactly two arms:
+
+```
+unexpected   red  AND NOT on the table
+stale        rc==0 AND on the table
+```
+
+**It never compares the recorded REASON to the observed error.** Both libraries
+stayed rc=1, so both remain legitimately exempt and neither arm fires. The census
+line is identical either side of the change: `16 librar(y|ies) read, 4 red, 4 on
+the exemption table`. Only `replaces=` moved.
+
+So **the exemption reasons are unpoliced prose.** The table policed itself in
+`b3be25e` only because those four libraries went fully GREEN. A same-class defect
+wearing a different-class label is invisible to every check in this repository —
+which is precisely how these two survived, and why MEASUREMENT caught them rather
+than the suite.
+
+That is the deepest instance tonight of the estate's dominant defect family: a
+control that is green because it cannot see. Here the control cannot see the one
+field a human wrote by hand.
+
+### The wording is now wrong in one direction only
+
+`go/_ctl/lib_test.sh:715` still says orchestrator "needs a second replace plus
+pgx/v5 5.7.6 -> 5.10.0". The second replace is now IN, so the true residual is the
+bump alone. The prose block at 700-712 repeats it at line 704. Line 714's
+objectstorage reason is now exactly correct — `kr/pretty` is its sole remaining
+error.
+
+## Could not verify
+
+**eden's workspace build.** `~/code/eden/go.work` carries its own top-level
+`replace` for all 20 modules including `envelope` and `observability`, and
+go.work replaces take precedence, so these lines are INERT in workspace mode —
+the same as the six identical replaces already on this branch. Reasoned from the
+file, not built, because eden's submodule pointer sits at a different commit.
+
+## Next
+
+Test author, in priority order:
+1. **Police the reason text.** An exemption entry should carry a machine-checkable
+   expectation — the error substring the library must actually produce — so a
+   wrong or stale reason FAILS instead of reading as documentation.
+2. F3 — the network discriminator: a transport error must not be reported as a
+   missing replace with a fix instruction that is wrong.
+3. F4 — a counter-stimulus for the `scanned -gt 0` vacuity floor.
+4. F5 — a phantom exemption entry naming a library that does not exist must fail.
+5. Correct the orchestrator reason wording at :704 and :715.
