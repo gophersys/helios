@@ -53,7 +53,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 ## P4 — New demos, none of them Ableton (the real generality test)
 
-- [ ] `demos/telemetry/`: a firmware telemetry console (streams, staleness,
+- [ ] ⏳ 2026-08-13T22:43Z (loop) `demos/telemetry/`: a firmware telemetry console (streams, staleness,
       alarms right/below per psycho-math) designed BLIND — no reference image;
       census -> spec -> solver -> gates only.
 - [ ] `demos/bench/`: a hardware bring-up bench panel (rails, probes, links)

@@ -24,6 +24,10 @@ permissions:
 env:
   IMAGE: ghcr.io/gophersys/dense-ui-ci
 
+concurrency:
+  group: build-ci-image-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: arc-org      # dind sidecar provides Docker

@@ -3,6 +3,10 @@ on:
   push: { branches: [main] }
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — eden/infrastructure owns the controller
