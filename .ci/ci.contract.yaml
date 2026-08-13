@@ -42,7 +42,14 @@ tiers:
       - kind
       - postgres
     privileged: true
-    timeoutMinutes: 30
+    # 45, not 30. `go/_ctl/lib.sh` now states a per-PACKAGE `go test -timeout`, and the two cluster
+    # libs (workspaceprovider, orchestrator) set EDEN_SUBSTRATE_TIMEOUT=25m. That flag bounds a
+    # package, never the lane: this tier runs integration + lifecycle + load per affected project,
+    # so THIS number is the only aggregate bound there is, and a 30-minute cap would cut a lane
+    # that its own per-package budget still considers healthy. The planner estimates ~18-20 min for
+    # workspaceprovider's integration lane on CI hardware (~2x the host it measured on); 45 leaves
+    # room for the two other lanes beside it without leaving a hang to burn the job's full hour.
+    timeoutMinutes: 45
   # nightly — the exhaustive lane on a schedule: the full per-lib gate plus the pinned-version audit.
   nightly:
     verbs:

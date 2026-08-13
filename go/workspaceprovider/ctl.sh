@@ -25,8 +25,16 @@ EDEN_INTEGRATION_CMDS="go docker k3d kind"
 # This is the engine's sanctioned per-lib override (cmd_cover reads EDEN_COVER_TAGS); a substrate
 # lib needs `integration` in the cover tag set.
 EDEN_COVER_TAGS="lifecycle load integration"
+# `go test -timeout` PER PACKAGE on the substrate lanes — NOT a ceiling on the lane, which stands
+# up one k3d or kind cluster per test across several packages and is bounded only by the CI job's
+# own timeout. The shared default is Go's own 10m, and kubernetesadapter does not fit in it: the
+# planner measured that package at 601.3s isolated / 544.1s in-lane against the 600.0s wall — a coin
+# flip at 91-100% of a budget nobody chose, which is why it read as flake. Those seconds are the
+# planner's, measured natively on a dev host; nothing here re-derives them. 25m is ~1.4x the ~18-20
+# min the planner estimates for CI hardware, which measured ~2x that host.
+EDEN_SUBSTRATE_TIMEOUT="25m"
 export EDEN_LIB_NAME EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HOT_PATHS EDEN_INTEGRATION_CMDS
-export EDEN_COVER_TAGS
+export EDEN_COVER_TAGS EDEN_SUBSTRATE_TIMEOUT
 
 # shellcheck source=../_ctl/lib.sh
 # shellcheck disable=SC1091

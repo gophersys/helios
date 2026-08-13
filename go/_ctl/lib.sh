@@ -33,11 +33,15 @@ IFS=$'\n\t'
 # EDEN_COVERAGE_FLOOR — per-package coverage floor as an integer percent (FLOOR, not target).
 # EDEN_HOT_PATHS      — space-separated benchmark name regexps for the performance lane.
 # EDEN_INTEGRATION_CMDS — space-separated tools the integration lane requires (e.g. docker k3d kind).
+# EDEN_SUBSTRATE_TIMEOUT — `go test -timeout` for the substrate lanes, PER PACKAGE (see the guard).
 : "${EDEN_LIB_NAME:=}"
 : "${EDEN_LIB_LEAF:=true}"
 : "${EDEN_COVERAGE_FLOOR:=80}"
 : "${EDEN_HOT_PATHS:=.}"
 : "${EDEN_INTEGRATION_CMDS:=docker}"
+# `=`, not `:=`: `:=` substitutes the default for an EXPLICITLY EMPTY value, and the empty string is
+# one of the unbounded spellings the guard below exists to refuse. Assign-when-UNSET lets "" reach it.
+: "${EDEN_SUBSTRATE_TIMEOUT=10m}"
 
 # PROJECT_ROOT is the per-lib directory; the sourcing ctl.sh exports it. Fall back to this
 # file's grandparent's caller dir only as a guard.
@@ -69,6 +73,28 @@ log_warn()    { printf '%s[warn]%s  %s\n'  "$_LC_WARN" "$_LC_RST" "$*" >&2; }
 log_error()   { printf '%s[error]%s %s\n'  "$_LC_ERR"  "$_LC_RST" "$*" >&2; }
 log_success() { printf '%s[ok]%s    %s\n'  "$_LC_OK"   "$_LC_RST" "$*"; }
 log_dim()     { printf '%s%s%s\n'          "$_LC_DIM"  "$*" "$_LC_RST" >&2; }
+
+# ── the substrate time budget ───────────────────────────────────────────────────────────────
+# The default is GO'S OWN `go test` default, so a lib that never sets the knob changes behaviour
+# not at all — the number only stops being implied. A substrate lib overrides it in its own
+# ctl.sh, beside EDEN_COVERAGE_FLOOR.
+#
+# `-timeout` bounds ONE PACKAGE, never the lane: `go test ./...` gives each package's test binary
+# its own budget, so a lib with nine packages can spend nine times the number and nothing here
+# caps that. The only AGGREGATE bound is the CI job's own timeoutMinutes.
+#
+# An unbounded budget is REFUSED rather than passed through. Go reads `-timeout=0` — and any other
+# non-positive duration — as "no limit", and a lane with no limit cannot report a hang, which is
+# exactly how a real-cluster suite fails; the empty string is the same hole with a different
+# spelling, left behind by a half-written per-lib override. Go rejects a MALFORMED duration loudly
+# on its own, so this only has to catch the values that parse and mean "never stop".
+#
+# It sits here, below the logging block, because it reports through log_error.
+if [[ "$EDEN_SUBSTRATE_TIMEOUT" == -* || -z "${EDEN_SUBSTRATE_TIMEOUT//[!1-9]/}" ]]; then
+  log_error "EDEN_SUBSTRATE_TIMEOUT is unbounded (\"${EDEN_SUBSTRATE_TIMEOUT}\") — a lane with no time limit cannot report a hang, and a hang is how a real-cluster suite fails"
+  log_dim   "  set EDEN_SUBSTRATE_TIMEOUT to a positive Go duration (10m is the default; the cluster libs use 25m) in the per-lib ctl.sh. There is no value that means 'no budget'."
+  exit 1
+fi
 
 # ── tool gate (FAIL-NOT-SKIP, ADR-0020) ─────────────────────────────────────────────────────
 # Resolve a tool on PATH or in $(go env GOPATH)/bin (where the pinned Go tools land), so a
@@ -190,9 +216,13 @@ _cover_profile() {
   #     root contract heavily; without -coverpkg that coverage is invisible and the floor wildly
   #     undercounts. With it, each package's number reflects "exercised by the lib's whole suite".
   # Both overridable; EDEN_LOAD_N is bounded for the cover run.
+  # The SAME budget the substrate lanes carry: a cluster lib puts `integration` in EDEN_COVER_TAGS,
+  # so cover-floor — a dimension of BOTH `phase-gate testing` and `phase-gate qa` — stands up the
+  # same clusters this profile run measures, and would otherwise inherit Go's silent default here
+  # after the lanes stopped inheriting it.
   local cover_tags="${EDEN_COVER_TAGS:-lifecycle load}"
   ( cd "$PROJECT_ROOT" && env EDEN_LOAD_N="${EDEN_COVER_LOAD_N:-50}" \
-      go test -tags "$cover_tags" -coverpkg=./... ./... -covermode=atomic -coverprofile="$profile" -count=1 )
+      go test -tags "$cover_tags" -coverpkg=./... ./... -covermode=atomic -coverprofile="$profile" -count=1 -timeout="$EDEN_SUBSTRATE_TIMEOUT" )
 }
 
 cmd_cover() {
@@ -232,8 +262,8 @@ cmd_leak() {
 # are isolated from the fast unit run but still race-checked.
 cmd_lifecycle() {
   require_cmd go
-  log_info "lifecycle: go test -tags lifecycle ./... -race -count=1 (testing.AssertLifecycle)"
-  go_in_lib test -tags lifecycle ./... -race -count=1
+  log_info "lifecycle: go test -tags lifecycle ./... -race -count=1 -timeout=${EDEN_SUBSTRATE_TIMEOUT}/package (testing.AssertLifecycle)"
+  go_in_lib test -tags lifecycle ./... -race -count=1 -timeout="$EDEN_SUBSTRATE_TIMEOUT"
   log_success "lifecycle: OK"
 }
 
@@ -250,8 +280,15 @@ cmd_integration() {
   local -a integration_cmds
   IFS=' ' read -r -a integration_cmds <<< "$EDEN_INTEGRATION_CMDS"
   require_cmd "${integration_cmds[@]}"
-  log_info "integration: go test -tags integration ./... -count=1 (REAL ${EDEN_INTEGRATION_CMDS})"
-  go_in_lib test -tags integration ./... -count=1
+  # `-v` on THIS lane only. It makes `go test` print a per-test PASS line with that test's own
+  # elapsed time, which is the per-test cost baseline the lane has never had: the planner measured
+  # workspaceprovider/kubernetesadapter at 601.3s isolated / 544.1s in-lane against Go's silent
+  # 600.0s wall — a coin flip at 91-100% of it, which is why it reads as flake rather than as a
+  # budget. Those seconds are the planner's, measured natively on a dev host, not re-derived here.
+  # Attributing that wall to the tests that spend it needs the
+  # per-test numbers to exist in CI first, so this flag is the deferred real fix's evidence.
+  log_info "integration: go test -tags integration ./... -count=1 -timeout=${EDEN_SUBSTRATE_TIMEOUT}/package -v (REAL ${EDEN_INTEGRATION_CMDS})"
+  go_in_lib test -tags integration ./... -count=1 -timeout="$EDEN_SUBSTRATE_TIMEOUT" -v
   log_success "integration: OK"
 }
 
@@ -259,8 +296,8 @@ cmd_integration() {
 # THRESHOLD: 0 races; all N objects reaped; goroutine high-water within the recorded ceiling.
 cmd_load() {
   require_cmd go
-  log_info "load: go test -tags load ./... -race -count=1 (fan-out N=${EDEN_LOAD_N:-500})"
-  ( cd "$PROJECT_ROOT" && env EDEN_LOAD_N="${EDEN_LOAD_N:-500}" go test -tags load ./... -race -count=1 )
+  log_info "load: go test -tags load ./... -race -count=1 -timeout=${EDEN_SUBSTRATE_TIMEOUT}/package (fan-out N=${EDEN_LOAD_N:-500})"
+  ( cd "$PROJECT_ROOT" && env EDEN_LOAD_N="${EDEN_LOAD_N:-500}" go test -tags load ./... -race -count=1 -timeout="$EDEN_SUBSTRATE_TIMEOUT" )
   log_success "load: OK"
 }
 
@@ -1214,6 +1251,10 @@ lib_usage() {
 Usage: ./ctl.sh <command> [args...]
 
   ${EDEN_LIB_NAME}: leaf=${EDEN_LIB_LEAF} coverage-floor=${EDEN_COVERAGE_FLOOR}% integration=[${EDEN_INTEGRATION_CMDS}]
+  substrate-budget: ${EDEN_SUBSTRATE_TIMEOUT} of go test -timeout PER PACKAGE, on the
+                    integration/lifecycle/load/cover-floor lanes (EDEN_SUBSTRATE_TIMEOUT).
+                    It is not the lane's ceiling: nine packages can each spend it, and only
+                    the CI job's own timeout bounds the lane as a whole.
 
 ADR-0018 core verbs:
   build            Compile the library (go build ./...)
