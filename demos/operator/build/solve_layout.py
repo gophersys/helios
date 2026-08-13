@@ -6,6 +6,7 @@ This file only maps solved positions onto the demo's CSS selectors, in the
 byte-identical format the migration was proven against
 (build/expected_positions.css). Run via `uv run --project ../../tools/densui`.
 """
+import argparse
 import pathlib
 import re
 import sys
@@ -19,8 +20,14 @@ PANEL = HERE.parent / "panel.toml"
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--font", help="override the panel font (font-parametric build); "
+                                   "positions re-solve for this font's advances")
+    args = ap.parse_args()
     with open(PANEL, "rb") as fh:
         data = tomllib.load(fh)
+    if args.font:
+        data["font"]["path"] = args.font
     try:
         load_panel(data)
     except SpecError as exc:

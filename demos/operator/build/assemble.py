@@ -5,6 +5,7 @@ Fail-loud: any missing file, missing placeholder, duplicate placeholder,
 '</script>' inside a JS module, failed node --check, or failed params
 self-test aborts with a non-zero exit and a named cause.
 """
+import argparse
 import base64
 import pathlib
 import subprocess
@@ -40,6 +41,12 @@ def die(msg: str) -> None:
 
 
 def main() -> None:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--font", help="font-parametric build: every @font-face and the "
+                                   "solver use this TTF instead of the local licensed "
+                                   "fonts; the golden drift guard applies only to the "
+                                   "fidelity build")
+    args = ap.parse_args()
     shell = (BUILD / "shell.html").read_text()
 
     # 1. Gate: node --check every module, then run the params self-test.
@@ -68,7 +75,11 @@ def main() -> None:
 
     # 3. Inline fonts.
     faces = []
-    for family, path, weight in FONT_FACES:
+    font_faces = FONT_FACES
+    if args.font:
+        override = pathlib.Path(args.font)
+        font_faces = [(family, override, weight) for family, _, weight in FONT_FACES]
+    for family, path, weight in font_faces:
         if not path.exists():
             die(f"missing font {path}")
         b64 = base64.b64encode(path.read_bytes()).decode()
@@ -88,15 +99,22 @@ def main() -> None:
     print(f"wrote {OUT} ({mb:.2f} MB)")
 
     # Solved positions — geometry is computed, never hand-written.
-    r = subprocess.run(["uv", "run", "--project",
-                        str((BUILD / "../../../tools/densui").resolve()), "python3",
-                        str(BUILD / "solve_layout.py")], capture_output=True, text=True)
+    solver_cmd = ["uv", "run", "--project",
+                  str((BUILD / "../../../tools/densui").resolve()), "python3",
+                  str(BUILD / "solve_layout.py")]
+    if args.font:
+        solver_cmd += ["--font", args.font]
+    r = subprocess.run(solver_cmd, capture_output=True, text=True)
     if r.returncode != 0:
         die(f"layout solver failed: {r.stderr.strip()}")
-    expected = (BUILD / "expected_positions.css").read_text()
-    if r.stdout != expected:
-        die("solved positions drifted from expected_positions.css — if the "
-            "change is intended, regenerate the expectation deliberately")
+    if args.font:
+        print(f"drift guard: fidelity-only — not applicable under --font "
+              f"({args.font}); positions are font-specific by design")
+    else:
+        expected = (BUILD / "expected_positions.css").read_text()
+        if r.stdout != expected:
+            die("solved positions drifted from expected_positions.css — if the "
+                "change is intended, regenerate the expectation deliberately")
     out_text = OUT.read_text()
     if out_text.count("/* @SOLVED_POSITIONS@ */") != 1:
         die("solved-positions placeholder count != 1")

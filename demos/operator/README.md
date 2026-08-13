@@ -17,7 +17,9 @@ six-gate battery in `assemble.py`.
 ## Build
 
 ```sh
-python3 build/assemble.py   # solver -> inline -> ratio gate -> overlap gate -> sweep -> params self-test
+python3 build/assemble.py                       # fidelity build (local licensed fonts + golden drift guard)
+python3 build/assemble.py --font /path/to.ttf   # font-parametric build: same pipeline, any TTF,
+                                                # geometry re-solved; drift guard n/a by design
 ```
 
 P1/P3 in ../../PLAN.md generalise this to font-parametric, CI-runnable form.
