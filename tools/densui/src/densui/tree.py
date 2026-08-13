@@ -53,6 +53,8 @@ class Tree:
         self._undo: list[tuple[str, Any]] = []
         self._token = 0
         self._now = now or (lambda: 0.0)
+        self._engaged: set[str] = set()
+        self._deferred: dict[str, tuple] = {}
 
     def desc(self, addr: str) -> Desc:
         try:
@@ -100,10 +102,43 @@ class Tree:
             self._adapter.apply(addr, value, self._token)
         return value
 
+    def engage(self, addr: str) -> None:
+        """While a control is engaged (drag in progress), device pushes to its
+        address QUEUE instead of moving the value under the cursor (§8)."""
+        self.desc(addr)
+        self._engaged.add(addr)
+
+    def release(self, addr: str) -> None:
+        self._engaged.discard(addr)
+        if addr in self._deferred:
+            value, token = self._deferred.pop(addr)
+            self.device_report(addr, value, token)
+
+    def resync(self) -> None:
+        """Adopt the adapter's full truth (reconnect path, §12): every pending
+        clears, every value becomes device truth."""
+        if self._adapter is None or not hasattr(self._adapter, "readAll"):
+            raise TreeError("resync needs an adapter with readAll()")
+        state = self._adapter.readAll()
+        for addr, value in state.items():
+            self.device_report(addr, value, None)
+        # A still-pending address the device did not report never received the
+        # write: it was LOST in the disconnect. Reverting to confirmed truth is
+        # the honest outcome — keeping the optimistic value would show a
+        # setpoint the hardware does not hold.
+        for addr, st in self._s.items():
+            if st.pending_token is not None and addr not in state:
+                st.local = st.confirmed
+                st.pending_token = None
+                self._notify(addr)
+
     def device_report(self, addr: str, value: Any, token: int | None) -> None:
         """Inbound from the adapter. Token matching pending -> silent confirm
         (echo suppression BY TOKEN). No/unknown token -> the device disagrees:
         adopt and repaint."""
+        if addr in self._engaged:
+            self._deferred[addr] = (value, token)  # never move under the cursor
+            return
         st = self._s[self.desc(addr).addr]
         if token is not None and token == st.pending_token:
             st.confirmed = value

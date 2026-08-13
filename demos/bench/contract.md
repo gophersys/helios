@@ -15,6 +15,10 @@ Drills executed (each maps to a DENSE-UI stage-3 clause):
 - disconnect honesty: unacked stays pending; reconnect report resolves (§12)
 - unknown address throws from every entry point (§4)
 
-Remaining (handoff): rate/coalescing at the seam (§5), never-move-under-the-
-cursor queueing (§8), readAll() resync after reconnect, and a minimal bench
-UI over this tree once the drills all stand.
+All nine drills now stand: the three above landed with the seam (§5/§9 —
+last-write-wins per address, queue bounded by construction), under-cursor
+queueing (§8), and readAll() resync (§12) — where the drill itself surfaced
+the lost-write semantic: a pending address absent from the reconnect report
+REVERTS to confirmed truth, because the panel must never show a setpoint the
+hardware does not hold. Remaining (handoff): a minimal bench UI over this
+tree — the panel part of the box.

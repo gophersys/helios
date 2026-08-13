@@ -360,3 +360,12 @@ to source=user, streams refusing set() and going stale, disconnect honesty,
 unknown-address throws. All green first execution — the design was fully
 specified by the framework before a line existed, which is the point.
 HANDOFF: rate/coalescing, under-cursor queueing, readAll resync, minimal UI.
+
+## 2026-08-13T23:44Z — P4 bench: all nine Gate-3 drills stand (sub-step 2)
+Seam coalescing (120-event drag -> one wire write, queue bounded by
+construction), never-move-under-the-cursor (device pushes queue while
+engaged, apply on release), and readAll resync. The resync drill FAILED
+first and the failure was the design speaking: an unacked write to a dead
+link is LOST, and the honest reconnect reverts it to confirmed truth rather
+than showing a setpoint the hardware does not hold — now encoded and
+asserted. 64 tests green. Handoff: the minimal bench panel over the tree.

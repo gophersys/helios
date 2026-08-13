@@ -28,6 +28,13 @@ class FakeSerial:
         self.applied.append((addr, value, token))
         self._report(addr, value, token)
 
+    def readAll(self) -> dict:
+        """The device's full truth: last accepted value per address."""
+        state: dict = {}
+        for addr, value, _tok in self.applied:
+            state[addr] = value
+        return state
+
     def push_unsolicited(self, addr: str, value) -> None:
         """The device disagreeing on its own (knob on the bench, reset...)."""
         self._report(addr, value, None)

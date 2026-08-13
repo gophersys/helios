@@ -92,3 +92,39 @@ def test_unknown_address_throws_everywhere():
     ):
         with pytest.raises(TreeError, match="unknown parameter"):
             fn()
+
+
+def test_seam_coalesces_last_write_wins_and_bounds_the_queue():
+    from densui.seam import Seam
+
+    tree, dev = make()
+    seam = Seam(dev)
+    tree._adapter = seam
+    for i in range(120):  # a 120-event drag burst
+        tree.set("power.ilimit", 0.05 + i * 0.01, source="user")
+    assert seam.depth() == 1  # bounded: one slot per address
+    assert seam.flush() == 1  # one wire write, the last value
+    assert dev.applied[-1][1] == pytest.approx(1.24)
+
+
+def test_device_never_moves_a_value_under_the_cursor():
+    tree, dev = make()
+    tree.engage("power.rail.3v3.setpoint")
+    dev.push_unsolicited("power.rail.3v3.setpoint", 2.9)
+    assert tree.get("power.rail.3v3.setpoint") == 3.30  # queued, not applied
+    tree.release("power.rail.3v3.setpoint")
+    assert tree.get("power.rail.3v3.setpoint") == 2.9  # applied on release
+
+
+def test_readall_resync_clears_pendings_with_device_truth():
+    tree, dev = make()
+    tree.set("power.rail.3v3.setpoint", 3.5, source="user")  # acked (3.5)
+    dev.connected = False
+    tree.set("power.ilimit", 1.5, source="user")  # unacked
+    assert tree.pending("power.ilimit")
+    dev.connected = True
+    tree.resync()
+    assert not tree.pending("power.ilimit")
+    assert tree.get("power.ilimit") == 0.50  # the lost write REVERTS — the
+    # panel must not show a setpoint the hardware does not hold
+    assert tree.confirmed("power.rail.3v3.setpoint") == 3.5
