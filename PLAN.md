@@ -12,7 +12,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 ## P1 — Generalise the toolchain (de-Ableton everything outside the demo)
 
-- [ ] ⏳ 2026-08-13T20:58Z `densui.probe`: the DOM-measurement JS (ink rects via Range +
+- [x] `densui.probe`: the DOM-measurement JS (ink rects via Range +
       `measureText`) as a library asset with a Python driver
       (`densui.probe.collect(page, selectors) -> parts`), extracted from
       `demos/operator/build/overlap_audit.py`.
