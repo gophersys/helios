@@ -10,6 +10,7 @@ require (
 
 replace (
 	github.com/gophersys/libs/go/dependencies v0.0.0 => ../dependencies
+	github.com/gophersys/libs/go/envelope v0.0.0 => ../envelope
 	github.com/gophersys/libs/go/errors v0.0.0 => ../errors
 	github.com/gophersys/libs/go/secrets v0.0.0 => ../secrets
 	github.com/gophersys/libs/go/testing v0.0.0 => ../testing
