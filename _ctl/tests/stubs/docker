@@ -13,6 +13,7 @@
 # understood nothing.
 #
 #   STUB_DOCKER_LOG             append every argv line to this file
+#   STUB_BUILD_STATUS           exit status of `docker build`            (0)
 #   STUB_BUILDX_VERSION_STATUS  exit status of `docker buildx version`   (0)
 #   STUB_BUILDX_INSPECT_STATUS  exit status of `docker buildx inspect`   (0)
 #   STUB_BUILDER_PLATFORMS      the Platforms: line of `buildx inspect`  (linux/amd64)
@@ -47,6 +48,10 @@ function stub_manifest() {
 }
 
 case "${1:-}" in
+  build)
+    printf 'stub: docker build — no daemon was contacted\n'
+    exit "${STUB_BUILD_STATUS:-0}"
+    ;;
   buildx)
     case "${2:-}" in
       version)
