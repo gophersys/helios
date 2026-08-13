@@ -18,6 +18,7 @@ knob_rows: two-line rows (labels above, dials+values below) with separate
 Determinism: solve() output depends only on spec CONTENT, not dict insertion
 order — verified by test; re-solving a canonicalised spec twice is identical.
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -73,7 +74,7 @@ def _solve_flow(name: str, row: dict, ctx: _Ctx) -> dict:
     sol: dict = {}
     units = row["units"]
     for u in units:
-        box = float(u["box"])                     # control width: a declared token
+        box = float(u["box"])  # control width: a declared token
         left = round(u["center"] - box / 2)
         width = int(max([box] + [ctx.adv(t) for t in u.get("labels", [])]) + 0.999) + 1
         margin = left - cursor
@@ -85,18 +86,29 @@ def _solve_flow(name: str, row: dict, ctx: _Ctx) -> dict:
     if trail:
         t_left = round(trail["center"] - trail["width"] / 2)
         if t_left - cursor < MIN_INK_GAP:
-            raise SolveError(f"{name}/{trail['name']}: gap {t_left - cursor:.1f} "
-                             f"< {MIN_INK_GAP} before trailing element")
+            raise SolveError(
+                f"{name}/{trail['name']}: gap {t_left - cursor:.1f} "
+                f"< {MIN_INK_GAP} before trailing element"
+            )
         last = units[-1]
         if "widest_value" in last:
-            v_right = (sol[last["name"]]["left"] + float(last.get("value_left_offset", 0))
-                       + ctx.adv(last["widest_value"]))
+            v_right = (
+                sol[last["name"]]["left"]
+                + float(last.get("value_left_offset", 0))
+                + ctx.adv(last["widest_value"])
+            )
             if v_right > t_left - MIN_INK_GAP:
-                raise SolveError(f"{name}/{last['name']}: widest value ink ends "
-                                 f"{v_right:.1f}, reaches trailing at {t_left}")
-        sol[trail["name"]] = {"left": t_left, "width": int(trail["width"]),
-                              "margin_right": int(row["right_edge"] - (t_left + trail["width"]))
-                              if "right_edge" in row else 0}
+                raise SolveError(
+                    f"{name}/{last['name']}: widest value ink ends "
+                    f"{v_right:.1f}, reaches trailing at {t_left}"
+                )
+        sol[trail["name"]] = {
+            "left": t_left,
+            "width": int(trail["width"]),
+            "margin_right": int(row["right_edge"] - (t_left + trail["width"]))
+            if "right_edge" in row
+            else 0,
+        }
     return sol
 
 
@@ -114,8 +126,9 @@ def _solve_knobs(name: str, row: dict, ctx: _Ctx) -> tuple[dict, list[str]]:
         for k, u in enumerate(units):
             fixed = round(first + (last - first) * k / (len(units) - 1))
             if fixed != centers[u["name"]]:
-                corrections.append(f"{name}/{u['name']}: centre {centers[u['name']]:g} "
-                                   f"-> {fixed} (rhythm G-1)")
+                corrections.append(
+                    f"{name}/{u['name']}: centre {centers[u['name']]:g} -> {fixed} (rhythm G-1)"
+                )
             centers[u["name"]] = fixed
     sol: dict = {}
     prev_label_right = label_floor
@@ -126,21 +139,28 @@ def _solve_knobs(name: str, row: dict, ctx: _Ctx) -> tuple[dict, list[str]]:
         left = round(center - w / 2)
         dial_left = round(center - dial / 2)
         if dial_left < dial_floor:
-            raise SolveError(f"{name}/{u['name']}: dial left {dial_left} "
-                             f"crosses floor {dial_floor:g}")
+            raise SolveError(
+                f"{name}/{u['name']}: dial left {dial_left} crosses floor {dial_floor:g}"
+            )
         label_ink_l = center - label_adv / 2
         if label_ink_l < prev_label_right + MIN_INK_GAP:
-            raise SolveError(f"{name}/{u['name']}: label ink {label_ink_l:.1f} crowds "
-                             f"line-1 neighbour (ends {prev_label_right:.1f})")
+            raise SolveError(
+                f"{name}/{u['name']}: label ink {label_ink_l:.1f} crowds "
+                f"line-1 neighbour (ends {prev_label_right:.1f})"
+            )
         value_right = center + tuck + ctx.adv(u["widest"])
         if k + 1 < len(units):
             nxt = centers[units[k + 1]["name"]] - dial / 2
             if value_right + MIN_INK_GAP > nxt:
-                raise SolveError(f"{name}/{u['name']}: widest value ink ends "
-                                 f"{value_right:.1f}, crowds next dial at {nxt:.1f}")
+                raise SolveError(
+                    f"{name}/{u['name']}: widest value ink ends "
+                    f"{value_right:.1f}, crowds next dial at {nxt:.1f}"
+                )
         elif value_right > plate_w - 4:
-            raise SolveError(f"{name}/{u['name']}: last value ink {value_right:.1f} "
-                             f"escapes the plate ({plate_w:g})")
+            raise SolveError(
+                f"{name}/{u['name']}: last value ink {value_right:.1f} "
+                f"escapes the plate ({plate_w:g})"
+            )
         prev_label_right = center + label_adv / 2
         sol[u["name"]] = {"left": left, "width": w, "center": center}
     return sol, corrections

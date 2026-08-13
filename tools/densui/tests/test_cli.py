@@ -69,10 +69,20 @@ blk = ".a"
 def test_compare_cli(tmp_path, capsys):
     pytest.importorskip("PIL")
     from PIL import Image
+
     for name in ("r.png", "b.png"):
         Image.new("RGB", (40, 30), "#9b9b9b").save(tmp_path / name)
-    rc = main(["compare", str(tmp_path / "r.png"), str(tmp_path / "b.png"),
-               "--region", "q=0,0,20,20", "--out-dir", str(tmp_path)])
+    rc = main(
+        [
+            "compare",
+            str(tmp_path / "r.png"),
+            str(tmp_path / "b.png"),
+            "--region",
+            "q=0,0,20,20",
+            "--out-dir",
+            str(tmp_path),
+        ]
+    )
     assert rc == 0
     out = json.loads(capsys.readouterr().out)
     assert (tmp_path / "cmp_q.png").exists() and "q" in out

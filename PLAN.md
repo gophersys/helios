@@ -44,9 +44,12 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 - [ ] ⏳ 2026-08-13T22:08Z Font-parametric demo build: `assemble.py --font <ttf>` with a freely
       licensed committed font (check OFL redistribution properly; include the
       licence file) or the runner's DejaVu; solver re-solves for that font.
-- [ ] Chrome headless in GitHub Actions runs ratio + overlap + sweep gates.
-- [ ] CI job matrix: tools (pytest+ruff), demo-static (node --check +
-      params self-test), demo-geometry (the proofs). All hard-fail.
+- [ ] Chrome headless on the arc-org fleet runs ratio + overlap + sweep gates
+      (`ctl.sh build --font <runner ttf>`); extend ctl.sh with a `geometry`
+      target; if the fleet image lacks Chrome/fonts, coordinate with
+      eden/infrastructure (BLOCKED.md) rather than pinning ubuntu-latest.
+- [ ] Adopt the cictl review standard (`ctl.sh test-review`, cictl review/)
+      for this repo's PRs; all jobs hard-fail on arc-org.
 
 ## P4 — New demos, none of them Ableton (the real generality test)
 

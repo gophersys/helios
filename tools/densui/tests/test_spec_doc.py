@@ -1,5 +1,6 @@
 """The documentation's canonical example must actually run — an example that
 drifts from the tools is worse than no example."""
+
 import pathlib
 import re
 import tomllib
@@ -28,4 +29,4 @@ def test_example_solves_with_a_real_font(font_path):
     assert set(row) == {"alpha", "beta", "gamma"}
     gap1 = row["beta"]["center"] - row["alpha"]["center"]
     gap2 = row["gamma"]["center"] - row["beta"]["center"]
-    assert abs(gap1 - gap2) <= 1          # rhythm equalisation applied
+    assert abs(gap1 - gap2) <= 1  # rhythm equalisation applied

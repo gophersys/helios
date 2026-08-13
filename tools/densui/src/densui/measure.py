@@ -6,6 +6,7 @@ region statistics (darkest/lightest/dominant colours), and NEAREST-upscaled
 zoom crops with labelled gridlines for anatomy reading. Requires the
 [measure] extra (Pillow); importing without it fails loudly at call time.
 """
+
 from __future__ import annotations
 
 from collections import Counter
@@ -14,9 +15,8 @@ from collections import Counter
 def _pil():
     try:
         from PIL import Image, ImageDraw
-    except ImportError as exc:                      # pragma: no cover
-        raise RuntimeError(
-            "densui.measure needs Pillow — install densui[measure]") from exc
+    except ImportError as exc:  # pragma: no cover
+        raise RuntimeError("densui.measure needs Pillow — install densui[measure]") from exc
     return Image, ImageDraw
 
 
@@ -35,8 +35,9 @@ def _lum(px, x, y) -> float:
     return 0.299 * r + 0.587 * g + 0.114 * b
 
 
-def dark_runs(img, *, y: int, threshold: float, x0: int = 0, x1: int | None = None,
-              min_width: int = 2) -> list[tuple[int, int]]:
+def dark_runs(
+    img, *, y: int, threshold: float, x0: int = 0, x1: int | None = None, min_width: int = 2
+) -> list[tuple[int, int]]:
     """Horizontal runs of pixels darker than threshold on row y: [(start, end)]."""
     px = img.load()
     x1 = img.width if x1 is None else x1
@@ -54,8 +55,9 @@ def dark_runs(img, *, y: int, threshold: float, x0: int = 0, x1: int | None = No
     return runs
 
 
-def level_bands(img, *, x: int, y0: int = 0, y1: int | None = None,
-                quantize: int = 16, min_height: int = 2) -> list[tuple[int, int, int]]:
+def level_bands(
+    img, *, x: int, y0: int = 0, y1: int | None = None, quantize: int = 16, min_height: int = 2
+) -> list[tuple[int, int, int]]:
     """Vertical run-length bands of quantised luminance on column x:
     [(start, end, level)] — the scan that found plates, gaps and title strips."""
     px = img.load()
@@ -87,20 +89,30 @@ def region_stats(img, box: tuple[int, int, int, int], top: int = 5) -> dict:
             if lum > lightest[0]:
                 lightest = (lum, sample(img, x, y), (x, y))
             counts[sample(img, x, y)] += 1
-    return {"darkest": darkest[1], "darkest_at": darkest[2],
-            "lightest": lightest[1], "lightest_at": lightest[2],
-            "top": counts.most_common(top)}
+    return {
+        "darkest": darkest[1],
+        "darkest_at": darkest[2],
+        "lightest": lightest[1],
+        "lightest_at": lightest[2],
+        "top": counts.most_common(top),
+    }
 
 
-def zoom(img, box: tuple[int, int, int, int], out, *, scale: int = 8,
-         grid_step: int | None = None, grid_divisor: float = 1.0) -> None:
+def zoom(
+    img,
+    box: tuple[int, int, int, int],
+    out,
+    *,
+    scale: int = 8,
+    grid_step: int | None = None,
+    grid_divisor: float = 1.0,
+) -> None:
     """NEAREST-upscale a crop for anatomy reading; optional red gridlines every
     grid_step source px, labelled in source units / grid_divisor (e.g. 2 for a
     @2x screenshot labelled in CSS px)."""
     image_mod, draw_mod = _pil()
     x0, y0, x1, y1 = box
-    crop = img.crop(box).resize(((x1 - x0) * scale, (y1 - y0) * scale),
-                                image_mod.NEAREST)
+    crop = img.crop(box).resize(((x1 - x0) * scale, (y1 - y0) * scale), image_mod.NEAREST)
     if grid_step:
         d = draw_mod.Draw(crop)
         for gx in range(0, x1 - x0, grid_step):

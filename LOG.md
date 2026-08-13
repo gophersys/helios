@@ -107,3 +107,14 @@ updated. 4 tests: docs example validates; typo suggestion; multi-error
 accumulation; missing font named. 44 green; demo chain green (drift guard
 doubles as proof the emitter is untouched). P2 done: a panel is a validated
 data file end to end. Next: P3 gates in CI.
+
+## 2026-08-13T22:14Z — gophersys standards + multi-agent hardening (Mateo directive)
+Adopted the house standards: ctl.sh single entry point (test/vet/fmt/build),
+ci.yml now runs `./ctl.sh test` on the arc-org ARC fleet (eden/infrastructure
+owns the controller). P3's remaining boxes reworded for the fleet + the cictl
+review standard. LOOP.md hardened for the second agent working here: foreign
+⏳ untouchable under 40 min, lock-push rejection = task taken, pull --rebase
+before every push, never force-push. Two catches: `ruff format --check` was
+failing on 20 never-formatted files while my pipe read tail's exit code as
+the gate's (the exact swallowed-status trap) — formatted, target honest now;
+and ctl.sh's params gate needed its own loud failure message.

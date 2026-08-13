@@ -16,4 +16,5 @@ def font_path() -> str:
             return p
     raise AssertionError(
         "no test font found — a check that cannot run is a failure; "
-        f"add this platform's path: {FONT_CANDIDATES}")
+        f"add this platform's path: {FONT_CANDIDATES}"
+    )

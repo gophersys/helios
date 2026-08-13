@@ -3,6 +3,7 @@
 Rectangles are (x0, y0, x1, y1) in CSS px. Every predicate returns evidence,
 never a bare bool, so a failed check can always name its numbers.
 """
+
 from __future__ import annotations
 
 
@@ -24,8 +25,9 @@ def hgap(a, b):
 
 def contains(child, parent, slack: float = 1.5):
     """None if child fits inside parent (+-slack); else the worst escape in px."""
-    worst = max(parent[0] - child[0], parent[1] - child[1],
-                child[2] - parent[2], child[3] - parent[3])
+    worst = max(
+        parent[0] - child[0], parent[1] - child[1], child[2] - parent[2], child[3] - parent[3]
+    )
     return None if worst <= slack else worst
 
 
@@ -35,8 +37,7 @@ def breathing(child, parent, floor: float = 2.5):
     return None if clear >= floor else clear
 
 
-def gap_law_violations(gaps, equal_frac: float = 0.06, equal_px: float = 1.0,
-                       ratio: float = 1.45):
+def gap_law_violations(gaps, equal_frac: float = 0.06, equal_px: float = 1.0, ratio: float = 1.45):
     """The forbidden zone (LAYOUT-MATH G-1): every pair of same-neighbourhood
     gaps must be equal (within max(equal_frac*larger, equal_px)) or differ by
     >= ratio. Returns [(g_small, g_large), ...] for pairs inside the zone.

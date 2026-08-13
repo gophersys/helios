@@ -4,27 +4,12 @@ on:
   pull_request:
 
 jobs:
-  tools:
-    runs-on: ubuntu-latest
+  test:
+    runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — eden/infrastructure owns the controller
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - name: pytest
-        working-directory: tools/densui
-        run: uv run --extra dev pytest -q
-      - name: ruff
-        working-directory: tools/densui
-        run: uv run --extra dev ruff check .
-
-  demo-static:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
-      - name: syntax gate on every module
-        run: |
-          set -e
-          for f in demos/operator/build/*.js; do node --check "$f"; done
-      - name: parameter-tree self-test (1087 assertions)
-        run: node demos/operator/build/params.js | tee /dev/stderr | grep -q "^PASS"
+      - name: gates via the standard entry point
+        run: ./ctl.sh test

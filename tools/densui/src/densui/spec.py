@@ -5,6 +5,7 @@ and a did-you-mean suggestion — not obscurely downstream in a solver
 inequality. load_panel() returns the validated dict or raises SpecError
 carrying ALL errors.
 """
+
 from __future__ import annotations
 
 import difflib
@@ -14,11 +15,9 @@ import tomllib
 TOP = {"panel", "font", "census", "tracks", "solve", "probe", "rules", "ratio", "emit"}
 FLOW_ROW = {"pad", "right_edge", "units", "trailing"}
 FLOW_UNIT = {"name", "center", "box", "labels", "widest_value", "value_left_offset"}
-KNOB_ROW = {"plate_width", "dial", "tuck", "dial_floor", "label_floor",
-            "equalize", "units"}
+KNOB_ROW = {"plate_width", "dial", "tuck", "dial_floor", "label_floor", "equalize", "units"}
 KNOB_UNIT = {"name", "center", "label", "widest"}
-RULES = {"graze_max_height", "graze_min_dx", "min_sibling_gap",
-         "breathing_floor", "spill"}
+RULES = {"graze_max_height", "graze_min_dx", "min_sibling_gap", "breathing_floor", "spill"}
 
 
 class SpecError(ValueError):
@@ -88,8 +87,9 @@ def load_panel(spec: dict | str | pathlib.Path) -> dict:
         _require(data["probe"], ["root"], "probe", errors)
     _unknown(data.get("rules", {}), RULES, "rules", errors)
     for k, v in data.get("ratio", {}).items():
-        if not (isinstance(v, list) and len(v) == 2
-                and all(isinstance(x, (int, float)) for x in v)):
+        if not (
+            isinstance(v, list) and len(v) == 2 and all(isinstance(x, (int, float)) for x in v)
+        ):
             errors.append(f"ratio.{k}: expected [want, tol], got {v!r}")
 
     if errors:

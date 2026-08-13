@@ -10,12 +10,12 @@ from densui import measure
 def img():
     im = Image.new("RGB", (100, 60), "#9b9b9b")
     px = im.load()
-    for x in range(20, 40):            # dark bar on row 10, x 20..39
+    for x in range(20, 40):  # dark bar on row 10, x 20..39
         px[x, 10] = (30, 30, 30)
-    for y in range(30, 50):            # dark plate band on column 5, y 30..49
+    for y in range(30, 50):  # dark plate band on column 5, y 30..49
         for x in range(100):
             px[x, y] = (123, 123, 123)
-    px[70, 5] = (121, 205, 250)        # one sky pixel
+    px[70, 5] = (121, 205, 250)  # one sky pixel
     return im
 
 
@@ -47,4 +47,4 @@ def test_zoom_writes_scaled_grid(img, tmp_path):
     measure.zoom(img, (0, 0, 50, 30), out, scale=4, grid_step=10)
     z = Image.open(out)
     assert z.size == (200, 120)
-    assert z.load()[40, 60][0] == 255      # gridline pixel is red
+    assert z.load()[40, 60][0] == 255  # gridline pixel is red

@@ -28,6 +28,16 @@ tools and framework for blind dense-UI layout. **Nothing outside
   the private research fixture already present; builds take font paths as
   parameters and must work with free fonts.
 
+## gophersys standards
+
+- `ctl.sh` is the single entry point (build/test/vet/fmt) — CI and humans call
+  the same script, the eden/cictl convention. CI runs on the org ARC fleet
+  (`runs-on: arc-org`); eden/infrastructure owns the controller.
+- **Another agent may be working in this repo concurrently.** Follow LOOP.md's
+  collision protocol strictly: pull before locking AND before pushing, never
+  take a foreign ⏳ younger than 40 minutes, never force-push, and on push
+  rejection rebase once and retry — then stop and log rather than fight.
+
 ## Gates
 
 ```sh

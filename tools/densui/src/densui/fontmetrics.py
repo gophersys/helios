@@ -3,6 +3,7 @@
 px = units / unitsPerEm * size. Advances are exact per string; cap height and
 ascent/descent come from OS/2. A missing glyph raises — never a guessed width.
 """
+
 from __future__ import annotations
 
 from fontTools.ttLib import TTFont

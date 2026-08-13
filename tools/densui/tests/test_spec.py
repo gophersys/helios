@@ -31,14 +31,14 @@ def test_typo_gets_a_suggestion(font_path):
 
 def test_all_errors_reported_at_once(font_path):
     data = doc_example(font_path)
-    data["panle"] = data.pop("panel")            # top-level typo
-    data["ratio"]["panel_w"] = 800               # bad ratio row
+    data["panle"] = data.pop("panel")  # top-level typo
+    data["ratio"]["panel_w"] = 800  # bad ratio row
     with pytest.raises(SpecError) as exc:
         load_panel(data)
     errs = exc.value.errors
     assert any("panle" in e and "panel" in e for e in errs)
     assert any("ratio.panel_w" in e for e in errs)
-    assert len(errs) >= 3                        # incl. missing required panel
+    assert len(errs) >= 3  # incl. missing required panel
 
 
 def test_missing_font_path_named(font_path):

@@ -5,6 +5,7 @@ wrong component anatomy, structure and typeface. Each region becomes one
 image: reference on top, build below, NEAREST-upscaled, split by a divider.
 Requires the [measure] extra (Pillow).
 """
+
 from __future__ import annotations
 
 import pathlib
@@ -17,7 +18,7 @@ DIVIDER = (200, 40, 40)
 def find_color_row(img, x: int, color: str, tol: int = 4) -> int | None:
     """First y where pixel (x, y) matches color within tol per channel — the
     locator trick for finding a device's top edge in a page screenshot."""
-    want = tuple(int(color[i:i + 2], 16) for i in (1, 3, 5))
+    want = tuple(int(color[i : i + 2], 16) for i in (1, 3, 5))
     px = img.load()
     for y in range(img.height):
         got = px[x, y][:3]
@@ -26,9 +27,15 @@ def find_color_row(img, x: int, color: str, tol: int = 4) -> int | None:
     return None
 
 
-def side_by_side(ref, built, regions: dict[str, tuple[int, int, int, int]],
-                 out_dir: str | pathlib.Path, *, scale: int = 2,
-                 divider: int = 8) -> dict[str, pathlib.Path]:
+def side_by_side(
+    ref,
+    built,
+    regions: dict[str, tuple[int, int, int, int]],
+    out_dir: str | pathlib.Path,
+    *,
+    scale: int = 2,
+    divider: int = 8,
+) -> dict[str, pathlib.Path]:
     """For each named region (same box in both images): stack ref above built,
     upscale NEAREST, save cmp_<name>.png. Returns {name: path}."""
     image_mod, _ = _pil()

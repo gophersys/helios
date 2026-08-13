@@ -1,4 +1,3 @@
-
 import pytest
 
 from densui import probe
@@ -21,10 +20,12 @@ def page(tmp_path):
 
 def _collect(page):
     return probe.collect(
-        page, root="#root",
+        page,
+        root="#root",
         containers={"box": ".box"},
         parts={"blk": ".blk", "txt": ".txt"},
-        text_kinds={"txt"})
+        text_kinds={"txt"},
+    )
 
 
 def test_rects_are_root_relative_and_exact(page):
@@ -53,5 +54,4 @@ def test_missing_root_fails_loudly(page):
 
 def test_missing_page_fails_loudly(tmp_path):
     with pytest.raises(probe.ProbeError):
-        probe.collect(tmp_path / "absent.html", root="#root",
-                      containers={}, parts={})
+        probe.collect(tmp_path / "absent.html", root="#root", containers={}, parts={})
