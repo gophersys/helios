@@ -1,6 +1,6 @@
 # go-vulnerabilities
 
-phase:    fix
+phase:    submit
 repo:     gophersys/libs
 branch:   fix/go-vulnerabilities
 worktree: ~/code/.worktrees/libs-vulns
@@ -136,3 +136,33 @@ enough to make the same library affected, WITHOUT the x/text bump.
 An x/text bump causing a k3d cluster provision to hang is not plausible, but
 plausibility is not evidence and this organization has been wrong on exactly that
 kind of guess before.
+
+### Control result — SURFACED, not caused. This feature is exonerated.
+
+| run | change | in flight at the alarm | result |
+| --- | --- | --- | --- |
+| #10 | x/text v0.37.0 -> v0.39.0 | TestK3d_ProvisionRunExecFilesTeardown (22s) | FAIL 600.011s |
+| #11 | 1 comment, no dependency change | TestKind_Conforms (2m28s) | FAIL 600.014s |
+
+Same package, same 600s wall, WITHOUT the bump. The different test name is
+expected: the panic names whichever test held the floor when the 10-minute alarm
+fired, not the culprit.
+
+Cause: `go/_ctl/lib.sh` runs `go test -tags integration ./... -count=1` with NO
+`-timeout` flag, so Go's default 10m per package applies, and `kubernetesadapter`
+provisions BOTH a k3d and a kind cluster in one package. For scale from the same
+runs: dockeradapter 93s, secrets/vaultadapter 33.6s, every other package under 1s.
+
+It had never run in CI before, because the substrate tier selects only AFFECTED
+projects and nothing had touched go/workspaceprovider. This was never a passing
+check that broke — it was an unrun check.
+
+Filed as its own task with the timeout-vs-split decision left OPEN, not guessed.
+PR #11 is closed and its branch deleted, local and remote.
+
+## Next
+
+Phase 8 — the final stop. This PR is complete and its own gate is green; the only
+red is a pre-existing lane failure proven to be independent of it. It needs
+Mateo's merge approval, and a decision on whether to merge over a red substrate
+tier or fix task #42 first.
