@@ -18,6 +18,7 @@ that change yet. The runner is not registered.
 | Remote Login | ON. `sshd` answers at `10.168.0.92:22` (OpenSSH 9.9). |
 | Access | The dedicated key `~/.ssh/macos-ci-runner` (ed25519, no passphrase). |
 | Xcode | Full Xcode at `/Applications/Xcode.app/Contents/Developer`. |
+| HostName | `macos-ci-runner`. `scutil --get HostName` and `hostname` both give it. |
 
 Prove the access from the workstation:
 
@@ -25,6 +26,22 @@ Prove the access from the workstation:
 ssh -i ~/.ssh/macos-ci-runner -o BatchMode=yes -o IdentitiesOnly=yes \
     mateo@10.168.0.92 'echo OK'
 ```
+
+## The HostName was unset until 2026-08-13
+
+`scutil --get HostName` gave `HostName: not set`, and `hostname` gave
+`Mateos-Mac-mini.local`. The machine therefore did not answer with the name it
+is declared under. This command set it:
+
+```sh
+sudo scutil --set HostName macos-ci-runner
+```
+
+The identity assertion in `scripts/verify-access.sh` was always correct. The
+machine was wrong. Read a `FAIL ... answered as <other name>` line that way.
+
+`LocalHostName` stays `Mateos-Mac-mini`. It is the Bonjour name on the LAN, not
+the fleet identity, so we leave it alone.
 
 ## What is NOT true yet
 
@@ -73,8 +90,9 @@ Do not depend on any item below. None of them is done.
 ## Notes
 - The runner user should NOT have the Bitwarden vault unlocked. CI needs no access
   to the vault. It needs `GITHUB_TOKEN` only.
-- The vault item `shared/macos-ci-runner/account-credentials` holds the account
-  password. It is the break-glass path. The happy path is the key.
+- The vault item `shared/ssh/macos-ci-runner` holds the account password. It is
+  the break-glass path. The happy path is the key. The name follows the fleet
+  convention `shared/ssh/<machine>`, the same as `shared/ssh/macbook-air`.
 - A deep-test lane in the future: a scheduled workflow that runs
   `--capture-test` against real system audio. That test has a purpose only on
   this machine.

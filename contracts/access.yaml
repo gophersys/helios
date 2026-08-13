@@ -38,7 +38,7 @@ machines:
     user: mateo
     method: ssh-key
     key: ~/.ssh/macos-ci-runner              # dedicated automation key, ed25519
-    secret: shared/macos-ci-runner/account-credentials   # break-glass account, name only
+    secret: shared/ssh/macos-ci-runner        # break-glass account, name only
     role: "Mac mini (Macmini9,1) — macOS CI host; the Actions runner is not registered yet"
 
   # ---- hypervisors (tag:home) ----
