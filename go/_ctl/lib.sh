@@ -1184,10 +1184,21 @@ cmd_phase_gate() {
     qa)             phase_qa ;;
     all)
       log_info "phase-gate all: architecture → implementation → testing → qa (short-circuit on first failure)"
-      phase_architecture   || { _gate_summary; exit 1; }
-      phase_implementation || { _gate_summary; exit 1; }
-      phase_testing        || { _gate_summary; exit 1; }
-      phase_qa             || { _gate_summary; exit 1; }
+      # Each phase runs in a NEUTRAL position with errexit disabled around it, for the reason
+      # _gate_run states above: `phase_architecture || { … }` suppresses errexit for the whole
+      # phase, and bash carries that suppression down into every verb subshell — the `all` path
+      # would then report GREEN over exactly the reds the per-phase arms catch. Each phase_*
+      # already ends with `_gate_summary`, so the table is printed once, by the phase itself.
+      local step rc=0
+      for step in phase_architecture phase_implementation phase_testing phase_qa; do
+        set +e
+        "$step"
+        rc=$?
+        set -e
+        if [[ "$rc" -ne 0 ]]; then
+          return 1
+        fi
+      done
       log_success "phase-gate all: GREEN — library is done (past phase-gate qa)"
       ;;
     *)

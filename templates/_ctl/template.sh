@@ -283,13 +283,14 @@ cmd_integration() {
 
 # ── (h) MAINTAINABILITY — strict lint + hnslint (structural HNS-1) ───────────────────────────
 cmd_maintainability() {
+  require_cmd hnslint
   cmd_lint
-  if have_cmd hnslint >/dev/null 2>&1; then
-    log_info "maintainability: hnslint (structural HNS-1)"
-    ( cd "$PROJECT_ROOT" && "$(have_cmd hnslint)" ./... )
-  else
-    require_cmd hnslint
-  fi
+  log_info "maintainability: hnslint (structural HNS-1)"
+  # hnslint's whole interface is `hnslint <dir> [dir...]` — a DIRECTORY, never a Go package
+  # pattern. `./...` was answered with "./...: not a directory" and exit 1, so this step had
+  # never inspected a single file. It is invoked the way the one home invokes it
+  # (go/_ctl/lib.sh cmd_maintainability): the tool, then $PROJECT_ROOT.
+  "$(have_cmd hnslint)" "$PROJECT_ROOT"
   log_success "maintainability: OK"
 }
 
@@ -324,60 +325,98 @@ cmd_secretscan() {
 #   testing        — unit + the integration lane on REAL substrate.
 #   qa             — cross-cutting gates (vuln/sast/secretscan) + maintainability + no-shortcuts.
 
+# _GATE_FAILED counts the FAILED dimensions of the phase in flight. The phase's exit status is
+# taken from this counter, never from the last dimension's rc: every dimension runs so the table
+# is complete, so a mid-phase FAIL followed by a passing dimension must still be RED.
+_GATE_FAILED=0
+_gate_reset() { _GATE_FAILED=0; }
+
 _gate_run() {
   local label="$1"; shift
   printf '%s── phase-gate step: %s%s\n' "$_LC_INFO" "$label" "$_LC_RST" >&2
-  if ( set -Eeuo pipefail; "$@" ); then
+  # CRITICAL (bash errexit semantics) — the trap go/_ctl/lib.sh:1007-1020 already names and
+  # fixes, in the one home this file was the second copy of. A verb like `cmd_build` is
+  # `go_in_app build ./… ; log_success`, so its failure is carried ONLY by errexit. errexit is
+  # suppressed for a command used as an `if`/`while` condition or on either side of `&&`/`||`,
+  # and bash pushes that suppression INTO a subshell run in that position and into the functions
+  # the subshell calls — the re-armed `set -Eeuo pipefail` inside the parentheses does NOT
+  # restore it. So `if ( set -Eeuo pipefail; "$@" ); then` ran every verb through to
+  # `log_success` and recorded PASS for a RED dimension. The only construct that keeps the inner
+  # errexit live is: disable errexit locally, run the BARE subshell in a NEUTRAL position, then
+  # read `$?` on the next line. `exit 127` (FAIL-NOT-SKIP) propagates as the subshell's 127.
+  #
+  # The caller's errexit setting is RESTORED rather than hard-set, because this function delivers
+  # its verdict through its return status: a caller that reads that status must have errexit off
+  # (see _gate_step), and a blind `set -e` here would abort the phase on its first red dimension
+  # and hide every dimension after it.
+  local shell_flags="$-" rc=0
+  set +e
+  ( set -e; "$@" )
+  rc=$?
+  case "$shell_flags" in *e*) set -e ;; esac
+  if [[ "$rc" -eq 0 ]]; then
     printf 'PASS\t%s\n' "$label"
     return 0
   fi
   printf 'FAIL\t%s\n' "$label"
-  return 1
+  return "$rc"
+}
+
+# _gate_step <label> <verb-fn> [args...] — run one dimension and TALLY its verdict, so the phase
+# runs every dimension and still exits non-zero. `_gate_run` is called in a NEUTRAL position with
+# errexit disabled around it: a `_gate_run … || rc=1` here re-suppresses errexit, and bash carries
+# that suppression all the way down into the verb subshell above — which is the defect, restated
+# one level up. Phases run with errexit on, so it is restored unconditionally.
+_gate_step() {
+  local rc=0
+  set +e
+  _gate_run "$@"
+  rc=$?
+  set -e
+  if [[ "$rc" -ne 0 ]]; then
+    _GATE_FAILED=$((_GATE_FAILED + 1))
+  fi
 }
 
 _gate_architecture() {
+  _gate_reset
   log_info "phase-gate architecture: frozen contract + compiling skeleton"
-  local rows=() rc=0
-  _gate_run "openapi-contract-present" _assert_openapi_present; rows+=("$?") || rc=1
-  _gate_run "skeleton-compiles" cmd_build; rows+=("$?") || rc=1
+  _gate_step "openapi-contract-present" _assert_openapi_present
+  _gate_step "skeleton-compiles" cmd_build
   # Go-first-emit (OD-16-openapi): the committed contract must match the route types. A drift means
   # the routes changed but the contract was not re-emitted — the architecture is not frozen-coherent.
-  _gate_run "openapi-no-drift" cmd_verify_openapi; rows+=("$?") || rc=1
-  _gate_summary "architecture" "${rows[@]}"
-  return $rc
+  _gate_step "openapi-no-drift" cmd_verify_openapi
+  _gate_summary "architecture"
 }
 
 _gate_implementation() {
+  _gate_reset
   log_info "phase-gate implementation: build + lint + vet + fake conformance"
-  local rc=0
-  _gate_run "build" cmd_build || rc=1
-  _gate_run "vet" cmd_vet || rc=1
-  _gate_run "lint" cmd_lint || rc=1
-  _gate_run "test" cmd_test || rc=1
-  _gate_summary "implementation" "$rc"
-  return $rc
+  _gate_step "build" cmd_build
+  _gate_step "vet" cmd_vet
+  _gate_step "lint" cmd_lint
+  _gate_step "test" cmd_test
+  _gate_summary "implementation"
 }
 
 _gate_testing() {
+  _gate_reset
   log_info "phase-gate testing: unit + REAL-substrate integration"
-  local rc=0
-  _gate_run "test" cmd_test || rc=1
-  _gate_run "integration" cmd_integration || rc=1
-  _gate_run "cover" cmd_cover || rc=1
-  _gate_summary "testing" "$rc"
-  return $rc
+  _gate_step "test" cmd_test
+  _gate_step "integration" cmd_integration
+  _gate_step "cover" cmd_cover
+  _gate_summary "testing"
 }
 
 _gate_qa() {
+  _gate_reset
   log_info "phase-gate qa: security + maintainability + no-shortcuts"
-  local rc=0
-  _gate_run "vuln" cmd_vuln || rc=1
-  _gate_run "sast" cmd_sast || rc=1
-  _gate_run "secretscan" cmd_secretscan || rc=1
-  _gate_run "maintainability" cmd_maintainability || rc=1
-  _gate_run "no-shortcuts" _assert_no_shortcuts || rc=1
-  _gate_summary "qa" "$rc"
-  return $rc
+  _gate_step "vuln" cmd_vuln
+  _gate_step "sast" cmd_sast
+  _gate_step "secretscan" cmd_secretscan
+  _gate_step "maintainability" cmd_maintainability
+  _gate_step "no-shortcuts" _assert_no_shortcuts
+  _gate_summary "qa"
 }
 
 # _assert_openapi_present — the architecture gate's frozen-contract check: contract/openapi.yaml
@@ -412,15 +451,17 @@ _assert_no_shortcuts() {
   log_success "no-shortcuts: clean"
 }
 
+# _gate_summary <phase> — the phase's verdict, read from the counter rather than from a list of
+# rc arguments. The old signature took the rows, and `_gate_architecture` filled them with
+# `rows+=("$?") || rc=1` — an append always succeeds, so `rc` was never set and that phase was
+# GREEN whatever its dimensions did. A counter has no such silent arm.
 _gate_summary() {
-  local phase="$1"; shift
-  local fail=0 code
-  for code in "$@"; do [[ "$code" -ne 0 ]] && fail=1; done
-  if [[ "$fail" -eq 0 ]]; then
+  local phase="$1"
+  if [[ "$_GATE_FAILED" -eq 0 ]]; then
     log_success "phase-gate $phase: GREEN"
     return 0
   fi
-  log_error "phase-gate $phase: RED"
+  log_error "phase-gate $phase: RED — $_GATE_FAILED dimension(s) FAILED or REQUIRED-BUT-ABSENT"
   return 1
 }
 
@@ -433,10 +474,20 @@ cmd_phase_gate() {
     qa)             _gate_qa ;;
     all)
       log_info "phase-gate all: architecture → implementation → testing → qa (short-circuit on first failure)"
-      _gate_architecture   || return 1
-      _gate_implementation || return 1
-      _gate_testing        || return 1
-      _gate_qa             || return 1
+      # Each phase runs in a NEUTRAL position with errexit disabled around it, for the reason
+      # _gate_run states: `_gate_architecture || return 1` suppresses errexit for the whole
+      # phase, and bash carries that suppression down into every verb subshell — the `all` path
+      # would then report GREEN over exactly the reds the per-phase paths catch.
+      local step rc=0
+      for step in _gate_architecture _gate_implementation _gate_testing _gate_qa; do
+        set +e
+        "$step"
+        rc=$?
+        set -e
+        if [[ "$rc" -ne 0 ]]; then
+          return 1
+        fi
+      done
       log_success "phase-gate all: GREEN — the application is done (past phase-gate qa)"
       ;;
     *) log_error "unknown phase: '$phase' (architecture|implementation|testing|qa|all)"; exit 1 ;;

@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
 #
-# libs/go/_ctl/lib_test.sh — prove that `ctl.sh lint` names the failure it had.
+# libs/go/_ctl/lib_test.sh — prove that lib.sh's gate can FAIL, and names the failure it had.
+#
+# Two defects, one suite, because both live in this file:
+#
+#   1. `cmd_lint` mis-reports a golangci-lint RUN failure as lint findings (tests 1-5).
+#   2. `cmd_phase_gate`'s `all` arm records PASS for a verb whose tool exited non-zero
+#      (tests 6-7). `phase_architecture || { _gate_summary; exit 1; }` (lib.sh:1187-1190)
+#      puts the phase in the ||-LEFT position, where bash suppresses errexit — and the
+#      suppression propagates through the phase into `_gate_run`'s `( set -e; "$@" )`
+#      subshell, so a verb whose failure is carried only by errexit runs on to its own
+#      `log_success` and returns 0. `phase-gate all` is the wired Nx target in all 16
+#      go/*/project.json and the nightly CI verb `gate-all`, so this is the reading CI
+#      trusts. lib.sh:1007-1020 already documents and fixes the trap INSIDE `_gate_run`;
+#      the neutral position has to hold at the CALL SITE too, or the suppression comes
+#      straight back.
 #
 # `cmd_lint` reports EVERY non-zero golangci-lint exit as "golangci-lint found
 # issues". golangci-lint 2.12.2 exits 0 clean, 1 for findings and 3 when the RUN
@@ -37,12 +51,19 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
 # STIMULUS is the golangci-lint exit code fed to cmd_lint; CONFIG is the config
-# file under test. The driver repoints both between phase 1 and phase 2.
+# file under test. GO_BUILD_RC is the exit code the sandbox `go` stub returns for
+# `go build` (and ONLY for `go build`); ABSENT_TOOL, when set, is left OFF the
+# sandbox PATH entirely (the FAIL-NOT-SKIP stimulus). The driver repoints all four
+# between phase 1 and phase 2.
 STIMULUS=""
 CONFIG="$SHARED_CONFIG"
-# OUT and RC hold the last run_lint result.
+GO_BUILD_RC=0
+ABSENT_TOOL=""
+# OUT and RC hold the last run_lint / run_phase_gate result; ARGV holds what the
+# phase-gate sandbox's stubs recorded of their own invocations.
 OUT=""
 RC=0
+ARGV=""
 
 info() { printf '\033[0;36m[test]\033[0m %s\n' "$*"; }
 ok()   { printf '\033[0;32m  ok  \033[0m %s\n' "$*"; }
@@ -125,7 +146,162 @@ typo_config() {
   printf '%s' "$dst"
 }
 
+# ── the phase-gate sandbox ──────────────────────────────────────────────────
+#
+# `phase-gate all` reaches EVERY verb in lib.sh, so the sandbox stubs every gate tool and
+# supplies the artifacts the four phases assert on (a frozen contract, .apibaseline, a bench
+# baseline, a parseable coverage profile). Exactly ONE invocation is allowed to fail —
+# `go build` — and that is the whole point: a counter-stimulus that breaks EVERY tool at once
+# cannot find this defect, because any dimension carrying an explicit `exit` (cmd_lint,
+# cover-floor, require_cmd) drags the phase red on its own and the blind path survives. Only
+# `go build` fails, and cmd_build carries that failure through errexit alone.
+
+# The gate tools lib.sh reaches for. Every one is stubbed on every run, so a verb can never
+# reach a real tool and no assertion depends on what this host happens to have installed.
+# `git` is stubbed too: `_eden_monorepo_root` shells out to it to locate the contract file.
+GATE_TOOLS=(go gofumpt golangci-lint govulncheck gosec gitleaks hnslint benchstat gremlins git)
+
+# The ordinary utilities lib.sh's verbs and its maintainability scans call. The sandbox PATH
+# holds ONLY these and the stubs — never the host PATH — so an "absent tool" stimulus is a real
+# absence rather than a stub the real binary shadows from further down the path.
+GATE_COREUTILS=(dirname basename mktemp cat tail head rm cp mkdir touch chmod ln sed awk grep tr sort wc find env ls diff cut tee uniq)
+
+# make_gate_sandbox prints the path of a fresh sandbox holding bin/ (the stubs), proj/ (a
+# fixture library whose ctl.sh sources lib.sh exactly as a real per-lib ctl.sh does) and mono/
+# (the monorepo root the git stub reports, where the frozen contract lives).
+make_gate_sandbox() {
+  local sb tool utility path
+  sb="$(mktemp -d "$WORK/gate.XXXXXX")"
+  mkdir -p "$sb/bin" "$sb/gopath/bin" "$sb/proj/.benchbaseline" "$sb/mono/docs/architecture/contracts"
+  ln -s "$(command -v bash)" "$sb/bin/bash"
+  for utility in "${GATE_COREUTILS[@]}"; do
+    # FAIL-NOT-SKIP: a utility the sandbox cannot provide is named, never worked around.
+    path="$(command -v "$utility")" ||
+      die "this host has no $utility; the phase-gate sandbox cannot be built"
+    ln -s "$path" "$sb/bin/$utility"
+  done
+  : > "$sb/argv"
+
+  for tool in "${GATE_TOOLS[@]}"; do
+    [[ "$tool" == "$ABSENT_TOOL" ]] && continue
+    {
+      printf '#!/usr/bin/env bash\n'
+      printf 'printf "%%s\\t%%s\\n" "%s" "$*" >> "%s"\n' "$tool" "$sb/argv"
+      case "$tool" in
+        go)
+          # `go env GOPATH` answers have_cmd's fallback and must never hang. `go list` feeds
+          # _api_snapshot and prints nothing, which matches the empty .apibaseline below.
+          # `go build` is THE failing invocation.
+          # shellcheck disable=SC2016 # the stub body is emitted verbatim, expanded when it runs
+          printf 'case "${1:-}" in\n'
+          printf '  env)   printf "%%s\\n" "%s/gopath"; exit 0 ;;\n' "$sb"
+          printf '  list)  exit 0 ;;\n'
+          printf '  build) exit %s ;;\n' "$GO_BUILD_RC"
+          printf 'esac\n'
+          # cover-floor exits 1 when it parses NO package out of the profile, so `go test
+          # -coverprofile=<path>` must write one — otherwise the phase goes red for the
+          # FIXTURE instead of for the defect, and the run proves nothing. 1 covered
+          # statement in 1 package = 100%, clear of the 80% floor.
+          # shellcheck disable=SC2016 # the stub body is emitted verbatim, expanded when it runs
+          printf '%s\n' 'for a in "$@"; do case "$a" in -coverprofile=*)' \
+            '  printf "%s\n" "mode: atomic" "example.com/gatefixture/fixture.go:5.20,7.2 1 1" > "${a#-coverprofile=}" ;;' \
+            'esac; done'
+          ;;
+        git)
+          # _eden_monorepo_root asks for the superproject working tree, then the toplevel.
+          printf 'case "$*" in\n'
+          printf '  *rev-parse*) printf "%%s\\n" "%s" ;;\n' "$sb/mono"
+          printf 'esac\n'
+          ;;
+        gremlins)
+          # cmd_mutate parses Killed/Lived/efficacy and FAILS a run that produced no killable
+          # mutant, so the stub speaks gremlins' own summary shape.
+          printf 'printf "%%s\\n" "Killed: 8, Lived: 0, Not covered: 0" "Mutator coverage: 100.00%%" "Test efficacy: 100.00%%"\n'
+          ;;
+        benchstat)
+          # cmd_bench_guard scans the report for a "+N%%" delta; a no-change table has none.
+          printf 'printf "%%s\\n" "goos: linux" "geomean   ~ (p=1.000 n=10)"\n'
+          ;;
+      esac
+      printf 'exit 0\n'
+    } > "$sb/bin/$tool"
+    chmod +x "$sb/bin/$tool"
+  done
+
+  # The fixture library. `go` is stubbed, so this file is never compiled; it exists because
+  # lib.sh's maintainability scans read Go source, and a lib holding none makes their greps
+  # exit non-zero for the FIXTURE rather than for the code under test.
+  printf '%s\n' \
+    '// Package gatefixture is the library the phase-gate sandbox drives.' \
+    'package gatefixture' \
+    '' \
+    '// Fixture is the one exported type of the sandbox library.' \
+    'type Fixture struct{}' \
+    '' \
+    '// Value returns the fixture value.' \
+    'func (Fixture) Value() int { return 1 }' > "$sb/proj/fixture.go"
+  # The artifacts the gate asserts on: a frozen contract (phase 1), the recorded exported
+  # surface (phases 1, 2 and 4 — empty, matching the empty `go list`), a bench baseline (phase 3).
+  printf '%s\n' '# gatefixture' '' '> Status: Frozen (the sandbox contract)' \
+    > "$sb/mono/docs/architecture/contracts/gatefixture.md"
+  : > "$sb/proj/.apibaseline"
+  printf '%s\n' 'goos: linux' 'BenchmarkValue-8   1000000   1.0 ns/op   0 B/op   0 allocs/op' \
+    > "$sb/proj/.benchbaseline/hotpaths.txt"
+
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'set -Eeuo pipefail\n'
+    printf "IFS=\$'\\\\n\\\\t'\n"
+    # shellcheck disable=SC2016 # the fixture's own body, expanded when the fixture runs
+    printf '%s\n' 'PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"' 'export PROJECT_ROOT'
+    printf 'EDEN_LIB_NAME="gatefixture"\n'
+    printf 'EDEN_LIB_LEAF="true"\n'
+    printf 'EDEN_COVERAGE_FLOOR="80"\n'
+    printf 'EDEN_HOT_PATHS="."\n'
+    printf 'EDEN_INTEGRATION_CMDS="go"\n'
+    printf 'export EDEN_LIB_NAME EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HOT_PATHS EDEN_INTEGRATION_CMDS\n'
+    # shellcheck disable=SC2016 # the fixture resolves these at run time, not here
+    printf '%s\n' 'source "$EDEN_LIB_UNDER_TEST"' 'lib_main "$@"'
+  } > "$sb/proj/ctl.sh"
+  chmod +x "$sb/proj/ctl.sh"
+
+  printf '%s' "$sb"
+}
+
+# run_phase_gate <phase> — drive the whole verb a human types and CI runs: `./ctl.sh
+# phase-gate <phase>`, through the per-lib dispatcher, not through an internal function.
+# Sets OUT (stdout+stderr), RC and ARGV.
+run_phase_gate() {
+  local phase="$1" sb
+  [[ -n "$phase" ]] || die "run_phase_gate needs a phase"
+  sb="$(make_gate_sandbox)"
+  RC=0
+  OUT="$(env -i PATH="$sb/bin" HOME="$sb" TMPDIR="$sb" \
+    EDEN_GOWORK="$sb/absent.go.work" EDEN_LIB_UNDER_TEST="$LIB" \
+    bash "$sb/proj/ctl.sh" phase-gate "$phase" 2>&1)" || RC=$?
+  ARGV="$(cat "$sb/argv")"
+  assert_gate_harness_intact
+}
+
+# assert_gate_harness_intact — a red produced by a broken sandbox is not evidence. A utility
+# the sandbox failed to provide surfaces as "command not found", which would make almost any
+# verb fail for a reason that has nothing to do with lib.sh, so it aborts the suite instead of
+# being read as a result.
+assert_gate_harness_intact() {
+  if grep -q 'command not found' <<< "$OUT"; then
+    die "the sandbox is missing a utility, so this run measured the harness, not lib.sh: $OUT"
+  fi
+}
+
 # ── the tests ───────────────────────────────────────────────────────────────
+#
+# HOUSE FORM FOR A NEGATIVE ASSERTION: `if <probe>; then fail "…"; fi` — never
+# `<probe> && fail "…"`. The driver reads a test's RETURN STATUS as its verdict, and an
+# AND-list whose left side does not match returns 1. As a function's last statement that 1
+# becomes the test's return status, so the test reports FAIL in the very state it is meant to
+# call a pass, and reports it SILENTLY because `fail` never ran. A POSITIVE assertion
+# (`<probe> || fail "…"`) is safe in either form — its passing arm is the left side, which
+# returns 0.
 
 # A collision is exit 3. The verb must still fail, and must not name a cause it
 # never checked. This is the defect.
@@ -194,12 +370,49 @@ t_the_shared_config_is_schema_valid() {
     fail "$CONFIG does not set run.allow-parallel-runners: true, so concurrent lints still collide"
 }
 
+# THE PHASE-GATE DEFECT. `cmd_phase_gate`'s `all` arm runs each phase in the ||-LEFT position,
+# where errexit is suppressed all the way down into `_gate_run`'s subshell, so `cmd_build` runs
+# on past a failed `go build` to its own `log_success` and the dimension is recorded PASS. The
+# single-phase arms (`architecture)  phase_architecture ;;`) are in a neutral position and do
+# fail — which is why nothing caught this: the existing gate suites drive one phase, never `all`.
+t_phase_gate_all_never_records_pass_for_a_failing_verb() {
+  local rows
+  run_phase_gate all
+  grep -qE '^go[[:space:]]+build' <<< "$ARGV" ||
+    fail "phase-gate all never invoked 'go build', so this run proves nothing: [$ARGV]"
+  rows="$(grep -E '^[[:space:]]*PASS[[:space:]].*go build' <<< "$OUT" || true)"
+  if [[ -n "$rows" ]]; then
+    fail "the gate recorded PASS for a dimension whose 'go build' exited ${GO_BUILD_RC}: [${rows}]"
+  fi
+  if grep -q 'build: OK' <<< "$OUT"; then
+    fail "cmd_build reported its own success after 'go build' exited ${GO_BUILD_RC}: $OUT"
+  fi
+  if grep -q 'phase-gate all: GREEN' <<< "$OUT"; then
+    fail "phase-gate all reported GREEN over a library whose 'go build' exited ${GO_BUILD_RC}: $OUT"
+  fi
+  [[ "$RC" -ne 0 ]] || fail "phase-gate all exited 0 while 'go build' exited ${GO_BUILD_RC}: $OUT"
+}
+
+# CONSERVATION. The other direction: with every tool green, `phase-gate all` must still run all
+# four phases and report GREEN. A "fix" that makes the sequencer fail unconditionally satisfies
+# the test above and destroys the verb; this is what stops it.
+t_phase_gate_all_is_green_when_every_tool_passes() {
+  run_phase_gate all
+  grep -qE '^go[[:space:]]+build' <<< "$ARGV" ||
+    fail "phase-gate all never invoked 'go build', so this run proves nothing: [$ARGV]"
+  [[ "$RC" -eq 0 ]] || fail "phase-gate all exited $RC although every tool exited 0: $OUT"
+  grep -q 'phase-gate all: GREEN' <<< "$OUT" ||
+    fail "phase-gate all did not report GREEN although every tool exited 0: $OUT"
+}
+
 TESTS=(
   t_a_collision_is_not_reported_as_findings
   t_real_findings_are_still_reported_as_findings
   t_a_clean_run_passes
   t_concurrent_lints_do_not_collide
   t_the_shared_config_is_schema_valid
+  t_phase_gate_all_never_records_pass_for_a_failing_verb
+  t_phase_gate_all_is_green_when_every_tool_passes
 )
 
 # ── the stimulus tables ─────────────────────────────────────────────────────
@@ -212,6 +425,8 @@ stimulus_for() {
     t_a_clean_run_passes)                           printf 'exit:0' ;;
     t_concurrent_lints_do_not_collide)              printf 'real'   ;;
     t_the_shared_config_is_schema_valid)            printf 'real'   ;;
+    t_phase_gate_all_never_records_pass_for_a_failing_verb) printf 'gobuild:1' ;;
+    t_phase_gate_all_is_green_when_every_tool_passes)       printf 'gobuild:0' ;;
     *) die "no phase-1 stimulus is declared for $1" ;;
   esac
 }
@@ -225,6 +440,14 @@ counter_for() {
     t_a_clean_run_passes)                           printf 'exit:3' ;;
     t_the_shared_config_is_schema_valid)            printf 'config:typo' ;;
     t_concurrent_lints_do_not_collide)              printf 'none:the counter is a config without the key, and a lock race is probabilistic; it is measured in phase 1, never asserted here' ;;
+    # A green `go build` makes the build dimension legitimately PASS, which is exactly the row
+    # the test forbids — so a test that stopped reading the summary cannot survive this.
+    t_phase_gate_all_never_records_pass_for_a_failing_verb) printf 'gobuild:0' ;;
+    # NOT `gobuild:1`: that is the defect's own stimulus, and while the defect stands the gate
+    # still reports GREEN under it, so the counter would not break this test. An absent hnslint
+    # exits 127 through require_cmd's explicit `exit`, which survives the errexit suppression
+    # that defeats every other verb — and it lands AFTER `go build`, so the argv floor still holds.
+    t_phase_gate_all_is_green_when_every_tool_passes)       printf 'absent:hnslint' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
 }
@@ -234,9 +457,13 @@ counter_for() {
 apply() {
   STIMULUS=""
   CONFIG="$SHARED_CONFIG"
+  GO_BUILD_RC=0
+  ABSENT_TOOL=""
   case "$1" in
     exit:*)      STIMULUS="${1#exit:}" ;;
     config:typo) CONFIG="$(typo_config)" ;;
+    gobuild:*)   GO_BUILD_RC="${1#gobuild:}" ;;
+    absent:*)    ABSENT_TOOL="${1#absent:}" ;;
     real)        : ;;
     none:*)      return 1 ;;
     *) die "unknown stimulus spec: $1" ;;
