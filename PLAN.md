@@ -41,7 +41,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 ## P3 — Gates in CI (all six proofs on every push)
 
-- [ ] Font-parametric demo build: `assemble.py --font <ttf>` with a freely
+- [ ] ⏳ 2026-08-13T22:08Z Font-parametric demo build: `assemble.py --font <ttf>` with a freely
       licensed committed font (check OFL redistribution properly; include the
       licence file) or the runner's DejaVu; solver re-solves for that font.
 - [ ] Chrome headless in GitHub Actions runs ratio + overlap + sweep gates.
