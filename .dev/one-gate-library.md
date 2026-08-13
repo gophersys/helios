@@ -1,11 +1,11 @@
 # one-gate-library
 
-phase:    verify — green, awaiting the adversarial pass
+phase:    pr
 repo:     gophersys/libs
 branch:   refactor/one-gate-library
 worktree: ~/code/.worktrees/libs-one-gate
 pr:       -
-attempt:  0/2
+attempt:  1/2
 
 ## Goal
 
@@ -246,3 +246,83 @@ independent: phase 3 may fix the shared body so the gate can fail, which is the
 prerequisite for the hnslint step to matter at all. Do not land a declared skip
 for hnslint until the question above is answered — and if a skip does land, the
 argv floor test must be rewritten in the same change, visibly.
+
+
+## Phase 4 — the adversarial pass found the defect this feature is named for
+
+F1 (HIGH). `go/_ctl/lib.sh:1187-1190` ran the 4 phases in the `||`-LEFT position,
+which suppresses errexit and propagates the suppression into `_gate_run`'s
+subshell. **The same defect the template fixed on this branch, still live in the
+file this feature calls the one home.** Commit `e400c8b` even states the rule in
+its own message and applies it only to the template.
+
+Severity: `phase-gate all` is a wired Nx target in all 16 `go/*/project.json` and
+is the nightly CI verb `gate-all`.
+
+Proven on a fixture with a REAL Go toolchain and REAL git, both revisions:
+
+```
+PRE-FIX  (e00b47f)   [ok] build: OK      PASS  skeleton compiles (go build)   rc=1
+POST-FIX (21ddf6e)   (no build: OK)      FAIL  skeleton compiles (go build)   rc=1
+```
+
+The pre-fix run printed `[ok] build: OK` directly under the compiler's
+`cannot use "this does not compile" ... as int value`, and reached rc=1 only BY
+ACCIDENT, through `go vet`'s explicit exit. A clean fixture still reaches
+`[ok] phase-gate all: GREEN`, rc=0, so the gate is not stuck red.
+
+F2 (LOW). Rule 11 said 17 libraries; there are 16 — `go/_ctl` is the shared gate
+library, not a library under gate. That number was mine. 17 is the
+verb-conservation PROJECT count leaking into a LIBRARY count, and the distinction
+is load-bearing: adding `templates/go/http-gateway` would have made the 2 zero
+rows into ones.
+
+F3 (LOW). `testdata/verb-conservation/README.md:70` said 7 tool lines; the table
+beneath enumerated 8. Verified from the re-record diff itself. Now 8, and the
+entry carries the count check so the next reader can redo it.
+
+### The goldens moved, and it is the gate becoming honest
+
+16 records, 1 line each, always the same, only in `profile=fail` under the bare
+`### verb phase-gate` block:
+
+```
+ gofumpt -l .
+-go      vet ./...
+```
+
+That `go vet` only ever ran BECAUSE errexit was suppressed. CAUSATION PROVEN, not
+assumed: the implementer stashed `lib.sh` and re-ran to get the clean baseline
+`17 project record(s) hold`, rc=0.
+
+**THE SAFETY PROPERTY, checked before re-recording.** Both revisions split at
+`profile=fail` and the `pass` halves diffed alone: BYTE-IDENTICAL in all 17
+records, 1239 -> 1239 gate-tool lines. Nothing disappears when everything passes.
+A short-circuit on a failing tool is honesty; a check vanishing on a pass would be
+a regression wearing honesty's clothes.
+
+4 fail-profile properties confirmed independently: 16 records touched and only
+those; 1 line removed each; nothing added; no exit code moved.
+
+Corroboration that needs no argument: `templates/go/http-gateway` — which has had
+this fix since `e400c8b` — DID NOT MOVE.
+
+### Green
+
+- `bash go/_ctl/lib_test.sh` rc=0, `7 test(s) hold; 6 of 7 proven able to fail`
+- `bash templates/_ctl/template_test.sh` rc=0, `5 of 5 proven able to fail`
+- `bash verb_conservation_test.sh` rc=0, `17 records hold; 3 mutants caught`
+- `bash ./ctl.sh validate` rc=0, `all checks passed`, zero `[error]` lines
+
+### Found and filed, not fixed here
+
+`_cohesion_scan` leads a command substitution with a `grep` that exits 1 when a
+library declares no exported type. Errexit used to swallow it; now it kills
+`cmd_maintainability`. No library reaches it today (the lowest is `errors` at 1),
+but `phase-gate architecture` runs on a SKELETON, which is exactly that shape.
+Task #47, with the warning not to re-suppress errexit: every previously swallowed
+non-zero in that file is now load-bearing.
+
+## Next
+
+Phase 5 — the pull request.
