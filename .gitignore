@@ -9,3 +9,4 @@ node_modules/
 loop/runs/
 demos/operator/operator.html
 demos/telemetry/telemetry.html
+demos/bench/bench.html

@@ -29,6 +29,8 @@ case "$cmd" in
     # the blind demo: static render + battery at defaults AND worst case
     (cd demos/telemetry && uv run --project ../../tools/densui python3 build/build.py)
     (cd demos/telemetry && uv run --project ../../tools/densui python3 build/build.py --sweep)
+    # the contract demo: drill session -> render tree state -> battery
+    (cd demos/bench && uv run --project ../../tools/densui python3 build/build.py)
     ;;
   test-review)
     # The review standard is org-central: cictl/review/review.sh reviews PRs on

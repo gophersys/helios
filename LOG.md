@@ -369,3 +369,14 @@ first and the failure was the design speaking: an unacked write to a dead
 link is LOST, and the honest reconnect reverts it to confirmed truth rather
 than showing a setpoint the hardware does not hold — now encoded and
 asserted. 64 tests green. Handoff: the minimal bench panel over the tree.
+
+## 2026-08-13T23:49Z — P4 bench box COMPLETE — P4 COMPLETE
+The bench panel renders THE TREE'S OWN STATE after a scripted drill session:
+the coerced setpoint with its token-confirmed value, the stale stream as a
+red dash (0.6 s > 0.5 s deadline, while its sibling at 0.4 s stays fresh —
+the build's own guard caught my first timeline where both were stale), and
+the lost write reverted to 0.50 A, with the session log as the alarm rail.
+Geometry battery: failures []. Wired into ctl.sh geometry, so the fleet now
+proves census -> solve -> render -> ink AND the executed contract in one
+lane. P4 done: two blind demos, both fleet-proven, one of them showing
+contract states no mock could fake.

@@ -56,7 +56,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 - [x] `demos/telemetry/`: a firmware telemetry console (streams, staleness,
       alarms right/below per psycho-math) designed BLIND — no reference image;
       census -> spec -> solver -> gates only.
-- [ ] ⏳ 2026-08-13T23:38Z (loop) `demos/bench/`: a hardware bring-up bench panel (rails, probes, links)
+- [x] `demos/bench/`: a hardware bring-up bench panel (rails, probes, links)
       exercising the CONTRACT stage against a fake serial backend.
 - [ ] Each demo: census.md, panel spec, gates green, honest NOTES on what the
       framework could not decide.

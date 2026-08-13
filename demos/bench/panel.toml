@@ -1,0 +1,65 @@
+# Bench panel — the CONTRACT demo's face. Geometry solved like every panel;
+# VALUES come from a live densui.tree after a scripted drill session, so the
+# render is evidence of contract states, not a mock.
+
+[panel]
+name = "bench"
+width = 760
+height = 220
+
+[font]
+path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+size = 16
+
+[census]
+file = "demos/telemetry/census.md"   # the bench IS that console's backend
+
+[tracks]
+columns = [520, 220]
+gap = 4
+margin = 8
+
+[solve.knob_rows.rails]
+plate_width = 504
+dial = 28
+tuck = 10
+dial_floor = 0
+label_floor = 0
+anchor_tolerance = 6
+
+[[solve.knob_rows.rails.units]]
+name = "rail-3v3"
+center = 60
+label = "3V3"
+widest = "3.60 V"
+
+[[solve.knob_rows.rails.units]]
+name = "rail-1v8"
+center = 230
+label = "1V8"
+widest = "2.00 V"
+
+[[solve.knob_rows.rails.units]]
+name = "ilimit"
+center = 400
+label = "I-Limit"
+widest = "2.00 A"
+
+[probe]
+root = ".panel"
+root_width = 760
+text_kinds = ["label", "value", "num", "clabel"]
+
+[probe.containers]
+plate = ".plate"
+
+[probe.parts]
+label = ".k-label"
+dial = ".k-dial"
+value = ".k-value"
+num = ".s-num"
+clabel = ".s-label"
+
+[rules]
+min_sibling_gap = 2.0
+breathing_floor = 2.5
