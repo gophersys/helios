@@ -1,6 +1,6 @@
 # k3d-lane-budget
 
-phase:    fix — the verifier returned 4 findings
+phase:    pr
 repo:     gophersys/libs
 branch:   fix/k3d-lane-budget
 worktree: ~/code/.worktrees/libs-k3d
@@ -178,3 +178,71 @@ Nothing. No open questions.
 ## Next
 
 Phase 7 fix, in order: implementer for F2 and F3, then test author for F1.
+
+
+## Phase 7 — all 4 findings closed
+
+**F3, the real defect.** The guard was a CHARACTER FILTER, not a duration parse.
+Reproduced first against a real `go` and a 6-second test:
+
+```
+0.4ns          accept  rc=0 / 7s   UNBOUNDED — the 6s test ran to completion
+0.0000000001s  accept  rc=0 / 7s   UNBOUNDED
+2s             accept  rc=1 / 2s   bounded
+```
+
+FIXED WITHOUT A PARSER, and the reasoning is exact rather than approximate:
+refuse any value containing `.`. Go's grammar puts digits only inside numeric
+components and every unit is >= 1ns, so with NO `.` present one digit in 1-9
+guarantees a total >= 1ns; with a `.` present it guarantees nothing, because Go
+truncates to whole nanoseconds. Everything surviving both tests goes to Go, which
+rejects a malformed duration loudly.
+
+`1ns` is the load-bearing row: the smallest value the digit test admits, and it
+REALLY BOUNDS — rc=1 in 729ms against a 10s sleep. That is what makes ">= 1ns" a
+proof and not a hope.
+
+The cost is stated in the message rather than hidden: `1.5h` is refused and you
+write `90m`. A refusal is loud; accepting `0.4ns` was silent.
+
+Two false statements also went: the absolute "There is no value that means 'no
+budget'", and a message calling `notaduration` "zero or negative" — the same
+defect one size down.
+
+**F1, the hole the test author flagged in its own work.** `lifecycle`, `load` and
+`-v` were pinned by the GOLDEN and by nothing else — and the golden is the one
+check in this repository with a sanctioned "make it match" button. Proven, then
+proven closed:
+
+```
+throwaway tree, -timeout removed from cmd_lifecycle
+  BEFORE the new assertions: all 12 tests ok        <- the hole
+  AFTER:  FAIL t_the_lifecycle_lane_states_its_budget
+          plus phase 2 aborts — the mutant "changed nothing", so the
+          counter-stimulus could not even be applied
+```
+
+**F2.** The command that produces `601.3s / 544.1s / 600.0s` is now recorded where
+the `25m` lives, with the substrate it needs, why it cannot reproduce in the amd64
+base image on an arm64 host, the date and host, and the line "if a re-run
+disagrees, the 25m moves, not the comment".
+
+**F4.** This state file was stale and 2 of its lines were untrue. Fixed.
+
+## Proven
+
+```
+bash go/_ctl/lib_test.sh        rc=0   17 test(s) hold; 16 of 17 proven able to fail
+                                       across 20 counter-stimuli; 1 stated no counter
+bash verb_conservation_test.sh  rc=0   17 project record(s) hold; 3 mutant(s) caught
+bash ./ctl.sh validate          rc=0   all checks passed, 4 suites
+bash .ci/ctl.sh ci-drift        rc=0   no drift (host cictl; absent from the base image)
+shellcheck -S style             rc=0   on every changed script
+```
+
+Every refused value runs ZERO `go` invocations — asserted, not assumed. A budget
+that will be rejected must be rejected BEFORE the lane spends a substrate.
+
+## Next
+
+Phase 5 — the pull request.
