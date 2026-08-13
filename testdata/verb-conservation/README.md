@@ -199,6 +199,12 @@ No record carries both, and there is no third value. (`--timeout=180s` also appe
 these files: it is golangci-lint's own long-standing flag, on `0` `go test` lines, and
 it is on neither side of this diff.)
 
+> **Superseded the same day, in part.** The orchestrator override was dropped hours
+> later and that record is back at `10m` — see the last entry in this log for why. `25m`
+> now appears in **1** record, `go/workspaceprovider.txt`, and 15 carry `10m`. The
+> paragraph above is left as it was written: it records what was true at that
+> re-record, which is what this log is for.
+
 **`-v` appears on the `integration` shape and nowhere else** — 64 lines, all
 `-tags integration`, `0` on lifecycle, load or the coverage run. It is deliberate and
 narrow: `go test -v` prints each test's own elapsed time, which is the per-test cost
@@ -214,6 +220,54 @@ point: the template lane was never running the command that was fixed, and it ca
 no `go test -timeout` at all (its only `--timeout=180s` is golangci-lint's). A record
 that stays byte-identical while its 16 siblings each gain the same 4 shapes bounds the
 blast radius to the library that was edited.
+
+### 2026-08-13 — `go/orchestrator.txt` back to `10m`, because its own gate is red on main
+
+**This is not an oversight, and a reader finding orchestrator at the default should not
+read it as one.** The `25m` override was dropped from `go/orchestrator/ctl.sh`, so the
+library takes the shared default again and its record follows.
+
+CI ran the pr tier and `affected-gate-fast` went RED on `go/orchestrator` — 5 of 5
+dimensions, `go build ./...` among them, with `go: updates to go.mod needed; to update
+it: go mod tidy`. **The control was run before anything was changed**: a detached
+worktree at `origin/main`, same command, same container, produced the identical summary
+and the identical message. **Surfaced, not caused.**
+
+The cause is pre-existing manifest drift, and it is visible in the two files without
+running anything:
+
+```
+go/orchestrator/go.mod:13   github.com/jackc/pgx/v5 v5.7.6
+go/orchestrator/go.mod:107  github.com/gophersys/libs/go/secrets v0.0.0 => ../secrets
+go/secrets/go.mod:10        github.com/jackc/pgx/v5 v5.10.0
+```
+
+The graph already demands a raise the manifest has never taken. Fixing it means shipping
+a production Postgres-driver upgrade, which has no business riding inside a timeout
+change — so orchestrator's `25m` returns with the drift fix, where the pgx raise gets
+reviewed as the production change it is.
+
+What made this visible at all is the override itself: setting `EDEN_SUBSTRATE_TIMEOUT`
+in `go/orchestrator/ctl.sh` is what made the library *affected* for the first time. That
+is the plan's own stated risk — a change to `go/_ctl/lib.sh` alone gates zero libraries —
+working exactly as written. It just found a defect underneath.
+
+**The move is 20 lines in 1 record, and every one is the same line with a different
+number.** `git diff --numstat` reads `20 20`; every removed line is byte-identical to an
+added line once `25m`/`10m` is masked; `0` removed lines are not a `25m` line, `0` added
+lines are not a `10m` line; `0` `exit` lines and `0` `### verb` headers moved; all 40
+changed lines are `go<TAB>test`. No argv gained or lost a flag — only the budget's value
+changed.
+
+**`go/workspaceprovider.txt` still says `25m`, on all 20 of its lines, and did not appear
+in the diff.** That matters more than the orchestrator move: if both records fell to
+`10m` the knob would be doing nothing, and the override mechanism would be untested by
+anything. `go/workspaceprovider` passes 5 of 5 on this branch, so the substrate tier
+still exercises this change through a library that actually runs it.
+
+Counted over the whole of `testdata/`, `-timeout=25m` is on **20 record lines, all of
+them in `go/workspaceprovider.txt`** — 1 library, as intended. (A `grep -rc` over
+`testdata/` returns 21: the 21st is prose in this file, not a record.)
 
 ## These are not edited by hand
 
