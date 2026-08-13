@@ -117,12 +117,12 @@ func run(ctx context.Context, logger *slog.Logger) error {
 	// exists), so the binary comes up for the health probes even when Postgres is not yet provisioned.
 	// When wired, its reachability backs the readiness probe (503 until the pool round-trips).
 	var readinessProbes []healthcheck.Probe
-	var resources resource.Store
+	var resources resource.Persistence
 	if !environment.PersistenceDSNRef.IsZero() {
 		dataStore, dataErr := persistence.New(
 			ctx,
-			persistence.Configuration{DSN: environment.PersistenceDSNRef},
-			persistence.Dependencies{Secrets: mediator, Observability: provider},
+			persistence.Config{DSN: environment.PersistenceDSNRef},
+			persistence.Deps{Secrets: mediator, Observability: provider},
 		)
 		if dataErr != nil {
 			return errors.Wrap(errors.KindUnavailable, "gateway: open persistence", dataErr)

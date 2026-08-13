@@ -5,10 +5,10 @@
 // this file is the hand-written constructor + the domain-facing facade that maps pgx's not-found
 // sentinel to a typed errors.KindNotFound.
 //
-// One concept, one home (10 §9): the constructor spine is New(Configuration, Dependencies); the DSN
-// arrives as a secrets.Reference (loggable, never the value) and is resolved ONCE through the injected
-// Secrets port at startup. No global, no os.Getenv, no module-level pool — the composition root owns
-// wiring (the same shape as internal/server.New).
+// One concept, one home (10 §9): the constructor spine is New(Config, Deps); the DSN arrives as a
+// secrets.Reference (loggable, never the value) and is resolved ONCE through the injected Secrets
+// port at startup. No global, no os.Getenv, no module-level pool — the composition root owns wiring
+// (the same shape as internal/server.New).
 package persistence
 
 import (
@@ -24,20 +24,21 @@ import (
 	"github.com/gophersys/libs/templates/go/http-gateway/persistence/generated"
 )
 
-// Configuration is the immutable, fully-resolved persistence input (the configuration pattern). It
-// holds NO live handles and reads NO environment: the DSN arrives as a loggable secrets.Reference the
+// Config is the immutable, fully-resolved persistence input (the configuration pattern). It holds NO
+// live handles and reads NO environment: the DSN arrives as a loggable secrets.Reference the
 // composition root parsed at the edge, and New resolves it to the connection string through the
-// injected Secrets port. (Configuration carries the full HNS-1 word — `config` would be banned.)
-type Configuration struct {
+// injected Secrets port. (`Config` is the pinned spine TYPE name, rule 11; the package and directory
+// stay fully spelled — `config` is still a banned slug.)
+type Config struct {
 	// DSN is the secrets Reference the Postgres connection string resolves from at startup. It is
 	// loggable and lives in configuration; the value (which may carry a password) never does. REQUIRED.
 	DSN secrets.Reference
 }
 
-// Dependencies is the injected hexagon: the narrow ports the data layer depends on. New consumes
-// ports; it constructs none. (Dependencies carries the full HNS-1 word — `deps` would be banned at
-// the package/field-pattern level; the idiomatic struct name is exempt but the field stays spelled.)
-type Dependencies struct {
+// Deps is the injected hexagon: the narrow ports the data layer depends on. New consumes ports; it
+// constructs none. (`Deps` is the pinned spine TYPE name, rule 11; a package or directory named
+// `deps` is still banned, and the parameter below stays spelled `dependencies`.)
+type Deps struct {
 	// Secrets is the redaction port the DSN is resolved through. The connection string is read inside
 	// a Secret.Use window and never retained past pool construction. REQUIRED.
 	Secrets secrets.Provider
@@ -56,7 +57,7 @@ type Persistence struct {
 	observability observability.Provider
 }
 
-// New is the pure-at-the-edge constructor spine (10 §9): it validates Dependencies, resolves the DSN
+// New is the pure-at-the-edge constructor spine (10 §9): it validates Deps, resolves the DSN
 // secret ONCE through the injected Secrets port (inside a Use window so the value never escapes), opens
 // a pgx pool against it, and returns the concrete *Persistence the server composes. It performs the
 // one blocking step a data layer needs — establishing the pool — and pings once so a bad DSN fails
@@ -64,16 +65,16 @@ type Persistence struct {
 // and leaks no pool.
 //
 // The first argument is context so the blocking pool open + ping honor the composition root's startup
-// deadline; the spine otherwise mirrors server.New(Configuration, Dependencies).
-func New(ctx context.Context, configuration Configuration, dependencies Dependencies) (*Persistence, error) {
+// deadline; the spine otherwise mirrors server.New(Config, Deps).
+func New(ctx context.Context, configuration Config, dependencies Deps) (*Persistence, error) {
 	if dependencies.Secrets == nil {
-		return nil, errors.New(errors.KindInvalid, "persistence: New requires Dependencies.Secrets")
+		return nil, errors.New(errors.KindInvalid, "persistence: New requires Deps.Secrets")
 	}
 	if dependencies.Observability == nil {
-		return nil, errors.New(errors.KindInvalid, "persistence: New requires Dependencies.Observability")
+		return nil, errors.New(errors.KindInvalid, "persistence: New requires Deps.Observability")
 	}
 	if configuration.DSN.IsZero() {
-		return nil, errors.New(errors.KindInvalid, "persistence: New requires Configuration.DSN (a secrets.Reference)")
+		return nil, errors.New(errors.KindInvalid, "persistence: New requires Config.DSN (a secrets.Reference)")
 	}
 
 	secret, err := dependencies.Secrets.Resolve(ctx, configuration.DSN)

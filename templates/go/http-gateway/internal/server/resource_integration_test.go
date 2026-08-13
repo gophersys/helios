@@ -372,8 +372,8 @@ func openPersistence(t *testing.T, dsn string) *persistence.Persistence {
 	t.Helper()
 	dataStore, err := persistence.New(
 		context.Background(),
-		persistence.Configuration{DSN: secrets.Ref(dsnRef)},
-		persistence.Dependencies{
+		persistence.Config{DSN: secrets.Ref(dsnRef)},
+		persistence.Deps{
 			Secrets:       secretstest.New(map[string]string{dsnRef: dsn}),
 			Observability: newDeps(t).Observability,
 		},

@@ -52,10 +52,10 @@ type Deps struct {
 	// secrets backend). Empty → the probe-only/no-DB boot: readiness answers 200 with nothing to be
 	// unready for. The composition root supplies the real probes once persistence is wired.
 	ReadinessProbes []healthcheck.Probe
-	// Resources is the typed CRUD store the persisted `resource` routes call (the consumer-defined
-	// resource.Store port; *persistence.Resources satisfies it). Nil → the resource routes are not
-	// mounted (the no-DB boot serves only the no-persistence `ping` reference).
-	Resources resource.Store
+	// Resources is the typed CRUD surface the persisted `resource` routes call (the consumer-defined
+	// resource.Persistence port; *persistence.Resources satisfies it). Nil → the resource routes are
+	// not mounted (the no-DB boot serves only the no-persistence `ping` reference).
+	Resources resource.Persistence
 }
 
 // Server is the concrete value New returns (return-concrete): it owns the assembled http.Handler the
