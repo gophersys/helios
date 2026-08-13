@@ -389,3 +389,14 @@ even when the OLD line survives; future ticks assert the old form is GONE
 too). Bench NOTES written: snapshot-not-session, authored log prose,
 demo-scaled timing, and the unrun second-transport drill named as the honest
 remainder. All P4 boxes now genuinely [x]. Fourth consecutive fleet green.
+
+## 2026-08-13T23:59Z — P5 gesture loop: densui.drive over raw CDP
+Gesture-level verification is now library code: drive.py launches Chrome
+with a debug port and drive.js (node's built-in WebSocket — zero new Python
+deps) dispatches real Input events: click, multi-step drag, wheel, eval.
+Tests prove BEHAVIOUR, not looks: a fixture page counts presses, measures
+the drag's actual 60px travel, and records the wheel delta; failure paths
+proven (eval exception, missing page). CDP chosen over Playwright-MCP: the
+fleet image already carries everything needed and the founding session's
+ad-hoc scripts showed raw CDP suffices — no new dependency for the
+container. PLAN tick used the new assert-old-form-gone rule. 67 tests.
