@@ -336,3 +336,15 @@ builds FROM. Every one of the eight refusals en route became a permanent
 rule; the last four became rules about rules. P3 complete. P7's skills box
 also ticked (repo-canonical ui-* skills, personal pointers, ~/.claude list
 updated). The two deferred commits ride along with this push.
+
+## 2026-08-13T23:35Z — P4 telemetry box COMPLETE
+The blind demo is done to its box's definition: census (streams, staleness,
+destructive isolation), computed layers, suite-wired panel.toml, static
+render + battery at defaults AND worst case now running inside `ctl.sh
+geometry` (so the fleet proves the blind demo on every push), and NOTES.md
+naming the five things the framework could NOT decide — contract unexercised
+(the bench demo's job), stream cells not yet solver-owned, placeholder alarm
+rail, cold-read UNRUN (a blind demo cannot supply its own stranger), and the
+one taste call (hue family) the calculus does not claim. One path bug caught
+by a bare rc (../tools vs ../../tools). Next: the bench demo, where CONTRACT
+finally runs against a fake serial backend.
