@@ -130,3 +130,25 @@ def test_value_crowding_nudges_within_tolerance(font_path):
     assert solved["b"]["center"] >= 190  # nudged right or untouched
     if solved["b"]["center"] > 190:
         assert any("value clearance" in c for c in out["corrections"])
+
+
+def test_label_crowding_nudges_self_within_tolerance(font_path):
+    from densui.fontmetrics import Face
+
+    s = spec(font_path)
+    row = s["knob_rows"]["row"]
+    row["equalize"] = False
+    ink_l = 95 - Face(font_path).adv("Alpha", 16) / 2
+    row["label_floor"] = ink_l - 1.0  # ink misses floor+gap by ~2px -> nudge
+    out = solve(s)
+    assert out["knob_rows"]["row"]["a"]["center"] > 95
+    assert any("label clearance" in c for c in out["corrections"])
+
+
+def test_label_crowding_beyond_tolerance_refuses(font_path):
+    s = spec(font_path)
+    row = s["knob_rows"]["row"]
+    row["equalize"] = False
+    row["label_floor"] = 200
+    with pytest.raises(SolveError, match="label ink"):
+        solve(s)

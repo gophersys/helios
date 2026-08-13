@@ -202,3 +202,13 @@ gained concurrency groups — superseded fleet runs now cancel instead of
 queueing (the backlog was self-inflicted). HANDOFF: stage 2 = panel.toml with
 solved tracks/anchors (no bitmap to measure — anchors come from the calculus
 alone), then widgets/page, then the full gate chain.
+
+## 2026-08-13T22:50Z — solver: label-crowding nudge (DejaVu round 3)
+Fleet geometry refused DejaVu again, 0.1px this time: "Pitch Env" label ink
+vs the glyph floor. The nudge rule now applies symmetrically — value crowding
+nudges the NEXT unit, label crowding nudges the unit's OWN centre, both
+within anchor_tolerance, both reported, both refusing beyond it (and a nudged
+dial re-checks its floor). 49 tests; fidelity golden untouched; Arial chain
+green. Also: test job green on the fleet twice now. Note to self repeated
+once more and now twice-earned: READ the ruff-formatted source before
+patching — the first patch attempt died on a stale match again.

@@ -165,9 +165,29 @@ def _solve_knobs(name: str, row: dict, ctx: _Ctx) -> tuple[dict, list[str]]:
             )
         label_ink_l = center - label_adv / 2
         if label_ink_l < prev_label_right + MIN_INK_GAP:
-            raise SolveError(
-                f"{name}/{u['name']}: label ink {label_ink_l:.1f} crowds "
-                f"line-1 neighbour (ends {prev_label_right:.1f})"
+            # Same font-portability rule as value crowding, applied to the
+            # unit's OWN centre: nudge right within anchor_tolerance and
+            # report; refuse beyond it.
+            shift = int(prev_label_right + MIN_INK_GAP - label_ink_l + 0.999)
+            tol = float(row.get("anchor_tolerance", 4))
+            if shift > tol:
+                raise SolveError(
+                    f"{name}/{u['name']}: label ink {label_ink_l:.1f} crowds "
+                    f"line-1 neighbour (ends {prev_label_right:.1f}; needs "
+                    f"+{shift}px > anchor_tolerance {tol:g})"
+                )
+            center += shift
+            centers[u["name"]] = center
+            left = round(center - w / 2)
+            dial_left = round(center - dial / 2)
+            label_ink_l = center - label_adv / 2
+            if dial_left < dial_floor:
+                raise SolveError(
+                    f"{name}/{u['name']}: nudged dial left {dial_left} crosses floor {dial_floor:g}"
+                )
+            corrections.append(
+                f"{name}/{u['name']}: centre +{shift}px — label clearance "
+                f"for this font (anchor_tolerance {tol:g})"
             )
         value_right = center + tuck + ctx.adv(u["widest"])
         if k + 1 < len(units):
