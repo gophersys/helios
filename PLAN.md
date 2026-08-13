@@ -48,7 +48,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
       (`ctl.sh build --font <runner ttf>`); extend ctl.sh with a `geometry`
       target; if the fleet image lacks Chrome/fonts, coordinate with
       eden/infrastructure (BLOCKED.md) rather than pinning ubuntu-latest.
-- [ ] Adopt the cictl review standard (`ctl.sh test-review`, cictl review/)
+- [x] Adopt the cictl review standard (`ctl.sh test-review`, cictl review/)
       for this repo's PRs; all jobs hard-fail on arc-org.
 
 ## P4 — New demos, none of them Ableton (the real generality test)
