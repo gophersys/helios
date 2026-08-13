@@ -222,3 +222,12 @@ incl. sweep. The DEEP fix — dgrid tracks from font advances via a grid_rows
 solver model — added to P6: no text track should be hand-sized anywhere.
 Each fleet round has moved the refusal one layer deeper: solver floors →
 solver labels → rendered ink. The proof battery is doing its job.
+
+## 2026-08-13T22:55Z — image published; CI flipped into the container
+build-ci-image (debian chromium) succeeded — ghcr.io/gophersys/dense-ui-ci is
+live with in-image proof. ci.yml and on-pr.yml gates/geometry now run INSIDE
+it (eden credentials convention, --user root); every per-job toolchain
+install is gone. on-pr additionally runs geometry, so PRs get the full proof
+battery in the same image developers open as their devcontainer. The review
+lane is untouched (arc-review pool owns its own env). This push's run is the
+flip's own test.

@@ -13,19 +13,17 @@ permissions:
 
 jobs:
   gates:
-    runs-on: arc-org  # the org ARC fleet — same gates as on-push
+    runs-on: arc-org  # the org ARC fleet — same gates as on-push, same image as the devcontainer
+    container:
+      image: ghcr.io/gophersys/dense-ui-ci:latest
+      credentials:
+        username: mateosegura
+        password: ${{ secrets.GHCR_PULL_TOKEN }}
+      options: --user root
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - uses: actions/setup-node@v4
-        with: { node-version: "22" }
-      - name: chromium via playwright (probe tests measure real renders)
-        run: |
-          npx -y playwright@1.49 install --with-deps chromium
-          chrome_bin="$(find "$HOME/.cache/ms-playwright" -name chrome -type f | head -1)"
-          test -n "$chrome_bin" || { echo "playwright chromium not found" >&2; exit 1; }
-          echo "DENSUI_CHROME=$chrome_bin" >> "$GITHUB_ENV"
       - run: ./ctl.sh test
+      - run: ./ctl.sh geometry
 
   review:
     runs-on: arc-review  # the review pool provisions CLAUDE_CODE_OAUTH_TOKEN
