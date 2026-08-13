@@ -8,25 +8,56 @@
 # re-introduces those checks as a post-build step that runs the already-built
 # image. Nothing is emulated here, and nothing is cross-built any more either.
 #
-# Usage: bash .ci/smoke.sh <image>
+# Usage: bash .ci/smoke.sh <image> [ref]
 # where <image> ∈ {base, flutter, zephyr, zephyr-devbox, base-runner}
+# and [ref] is the exact image reference to test. The default is the :latest tag
+# that build-and-push.yml has just built, which is what CI runs. Naming a ref is
+# how an operator audits the SHA tag a cluster is actually running — and how a
+# developer proves a check against an image that is not the local :latest.
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Set before the source line, the way .ci/ctl.sh sets it: the git fallback in
+# _ctl/lib.sh reads the wrong root when this repository is a submodule worktree.
+REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 
-# The logging lives in _ctl/lib.sh, 1 time only.
+# The logging, the tool gate and the platform policy live in _ctl/lib.sh, 1 time
+# only.
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../_ctl/lib.sh
 source "$PROJECT_ROOT/../_ctl/lib.sh"
 
 IMAGE="${1:-}"
+REF_ARG="${2:-}"
 
 if [[ -z "$IMAGE" ]]; then
-  log_error "usage: bash .ci/smoke.sh <image>"
+  log_error "usage: bash .ci/smoke.sh <image> [ref]"
   exit 2
 fi
+
+# The buildx version base/Dockerfile pins. Read the way ctl.sh reads the hadolint
+# pin: the ARG is the single source of truth, and a version the image reports
+# back that differs from it is drift.
+#
+# The ARG NAME is matched by pattern rather than spelled out. Every version ARG
+# in this repository is <TOOL>_VERSION, and this asserts against whichever of
+# those names carries buildx, so the check does not fail over a spelling.
+#
+# It prints nothing and still returns 0 when there is no such ARG. That case is
+# reported from inside the image, next to the version it could not check, rather
+# than here — an absent pin and an absent plugin are 2 different defects and a
+# reader has to be able to tell which one fired.
+function buildx_pin() {
+  local file="$REPO_ROOT/base/Dockerfile"
+  local line="" status=0
+  line="$(grep -oE '^ARG [A-Z0-9_]*BUILDX[A-Z0-9_]*_VERSION=[0-9]+\.[0-9]+\.[0-9]+' "$file" | head -n 1)" || status=$?
+  if [[ "$status" -ne 0 || -z "$line" ]]; then
+    return 0
+  fi
+  printf '%s' "${line#*=}"
+}
 
 # Common smoke-test body applied to every image. Checks both native binaries
 # (bw, gh, tailscale, kubectl, helm, terraform, k9s, go, rustc, nats) and
@@ -63,6 +94,45 @@ gremlins --version
 benchstat -h >/dev/null 2>&1 && echo "benchstat: ok"
 gitleaks version
 kubeconform -v
+echo "--- docker cli-plugins ---"
+# The runner image is the CLIENT of the arm64 builder: gophersys/infrastructure
+# dials the Mac mini over SSH and drives `docker buildx build` from inside the
+# job. The image shipped the compose plugin alone, so that documented step could
+# not run at all, and nothing here said so.
+#
+# `docker buildx version` reaches no daemon, so this is a pure image-content
+# check and it is meaningful in a plain `docker run` with no dind sidecar.
+if ! BUILDX_OUTPUT="$(docker buildx version 2>&1)"; then
+  echo "FAIL: docker buildx does not run in this image"
+  echo "      docker said: ${BUILDX_OUTPUT}"
+  echo "      /usr/local/lib/docker/cli-plugins holds:"
+  ls -1 /usr/local/lib/docker/cli-plugins || echo "      (there is no cli-plugins directory)"
+  exit 1
+fi
+echo "${BUILDX_OUTPUT}"
+# Drift guard. The version that RUNS must be the version base/Dockerfile pins.
+# EXPECTED_BUILDX_VERSION is read out of that ARG by .ci/smoke.sh on the host and
+# passed in here. An image that passes its own assertion while shipping a version
+# nobody declared is the defect this repository has already published once, so an
+# absent pin FAILS rather than skipping.
+BUILDX_INSTALLED=""
+if BUILDX_TOKENS="$(printf '%s' "${BUILDX_OUTPUT}" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')"; then
+  BUILDX_INSTALLED="$(printf '%s' "${BUILDX_TOKENS}" | head -n 1)"
+fi
+if [ -z "${BUILDX_INSTALLED}" ]; then
+  echo "FAIL: docker buildx runs but reports no version this check can read"
+  echo "      it printed: ${BUILDX_OUTPUT}"
+  exit 1
+fi
+if [ -z "${EXPECTED_BUILDX_VERSION}" ]; then
+  echo "FAIL: base/Dockerfile declares no ARG *BUILDX*_VERSION, so the ${BUILDX_INSTALLED} in this image is pinned by nothing"
+  exit 1
+fi
+if [ "${BUILDX_INSTALLED}" != "v${EXPECTED_BUILDX_VERSION}" ]; then
+  echo "FAIL: buildx version drift: the image runs ${BUILDX_INSTALLED}, base/Dockerfile pins v${EXPECTED_BUILDX_VERSION}"
+  exit 1
+fi
+echo "docker buildx: ${BUILDX_INSTALLED} matches the pin in base/Dockerfile"
 EOF
 
 # Flutter adds flutter + adb checks on top of the base smoke.
@@ -161,15 +231,46 @@ ${SMOKE_DEVBOX}" ;;
     ;;
 esac
 
-REF="ghcr.io/gophersys/${IMAGE}:latest"
+REF="${REF_ARG:-ghcr.io/gophersys/${IMAGE}:latest}"
 
-log_info "running smoke test in ${REF}"
+# A missing tool is a failure, never a skip.
+require_cmd docker
+
+# Name the platform explicitly. Every image of this repository publishes exactly
+# the sanctioned set (_ctl/lib.sh), a CI runner is that architecture already so
+# the flag is a no-op there, and on a developer host of another architecture it
+# is the difference between testing the published image and not starting it.
+require_sanctioned_platforms
+if [[ "$IMAGE_PLATFORMS" == *,* ]]; then
+  log_error "IMAGE_PLATFORMS holds more than 1 platform: ${IMAGE_PLATFORMS}"
+  log_error "a smoke test runs 1 image, so it can name only 1 platform"
+  exit 1
+fi
+
+# The image has to be here before anything is asserted about it. A pull that
+# failed and a tool that is absent both come back as a non-zero status, and they
+# are not the same defect — so the one that happened is named.
+# The inspect is quiet on purpose: its "No such image" is the expected answer on
+# a cold host, and the branch below acts on it.
+if ! docker image inspect "$REF" >/dev/null 2>&1; then
+  log_info "${REF} is not in the local image store; pulling it"
+  if ! docker pull --platform "$IMAGE_PLATFORMS" "$REF"; then
+    log_error "cannot obtain ${REF} for ${IMAGE_PLATFORMS} — NOTHING was asserted about this image"
+    exit 1
+  fi
+fi
+
+# The pin the drift guard inside the image compares against.
+EXPECTED_BUILDX_VERSION="$(buildx_pin)"
+
+RUN_ARGS=(--rm --platform "$IMAGE_PLATFORMS" -e "EXPECTED_BUILDX_VERSION=${EXPECTED_BUILDX_VERSION}")
 if [[ "$IMAGE" == "zephyr-devbox" ]]; then
   # The devbox image defaults to USER root (sshd entrypoint) and its
   # entrypoint execs any provided argv; force the dev user so the base
   # checks run in the same identity as the other images.
-  docker run --rm --user dev "${REF}" /usr/bin/zsh -c "${SCRIPT}"
-else
-  docker run --rm "${REF}" /usr/bin/zsh -c "${SCRIPT}"
+  RUN_ARGS+=(--user dev)
 fi
+
+log_info "running smoke test in ${REF} (${IMAGE_PLATFORMS})"
+docker run "${RUN_ARGS[@]}" "${REF}" /usr/bin/zsh -c "${SCRIPT}"
 log_info "smoke test passed for ${IMAGE}"
