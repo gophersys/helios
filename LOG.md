@@ -51,3 +51,12 @@ emission stays with callers. 6 tests: rhythm, floor violation, value
 clearance, insertion-order determinism, flow margins/trailing, missing-font
 fail-loud. Operator still runs its local solve_layout.py by design — P2's
 panel.toml box migrates it onto this API with a byte-identical CSS proof.
+
+## 2026-08-13T21:39Z — P1 densui.measure
+Reference forensics as a library: exact sampling, dark-run scans, quantised
+level bands (the plate/title finder), region stats (darkest/lightest/dominant
+with positions), and gridline-labelled NEAREST zooms — the exact toolkit that
+replaced eyeballing in the founding session, now reusable. Pillow behind a
+[measure] extra with a fail-loud import message; dev extra carries it for
+tests. 5 tests against a synthetic bitmap with known truth, incl. a negative
+(clean row scans empty). 32 total green.

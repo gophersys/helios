@@ -24,7 +24,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 - [x] `densui.solve`: generalise `solve_layout.py` — inputs (anchors, floors,
       units, font path, tuck/breathing constants) come from a spec file, not
       constants in code; deterministic shuffled re-solve stays mandatory.
-- [ ] ⏳ 2026-08-13T21:38Z `densui.measure`: the reference-forensics toolkit (luminance scans,
+- [x] `densui.measure`: the reference-forensics toolkit (luminance scans,
       gridline crops, colour sampling, 8x anatomy zooms) from the session's
       ad-hoc scripts; Pillow as optional extra `[measure]`.
 - [ ] `densui compare`: ref-vs-built composite generator (the A/B strips).
