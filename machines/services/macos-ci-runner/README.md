@@ -50,11 +50,66 @@ Do not depend on any item below. None of them is done.
 1. **The tailnet.** Tailscale is not installed, so the machine does not appear
    in `tailscale status`. The machine is on the LAN only. The name
    `macos-ci-runner` is reserved in the tailnet, not live.
-2. **A container builder.** Docker, Colima and Podman are all absent. Homebrew,
-   Go and Tailscale are absent too. When the Linux VM is added, give it 4 GB of
-   swap, because the host has only 8 GB of memory.
+2. **Homebrew and Go.** Both are absent.
 3. **The GitHub Actions runner.** It is not configured against the org. Until it
    is, the release workflow keeps the hosted `macos-14` runner.
+
+A container builder WAS on this list. It is not any more: Docker Desktop is
+installed and it serves builds. Read the next section.
+
+## The arm64 buildx node
+
+The cluster uses this machine to build `linux/arm64` images natively. The k3s
+nodes are amd64, so they must emulate arm64, and emulation is slow. Measured on
+2026-08-13, same Dockerfile, images pulled first, `--no-cache`: arm64 native
+4.02s against amd64 emulated 13.8s, so 3.44 times faster.
+
+A build in the cluster reaches this machine with `docker -H ssh://`. It never
+becomes an Actions runner. The two paths are independent. The design and the
+workflow step are in `docs/ci-substrate.md`.
+
+Docker Desktop answers as server `28.1.1`, `arch=arm64`, `os=linux` (measured
+2026-08-13).
+
+### Two keys, and they are not the same key
+
+| key | restriction | used by |
+| --- | --- | --- |
+| `~/.ssh/macos-ci-runner` | none | `verify-access`, and any human task |
+| `~/.ssh/macos-buildx` | DIAL-ONLY | the `arc-org` runner pods only |
+
+The buildx key is installed in `~/.ssh/authorized_keys` as:
+
+```
+command="/Users/mateo/bin/docker system dial-stdio",restrict ssh-ed25519 ...
+```
+
+The forced command gives no shell, no file read and no port forward, and it still
+serves `docker -H ssh://`. All four results were measured on 2026-08-13. The
+cluster holds only this key, as the vault item `shared/eden/macos-buildx-key`.
+The admin key never enters the cluster.
+
+The restriction bounds ssh. It does not bound Docker: the dial exposes the whole
+Docker API of this machine, and a Docker API gives root on its host through a
+privileged container. Keep the `arc-org` pool closed to public repositories.
+
+### Three things are necessary after a reboot
+
+Each one was proven necessary by removing it and measuring the result.
+
+1. Docker Desktop `AutoStart=True`.
+2. macOS auto-login. Docker Desktop is a GUI application, so it cannot start
+   without a user session.
+3. The LaunchAgent `com.gophersys.docker-autostart`. The `AutoStart` flag never
+   registered a login item, so the flag alone does not start Docker.
+
+| configuration | Docker answers |
+| --- | --- |
+| items 1 and 2 only | not at 422s after the reboot |
+| all 3 items | at 41s after the reboot |
+
+Item 3 is the one that is easy to miss, because item 1 looks like it should be
+enough. It is not.
 
 ## Why a self-hosted runner instead of the hosted macos-14 runner used today
 - It costs 0 Actions minutes. GitHub bills macOS at 10 times the rate on a
