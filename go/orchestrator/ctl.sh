@@ -26,15 +26,8 @@ EDEN_INTEGRATION_CMDS="go docker k3d kind"
 # same substrate-lib override workspaceprovider uses (cmd_cover reads EDEN_COVER_TAGS). Raise
 # tests, never lower the floor.
 EDEN_COVER_TAGS="lifecycle load integration"
-# `go test -timeout` PER PACKAGE on the substrate lanes — NOT a ceiling on the lane, which spins a
-# real cluster and is bounded only by the CI job's own timeout. Same 25m as workspaceprovider, and
-# for the same reason: this lib declares `k3d kind` and the reconcile spine's integration lane
-# drives the REAL agentsession + workspaceprovider seams, so it inherits that lib's cluster cost.
-# The number is ~1.4x the planner's ~18-20 min CI estimate for that lib; it is not a measurement of
-# this one.
-EDEN_SUBSTRATE_TIMEOUT="25m"
 export EDEN_LIB_NAME EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HOT_PATHS EDEN_INTEGRATION_CMDS
-export EDEN_COVER_TAGS EDEN_SUBSTRATE_TIMEOUT
+export EDEN_COVER_TAGS
 
 # shellcheck source=../_ctl/lib.sh
 # shellcheck disable=SC1091
