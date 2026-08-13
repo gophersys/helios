@@ -1,11 +1,11 @@
 # go-vulnerabilities
 
-phase:    wait
+phase:    fix
 repo:     gophersys/libs
 branch:   fix/go-vulnerabilities
 worktree: ~/code/.worktrees/libs-vulns
 pr:       10
-attempt:  0/2
+attempt:  1/2
 
 ## Goal
 
@@ -101,3 +101,38 @@ Two findings this feature SURFACED, both filed and neither included here:
 
 Phase 6 — poll the checks on the pull request. Read the log of any check that
 goes green suspiciously fast, and record in this file what it actually ran.
+
+## Phase 7 — attempt 1, the merge tier failed
+
+`merge tier (affected-gate-substrate)` FAILED after 11m42s on PR #10.
+
+```
+panic: test timed out after 10m0s
+  running tests:
+    TestK3d_ProvisionRunExecFilesTeardown (22s)
+FAIL github.com/gophersys/libs/go/workspaceprovider/kubernetesadapter  600.011s
+```
+
+WHAT PASSED FIRST, so the scope of the failure is exact:
+- `go/secrets` substrate — every package ok, across all 3 lanes (integration,
+  lifecycle, load). `vaultadapter` 33.6s, `platformconnectoradapter` 25.6s.
+- `go/workspaceprovider` — `dockeradapter` ok at 90.3s, and 5 internal packages ok.
+- Only `kubernetesadapter`, the k3d/kind lane, ran out of its 10-minute package
+  budget.
+
+CAUSED OR SURFACED — being measured, not assumed. No CI run in recent history has
+exercised this tier for `go/workspaceprovider`, because the tier runs only over
+AFFECTED projects and nothing had touched that library. So history cannot answer
+it and a control is the only way.
+
+CONTROL: PR #11, branch `control/k3d-timeout-baseline`, a draft that never merges.
+It is 1 comment appended to `kubernetesadapter/client.go` and nothing else — just
+enough to make the same library affected, WITHOUT the x/text bump.
+
+- same timeout there → pre-existing in the k3d lane, this PR only surfaced it,
+  and the timeout is filed as its own defect
+- green there → the bump is implicated and this feature returns to phase 3
+
+An x/text bump causing a k3d cluster provision to hang is not plausible, but
+plausibility is not evidence and this organization has been wrong on exactly that
+kind of guess before.
