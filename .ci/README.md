@@ -17,8 +17,12 @@ them. It is the only entrypoint that should appear in a CI pipeline YAML.
 └── providers/          CI-system shim YAMLs — source of truth for each provider
     ├── README.md
     └── github/
-        └── build-and-push.yml   ← symlinked into .github/workflows/
+        └── build-and-push.yml   ← a copy of .github/workflows/build-and-push.yml
 ```
+
+The provider file is a **copy**, not a symlink, and the 2 must stay byte-for-byte
+identical. They have drifted twice. `_ctl/tests/platform-policy.test.sh` compares
+them with `cmp` now, and `bash ./ctl.sh test` runs it in the pull request gate.
 
 ## Invocation contract
 
@@ -32,9 +36,8 @@ bash .ci/ctl.sh <verb>
 | Verb                    | What it does                                                |
 |-------------------------|-------------------------------------------------------------|
 | `validate`              | shellcheck + hadolint + jq across the whole tree            |
-| `build-all`             | Native single-arch build of every image (base → flutter → zephyr) |
-| `build-all-multi-arch`  | Explicit multi-arch build of every image (no push)          |
-| `push-all`              | ENFORCED multi-arch push of every image to ghcr.io          |
+| `build-all`             | Build every image, parent first (base → flutter → zephyr)   |
+| `push-all`              | GUARDED push of every image to ghcr.io                      |
 | `smoke-test-all`        | Run `smoke.sh` against each image after a local build       |
 | `help`                  | Show the inline verb index                                  |
 
@@ -45,7 +48,6 @@ bash .ci/ctl.sh <verb>
 ```
 nx run ci-devcontainer:ci-.devcontainer-validate
 nx run ci-devcontainer:ci-.devcontainer-build-all
-nx run ci-devcontainer:ci-.devcontainer-build-all-multi-arch
 nx run ci-devcontainer:ci-.devcontainer-push-all
 nx run ci-devcontainer:ci-.devcontainer-smoke-test-all
 ```
@@ -59,7 +61,7 @@ delegated to them. That structure works for an operation on 1 image
 `main`.
 
 `.ci/ctl.sh` supplies that place. It knows the dependency order. It knows that
-`push-all` does `buildx --push` on all 3 images and fails if 1 image fails. It
+`push-all` does `buildx --push` on every image and fails if 1 image fails. It
 knows that the smoke test after the build is not the same as the build of 1
 image. It is the contract that a CI pipeline uses. It is also the contract that
 a local developer uses to get the same behavior as CI on a personal computer.

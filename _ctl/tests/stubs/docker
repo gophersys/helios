@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/docker — the stub `docker` the hermetic ctl tests put first
+# on PATH.
+#
+# It contacts no daemon, opens no socket and resolves no registry. Every answer
+# it gives is chosen by an environment variable, so a test states the world it
+# wants in 1 line and reads the guard's reaction.
+#
+# An unhandled subcommand exits 64 and says so. That matters: if a verb under
+# test starts calling docker in a way this stub does not model, the run must
+# stop loudly instead of receiving a cheerful exit 0 from a stub that
+# understood nothing.
+#
+#   STUB_DOCKER_LOG             append every argv line to this file
+#   STUB_BUILD_STATUS           exit status of `docker build`            (0)
+#   STUB_BUILDX_VERSION_STATUS  exit status of `docker buildx version`   (0)
+#   STUB_BUILDX_INSPECT_STATUS  exit status of `docker buildx inspect`   (0)
+#   STUB_BUILDER_PLATFORMS      the Platforms: line of `buildx inspect`  (linux/amd64)
+#   STUB_BUILDX_BUILD_STATUS    exit status of `docker buildx build`     (0)
+#   STUB_MANIFEST_STATUS        exit status of the manifest readers      (0)
+#   STUB_MANIFEST_ERROR         stderr text when that status is non-zero
+#   STUB_MANIFEST_JSON          file whose contents the manifest readers print
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+if [[ -n "${STUB_DOCKER_LOG:-}" ]]; then
+  # 1 invocation per line. The scripts under test run with IFS=$'\n\t', so "$*"
+  # would join the argv with a newline and log 1 word per line.
+  ( IFS=' '; printf 'docker %s\n' "$*" >> "$STUB_DOCKER_LOG" )
+fi
+
+# The 2 ways a script can read a published manifest. Both are modelled, so a
+# test asserts the BEHAVIOUR of a verb and not the client command it picked.
+function stub_manifest() {
+  local status="${STUB_MANIFEST_STATUS:-0}"
+  if [[ "$status" -ne 0 ]]; then
+    printf '%s\n' "${STUB_MANIFEST_ERROR:-stub: the manifest read failed}" >&2
+    exit "$status"
+  fi
+  if [[ -z "${STUB_MANIFEST_JSON:-}" ]]; then
+    printf 'stub docker: STUB_MANIFEST_JSON is not set\n' >&2
+    exit 64
+  fi
+  cat "$STUB_MANIFEST_JSON"
+  exit 0
+}
+
+case "${1:-}" in
+  build)
+    printf 'stub: docker build — no daemon was contacted\n'
+    exit "${STUB_BUILD_STATUS:-0}"
+    ;;
+  buildx)
+    case "${2:-}" in
+      version)
+        printf 'github.com/docker/buildx v0.20.0 stub\n'
+        exit "${STUB_BUILDX_VERSION_STATUS:-0}"
+        ;;
+      inspect)
+        if [[ "${STUB_BUILDX_INSPECT_STATUS:-0}" -ne 0 ]]; then
+          printf 'ERROR: no builder "stub" found\n' >&2
+          exit "${STUB_BUILDX_INSPECT_STATUS}"
+        fi
+        printf 'Name:          stub\n'
+        printf 'Driver:        docker-container\n'
+        printf '\n'
+        printf 'Nodes:\n'
+        printf 'Name:          stub0\n'
+        printf 'Endpoint:      unix:///var/run/docker.sock\n'
+        printf 'Status:        running\n'
+        printf 'Platforms:     %s\n' "${STUB_BUILDER_PLATFORMS:-linux/amd64}"
+        exit 0
+        ;;
+      imagetools)
+        if [[ "${3:-}" == "inspect" ]]; then
+          stub_manifest
+        fi
+        printf 'stub docker: unhandled buildx imagetools subcommand: %s\n' "${3:-}" >&2
+        exit 64
+        ;;
+      build)
+        printf 'stub: buildx build — no daemon was contacted\n'
+        exit "${STUB_BUILDX_BUILD_STATUS:-0}"
+        ;;
+      *)
+        printf 'stub docker: unhandled buildx subcommand: %s\n' "${2:-}" >&2
+        exit 64
+        ;;
+    esac
+    ;;
+  manifest)
+    if [[ "${2:-}" == "inspect" ]]; then
+      stub_manifest
+    fi
+    printf 'stub docker: unhandled manifest subcommand: %s\n' "${2:-}" >&2
+    exit 64
+    ;;
+  *)
+    printf 'stub docker: unhandled subcommand: %s\n' "${1:-}" >&2
+    exit 64
+    ;;
+esac

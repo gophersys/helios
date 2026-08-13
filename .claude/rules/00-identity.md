@@ -39,6 +39,7 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
 ├── project.json                 # repo-level Nx wiring
 ├── ctl.sh                       # repo-wide control
 ├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time
+├── _ctl/tests/                  # hermetic *.test.sh + harness + docker stub + fixtures
 ├── .claude/rules/00-identity.md # (this file)
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── runner/        { Dockerfile, project.json, ctl.sh }   # + runner layer — no devcontainer.json
@@ -47,7 +48,7 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
 └── .github/workflows/
     ├── build-and-push.yml    # publish the images
-    ├── validate.yml          # the pull request gate: ctl.sh validate + BUILD_ORDER + shellcheck -x
+    ├── validate.yml          # the pull request gate: ctl.sh validate + ctl.sh test + BUILD_ORDER
     └── pr-review.yml         # the review agent, shared from gophersys/cictl
 ```
 
@@ -59,9 +60,11 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
    root (`base/`, `flutter/`, `zephyr/`, `zephyr-devbox/`) contains
    `devcontainer.json` + `Dockerfile` + `project.json` + `ctl.sh`. It also
    contains each script that the image COPYs in, for example an entrypoint.
-   `validate` runs shellcheck on all `*.sh` files in an image directory. Do not
-   write a README for an image. The output of `bash ./ctl.sh help` is the
-   specification.
+   `validate` runs `shellcheck -x -S style` on every shell script in the
+   repository — found by `*.sh` name **or** by a shell shebang on the first
+   line, so a script with no extension is linted too. A new script is therefore
+   linted wherever you put it. Do not write a README for an image. The output
+   of `bash ./ctl.sh help` is the specification.
 
    **A per-image `ctl.sh` is a thin dispatcher.** The body of each verb is in
    `_ctl/lib.sh`, 1 time only. The per-image script sets its data
@@ -101,62 +104,82 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
   Never invent a version.
 - **You must get approval to change a version.** A change to a version ARG goes
   through the brain-level approval gate.
+- **`ARG HADOLINT_VERSION` in `base/Dockerfile` also governs the gate.**
+  hadolint's verdict depends on its version — 2.15.1 raises DL3064 and DL3066 on
+  Dockerfiles that 2.14.0 passes — so `validate` lints at that exact pin. It uses
+  the `hadolint` on PATH when the version matches, otherwise
+  `hadolint/hadolint:v<pin>` through docker, and it FAILS naming the version when
+  it can reach neither. The devcontainer ships the pinned version, so a developer
+  and CI get the same verdict. Raising the pin is a version change like any
+  other, and it may turn new findings red.
 
-## Multi-arch-on-push policy
+## Sanctioned-platform policy
 
-Publish every **devcontainer** image as a multi-arch image (linux/amd64 and
-linux/arm64). Both architectures have real users: an arm64 Mac and amd64 Linux.
-For those images the rule is non-negotiable. You must not change it.
+Every image of this repository publishes **1** platform: `linux/amd64`. The
+declaration is `SANCTIONED_PLATFORMS` in `_ctl/lib.sh`, and it is the only place
+a platform is named. A platform outside that set fails the guard and names
+itself.
 
-**An image builds only the arch it deploys to.** 2 images are narrowed today, and
-both narrowings were measured, not assumed:
+**An image builds only the arch it deploys to.** Each narrowing was measured, not
+assumed:
 
-- `base-runner` is amd64 only. It runs only as an ARC pod, and every node in that
-  cluster is amd64. Its arm64 half compiled Go under QEMU for an architecture
-  that no node runs, and it took ~13 minutes on a thin layer.
-- `zephyr-devbox` is amd64 only (commit `c7e8e94`). It runs only as a kubernetes
-  pod. Its 3 running pods sat on `k3s-w-1`, `k3s-w-3` and `k3s-w-4`, and all 3
-  are amd64. Nobody opens it locally; `zephyr` is the image for that.
+- `base-runner` runs only as an ARC pod, and every node in that cluster is amd64.
+  Its arm64 half compiled Go under QEMU for an architecture that no node runs,
+  and it took ~13 minutes on a thin layer.
+- `zephyr-devbox` runs only as a kubernetes pod (commit `c7e8e94`). Its 3 running
+  pods sat on `k3s-w-1`, `k3s-w-3` and `k3s-w-4`, and all 3 are amd64. Nobody
+  opens it locally; `zephyr` is the image for that.
+- `base`, `flutter` and `zephyr` were published for 2 architectures until the
+  arm64 half was measured: the published `base` arm64 variant was an amd64 Ubuntu
+  userland carrying aarch64 Go binaries, because the `FROM` line pinned the
+  userland to the BUILD host while buildx labelled the result with the TARGET.
+  So it was mislabelled rather than native, and on the only host that would
+  consume it Docker Desktop emulates that userland anyway. It gave none of the
+  benefit of a native image and cost the larger half of a 41.7-minute build.
 
-So the multi-arch rule above applies to `base`, `flutter` and `zephyr`. This
-paragraph exists because it did not say so for a while: `zephyr-devbox` was
-narrowed in a merged commit and this rule still called multi-arch non-negotiable
-for all 4, so a reader who trusted the rule would have called a decision a defect.
-That happened.
+**No arm64 consumer can be verified for any image today**, which is recorded in
+gophersys/infrastructure `docs/debt-register.md` D42. Widen
+`SANCTIONED_PLATFORMS` on the day a consumer exists, and not before. Widening it
+is 1 edit, and every path reads it.
 
-Add arm64 back to either image when an arm64 consumer exists. **No arm64 consumer
-can be verified for any image today**, which is recorded in gophersys/
-infrastructure `docs/debt-register.md` D42 as an open question for `base`,
-`flutter` and `zephyr` too.
+Verify a published image with `bash ./ctl.sh verify-published <image> [tag]`. A
+manifest declares a platform; that verb reads the manifest back out of the
+registry and asserts the set is exactly the sanctioned one. An `unknown/unknown`
+entry is an attestation manifest, which buildx attaches 1 of per variant, and it
+is not a variant. For the deeper check — the manifest declares a platform, but
+what is in the layers — `bash ctl.sh verify-image-arch <ref> [platforms]` in
+gophersys/infrastructure reads the content.
 
-Verify a published image with `bash ctl.sh verify-image-arch <ref> [platforms]`
-in gophersys/infrastructure. A manifest declares a platform; that verb reads the
-content.
-
-For devcontainer images:
-
-| Verb | Scope | Arch |
+| Verb | Scope | Platform |
 |---|---|---|
-| `build` | local dev loop | native single-arch (fast) |
-| `build-multi-arch` | local verification | buildx multi-arch, `--load=false` |
-| `push` | publish | **ENFORCED** buildx multi-arch, no flag to downgrade |
+| `build` | local dev loop | explicit `--platform`, 1 platform, no push |
+| `push` | publish | **GUARDED** buildx build + push |
+| `verify-published` | after a publish | reads the manifest the registry holds |
 
-The guard `require_buildx_and_multi_arch` is in `_ctl/lib.sh`, 1 time only. The
-guard runs at the start of every per-image `push` verb. It fails closed in 4
-conditions: the platform list is empty, buildx is absent, no buildx builder is
-active, or the active builder cannot emulate 1 of the required platforms.
+The guard `require_buildx_and_platforms` is in `_ctl/lib.sh`, 1 time only, and it
+runs at the start of every per-image `push`. It fails closed in 5 conditions: a
+platform outside the sanctioned set, an empty platform list, buildx absent, no
+buildx builder active, or the active builder unable to build 1 of the required
+platforms. The first condition is `require_sanctioned_platforms`, which `build`
+also uses.
 
-The list of platforms is a property of the image. `MULTI_ARCH_PLATFORMS` in the
-library gives the default `linux/amd64,linux/arm64`. An image narrows the list
-only with a measurement, as `runner/ctl.sh` does.
+The list of platforms an image builds is `IMAGE_PLATFORMS`, which defaults to
+`SANCTIONED_PLATFORMS` and stays overridable from the environment. An image may
+declare a measured NARROWER list; it may not declare a wider one, because every
+entry still has to be sanctioned. `IMAGE_PLATFORMS` was called
+`MULTI_ARCH_PLATFORMS` until the arm64 drop, and a tripwire in the library fails
+at source time if the old name is still set — both names would hold the same
+string, so a missed rename would otherwise be silent.
 
 The repository-root `ctl.sh` does **not** call the guard. It sends `push` to the
 per-image `ctl.sh`, which calls the guard with its own list. The root script
 cannot call the guard correctly, because the list is not the same for every
 image. Do not add a call to the guard there.
 
-The CI workflow enforces the same policy. It always sets up QEMU and buildx,
-and it builds with `--platform linux/amd64,linux/arm64 --push`.
+The CI workflow enforces the same policy. It sets up buildx, builds with
+`--platform ${{ env.PLATFORMS }} --push`, and then runs `verify-published`
+against the SHA tag it just pushed. It sets up no QEMU: emulation is what a
+cross-platform build needed, and there is no cross-platform build.
 
 ## Dev-in-container expectation
 
@@ -184,9 +207,9 @@ argv that you supply, so local devcontainer use behaves like the other layers.
 
 | Verb | Action | Cache |
 |---|---|---|
-| `build` | native single-arch `docker build` | false |
-| `build-multi-arch` | `docker buildx build --platform linux/amd64,linux/arm64 --load=false` | false |
-| `push` | `docker buildx build --platform linux/amd64,linux/arm64 --push` (guarded) | false |
+| `build` | `docker build --platform "$IMAGE_PLATFORMS"` | false |
+| `push` | `docker buildx build --platform "$IMAGE_PLATFORMS" --push` (guarded) | false |
+| `verify-published [tag]` | read the published manifest; it must carry exactly `SANCTIONED_PLATFORMS` | false |
 | `pull` | `docker pull ghcr.io/gophersys/<name>:latest` | false |
 | `inspect` | `docker image inspect ghcr.io/gophersys/<name>:latest` | false |
 | `help` | Print the usage block from `ctl.sh` | n/a |
@@ -196,12 +219,13 @@ argv that you supply, so local devcontainer use behaves like the other layers.
 | Verb | Action |
 |---|---|
 | `build <image>` | Delegate to per-image `ctl.sh build` |
-| `build-multi-arch <image>` | Delegate to per-image `ctl.sh build-multi-arch` |
-| `push <image>` | Delegate to per-image `ctl.sh push` (multi-arch enforced) |
+| `push <image>` | Delegate to per-image `ctl.sh push` (guarded) |
+| `verify-published <image> [tag]` | Delegate to per-image `ctl.sh verify-published` |
 | `pull <image>` | Delegate to per-image `ctl.sh pull` |
 | `inspect <image>` | Delegate to per-image `ctl.sh inspect` |
 | `list` | Print the managed image refs |
-| `validate` | shellcheck, jq, hadolint, ARG-discipline checks |
+| `validate` | shellcheck every shell script, jq, hadolint at the pinned version, ARG-discipline checks |
+| `test` | Run every `_ctl/tests/*.test.sh`; fail if it finds none |
 | `propagate` | Fan out submodule pointer bumps (delegates to brain) |
 | `release` | Cut a release (delegates to brain) |
 | `help` | Usage |
@@ -216,10 +240,10 @@ runner              │
               zephyr-devbox
 ```
 
-`validate.yml` runs `bash ./ctl.sh validate` and asserts that BUILD_ORDER agrees
-between `ctl.sh` and `.ci/ctl.sh`. `.ci/ctl.sh validate` delegates to the root
-`ctl.sh`: it used to be a second copy and the 2 diverged, so it reported OK on a
-Dockerfile that the root script rejected.
+`validate.yml` runs `bash ./ctl.sh validate`, then `bash ./ctl.sh test`, then
+asserts that BUILD_ORDER agrees between `ctl.sh` and `.ci/ctl.sh`. `.ci/ctl.sh
+validate` delegates to the root `ctl.sh`: it used to be a second copy and the 2
+diverged, so it reported OK on a Dockerfile that the root script rejected.
 
 The graph is declared in 4 places. All 4 MUST stay the same:
 
@@ -229,7 +253,11 @@ The graph is declared in 4 places. All 4 MUST stay the same:
 - `.ci/providers/github/build-and-push.yml`. This file is the source of truth
   for the provider, and it must match the workflow byte for byte. Once it
   became an old copy that listed only 3 images, and nobody saw the difference.
-  Examine this file again each time that the workflow changes.
+  Then it drifted again in commit `d9089b2`, which added 5 `timeout-minutes: 90`
+  blocks to the workflow and to neither copy of this file, while this rule went
+  on calling them identical. A rule that nothing checks is a rule that drifts:
+  `_ctl/tests/platform-policy.test.sh` compares the 2 files with `cmp` now, and
+  `bash ./ctl.sh test` runs it in the pull request gate.
 
 ## Why the `+ runner` layer exists
 

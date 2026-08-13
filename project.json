@@ -22,11 +22,21 @@
       "inputs": [
         "{projectRoot}/ctl.sh",
         "{projectRoot}/_ctl/lib.sh",
+        "{projectRoot}/_ctl/tests/**/*.sh",
+        "{projectRoot}/.ci/*.sh",
         "{projectRoot}/project.json",
         "{projectRoot}/*/ctl.sh",
         "{projectRoot}/*/Dockerfile",
         "{projectRoot}/*/project.json"
       ]
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh test",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
     },
     "propagate": {
       "executor": "nx:run-commands",

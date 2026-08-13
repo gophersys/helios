@@ -9,10 +9,9 @@
 #
 # Verbs:
 #   validate              shellcheck + hadolint + jq across the repo
-#   build-all             native single-arch build of every image, parent first
-#   build-all-multi-arch  explicit buildx multi-arch build of every image, no push
-#   push-all              ENFORCED multi-arch buildx --push of every image
-#   smoke-test-all        run .ci/smoke.sh against each image (native-arch only)
+#   build-all             build every image, parent first
+#   push-all              GUARDED buildx --push of every image
+#   smoke-test-all        run .ci/smoke.sh against each image
 #   help
 #
 # Usage: bash .ci/ctl.sh <verb> [args...]
@@ -60,44 +59,33 @@ function cmd_validate() {
   bash "$REPO_ROOT/ctl.sh" validate "$@"
 }
 
-# build-all — native single-arch build of every image, in dependency order.
+# build-all — build every image, in dependency order.
 function cmd_build_all() {
   require_cmd docker
   local name
   for name in "${BUILD_ORDER[@]}"; do
-    log_info "=== building ${name} (native single-arch) ==="
+    log_info "=== building ${name} ==="
     repo_ctl build "$name"
   done
   log_info "build-all: OK"
 }
 
-# build-all-multi-arch — explicit multi-arch build of every image, no push.
-function cmd_build_all_multi_arch() {
-  require_cmd docker
-  local name
-  for name in "${BUILD_ORDER[@]}"; do
-    log_info "=== building ${name} (multi-arch, no push) ==="
-    repo_ctl build-multi-arch "$name"
-  done
-  log_info "build-all-multi-arch: OK"
-}
-
-# push-all — ENFORCED multi-arch push of every image to ghcr.
+# push-all — GUARDED push of every image to ghcr.
 # This verb checks only that buildx exists, because the required platform list
 # is not the same for every image. The per-image ctl.sh calls the full guard
-# require_buildx_and_multi_arch with its own list.
+# require_buildx_and_platforms with its own list.
 function cmd_push_all() {
   require_buildx
   local name
   for name in "${BUILD_ORDER[@]}"; do
-    log_info "=== pushing ${name} (multi-arch) ==="
+    log_info "=== pushing ${name} ==="
     repo_ctl push "$name"
   done
   log_info "push-all: OK"
 }
 
-# smoke-test-all — run .ci/smoke.sh against each image. Native arch only;
-# QEMU is not involved because we run the image for our own arch.
+# smoke-test-all — run .ci/smoke.sh against each image. The image runs on the
+# host architecture, which is the architecture it was built for.
 function cmd_smoke_test_all() {
   require_cmd docker
   if [[ ! -x "$PROJECT_ROOT/smoke.sh" ]]; then
@@ -131,9 +119,8 @@ Managed images (build order): ${order}
 
 Verbs:
   validate              shellcheck + hadolint + jq across the repo
-  build-all             Native single-arch build of every image
-  build-all-multi-arch  Explicit multi-arch build of every image (no push)
-  push-all              ENFORCED multi-arch push of every image to ghcr.io
+  build-all             Build every image, parent first
+  push-all              GUARDED push of every image to ghcr.io
   smoke-test-all        Run .ci/smoke.sh against each freshly-built image
   help                  Show this message
 EOF
@@ -146,7 +133,6 @@ function main() {
   case "$cmd" in
     validate)             cmd_validate             "$@" ;;
     build-all)            cmd_build_all            "$@" ;;
-    build-all-multi-arch) cmd_build_all_multi_arch "$@" ;;
     push-all)             cmd_push_all             "$@" ;;
     smoke-test-all)       cmd_smoke_test_all       "$@" ;;
     help|"")              usage ;;

@@ -15,18 +15,18 @@
         { "projects": ["images-base"], "target": "build" }
       ]
     },
-    "build-multi-arch": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "bash ./ctl.sh build-multi-arch",
-        "cwd": "{projectRoot}"
-      },
-      "cache": false
-    },
     "push": {
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh push",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "verify-published": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh verify-published",
         "cwd": "{projectRoot}"
       },
       "cache": false

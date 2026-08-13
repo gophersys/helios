@@ -137,25 +137,25 @@ case "${GOPHERSYS_DEVCONTAINER}" in
 esac
 ```
 
-## Multi-arch-on-push policy
+## Sanctioned-platform policy
 
-Publish every **devcontainer** image as a multi-arch image (linux/amd64 and
-linux/arm64). Both architectures have real users: the images are opened on an
-arm64 Mac and on amd64 Linux. For those images the rule is non-negotiable. You
-must not change it:
+Every image here publishes **1** platform: `linux/amd64`. `SANCTIONED_PLATFORMS`
+in `_ctl/lib.sh` declares it, and it is the only place a platform is named. A
+platform outside that set fails the guard and names itself, so a future edit that
+re-adds one fails loudly instead of quietly restoring an emulated build.
 
 | Verb | Behavior |
 |---|---|
-| `build` | A build for the native architecture only. Use it for a fast local development loop. |
-| `build-multi-arch` | `docker buildx build --platform linux/amd64,linux/arm64 --load=false`. It verifies the multi-arch build and it does not push. |
-| `push` | A multi-arch push with buildx and `--push`. This is **ENFORCED**. The guard `require_buildx_and_multi_arch` runs at the start of the push verb. There is no flag that changes the push to 1 architecture. |
+| `build` | `docker build --platform "$IMAGE_PLATFORMS"`. The `--platform` is explicit: a bare `docker build` targets the HOST, which on an Apple Silicon Mac is not the platform that gets published. |
+| `push` | `docker buildx build --platform "$IMAGE_PLATFORMS" --push`. The guard `require_buildx_and_platforms` runs at the start of the verb. |
+| `verify-published [tag]` | Read the manifest the registry holds and assert it carries exactly the sanctioned set. |
 
 The guard is in `_ctl/lib.sh`, 1 time only, and each per-image `push` calls it.
-The guard fails closed in 4 conditions: the platform list is empty, buildx is
-absent, no buildx builder is active, or the active builder cannot emulate 1 of
-the required platforms. The list of platforms is a property of the image. The
-default is `linux/amd64,linux/arm64`, and an image narrows it only with a
-measurement, as `runner/ctl.sh` does.
+It fails closed in 5 conditions: a platform outside the sanctioned set, an empty
+platform list, buildx absent, no buildx builder active, or the active builder
+unable to build 1 of the required platforms. The list an image builds is
+`IMAGE_PLATFORMS`; it defaults to the sanctioned set, and an image may declare a
+measured NARROWER list but never a wider one.
 
 The repository-root `ctl.sh` does **not** call the guard. It sends `push` to
 the per-image `ctl.sh`, which calls the guard with its own list of platforms.
@@ -163,22 +163,35 @@ The root script cannot call the guard correctly, because the list is not the
 same for every image.
 
 The CI workflow `.github/workflows/build-and-push.yml` enforces the same policy
-on every push to `main` and on every semver tag (`v*`).
+on every push to `main` and on every semver tag (`v*`), and each of its jobs runs
+`verify-published` against the SHA tag it just pushed.
 
-### Runner images build only the arch they deploy to
+### Why there is no arm64 variant
 
-`base-runner` is **amd64 only**. This is the only exception. `base-runner` is
-not a devcontainer. It runs only as an ARC pod, and every node in that cluster
-is amd64. This command shows the architecture of each node:
+Every image runs where its consumers are, and every consumer that could be
+verified is amd64:
+
+- `base-runner` runs only as an ARC pod, and every node in that cluster is amd64.
+- `zephyr-devbox` runs only as a kubernetes pod. Its 3 live pods sat on
+  `k3s-w-1`, `k3s-w-3` and `k3s-w-4`, and all 3 are amd64.
+- `base`, `flutter` and `zephyr` published an arm64 variant until it was measured.
+  The published `base` arm64 image was an amd64 Ubuntu userland carrying aarch64
+  Go binaries: the `FROM` line pinned the userland to the BUILD host while buildx
+  labelled the result with the TARGET platform. It was mislabelled rather than
+  native, and on an Apple Silicon host Docker Desktop emulates that userland
+  anyway, which is why nobody noticed. It gave none of the benefit of a native
+  image and cost the larger half of a 41.7-minute build.
+
+This command shows the architecture of each node:
 
 ```sh
 kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.architecture
 ```
 
-The arm64 half compiled Go under QEMU for an architecture that no node runs.
-On a thin layer it measured **~13 minutes**. This was the largest cost of every
-correction to the runner. The rule is: **build only the architecture that you
-deploy to.** Add arm64 again on the day an arm64 pool exists, and not before.
+The rule is: **build only the architecture that you deploy to.** No arm64
+consumer can be verified for any image today, which is open in
+gophersys/infrastructure `docs/debt-register.md` as D42. Widen
+`SANCTIONED_PLATFORMS` on the day a consumer exists, and not before.
 
 ## How to add a tool
 
@@ -200,13 +213,17 @@ deploy to.** Add arm64 again on the day an arm64 pool exists, and not before.
      *) echo "unsupported platform: $TARGETPLATFORM"; exit 1 ;;
    esac
    ```
+   Keep the arm64 arm even though only amd64 is published. It costs nothing on a
+   1-platform build, and it is how the install stays correct on the day
+   `SANCTIONED_PLATFORMS` widens. A `case` that resolves the architecture is also
+   what lets the `*)` arm fail loudly instead of installing the wrong binary.
 5. **Remove the temporary files in the same layer.** For apt, use
    `rm -rf /var/lib/apt/lists/*`.
 6. **You must get approval.** A new tool and a version change go through the
    brain-level approval gate. They have an effect on every consuming project.
-7. Run `bash ./ctl.sh validate` until it reports no error. Then run
-   `bash ./ctl.sh build base` to make sure that the chain of images still
-   builds.
+7. Run `bash ./ctl.sh validate` and `bash ./ctl.sh test` until both report no
+   error. Then run `bash ./ctl.sh build base` to make sure that the chain of
+   images still builds.
 
 ## Repository layout
 
@@ -216,6 +233,7 @@ deploy to.** Add arm64 again on the day an arm64 pool exists, and not before.
 ├── project.json                 # repo-level Nx wiring (list, validate, propagate, release)
 ├── ctl.sh                       # repo-wide control script
 ├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time only
+├── _ctl/tests/                  # hermetic *.test.sh + harness + docker stub + fixtures
 ├── .claude/rules/               # identity + conventions
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── runner/        { Dockerfile, project.json, ctl.sh }   # + runner layer, no devcontainer.json
@@ -247,7 +265,7 @@ The library reads this data. Set the first 4 items before the source line:
 |---|---|
 | `PROJECT_ROOT` | The directory that holds the script. Required. |
 | `IMAGE_NAME` | The image slug, for example `flutter`. Required for the image verbs. |
-| `MULTI_ARCH_PLATFORMS` | The platforms that `push` enforces. The default is `linux/amd64,linux/arm64`. |
+| `IMAGE_PLATFORMS` | The platforms this image builds. The default is `SANCTIONED_PLATFORMS`. Narrower is allowed with a measurement; wider is refused. |
 | `IMAGE_BUILD_ARGS` | An array of extra arguments for `docker build`. `runner/ctl.sh` puts `BASE_IMAGE` here. |
 | `IMAGE_USAGE_HEADER` | Extra lines below the `Image:` header of the help text. |
 | `IMAGE_USAGE_COMMANDS` | Extra lines below the command list of the help text. |
@@ -260,8 +278,24 @@ The repository-root `ctl.sh`, `.ci/ctl.sh` and `.ci/smoke.sh` source the same
 library for the logging, the tool gate and the guard. Their own verbs act on
 the whole set of images, so they keep those verbs themselves.
 
-`validate` runs `shellcheck -x`, so shellcheck follows the source line and
-checks each script together with the library.
+`validate` runs `shellcheck -x -S style` over every shell script in the
+repository — found by `*.sh` name **or** by a shell shebang, so a script with no
+extension is not skipped. `-x` follows the source line, so each script is checked
+together with the library, and a new script is linted wherever you put it. It
+refuses to report OK when it finds no script at all.
+
+`validate` lints Dockerfiles at the hadolint version `base/Dockerfile` pins in
+`ARG HADOLINT_VERSION`: the `hadolint` on PATH when its version matches,
+otherwise `hadolint/hadolint:v<pin>` through docker. A gate whose verdict depends
+on which hadolint the operator happened to install is not a gate.
+
+### The tests
+
+`_ctl/tests/` holds hermetic test files. They are hermetic in the strict sense:
+a stub `docker` goes first on `PATH`, so no daemon is contacted, no socket is
+opened and no registry is resolved. `bash ./ctl.sh test` runs every
+`_ctl/tests/*.test.sh`, and it **fails when it finds none** — a glob that stopped
+matching would otherwise report a green run that checked nothing.
 
 **There is no EXIT trap in these scripts, and that is deliberate.** Each script
 carried a `BG_PIDS` array and an `on_exit` trap that killed the listed
@@ -276,24 +310,29 @@ job, and it must not add an EXIT trap that returns a status.
 Run these commands from the repository root:
 
 ```sh
-# Native single-arch build (fast dev loop).
+# Build for the sanctioned platform (fast dev loop).
 bash ./ctl.sh build base
 bash ./ctl.sh build base-runner
 bash ./ctl.sh build flutter
 bash ./ctl.sh build zephyr
 bash ./ctl.sh build zephyr-devbox
 
-# Verify multi-arch locally without pushing.
-bash ./ctl.sh build-multi-arch base
-
-# Push (ENFORCED multi-arch).
+# Push (guarded).
 bash ./ctl.sh push base
+
+# Read the published manifest back and assert its platform set.
+bash ./ctl.sh verify-published base
+bash ./ctl.sh verify-published base e0c6bc5
 
 # List canonical image refs.
 bash ./ctl.sh list
 
-# Lint shell scripts, validate JSON, lint Dockerfiles, enforce ARG discipline.
+# Lint every shell script, validate JSON, lint Dockerfiles at the pinned
+# hadolint version, enforce ARG discipline.
 bash ./ctl.sh validate
+
+# Run every hermetic test under _ctl/tests/.
+bash ./ctl.sh test
 ```
 
 Run these commands for 1 image, from inside the image directory:
@@ -310,9 +349,15 @@ bash ./ctl.sh inspect
 The workflow `.github/workflows/build-and-push.yml` builds and publishes all 5
 images on every push to `main`. It tags each image with `:latest` and with the
 short commit SHA. On a push of a semver tag (`v*`) it also publishes
-`:v<semver>`. The workflow always sets up QEMU and buildx, and it builds with
-`--platform linux/amd64,linux/arm64`. The workflow needs the `packages: write`
+`:v<semver>`. It sets up buildx and builds with `--platform ${{ env.PLATFORMS }}`,
+then reads the manifest back with `verify-published` at the SHA tag it just
+pushed. It sets up no QEMU: emulation is what a cross-platform build needed, and
+there is no cross-platform build. The workflow needs the `packages: write`
 permission. The permission is set in the workflow.
+
+The workflow `.github/workflows/validate.yml` is the pull request gate. It runs
+`bash ./ctl.sh validate`, `bash ./ctl.sh test`, and the BUILD_ORDER agreement
+check.
 
 ## Shared-change propagation
 

@@ -28,11 +28,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # shellcheck over every script, hadolint over every Dockerfile, jq over
-      # every devcontainer.json, and the ARG-discipline check that forbids a
-      # hardcoded version in a RUN line.
+      # shellcheck -x -S style over EVERY *.sh in the repository, hadolint over
+      # every Dockerfile, jq over every project.json, and the ARG-discipline
+      # check that forbids a hardcoded version in a RUN line.
+      #
+      # A separate step used to lint `_ctl/lib.sh ./ctl.sh ./*/ctl.sh` from a
+      # list of its own. That list left .ci/ctl.sh and .ci/smoke.sh linted by
+      # nothing, and a second list of files to lint is a list that drifts from
+      # the first. The verb walks every *.sh now, so the weaker twin is gone
+      # rather than kept beside it.
       - name: ctl.sh validate
         run: bash ./ctl.sh validate
+
+      # The hermetic ctl tests: the platform policy, the push guard and
+      # verify-published. `test` fails when it finds no test file, so a glob that
+      # stopped matching cannot report a green run that checked nothing.
+      - name: ctl.sh test
+        run: bash ./ctl.sh test
 
       # The dependency graph is declared in 4 places and all 4 must agree. This
       # asserts the 2 that are machine-checkable from here: BUILD_ORDER in the
@@ -54,13 +66,3 @@ jobs:
             exit 1
           fi
           echo "BUILD_ORDER agrees: $root"
-
-      # The shared library is the most important script here: every image's ctl.sh
-      # is a thin dispatcher into it. `shellcheck -x` follows the source line, so
-      # each dispatcher is linted together with the library rather than alone.
-      - name: the shared ctl library is linted with its callers
-        run: |
-          set -euo pipefail
-          test -f _ctl/lib.sh || { echo "::error::_ctl/lib.sh is missing"; exit 1; }
-          shellcheck -x -S style _ctl/lib.sh ./ctl.sh ./*/ctl.sh
-          echo "the library and every dispatcher are clean"
