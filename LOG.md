@@ -191,3 +191,14 @@ symlink and DENSUI_CHROME contract are unchanged, build-time proof retained.
 Curious asymmetry recorded: the SAME playwright download works from runner
 pods (per-job installs were green) but not from dind builds — worth an
 infrastructure look someday, not worth blocking on.
+
+## 2026-08-13T22:44Z — P4 telemetry demo: blind census (sub-step 1)
+demos/telemetry/census.md — the first design with NO reference image: 13
+settable params, 10 streams with staleness deadlines and dash-degraded
+renders, 2 derived flags, glance questions mapped both ways, ilimit isolated
+as the one destructive control, alarms right/below per the verified
+upper-field constant. Gate 1 walked in-file. Also: ci.yml and build-ci-image
+gained concurrency groups — superseded fleet runs now cancel instead of
+queueing (the backlog was self-inflicted). HANDOFF: stage 2 = panel.toml with
+solved tracks/anchors (no bitmap to measure — anchors come from the calculus
+alone), then widgets/page, then the full gate chain.
