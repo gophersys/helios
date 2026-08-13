@@ -118,3 +118,14 @@ before every push, never force-push. Two catches: `ruff format --check` was
 failing on 20 never-formatted files while my pipe read tail's exit code as
 the gate's (the exact swallowed-status trap) — formatted, target honest now;
 and ctl.sh's params gate needed its own loud failure message.
+
+## 2026-08-13T22:16Z — P3 fleet geometry gates (sub-step 1: wiring + local proof)
+ratio_audit.py now discovers Chrome via densui.probe.find_chrome (DENSUI_CHROME
+honoured) and runs inside the densui project env; ctl.sh gained a `geometry`
+target with honest font selection (Ableton fidelity locally, DejaVu on
+runners, DENSUI_FONT override, loud failure when none); ci.yml gained a
+`geometry` job on arc-org installing chromium via playwright at job time —
+if the fleet forbids that, the job fails loudly and becomes a BLOCKED.md
+coordination item, per the box's own instruction. Local `ctl.sh geometry`
+green end to end. HANDOFF: verify the fleet run's outcome next loop run
+(gh run list) before ticking the box.

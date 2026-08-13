@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 
-CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+from densui.probe import ProbeError, find_chrome
 BUILD = pathlib.Path(__file__).resolve().parent
 PAGE = BUILD.parent / "operator.html"
 
@@ -81,12 +81,14 @@ def die(msg: str) -> None:
 
 
 def main() -> None:
-    if not pathlib.Path(CHROME).exists():
-        die("Chrome not found — the audit cannot run, so the build fails (never skips)")
+    try:
+        chrome = find_chrome()
+    except ProbeError as exc:
+        die(f"{exc} — the audit cannot run, so the build fails (never skips)")
     tmp = BUILD.parent / "_ratio_audit.html"
     tmp.write_text(PAGE.read_text() + PROBE)
     r = subprocess.run(
-        [CHROME, "--headless=new", "--disable-gpu", "--mute-audio",
+        [chrome, "--headless=new", "--disable-gpu", "--mute-audio", "--no-sandbox",
          "--window-size=1600,900", "--virtual-time-budget=6000", "--dump-dom",
          f"file://{tmp}"],
         capture_output=True, text=True)

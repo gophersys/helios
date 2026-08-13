@@ -121,7 +121,9 @@ def main() -> None:
     OUT.write_text(out_text.replace("/* @SOLVED_POSITIONS@ */", r.stdout))
 
     # Gate 2 ratio audit — geometry drift fails the build.
-    r = subprocess.run(["python3", str(BUILD / "ratio_audit.py")], text=True)
+    r = subprocess.run(["uv", "run", "--project",
+                        str((BUILD / "../../../tools/densui").resolve()), "python3",
+                        str(BUILD / "ratio_audit.py")], text=True)
     if r.returncode != 0:
         die("ratio audit failed")
 
