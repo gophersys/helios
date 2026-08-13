@@ -129,3 +129,19 @@ if the fleet forbids that, the job fails loudly and becomes a BLOCKED.md
 coordination item, per the box's own instruction. Local `ctl.sh geometry`
 green end to end. HANDOFF: verify the fleet run's outcome next loop run
 (gh run list) before ticking the box.
+
+## 2026-08-13T22:27Z — P3 fleet geometry (sub-step 2: repo transferred, fleet diagnosed, model fixed)
+The eternally-queued runs were structural: arc-org is the gophersys org fleet
+and dense-ui lived on the personal account — transferred to gophersys/dense-ui
+per Mateo's directive; first post-transfer push picked up in seconds. That run
+then failed HONESTLY twice: (1) test job — no browser on the fleet image, the
+probe tests refuse to pass without measuring (correct); chromium-via-playwright
+step added to the test job too. (2) geometry job — the solver refused DejaVu:
+"rackL/c-level: reserved boxes collide (margin -1)". Real model flaw: labels
+are INK, not boxes — one may overhang empty face; the flow model now shrinks
+the reserved track and reports a correction (control-box overflow stays a hard
+error), with the glyph-ink audit as downstream truth. Two new tests (overflow
+corrects / control box still refuses); 46 green; fidelity + Arial geometry
+chains green locally. Also relearned: patch against source you have READ —
+ruff format had rewritten solve.py and my first patch died on a stale match.
+Box stays ⏳ pending a green fleet verdict.

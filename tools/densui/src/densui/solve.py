@@ -60,7 +60,9 @@ def solve(spec: dict | str | pathlib.Path) -> dict:
     ctx = _Ctx(Face(font["path"]), float(font["size"]))
     out = {"flow_rows": {}, "knob_rows": {}, "corrections": []}
     for name in sorted(data.get("flow_rows", {})):
-        out["flow_rows"][name] = _solve_flow(name, data["flow_rows"][name], ctx)
+        sol, corr = _solve_flow(name, data["flow_rows"][name], ctx)
+        out["flow_rows"][name] = sol
+        out["corrections"] += corr
     for name in sorted(data.get("knob_rows", {})):
         sol, corr = _solve_knobs(name, data["knob_rows"][name], ctx)
         out["knob_rows"][name] = sol
@@ -68,18 +70,37 @@ def solve(spec: dict | str | pathlib.Path) -> dict:
     return out
 
 
-def _solve_flow(name: str, row: dict, ctx: _Ctx) -> dict:
+def _solve_flow(name: str, row: dict, ctx: _Ctx) -> tuple[dict, list[str]]:
     pad = float(row.get("pad", 0))
     cursor = pad
     sol: dict = {}
+    corrections: list[str] = []
     units = row["units"]
-    for u in units:
+    for i, u in enumerate(units):
         box = float(u["box"])  # control width: a declared token
         left = round(u["center"] - box / 2)
         width = int(max([box] + [ctx.adv(t) for t in u.get("labels", [])]) + 0.999) + 1
         margin = left - cursor
         if margin < 0:
             raise SolveError(f"{name}/{u['name']}: reserved boxes collide (margin {margin})")
+        # Labels are ink, not boxes: one may overhang the next unit's empty
+        # face, and the glyph-ink audit downstream is the ground truth. The
+        # reserved track shrinks to the available span; a CONTROL box that
+        # overflows stays a hard error.
+        if i + 1 < len(units):
+            nxt_left = round(units[i + 1]["center"] - float(units[i + 1]["box"]) / 2)
+            avail = nxt_left - left
+            if box > avail:
+                raise SolveError(
+                    f"{name}/{u['name']}: control box {box:g} exceeds "
+                    f"the span to the next unit ({avail}px)"
+                )
+            if width > avail:
+                corrections.append(
+                    f"{name}/{u['name']}: label overflows its track by "
+                    f"{width - avail}px into empty face (ink-checked by the audit)"
+                )
+                width = avail
         sol[u["name"]] = {"left": left, "width": width, "margin_left": margin}
         cursor = left + width
     trail = row.get("trailing")
@@ -109,7 +130,7 @@ def _solve_flow(name: str, row: dict, ctx: _Ctx) -> dict:
             if "right_edge" in row
             else 0,
         }
-    return sol
+    return sol, corrections
 
 
 def _solve_knobs(name: str, row: dict, ctx: _Ctx) -> tuple[dict, list[str]]:

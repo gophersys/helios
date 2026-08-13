@@ -77,3 +77,44 @@ def test_flow_row_margins_and_trailing_gap(font_path):
 def test_missing_font_fails_loudly():
     with pytest.raises(SolveError, match="spec.font"):
         solve({"knob_rows": {}})
+
+
+def test_wide_label_overflow_is_a_reported_correction(font_path):
+    s = {
+        "font": {"path": font_path, "size": 16},
+        "flow_rows": {
+            "r": {
+                "pad": 10,
+                "units": [
+                    {
+                        "name": "u1",
+                        "center": 30,
+                        "box": 15,
+                        "labels": ["An Extremely Wide Label Indeed"],
+                    },
+                    {"name": "u2", "center": 80, "box": 27, "labels": ["B"]},
+                ],
+            }
+        },
+    }
+    out = solve(s)
+    r = out["flow_rows"]["r"]
+    assert r["u1"]["left"] + r["u1"]["width"] <= r["u2"]["left"]
+    assert any("label overflows" in c for c in out["corrections"])
+
+
+def test_control_box_overflow_still_refuses(font_path):
+    s = {
+        "font": {"path": font_path, "size": 16},
+        "flow_rows": {
+            "r": {
+                "pad": 0,
+                "units": [
+                    {"name": "u1", "center": 30, "box": 60},
+                    {"name": "u2", "center": 60, "box": 27},
+                ],
+            }
+        },
+    }
+    with pytest.raises(SolveError, match="control box"):
+        solve(s)

@@ -11,6 +11,12 @@ jobs:
       - uses: astral-sh/setup-uv@v5
       - uses: actions/setup-node@v4
         with: { node-version: "22" }
+      - name: chromium via playwright (probe tests measure real renders)
+        run: |
+          npx -y playwright@1.49 install --with-deps chromium
+          chrome_bin="$(find "$HOME/.cache/ms-playwright" -name chrome -type f | head -1)"
+          test -n "$chrome_bin" || { echo "playwright chromium not found" >&2; exit 1; }
+          echo "DENSUI_CHROME=$chrome_bin" >> "$GITHUB_ENV"
       - name: gates via the standard entry point
         run: ./ctl.sh test
 
