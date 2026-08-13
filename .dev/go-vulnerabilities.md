@@ -1,10 +1,10 @@
 # go-vulnerabilities
 
-phase:    pr
+phase:    wait
 repo:     gophersys/libs
 branch:   fix/go-vulnerabilities
 worktree: ~/code/.worktrees/libs-vulns
-pr:       -
+pr:       10
 attempt:  0/2
 
 ## Goal
