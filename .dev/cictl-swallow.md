@@ -1,6 +1,6 @@
 # cictl-swallow
 
-phase:    plan
+phase:    verify
 repo:     gophersys/libs
 branch:   fix/cictl-swallow
 worktree: ~/code/.worktrees/libs-cictl-swallow
@@ -66,12 +66,66 @@ the same shape, they are in scope: the class is the deliverable, not the line.
 
 ## Proven
 
-Nothing yet. Phase 2 owes a RED test.
+Phase 2 — RED. `bash .ci/ctl_test.sh` -> rc=1, `5 failure(s) across both phases`.
+The suite has two phases: phase 1 asserts behaviour, phase 2 asserts each test can
+FAIL under a counter-stimulus. 4 red in phase 1; test 3 red in phase 2.
+
+Its discrimination was proven from BOTH sides, in throwaway copies:
+- correct oracle (capture, check status, split) -> rc=0, 5 of 5 proven able to fail
+- LAZY oracle ("an empty listing is a failure") -> rc=1, tests 3 and 4 FAIL
+
+That second one is what makes this suite good. It refuses the over-fix as firmly
+as the under-fix, so the change cannot become "always fail".
+
+Phase 3 — GREEN. `run_phase_gate_over_affected` now captures the listing, reads
+the status, then splits:
+
+```sh
+listing="$(affected_projects)" || status=$?
+if [[ "$status" -ne 0 ]]; then
+  log_error "cictl affected failed (exit $status) for base '${NX_BASE}'; the affected set is unknown, so nothing was gated"
+  return "$status"
+fi
+[[ -z "$listing" ]] || mapfile -t projects <<<"$listing"
+```
+
+The `[[ -z "$listing" ]] ||` guard is LOAD-BEARING: `<<<""` yields one empty
+element, which would take a genuinely empty affected set out of the
+"no affected projects" arm and break test 3.
+
+`.ci/ctl.sh` now holds ZERO process substitutions.
+
+All 5 tests green in both phases. `shellcheck -S style .ci/ctl.sh` rc=0.
+Root `ctl_test.sh` rc=0 (10 hold, 10 of 10 proven able to fail).
+`verb_conservation_test.sh` rc=0 (17 records, 3 mutants caught).
+
+The class fix demonstrated on all 3 tier verbs, cictl genuinely absent:
+
+```
+affected-gate-fast       rc=127   cictl affected failed (exit 127) ... nothing was gated
+affected-gate-substrate  rc=127   identical
+gate-all                 rc=127   identical
+```
+
+All three fail, all three NAME the tool, none makes an empty-set claim.
 
 ## Blocked
 
-Nothing.
+Nothing blocking. One neighbour UNVERIFIED, reported rather than hidden:
+
+`go/_ctl/lib_test.sh` could not run here. It is FAIL-NOT-SKIP and named its
+blocker each time: no go, then no golangci-lint, and finally the real substrate
+`ghcr.io/gophersys/base:latest` returns **no matching manifest for
+linux/arm64/v8**. The image has no arm64 build, so it cannot run on this Apple
+Silicon host at all.
+
+That is a direct, measured cost of D42 (arm64 dropped from the images): a
+developer on Apple Silicon cannot run this repository's own gate locally. Worth
+carrying into the arm64 decision, since the mini now builds arm64 natively.
+
+The suite covers `go/_ctl/lib.sh`, which this change does not touch, so the risk
+is low — but it is UNVERIFIED, not green.
 
 ## Next
 
-Test author: reproduce the swallow as a failing test.
+Verifier: try to refute that this is done.
