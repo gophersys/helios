@@ -196,6 +196,17 @@ run_phase_gate() {
 }
 
 # ── the tests ───────────────────────────────────────────────────────────────
+#
+# HOUSE FORM FOR A NEGATIVE ASSERTION: `if <probe>; then fail "…"; fi` — never
+# `<probe> && fail "…"`. The driver reads a test's RETURN STATUS as its verdict, and an
+# AND-list whose left side does not match returns 1. As a function's last statement — or as
+# the last statement of a loop body, which is the same thing — that 1 becomes the test's
+# return status, so the test reports FAIL in the very state it is meant to call a pass, and
+# reports it SILENTLY because `fail` never ran. Measured on bash 5.2.21 in
+# ghcr.io/gophersys/base: `f() { echo hi | grep -q NOPE && fail x; }` returns 1, the `if`
+# form returns 0. A trailing `:` also fixes it and is forbidden here: a bare colon carries
+# no reason and the next reader deletes it. A POSITIVE assertion (`<probe> || fail "…"`) is
+# safe in either form — its passing arm is the left side, which returns 0.
 
 # THE DEFECT. Each of the six verbs the gate is trusted to police carries its failure only
 # through errexit, and errexit is suppressed at `_gate_run`'s call site. Every one is
@@ -209,8 +220,9 @@ t_a_failing_verb_is_never_recorded_pass() {
     if grep -q "^PASS" <<< "$OUT"; then
       fail "${verb}: the gate recorded PASS while its tool exited $TOOL_RC: $OUT"
     fi
-    grep -q "GATE_RUN_RC=0" <<< "$OUT" &&
+    if grep -q "GATE_RUN_RC=0" <<< "$OUT"; then
       fail "${verb}: _gate_run returned 0 while its tool exited $TOOL_RC: $OUT"
+    fi
   done
 }
 
@@ -221,8 +233,9 @@ t_a_failing_verb_makes_phase_gate_exit_non_zero() {
   [[ -n "$ARGV" ]] || fail "phase-gate testing invoked no gate tool at all; the run proves nothing"
   [[ "$RC" -ne 0 ]] ||
     fail "phase-gate testing exited 0 while every tool it ran exited $TOOL_RC: $OUT"
-  grep -q "GREEN" <<< "$OUT" &&
+  if grep -q "GREEN" <<< "$OUT"; then
     fail "phase-gate testing reported GREEN over tools that exited $TOOL_RC: $OUT"
+  fi
 }
 
 # CONSERVATION. The half that already works must keep working: a verb whose tools all
@@ -240,8 +253,12 @@ t_a_passing_verb_is_recorded_pass() {
 # must still hold after the unification.
 t_an_absent_tool_is_never_recorded_pass() {
   run_gate_step cmd_secretscan
-  grep -q "^PASS" <<< "$OUT" && fail "the gate recorded PASS with ${ABSENT_TOOL:-a tool} absent: $OUT"
-  grep -q "GATE_RUN_RC=0" <<< "$OUT" && fail "_gate_run returned 0 with ${ABSENT_TOOL:-a tool} absent: $OUT"
+  if grep -q "^PASS" <<< "$OUT"; then
+    fail "the gate recorded PASS with ${ABSENT_TOOL:-a tool} absent: $OUT"
+  fi
+  if grep -q "GATE_RUN_RC=0" <<< "$OUT"; then
+    fail "_gate_run returned 0 with ${ABSENT_TOOL:-a tool} absent: $OUT"
+  fi
   grep -q "${ABSENT_TOOL:-gitleaks}" <<< "$OUT" ||
     fail "the failure never names the absent tool ${ABSENT_TOOL:-gitleaks}: $OUT"
 }

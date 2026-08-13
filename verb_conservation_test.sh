@@ -212,13 +212,27 @@ make_sandbox() {
 
 # normalize reads a raw capture on stdin and prints it with every host-specific token
 # replaced, so the golden is a property of the verbs and not of this machine or this run.
+#
+# The repository rule is ANCHORED TO A PATH BOUNDARY, and that is not cosmetic. Unanchored, it
+# was `s#${HERE}#<repository>#g`, which replaces the repository path ANYWHERE it appears as a
+# substring — including inside a path that has nothing to do with the repository. Mount this
+# tree at a short path and the rule corrupts the capture: with HERE=/w, the two characters `/w`
+# in `<sandbox>/workspaceprovider-cover.AbC123` matched, and the record froze
+# `<sandbox><repository>orkspaceprovider-cover.<tmp>`. `go/workspaceprovider` is the only
+# project whose name begins with `w`, so exactly 1 of 17 records was affected and the other 16
+# hid it. The record then PASSED at /w and FAILED at the real worktree path — a golden that
+# depends on the mount is the one thing this function exists to prevent.
+#
+# A repository path that a verb really did emit starts at a path boundary: the start of a line,
+# a space, a tab, or an `=`. Requiring one keeps the rule's purpose and removes the substring
+# accident. `sed -E`, because BRE has no portable alternation.
 normalize() {
   local sb="$1"
-  sed -e "s#${sb}#<sandbox>#g" \
-      -e "s#${HERE}#<repository>#g" \
-      -e 's#tmp\.[A-Za-z0-9]\{6,\}#<tmp>#g' \
-      -e 's#\(cover\)\.[A-Za-z0-9]\{6,\}#\1.<tmp>#g' \
-      -e 's#[A-Za-z0-9_.-]*\.\(XXXXXX\)*[A-Za-z0-9]\{6\}\b#<tmp>#g'
+  sed -E -e "s#${sb}#<sandbox>#g" \
+         -e "s#(^|[[:space:]=])${HERE}#\1<repository>#g" \
+         -e 's#tmp\.[A-Za-z0-9]{6,}#<tmp>#g' \
+         -e 's#(cover)\.[A-Za-z0-9]{6,}#\1.<tmp>#g' \
+         -e 's#[A-Za-z0-9_.-]*\.(XXXXXX)*[A-Za-z0-9]{6}\b#<tmp>#g'
 }
 
 # capture <project> <profile> prints the conservation record for one project: for each verb,
@@ -305,7 +319,13 @@ selected_projects=("${PROJECTS[@]}")
 if [[ $# -gt 0 ]]; then
   selected_projects=()
   for p in "${PROJECTS[@]}"; do
-    [[ "$p" == "$1" ]] && selected_projects+=("$p")
+    # `if`, never `[[ … ]] && …`: an AND-list whose test is false returns 1, and as the last
+    # statement of a loop body that 1 becomes the loop's status. It does not leak here (more
+    # statements follow), but it is the same shape that made 2 tests in
+    # templates/_ctl/template_test.sh report FAIL while asserting nothing.
+    if [[ "$p" == "$1" ]]; then
+      selected_projects+=("$p")
+    fi
   done
   [[ ${#selected_projects[@]} -gt 0 ]] ||
     die "no project is named '$1'; the record covers: ${PROJECTS[*]}"

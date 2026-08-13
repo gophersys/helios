@@ -26,8 +26,8 @@ gofumpt	-w .
 
 ### verb cover
 exit 0
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox><repository>orkspaceprovider-cover.<tmp> -count=1 EDEN_LOAD_N=50
-go	tool cover -func=<sandbox><repository>orkspaceprovider-cover.<tmp>
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/workspaceprovider-cover.<tmp> -count=1 EDEN_LOAD_N=50
+go	tool cover -func=<sandbox>/workspaceprovider-cover.<tmp>
 
 ### verb property
 exit 0
@@ -69,7 +69,7 @@ go	test -run ^$ -bench=. -benchmem -count=10 ./...
 ### verb bench-guard
 exit 0
 go	test -run ^$ -bench=. -benchmem -count=10 ./...
-benchstat	<sandbox>/tree/go<repository>orkspaceprovider/.benchbaseline/hotpaths.txt <sandbox><repository><tmp>
+benchstat	<sandbox>/tree/go/workspaceprovider/.benchbaseline/hotpaths.txt <sandbox>/<tmp>
 
 ### verb bench-record
 exit 127
@@ -80,14 +80,14 @@ exit 0
 gofumpt	-l .
 go	vet ./...
 golangci-lint	run --timeout=180s ./...
-hnslint	<sandbox>/tree/go<repository>orkspaceprovider
+hnslint	<sandbox>/tree/go/workspaceprovider
 
 ### verb mutate
 exit 0
 
 ### verb cover-floor
 exit 1
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox><repository><tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
 
 ### verb apidiff
 exit 0
@@ -105,7 +105,7 @@ go	build ./...
 gofumpt	-l .
 go	vet ./...
 golangci-lint	run --timeout=180s ./...
-hnslint	<sandbox>/tree/go<repository>orkspaceprovider
+hnslint	<sandbox>/tree/go/workspaceprovider
 
 ### verb phase-gate architecture
 exit 1
@@ -115,7 +115,7 @@ go	build ./...
 gofumpt	-l .
 go	vet ./...
 golangci-lint	run --timeout=180s ./...
-hnslint	<sandbox>/tree/go<repository>orkspaceprovider
+hnslint	<sandbox>/tree/go/workspaceprovider
 
 ### verb phase-gate implementation
 exit 0
@@ -123,7 +123,7 @@ go	build ./...
 gofumpt	-l .
 go	vet ./...
 golangci-lint	run --timeout=180s ./...
-hnslint	<sandbox>/tree/go<repository>orkspaceprovider
+hnslint	<sandbox>/tree/go/workspaceprovider
 go	list ./...
 go	vet ./...
 go	test ./... -race -count=1
@@ -137,20 +137,20 @@ go	test -tags lifecycle ./... -race -count=1
 go	test -tags load ./... -race -count=1 EDEN_LOAD_N=500
 go	test -tags integration ./... -count=1
 go	test -run ^$ -bench=. -benchmem -count=10 ./...
-benchstat	<sandbox>/tree/go<repository>orkspaceprovider/.benchbaseline/hotpaths.txt <sandbox><repository><tmp>
+benchstat	<sandbox>/tree/go/workspaceprovider/.benchbaseline/hotpaths.txt <sandbox>/<tmp>
 govulncheck	./...
 gosec	-severity medium -quiet ./...
 gitleaks	detect --no-git --redact --source . --exit-code 1
 go	test ./... -race -count=1 -run Canary|Redact|Secret
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox><repository><tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
 
 ### verb phase-gate qa
 exit 1
 gofumpt	-l .
 go	vet ./...
 golangci-lint	run --timeout=180s ./...
-hnslint	<sandbox>/tree/go<repository>orkspaceprovider
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox><repository><tmp> -count=1 EDEN_LOAD_N=50
+hnslint	<sandbox>/tree/go/workspaceprovider
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
 govulncheck	./...
 gosec	-severity medium -quiet ./...
 gitleaks	detect --no-git --redact --source . --exit-code 1
@@ -181,7 +181,7 @@ gofumpt	-w .
 
 ### verb cover
 exit 1
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox><repository>orkspaceprovider-cover.<tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/workspaceprovider-cover.<tmp> -count=1 EDEN_LOAD_N=50
 
 ### verb property
 exit 1
@@ -236,7 +236,7 @@ exit 0
 
 ### verb cover-floor
 exit 1
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox><repository><tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
 
 ### verb apidiff
 exit 1
@@ -279,12 +279,12 @@ go	test -run ^$ -bench=. -benchmem -count=10 ./...
 govulncheck	./...
 gosec	-severity medium -quiet ./...
 gitleaks	detect --no-git --redact --source . --exit-code 1
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox><repository><tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
 
 ### verb phase-gate qa
 exit 1
 gofumpt	-l .
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox><repository><tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
 govulncheck	./...
 gosec	-severity medium -quiet ./...
 gitleaks	detect --no-git --redact --source . --exit-code 1
