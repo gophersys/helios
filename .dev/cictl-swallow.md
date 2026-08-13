@@ -1,6 +1,6 @@
 # cictl-swallow
 
-phase:    fix
+phase:    verify
 repo:     gophersys/libs
 branch:   fix/cictl-swallow
 worktree: ~/code/.worktrees/libs-cictl-swallow
@@ -214,3 +214,75 @@ wired into the pr tier.
 Test author: a stimulus where `affected_projects` has a FAILING first command and
 a SUCCEEDING last one, plus a test pinning rc=127 rather than merely non-zero.
 Then the implementer for the structure.
+
+
+## Phase 3, attempt 2 — GREEN, and the swallow is gone STRUCTURALLY
+
+The producer function is DELETED. `require_cmd cictl` and the tool itself now run
+in `run_phase_gate_over_affected`'s own shell:
+
+```sh
+require_cmd cictl
+listing="$(cictl affected -C "$REPO_ROOT" --base "$NX_BASE")"
+[[ -z "$listing" ]] || mapfile -t projects <<<"$listing"
+```
+
+There is no function for a subshell to swallow, so the class cannot return at a
+call site. The remaining `$( ... )` holds exactly ONE external command, so its
+status IS the assignment's status.
+
+The "harden the producer with `set -e`" option was deliberately NOT taken:
+`var="$(producer)"` still emits SC2311, and the moment anyone puts that call in a
+condition it is attempt 1 again.
+
+`shopt -s inherit_errexit` was added because the substitution above is safe only
+while it stays single-command. Measured on bash 5.2.21, not assumed:
+
+```
+x="$(false; echo late)"   without inherit_errexit -> "reached: x=late"  rc=0
+                          with    inherit_errexit -> rc=1
+```
+
+### Proven
+
+```
+.ci/ctl_test.sh              rc=0   7 test(s) hold; 7 of 7 proven able to fail (both phases)
+ctl_test.sh (root)           rc=0   10 hold, 10 of 10
+verb_conservation_test.sh    rc=0   17 project records, 3 mutants caught
+ctl.sh validate              rc=0   22m41s under emulation
+shellcheck -S style          rc=0
+shellcheck -o all            SC2310/SC2311 = 0   (baseline at HEAD~1: 1x SC2310)
+
+cictl genuinely absent (command -v cictl -> NO):
+  affected-gate-fast       rc=127   [error] missing required tool(s): cictl
+  affected-gate-substrate  rc=127   identical
+  gate-all                 rc=127   identical
+```
+
+### A TRADE-OFF THAT WAS FORCED, NOT CHOSEN — and it needs Mateo
+
+The explicit failure sentence the old code printed —
+`cictl affected failed (exit N) ... the affected set is unknown, so nothing was
+gated` — is **GONE**, and it cannot come back in this shape.
+
+Any explicit status branch is a CONDITION. A condition is the SC2310 shape. Test
+7 forbids that shape. So the diagnostic now comes from the failing command itself
+(`missing required tool(s): cictl`, or cictl's own stderr) after the tier has
+announced itself, with a non-zero exit.
+
+That is honest and loud, but it is less specific than the sentence it replaced.
+Getting the sentence back needs a trap-based mechanism, which is a DESIGN
+DECISION rather than an implementation detail. Recording it here rather than
+quietly accepting the loss.
+
+### An integrity note from the implementer, worth keeping
+
+Another agent running concurrently in this session overwrote its `validate.log`
+in the shared scratchpad. It reported the rc from its OWN `docker run` exit
+status — trustworthy — and explicitly refused to quote that log's text as its
+own. That is the correct call, and it is the reason the shell suites above were
+re-run into a uniquely-named file.
+
+## Next
+
+Verifier: try to refute that this is done.
