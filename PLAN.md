@@ -21,7 +21,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
       breathing, alignment spreads) as reusable functions consuming probe
       output; the operator scripts become thin wrappers. Chrome discovery
       cross-platform (mac path, `google-chrome`, `chromium`), FAIL if absent.
-- [ ] `densui.solve`: generalise `solve_layout.py` — inputs (anchors, floors,
+- [ ] ⏳ 2026-08-13T21:28Z `densui.solve`: generalise `solve_layout.py` — inputs (anchors, floors,
       units, font path, tuck/breathing constants) come from a spec file, not
       constants in code; deterministic shuffled re-solve stays mandatory.
 - [ ] `densui.measure`: the reference-forensics toolkit (luminance scans,
