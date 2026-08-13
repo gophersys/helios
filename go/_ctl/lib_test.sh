@@ -135,6 +135,10 @@ ARGV=""
 ELAPSED_MS=0
 
 info() { printf '\033[0;36m[test]\033[0m %s\n' "$*"; }
+# note is info on STDERR. The failing-path summary uses it so it lands next to the failures it
+# summarises: stdout is block-buffered when the run is redirected to a file and stderr is not, so
+# an `info` there prints AFTER the `die` it was written before.
+note() { printf '\033[0;36m[test]\033[0m %s\n' "$*" >&2; }
 ok()   { printf '\033[0;32m  ok  \033[0m %s\n' "$*"; }
 bad()  { printf '\033[0;31m FAIL \033[0m %s\n' "$*" >&2; }
 die()  { printf '\033[0;31m[test]\033[0m %s\n' "$*" >&2; exit 1; }
@@ -676,39 +680,63 @@ MOVED_VERSION_TO="v9.9.9"
 TRANSITIVE_LIB="agentruntime"
 TRANSITIVE_MODULE="envelope"
 
-# The anchor for `exempt-library-repaired`: an EXEMPT library and the one replace that resolves
-# its graph. Measured, not assumed — adding this single line to agentsession takes
-# `GOWORK=off go list -m all` from exit 1 to exit 0.
-EXEMPT_REPAIR_LIB="agentsession"
-EXEMPT_REPAIR_MODULE="envelope"
-
 # ── the full-module-graph exemption table (test 21) ─────────────────────────
 #
-# `go list -m all` is red for 7 of the 16 libraries on this tree, and this table names every one
-# of them, with the module that does not resolve and the reason. It is a DEBT REGISTER, not a
-# mute button, and it is enforced in BOTH directions by t_every_library_resolves_its_full_module_graph:
+# `go list -m all` is red for 4 of the 16 libraries on this tree, and this table names every one
+# of them, with what does not resolve and the reason. It is a DEBT REGISTER, not a mute button,
+# and it is enforced in BOTH directions by t_every_library_resolves_its_full_module_graph:
 #   - a library that is red and NOT listed here fails the gate;
 #   - a library that is listed here and now RESOLVES also fails the gate, naming the stale entry.
 # So the list can only ever shrink, and it cannot outlive the defect it records.
 #
-# Two distinct causes, neither of them this change's:
-#   envelope     6 libraries reach `secrets`, `secrets` requires `envelope`, and none of them
-#                replaces it. Same defect class as this change, one line each, but 6 libraries
-#                the plan does not touch — widening the fix is a scope decision, not a detail.
-#   go.sum       `dependencies` and `errors` are missing a go.sum entry for
-#                github.com/stretchr/testify@v1.11.1. Manifest drift, task #37's class.
-# All 7 have GREEN `go build`, `go vet` and `go test` standalone, which is exactly why a
-# build-shaped gate never reported them.
-MODULE_GRAPH_EXEMPT=(
-  "agentsession      envelope is unreplaced (reached through secrets) — not in this change's scope"
-  "forge             envelope is unreplaced (reached through secrets) — not in this change's scope"
-  "gitrepository     envelope is unreplaced (reached through secrets) — not in this change's scope"
-  "objectstorage     envelope is unreplaced (reached through secrets) — deferred to task #37"
-  "orchestrator      envelope is unreplaced (reached through secrets) — deferred to task #37"
-  "workspaceprovider envelope is unreplaced (reached through secrets) — not in this change's scope"
-  "dependencies      missing go.sum entry for github.com/stretchr/testify@v1.11.1 — manifest drift"
-  "errors            missing go.sum entry for github.com/stretchr/testify@v1.11.1 — manifest drift"
+# THE RULE THE TABLE IS GOVERNED BY: an exemption may hold only a defect of a DIFFERENT class
+# from the one the change fixes. A same-class defect gets fixed, never tabled — six tabled
+# same-class entries would have made this change's central claim false the moment it merged.
+# The table started at 8. Four were the same class (an unreplaced `envelope`, reached through
+# `secrets`, one line each) and were FIXED in b3be25e: agentsession, forge, gitrepository and
+# workspaceprovider now resolve, and this test is what said so — it refused to stay quiet and
+# failed on its own stale entries until they were deleted.
+#
+# The four that remain are two OTHER classes, both task #37's:
+#   go.sum drift  `objectstorage`, `dependencies` and `errors` are missing a go.sum ENTRY. No
+#                 replace line repairs a missing hash; it needs a go.sum write, which this
+#                 change's guards forbid.
+#   manifest drift `orchestrator` needs a second replace AND a direct dependency bump
+#                 (pgx/v5 5.7.6 -> 5.10.0), so it is not a one-line closure fix either.
+#
+# AND THEY ARE NOT INVISIBLE TO THE ORDINARY GATE, which an earlier version of this comment got
+# wrong. Measured at HEAD in disposable copies, before any edit:
+#   objectstorage  GOWORK=off go build ./...  exit 1  missing go.sum entry for kr/pretty@v0.3.1
+#   orchestrator   GOWORK=off go build ./...  exit 1  go: updates to go.mod needed
+# That matches the 16-library sweep, which recorded both as RED=5/5. `dependencies` and `errors`
+# DO build, vet and test green — those two are the ones only this test can see.
+MODULE_GRAPH_EXEMPT_SOURCE=(
+  "objectstorage missing go.sum entry for github.com/kr/pretty@v0.3.1 — go.sum drift, task #37; also RED for go build"
+  "orchestrator  needs a second replace plus pgx/v5 5.7.6 -> 5.10.0 — manifest drift, task #37; also RED for go build"
+  "dependencies  missing go.sum entry for github.com/stretchr/testify@v1.11.1 — go.sum drift, task #37"
+  "errors        missing go.sum entry for github.com/stretchr/testify@v1.11.1 — go.sum drift, task #37"
 )
+MODULE_GRAPH_EXEMPT=("${MODULE_GRAPH_EXEMPT_SOURCE[@]}")
+
+# The anchor for the `exempt:stale` stimulus, and why it names a GREEN library rather than
+# repairing a red one.
+#
+# The stimulus this replaces added the one missing replace to an exempt library. That worked
+# exactly once: agentsession was fixed for real, the mutant could no longer change anything, and
+# it took the whole suite down with it before the summary printed. Re-pointing it at another
+# entry would buy the same trap again, and worse — NONE of the four that remain is repairable by
+# adding a replace. Three are missing a go.sum HASH, which no go.mod edit supplies, and
+# orchestrator needs a version bump as well. A stimulus whose premise is "this library can be
+# repaired with one line" has no valid subject left in this tree.
+#
+# The arm under test is a predicate over the TABLE — "listed AND resolves" — so the stimulus
+# belongs on the table, exactly as REFUSE_VALUES and FRACTION_VALUES are stimuli on a value set.
+# It lists a library that ALREADY resolves. `configuration` is the anchor because it requires no
+# sibling and replaces none (requires=0 replaces=0): no sibling edit anywhere in this tree can
+# perturb its graph, so it is the most stable green there is. If it ever does go red, this
+# stimulus stops breaking the test and the driver says so out loud — "still passed under
+# exempt:stale" — rather than reporting a pass.
+STALE_EXEMPTION_LIB="configuration"
 
 # One go.mod parser, three outputs, so the scan and the repair can never disagree about what a
 # manifest says. `-v mode=`:
@@ -977,20 +1005,6 @@ mutant_tree() {
         die "the '$spec' tree mutant changed nothing: $TRANSITIVE_LIB declares no replace for $target, so the closure it completes cannot be reopened"
       mv "$manifest.mutant" "$manifest"
       ;;
-    # THE COUNTER FOR THE STALE-EXEMPTION ARM of test 21. It gives ONE exempted library the
-    # single replace its graph is missing, so that library resolves while the table still calls
-    # it broken. Without this arm the exemption table is a graveyard: a debt that was paid would
-    # stay recorded as owing, and the check would go on reporting a library it no longer reads.
-    exempt-library-repaired)
-      manifest="$tree/$EXEMPT_REPAIR_LIB/go.mod"
-      [[ -f "$manifest" ]] ||
-        die "the '$spec' tree mutant has no $EXEMPT_REPAIR_LIB/go.mod to mutate in $tree"
-      if grep -q "$SIBLING_PREFIX$EXEMPT_REPAIR_MODULE .*=>" "$manifest"; then
-        die "the '$spec' tree mutant changed nothing: $EXEMPT_REPAIR_LIB already replaces $EXEMPT_REPAIR_MODULE, so its exemption is stale in the tree itself and the table must be updated, not the mutant"
-      fi
-      printf '\nreplace %s%s v0.0.0 => ../%s\n' \
-        "$SIBLING_PREFIX" "$EXEMPT_REPAIR_MODULE" "$EXEMPT_REPAIR_MODULE" >> "$manifest"
-      ;;
     *) die "unknown module-tree mutant: $spec" ;;
   esac
   # `repaired` over an already-correct tree legitimately changes nothing, so only the BREAKING
@@ -1001,7 +1015,6 @@ mutant_tree() {
     repaired-minus-one-replace | repaired-wrong-module) touched="$WRONG_REPLACE_LIB" ;;
     repaired-with-a-moved-version)                      touched="$MOVED_VERSION_LIB" ;;
     transitive-replace-dropped)                         touched="$TRANSITIVE_LIB" ;;
-    exempt-library-repaired)                            touched="$EXEMPT_REPAIR_LIB" ;;
     *)                                                  touched="" ;;
   esac
   if [[ -n "$touched" ]]; then
@@ -1471,7 +1484,7 @@ t_every_library_resolves_its_full_module_graph() {
     fail "$(printf '%s\n' \
       "a library on the MODULE_GRAPH_EXEMPT table now resolves its full graph. The table is a" \
       "debt register that may only shrink; an entry that outlives its defect is a check that" \
-      "has quietly stopped reading a library. Delete these entries:" \
+      "has quietly stopped reading a library. Delete these entries from MODULE_GRAPH_EXEMPT_SOURCE:" \
       "" \
       "${stale[@]}")"
   fi
@@ -1642,17 +1655,28 @@ counter_for() {
       printf 'tree:repaired-minus-one-replace\n' ;;
     # ONE COUNTER PER ARM. `transitive-replace-dropped` reopens exactly the closure 62c87f3
     # closed, and it is the demonstration that this test reads something tests 18-20 cannot:
-    # they stay GREEN over that tree. `exempt-library-repaired` fixes an exempted library and
+    # they stay GREEN over that tree. `exempt:stale` lists a library that already resolves and
     # proves the debt register cannot outlive its debt.
     t_every_library_resolves_its_full_module_graph)
       printf 'tree:transitive-replace-dropped\n'
-      printf 'tree:exempt-library-repaired\n' ;;
+      printf 'exempt:stale\n' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
 }
 
-# apply <spec> points the next run at the named stimulus. It returns 1 on a
-# `none:` spec so the driver reports the reason instead of silently skipping.
+# apply <spec> points the next run at the named stimulus. THREE outcomes, and the driver reads
+# all three, because they mean different things:
+#
+#   0   the stimulus is in place
+#   1   a `none:` spec — this test states, out loud, that it declares no counter-stimulus
+#   2   THE STIMULUS COULD NOT BE BUILT
+#
+# The 2 is new, and it exists because the 4th arm of an `exempt-library-repaired` stimulus went
+# stale the moment an implementer fixed the library it repaired. The mutant could no longer change
+# anything, it called `die`, and `die` exits — so the SUITE went down mid-phase-2 and never printed
+# its summary. A harness that fails silently in its own scaffolding is the same defect class this
+# suite exists to catch: nothing said which assertions had and had not run. An unbuildable stimulus
+# is now a FAILING assertion that names the spec, and the remaining cases still run.
 apply() {
   STIMULUS=""
   CONFIG="$SHARED_CONFIG"
@@ -1662,15 +1686,15 @@ apply() {
   SUBSTRATE_TIMEOUT_PRESENT=0
   SUBSTRATE_TIMEOUT=""
   MODULE_TREE="$MODULE_TREE_SOURCE"
+  MODULE_GRAPH_EXEMPT=("${MODULE_GRAPH_EXEMPT_SOURCE[@]}")
   REFUSE_VALUES=("0" "0s" "" "0h0m0s" "-5m" "notaduration")
   FRACTION_VALUES=("0.4ns" "0.0000000001s" "1.5h" "0.5s")
   case "$1" in
     exit:*)      STIMULUS="${1#exit:}" ;;
-    # A `die` inside a command substitution exits only the SUBSHELL, and apply is called from a
-    # condition context where the driver reads a non-zero return as "this test declared no
-    # counter-stimulus". Re-raise it here, or a stimulus that could not be built is reported as
-    # a clean skip — the exact shape of check this suite exists to delete.
-    config:typo) CONFIG="$(typo_config)" || die "the 'config:typo' stimulus could not be built (see the message above)" ;;
+    # A `die` inside a command substitution exits only the SUBSHELL, so its message reaches the
+    # reader and the caller sees a non-zero return. Turning that into `return 2` — never a `die`
+    # here — is what keeps an unbuildable stimulus a reported failure instead of an abort.
+    config:typo) CONFIG="$(typo_config)" || return 2 ;;
     gobuild:*)   GO_BUILD_RC="${1#gobuild:}" ;;
     absent:*)    ABSENT_TOOL="${1#absent:}" ;;
     substrate:absent) SUBSTRATE_TIMEOUT_PRESENT=0 ;;
@@ -1682,18 +1706,22 @@ apply() {
     fraction:truncating) FRACTION_VALUES=("0.4ns" "0.0000000001s" "1.5h" "0.5s") ;;
     fraction:bounded)    FRACTION_VALUES=("90m") ;;
     mutant:*)
-      LIB="$(mutant_lib "${1#mutant:}")" ||
-        die "the '${1#mutant:}' counter-stimulus could not be built (see the message above)"
-      [[ -f "$LIB" ]] || die "the '${1#mutant:}' counter-stimulus produced no lib.sh" ;;
+      LIB="$(mutant_lib "${1#mutant:}")" || return 2
+      [[ -f "$LIB" ]] || return 2 ;;
     # The repository's own manifests. Not a copy: the point of test 18 is the tree that ships.
     tree:real)   MODULE_TREE="$MODULE_TREE_SOURCE" ;;
     tree:*)
-      MODULE_TREE="$(mutant_tree "${1#tree:}")" ||
-        die "the '${1#tree:}' counter-stimulus could not be built (see the message above)"
-      [[ -d "$MODULE_TREE" ]] || die "the '${1#tree:}' counter-stimulus produced no module tree" ;;
+      MODULE_TREE="$(mutant_tree "${1#tree:}")" || return 2
+      [[ -d "$MODULE_TREE" ]] || return 2 ;;
+    # THE STALE-EXEMPTION STIMULUS. It lists a library that already resolves, which is the exact
+    # predicate the arm forbids — an entry outliving its defect. It mutates the TABLE, not the
+    # tree, so it can never go stale the way its predecessor did: it has no dependency on any
+    # library staying broken.
+    exempt:stale)
+      MODULE_GRAPH_EXEMPT+=("$STALE_EXEMPTION_LIB it already resolves; this entry is the stimulus, not a real debt") ;;
     real)        : ;;
     none:*)      return 1 ;;
-    *) die "unknown stimulus spec: $1" ;;
+    *) printf '\033[0;31m[test]\033[0m unknown stimulus spec: %s\n' "$1" >&2; return 2 ;;
   esac
 }
 
@@ -1721,7 +1749,15 @@ t=""
 
 info "phase 1 — behaviour: ${#TESTS[@]} test(s) against go/_ctl/lib.sh and .golangci.yml"
 for t in "${TESTS[@]}"; do
-  apply "$(stimulus_for "$t")" || die "phase 1 has no stimulus for $t"
+  # `rc=$?` off a bare `apply` would trip errexit before it could be read, so the call is made in
+  # a condition context and the status taken from the ||-arm.
+  apply_rc=0
+  apply "$(stimulus_for "$t")" || apply_rc=$?
+  if [[ "$apply_rc" -ne 0 ]]; then
+    bad "$t — its phase-1 stimulus could not be built (apply exit $apply_rc); the behaviour of $t was NOT measured on this run"
+    failures=$((failures + 1))
+    continue
+  fi
   if ( set -Eeuo pipefail; "$t" ); then
     ok "$t"
   else
@@ -1736,13 +1772,33 @@ done
 info "phase 2 — discrimination: each test under every counter-stimulus it declares must fail"
 for t in "${TESTS[@]}"; do
   broke=0
+  # The list is captured BEFORE the loop. Read through a process substitution, a `die` inside
+  # counter_for would exit only that subshell: the loop would read nothing, run zero cases, and
+  # the test would be scored unproven in silence.
+  counters=""
+  counters_rc=0
+  counters="$(counter_for "$t")" || counters_rc=$?
+  if [[ "$counters_rc" -ne 0 || -z "$counters" ]]; then
+    bad "$t declares no counter-stimulus that could be read (exit $counters_rc); a test whose counter list is empty is scored proven having been driven by nothing"
+    failures=$((failures + 1))
+    continue
+  fi
   while IFS= read -r spec || [[ -n "$spec" ]]; do
     [[ -n "$spec" ]] || continue
-    if ! apply "$spec"; then
-      info "$t — no counter-stimulus: ${spec#none:}"
-      unproven=$((unproven + 1))
-      continue
-    fi
+    apply_rc=0
+    apply "$spec" || apply_rc=$?
+    case "$apply_rc" in
+      0) ;;
+      # A stated `none:` — the test says out loud that it has no counter.
+      1) info "$t — no counter-stimulus: ${spec#none:}"
+         unproven=$((unproven + 1))
+         continue ;;
+      # THE SCAFFOLDING FAILED. Not a skip, not an abort: a named failure that leaves the rest of
+      # the run to report itself. This is the arm that used to take the whole suite down.
+      *) bad "$t — the '$spec' counter-stimulus could not be built (apply exit $apply_rc, see the message above); a stimulus that cannot be built discriminates nothing"
+         failures=$((failures + 1))
+         continue ;;
+    esac
     stimuli=$((stimuli + 1))
     if ( set -Eeuo pipefail; "$t" ); then
       bad "$t still passed under $spec; it does not read what it claims to read"
@@ -1751,11 +1807,15 @@ for t in "${TESTS[@]}"; do
       ok "$t fails under $spec"
       broke=1
     fi
-  done < <(counter_for "$t")
+  done <<< "$counters"
   proven=$((proven + broke))
 done
 
 if [[ "$failures" -ne 0 ]]; then
+  # The summary prints FIRST, then the failure count. A run that ends without saying how much of
+  # itself executed is a run nobody can act on — which is exactly what a `die` inside a stimulus
+  # builder used to produce.
+  note "${#TESTS[@]} test(s) driven; $proven of ${#TESTS[@]} proven able to fail across $stimuli counter-stimuli; $unproven stated no counter"
   die "$failures failure(s) across both phases"
 fi
 # The summary is COUNTED, never asserted. An earlier version ended with "each is
