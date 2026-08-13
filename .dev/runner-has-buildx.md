@@ -1,11 +1,11 @@
 # runner-has-buildx
 
-phase:    verify
+phase:    fix
 repo:     gophersys/.devcontainer
 branch:   feat/runner-has-buildx
 worktree: ~/code/.worktrees/dc-buildx
 pr:       -
-attempt:  1/2
+attempt:  2/2
 
 ## Goal
 
@@ -137,3 +137,91 @@ hours of emulated build on this host. CI rebuilds them in dependency order.
 ## Next
 
 Verifier: try to refute that this is done.
+
+
+## Phase 4 — 7 findings. One of them inverts the purpose of the change.
+
+**F1 (MEDIUM-HIGH). The change installs a blocker on the exact path it exists to
+unblock.** `.ci/smoke.sh:243-248` hard-fails when `SANCTIONED_PLATFORMS` names
+more than one platform. This entire feature exists so that `linux/arm64` can be
+added. The moment somebody makes that one edit,
+`.github/workflows/build-and-push.yml:167` exits 1 BEFORE asserting anything and
+the `base-runner` publish job goes red.
+
+`.claude/rules/00-identity.md` states "Widening it is 1 edit, and every path reads
+it." **That sentence is now false**, and the change did not update it.
+
+Proven in a mirror copy, no tracked file touched:
+
+```
+SANCTIONED_PLATFORMS="linux/amd64" -> "linux/amd64,linux/arm64"
+bash <mirror>/.ci/smoke.sh base-runner dc-buildx-base-runner:local   rc=1
+  [error] IMAGE_PLATFORMS holds more than 1 platform: linux/amd64,linux/arm64
+  [error] a smoke test runs 1 image, so it can name only 1 platform
+```
+
+**F3 (MEDIUM). The gate that runs on this PR has ZERO coverage of this change.**
+No hermetic test was added. Proven by renaming the ARG so `${DOCKER_BUILDX_VERSION}`
+dangles at line 511 — a state where the base build CANNOT succeed (HTTP 404,
+curl rc=56):
+
+```
+ARG DOCKER_BUILDX_VERSION -> ARG DOCKER_BLDX_VERSION
+bash ./ctl.sh validate                       rc=0     <- the finding
+bash .ci/smoke.sh base-runner <local>        rc=1     (only smoke catches it)
+```
+
+The state file disclosed the TIMING half (smoke runs on push, not on PRs — task
+#65) but not that nothing in the PR gate reads this at all.
+
+**F2 (MEDIUM). The fetched binary is verified by nothing.** `curl -fsSL` writes an
+executable into every CI image with no checksum and no signature. `-f` rejects a
+404 but accepts any 200 body. The smoke assertion does NOT close this: it reads
+the binary's self-reported version string, which any binary can print. Upstream
+publishes `checksums.txt`, `checksums-signed.txt` and a sigstore bundle.
+**Compose has the identical gap** and also publishes a `.sha256`, so this is a
+finding about both — the new block copied the weaker standard. The binary shipped
+today IS correct (sha256 matches upstream), so this is a missing control, not a
+live compromise.
+
+**F4 (LOW-MEDIUM). Undisclosed scope drift.** The approved plan named two items.
+The diff also adds an optional `[ref]` argument, a pre-set `REPO_ROOT`,
+`require_cmd docker`, `require_sanctioned_platforms`, the single-platform guard,
+an explicit pull-with-named-error, and `--platform` on `docker run` — roughly 40
+of 117 changed lines, recorded nowhere. **F1 is a direct consequence of it.**
+
+**F5 (LOW-MEDIUM). The state file implies smoke coverage CI does not provide.**
+`grep -rn "smoke.sh" .github/workflows/` returns exactly ONE invocation:
+`build-and-push.yml:167 bash .ci/smoke.sh base-runner`. The `flutter`, `zephyr`
+and `zephyr-devbox` jobs have no smoke step, so those three ship buildx with
+nothing asserting it. Pre-existing, but my sentence read as coverage.
+
+**F6 (LOW).** `.ci/smoke.sh:9` still says "Nothing is emulated here", which the
+added `--platform` handling at :239-242 contradicts — proven, the green run on
+this arm64 host reported `x86_64` from inside the container.
+
+**F7 (LOW).** `buildx_pin` reads the FIRST pattern match, not the effective ARG. A
+decoy `ARG BUILDX_HELPER_VERSION` wins; a re-declared ARG below the real one (the
+value Docker actually uses) is ignored; an indented ARG or a leading `v` yields
+nothing. **Every case degrades to a false RED with a misleading message, never a
+false green** — which is the right direction to fail, but the message lies.
+
+## What the verifier attacked hardest and could NOT refute
+
+**The arch mapping holds.** It did not take the reasoning on trust: both
+`buildx-v0.36.1.linux-amd64` and `.linux-arm64` return 200; the compose-style
+`linux-x86_64`/`linux-aarch64` return 404 on buildx and 200 on compose; negative
+controls 404 so the probe can go red. It then BUILT the exact RUN block for
+`linux/arm64` natively, executed it on aarch64, and matched its sha256 against
+upstream `checksums.txt`. **The arm64 path is not latent-broken** — which was my
+main worry.
+
+Also: no false green could be constructed; no masked exit codes anywhere in the
+repo's shell scripts; version claim verified against the GitHub API
+(prerelease=False, draft=False, newest of any kind).
+
+## Next
+
+Test author: F1 (the guard must not block the multi-platform edit), F3 (a
+hermetic PR-gate test), F6, F7. Then implementer: F2 (checksum), F5 and the stale
+rule sentence in `00-identity.md`.
