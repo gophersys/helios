@@ -44,7 +44,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 - [ ] ⏳ 2026-08-13T22:08Z Font-parametric demo build: `assemble.py --font <ttf>` with a freely
       licensed committed font (check OFL redistribution properly; include the
       licence file) or the runner's DejaVu; solver re-solves for that font.
-- [ ] Chrome headless on the arc-org fleet runs ratio + overlap + sweep gates
+- [ ] ⏳ 2026-08-13T22:15Z (loop) Chrome headless on the arc-org fleet runs ratio + overlap + sweep gates
       (`ctl.sh build --font <runner ttf>`); extend ctl.sh with a `geometry`
       target; if the fleet image lacks Chrome/fonts, coordinate with
       eden/infrastructure (BLOCKED.md) rather than pinning ubuntu-latest.
