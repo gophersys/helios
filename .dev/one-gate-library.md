@@ -1,6 +1,6 @@
 # one-gate-library
 
-phase:    red — HELD. The plan's hnslint half is REFUTED and needs Mateo.
+phase:    green — the hnslint escalation is DECIDED (2026-08-13)
 repo:     gophersys/libs
 branch:   refactor/one-gate-library
 worktree: ~/code/.worktrees/libs-one-gate
@@ -114,10 +114,53 @@ the strongest possible argument for it. Today only lint, `require_cmd` and
 guards each observed failing under its own counter-stimulus, plus a 17-project
 verb-conservation record whose 3 planted mutants were all caught.
 
-## Blocked
+## The decision — MATEO, 2026-08-13: the rule follows the practice
 
-**The plan's hnslint half is REFUTED by the pinned binary, and it inverts. This
-needs Mateo before phase 3.**
+**The evidence that settled it.** Across the 17 libraries:
+
+```
+26 type Config struct       in 14 libs
+22 type Deps   struct       in the same 14 libs
+ 0 type Configuration struct
+ 0 type Dependencies  struct
+```
+
+So hnslint is not inventing a ruling. It is codifying what every library already
+does, and `templates/go/http-gateway` is the ONLY outlier in the repository. The
+apparent contradiction was rule 11 being vague where the code is unanimous.
+
+**What changes:**
+1. `.claude/rules/11-naming.md` — the narrow exemption stops saying `Config`/`Deps`
+   are "fine" and says they are REQUIRED for the constructor-spine types. The slug
+   ban is untouched: a package or directory named `config`/`deps` is still
+   forbidden. Only the 2 spine TYPE names are pinned.
+2. `templates/go/http-gateway/persistence/persistence.go` — `Configuration` ->
+   `Config`, `Dependencies` -> `Deps`, so the template stops generating
+   applications that fail their own linter.
+3. `Store` -> a meaningful compound. It was a defect under the ORIGINAL reading
+   too, and it is the one finding both readings agreed on.
+
+**No hnslint release is needed**, which is why this option was cheapest. Option B
+would have cost a v0.1.1 plus a pin bump and left the spine spelled 2 ways.
+
+### This resolves the NAMING half only. The template still cannot go green.
+
+hnslint's LAYOUT findings survive the rename and always will:
+
+```
+no primary package found in the library root; expected package "http-gateway"
+module path is ".../libs/templates/go/http-gateway", want ".../libs/go/http-gateway"
+```
+
+A template is not a library at `go/<slug>`, and its `cmd/gateway` must be
+`package main`. **No conformant application can ever satisfy those**, so they are
+not defects to fix — they are the wrong check pointed at the wrong thing. That is
+task #34, and it needs a real hnslint release because v0.1.0 has NO FLAGS at all.
+
+Do not paper over it with a skip in the meantime. Report the layout findings
+honestly and let the gate be red for a stated reason.
+
+## Blocked
 
 The plan assumed `Configuration` and `Dependencies` were defects to be spelled
 out. The pinned hnslint says the OPPOSITE:
