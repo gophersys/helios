@@ -171,3 +171,13 @@ required a force-push of MY OWN single-commit canary branch — LOOP.md's
 never-force-push protects shared history and other agents' commits; a rebased
 personal PR branch is the conventional exception. In flight: image build +
 main ci run; the container flip and the fleet box wait on their verdicts.
+
+## 2026-08-13T22:38Z — canary merged: both PR lanes green on the fleet
+PR #1 rebased onto the solver fixes ran gates:success + review:success — the
+first fully green fleet verdict for the test lane (probe/audit browser tests
+under the per-job chromium, DejaVu metrics, nudge corrections). Merged with a
+merge commit (stack rule), branch deleted (reachable from main). Outstanding
+evidence: the ci workflow's GEOMETRY job on main is still queued behind the
+image build; the fleet box ticks only when that lane is green. Image flip to
+ghcr.io/gophersys/dense-ui-ci remains staged for when build-ci-image
+publishes.
