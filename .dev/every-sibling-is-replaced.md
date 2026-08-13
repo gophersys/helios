@@ -171,3 +171,70 @@ GitHub issue. That is a real findability gap, not a missing filing.
 ## Next
 
 Phase 7: implementer for F3, then test author for F1, F2 and F6.
+
+## Phase 7 — the scope widened, then measurement narrowed it back
+
+**The decision, mine, under delegated plan authority.** The new full-graph test
+found 7 red libraries, not 2, and the test author tabled all 7 in
+`MODULE_GRAPH_EXEMPT` rather than widen the fix on its own authority. That was the
+right escalation. I widened it, on this principle:
+
+> An exemption table may hold only defects of a DIFFERENT class. A same-class
+> defect gets fixed, never tabled.
+
+Six known one-line violations sitting in a table would have made this feature's
+own central claim — every sibling is replaced — false at the moment it merged.
+
+**Then the implementer refuted half my premise, and it was right.** I told it "all
+7 have green `go build`, `go vet` and `go test` standalone". Measured at HEAD in
+disposable copies, before any edit:
+
+```
+objectstorage  GOWORK=off go build ./...  rc=1  missing go.sum entry for kr/pretty@v0.3.1
+orchestrator   GOWORK=off go build ./...  rc=1  go: updates to go.mod needed
+               GOWORK=off go vet ./...    rc=1  (same)
+```
+
+That contradicted my brief and AGREED with the 16-library sweep already recorded
+at the top of this file, which listed both as RED=5/5. I carried a claim forward
+from a later report instead of checking it against the sweep in this document.
+**The state file was right and I was wrong** — which is the whole reason it exists.
+
+- `objectstorage` — go.sum line 17 carries the `h1:` hash for `kr/pretty v0.3.1`
+  with no `/go.mod` hash. No replace can fix it, and the fix writes go.sum, which
+  guard 2 forbids. Line reverted.
+- `orchestrator` — needs a SECOND replace (`observability`, reached via
+  agentruntime), and even then resolves only by bumping a DIRECT dependency
+  (`pgx/v5 5.7.6 -> 5.10.0`, plus x/text and x/tools). Beyond replace +
+  `// indirect`, and a judgement call. Both lines reverted.
+
+Both stay on the table, and the table's own wording already partitioned the set
+correctly: those two read "deferred to task #37" while the four fixed read "not in
+this change's scope".
+
+**Fixed: 4, one line each, closure = 1 for all four.**
+`agentsession`, `forge`, `gitrepository`, `workspaceprovider`.
+
+```
+GOWORK=off go list -m all       rc=0 for all four
+phase-gate implementation       rc=0  PASS=5 FAIL=0  for all four
+go.sum                          byte-identical, sha256 unchanged for all four
+```
+
+## Now RED, on purpose, and it needs the test author
+
+`bash ./ctl.sh validate` -> rc=1, `test suite failed: go/_ctl/lib_test.sh`. Two
+causes, both consequences of the fix working:
+
+1. Four `MODULE_GRAPH_EXEMPT` entries are now stale. The table is enforced in both
+   directions, so a library that starts resolving FAILS. That is the table
+   policing itself.
+2. The `exempt-library-repaired` counter-stimulus can no longer be BUILT: it
+   repairs `agentsession`, which is now already repaired, so the mutant changes
+   nothing and the suite aborts before its summary. It must point at a library
+   still genuinely on the table.
+
+## Next
+
+Test author: delete the 4 stale entries, and re-point the
+`exempt-library-repaired` mutant at a library that is still exempt.
