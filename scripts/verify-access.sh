@@ -35,9 +35,17 @@ parse() {
 get() { parse | awk -F'|' -v n="$1" -v k="$2" '$1==n && $2==k {print $3; exit}'; }
 names() { parse | awk -F'|' '{print $1}' | awk '!seen[$0]++'; }
 
-probe() {  # user host -> prints hostname or an error token
+# ssh does not expand a tilde inside -i; it looks for a directory named "~".
+keypath() { case "$1" in \~/*) printf '%s\n' "$HOME/${1#\~/}" ;; *) printf '%s\n' "$1" ;; esac; }
+
+probe() {  # user host [key] -> prints hostname or an error token
+  # IdentitiesOnly keeps the agent and the default identities out, so a PASS
+  # proves the DECLARED key works and not some other key that happens to be
+  # loaded. The ${id[@]+...} form is for bash 3.2, where "${empty[@]}" is
+  # unbound under set -u.
+  id=(); [ -n "${3:-}" ] && id=(-i "$3" -o IdentitiesOnly=yes)
   ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 -o BatchMode=yes \
-      "$1@$2" 'echo HN:$(hostname)' 2>&1 | grep -o 'HN:[^ ]*' | head -1
+      ${id[@]+"${id[@]}"} "$1@$2" 'echo HN:$(hostname)' 2>&1 | grep -o 'HN:[^ ]*' | head -1
 }
 
 echo "verifying access against contracts/access.yaml"
@@ -49,7 +57,22 @@ for m in $(names); do
       hn="$(hostname)"
       printf '  %s %-13s %-14s %s\n' "$(grn PASS)" "$m" "$method" "$hn"; pass=$((pass+1)) ;;
     tailscale-ssh|ssh-key)
-      out="$(probe "$user" "$addr")"
+      # A declared key that cannot be used FAILS and names the file. It must
+      # never fall back to ssh's default identity: this check read no `key:` at
+      # all until 2026-08-13, and 8 hosts passed only because their declared key
+      # IS the default identity. The first host with a dedicated key exposed it.
+      key=""
+      if [ "$method" = ssh-key ]; then
+        key="$(get "$m" key)"
+        if [ -z "$key" ]; then
+          printf '  %s %-13s %-14s declares method ssh-key but no key:\n' "$(red FAIL)" "$m" "$method"; fail=$((fail+1)); continue
+        fi
+        key="$(keypath "$key")"
+        if [ ! -f "$key" ]; then
+          printf '  %s %-13s %-14s declared key not found: %s\n' "$(red FAIL)" "$m" "$method" "$key"; fail=$((fail+1)); continue
+        fi
+      fi
+      out="$(probe "$user" "$addr" "$key")"
       if [ -z "$out" ]; then
         printf '  %s %-13s %-14s unreachable as %s@%s\n' "$(red FAIL)" "$m" "$method" "$user" "$addr"; fail=$((fail+1))
       else

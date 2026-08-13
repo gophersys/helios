@@ -114,7 +114,7 @@ Actions.
 | `arc-flutter` | `flutter` + runner | linux/amd64, Android emulator needs KVM | planned |
 | `arc-usb` | `zephyr` + runner | **`k3s-w-4` only — dev boards on USB** | planned |
 | `arc-arm64` | `base` + runner | **linux/arm64 native** | planned |
-| `macos-mini` | native, no container | **macOS kernel; 2 phones on USB** | planned — `macbook-mini` |
+| `macos-mini` | native, no container | **macOS kernel; 2 phones on USB** | planned — the host `macos-ci-runner` is enrolled, the runner is not registered |
 | `windows` | native, no container | **Windows kernel** | planned — VM on `pve-03` |
 
 6 of the 8 pools differ only by image. They would become 1 pool if images were

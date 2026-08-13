@@ -2,12 +2,15 @@
 
 Every machine, where it lives, how you reach it, and whether it is declared.
 Verified against the live tailnet and both clusters on 2026-08-09.
+`macos-ci-runner` was measured on the machine on 2026-08-13.
 
-> **Access is Tailscale, everywhere.** Every live machine is on the tailnet and
-> reachable over **Tailscale SSH**. You need no key and no bastion. The
-> `sentinel-00` and `sentinel-01` jumpboxes were deleted on 2026-08-09 because
-> Tailscale SSH made them unnecessary.
+> **Access is Tailscale, everywhere, with 1 exception.** Every live machine is
+> on the tailnet and reachable over **Tailscale SSH**. You need no key and no
+> bastion. The `sentinel-00` and `sentinel-01` jumpboxes were deleted on
+> 2026-08-09 because Tailscale SSH made them unnecessary.
 > On Linux the whole procedure is `ssh ubuntu@<tailnet-ip>`.
+> The exception is `macos-ci-runner`. Tailscale is not installed on it, so you
+> reach it on the LAN with a dedicated key. See the section below.
 
 ## Workstation
 
@@ -78,16 +81,18 @@ The `zephyr-envs` ApplicationSet creates and destroys them, and the Tailscale
 operator gives each one its own MagicDNS name. They are not machines. Do not
 declare them.
 
-## Declared but NOT on the tailnet — verify or retire
+## Declared but NOT on the tailnet
 
-| Machine | Declared purpose |
-| --- | --- |
-| `macos-ci-runner` | Self-hosted GitHub Actions runner, macOS |
-| `windows-ci-runner` | Self-hosted GitHub Actions runner, Windows |
+| Machine | Declared purpose | State on 2026-08-13 |
+| --- | --- | --- |
+| `macos-ci-runner` | macOS CI host, and later a self-hosted GitHub Actions runner | **The machine exists and it is reachable.** It is a Mac mini: `Macmini9,1` (M1, 2020), arm64, 8 cores, 8 GB, macOS 15.5, full Xcode. `sshd` answers on the LAN at `10.168.0.92:22` and accepts the key `~/.ssh/macos-ci-runner`. It is **not** on the tailnet, it has **no** container runtime, and the Actions runner is **not** registered. |
+| `windows-ci-runner` | Self-hosted GitHub Actions runner, Windows | **Not seen.** It is powered off, or it does not exist. **Do not assume that it works.** |
 
-Neither appears on the tailnet. Either they are powered off until needed, or they
-do not exist. **Do not assume that they work.** Resolve this before you depend on
-either of them for CI.
+Neither appears on the tailnet. `macos-ci-runner` is measured and reachable, so
+it is no longer a machine you must "verify or retire". It is a half-enrolled
+machine, and the 3 open items above are the rest of its enrollment.
+`windows-ci-runner` is still unverified. Resolve it before you depend on it
+for CI.
 
 `arm-builder` was the third machine in this list. It was terminated on 2026-08-10
 and its volume was deleted. It billed $4.00 a month to run 0 builds, and a
@@ -123,5 +128,7 @@ the network. That credential must never live in the vault it exists to rescue.
 
 1. `machines/development/` is empty, so the MacBook Air is undeclared.
 2. `pve-00` and `pve-03` are undeclared.
-3. 3 declared service machines are unreachable and unverified.
+3. 1 declared service machine is unreachable and unverified: `windows-ci-runner`.
+   `macos-ci-runner` was measured on 2026-08-13 and it is reachable, but it is
+   not on the tailnet yet.
 4. 4 dead devices still hold tailnet identities.
