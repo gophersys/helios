@@ -19,6 +19,10 @@
 #   updatability             → cictl updatability: the pinned-version audit (ADR-0021 generalised).
 #
 set -Eeuo pipefail
+# A command-substitution subshell does NOT inherit errexit by default, so `$( a; b )` reports
+# b's status and drops a's. That default is the swallow this file was fixed for, so it is
+# closed for every substitution here rather than for the one call site the fix touched.
+shopt -s inherit_errexit
 IFS=$'\n\t'
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -51,15 +55,6 @@ function on_exit() {
 }
 trap on_exit EXIT
 
-# ── affected-projects helper ─────────────────────────────────────────────────
-# affected_projects prints the changed project roots (one per line, repo-relative)
-# via cictl — the nx-free, uniform "what changed". A project is a dir with both
-# ctl.sh and project.json.
-function affected_projects() {
-  require_cmd cictl
-  cictl affected -C "$REPO_ROOT" --base "$NX_BASE"
-}
-
 # run_phase_gate_over_affected <selector> — for each affected project, run its
 # per-lib gate. A run with no affected project is a CLEAN no-op success (an empty
 # diff must not fail the tier).
@@ -71,21 +66,33 @@ function affected_projects() {
 function run_phase_gate_over_affected() {
   local selector="$1"
   local -a projects=()
-  local listing="" status=0
+  local listing=""
 
-  # Read the STATUS of the producer, never the length of its stream. A failing cictl and a
-  # cictl that ran and found nothing print the same empty listing, so the exit status is the
-  # only byte that tells them apart. Consuming that listing through `< <(affected_projects)`
-  # threw it away: a process substitution is a subshell, so require_cmd's `exit 127` — and
-  # any other failure, a bad base ref, a shallow clone, a git fault — killed only the
-  # subshell, mapfile read an empty stream, and the tier reported a clean no-op over
-  # libraries it had never looked at. Capture, check, then split; every tier verb reaches
-  # this one helper, so the check cannot be reintroduced per-verb.
-  listing="$(affected_projects)" || status=$?
-  if [[ "$status" -ne 0 ]]; then
-    log_error "cictl affected failed (exit $status) for base '${NX_BASE}'; the affected set is unknown, so nothing was gated"
-    return "$status"
-  fi
+  # The affected set is produced HERE, in the tier's own shell — the changed project roots,
+  # one per line, repo-relative, via cictl (the nx-free, uniform "what changed"). It is NOT
+  # produced by a helper this function reads through a subshell, because every subshell shape
+  # throws the producer's status away, and that status is the only byte that tells a cictl
+  # which FAILED from a cictl that ran and found nothing:
+  #
+  #   mapfile -t projects < <(producer)   a process substitution is a subshell, so
+  #                                       require_cmd's `exit 127` — and equally a bad base
+  #                                       ref, a shallow clone, a git fault — killed the
+  #                                       subshell alone. mapfile read an empty stream and
+  #                                       the tier reported a clean no-op over libraries it
+  #                                       had never looked at.
+  #   listing="$(producer)" || status=$?  puts the producer on the LEFT of `||`, which
+  #                                       disables errexit for its WHOLE body: only its LAST
+  #                                       command's status becomes the function's. The same
+  #                                       swallow, one function inward, and silent until the
+  #                                       body grows a second command.
+  #
+  # With require_cmd and the tool itself running in this shell, errexit carries the exact
+  # status out of the tier verb (127 for an absent tool, rule 20) with no status left to
+  # discard — and there is no producer function for the shape to come back at.
+  require_cmd cictl
+  listing="$(cictl affected -C "$REPO_ROOT" --base "$NX_BASE")"
+  # `<<<""` yields ONE empty element, which would take a genuinely empty affected set out of
+  # the no-op arm below.
   [[ -z "$listing" ]] || mapfile -t projects <<<"$listing"
 
   if [[ ${#projects[@]} -eq 0 ]]; then
