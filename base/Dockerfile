@@ -75,6 +75,7 @@ ARG BW_VERSION=2026.3.0                                                # latest 
 ARG GH_VERSION=2.90.0                                                  # latest LTS as of 2026-04-19
 ARG K9S_VERSION=0.50.18                                                # latest LTS as of 2026-04-19
 ARG DOCKER_COMPOSE_VERSION=5.1.3                                       # latest LTS as of 2026-04-19
+ARG DOCKER_BUILDX_VERSION=0.36.1                                       # latest stable as of 2026-08-13
 ARG NATS_VERSION=0.3.2                                                 # latest LTS as of 2026-04-19
 ARG OCI_CLI_VERSION=3.79.0                                             # latest LTS as of 2026-04-20
 ARG AWS_CLI_VERSION=2.34.32                                            # latest LTS as of 2026-04-20
@@ -495,6 +496,22 @@ RUN case "${TARGETPLATFORM}" in \
       -o /usr/local/lib/docker/cli-plugins/docker-compose \
  && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 # NOTE: no docker compose version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
+
+# docker buildx plugin, fetched as a release binary for the same reason compose
+# is: the apt package version is whatever the repo holds at build time, and the
+# pin has to be the ARG. The runner image is the CLIENT of the remote arm64
+# builder — a job dials the builder over SSH and drives `docker buildx build`
+# from inside this image — so the plugin belongs here and not in the job.
+RUN case "${TARGETPLATFORM}" in \
+      linux/amd64) ARCH=amd64 ;; \
+      linux/arm64) ARCH=arm64 ;; \
+      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
+    esac \
+ && mkdir -p /usr/local/lib/docker/cli-plugins \
+ && curl -fsSL "https://github.com/docker/buildx/releases/download/v${DOCKER_BUILDX_VERSION}/buildx-v${DOCKER_BUILDX_VERSION}.linux-${ARCH}" \
+      -o /usr/local/lib/docker/cli-plugins/docker-buildx \
+ && chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
+# NOTE: no docker buildx version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 # AWS CLI v2 — official zip bundle, TARGETPLATFORM-aware.
 RUN case "${TARGETPLATFORM}" in \

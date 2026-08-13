@@ -11,7 +11,7 @@ them. It is the only entrypoint that should appear in a CI pipeline YAML.
 ```
 .ci/
 ├── ctl.sh              bash orchestration (validate/build/push/smoke across all images)
-├── smoke.sh            post-build native-arch smoke test — one script, image arg
+├── smoke.sh            post-build smoke test at the sanctioned platform — image arg + optional ref
 ├── project.json        Nx wrappers around each ctl.sh verb (ci-.devcontainer-*)
 ├── README.md           this file
 └── providers/          CI-system shim YAMLs — source of truth for each provider
