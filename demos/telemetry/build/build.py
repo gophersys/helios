@@ -22,6 +22,8 @@ OUT = ROOT / "telemetry.html"
 
 DEFAULTS = {"rail-3v3": "3.30 V", "rail-1v8": "1.80 V", "rail-io": "3.30 V",
             "ilimit": "0.50 A", "radio-ch": "15", "radio-pwr": "0 dBm"}
+WORST = {"rail-3v3": "3.60 V", "rail-1v8": "2.00 V", "rail-io": "3.60 V",
+         "ilimit": "2.00 A", "radio-ch": "26", "radio-pwr": "-20 dBm"}
 STREAMS = [("V", "3.300 V"), ("I", "142 mA")]
 
 
@@ -50,6 +52,8 @@ def knob(name, sol, label, value):
 
 
 def main():
+    sweep = "--sweep" in sys.argv
+    values = WORST if sweep else DEFAULTS
     data = tomllib.loads(PANEL.read_text())
     data["font"]["path"] = font_path(data)
     try:
@@ -68,14 +72,14 @@ def main():
     ilim = out["knob_rows"]["ilimit"]
     link = out["knob_rows"]["link"]
 
-    rail_knobs = "".join(knob(n, rails, lbl, DEFAULTS[n]) for n, lbl in
+    rail_knobs = "".join(knob(n, rails, lbl, values[n]) for n, lbl in
                          [("rail-3v3", "3V3"), ("rail-1v8", "1V8"), ("rail-io", "IO")])
     stream_cells = "".join(
         f'<div class="cell" style="left:{rails[n]["center"] - 28}px;top:{92 + i * 24}px">'
         f'<span class="s-label">{sl}</span> <span class="s-num">{sv}</span></div>'
         for n in ("rail-3v3", "rail-1v8", "rail-io")
         for i, (sl, sv) in enumerate(STREAMS))
-    link_knobs = "".join(knob(n, link, lbl, DEFAULTS[n]) for n, lbl in
+    link_knobs = "".join(knob(n, link, lbl, values[n]) for n, lbl in
                          [("radio-ch", "Channel"), ("radio-pwr", "TX Power")])
 
     html = f"""<meta charset="utf-8"><title>Telemetry Bench</title>
@@ -102,7 +106,7 @@ body {{ margin:0; background:#232629; font-family: "DejaVu Sans", Arial, sans-se
 <div class="panel">
   <div class="plate" style="left:{xs[0]}px;width:{cols[0]}px">
     {rail_knobs}{stream_cells}
-    <div class="ilim">{knob("ilimit", ilim, "I-Limit", DEFAULTS["ilimit"])}</div>
+    <div class="ilim">{knob("ilimit", ilim, "I-Limit", values["ilimit"])}</div>
   </div>
   <div class="plate" style="left:{xs[1]}px;width:{cols[1]}px">{link_knobs}</div>
   <div class="plate dark" style="left:{xs[2]}px;width:{cols[2]}px"></div>
@@ -111,7 +115,7 @@ body {{ margin:0; background:#232629; font-family: "DejaVu Sans", Arial, sans-se
 </div>
 """
     OUT.write_text(html)
-    print(f"wrote {OUT}")
+    print(f"wrote {OUT} ({'sweep' if sweep else 'defaults'})")
     for corr in out["corrections"]:
         print(f"  correction: {corr}")
 
