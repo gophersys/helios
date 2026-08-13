@@ -299,3 +299,16 @@ regenerated deliberately (the documented intended-change path); fidelity and
 Arial chains green with bare rcs; 53 tests. The class is retired: solver
 refuses empty columns, spec validates the new table, and the last hand-sized
 text geometry in the repository is gone.
+
+## 2026-08-13T23:22Z — round 7: left-nudge symmetry + grid autoscale; a buried truth surfaced
+Container DejaVu refused two more inequalities: telemetry's radio-pwr value
+escaping its plate by 1.9px (fixed by the last-unit LEFT-nudge, completing
+the nudge symmetry: next-right, self-right, self-left) and the operator grid
+overflowing the fixed display zone. The autoscale rule (type shrinks to fit
+a fixed frame, reported) then surfaced a buried truth: even ABLETON's solved
+grid needs 463px in the 450px zone — the old spill allowance had been hiding
+a 13px overflow all along. Fidelity now runs at a reported 0.972 scale
+(2.8%, under the 3% detection JND — imperceptible by our own research).
+Golden regenerated deliberately; emitted overrides got the specificity to
+actually win; the nudge fixture is font-derived. 55 tests; fidelity rc=0,
+arial rc=0. Stale-patch trap hit a third time and fixed by reading first.

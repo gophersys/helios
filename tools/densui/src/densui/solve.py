@@ -231,9 +231,26 @@ def _solve_knobs(name: str, row: dict, ctx: _Ctx) -> tuple[dict, list[str]]:
                     f"for this font (anchor_tolerance {tol:g})"
                 )
         elif value_right > plate_w - 4:
-            raise SolveError(
-                f"{name}/{u['name']}: last value ink {value_right:.1f} "
-                f"escapes the plate ({plate_w:g})"
+            # Right-edge symmetry: the LAST unit may nudge LEFT within
+            # anchor_tolerance when its widest value escapes the plate.
+            shift = int(value_right - (plate_w - 4) + 0.999)
+            tol = float(row.get("anchor_tolerance", 4))
+            if shift > tol:
+                raise SolveError(
+                    f"{name}/{u['name']}: last value ink {value_right:.1f} escapes "
+                    f"the plate ({plate_w:g}; needs -{shift}px > anchor_tolerance {tol:g})"
+                )
+            center -= shift
+            centers[u["name"]] = center
+            left = round(center - w / 2)
+            dial_left = round(center - dial / 2)
+            if dial_left < dial_floor:
+                raise SolveError(
+                    f"{name}/{u['name']}: left-nudged dial {dial_left} crosses floor {dial_floor:g}"
+                )
+            corrections.append(
+                f"{name}/{u['name']}: centre -{shift}px — plate-edge clearance "
+                f"for this font (anchor_tolerance {tol:g})"
             )
         prev_label_right = center + label_adv / 2
         sol[u["name"]] = {"left": left, "width": w, "center": center}

@@ -29,6 +29,10 @@
 .p-gl-tone { left: 178px; top: 1px; width: 41px; }
 .p-gl-vol { left: 262px; top: 1px; width: 61px; }
 /* dgrid tracks: reserved from font advances (grid_rows) */
-.dgrid { grid-template-columns: 288px 1fr; }
-.cells { grid-template-columns: 64px 64px 65px 1fr; column-gap: 6px; }
-.cells.two { grid-template-columns: 80px 1fr; column-gap: 6px; }
+/* grid autoscale 0.972: solved 463px > zone 450px */
+.dgrid .cell .clabel { font-size: 15.1px; }
+.device .dgrid .op-num { font-size: 15.6px; }
+.device .dgrid .op-dd { font-size: 13.6px; }
+.dgrid { grid-template-columns: 279px 1fr; }
+.cells { grid-template-columns: 62px 62px 63px 1fr; column-gap: 5px; }
+.cells.two { grid-template-columns: 77px 1fr; column-gap: 5px; }

@@ -178,3 +178,25 @@ def test_grid_rows_reserve_widest_string(font_path):
     s["grid_rows"]["g"]["columns"][0]["strings"] = []
     with pytest.raises(SolveError, match="no strings"):
         solve(s)
+
+
+def test_last_unit_left_nudges_within_tolerance(font_path):
+    from densui.fontmetrics import Face
+
+    s = spec(font_path)
+    row = s["knob_rows"]["row"]
+    row["equalize"] = False
+    value_right = 292 + 10 + Face(font_path).adv("-12.3 dB", 16)
+    row["plate_width"] = int(value_right) + 2  # escape ~2px: inside tolerance
+    out = solve(s)
+    assert out["knob_rows"]["row"]["c"]["center"] < 292
+    assert any("plate-edge clearance" in c for c in out["corrections"])
+
+
+def test_last_unit_escape_beyond_tolerance_refuses(font_path):
+    s = spec(font_path)
+    row = s["knob_rows"]["row"]
+    row["equalize"] = False
+    row["plate_width"] = 320
+    with pytest.raises(SolveError, match="escapes"):
+        solve(s)

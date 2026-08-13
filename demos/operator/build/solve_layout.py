@@ -68,13 +68,26 @@ def main() -> None:
             css.append(f".{u['name']} {{ left: {r['left']}px; top: 1px; width: {r['width']}px; }}")
     env = out["grid_rows"]["env"]
     osc = out["grid_rows"]["osc"]
+    # The display zone is a FIXED frame track (478 - 2x14 padding). A wider
+    # font's solved tracks may not fit: type autoscales to fit and the scale
+    # is reported — what typography does when the face outgrows the frame.
+    avail = 450
+    need = env["total"] + 21 + osc["total"]
+    scale = min(1.0, avail / need)
+    def px(v):
+        return int(v * scale)
     css.append("/* dgrid tracks: reserved from font advances (grid_rows) */")
-    css.append(f".dgrid {{ grid-template-columns: {env['total']}px 1fr; }}")
+    if scale < 1.0:
+        css.append(f"/* grid autoscale {scale:.3f}: solved {need}px > zone {avail}px */")
+        css.append(f".dgrid .cell .clabel {{ font-size: {15.5 * scale:.1f}px; }}")
+        css.append(f".device .dgrid .op-num {{ font-size: {16 * scale:.1f}px; }}")
+        css.append(f".device .dgrid .op-dd {{ font-size: {14 * scale:.1f}px; }}")
+    css.append(f".dgrid {{ grid-template-columns: {px(env['total'])}px 1fr; }}")
     css.append(".cells { grid-template-columns: "
-               + " ".join(f"{w}px" for w in env["widths"][:-1]) + " 1fr; "
-               + f"column-gap: {env['gap']}px; }}")
+               + " ".join(f"{px(w)}px" for w in env["widths"][:-1]) + " 1fr; "
+               + f"column-gap: {px(env['gap'])}px; }}")
     css.append(".cells.two { grid-template-columns: "
-               + f"{osc['widths'][0]}px 1fr; column-gap: {osc['gap']}px; }}")
+               + f"{px(osc['widths'][0])}px 1fr; column-gap: {px(osc['gap'])}px; }}")
     print("\n".join(css))
 
 
