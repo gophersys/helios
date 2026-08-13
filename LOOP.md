@@ -1,6 +1,6 @@
 # LOOP — protocol for the recurring autonomous session
 
-Fires every 10 minutes (local cron `dense-ui-loop`). One run = one small,
+Fires every 5 minutes (in-session cron; durable launchd form: 300 s). One run = one small,
 finished increment. If you are Claude reading this at the start of a run,
 follow it exactly.
 
