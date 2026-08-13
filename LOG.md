@@ -17,3 +17,15 @@ red before green. Surprise: the JS header comment contained the output
 sentinel literally and the regex matched the comment — sentinel strings must
 never appear in injected source; fixed by rewording + taking the last match.
 Next: P1 densui.audit consumes probe output.
+
+## 2026-08-13T21:09Z — P1 densui.audit (sub-step 1 of 2)
+The proof battery is now library code: `densui.audit` — overlap with declared
+legal-overlap callables (`knob_value_graze` factory encodes the measured Live
+tolerance), crowding floor, similarity-gated + interposition-aware gap law,
+containment with declared spills, breathing floor, level + cross-container
+alignment, and `run_battery` composing them. 8 tests, each check proven to
+fail on a bad fixture (and one genuinely went red on my own fixture arithmetic
+— gap 83 is hierarchical, not sloppy; the law was right and the test was
+wrong). HANDOFF: sub-step 2 = rewrite demos/operator/build/overlap_audit.py
+as a thin wrapper over densui.probe + densui.audit and re-run the demo gates;
+the box stays ⏳ until then.
