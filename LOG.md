@@ -266,3 +266,12 @@ trap: fmt, geometry, geometry). Fixes: env col 284->292 restores col4's 8px —
 both fonts green with BARE runs and real exit codes (fidelity rc=0, arial
 rc=0, 2x no-illegal each); and LOOP.md now bans deciding success through a
 piped gate. The broken intermediate state lived on main for ~4 minutes.
+
+## 2026-08-13T23:05Z — P4 telemetry stage 2: panel.toml, suite-wired (sub-step 3)
+demos/telemetry/panel.toml written from the derivation and wired into the
+permanent test suite (validates + solves + the modulo rule executed as an
+assertion on every gate run). The solver refused my own blind linspace by
+0.3px — rail-io's value ink escaped the plate — corrected to 60/170/280 by
+the inequality itself. The blind demo is now the same kind of truth as the
+operator: a spec the tools keep honest. HANDOFF: the page (widgets + shell)
+and its own assemble gates. Containerized v3 verdict still pending.

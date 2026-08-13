@@ -1,0 +1,107 @@
+# Telemetry console — blind demo. Every anchor below is COMPUTED (layers.md
+# shows the derivation); there is no reference bitmap anywhere in this demo.
+# Note vs layers.md first sketch: rails sit side by side in one knob row
+# (solver-modelled today); their stream cells render beneath each dial — the
+# grid_rows model (P6) will absorb those when it lands.
+
+[panel]
+name = "telemetry"
+width = 1120
+height = 320
+
+[font]
+# The container/CI truth; local runs and tests substitute a present font.
+path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+size = 16
+
+[census]
+file = "demos/telemetry/census.md"
+
+[tracks]
+columns = [360, 292, 340, 100]   # TARGET | LINK+RUN | editor | alarms (mod-4)
+gap = 4
+margin = 8
+
+[solve.knob_rows.rails]
+plate_width = 344                # 360 - 2x8 pad
+dial = 28
+tuck = 10
+dial_floor = 0
+label_floor = 0
+anchor_tolerance = 6             # blind spec: font decides, give it room
+
+[[solve.knob_rows.rails.units]]
+name = "rail-3v3"
+center = 60                      # linspace(60, 280, 3); io capped by value-ink escape
+label = "3V3"
+widest = "3.60 V"
+
+[[solve.knob_rows.rails.units]]
+name = "rail-1v8"
+center = 170
+label = "1V8"
+widest = "2.00 V"
+
+[[solve.knob_rows.rails.units]]
+name = "rail-io"
+center = 280
+label = "IO"
+widest = "3.60 V"
+
+[solve.knob_rows.ilimit]
+plate_width = 344
+dial = 28
+tuck = 10
+dial_floor = 0
+label_floor = 0
+
+[[solve.knob_rows.ilimit.units]]
+name = "ilimit"
+center = 60                      # isolated row; 24px pitch above per layers.md
+label = "I-Limit"
+widest = "2.00 A"
+
+[solve.knob_rows.link]
+plate_width = 276                # 292 - 2x8
+dial = 28
+tuck = 10
+dial_floor = 0
+label_floor = 0
+anchor_tolerance = 6
+
+[[solve.knob_rows.link.units]]
+name = "radio-ch"
+center = 70
+label = "Channel"
+widest = "26"
+
+[[solve.knob_rows.link.units]]
+name = "radio-pwr"
+center = 200
+label = "TX Power"
+widest = "-20 dBm"
+
+[probe]
+root = ".panel"
+root_width = 1120
+text_kinds = ["label", "value", "clabel", "num"]
+
+[probe.containers]
+plate = ".plate"
+
+[probe.parts]
+label = ".k-label"
+dial = ".k-dial"
+value = ".k-value"
+num = ".s-num"
+clabel = ".s-label"
+
+[rules]
+min_sibling_gap = 2.0
+breathing_floor = 2.5
+
+[ratio]
+panel_w = [1120, 5]
+panel_h = [320, 5]
+dial = [28, 1]
+row = [72, 4]
