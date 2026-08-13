@@ -1,0 +1,226 @@
+# verb-conservation record — project=templates/go/http-gateway profile=pass
+# every gate tool exits 0; each block is one verb: its exit code, then the argv
+# of every external gate tool it invoked, in order.
+
+### verb build
+exit 0
+go	build ./...
+
+### verb test
+exit 0
+go	test ./... -race -count=1
+
+### verb lint
+exit 0
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s --config <sandbox>/tree/.golangci.yml ./...
+
+### verb vet
+exit 0
+go	vet ./...
+
+### verb fmt
+exit 0
+gofumpt	-w .
+
+### verb cover
+exit 0
+go	test ./... -covermode=atomic -coverprofile=<sandbox>/http-gateway-cover.<tmp>
+go	tool cover -func=<sandbox>/http-gateway-cover.<tmp>
+
+### verb generate
+exit 127
+go	run ./tools/openapi -mode emit -out contract/openapi.yaml
+
+### verb openapi
+exit 0
+go	run ./tools/openapi -mode emit -out contract/openapi.yaml
+
+### verb verify-openapi
+exit 0
+go	run ./tools/openapi -mode verify -out contract/openapi.yaml
+
+### verb gen-client
+exit 0
+oapi-codegen	--config <sandbox>/tree/templates/go/http-gateway/clients/go/oapi-codegen.yaml <sandbox>/tree/templates/go/http-gateway/clients/go/../../contract/openapi.yaml
+
+### verb integration
+exit 0
+go	test -tags integration ./... -race -count=1
+
+### verb vuln
+exit 0
+govulncheck	./...
+
+### verb sast
+exit 0
+gosec	-quiet ./...
+
+### verb secretscan
+exit 0
+gitleaks	detect --no-git --redact --source .
+
+### verb maintainability
+exit 0
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s --config <sandbox>/tree/.golangci.yml ./...
+hnslint	./...
+
+### verb phase-gate
+exit 0
+go	build ./...
+go	run ./tools/openapi -mode verify -out contract/openapi.yaml
+go	build ./...
+go	vet ./...
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s --config <sandbox>/tree/.golangci.yml ./...
+go	test ./... -race -count=1
+go	test ./... -race -count=1
+go	test -tags integration ./... -race -count=1
+go	test ./... -covermode=atomic -coverprofile=<sandbox>/http-gateway-cover.<tmp>
+go	tool cover -func=<sandbox>/http-gateway-cover.<tmp>
+govulncheck	./...
+gosec	-quiet ./...
+gitleaks	detect --no-git --redact --source .
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s --config <sandbox>/tree/.golangci.yml ./...
+hnslint	./...
+rg	-n --glob !*_test.go --glob !**/generated/** -e panic\("unimplemented"\) -e TODO -e FIXME -- internal cmd
+
+### verb phase-gate architecture
+exit 0
+go	build ./...
+go	run ./tools/openapi -mode verify -out contract/openapi.yaml
+
+### verb phase-gate implementation
+exit 0
+go	build ./...
+go	vet ./...
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s --config <sandbox>/tree/.golangci.yml ./...
+go	test ./... -race -count=1
+
+### verb phase-gate testing
+exit 0
+go	test ./... -race -count=1
+go	test -tags integration ./... -race -count=1
+go	test ./... -covermode=atomic -coverprofile=<sandbox>/http-gateway-cover.<tmp>
+go	tool cover -func=<sandbox>/http-gateway-cover.<tmp>
+
+### verb phase-gate qa
+exit 0
+govulncheck	./...
+gosec	-quiet ./...
+gitleaks	detect --no-git --redact --source .
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s --config <sandbox>/tree/.golangci.yml ./...
+hnslint	./...
+rg	-n --glob !*_test.go --glob !**/generated/** -e panic\("unimplemented"\) -e TODO -e FIXME -- internal cmd
+# verb-conservation record — project=templates/go/http-gateway profile=fail
+# every gate tool exits 1; each block is one verb: its exit code, then the argv
+# of every external gate tool it invoked, in order.
+
+### verb build
+exit 1
+go	build ./...
+
+### verb test
+exit 1
+go	test ./... -race -count=1
+
+### verb lint
+exit 1
+gofumpt	-l .
+
+### verb vet
+exit 1
+go	vet ./...
+
+### verb fmt
+exit 1
+gofumpt	-w .
+
+### verb cover
+exit 1
+go	test ./... -covermode=atomic -coverprofile=<sandbox>/http-gateway-cover.<tmp>
+
+### verb generate
+exit 1
+go	run ./tools/openapi -mode emit -out contract/openapi.yaml
+
+### verb openapi
+exit 1
+go	run ./tools/openapi -mode emit -out contract/openapi.yaml
+
+### verb verify-openapi
+exit 1
+go	run ./tools/openapi -mode verify -out contract/openapi.yaml
+
+### verb gen-client
+exit 1
+oapi-codegen	--config <sandbox>/tree/templates/go/http-gateway/clients/go/oapi-codegen.yaml <sandbox>/tree/templates/go/http-gateway/clients/go/../../contract/openapi.yaml
+
+### verb integration
+exit 1
+go	test -tags integration ./... -race -count=1
+
+### verb vuln
+exit 1
+govulncheck	./...
+
+### verb sast
+exit 1
+gosec	-quiet ./...
+
+### verb secretscan
+exit 1
+gitleaks	detect --no-git --redact --source .
+
+### verb maintainability
+exit 1
+gofumpt	-l .
+
+### verb phase-gate
+exit 1
+go	build ./...
+go	run ./tools/openapi -mode verify -out contract/openapi.yaml
+go	build ./...
+go	vet ./...
+gofumpt	-l .
+go	vet ./...
+go	test ./... -race -count=1
+
+### verb phase-gate architecture
+exit 0
+go	build ./...
+go	run ./tools/openapi -mode verify -out contract/openapi.yaml
+
+### verb phase-gate implementation
+exit 1
+go	build ./...
+go	vet ./...
+gofumpt	-l .
+go	vet ./...
+go	test ./... -race -count=1
+
+### verb phase-gate testing
+exit 0
+go	test ./... -race -count=1
+go	test -tags integration ./... -race -count=1
+go	test ./... -covermode=atomic -coverprofile=<sandbox>/http-gateway-cover.<tmp>
+go	tool cover -func=<sandbox>/http-gateway-cover.<tmp>
+
+### verb phase-gate qa
+exit 1
+govulncheck	./...
+gosec	-quiet ./...
+gitleaks	detect --no-git --redact --source .
+gofumpt	-l .
+go	vet ./...
+rg	-n --glob !*_test.go --glob !**/generated/** -e panic\("unimplemented"\) -e TODO -e FIXME -- internal cmd

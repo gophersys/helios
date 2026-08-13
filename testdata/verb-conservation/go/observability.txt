@@ -1,0 +1,294 @@
+# verb-conservation record — project=go/observability profile=pass
+# every gate tool exits 0; each block is one verb: its exit code, then the argv
+# of every external gate tool it invoked, in order.
+
+### verb build
+exit 0
+go	build ./...
+
+### verb test
+exit 0
+go	test ./... -race -count=1
+
+### verb lint
+exit 0
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s ./...
+
+### verb vet
+exit 0
+go	vet ./...
+
+### verb fmt
+exit 0
+gofumpt	-w .
+
+### verb cover
+exit 0
+go	test -tags lifecycle load -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/observability-cover.<tmp> -count=1 EDEN_LOAD_N=50
+go	tool cover -func=<sandbox>/observability-cover.<tmp>
+
+### verb property
+exit 0
+go	test ./... -race -count=1 -run .* RAPID_CHECKS=1000
+
+### verb leak
+exit 0
+go	test ./... -count=1 -run .*
+
+### verb lifecycle
+exit 0
+go	test -tags lifecycle ./... -race -count=1
+
+### verb integration
+exit 0
+go	test -tags integration ./... -count=1
+
+### verb load
+exit 0
+go	test -tags load ./... -race -count=1 EDEN_LOAD_N=500
+
+### verb vuln
+exit 0
+govulncheck	./...
+
+### verb sast
+exit 0
+gosec	-severity medium -quiet ./...
+
+### verb secretscan
+exit 0
+gitleaks	detect --no-git --redact --source . --exit-code 1
+go	test ./... -race -count=1 -run Canary|Redact|Secret
+
+### verb bench
+exit 127
+go	test -run ^$ -bench=. -benchmem -count=10 ./...
+
+### verb bench-guard
+exit 0
+go	test -run ^$ -bench=. -benchmem -count=10 ./...
+benchstat	<sandbox>/tree/go/observability/.benchbaseline/hotpaths.txt <sandbox>/<tmp>
+
+### verb bench-record
+exit 127
+go	test -run ^$ -bench=. -benchmem -count=10 ./...
+
+### verb maintainability
+exit 0
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s ./...
+hnslint	<sandbox>/tree/go/observability
+
+### verb mutate
+exit 1
+gremlins	unleash --timeout-coefficient=40 --exclude-files observabilitytest/.*\.go$ RAPID_CHECKS=10 GOWORK=off
+
+### verb cover-floor
+exit 1
+go	test -tags lifecycle load -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+
+### verb apidiff
+exit 0
+go	list ./...
+
+### verb apidiff-record
+exit 0
+go	list ./...
+
+### verb phase-gate
+exit 1
+git	rev-parse --show-superproject-working-tree
+git	rev-parse --show-toplevel
+go	build ./...
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s ./...
+hnslint	<sandbox>/tree/go/observability
+
+### verb phase-gate architecture
+exit 1
+git	rev-parse --show-superproject-working-tree
+git	rev-parse --show-toplevel
+go	build ./...
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s ./...
+hnslint	<sandbox>/tree/go/observability
+
+### verb phase-gate implementation
+exit 0
+go	build ./...
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s ./...
+hnslint	<sandbox>/tree/go/observability
+go	list ./...
+go	vet ./...
+go	test ./... -race -count=1
+
+### verb phase-gate testing
+exit 1
+go	test ./... -race -count=1
+go	test ./... -race -count=1 -run .* RAPID_CHECKS=1000
+go	test ./... -count=1 -run .*
+go	test -tags lifecycle ./... -race -count=1
+go	test -tags load ./... -race -count=1 EDEN_LOAD_N=500
+go	test -tags integration ./... -count=1
+go	test -run ^$ -bench=. -benchmem -count=10 ./...
+benchstat	<sandbox>/tree/go/observability/.benchbaseline/hotpaths.txt <sandbox>/<tmp>
+govulncheck	./...
+gosec	-severity medium -quiet ./...
+gitleaks	detect --no-git --redact --source . --exit-code 1
+go	test ./... -race -count=1 -run Canary|Redact|Secret
+go	test -tags lifecycle load -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+
+### verb phase-gate qa
+exit 1
+gofumpt	-l .
+go	vet ./...
+golangci-lint	run --timeout=180s ./...
+hnslint	<sandbox>/tree/go/observability
+gremlins	unleash --timeout-coefficient=40 --exclude-files observabilitytest/.*\.go$ RAPID_CHECKS=10 GOWORK=off
+go	test -tags lifecycle load -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+govulncheck	./...
+gosec	-severity medium -quiet ./...
+gitleaks	detect --no-git --redact --source . --exit-code 1
+go	test ./... -race -count=1 -run Canary|Redact|Secret
+# verb-conservation record — project=go/observability profile=fail
+# every gate tool exits 1; each block is one verb: its exit code, then the argv
+# of every external gate tool it invoked, in order.
+
+### verb build
+exit 1
+go	build ./...
+
+### verb test
+exit 1
+go	test ./... -race -count=1
+
+### verb lint
+exit 1
+gofumpt	-l .
+
+### verb vet
+exit 1
+go	vet ./...
+
+### verb fmt
+exit 1
+gofumpt	-w .
+
+### verb cover
+exit 1
+go	test -tags lifecycle load -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/observability-cover.<tmp> -count=1 EDEN_LOAD_N=50
+
+### verb property
+exit 1
+go	test ./... -race -count=1 -run .* RAPID_CHECKS=1000
+
+### verb leak
+exit 1
+go	test ./... -count=1 -run .*
+
+### verb lifecycle
+exit 1
+go	test -tags lifecycle ./... -race -count=1
+
+### verb integration
+exit 1
+go	test -tags integration ./... -count=1
+
+### verb load
+exit 1
+go	test -tags load ./... -race -count=1 EDEN_LOAD_N=500
+
+### verb vuln
+exit 0
+govulncheck	./...
+
+### verb sast
+exit 1
+gosec	-severity medium -quiet ./...
+
+### verb secretscan
+exit 1
+gitleaks	detect --no-git --redact --source . --exit-code 1
+
+### verb bench
+exit 127
+go	test -run ^$ -bench=. -benchmem -count=10 ./...
+
+### verb bench-guard
+exit 1
+go	test -run ^$ -bench=. -benchmem -count=10 ./...
+
+### verb bench-record
+exit 127
+go	test -run ^$ -bench=. -benchmem -count=10 ./...
+
+### verb maintainability
+exit 1
+gofumpt	-l .
+
+### verb mutate
+exit 1
+gremlins	unleash --timeout-coefficient=40 --exclude-files observabilitytest/.*\.go$ RAPID_CHECKS=10 GOWORK=off
+
+### verb cover-floor
+exit 1
+go	test -tags lifecycle load -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+
+### verb apidiff
+exit 1
+go	list ./...
+
+### verb apidiff-record
+exit 1
+go	list ./...
+
+### verb phase-gate
+exit 1
+git	rev-parse --show-superproject-working-tree
+git	rev-parse --show-toplevel
+go	build ./...
+gofumpt	-l .
+go	vet ./...
+
+### verb phase-gate architecture
+exit 1
+git	rev-parse --show-superproject-working-tree
+git	rev-parse --show-toplevel
+
+### verb phase-gate implementation
+exit 1
+go	build ./...
+gofumpt	-l .
+go	list ./...
+go	vet ./...
+go	test ./... -race -count=1
+
+### verb phase-gate testing
+exit 1
+go	test ./... -race -count=1
+go	test ./... -race -count=1 -run .* RAPID_CHECKS=1000
+go	test ./... -count=1 -run .*
+go	test -tags lifecycle ./... -race -count=1
+go	test -tags load ./... -race -count=1 EDEN_LOAD_N=500
+go	test -tags integration ./... -count=1
+go	test -run ^$ -bench=. -benchmem -count=10 ./...
+govulncheck	./...
+gosec	-severity medium -quiet ./...
+gitleaks	detect --no-git --redact --source . --exit-code 1
+go	test -tags lifecycle load -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+
+### verb phase-gate qa
+exit 1
+gofumpt	-l .
+gremlins	unleash --timeout-coefficient=40 --exclude-files observabilitytest/.*\.go$ RAPID_CHECKS=10 GOWORK=off
+go	test -tags lifecycle load -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+govulncheck	./...
+gosec	-severity medium -quiet ./...
+gitleaks	detect --no-git --redact --source . --exit-code 1
