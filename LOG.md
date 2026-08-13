@@ -40,3 +40,14 @@ LEDs as one 57px-misaligned column — key restricted to dial/checkbox. Full
 demo chain green (solver, ratio, audit, sweep, params). Assembled
 operator.html added to .gitignore: it embeds licensed Ableton fonts and must
 never be committed. Box ticked.
+
+## 2026-08-13T21:29Z — P1 densui.solve
+The solver is now generic library code: `densui.solve.solve(spec)` takes a
+dict or TOML path (tomllib, stdlib) with font + flow_rows (sequential anchored
+boxes, trailing element, value-ink clearance) + knob_rows (two-line, separate
+line-1/line-2 floors, centred labels, tucked values, rhythm equalisation by
+construction with corrections reported). Returns pure position data — CSS
+emission stays with callers. 6 tests: rhythm, floor violation, value
+clearance, insertion-order determinism, flow margins/trailing, missing-font
+fail-loud. Operator still runs its local solve_layout.py by design — P2's
+panel.toml box migrates it onto this API with a byte-identical CSS proof.
