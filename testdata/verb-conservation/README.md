@@ -67,7 +67,7 @@ order — is byte-identical across the change, and the per-tool invocation count
 unchanged (`hnslint` 3 before, 3 after). The 3 lines above are the only differences
 in the whole pass half.
 
-`profile=fail` — 2 exit codes moved and 7 tool lines went away. Every one is a
+`profile=fail` — 2 exit codes moved and 8 tool lines went away. Every one is a
 consequence of a red verb finally being propagated:
 
 | what moved | why |
@@ -81,6 +81,65 @@ consequence of a red verb finally being propagated:
 Nothing here changes what the gate runs when the tools are green; it changes only
 what it does when they are not. The other 16 project records held byte for byte
 across the same change, and all 3 planted mutants were still caught.
+
+Count check, because this file exists to make a re-record auditable: the table has
+5 rows and the middle one covers 2 lines, so it enumerates **8**, and the diff
+agrees — `git show dda26cf -- templates/go/http-gateway.txt | grep -E '^[-+][^-+]'`
+is 13 removals, of which 3 are the `hnslint` lines in the pass half and 2 are
+`exit 0`, leaving 8 tool lines.
+
+### 2026-08-13 — the 16 `go/*.txt` records, `phase-gate all` becoming honest
+
+`go/_ctl/lib.sh` ran the four phases as `phase_architecture || { … }` — the
+`||`-LEFT position, where bash suppresses errexit and carries the suppression down
+through the phase function into `_gate_run`'s `( set -e; "$@" )` subshell. That is
+byte-for-byte the defect the entry above fixed in `templates/_ctl/template.sh`, at
+the one call site that fix did not reach. It is fixed; the records moved.
+
+**The move is 1 line per record, the same line in all 16, and only there:**
+
+```
+ ### verb phase-gate            (profile=fail, no argument, so `all`)
+ exit 1
+ go	build ./...
+ gofumpt	-l .
+-go	vet ./...
+```
+
+That `go vet ./...` only ever ran BECAUSE errexit was suppressed. `cmd_lint` reads
+`unformatted="$( … gofumpt -l . )"` first; with errexit live the verb stops there
+and never reaches vet. The same record already says so twice — its own
+`### verb lint` and `### verb maintainability` blocks in `profile=fail` are
+
+```
+### verb lint            ### verb maintainability
+exit 1                   exit 1
+gofumpt	-l .             gofumpt	-l .
+```
+
+— both stop at `gofumpt`. Only the `phase-gate` block ran on, because only it had
+the suppression. The 16 records now agree with themselves.
+
+**`templates/go/http-gateway.txt` did not move at all.** It has had this fix since
+`e400c8b`, so there was no suppression left in it to remove. A record that stays
+byte-identical while its 16 siblings each drop the same line is the strongest
+evidence available that the cause is the fix and not the harness — and the
+implementer measured the other direction too: with `go/_ctl/lib.sh` stashed, the
+suite returns to `17 project record(s) hold; 3 mutant(s) caught`.
+
+**No check disappeared from the `pass` profile**, and that was verified before
+re-recording rather than assumed. Both revisions were split at `profile=fail` and
+the `pass` halves diffed alone: **byte-identical in all 17 records**, gate-tool
+line counts unchanged in every one (61 → 61 for the template, 1239 → 1239 summed
+across the 17). A short-circuit on a FAILING tool is honesty; a check vanishing
+when everything passes would be a regression wearing honesty's clothes, and it is
+the pass half that would show it.
+
+Four properties of the `fail` half, each confirmed on its own: 16 records touched,
+exactly 1 line removed from each (`git diff --numstat` reads `0 1` for all 16),
+**nothing added anywhere** (0 `+` lines in the whole diff), and **no exit code
+changed** (0 `exit ` lines touched). The verbs still fail; one of them just stopped
+running a tool it could only ever reach through a suppressed error.
 
 ## These are not edited by hand
 

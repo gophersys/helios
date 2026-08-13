@@ -255,7 +255,6 @@ git	rev-parse --show-superproject-working-tree
 git	rev-parse --show-toplevel
 go	build ./...
 gofumpt	-l .
-go	vet ./...
 
 ### verb phase-gate architecture
 exit 1
