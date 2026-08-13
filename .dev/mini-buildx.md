@@ -1,6 +1,6 @@
 # mini-buildx
 
-phase:    plan
+phase:    verify
 repo:     gophersys/infrastructure
 branch:   feat/mini-buildx
 worktree: ~/code/.worktrees/infra-buildx
@@ -112,3 +112,94 @@ Nothing.
 ## Next
 
 Test author: red tests for the mount and for the vault-item resolution check.
+
+
+## Phase 2/3 — RED then GREEN, and one finding that would have broken the first build
+
+```
+verify-buildx-key   pass=9 fail=0   rc=0
+verify-vault-refs   pass=11 fail=0  rc=0     (10 before, 11 now)
+ctl.sh validate     rc=0            6 project.json, 21 scripts, shellcheck strict
+kubeconform         122 resources / 93 files, Invalid 0, Errors 0
+```
+
+**THE VAULT ITEM'S LAST BYTE IS NOT A NEWLINE.** OpenSSH matches its end marker
+WITH the newline, so a key without one is refused. Proven with a throwaway key:
+`ssh-keygen -y` exits 255, `invalid format`. A plain passthrough would have
+shipped a Secret that ssh rejects at the first build, and the failure would have
+looked like a permissions or network problem. The ExternalSecret therefore
+templates `{{ .privateKey | trim }}` plus exactly one newline — idempotent, and
+it survives a re-paste of the vault item.
+
+**kubeconform SKIPS the Argo `Application`**, so nothing in this repo had ever
+validated the pod spec that lives inside its Helm values. Extracted and run
+through `kubectl create --dry-run=client`: rc=0, and `defaultMode` resolves to
+**256**, which is `0400`. `yq -o=json` reports the same scalar as `400`. The trap
+the test author measured is real and it was avoided.
+
+**The credential path is proven in the REAL runner image**, not inferred. Inside
+`ghcr.io/gophersys/base-runner:e0c6bc5`, with the key installed exactly as the
+kubelet projects it (`root:root 400`):
+
+```
+docker -H ssh://macos-buildx version  ->  28.1.1 arm64 linux   rc=0
+```
+
+A fresh-pod case was also proven: a client with no local buildx metadata reused
+the existing remote buildkit container AND its cache (second build reported
+`CACHED`), rc=0.
+
+## BLOCKED — the runner image has no buildx
+
+Measured against the pinned image, and confirmed independently by me:
+
+```
+docker run --rm ghcr.io/gophersys/base-runner:e0c6bc5 ...
+  /usr/local/lib/docker/cli-plugins:  docker-compose      <- buildx ABSENT
+  docker buildx version -> docker: unknown command
+```
+
+`base/Dockerfile` installs `docker-ce-cli` and then downloads ONLY the compose
+plugin (lines 493-496). buildx ships as a separate `docker-buildx-plugin`
+package. So the documented workflow step CANNOT RUN today.
+
+The implementer deliberately did not work around it by downloading buildx inside
+the job, citing `ci-substrate.md`'s own rule that software capability belongs in
+the image, and the fact that `validate.yml` has no tool-install step for exactly
+that reason. That was the right call and it is why this is a blocker rather than
+a silent hack.
+
+The fix is one line in a DIFFERENT repository, `gophersys/.devcontainer`.
+
+## DECIDED — the volume stays REQUIRED, not `optional: true`
+
+The implementer asked for a second opinion and picked the strict reading. I agree,
+and I am recording why so it is not re-litigated:
+
+- `optional: true` would let a runner pod start with NO key and fail at build
+  time, which reads as a build problem rather than a broken vault link. That is
+  the false-green shape this whole night has been about.
+- required means the pod waits in `ContainerCreating` and the kubelet retries, so
+  it SELF-HEALS within seconds once ESO syncs. The window is small and loud.
+- it matches the `ghcr-pull` precedent, which is also required and has the same
+  org-wide blast radius.
+
+## Deliberately NOT in this change
+
+- Reversing D42. No image workflow's platform list was touched.
+- Registering an Actions runner on the mini.
+- The 51 pre-existing kubeconform errors under `charts/`, `clusters/`,
+  `machines/` and `contracts/` (missing `kind`, duplicate `env` keys in 5 chart
+  values files). CI never scans those roots, so they are invisible today. Not
+  caused by this change — but they are a real finding and they need their own task.
+
+## Unverified
+
+The ESO template rendering itself. `{{ .privateKey | trim }}` uses sprig, which
+the `ghcr-pull` sibling already relies on, and `mergePolicy` defaults to Replace —
+but there is no cluster run to prove it. Check the materialised Secret's size at
+first sync.
+
+## Next
+
+Unblock the image: add buildx to `gophersys/.devcontainer` base/Dockerfile.
