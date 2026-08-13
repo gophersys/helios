@@ -26,7 +26,7 @@ gofumpt	-w .
 
 ### verb cover
 exit 0
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/orchestrator-cover.<tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/orchestrator-cover.<tmp> -count=1 -timeout=25m EDEN_LOAD_N=50
 go	tool cover -func=<sandbox>/orchestrator-cover.<tmp>
 
 ### verb property
@@ -39,15 +39,15 @@ go	test ./... -count=1 -run .*
 
 ### verb lifecycle
 exit 0
-go	test -tags lifecycle ./... -race -count=1
+go	test -tags lifecycle ./... -race -count=1 -timeout=25m
 
 ### verb integration
 exit 0
-go	test -tags integration ./... -count=1
+go	test -tags integration ./... -count=1 -timeout=25m -v
 
 ### verb load
 exit 0
-go	test -tags load ./... -race -count=1 EDEN_LOAD_N=500
+go	test -tags load ./... -race -count=1 -timeout=25m EDEN_LOAD_N=500
 
 ### verb vuln
 exit 0
@@ -87,7 +87,7 @@ exit 0
 
 ### verb cover-floor
 exit 1
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 -timeout=25m EDEN_LOAD_N=50
 
 ### verb apidiff
 exit 0
@@ -133,16 +133,16 @@ exit 1
 go	test ./... -race -count=1
 go	test ./... -race -count=1 -run .* RAPID_CHECKS=1000
 go	test ./... -count=1 -run .*
-go	test -tags lifecycle ./... -race -count=1
-go	test -tags load ./... -race -count=1 EDEN_LOAD_N=500
-go	test -tags integration ./... -count=1
+go	test -tags lifecycle ./... -race -count=1 -timeout=25m
+go	test -tags load ./... -race -count=1 -timeout=25m EDEN_LOAD_N=500
+go	test -tags integration ./... -count=1 -timeout=25m -v
 go	test -run ^$ -bench=. -benchmem -count=10 ./...
 benchstat	<sandbox>/tree/go/orchestrator/.benchbaseline/hotpaths.txt <sandbox>/<tmp>
 govulncheck	./...
 gosec	-severity medium -quiet ./...
 gitleaks	detect --no-git --redact --source . --exit-code 1
 go	test ./... -race -count=1 -run Canary|Redact|Secret
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 -timeout=25m EDEN_LOAD_N=50
 
 ### verb phase-gate qa
 exit 1
@@ -150,7 +150,7 @@ gofumpt	-l .
 go	vet ./...
 golangci-lint	run --timeout=180s ./...
 hnslint	<sandbox>/tree/go/orchestrator
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 -timeout=25m EDEN_LOAD_N=50
 govulncheck	./...
 gosec	-severity medium -quiet ./...
 gitleaks	detect --no-git --redact --source . --exit-code 1
@@ -181,7 +181,7 @@ gofumpt	-w .
 
 ### verb cover
 exit 1
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/orchestrator-cover.<tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/orchestrator-cover.<tmp> -count=1 -timeout=25m EDEN_LOAD_N=50
 
 ### verb property
 exit 1
@@ -193,15 +193,15 @@ go	test ./... -count=1 -run .*
 
 ### verb lifecycle
 exit 1
-go	test -tags lifecycle ./... -race -count=1
+go	test -tags lifecycle ./... -race -count=1 -timeout=25m
 
 ### verb integration
 exit 1
-go	test -tags integration ./... -count=1
+go	test -tags integration ./... -count=1 -timeout=25m -v
 
 ### verb load
 exit 1
-go	test -tags load ./... -race -count=1 EDEN_LOAD_N=500
+go	test -tags load ./... -race -count=1 -timeout=25m EDEN_LOAD_N=500
 
 ### verb vuln
 exit 0
@@ -236,7 +236,7 @@ exit 0
 
 ### verb cover-floor
 exit 1
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 -timeout=25m EDEN_LOAD_N=50
 
 ### verb apidiff
 exit 1
@@ -271,19 +271,19 @@ exit 1
 go	test ./... -race -count=1
 go	test ./... -race -count=1 -run .* RAPID_CHECKS=1000
 go	test ./... -count=1 -run .*
-go	test -tags lifecycle ./... -race -count=1
-go	test -tags load ./... -race -count=1 EDEN_LOAD_N=500
-go	test -tags integration ./... -count=1
+go	test -tags lifecycle ./... -race -count=1 -timeout=25m
+go	test -tags load ./... -race -count=1 -timeout=25m EDEN_LOAD_N=500
+go	test -tags integration ./... -count=1 -timeout=25m -v
 go	test -run ^$ -bench=. -benchmem -count=10 ./...
 govulncheck	./...
 gosec	-severity medium -quiet ./...
 gitleaks	detect --no-git --redact --source . --exit-code 1
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 -timeout=25m EDEN_LOAD_N=50
 
 ### verb phase-gate qa
 exit 1
 gofumpt	-l .
-go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 EDEN_LOAD_N=50
+go	test -tags lifecycle load integration -coverpkg=./... ./... -covermode=atomic -coverprofile=<sandbox>/<tmp> -count=1 -timeout=25m EDEN_LOAD_N=50
 govulncheck	./...
 gosec	-severity medium -quiet ./...
 gitleaks	detect --no-git --redact --source . --exit-code 1

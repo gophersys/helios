@@ -141,6 +141,80 @@ exactly 1 line removed from each (`git diff --numstat` reads `0 1` for all 16),
 changed** (0 `exit ` lines touched). The verbs still fail; one of them just stopped
 running a tool it could only ever reach through a suppressed error.
 
+### 2026-08-13 — the 16 `go/*.txt` records, the substrate lanes gaining a stated budget
+
+`go/_ctl/lib.sh` ran `integration`, `lifecycle`, `load` and `_cover_profile` with no
+`-timeout`, so **Go's own 10 minutes per package was the budget nobody chose**. The
+planner measured `workspaceprovider/kubernetesadapter` at 601.3s isolated / 544.1s
+in-lane against that 600.0s wall — a coin flip at 91-100% of it, which is why it read
+as flake rather than as a limit. `EDEN_SUBSTRATE_TIMEOUT` gives the lanes a number they
+state out loud, and the records moved.
+
+**Every changed line is an argv GAINING a flag. Nothing was removed, and no exit code
+moved.** 320 removals and 320 additions, and each removal is byte-identical to an
+addition once the new flags are stripped from it — `0` removed lines are left over.
+All 640 changed lines begin `go<TAB>test`; `0` are an `exit ` line, a `### verb`
+header, or another tool.
+
+**4 argv shapes, and no fifth.** Reduced over the per-lib coverprofile name, the
+`EDEN_LOAD_N` scale and the budget itself, the added lines collapse to exactly:
+
+```
+go	test -tags integration ./... -count=1 -timeout=<T> -v
+go	test -tags lifecycle ./... -race -count=1 -timeout=<T>
+go	test -tags load ./... -race -count=1 -timeout=<T> EDEN_LOAD_N=<N>
+go	test -tags <COVERTAGS> -coverpkg=./... ./... -covermode=atomic -coverprofile=<P> -count=1 -timeout=<T> EDEN_LOAD_N=<N>
+```
+
+(One line each, tab-separated after `go`, exactly as the record spells them.)
+
+| shape | why it moved |
+|---|---|
+| `integration` | the lane the measurement implicates; it also gains `-v`, and only it |
+| `lifecycle`, `load` | the other two lanes that stand up real substrate — the same class, so the same budget |
+| the coverage run | `_cover_profile` had the identical omission, and `cover-floor` is a dimension of **both** `phase-gate testing` and `phase-gate qa`; a cluster lib puts `integration` in `EDEN_COVER_TAGS`, so this run stands up the same clusters |
+
+`<COVERTAGS>` is `lifecycle load` or `lifecycle load integration` per the lib's own
+`EDEN_COVER_TAGS`. That split is **pre-existing** and appears unchanged on both sides
+of the diff.
+
+**20 lines per record, 10 in each profile, and the same 7 verbs every time** — the
+5 lanes on their own, plus the 4 the `testing` phase re-runs and the 1 the `qa` phase
+does:
+
+```
+cover 1   cover-floor 1   integration 1   lifecycle 1   load 1
+phase-gate testing 4      phase-gate qa 1              = 10 per profile
+```
+
+Identical in `pass` and `fail`: `160` changed lines in each half, `16` records × `20`.
+The `fail` half moving in lockstep with `pass` is the tell that this is a flag being
+added to a command, not a verb changing what it does when a tool goes red.
+
+**`-timeout=25m` appears in exactly 2 records** — `go/orchestrator.txt` and
+`go/workspaceprovider.txt`, the 2 libs that stand up clusters and set the override in
+their own `ctl.sh`. The other **14** carry `-timeout=10m`, which is Go's own default,
+so those libraries change behaviour not at all — only the number stops being implied.
+No record carries both, and there is no third value. (`--timeout=180s` also appears in
+these files: it is golangci-lint's own long-standing flag, on `0` `go test` lines, and
+it is on neither side of this diff.)
+
+**`-v` appears on the `integration` shape and nowhere else** — 64 lines, all
+`-tags integration`, `0` on lifecycle, load or the coverage run. It is deliberate and
+narrow: `go test -v` prints each test's own elapsed time, which is the per-test cost
+baseline the lane has never had, and which the deferred real fix (wiring the shared
+cluster the harness already advertises through the dead `harnessConfig.perTest`) will
+need in CI to prove it worked.
+
+**`templates/go/http-gateway.txt` did not move.** It sources
+`templates/_ctl/template.sh`, a different gate library that this change does not
+touch. Its `integration` verb records `go	test -tags integration ./... -race
+-count=1` — a *different* argv from the one the 16 go libraries share, which is the
+point: the template lane was never running the command that was fixed, and it carries
+no `go test -timeout` at all (its only `--timeout=180s` is golangci-lint's). A record
+that stays byte-identical while its 16 siblings each gain the same 4 shapes bounds the
+blast radius to the library that was edited.
+
 ## These are not edited by hand
 
 `verb_conservation_test.sh` (repository root) diffs a live capture against them on
