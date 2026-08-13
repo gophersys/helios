@@ -312,3 +312,15 @@ a 13px overflow all along. Fidelity now runs at a reported 0.972 scale
 Golden regenerated deliberately; emitted overrides got the specificity to
 actually win; the nudge fixture is font-derived. 55 tests; fidelity rc=0,
 arial rc=0. Stale-patch trap hit a third time and fixed by reading first.
+
+## 2026-08-13T23:27Z — round 8: expectations must follow reported corrections
+v7 failed on my newest rules colliding with my older expectations — the
+purest failure class yet: (1) the ratio audit pinned num_fs=16 from the
+pre-autoscale era while DejaVu's reported 0.92 scale makes 14.7 CORRECT —
+the audit now derives its expectation from the build's own autoscale report;
+(2) my telemetry rhythm test asserted ±1px while the gap law itself tolerates
+max(6%,1px) — a test stricter than the law outlaws the law; it now asserts
+G-1 verbatim. Also shipped with this push: the deferred telemetry sweep pass
+(deferral logged last run — a push would have cancelled v7). Both local
+chains green; the locals are non-evidence for DejaVu-only paths, so v8 on
+the fleet is the real referee.

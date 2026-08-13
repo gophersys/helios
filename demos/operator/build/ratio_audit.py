@@ -97,6 +97,10 @@ def main() -> None:
         die(f"probe produced no output (chrome rc={r.returncode})")
     import html
     d = json.loads(html.unescape(m.group(1)))
+    # A reported grid autoscale changes grid type sizes BY DESIGN; the
+    # expectation follows the report (the page carries the comment).
+    m_scale = re.search(r"/\* grid autoscale ([0-9.]+):", PAGE.read_text())
+    grid_scale = float(m_scale.group(1)) if m_scale else 1.0
 
     failures = []
     def check(name, got, want, tol):
@@ -116,7 +120,7 @@ def main() -> None:
     check("badge_w", d["badge_w"], 18, 1)
     check("label_fs", d["label_fs"], 16, 0.5)
     check("value_fs", d["value_fs"], 16, 0.5)
-    check("num_fs", d["num_fs"], 16, 0.5)
+    check("num_fs", d["num_fs"], 16 * grid_scale, 0.5)
     check("text_knob_ratio", d["label_fs"] / d["knob"]["h"], 0.593, 0.06)
     check("display_top", d["display_top"], 14, 3)
     check("graph_h", d["graph_h"], 151, 3)
