@@ -56,7 +56,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           REVIEW_BUDGET_USD: "25"
           # The pinned reviewer. Raise it deliberately; see the note below.
-          CICTL_VERSION: v0.2.0
+          CICTL_VERSION: v0.3.0
           REVIEW_STREAM_FILE: ${{ runner.temp }}/review-stream.jsonl
         run: |
           set -euo pipefail
