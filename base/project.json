@@ -20,6 +20,14 @@
       },
       "cache": false
     },
+    "verify-published": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh verify-published",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
     "pull": {
       "executor": "nx:run-commands",
       "options": {

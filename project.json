@@ -30,6 +30,14 @@
         "{projectRoot}/*/project.json"
       ]
     },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh test",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
     "propagate": {
       "executor": "nx:run-commands",
       "options": {

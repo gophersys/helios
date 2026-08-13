@@ -60,10 +60,11 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
    root (`base/`, `flutter/`, `zephyr/`, `zephyr-devbox/`) contains
    `devcontainer.json` + `Dockerfile` + `project.json` + `ctl.sh`. It also
    contains each script that the image COPYs in, for example an entrypoint.
-   `validate` runs `shellcheck -x -S style` on every `*.sh` file in the
-   repository, so a new script is linted wherever you put it. Do not write a
-   README for an image. The output of `bash ./ctl.sh help` is the
-   specification.
+   `validate` runs `shellcheck -x -S style` on every shell script in the
+   repository — found by `*.sh` name **or** by a shell shebang on the first
+   line, so a script with no extension is linted too. A new script is therefore
+   linted wherever you put it. Do not write a README for an image. The output
+   of `bash ./ctl.sh help` is the specification.
 
    **A per-image `ctl.sh` is a thin dispatcher.** The body of each verb is in
    `_ctl/lib.sh`, 1 time only. The per-image script sets its data
@@ -103,6 +104,14 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
   Never invent a version.
 - **You must get approval to change a version.** A change to a version ARG goes
   through the brain-level approval gate.
+- **`ARG HADOLINT_VERSION` in `base/Dockerfile` also governs the gate.**
+  hadolint's verdict depends on its version — 2.15.1 raises DL3064 and DL3066 on
+  Dockerfiles that 2.14.0 passes — so `validate` lints at that exact pin. It uses
+  the `hadolint` on PATH when the version matches, otherwise
+  `hadolint/hadolint:v<pin>` through docker, and it FAILS naming the version when
+  it can reach neither. The devcontainer ships the pinned version, so a developer
+  and CI get the same verdict. Raising the pin is a version change like any
+  other, and it may turn new findings red.
 
 ## Sanctioned-platform policy
 
@@ -215,7 +224,7 @@ argv that you supply, so local devcontainer use behaves like the other layers.
 | `pull <image>` | Delegate to per-image `ctl.sh pull` |
 | `inspect <image>` | Delegate to per-image `ctl.sh inspect` |
 | `list` | Print the managed image refs |
-| `validate` | shellcheck every `*.sh`, jq, hadolint, ARG-discipline checks |
+| `validate` | shellcheck every shell script, jq, hadolint at the pinned version, ARG-discipline checks |
 | `test` | Run every `_ctl/tests/*.test.sh`; fail if it finds none |
 | `propagate` | Fan out submodule pointer bumps (delegates to brain) |
 | `release` | Cut a release (delegates to brain) |

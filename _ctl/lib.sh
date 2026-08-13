@@ -60,7 +60,9 @@ SANCTIONED_PLATFORMS="linux/amd64"
 
 # The platforms THIS image builds. Overridable, so an image can declare a
 # measured narrower target the way runner/ctl.sh once did. Wider is not a
-# choice: require_sanctioned_platforms refuses an entry outside the set above.
+# choice: require_sanctioned_platforms refuses an entry outside the set above,
+# and BOTH image_build and image_push call it. `build` needs it as much as
+# `push` does, because `build` tags the official ref on the developer's host.
 : "${IMAGE_PLATFORMS:=$SANCTIONED_PLATFORMS}"
 
 if [[ -n "${IMAGE_NAME:-}" ]]; then
@@ -169,7 +171,11 @@ function require_buildx_and_platforms() {
     if ! printf '%s' "$platforms" | grep -q -- "$p"; then
       log_error "buildx builder missing required platform: $p"
       log_error "current builder platforms: $platforms"
-      log_error "enable via QEMU: docker run --privileged --rm tonistiigi/binfmt --install all"
+      # Not a binfmt problem. An amd64 host builds linux/amd64 natively, and
+      # Docker Desktop on Apple Silicon offers it too, so a builder that does not
+      # list the 1 sanctioned platform did not bootstrap rather than lacking
+      # emulation. The binfmt hint that used to be here was for the arm64 half.
+      log_error "the builder did not bootstrap; recreate it: docker buildx create --use --name gophersys"
       exit 1
     fi
   done
@@ -193,6 +199,10 @@ function require_buildx_and_platforms() {
 # -------- image verbs --------
 function image_build() {
   require_cmd docker
+  # The same membership rule `push` uses. `build` tags the OFFICIAL ref, so an
+  # unsanctioned platform here puts a mislabelled image on the developer's host
+  # under the name the registry publishes — the exact defect this policy ends.
+  require_sanctioned_platforms
   # --platform is explicit because a bare `docker build` builds for the HOST.
   # On an Apple Silicon host that is arm64, so the local image would not be the
   # image that gets published.

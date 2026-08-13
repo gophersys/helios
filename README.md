@@ -278,9 +278,16 @@ The repository-root `ctl.sh`, `.ci/ctl.sh` and `.ci/smoke.sh` source the same
 library for the logging, the tool gate and the guard. Their own verbs act on
 the whole set of images, so they keep those verbs themselves.
 
-`validate` runs `shellcheck -x -S style` over every `*.sh` in the repository, so
-shellcheck follows the source line and checks each script together with the
-library, and a new script is linted wherever you put it.
+`validate` runs `shellcheck -x -S style` over every shell script in the
+repository — found by `*.sh` name **or** by a shell shebang, so a script with no
+extension is not skipped. `-x` follows the source line, so each script is checked
+together with the library, and a new script is linted wherever you put it. It
+refuses to report OK when it finds no script at all.
+
+`validate` lints Dockerfiles at the hadolint version `base/Dockerfile` pins in
+`ARG HADOLINT_VERSION`: the `hadolint` on PATH when its version matches,
+otherwise `hadolint/hadolint:v<pin>` through docker. A gate whose verdict depends
+on which hadolint the operator happened to install is not a gate.
 
 ### The tests
 
@@ -320,7 +327,8 @@ bash ./ctl.sh verify-published base e0c6bc5
 # List canonical image refs.
 bash ./ctl.sh list
 
-# Lint every *.sh, validate JSON, lint Dockerfiles, enforce ARG discipline.
+# Lint every shell script, validate JSON, lint Dockerfiles at the pinned
+# hadolint version, enforce ARG discipline.
 bash ./ctl.sh validate
 
 # Run every hermetic test under _ctl/tests/.

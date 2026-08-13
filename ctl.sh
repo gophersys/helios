@@ -134,6 +134,73 @@ function cmd_list() {
   done
 }
 
+# The hadolint version base/Dockerfile pins. That ARG is the single source of
+# truth for the whole repository: it is the hadolint the images ship, so it is
+# the hadolint the gate must judge with.
+function hadolint_pin() {
+  local pin
+  pin="$(grep -oE '^ARG HADOLINT_VERSION=[0-9]+\.[0-9]+\.[0-9]+' "$PROJECT_ROOT/base/Dockerfile" | head -1)"
+  if [[ -z "$pin" ]]; then
+    log_error "no 'ARG HADOLINT_VERSION=<semver>' in base/Dockerfile — the gate has no version to lint at"
+    return 1
+  fi
+  printf '%s' "${pin#ARG HADOLINT_VERSION=}"
+}
+
+# hadolint_resolve <pin> — print HOW to reach that exact version, `host` or
+# `container`. Its stdout is captured, so it logs nothing there; log_info writes
+# to stdout in this repository and the caller would read the log line as the
+# mode. It prints nothing at all and fails when neither route exists, because a
+# Dockerfile that no linter read must not report as a Dockerfile that passed.
+function hadolint_resolve() {
+  local pin="$1" have=""
+  if command -v hadolint >/dev/null 2>&1; then
+    # 2>&1 rather than 2>/dev/null: a hadolint that cannot report its own version
+    # is a hadolint whose output belongs on screen, not in the bin.
+    have="$(hadolint --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" || have=""
+  fi
+  if [[ "$have" == "$pin" ]]; then
+    printf 'host'
+    return 0
+  fi
+  if command -v docker >/dev/null 2>&1; then
+    printf 'container'
+    return 0
+  fi
+  log_error "hadolint ${pin} is required and this host has ${have:-none}, with no docker to run the pinned image"
+  log_error "run this inside the devcontainer, which ships exactly ${pin}, or install that version"
+  return 1
+}
+
+# hadolint_at_pin <mode> <pin> <dockerfile>
+function hadolint_at_pin() {
+  local mode="$1" pin="$2" file="$3"
+  case "$mode" in
+    host)      hadolint "$file" ;;
+    container) docker run --rm -v "$(dirname "$file"):/w:ro" -w /w "hadolint/hadolint:v${pin}" hadolint "$(basename "$file")" ;;
+    *)         log_error "hadolint_at_pin: unknown mode '${mode}'"; return 1 ;;
+  esac
+}
+
+# Print every shell script in the repository, 1 per line. Matched by name AND by
+# shebang: `_ctl/tests/stubs/docker` is a bash script with no extension, and a
+# *.sh glob alone left it linted by nothing while this script claimed to lint
+# every shell script.
+function shell_scripts() {
+  local file first
+  while IFS= read -r file; do
+    case "$file" in
+      *.sh) printf '%s\n' "$file"; continue ;;
+    esac
+    # No pipe into grep here: with pipefail, grep -q closing the pipe early can
+    # make a MATCH read as a failure, which would silently drop the file.
+    first="$(head -n 1 "$file")"
+    case "$first" in
+      '#!'*bash*|'#!'*ksh*|'#!'*/sh|'#!'*'env sh') printf '%s\n' "$file" ;;
+    esac
+  done < <(find "$PROJECT_ROOT" -type f -not -path '*/.git/*' | sort)
+}
+
 # Test: run every hermetic test file under _ctl/tests/. A suite that finds no
 # test file is a FAILURE and not a pass — a glob that matched nothing is the
 # exact way a green result can mean nothing was checked.
@@ -170,13 +237,26 @@ function cmd_validate() {
   local rc=0
   local name dir script
 
-  # Every *.sh in the repository, not a hand-kept list. The list version missed
-  # .ci/ctl.sh and .ci/smoke.sh, which no linter ran at all. -x follows the
-  # source line, so each dispatcher is checked together with _ctl/lib.sh.
+  # Every shell script in the repository, not a hand-kept list. The list version
+  # missed .ci/ctl.sh and .ci/smoke.sh, which no linter ran at all. -x follows
+  # the source line, so each dispatcher is checked together with _ctl/lib.sh.
+  local -a scripts=()
   while IFS= read -r script; do
-    log_info "shellcheck: ${script#"$PROJECT_ROOT"/}"
-    shellcheck -x -S style "$script" || rc=1
-  done < <(find "$PROJECT_ROOT" -name '*.sh' -not -path '*/.git/*' | sort)
+    scripts+=("$script")
+  done < <(shell_scripts)
+
+  # A lint that matched nothing is not a clean lint. Without this, a glob or a
+  # find that stopped matching leaves rc untouched and validate prints OK having
+  # read no file at all.
+  if [[ ${#scripts[@]} -eq 0 ]]; then
+    log_error "no shell script found under ${PROJECT_ROOT} — nothing was linted, so nothing is proven"
+    rc=1
+  else
+    for script in "${scripts[@]}"; do
+      log_info "shellcheck: ${script#"$PROJECT_ROOT"/}"
+      shellcheck -x -S style "$script" || rc=1
+    done
+  fi
 
   for name in "${BUILD_ORDER[@]}"; do
     dir="$(image_dir "$name")"
@@ -208,18 +288,25 @@ function cmd_validate() {
   log_info "jq parse: project.json"
   jq empty "$PROJECT_ROOT/project.json" || rc=1
 
-  if command -v hadolint >/dev/null 2>&1; then
+  # hadolint's verdict depends on its version: 2.15.1 raises DL3064 and DL3066 on
+  # Dockerfiles that 2.14.0 passes. A gate whose answer depends on what the
+  # operator happened to install is not a gate, so it lints at the version
+  # base/Dockerfile pins — the version the images themselves ship.
+  # A missing tool is a FAILURE, never a skip. This once printed a warning and
+  # returned OK, so `validate` reported success while linting no Dockerfile at
+  # all — on a host without hadolint it checked nothing and said it passed.
+  local hadolint_version="" hadolint_mode=""
+  if ! hadolint_version="$(hadolint_pin)"; then
+    rc=1
+  elif ! hadolint_mode="$(hadolint_resolve "$hadolint_version")"; then
+    rc=1
+  else
+    log_info "hadolint ${hadolint_version} (${hadolint_mode}), pinned by ARG HADOLINT_VERSION"
     for name in "${BUILD_ORDER[@]}"; do
       dir="$(image_dir "$name")"
       log_info "hadolint: ${name}/Dockerfile"
-      hadolint "$dir/Dockerfile" || rc=1
+      hadolint_at_pin "$hadolint_mode" "$hadolint_version" "$dir/Dockerfile" || rc=1
     done
-  else
-    # A missing tool is a FAILURE, never a skip. This printed a warning and
-    # returned OK, so `validate` reported success while linting no Dockerfile at
-    # all — on a host without hadolint it checked nothing and said it passed.
-    log_error "hadolint is not installed, so no Dockerfile was linted. Install it (brew install hadolint) or run this inside the devcontainer, which has it."
-    rc=1
   fi
 
   if [[ $rc -eq 0 ]]; then
