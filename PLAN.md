@@ -35,7 +35,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 - [x] Define `panel.toml` schema covering census -> tracks ->
       anchors -> widgets -> declared legal overlaps -> gate tolerances; write
       `docs/spec.md`.
-- [ ] Rewrite the Operator demo's solver inputs as `demos/operator/panel.toml`;
+- [ ] ⏳ 2026-08-13T21:58Z Rewrite the Operator demo's solver inputs as `demos/operator/panel.toml`;
       byte-identical solved CSS proves the migration.
 - [ ] Schema validation with named errors (a spec typo must fail loudly).
 
