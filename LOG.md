@@ -60,3 +60,10 @@ replaced eyeballing in the founding session, now reusable. Pillow behind a
 [measure] extra with a fail-loud import message; dev extra carries it for
 tests. 5 tests against a synthetic bitmap with known truth, incl. a negative
 (clean row scans empty). 32 total green.
+
+## 2026-08-13T21:47Z — P1 densui compare
+A/B composites as a library: side_by_side() stacks reference over build per
+region with a divider (NEAREST, no smoothing — pixels must stay honest) and
+find_color_row() locates a device edge in a page screenshot. Tests verify the
+layout arithmetic, that each half really shows its own source, the divider
+colour, and the absent-colour negative. 34 green. P1 remaining: the CLI.

@@ -27,7 +27,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 - [x] `densui.measure`: the reference-forensics toolkit (luminance scans,
       gridline crops, colour sampling, 8x anatomy zooms) from the session's
       ad-hoc scripts; Pillow as optional extra `[measure]`.
-- [ ] ⏳ 2026-08-13T21:46Z `densui compare`: ref-vs-built composite generator (the A/B strips).
+- [x] `densui compare`: ref-vs-built composite generator (the A/B strips).
 - [ ] CLI entry point: `uv run densui <solve|audit|sweep|measure|compare>`.
 
 ## P2 — The panel spec (make a new panel a data file, not a code fork)
