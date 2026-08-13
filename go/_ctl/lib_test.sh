@@ -2,7 +2,7 @@
 #
 # libs/go/_ctl/lib_test.sh — prove that lib.sh's gate can FAIL, and names the failure it had.
 #
-# Three defects, one suite, because all three live in this file:
+# Four defects, one suite, because all four live in this file:
 #
 #   1. `cmd_lint` mis-reports a golangci-lint RUN failure as lint findings (tests 1-5).
 #   2. `cmd_phase_gate`'s `all` arm records PASS for a verb whose tool exited non-zero
@@ -41,6 +41,27 @@
 #      whole nanoseconds, so `0.4ns` parses, becomes 0, and 0 is NO LIMIT — and the arm
 #      that refuses it is only sound if `1ns`, the smallest value the guard admits, really
 #      bounds a run, which test 17 drives against a real `go` rather than assuming.
+#
+#   4. A library REQUIRES a sibling library at `v0.0.0` and declares NO `replace` for it
+#      (tests 18-20). `v0.0.0` is unpublished, so the module cannot resolve at all: the
+#      library builds ONLY inside eden's `go.work`, and every gate verb runs standalone
+#      (`GOWORK=unset`) on purpose, because a library that compiles only inside its parent
+#      workspace is a package of the parent, not a library. A 16-library sweep of
+#      `phase-gate implementation` found `agentruntime` and `edenhttp` failing ALL 5
+#      dimensions on `missing go.sum entry` for exactly this reason, and nothing in the
+#      repository said so — the nightly gates only the projects a change touched, and
+#      neither library had been touched.
+#
+#      The check is PER MODULE, and the two obvious formulations are both wrong:
+#        - counting requires against replaces flags 13 of 16, because a `=> ../x` line also
+#          matches the requires pattern and double-counts;
+#        - subtracting the replaces still flags 5, because `envelope`, `forge` and
+#          `objectstorage` legitimately carry MORE replaces than requires — a replace may
+#          cover a requirement declared somewhere else in the graph.
+#      Only "for every sibling this go.mod REQUIRES, a replace exists for THAT module"
+#      selects the 2 the sweep found red. A count is wrong in both directions: it false-
+#      alarms on 11 libraries AND it stays green when a library replaces the WRONG module,
+#      which is the state `tree:repaired-wrong-module` builds and test 20 pins.
 #
 # `cmd_lint` reports EVERY non-zero golangci-lint exit as "golangci-lint found
 # issues". golangci-lint 2.12.2 exits 0 clean, 1 for findings and 3 when the RUN
@@ -622,6 +643,244 @@ mutant_lib() {
   printf '%s' "$dst"
 }
 
+# ── the sibling-replace scan (tests 18-20) ──────────────────────────────────
+#
+# Defect 4 is not in lib.sh at all — it is in the go.mod manifests, so the subject under test
+# is the TREE of `go/<lib>/go.mod` files. MODULE_TREE_SOURCE is the tree as it stands;
+# MODULE_TREE is the tree the NEXT run reads. They are the same directory for the behaviour
+# run, and a `tree:` counter-stimulus repoints MODULE_TREE at a throwaway copy — exactly the
+# LIB_SOURCE/LIB split above, for the same reason.
+SIBLING_PREFIX="github.com/gophersys/libs/go/"
+MODULE_TREE_SOURCE="$REPO_ROOT/go"
+MODULE_TREE="$MODULE_TREE_SOURCE"
+[[ -d "$MODULE_TREE_SOURCE" ]] || die "the module tree under test is missing: $MODULE_TREE_SOURCE"
+
+# The anchor the two breaking tree mutants are built on. It is a REQUIRED sibling of a REAL
+# library, so the mutants die loudly if that requirement ever goes away rather than mutating
+# nothing and reporting a pass. The decoy is a real sibling that WRONG_REPLACE_LIB does NOT
+# require, which is what makes `repaired-wrong-module` keep the replace COUNT identical while
+# pointing it at the wrong module.
+WRONG_REPLACE_LIB="agentruntime"
+WRONG_REPLACE_MODULE="observability"
+WRONG_REPLACE_DECOY="gitrepository"
+
+# One go.mod parser, three outputs, so the scan and the repair can never disagree about what a
+# manifest says. `-v mode=`:
+#   report   SCANNED <lib> requires=<n> replaces=<n>      (the census, for the vacuity floor)
+#            UNREPLACED <lib> -> <slug> [<slug>...]       (the report, only when something is)
+#   missing  <slug> <version>                             (what a repair would have to add)
+#   requires <module-path> <version>                      (EVERY require, in file order)
+#
+# go.mod has both a block form (`require (` … `)`) and a single-line form, and a replace's
+# left-hand side may or may not carry a version — all four shapes appear in this tree, so the
+# parser tracks the block instead of pattern-matching a line in isolation. The comparison is
+# `index(path, prefix) == 1`, never a regex: a module path is full of dots, and a dot in a
+# dynamic regex matches anything.
+# shellcheck disable=SC2016 # the awk program is literal; $0 and $1 are awk's fields, not bash's
+SIBLING_SCAN_AWK='
+function replace_once(s, old, new,   p) {
+  p = index(s, old)
+  if (p == 0) return s
+  return substr(s, 1, p - 1) new substr(s, p + length(old))
+}
+{
+  line = $0
+  sub(/\/\/.*/, "", line)
+  gsub(/^[ \t]+/, "", line); gsub(/[ \t]+$/, "", line)
+  if (line == "") next
+  kind = ""
+  if (block == "") {
+    if (line ~ /^module[ \t]/)       { split(line, f, /[ \t]+/); self = f[2]; next }
+    if (line ~ /^require[ \t]*\(/)   { block = "require"; next }
+    if (line ~ /^replace[ \t]*\(/)   { block = "replace"; next }
+    if (line ~ /^require[ \t]/)      { kind = "require"; sub(/^require[ \t]+/, "", line) }
+    else if (line ~ /^replace[ \t]/) { kind = "replace"; sub(/^replace[ \t]+/, "", line) }
+    else next
+  } else {
+    if (line ~ /^\)/) { block = ""; next }
+    kind = block
+  }
+  if (kind == "require") {
+    split(line, f, /[ \t]+/)
+    every[++ne] = f[1] " " f[2]
+    if (index(f[1], prefix) == 1 && f[1] != self) {
+      slug = substr(f[1], length(prefix) + 1)
+      required[slug] = 1
+      version[slug] = f[2]
+    }
+    next
+  }
+  arrow = index(line, "=>")
+  if (arrow == 0) next
+  split(substr(line, 1, arrow - 1), f, /[ \t]+/)
+  if (index(f[1], prefix) == 1 && f[1] != self) replaced[substr(f[1], length(prefix) + 1)] = 1
+}
+END {
+  if (mode == "requires") {
+    for (i = 1; i <= ne; i++) print every[i]
+    exit 0
+  }
+  nr = 0; np = 0; nm = 0
+  for (m in required) { nr++; if (!(m in replaced)) missing[++nm] = m }
+  for (m in replaced) np++
+  for (i = 1; i < nm; i++)
+    for (j = i + 1; j <= nm; j++)
+      if (missing[j] < missing[i]) { swap = missing[i]; missing[i] = missing[j]; missing[j] = swap }
+  if (mode == "missing") {
+    for (i = 1; i <= nm; i++) print missing[i] " " version[missing[i]]
+    exit 0
+  }
+  printf "SCANNED %s requires=%d replaces=%d\n", lib, nr, np
+  if (nm == 0) exit 0
+  out = missing[1]
+  for (i = 2; i <= nm; i++) out = out " " missing[i]
+  printf "UNREPLACED %-12s -> %s\n", lib, out
+}
+'
+
+# read_manifest <mode> <go.mod> — the parser above over one manifest.
+read_manifest() {
+  local mode="$1" manifest="$2" lib
+  [[ -f "$manifest" ]] || die "read_manifest was handed no manifest: $manifest"
+  lib="$(basename "$(dirname "$manifest")")"
+  awk -v mode="$mode" -v lib="$lib" -v prefix="$SIBLING_PREFIX" "$SIBLING_SCAN_AWK" "$manifest"
+}
+
+# scan_sibling_replaces <tree> — the census and the report over every go/<lib>/go.mod in <tree>.
+scan_sibling_replaces() {
+  local tree="$1" manifest
+  [[ -n "$tree" ]] || die "scan_sibling_replaces needs a tree"
+  for manifest in "$tree"/*/go.mod; do
+    [[ -f "$manifest" ]] || continue
+    read_manifest report "$manifest"
+  done
+}
+
+# copy_module_tree <tree> — prints the path of a throwaway copy of <tree>'s go.mod files, so a
+# counter-stimulus never writes inside the repository.
+copy_module_tree() {
+  local src="$1" dst lib manifest copied=0
+  dst="$(mktemp -d "$WORK/tree.XXXXXX")"
+  for manifest in "$src"/*/go.mod; do
+    [[ -f "$manifest" ]] || continue
+    lib="$(basename "$(dirname "$manifest")")"
+    mkdir -p "$dst/$lib"
+    cp "$manifest" "$dst/$lib/go.mod"
+    copied=$((copied + 1))
+  done
+  [[ "$copied" -gt 0 ]] ||
+    die "no go.mod was copied out of $src, so every tree stimulus would be an empty directory"
+  printf '%s' "$dst"
+}
+
+# repair_tree <tree> — appends, to each manifest, a replace for every sibling it requires and
+# does not replace. This is the SCAN'S INVERSE, and it is here for exactly one purpose: to prove
+# the property tests 18-19 assert is REACHABLE. A test that can only ever go red might be
+# asserting something no tree can satisfy, and this is what refutes that. It proves nothing
+# about the fix itself — the fix is the go.mod edit, and test 18 over the real tree is what
+# reads it. Adding nothing is a legitimate outcome: over an already-correct tree the repair is
+# a no-op, which is precisely the state test 18 goes green in.
+repair_tree() {
+  local tree="$1" manifest missing slug version
+  for manifest in "$tree"/*/go.mod; do
+    [[ -f "$manifest" ]] || continue
+    missing="$(read_manifest missing "$manifest")"
+    [[ -n "$missing" ]] || continue
+    printf '\nreplace (\n' >> "$manifest"
+    while IFS=' ' read -r slug version; do
+      [[ -n "$slug" ]] || continue
+      printf '\t%s%s %s => ../%s\n' "$SIBLING_PREFIX" "$slug" "$version" "$slug" >> "$manifest"
+    done <<< "$missing"
+    printf ')\n' >> "$manifest"
+  done
+}
+
+# ── the module-tree stimuli (tests 18-20) ───────────────────────────────────
+#
+# Every mutant DIES if it changed nothing, the same discipline as mutant_lib: a counter-stimulus
+# that mutated nothing proves nothing, and the message names the anchor it could not find.
+mutant_tree() {
+  local spec="$1" tree manifest target rc=0
+  tree="$(copy_module_tree "$MODULE_TREE_SOURCE")"
+  case "$spec" in
+    # An EMPTY tree. The scan reads no manifest, finds nothing unreplaced, and a test that only
+    # looked for UNREPLACED lines would call that clean — the "0 tests ran, exit 0" class. This
+    # is the counter that proves the vacuity floor is load-bearing rather than decorative.
+    empty)
+      rm -rf "${tree:?}"/*
+      printf '%s' "$tree"
+      return 0
+      ;;
+    repaired) repair_tree "$tree" ;;
+    # THE COUNTER FOR "every required sibling is replaced": repair the tree, then take ONE
+    # replace back out. The library then requires a sibling at v0.0.0 with nothing pointing at
+    # it — the exact state agentruntime and edenhttp are in today.
+    repaired-minus-one-replace)
+      repair_tree "$tree"
+      manifest="$tree/$WRONG_REPLACE_LIB/go.mod"
+      target="$SIBLING_PREFIX$WRONG_REPLACE_MODULE"
+      [[ -f "$manifest" ]] ||
+        die "the '$spec' tree mutant has no $WRONG_REPLACE_LIB/go.mod to mutate in $tree"
+      awk -v target="$target" '
+        {
+          arrow = index($0, "=>")
+          at    = index($0, target)
+          if (arrow == 0 || at == 0 || at > arrow) { print; next }
+          changed++
+        }
+        END { if (!changed) exit 3 }
+      ' "$manifest" > "$manifest.mutant" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' tree mutant changed nothing: $WRONG_REPLACE_LIB declares no replace for $target, so the counter-stimulus cannot be applied"
+      mv "$manifest.mutant" "$manifest"
+      ;;
+    # THE COUNTER THAT SEPARATES A PER-MODULE CHECK FROM A COUNTING ONE: repair the tree, then
+    # aim one replace at a sibling the library does not require. The number of replaces is
+    # UNCHANGED, so every count-based formulation still calls this clean, and the module the
+    # replace used to cover is now unreplaced.
+    repaired-wrong-module)
+      repair_tree "$tree"
+      manifest="$tree/$WRONG_REPLACE_LIB/go.mod"
+      target="$SIBLING_PREFIX$WRONG_REPLACE_MODULE"
+      [[ -f "$manifest" ]] ||
+        die "the '$spec' tree mutant has no $WRONG_REPLACE_LIB/go.mod to mutate in $tree"
+      awk -v target="$target" -v decoy="$SIBLING_PREFIX$WRONG_REPLACE_DECOY" \
+          -v from="../$WRONG_REPLACE_MODULE" -v to="../$WRONG_REPLACE_DECOY" '
+        function replace_once(s, old, new,   p) {
+          p = index(s, old)
+          if (p == 0) return s
+          return substr(s, 1, p - 1) new substr(s, p + length(old))
+        }
+        {
+          arrow = index($0, "=>")
+          at    = index($0, target)
+          if (arrow == 0 || at == 0 || at > arrow) { print; next }
+          line = replace_once($0, target, decoy)
+          line = replace_once(line, from, to)
+          print line
+          changed++
+        }
+        END { if (!changed) exit 3 }
+      ' "$manifest" > "$manifest.mutant" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' tree mutant changed nothing: $WRONG_REPLACE_LIB declares no replace for $target, so the counter-stimulus cannot be applied"
+      mv "$manifest.mutant" "$manifest"
+      ;;
+    *) die "unknown module-tree mutant: $spec" ;;
+  esac
+  # `repaired` over an already-correct tree legitimately changes nothing, so only the two
+  # BREAKING mutants are held to "it must differ". A breaking mutant identical to its source
+  # would be read as a discrimination pass having broken nothing.
+  case "$spec" in
+    repaired-minus-one-replace | repaired-wrong-module)
+      if cmp -s "$MODULE_TREE_SOURCE/$WRONG_REPLACE_LIB/go.mod" "$tree/$WRONG_REPLACE_LIB/go.mod"; then
+        die "the '$spec' tree mutant reported a change but produced an identical $WRONG_REPLACE_LIB/go.mod"
+      fi
+      ;;
+  esac
+  printf '%s' "$tree"
+}
+
 # ── the tests ───────────────────────────────────────────────────────────────
 #
 # HOUSE FORM FOR A NEGATIVE ASSERTION: `if <probe>; then fail "…"; fi` — never
@@ -897,6 +1156,105 @@ t_one_nanosecond_is_accepted_and_bounds_the_lane() {
     fail "1ns took ${ELAPSED_MS}ms, over the ${HANG_CEILING_MS}ms ceiling and near the ${HANG_SLEEP_SECONDS}s the test would have slept — it did not bound the run"
 }
 
+# assert_the_scan_is_not_vacuous <report> — the scan walks a glob and reports what it found, so
+# BOTH of its empty states read as "clean": a tree with no go.mod at all, and a tree whose
+# manifests parsed but yielded no sibling requirement (a parser that silently stopped matching
+# go.mod's block form would look exactly like that). Neither is a pass. This floor runs before
+# every UNREPLACED assertion below, and `tree:empty` is the counter-stimulus that proves it bites.
+assert_the_scan_is_not_vacuous() {
+  local report="$1" scanned requirements
+  scanned="$(grep -c '^SCANNED ' <<< "$report" || true)"
+  [[ "$scanned" -gt 0 ]] ||
+    fail "the scan read no go.mod under $MODULE_TREE, so an empty report proves nothing: [$report]"
+  requirements="$(awk '$1 == "SCANNED" { n = $0; sub(/.*requires=/, "", n); sub(/ .*/, "", n); total += n }
+                       END { print total + 0 }' <<< "$report")"
+  [[ "$requirements" -gt 0 ]] ||
+    fail "the scan read $scanned go.mod file(s) under $MODULE_TREE and found NO sibling requirement in any of them; the parser, not the tree, is what this run measured: [$report]"
+}
+
+# assert_every_required_sibling_is_replaced — the property, over whatever MODULE_TREE points at.
+# The failure NAMES the library and every module it left unreplaced, because "a replace is
+# missing somewhere" sends a reader at 3am into 16 manifests to find out which.
+assert_every_required_sibling_is_replaced() {
+  local report unreplaced
+  report="$(scan_sibling_replaces "$MODULE_TREE")"
+  assert_the_scan_is_not_vacuous "$report"
+  unreplaced="$(grep '^UNREPLACED ' <<< "$report" || true)"
+  if [[ -n "$unreplaced" ]]; then
+    fail "$(printf '%s\n' \
+      "a library requires a sibling at v0.0.0 and declares no replace for it. v0.0.0 is" \
+      "unpublished, so the module resolves only inside eden's go.work and every gate verb —" \
+      "which runs standalone, GOWORK=unset — fails on 'missing go.sum entry':" \
+      "" \
+      "$unreplaced" \
+      "" \
+      "each line names the library and every module it must add 'replace <module> v0.0.0 =>" \
+      "../<slug>' for. Add the replace block; move no version and run no go mod tidy.")"
+  fi
+}
+
+# THE DEFECT, over the tree as it stands. `agentruntime` and `edenhttp` require siblings at
+# v0.0.0 with no replace, which is why a 16-library sweep found both failing all 5 gate
+# dimensions while every project-scoped nightly stayed green.
+t_every_required_sibling_is_replaced() {
+  assert_every_required_sibling_is_replaced
+}
+
+# CONSERVATION, and the refutation of "this assertion can only ever be red". A test proven only
+# in the failing direction might be asserting something no tree can satisfy — a sibling feature
+# shipped exactly that and the verifier caught it. So the same assertion is driven over a tree
+# repaired by the scan's own inverse, where it must be GREEN, and the repair is held to changing
+# nothing but replace directives: no require moved, no version moved, no `go mod tidy`, which is
+# the whole shape the fix is allowed to have.
+t_a_repaired_module_tree_is_clean() {
+  assert_every_required_sibling_is_replaced
+  assert_only_replace_directives_differ
+}
+
+# assert_only_replace_directives_differ — every manifest in MODULE_TREE must carry the same
+# requires, in the same order, at the same versions, as the tree it was copied from.
+assert_only_replace_directives_differ() {
+  local manifest lib before after compared=0
+  for manifest in "$MODULE_TREE_SOURCE"/*/go.mod; do
+    [[ -f "$manifest" ]] || continue
+    lib="$(basename "$(dirname "$manifest")")"
+    [[ -f "$MODULE_TREE/$lib/go.mod" ]] ||
+      fail "the repaired tree has no $lib/go.mod, so it is not the tree it claims to be a repair of"
+    before="$(read_manifest requires "$manifest")"
+    after="$(read_manifest requires "$MODULE_TREE/$lib/go.mod")"
+    [[ "$before" == "$after" ]] ||
+      fail "$(printf '%s\n' "the repair changed $lib's requirements, so it is not a replace-only change:" "--- before" "$before" "--- after" "$after")"
+    compared=$((compared + 1))
+  done
+  # A for-loop over an empty glob returns 0, which would make this assertion report a pass
+  # having compared nothing.
+  [[ "$compared" -gt 0 ]] ||
+    fail "no manifest was compared against $MODULE_TREE_SOURCE, so this run asserted nothing"
+}
+
+# THE ONE THAT SEPARATES A PER-MODULE CHECK FROM A COUNTING ONE. The tree it runs over has ONE
+# replace aimed at a sibling the library does not require: the replace COUNT is untouched, so
+# every count-based formulation calls it clean, and one required module is now covered by
+# nothing. The report must name that module, must name it ALONE, and the census must show the
+# counts still matching — otherwise this run does not prove which formulation is doing the work.
+t_the_report_names_the_library_and_only_the_unreplaced_module() {
+  local report line modules census requires replaces
+  report="$(scan_sibling_replaces "$MODULE_TREE")"
+  assert_the_scan_is_not_vacuous "$report"
+  line="$(grep "^UNREPLACED ${WRONG_REPLACE_LIB}[[:space:]]" <<< "$report" || true)"
+  [[ -n "$line" ]] ||
+    fail "$WRONG_REPLACE_LIB replaces $WRONG_REPLACE_DECOY instead of the $WRONG_REPLACE_MODULE it requires, and the scan reported it clean: [$report]"
+  modules="${line#*-> }"
+  [[ "$modules" == "$WRONG_REPLACE_MODULE" ]] ||
+    fail "the report names [$modules]; exactly $WRONG_REPLACE_MODULE is unreplaced in this tree, so any other module here means the check is not reading the module a replace points AT"
+  census="$(grep "^SCANNED ${WRONG_REPLACE_LIB}[[:space:]]" <<< "$report" || true)"
+  [[ -n "$census" ]] || fail "the scan produced no census line for $WRONG_REPLACE_LIB: [$report]"
+  requires="${census##*requires=}"; requires="${requires%% *}"
+  replaces="${census##*replaces=}"
+  [[ "$requires" -eq "$replaces" ]] ||
+    fail "this tree holds $requires sibling requires against $replaces replaces; the counts must MATCH here, or a count-based check would have flagged it too and this run proves nothing about the per-module form: [$census]"
+}
+
 TESTS=(
   t_a_collision_is_not_reported_as_findings
   t_real_findings_are_still_reported_as_findings
@@ -915,6 +1273,9 @@ TESTS=(
   t_only_the_integration_lane_is_verbose
   t_a_fractional_budget_is_refused
   t_one_nanosecond_is_accepted_and_bounds_the_lane
+  t_every_required_sibling_is_replaced
+  t_a_repaired_module_tree_is_clean
+  t_the_report_names_the_library_and_only_the_unreplaced_module
 )
 
 # ── the stimulus tables ─────────────────────────────────────────────────────
@@ -944,6 +1305,11 @@ stimulus_for() {
     # 1ns is supplied by the test: it is the exact boundary the guard's proof rests on, not a
     # value the table may drift away from it.
     t_one_nanosecond_is_accepted_and_bounds_the_lane)       printf 'real\n' ;;
+    # The tree AS IT STANDS. This is the only test in the suite whose subject is the repository's
+    # own manifests rather than a sandbox, because that is where the defect lives.
+    t_every_required_sibling_is_replaced)                   printf 'tree:real\n' ;;
+    t_a_repaired_module_tree_is_clean)                      printf 'tree:repaired\n' ;;
+    t_the_report_names_the_library_and_only_the_unreplaced_module) printf 'tree:repaired-wrong-module\n' ;;
     *) die "no phase-1 stimulus is declared for $1" ;;
   esac
 }
@@ -1006,6 +1372,25 @@ counter_for() {
     # Not passing the budget to `go test` leaves 1ns unenforced: the fixture then sleeps its full
     # 10s and the lane exits 0, which is what "the guard admits 1ns" would have meant on its own.
     t_one_nanosecond_is_accepted_and_bounds_the_lane)  printf 'mutant:integration-untimed\n' ;;
+    # THREE counters, because there are three ways this assertion could be believed and be
+    # hollow. `repaired-minus-one-replace` is the defect itself, planted. `repaired-wrong-module`
+    # keeps the replace COUNT identical and aims one at the wrong sibling — the state every
+    # count-based formulation calls clean. `empty` hands the scan no manifest at all, which is
+    # the shape a check that silently does nothing takes.
+    t_every_required_sibling_is_replaced)
+      printf 'tree:repaired-minus-one-replace\n'
+      printf 'tree:repaired-wrong-module\n'
+      printf 'tree:empty\n' ;;
+    # The same three, against the conservation half: a "clean tree" test that stayed green with
+    # a replace deleted, or aimed at the wrong module, or with nothing to read, would be reading
+    # neither the tree nor the report.
+    t_a_repaired_module_tree_is_clean)
+      printf 'tree:repaired-minus-one-replace\n'
+      printf 'tree:repaired-wrong-module\n'
+      printf 'tree:empty\n' ;;
+    # The repaired tree names nothing, so every assertion about WHAT the report names loses its
+    # subject. This is what stops the test from being satisfied by a report it never read.
+    t_the_report_names_the_library_and_only_the_unreplaced_module) printf 'tree:repaired\n' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
 }
@@ -1020,6 +1405,7 @@ apply() {
   LIB="$LIB_SOURCE"
   SUBSTRATE_TIMEOUT_PRESENT=0
   SUBSTRATE_TIMEOUT=""
+  MODULE_TREE="$MODULE_TREE_SOURCE"
   REFUSE_VALUES=("0" "0s" "" "0h0m0s" "-5m" "notaduration")
   FRACTION_VALUES=("0.4ns" "0.0000000001s" "1.5h" "0.5s")
   case "$1" in
@@ -1043,6 +1429,12 @@ apply() {
       LIB="$(mutant_lib "${1#mutant:}")" ||
         die "the '${1#mutant:}' counter-stimulus could not be built (see the message above)"
       [[ -f "$LIB" ]] || die "the '${1#mutant:}' counter-stimulus produced no lib.sh" ;;
+    # The repository's own manifests. Not a copy: the point of test 18 is the tree that ships.
+    tree:real)   MODULE_TREE="$MODULE_TREE_SOURCE" ;;
+    tree:*)
+      MODULE_TREE="$(mutant_tree "${1#tree:}")" ||
+        die "the '${1#tree:}' counter-stimulus could not be built (see the message above)"
+      [[ -d "$MODULE_TREE" ]] || die "the '${1#tree:}' counter-stimulus produced no module tree" ;;
     real)        : ;;
     none:*)      return 1 ;;
     *) die "unknown stimulus spec: $1" ;;
