@@ -324,3 +324,15 @@ G-1 verbatim. Also shipped with this push: the deferred telemetry sweep pass
 (deferral logged last run — a push would have cancelled v7). Both local
 chains green; the locals are non-evidence for DejaVu-only paths, so v8 on
 the fleet is the real referee.
+
+## 2026-08-13T23:29Z — v8 GREEN: test:success geometry:success — P3 COMPLETE
+Eight rounds after the first queued run, the fleet says yes to everything at
+once: the container pulled with its own token, the full test lane (probe and
+audit measuring real renders), and the geometry lane — solver with three
+nudge symmetries, grid tracks from advances, the reported autoscale, ratio
+expectations that follow reports, the ink battery, and the widest-string
+sweep — all inside ghcr.io/gophersys/dense-ui-ci, the image the devcontainer
+builds FROM. Every one of the eight refusals en route became a permanent
+rule; the last four became rules about rules. P3 complete. P7's skills box
+also ticked (repo-canonical ui-* skills, personal pointers, ~/.claude list
+updated). The two deferred commits ride along with this push.
