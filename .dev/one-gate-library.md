@@ -1,6 +1,6 @@
 # one-gate-library
 
-phase:    green — the hnslint escalation is DECIDED (2026-08-13)
+phase:    verify — green, awaiting the adversarial pass
 repo:     gophersys/libs
 branch:   refactor/one-gate-library
 worktree: ~/code/.worktrees/libs-one-gate
@@ -194,9 +194,54 @@ Against the same directory it prints only the 2 layout findings and ZERO naming
 findings — it cannot see the half the decision turns on. Anyone who had run this
 locally would have concluded the naming half did not exist.
 
+### Phase 3 — GREEN, every line run
+
+- `bash templates/_ctl/template_test.sh` -> rc=0,
+  `5 test(s) hold; 5 of 5 proven able to fail; 0 stated no counter`.
+- `bash verb_conservation_test.sh` -> rc=0,
+  `17 project record(s) hold; 3 mutant(s) caught`. The rename did NOT move the
+  golden, so nothing had to be re-recorded for it.
+- `bash ./ctl.sh validate` -> rc=0.
+- hnslint contrast, the deliverable: naming findings 3 -> 0, layout findings 2 ->
+  2, `HNSLINT_RC=1`. Still red, correctly, with no skip and no silencing.
+- The template still builds: `go build`, `go vet`, `go test` all rc=0,
+  `gofumpt -l` clean.
+
+Commits `1bb027c..58bfb97`: e400c8b (the runner can now fail), 921a6ae (rule 11
+pins the spine names), 58bfb97 (the template uses them).
+
+### The evidence was re-counted, not repeated
+
+The implementer verified my numbers itself rather than trusting the brief:
+`type Config struct` 26 in 14 libs, `type Deps struct` 22 in 14 libs, and a diff
+proves the 2 library sets are IDENTICAL. Zero long-form declarations under `go/`.
+
+**And it found something better.** The outlier was inside the TEMPLATE, not only
+against the libraries: `internal/server/server.go`, `internal/api/v1/mount.go`
+and `internal/api/v1/ping/route.go` already used `Config`/`Deps`. Only
+`persistence` disagreed. So this was a self-consistency fix as much as a rule
+change.
+
+`Store` -> `Persistence`, and not a free choice: rule 11 maps `db`/`repo`/`store`
+-> `persistence`, so that IS the required form. `ResourceStore` and
+`ResourcePersistence` both stutter as `resource.X`, which revive's exported rule
+flags in the strict set. `Repository` would relabel a banned token, not fix it.
+
+### Ownership, flagged rather than hidden
+
+The rename touched 2 `_test.go` files inside the template
+(`resource_integration_test.go`, `resource_route_test.go`). Those are shipped
+template SOURCE, not the phase-2 suites. The implementer flagged it for checking
+rather than assuming, and I checked the diff: 2 type references and 1 comment.
+No assertion, tolerance, case or skip changed.
+
 ## Next
 
-STOP for Mateo on the hnslint question. The runner unification is unblocked and
+Phase 4 — the adversarial refutation, then the pull request. The hnslint LAYOUT
+half stays red on purpose (task #34); it needs an hnslint release because v0.1.0
+has no flags.
+
+STOP for Mateo was on the hnslint question. The runner unification is unblocked and
 independent: phase 3 may fix the shared body so the gate can fail, which is the
 prerequisite for the hnslint step to matter at all. Do not land a declared skip
 for hnslint until the question above is answered — and if a skip does land, the
