@@ -16,7 +16,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
       `measureText`) as a library asset with a Python driver
       (`densui.probe.collect(page, selectors) -> parts`), extracted from
       `demos/operator/build/overlap_audit.py`.
-- [ ] ⏳ 2026-08-13T21:08Z `densui.audit`: the full proof battery (overlap w/ declared exceptions,
+- [x] `densui.audit`: the full proof battery (overlap w/ declared exceptions,
       crowding floors, gap law via `gap_law_violations`, containment,
       breathing, alignment spreads) as reusable functions consuming probe
       output; the operator scripts become thin wrappers. Chrome discovery

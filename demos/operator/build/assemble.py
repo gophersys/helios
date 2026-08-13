@@ -103,12 +103,14 @@ def main() -> None:
         die("ratio audit failed")
 
     # Overlap audit — any illegal glyph/box intersection fails the build.
-    r = subprocess.run(["python3", str(BUILD / "overlap_audit.py")], text=True)
+    r = subprocess.run(["uv", "run", "--project", str((BUILD / "../../../tools/densui").resolve()), "python3",
+                        str(BUILD / "overlap_audit.py")], text=True)
     if r.returncode != 0:
         die("overlap audit failed")
 
     # Content sweep — same proofs with every value at its widest string.
-    r = subprocess.run(["python3", str(BUILD / "overlap_audit.py"), "--sweep"], text=True)
+    r = subprocess.run(["uv", "run", "--project", str((BUILD / "../../../tools/densui").resolve()), "python3",
+                        str(BUILD / "overlap_audit.py"), "--sweep"], text=True)
     if r.returncode != 0:
         die("content sweep failed")
 

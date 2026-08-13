@@ -29,3 +29,14 @@ fail on a bad fixture (and one genuinely went red on my own fixture arithmetic
 wrong). HANDOFF: sub-step 2 = rewrite demos/operator/build/overlap_audit.py
 as a thin wrapper over densui.probe + densui.audit and re-run the demo gates;
 the box stays ⏳ until then.
+
+## 2026-08-13T21:19Z — P1 densui.audit (sub-step 2 of 2) ✓
+demos/operator/build/overlap_audit.py is now 81 lines of declarations (parts,
+graze, spill, sweep values, column key) over densui.probe + densui.audit; the
+260-line bespoke original is gone. assemble.py runs it via uv --project so the
+package resolves. The gate immediately caught a real wrapper bug: the global
+row's LEDs carry osc.*.on owners and my alignment key read four side-by-side
+LEDs as one 57px-misaligned column — key restricted to dial/checkbox. Full
+demo chain green (solver, ratio, audit, sweep, params). Assembled
+operator.html added to .gitignore: it embeds licensed Ableton fonts and must
+never be committed. Box ticked.
