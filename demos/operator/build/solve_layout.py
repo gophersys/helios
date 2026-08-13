@@ -66,6 +66,15 @@ def main() -> None:
         for u in units:
             r = row[u["name"]]
             css.append(f".{u['name']} {{ left: {r['left']}px; top: 1px; width: {r['width']}px; }}")
+    env = out["grid_rows"]["env"]
+    osc = out["grid_rows"]["osc"]
+    css.append("/* dgrid tracks: reserved from font advances (grid_rows) */")
+    css.append(f".dgrid {{ grid-template-columns: {env['total']}px 1fr; }}")
+    css.append(".cells { grid-template-columns: "
+               + " ".join(f"{w}px" for w in env["widths"][:-1]) + " 1fr; "
+               + f"column-gap: {env['gap']}px; }}")
+    css.append(".cells.two { grid-template-columns: "
+               + f"{osc['widths'][0]}px 1fr; column-gap: {osc['gap']}px; }}")
     print("\n".join(css))
 
 

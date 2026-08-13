@@ -286,3 +286,16 @@ plates — now line-clustered with a test. Second audit: failures: []. A page
 no human eye has ever seen passes the geometry battery that a spec, not a
 bitmap, defines. 52 tests green; render gitignored as a build artifact.
 HANDOFF: sweep config + ratio hook for the telemetry chain, then interaction.
+
+## 2026-08-13T23:15Z — grid_rows: no text track is hand-sized anywhere, ever again
+Container DejaVu (not Arial's approximation) produced round-6 violations —
+Time<Vel/Wave 0.8px, Osc<Vel escape 13px — the third recurrence of the
+hand-track class, so the P6 box was pulled forward on evidence. densui.solve
+gained grid_rows: every column reserves the widest string it can ever render
+(labels AND sweep values) + pad, per font. The operator dgrid is now solved:
+Ableton advances want 288/64/64/65 — NARROWER than my hand guesses — and
+DejaVu will re-solve its own wider tracks in the container. Golden
+regenerated deliberately (the documented intended-change path); fidelity and
+Arial chains green with bare rcs; 53 tests. The class is retired: solver
+refuses empty columns, spec validates the new table, and the last hand-sized
+text geometry in the repository is gone.

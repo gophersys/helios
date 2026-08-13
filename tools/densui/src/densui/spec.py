@@ -80,6 +80,11 @@ def load_panel(spec: dict | str | pathlib.Path) -> dict:
         trail = row.get("trailing")
         if trail is not None:
             _require(trail, ["name", "center", "width"], f"{where}.trailing", errors)
+    for rname, row in solve.get("grid_rows", {}).items():
+        where = f"solve.grid_rows.{rname}"
+        _unknown(row, {"cell_pad", "gap", "columns"}, where, errors)
+        if not row.get("columns"):
+            errors.append(f"{where}: columns must be a non-empty list")
     for rname, row in solve.get("knob_rows", {}).items():
         where = f"solve.knob_rows.{rname}"
         _unknown(row, KNOB_ROW, where, errors)

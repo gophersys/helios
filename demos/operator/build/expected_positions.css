@@ -28,3 +28,7 @@
 .p-gl-time { left: 85px; top: 1px; width: 40px; }
 .p-gl-tone { left: 178px; top: 1px; width: 41px; }
 .p-gl-vol { left: 262px; top: 1px; width: 61px; }
+/* dgrid tracks: reserved from font advances (grid_rows) */
+.dgrid { grid-template-columns: 288px 1fr; }
+.cells { grid-template-columns: 64px 64px 65px 1fr; column-gap: 6px; }
+.cells.two { grid-template-columns: 80px 1fr; column-gap: 6px; }

@@ -63,6 +63,8 @@ def solve(spec: dict | str | pathlib.Path) -> dict:
         sol, corr = _solve_flow(name, data["flow_rows"][name], ctx)
         out["flow_rows"][name] = sol
         out["corrections"] += corr
+    for name in sorted(data.get("grid_rows", {})):
+        out.setdefault("grid_rows", {})[name] = _solve_grid(name, data["grid_rows"][name], ctx)
     for name in sorted(data.get("knob_rows", {})):
         sol, corr = _solve_knobs(name, data["knob_rows"][name], ctx)
         out["knob_rows"][name] = sol
@@ -131,6 +133,24 @@ def _solve_flow(name: str, row: dict, ctx: _Ctx) -> tuple[dict, list[str]]:
             else 0,
         }
     return sol, corrections
+
+
+def _solve_grid(name: str, row: dict, ctx: _Ctx) -> dict:
+    """Text-grid tracks: each column reserves the widest string it can ever
+    render (labels AND sweep values) plus padding — no text track is ever
+    hand-sized (the operator dgrid recurrences are this model's evidence)."""
+    pad = float(row.get("cell_pad", 4))
+    widths = []
+    for i, col in enumerate(row["columns"]):
+        strings = col.get("strings", [])
+        if not strings:
+            raise SolveError(f"{name}: column {i} has no strings to reserve from")
+        widths.append(int(max(ctx.adv(t) for t in strings) + pad + 0.999))
+    return {
+        "widths": widths,
+        "gap": int(row.get("gap", 6)),
+        "total": sum(widths) + int(row.get("gap", 6)) * (len(widths) - 1),
+    }
 
 
 def _solve_knobs(name: str, row: dict, ctx: _Ctx) -> tuple[dict, list[str]]:

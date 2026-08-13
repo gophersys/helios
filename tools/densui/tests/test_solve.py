@@ -152,3 +152,29 @@ def test_label_crowding_beyond_tolerance_refuses(font_path):
     row["label_floor"] = 200
     with pytest.raises(SolveError, match="label ink"):
         solve(s)
+
+
+def test_grid_rows_reserve_widest_string(font_path):
+    from densui.fontmetrics import Face
+
+    s = {
+        "font": {"path": font_path, "size": 16},
+        "grid_rows": {
+            "g": {
+                "gap": 6,
+                "cell_pad": 4,
+                "columns": [
+                    {"strings": ["Attack", "10.0 s"]},
+                    {"strings": ["Vel", "-100 %"]},
+                ],
+            }
+        },
+    }
+    out = solve(s)["grid_rows"]["g"]
+    f = Face(font_path)
+    want0 = int(max(f.adv("Attack", 16), f.adv("10.0 s", 16)) + 4 + 0.999)
+    assert out["widths"][0] == want0
+    assert out["total"] == sum(out["widths"]) + 6
+    s["grid_rows"]["g"]["columns"][0]["strings"] = []
+    with pytest.raises(SolveError, match="no strings"):
+        solve(s)

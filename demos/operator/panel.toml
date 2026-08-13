@@ -137,6 +137,24 @@ center = 292
 label = "Volume"
 widest = "-12.3 dB"
 
+[solve.grid_rows.env]
+gap = 6
+cell_pad = 4
+columns = [
+  { strings = ["Attack", "Initial", "Loop", "0.02 ms", "-inf dB", "10.0 s", "None"] },
+  { strings = ["Decay", "Peak", "15.7 ms", "0.0 dB", "30.0 s", "-inf dB"] },
+  { strings = ["Release", "Sustain", "50.0 ms", "-inf dB", "30.0 s"] },
+  { strings = ["Time<Vel", "Vel", "Key", "0 %", "-100 %", "100 %"] },
+]
+
+[solve.grid_rows.osc]
+gap = 6
+cell_pad = 4
+columns = [
+  { strings = ["Wave", "Feedback", "Phase", "Sin 4", "Square D", "R 0 %", "R 100 %"] },
+  { strings = ["Osc<Vel", "0", "-48", "Q"] },
+]
+
 # Static line-2 positions (measured from the gridline crops; not solver-owned)
 [emit]
 knob_row_order = ["lfo", "filter", "pitch", "global"]
