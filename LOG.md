@@ -380,3 +380,12 @@ Geometry battery: failures []. Wired into ctl.sh geometry, so the fleet now
 proves census -> solve -> render -> ink AND the executed contract in one
 lane. P4 done: two blind demos, both fleet-proven, one of them showing
 contract states no mock could fake.
+
+## 2026-08-13T23:53Z — PLAN hygiene + bench NOTES; P4 fully closed
+Found and fixed a stale ⏳ duplicate: the font-parametric box's lock line had
+survived its own completion (the tick regex missed it silently — worth
+knowing: my PLAN-editing asserts check the NEW text exists, which passes
+even when the OLD line survives; future ticks assert the old form is GONE
+too). Bench NOTES written: snapshot-not-session, authored log prose,
+demo-scaled timing, and the unrun second-transport drill named as the honest
+remainder. All P4 boxes now genuinely [x]. Fourth consecutive fleet green.

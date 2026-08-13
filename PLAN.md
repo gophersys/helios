@@ -41,9 +41,8 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 ## P3 — Gates in CI (all six proofs on every push)
 
-- [ ] ⏳ 2026-08-13T22:08Z Font-parametric demo build: `assemble.py --font <ttf>` with a freely
-      licensed committed font (check OFL redistribution properly; include the
-      licence file) or the runner's DejaVu; solver re-solves for that font.
+- [x] Font-parametric demo build: `assemble.py --font <ttf>` — no font
+      committed; the runner's DejaVu drives CI, the solver re-solves per font.
 - [x] Chrome headless on the arc-org fleet runs ratio + overlap + sweep gates
       (`ctl.sh build --font <runner ttf>`); extend ctl.sh with a `geometry`
       target; if the fleet image lacks Chrome/fonts, coordinate with
@@ -58,7 +57,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
       census -> spec -> solver -> gates only.
 - [x] `demos/bench/`: a hardware bring-up bench panel (rails, probes, links)
       exercising the CONTRACT stage against a fake serial backend.
-- [ ] Each demo: census.md, panel spec, gates green, honest NOTES on what the
+- [x] Each demo: census.md, panel spec, gates green, honest NOTES on what the
       framework could not decide.
 
 ## P5 — Eyes as a supplement, proofs as the authority
