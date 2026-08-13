@@ -15,7 +15,7 @@
 #      trusts. lib.sh:1007-1020 already documents and fixes the trap INSIDE `_gate_run`;
 #      the neutral position has to hold at the CALL SITE too, or the suppression comes
 #      straight back.
-#   3. The substrate lanes state NO time budget (tests 8-12). `cmd_integration` runs
+#   3. The substrate lanes state NO time budget (tests 8-17). `cmd_integration` runs
 #      `go test -tags integration ./... -count=1` with no `-timeout`, so Go's own default
 #      of 10 minutes PER PACKAGE applies silently. `workspaceprovider/kubernetesadapter`
 #      stands up 8 clusters (6 k3d + 2 kind, one per test) and measures 601.3s isolated /
@@ -29,6 +29,18 @@
 #      the log line. Test 10 is the one that proves the last part: it runs a REAL `go`
 #      against a fixture that sleeps past its budget, so the timeout is proven by
 #      BEHAVIOUR in seconds instead of by shape, or by waiting 10 minutes.
+#
+#      Tests 13-17 close 2 holes a verifier found in the first cut. `lifecycle`, `load`
+#      and the `-v` flag were pinned ONLY by the verb-conservation goldens, and a golden
+#      is the one check in this repository with a sanctioned "make it match" button:
+#      deleting `-timeout` from `cmd_lifecycle` left `lib_test.sh` GREEN, reddened only
+#      the goldens, and one `EDEN_CONSERVATION_RECORD=1` made the whole repository green
+#      again. The `integration` lane never had that property, because its shape AND its
+#      behaviour are asserted here. Tests 13-15 give the other two lanes and the flag the
+#      same standing. Tests 16-17 pin the guard's SECOND arm: Go truncates a duration to
+#      whole nanoseconds, so `0.4ns` parses, becomes 0, and 0 is NO LIMIT — and the arm
+#      that refuses it is only sound if `1ns`, the smallest value the guard admits, really
+#      bounds a run, which test 17 drives against a real `go` rather than assuming.
 #
 # `cmd_lint` reports EVERY non-zero golangci-lint exit as "golangci-lint found
 # issues". golangci-lint 2.12.2 exits 0 clean, 1 for findings and 3 when the RUN
@@ -81,10 +93,18 @@ ABSENT_TOOL=""
 # SUBSTRATE_TIMEOUT_PRESENT distinguishes "EDEN_SUBSTRATE_TIMEOUT is not in the environment
 # at all" (0 — the state of the 14 non-cluster libraries, which must keep Go's own default)
 # from "it is set, possibly to the empty string" (1). SUBSTRATE_TIMEOUT is the value.
-# REFUSE_VALUES is the set of budgets the lane must REFUSE.
+#
+# The guard has TWO arms with DISTINCT messages, so each has its own value set and its own
+# test, and each test asserts WHICH arm fired rather than merely that something failed:
+#   REFUSE_VALUES   — empty, negative, or no non-zero digit  -> "is not a positive duration"
+#   FRACTION_VALUES — carries a `.`                          -> "is fractional"
+# The second arm exists because Go TRUNCATES a duration to whole nanoseconds: `0.4ns` parses,
+# reaches `go test -timeout=0.4ns`, becomes 0, and 0 is NO LIMIT. Refusing every fraction is
+# what makes "one digit in 1-9 and no dot" a proof that the budget is at least 1ns.
 SUBSTRATE_TIMEOUT_PRESENT=0
 SUBSTRATE_TIMEOUT=""
-REFUSE_VALUES=("0" "0s" "")
+REFUSE_VALUES=("0" "0s" "" "0h0m0s" "-5m" "notaduration")
+FRACTION_VALUES=("0.4ns" "0.0000000001s" "1.5h" "0.5s")
 # OUT and RC hold the last run_lint / run_phase_gate / run_verb / run_real_lane result;
 # ARGV holds what the sandbox's stubs recorded of their own invocations; ELAPSED_MS is the
 # wall time of the last run_real_lane, so "reported in seconds" is a number, not an adjective.
@@ -481,6 +501,73 @@ mutant_lib() {
       [[ "$rc" -eq 0 ]] ||
         die "the '$spec' mutant changed nothing: no non-log line in $LIB_SOURCE runs '-tags integration' with a -timeout, so the counter-stimulus cannot be applied"
       ;;
+    # THE COUNTERS FOR THE OTHER TWO SUBSTRATE LANES. These 2 lanes are pinned by the
+    # verb-conservation GOLDENS as well — but a golden is the one check in this repository with a
+    # sanctioned "make it match" button, so `EDEN_CONSERVATION_RECORD=1` turns a deletion here
+    # green everywhere. An assertion has no such button. That asymmetry is why these exist.
+    lifecycle-untimed)
+      awk "$common"'
+        /-tags[[:space:]]*"?lifecycle[[:space:]]+\.\/\.\.\./ && !is_log($0) {
+          if (sub(/[[:space:]]+-timeout(=[^[:space:]]+|[[:space:]]+[^[:space:]]+)/, "")) changed++
+        }
+        { print }
+        END { if (!changed) exit 3 }
+      ' "$LIB_SOURCE" > "$dst" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' mutant changed nothing: no non-log line in $LIB_SOURCE runs '-tags lifecycle ./...' with a -timeout, so the counter-stimulus cannot be applied"
+      ;;
+    load-untimed)
+      awk "$common"'
+        /-tags[[:space:]]*"?load[[:space:]]+\.\/\.\.\./ && !is_log($0) {
+          if (sub(/[[:space:]]+-timeout(=[^[:space:]]+|[[:space:]]+[^[:space:]]+)/, "")) changed++
+        }
+        { print }
+        END { if (!changed) exit 3 }
+      ' "$LIB_SOURCE" > "$dst" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' mutant changed nothing: no non-log line in $LIB_SOURCE runs '-tags load ./...' with a -timeout, so the counter-stimulus cannot be applied"
+      ;;
+    # THE 2 COUNTERS FOR "-v is on integration AND ONLY on integration" — one per half. Dropping
+    # it kills the per-test cost baseline the deferred fix needs; spreading it to another lane
+    # makes the flag mean nothing, and both are one re-record away from invisible.
+    integration-not-verbose)
+      awk "$common"'
+        /-tags[[:space:]]*"?integration/ && !is_log($0) {
+          if (sub(/[[:space:]]+-v([[:space:]]|$)/, " ")) changed++
+        }
+        { print }
+        END { if (!changed) exit 3 }
+      ' "$LIB_SOURCE" > "$dst" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' mutant changed nothing: no non-log line in $LIB_SOURCE runs '-tags integration' with a -v, so the counter-stimulus cannot be applied"
+      ;;
+    lifecycle-verbose)
+      awk "$common"'
+        /-tags[[:space:]]*"?lifecycle[[:space:]]+\.\/\.\.\./ && !is_log($0) {
+          if (sub(/$/, " -v")) changed++
+        }
+        { print }
+        END { if (!changed) exit 3 }
+      ' "$LIB_SOURCE" > "$dst" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' mutant changed nothing: no non-log line in $LIB_SOURCE runs '-tags lifecycle ./...', so the counter-stimulus cannot be applied"
+      ;;
+    # THE COUNTER FOR "a fractional budget is refused", and ONLY that arm. `guard-toothless`
+    # disarms BOTH arms at once, so it cannot tell the fractional clause from the zero clause.
+    # This one is anchored on the word the TEST reads out of the message — "fractional" — so it
+    # neuters that arm's exit and leaves the zero arm intact.
+    fraction-arm-disarmed)
+      awk '
+        /fractional/ { window = 8 }
+        window > 0 {
+          if (sub(/(exit|return)[[:space:]]+[1-9][0-9]*/, ":")) changed++
+        }
+        { if (window > 0) window--; print }
+        END { if (!changed) exit 3 }
+      ' "$LIB_SOURCE" > "$dst" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' mutant changed nothing: no exit/return sits within 8 lines of the word 'fractional' in $LIB_SOURCE, so there is no fractional arm to disarm"
+      ;;
     # THE COUNTER FOR "cover-floor carries the same budget": fix ONLY cmd_integration. This is
     # what turns the budget from a case into a rule.
     cover-untimed)
@@ -665,11 +752,30 @@ t_the_substrate_lane_states_its_budget() {
 # value a half-written per-lib override leaves behind. Both must be refused BY NAME, so the
 # reader is sent to the knob instead of to a lane that never returns.
 t_an_unbounded_budget_is_refused() {
+  assert_every_value_is_refused 'is not a positive duration' "${REFUSE_VALUES[@]}"
+}
+
+# THE SECOND GUARD ARM. Go TRUNCATES a duration to whole nanoseconds, so `0.4ns` parses, reaches
+# `go test -timeout=0.4ns`, becomes 0 — and 0 is NO LIMIT. A digit-only filter passes it, because
+# `0.4ns` does carry a non-zero digit; that is exactly how the first version of this guard read
+# "bounded" over a lane that was not. Refusing every fraction is what makes "a digit in 1-9 and no
+# dot" a proof rather than a hope, and it costs only the legitimate `1.5h`, which is written `90m`.
+# The arm is asserted BY ITS OWN MESSAGE, so a value cannot be credited to the wrong clause.
+t_a_fractional_budget_is_refused() {
+  assert_every_value_is_refused 'is fractional' "${FRACTION_VALUES[@]}"
+}
+
+# assert_every_value_is_refused <message-fragment> <value...> — the shared body of the 2 refusal
+# tests. Each value must be refused, must be refused BY THE NAMED ARM, must name the knob, and
+# must reach NO `go` invocation at all: a budget that is going to be rejected must be rejected
+# before the lane spends a substrate, not after.
+assert_every_value_is_refused() {
+  local expected="$1"; shift
   local value shown
   # A for-loop over an empty list returns 0, which would make this test report a pass having
   # asserted nothing — the "0 tests ran, exit 0" class this suite exists to delete.
-  [[ "${#REFUSE_VALUES[@]}" -gt 0 ]] || fail "no budget values were supplied, so this run asserted nothing"
-  for value in "${REFUSE_VALUES[@]}"; do
+  [[ $# -gt 0 ]] || fail "no budget values were supplied, so this run asserted nothing"
+  for value in "$@"; do
     shown="${value:-<empty>}"
     SUBSTRATE_TIMEOUT_PRESENT=1
     SUBSTRATE_TIMEOUT="$value"
@@ -678,6 +784,11 @@ t_an_unbounded_budget_is_refused() {
       fail "EDEN_SUBSTRATE_TIMEOUT=${shown} was accepted (exit 0): the lane would run unbounded and could never report a hang: $OUT"
     grep -q 'EDEN_SUBSTRATE_TIMEOUT' <<< "$OUT" ||
       fail "the refusal of ${shown} never names EDEN_SUBSTRATE_TIMEOUT, so the reader cannot find the knob to fix: $OUT"
+    grep -q "$expected" <<< "$OUT" ||
+      fail "${shown} was refused, but not by the '${expected}' arm — a value credited to the wrong clause hides which check is doing the work: $OUT"
+    if grep -qE '^go[[:space:]]' <<< "$ARGV"; then
+      fail "${shown} was refused AFTER the lane had already invoked go: [$ARGV]"
+    fi
   done
 }
 
@@ -724,6 +835,68 @@ t_the_default_budget_is_ten_minutes_and_is_stated() {
     fail "no [info] line states the default 10m budget, so it is implied again: $OUT"
 }
 
+# THE OTHER TWO SUBSTRATE LANES. `lifecycle` and `load` were carried into this feature by the
+# verb-conservation goldens alone, and a golden has a sanctioned `EDEN_CONSERVATION_RECORD=1`
+# button: deleting -timeout from either lane left the whole repository green after one re-record.
+# An assertion has no such button. These 2 tests are the difference between a recorded fact and
+# a stated intent.
+t_the_lifecycle_lane_states_its_budget() {
+  run_verb lifecycle
+  grep -qE '^go[[:space:]]+test[[:space:]].*-tags[[:space:]]+"?lifecycle[[:space:]]' <<< "$ARGV" ||
+    fail "the lifecycle lane never ran 'go test -tags lifecycle', so this run proves nothing: [$ARGV]"
+  grep -qE '^go[[:space:]]+test[[:space:]].*-timeout[= ]7m([[:space:]]|$)' <<< "$ARGV" ||
+    fail "the lifecycle lane carries no 7m budget although EDEN_SUBSTRATE_TIMEOUT=7m: [$ARGV]"
+}
+
+t_the_load_lane_states_its_budget() {
+  run_verb load
+  grep -qE '^go[[:space:]]+test[[:space:]].*-tags[[:space:]]+"?load[[:space:]]' <<< "$ARGV" ||
+    fail "the load lane never ran 'go test -tags load', so this run proves nothing: [$ARGV]"
+  grep -qE '^go[[:space:]]+test[[:space:]].*-timeout[= ]7m([[:space:]]|$)' <<< "$ARGV" ||
+    fail "the load lane carries no 7m budget although EDEN_SUBSTRATE_TIMEOUT=7m: [$ARGV]"
+}
+
+# `-v` is deliberate and NARROW: it makes `go test` print each test's own elapsed time, which is
+# the per-test cost baseline the deferred shared-cluster fix needs before it can prove it worked.
+# Both halves matter. Without it on integration the baseline never exists; spread across the other
+# lanes it stops meaning "this is the lane we are costing" and buries every other lane's output.
+t_only_the_integration_lane_is_verbose() {
+  local lane
+  run_verb integration
+  grep -qE '^go[[:space:]]+test[[:space:]].*-tags[[:space:]]+"?integration' <<< "$ARGV" ||
+    fail "the integration lane never ran 'go test -tags integration', so this run proves nothing: [$ARGV]"
+  grep -qE '^go[[:space:]]+test[[:space:]].* -v([[:space:]]|$)' <<< "$ARGV" ||
+    fail "the integration lane carries no -v, so CI records no per-test cost and the deferred fix has no baseline: [$ARGV]"
+  for lane in lifecycle load cover-floor; do
+    run_verb "$lane"
+    if grep -qE '^go[[:space:]]+test[[:space:]].* -v([[:space:]]|$)' <<< "$ARGV"; then
+      fail "the $lane lane also carries -v; the flag marks the ONE lane being costed, and on every lane it marks nothing: [$ARGV]"
+    fi
+  done
+}
+
+# `1ns` is the boundary the guard's proof rests on: "no dot, and a digit in 1-9" is only sound if
+# the smallest value it admits REALLY bounds a run. So the smallest admissible budget is driven
+# against a REAL go and a test that sleeps 10s. If this fails, the guard is arithmetic about a
+# property Go does not have.
+t_one_nanosecond_is_accepted_and_bounds_the_lane() {
+  local fixture
+  fixture="$(make_real_lane_fixture)"
+  SUBSTRATE_TIMEOUT_PRESENT=1
+  SUBSTRATE_TIMEOUT="1ns"
+  run_real_lane "$fixture"
+  info "the smallest admissible budget returned in ${ELAPSED_MS}ms with rc=${RC}, against a ${HANG_SLEEP_SECONDS}s sleep"
+  if grep -q 'EDEN_SUBSTRATE_TIMEOUT' <<< "$OUT"; then
+    fail "1ns was REFUSED, but the guard admits it — the proof that 'a digit in 1-9 and no dot' means >= 1ns rests on 1ns being usable: $OUT"
+  fi
+  [[ "$RC" -ne 0 ]] ||
+    fail "the lane exited 0 under a 1ns budget although its test sleeps ${HANG_SLEEP_SECONDS}s: the smallest value the guard admits does not bound anything: $OUT"
+  grep -q 'test timed out after 1ns' <<< "$OUT" ||
+    fail "the lane failed under 1ns without reporting a timeout, so it did not fail for the budget: $OUT"
+  [[ "$ELAPSED_MS" -lt "$HANG_CEILING_MS" ]] ||
+    fail "1ns took ${ELAPSED_MS}ms, over the ${HANG_CEILING_MS}ms ceiling and near the ${HANG_SLEEP_SECONDS}s the test would have slept — it did not bound the run"
+}
+
 TESTS=(
   t_a_collision_is_not_reported_as_findings
   t_real_findings_are_still_reported_as_findings
@@ -737,6 +910,11 @@ TESTS=(
   t_a_hang_is_reported_in_seconds
   t_cover_floor_carries_the_same_budget
   t_the_default_budget_is_ten_minutes_and_is_stated
+  t_the_lifecycle_lane_states_its_budget
+  t_the_load_lane_states_its_budget
+  t_only_the_integration_lane_is_verbose
+  t_a_fractional_budget_is_refused
+  t_one_nanosecond_is_accepted_and_bounds_the_lane
 )
 
 # ── the stimulus tables ─────────────────────────────────────────────────────
@@ -758,6 +936,14 @@ stimulus_for() {
     t_a_hang_is_reported_in_seconds)                        printf 'real\n' ;;
     t_cover_floor_carries_the_same_budget)                  printf 'substrate:7m\n' ;;
     t_the_default_budget_is_ten_minutes_and_is_stated)      printf 'substrate:absent\n' ;;
+    t_the_lifecycle_lane_states_its_budget)                 printf 'substrate:7m\n' ;;
+    t_the_load_lane_states_its_budget)                      printf 'substrate:7m\n' ;;
+    # The default budget, because -v must not depend on the knob's value at all.
+    t_only_the_integration_lane_is_verbose)                 printf 'substrate:absent\n' ;;
+    t_a_fractional_budget_is_refused)                       printf 'fraction:truncating\n' ;;
+    # 1ns is supplied by the test: it is the exact boundary the guard's proof rests on, not a
+    # value the table may drift away from it.
+    t_one_nanosecond_is_accepted_and_bounds_the_lane)       printf 'real\n' ;;
     *) die "no phase-1 stimulus is declared for $1" ;;
   esac
 }
@@ -803,6 +989,23 @@ counter_for() {
     # Move the default off Go's own 10m: the one change that would alter behaviour for the 14
     # libraries which never set the knob.
     t_the_default_budget_is_ten_minutes_and_is_stated) printf 'mutant:default-25m\n' ;;
+    # The 2 deletions that a single `EDEN_CONSERVATION_RECORD=1` used to make invisible.
+    t_the_lifecycle_lane_states_its_budget)            printf 'mutant:lifecycle-untimed\n' ;;
+    t_the_load_lane_states_its_budget)                 printf 'mutant:load-untimed\n' ;;
+    # ONE COUNTER PER HALF of "on integration, and only there".
+    t_only_the_integration_lane_is_verbose)
+      printf 'mutant:integration-not-verbose\n'
+      printf 'mutant:lifecycle-verbose\n' ;;
+    # `fraction:bounded` proves the test reads the exit code and the message rather than always
+    # failing — a whole 90m must be ACCEPTED. `mutant:fraction-arm-disarmed` proves it reads the
+    # FRACTIONAL arm specifically: `guard-toothless` would disarm both arms at once and could not
+    # tell which clause was doing the work.
+    t_a_fractional_budget_is_refused)
+      printf 'fraction:bounded\n'
+      printf 'mutant:fraction-arm-disarmed\n' ;;
+    # Not passing the budget to `go test` leaves 1ns unenforced: the fixture then sleeps its full
+    # 10s and the lane exits 0, which is what "the guard admits 1ns" would have meant on its own.
+    t_one_nanosecond_is_accepted_and_bounds_the_lane)  printf 'mutant:integration-untimed\n' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
 }
@@ -817,7 +1020,8 @@ apply() {
   LIB="$LIB_SOURCE"
   SUBSTRATE_TIMEOUT_PRESENT=0
   SUBSTRATE_TIMEOUT=""
-  REFUSE_VALUES=("0" "0s" "")
+  REFUSE_VALUES=("0" "0s" "" "0h0m0s" "-5m" "notaduration")
+  FRACTION_VALUES=("0.4ns" "0.0000000001s" "1.5h" "0.5s")
   case "$1" in
     exit:*)      STIMULUS="${1#exit:}" ;;
     # A `die` inside a command substitution exits only the SUBSHELL, and apply is called from a
@@ -829,8 +1033,12 @@ apply() {
     absent:*)    ABSENT_TOOL="${1#absent:}" ;;
     substrate:absent) SUBSTRATE_TIMEOUT_PRESENT=0 ;;
     substrate:*) SUBSTRATE_TIMEOUT_PRESENT=1; SUBSTRATE_TIMEOUT="${1#substrate:}" ;;
-    refuse:unbounded) REFUSE_VALUES=("0" "0s" "") ;;
+    refuse:unbounded) REFUSE_VALUES=("0" "0s" "" "0h0m0s" "-5m" "notaduration") ;;
     refuse:bounded)   REFUSE_VALUES=("7m") ;;
+    # `1.5h` is the legitimate value this arm costs, and it is IN the refused set on purpose: the
+    # message tells the reader to write `90m`, and `90m` is what the counter proves is accepted.
+    fraction:truncating) FRACTION_VALUES=("0.4ns" "0.0000000001s" "1.5h" "0.5s") ;;
+    fraction:bounded)    FRACTION_VALUES=("90m") ;;
     mutant:*)
       LIB="$(mutant_lib "${1#mutant:}")" ||
         die "the '${1#mutant:}' counter-stimulus could not be built (see the message above)"
