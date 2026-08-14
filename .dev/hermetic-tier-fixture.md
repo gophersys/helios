@@ -1,6 +1,6 @@
 # hermetic-tier-fixture
 
-phase:    plan
+phase:    red
 repo:     gophersys/libs
 branch:   fix/hermetic-tier-fixture
 worktree: ~/code/.worktrees/libs-hermetic-tier-fixture
@@ -14,8 +14,35 @@ gating works, but one test in `.ci/ctl_test.sh` — `t_a_fault_inside_the_produc
 outer job's git environment. When this lands, libs `main` goes green on the on-push tier for a
 real reason, and the tier test suite passes regardless of the outer `NX_BASE` / checkout shape.
 
-## Plan
-(to be produced by dev-planner, then approved here)
+## Plan — APPROVED (dev-planner CONFIRMED the hypothesis by direct measurement; orchestrator approved 2026-08-14)
+Root cause CONFIRMED. The planted-fault line (ctl_test.sh:185) `git fetch --quiet origin "$NX_BASE"`
+emits DIFFERENT bytes per NX_BASE value:
+- `origin/main`    → `fatal: 'origin' does not appear to be a git repository`  (missing remote)
+- `origin/main~1`  → `fatal: invalid refspec 'origin/main~1'`                   (`~1` rejected FIRST)
+The test guards on `does not appear to be a git repository` (ctl_test.sh:633). `run_verb`
+(ctl_test.sh:497) sets only PATH/EDEN_TEST_GATED_LOG/BASH_ENV, so the outer job's NX_BASE leaks in
+(fixture `ctl.sh:44` keeps `${NX_BASE:-origin/main}`). On-push sets origin/main~1 → guard fails at
+rc=128 (today's red). On-pr/devcontainer use origin/main/unset → pass. Sole variable = the leaked
+NX_BASE. NOT detached-HEAD, NOT absent-origin.
+
+THE FIX (one token, in the TEST file `.ci/ctl_test.sh`): add `NX_BASE=origin/main` to `run_verb`'s
+env prefix (line 497), beside PATH/EDEN_TEST_GATED_LOG/BASH_ENV, with a one-line comment (the
+fixture is hermetic to the outer NX_BASE as it already is to PATH; origin/main is a valid refspec
+so the planted fetch fails at the missing remote — the intended fault — under any outer value).
+Do NOT weaken the assertion. Do NOT touch .ci/ctl.sh, the mutation programs, or the workflow
+NX_BASE values. dev-test-author owns this; NO dev-implementer (no source file to change).
+
+## Proven
+(added to the prior evidence)
+- RED REPRODUCED by the orchestrator in `ghcr.io/gophersys/base-runner:e0c6bc5` (bash 5.2, cictl
+  present) against the CURRENT unfixed worktree:
+  `docker run --rm --platform linux/amd64 -v <wt>:/w -w /w base-runner bash -c 'git config --global
+  --add safe.directory "*"; NX_BASE=origin/main~1 bash .ci/ctl_test.sh
+  t_a_fault_inside_the_producer_fails_the_tier'`
+  → OUTPUT: `fatal: invalid refspec 'origin/main~1'`, `no failing command ran inside the producer …
+  (rc=128)`, `FAIL t_a_fault_inside_the_producer_fails_the_tier`, SUITE_RC=1. Byte-for-byte the
+  runner's failure. THE RED IS PROVEN, for the right reason.
+- Proof env verified: base:latest lacks cictl (runner-layer only, #20) → MUST use base-runner.
 
 ## Proven
 Established across three prior investigation firings (evidence in task #76):
