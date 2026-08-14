@@ -129,8 +129,25 @@
 # Set RUNNER_QUEUE_FIXTURE to a file that holds one jobs-API response
 # (`{"jobs": [ ... ]}`) to measure data you control instead of the live API. The
 # fixture feeds the same rows to the same arithmetic, so the floor, the rule,
-# the table and the exit code are the ones the live path uses. Every job of the
-# fixture is both the sample and the window.
+# the table and the exit code are the ones the live path uses.
+#
+# A fixture MAY also carry the runs index beside the jobs, in the shape the runs
+# API returns it:
+#
+#   {"runs": [{"id": 1, "path": ".github/workflows/validate.yml"}, ...],
+#    "jobs": [{"run_id": 1, ...}, ...]}
+#
+# It then splits the sample from the window on `run.path`, through the same
+# match the live path uses, so a fixture can hold the jobs of workflows it asks
+# no verdict about. That split is the ONLY way to measure a repo-wide floor
+# against a narrower window, and it is the headline of this verb.
+#
+# Without that index every job of the fixture is both the sample and the window.
+# That is what a bare jobs-API response means, and it is what every fixture
+# written before the index still means. Such a fixture pins the floor
+# arithmetic, the rule and the verdict loop. It can say NOTHING about which jobs
+# feed which: when the sample and the window hold the same rows, no content in
+# those rows can tell the 2 apart.
 #
 # Exit 0   = no job waited past the alarm level.
 # Exit 1   = at least one job did. The pool was saturated.
@@ -193,9 +210,16 @@ JOB_FIELDS='
       ((.labels // []) | join(",") | if . == "" then "-" else . end)
     ] | @tsv'
 
+# The runs index, again with 1 field list for both sources, because `run.path`
+# is the only key that splits the sample from the window and the 2 paths must
+# not split on different things. Only the envelope differs: the live API returns
+# `.workflow_runs`, and a fixture carries `.runs`.
+RUN_FIELDS='[ .id, .path ] | @tsv'
+
 # 2 files, because the 2 questions have 2 different samples. SAMPLE feeds the
 # dispatch floor and holds every workflow. WINDOW gets the verdicts and holds
-# the requested workflow alone. On the fixture path they are the same rows.
+# the requested workflow alone. A fixture with no runs index puts the same rows
+# in both.
 JOBS_SAMPLE="$(mktemp)"
 JOBS_WINDOW="$(mktemp)"
 JOBS_RUN="$(mktemp)"
@@ -211,14 +235,30 @@ if [ -n "$FIXTURE" ]; then
     echo "verify-runner-queue: fixture is not a jobs-API response: $FIXTURE" >&2
     exit 3
   fi
-  cp "$JOBS_SAMPLE" "$JOBS_WINDOW"
+  if ! runs_tsv="$(jq -r "(.runs // [])[] | $RUN_FIELDS" <"$FIXTURE")"; then
+    echo "verify-runner-queue: fixture carries a runs index this cannot read: $FIXTURE" >&2
+    exit 3
+  fi
   source_label="fixture $FIXTURE"
-  window_label="every job of the fixture"
+  if [ -z "$runs_tsv" ]; then
+    cp "$JOBS_SAMPLE" "$JOBS_WINDOW"
+    window_label="the jobs of the fixture"
+    no_verdict_hint="A fixture with no runs index is its own window. There is nothing to widen."
+  else
+    while IFS=$'\t' read -r rid rpath; do
+      case "$rpath" in
+        */"$WORKFLOW"|"$WORKFLOW")
+          awk -F'\t' -v run="$rid" '$1 == run' "$JOBS_SAMPLE" >>"$JOBS_WINDOW" ;;
+      esac
+    done <<<"$runs_tsv"
+    window_label="the jobs of $WORKFLOW in the fixture"
+    no_verdict_hint="Name a workflow that the runs index of the fixture carries, with the second argument."
+  fi
 else
   # 1 call lists the runs of EVERY workflow. There is no endpoint that returns
   # the jobs of many runs, so the jobs still cost 1 call per run.
   if ! runs_tsv="$(gh api "repos/$REPO/actions/runs?per_page=$RUNS" \
-                     --jq '.workflow_runs[] | [.id, .path] | @tsv' 2>&1)"; then
+                     --jq ".workflow_runs[] | $RUN_FIELDS" 2>&1)"; then
     echo "verify-runner-queue: cannot list the runs of $REPO: $runs_tsv" >&2
     exit 3
   fi
@@ -242,6 +282,7 @@ else
   done <<<"$runs_tsv"
   source_label="$REPO, last $RUNS run(s) of every workflow"
   window_label="the jobs of $WORKFLOW"
+  no_verdict_hint="Widen the window with the third argument, or name another workflow."
 fi
 
 # The floor sample: every job that reached a runner, whatever workflow it
@@ -261,9 +302,23 @@ if [ "$sample" -lt "$MIN_SAMPLE" ]; then
   exit 3
 fi
 
-# Nearest rank on the sorted sample, 1-based for sed. n=2 gives the minimum,
-# which is the honest answer when the sample is that small.
-rank=$(( sample * FLOOR_PERCENTILE / 100 + 1 ))
+# Nearest rank on the sorted sample, 1-based for sed: the lowest rank that
+# covers FLOOR_PERCENTILE of the sample, which is ceil(n*p/100) written in
+# integer arithmetic. n=2 gives the minimum, which is the honest answer when the
+# sample is that small.
+#
+# This read `n*p/100 + 1` until 2026-08-13, and that is 1 order statistic HIGHER
+# whenever n*p/100 lands on a whole number — a floor of 410 s instead of 400 s
+# on a sample of 20. A floor above the true floor makes the alarm less
+# sensitive, and the margin against a false fire is ALARM_FACTOR's job, priced
+# in the budget above. An extra margin hidden in the estimator is a constant
+# nobody can read, and it varies with the sample size.
+#
+# The clamp holds a percentile swept to 0 on the minimum. Without it the rank is
+# 0, sed returns nothing, and the floor is an empty string that fails as
+# arithmetic rather than as a verdict.
+rank=$(( (sample * FLOOR_PERCENTILE + 99) / 100 ))
+[ "$rank" -lt 1 ] && rank=1
 floor="$(sort -n <"$QUEUES" | sed -n "${rank}p")"
 alarm=$(( floor * ALARM_FACTOR ))
 
@@ -315,8 +370,8 @@ echo "  checked=$checked fail=$fail skipped=$skipped pending=$pending"
 # A window that checked nothing is not a pass. It is the absence of a verdict,
 # and the empty case is exactly the one that reads as green and proves nothing.
 if [ "$checked" -eq 0 ]; then
-  echo "  no finished job of $WORKFLOW in this window, so nothing was verified." >&2
-  echo "  Widen the window with the third argument, or name another workflow." >&2
+  echo "  no finished job among $window_label, so nothing was verified." >&2
+  echo "  $no_verdict_hint" >&2
   exit 3
 fi
 
