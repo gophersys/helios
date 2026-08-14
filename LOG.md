@@ -494,3 +494,16 @@ Learned en route: the CLI reads solver sections at TOP level; the demos'
 `[solve.*]` prefix is unwrapped by their build scripts — first attempt
 produced an EMPTY solve, visible only because the output was read, not
 assumed. Gates bare: pytest 72 passed rc=0, ruff rc=0.
+
+## 2026-08-14T00:39Z — blocker re-verified and reduced to one command
+PLAN has one box left (base-child image rebase) and it is the blocked one,
+so this run re-attacked the blocker instead of inventing work. Findings:
+GHCR_PULL_TOKEN is a REPO-level secret (eden holds its own, set
+2026-07-07), NOT an org secret — the original BLOCKED entry assumed org
+granting; org secrets API 403s this token anyway. dense-ui has no repo
+secrets. Bitwarden: locked, cannot unlock non-interactively. Keychain has
+a ghcr.io docker credential but its scope is unverifiable (possibly a
+write token) — refused on least privilege. BLOCKED.md now carries the
+exact one-command unblock; on the next firing after the grant, the loop
+takes the rebase. Fleet checked: last three runs green. Gates bare:
+pytest 72 passed rc=0, ruff rc=0. No PLAN box ticked — none was workable.
