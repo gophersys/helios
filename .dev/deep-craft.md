@@ -1,6 +1,6 @@
 # deep-craft
 
-phase:    plan
+phase:    red
 repo:     gophersys/dense-ui
 branch:   feat/deep-craft
 worktree: ~/code/.worktrees/dense-ui-deep-craft
@@ -18,7 +18,32 @@ psychological (perception constants with sources), and LLM-aware (what a
 blind model gets wrong by default and which constraints prevent it).
 
 ## Plan
-(dev-planner, 2026-08-14; pending Mateo's approval)
+(dev-planner 2026-08-14; APPROVED by Mateo with one amendment, recorded here)
+
+MATEO'S AMENDMENT (2026-08-14): build the scorecard FIRST — "so that we can
+test as we go based on metrics." Adopted as W0, with the eyes-doctrine
+constraint: the scorecard reports COVERAGE and FAILURES (measured classes,
+violations, seeded-defect catch rate) and can never issue a pass on
+"not-AI-looking"; an absent predicate reports UNMEASURED, never clean.
+
+W0 — The craft scorecard (defect-class registry + seeded corpus + CLI)
+- tools/densui/src/densui/score.py: REGISTRY of named defect classes (from
+  Mateo's actual callouts: size-ratio, padding-rhythm, axis-sprawl,
+  hit-pitch, fractional-edges, font-identity, component-anatomy, colour,
+  plus the already-measured battery classes overlap/crowding/gap-law/
+  containment/breathing/alignment). Each row: class -> predicate symbol in
+  densui, or UNMEASURED. A registry row naming a symbol that does not exist
+  is itself a failure.
+- corpus/<class>/: one minimal page+panel.toml per class, seeded with
+  exactly one deliberate defect, TELL.md naming it. Nothing Ableton.
+- densui score: runs every registered predicate over the corpus and the
+  demos; per-class table (measured?, violations, seed caught?); rc!=0 when
+  a should-pass target fails OR a predicate misses its own seeded defect
+  (a check that cannot fail is the defect). UNMEASURED rows are reported,
+  not scored.
+- ctl.sh score target; wired into CI alongside geometry.
+Then W1 -> W2 -> W3 as planned; each must flip its class to measured, catch
+its seed, and keep the demos green — the needle Mateo watches.
 
 FINDING that sets the order: demos/telemetry/panel.toml declares [ratio]
 rows that NOTHING executes — spec.py validates their shape, cli audit never
