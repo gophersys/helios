@@ -39,18 +39,26 @@ def rules_from(cfg: dict):
     rather than measuring nothing quietly.
     """
     from densui import audit
-    from densui.spec import ratio_rows
+    from densui.spec import ratio_rows, rules_table
 
-    rules_cfg = cfg.get("rules", {})
+    rules_cfg = rules_table(cfg)
     legal = None
     if "graze_max_height" in rules_cfg:
         legal = audit.knob_value_graze(
             rules_cfg["graze_max_height"], rules_cfg.get("graze_min_dx", 8.0)
         )
+    # Declared keys only, so audit.Rules stays the single source of every
+    # default — a floor copied to here is a second number to keep in step.
+    scalars = ("axis_budget_floor", "axis_budget_reason", "snap_kinds_reason")
+    declared = {k: rules_cfg[k] for k in scalars if k in rules_cfg}
+    for key in ("hit_kinds", "snap_kinds"):
+        if key in rules_cfg:
+            declared[key] = frozenset(rules_cfg[key])
     return audit.Rules(
         min_sibling_gap=rules_cfg.get("min_sibling_gap", 2.0),
         breathing_floor=rules_cfg.get("breathing_floor", 2.5),
         legal_overlap=legal,
         spill_slack={(c, k): float(v) for c, k, v in rules_cfg.get("spill", [])},
         ratio_rows=tuple(ratio_rows(cfg)),
+        **declared,
     )

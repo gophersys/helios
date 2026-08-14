@@ -1,0 +1,27 @@
+<!doctype html><meta charset="utf-8">
+<title>corpus/hit-pitch</title>
+<style>
+  body { margin: 0; background: #111; }
+  .panel { position: relative; width: 300px; height: 140px; }
+  .plate { position: absolute; left: 0; top: 0; width: 300px; height: 140px; background: #1c1c1c; }
+  /* 12px targets: undersized on purpose, which is the case SC 2.5.8's circle
+     test exists for — spacing, not size, is what makes them separable. */
+  .cbx { position: absolute; width: 12px; height: 12px; background: #4a7; }
+</style>
+<div class="panel">
+  <div class="plate">
+    <div class="cbx" data-addr="a1" style="left:40px;top:20px"></div>
+    <div class="cbx" data-addr="b1" style="left:100px;top:20px"></div>
+    <div class="cbx" data-addr="c1" style="left:160px;top:20px"></div>
+    <!-- THE SEED: b2 sits 20px below b1 instead of the grid's 40px. It stays
+         in its column, so it costs no new axis and breaks no alignment — the
+         only thing wrong with it is that a 24px circle on it intersects the
+         circle on b1. -->
+    <div class="cbx" data-addr="a2" style="left:40px;top:60px"></div>
+    <div class="cbx" data-addr="b2" style="left:100px;top:40px"></div>
+    <div class="cbx" data-addr="c2" style="left:160px;top:60px"></div>
+    <div class="cbx" data-addr="a3" style="left:40px;top:100px"></div>
+    <div class="cbx" data-addr="b3" style="left:100px;top:100px"></div>
+    <div class="cbx" data-addr="c3" style="left:160px;top:100px"></div>
+  </div>
+</div>

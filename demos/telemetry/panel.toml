@@ -100,6 +100,10 @@ clabel = ".s-label"
 [rules]
 min_sibling_gap = 2.0
 breathing_floor = 2.5
+axis_budget_floor = 1.0
+axis_budget_reason = """\
+one control per column by design: each rail owns its own vertical line so its \
+stream cells can sit under it (measured 6 controls on 6 control x-axes = 1.00)"""
 
 # Executed by densui.audit.check_ratios on every gate. Before the typed form
 # these were `name = [want, tol]` pairs that named no measurement, and nothing
@@ -108,13 +112,10 @@ breathing_floor = 2.5
 panel_w = { measure = "root.w", want = 1120, tol = 5 }
 panel_h = { measure = "root.h", want = 320, tol = 5 }
 dial = { measure = "dial.h", want = 28, tol = 1 }
-# NOT MIGRATED, and not silently dropped: `row = [72, 4]` (layers.md L2 —
-# label line 20 + 2 + dial 28 + value line 20). The row's box is `.k`, and any
-# part that spans the row overlaps the label/dial/value inside it: declaring
-# `unit = ".k"` was measured, and it produces 12 overlap failures and a box of
-# 50px (the value line is out of flow), so the row height has no probe
-# expression at all. Text is ink (A-4), so the two line boxes are invisible
-# too. The claim is font-independent as a DIFFERENCE of ink centres —
-# value.cy - label.cy = 50.00 measured, = 20 + 2 + 28 derived — which is a row
-# form check_ratios does not have. Restoring it is an open item, not a
-# tolerance question; see the PR body.
+# The row pitch of layers.md L2 (label line 20 + 2 + dial 28), stated as what a
+# probe can measure: the DIFFERENCE of two ink centres. The row's own box has no
+# expression — declaring `unit = ".k"` was measured and it overlaps every part
+# inside it (12 overlap failures), and text is ink (A-4), so the line boxes are
+# invisible. A difference is font-independent where the two absolute positions
+# are not: value.cy - label.cy = 50.00 measured, 20 + 2 + 28 derived.
+row = { span = ["label.cy", "value.cy"], want = 50, tol = 4 }

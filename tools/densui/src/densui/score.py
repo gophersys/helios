@@ -53,6 +53,14 @@ def _of_parts_containers_rules(fn: Callable, out: dict, rules: audit.Rules) -> l
     return fn(out["parts"], out["containers"], rules)
 
 
+def _of_snappable_parts(fn: Callable, out: dict, rules: audit.Rules) -> list:
+    """The integer-edge rule reads geometry AND the page's scale, and judges only
+    authored edges — the same two conditions run_battery applies, because a
+    glyph-ink box (A-4) is measured rather than placed and a scaled page has
+    fractional CSS px by construction."""
+    return fn(audit.snappable(out["parts"], rules), out.get("scale", 1))
+
+
 def _of_declared_rows(fn: Callable, out: dict, rules: audit.Rules) -> list:
     """The rows come from the target's own panel.toml (probe_config.rules_from
     carries them), so this class measures what each panel DECLARED — a target
@@ -83,11 +91,11 @@ REGISTRY: dict[str, Row] = {
     "breathing": Row("densui.audit.check_breathing", _of_parts_containers_rules),
     "alignment": Row("densui.audit.check_level", _of_parts),
     "size-ratio": Row("densui.audit.check_ratios", _of_declared_rows),
+    "axis-sprawl": Row("densui.audit.check_axis_budget", _of_parts_rules),
+    "hit-pitch": Row("densui.audit.check_hit_pitch", _of_parts_rules),
+    "fractional-edges": Row("densui.audit.check_integer_edges", _of_snappable_parts),
     # Named by Mateo, predicate due in the workstream noted; UNMEASURED today.
     "padding-rhythm": Row(UNMEASURED),  # W1
-    "axis-sprawl": Row(UNMEASURED),  # W2
-    "hit-pitch": Row(UNMEASURED),  # W2
-    "fractional-edges": Row(UNMEASURED),  # W2
     "font-identity": Row(UNMEASURED),  # W3
     # No predicate is planned yet: bitmap assay and contrast maths.
     "component-anatomy": Row(UNMEASURED),

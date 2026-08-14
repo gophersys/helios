@@ -345,6 +345,11 @@ replicas.
 
 ## 8. The validator — assertions a program runs, in order
 
+A row that names a symbol after `→` is EXECUTED by that symbol today; the rest are
+still prose, and a rule an engine cannot run is a rule it does not have. The marks
+are checked from both sides (`tools/densui/tests/test_axes.py`): a named symbol
+must resolve, so a rename cannot leave the claim standing.
+
 ```
 A1  K, PPD, D_mm declared; all angular minima re-evaluated at K_worst = 0.89.
 A2  min(font_size) >= 16.6 px, OR D_max_mm = AM*cap_mm/16 is declared as the
@@ -353,9 +358,9 @@ A3  line_height >= 1.36 * font_size.
 A4  light-on-dark stroke <= 1/7 cap; dark-on-light <= 1/6 cap.
 A5  every edge-to-edge gap between glyph-scale features >= 3 px (foveal crowding).
 A6  every hairline/separator gap >= 2 px.
-A7  all box edges are integers.
+A7  all box edges are integers.  → densui.audit.check_integer_edges
 A8  every adjacent hit-target pair: 24 px circles on their bounding boxes do not
-      intersect (=> centre-to-centre pitch >= 24 px).
+      intersect (=> centre-to-centre pitch >= 24 px).  → densui.audit.check_hit_pitch
 A9  FORBIDDEN ZONE: for every gap pair in one neighbourhood, ratio == 1.00 exactly
       or ratio >= 1.50. Nothing in (1.03, 1.50).
 A10 gap_between_groups >= 1.5 * gap_within_group (2.0 if unfenced or peripheral).
@@ -363,6 +368,8 @@ A11 every element pair sharing an alignment axis: |offset| == 0
       (threshold is 0.007*S; 0 is free, so demand 0).
 A12 minimise Omega = -N*sum(p_i*log2 p_i) over edge/size classes; report the count
       of distinct left edges and distinct widths per band.
+      → densui.audit.axis_census counts and reports it;
+      → densui.audit.check_axis_budget spends it (controls per CONTROL x-axis >= 3).
 A13 every PERIPHERAL-class element (alarm, state light):
       clear_radius_px >= b * r_px, b by meridian (right .184 / left .237 /
       lower .300 / upper .381; use .5 if unsure); tangential axis may use 0.55*b.

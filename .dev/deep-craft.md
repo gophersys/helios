@@ -324,6 +324,25 @@ caught (incl. centre-only, box-only, unreported, over-moving); 7/7 demo
 declaration mutations caught; shipped greens proven non-vacuous (18/23
 earned). The three outside fixtures still heal with zero edits.
 
+## Green (W2) — proven
+- Orchestrator re-ran bare: pytest 141 passed rc=0; ./ctl.sh score rc=0 —
+  10 classes measured, 10 seeds caught, zero failures. Implementer: ruff +
+  format rc=0, ./ctl.sh test rc=0, ./ctl.sh geometry rc=0 with telemetry's
+  three box-parity corrections quoted and PROBE-VERIFIED zero fractional
+  dial edges post-fix (the 53.5/81.5 pair is gone, not exempted); bench 0
+  as well. Operator: snap_kinds=["head"] — MEASURED as the only clean kind
+  — with a number-citing reason; floors declared on all three demos.
+  Break-tests: floor stripped -> budget fires; snap stripped -> 54 edges
+  named. Zero test-file edits.
+- expected_positions.css regenerated DELIBERATELY: the parity rule moved 5
+  operator knob boxes (+1px width, 5 dials onto whole pixels); the drift
+  guard fired first, regeneration followed, all 18 fidelity ratio rows
+  still PASS. Accepted: the solver change is the point; fidelity retained.
+- Honest limits recorded by the implementer: bench's declared floor is
+  pinned by pytest as file content but not load-bearing at the gate (3
+  controls <= default floor mutes the rule either way); centre parity
+  never fires on the demos (all dials 28 on integer centres) — exercised
+  by the odd-dial unit test only; non-integer dial tokens unspecified.
+
 ## Next
-Implementer lands the revised W2 contract; expect 141 passed + clean
-gates; then W3.
+W3 red (font identity), then consolidated verify, then PR.

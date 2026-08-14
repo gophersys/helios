@@ -13,8 +13,8 @@ design, exactly the input shapes of the tools that consume them:
 | `[tracks]` | layout CSS | L1 zoning: fixed column tracks, gaps (A-2: never content-sized) |
 | `[solve.*]` | `densui.solve.solve()` | flow_rows / knob_rows — anchors, floors, labels, widest strings |
 | `[probe]` | `densui.probe.collect()` | page, root, root_width, containers, parts, text_kinds |
-| `[rules]` | `densui.audit.Rules` | graze, floors, declared spills |
-| `[ratio]` | `densui.audit.check_ratios` | typed rows: `measure = "<kind>.<dim>"` or `ratio = [num, den]`, with `want` + `tol` |
+| `[rules]` | `densui.audit.Rules` | graze, floors, declared spills, hit kinds, the axis budget |
+| `[ratio]` | `densui.audit.check_ratios` | typed rows: `measure = "<kind>.<dim>"`, `ratio = [num, den]` or `span = [from, to]`, with `want` + `tol` |
 
 Invariants the file must honour (LAYOUT-MATH):
 
@@ -22,8 +22,9 @@ Invariants the file must honour (LAYOUT-MATH):
   design decision recorded in the census — never eyeballed.
 - **Sizes have two legal sources**: the `[font]` advances, or a declared token
   in this file. There is no third source.
-- **The solver may correct anchors** (rhythm equalisation, G-1); corrections
-  are reported, and the corrected value is the built truth.
+- **The solver may correct anchors** (rhythm equalisation G-1; ink clearance for
+  the host font; dial parity, A-5); corrections are reported, and the corrected
+  value is the built truth.
 - **Every `[rules]` exception is a claim about the reference** — cite the
   measurement next to it in a comment.
 
@@ -105,7 +106,29 @@ failure of its own: three dials at 27/27/33 are a defect whose median is exact.
 A row that matched no element fails, because a row that measured nothing proves
 nothing. The `ratio = [numerator, denominator]` form states a RELATION, which is
 the identity-carrying one — text:control near 0.6 against the 0.44 of library
-defaults (DENSE-UI §Ratios).
+defaults (DENSE-UI §Ratios). The `span = [from, to]` form states a DISTANCE,
+second minus first, for a claim no absolute box can carry: a row pitch is
+`span = ["label.cy", "value.cy"]`, because the row's own box overlaps everything
+inside it and text is ink (A-4). A span claims the difference and only the
+difference, so the per-token spread rule does not apply to it.
+
+`[rules]` also carries the axis budget (DENSE-UI A1): `axis_budget_floor`
+defaults to 3.0 CONTROLS per distinct CONTROL x-axis — both sides of the
+quotient are the control population, because text is glyph ink and ink centres
+never coincide, so a whole-panel denominator scores every real panel below 1.0.
+The rule is silent at or below the floor in controls, where the quotient has no
+distribution to describe. `hit_kinds` names which part kinds are hit targets
+for the 24 px WCAG pitch check (default `dial`, `checkbox`, `thumb`), and
+`snap_kinds` which kinds carry an integer-edge claim (default `dial`,
+`checkbox` — the two every demo authors from a token; a box whose width is
+padding plus a text advance cannot be integral on both sides).
+
+Both exemptions cost a written reason: `axis_budget_floor` requires
+`axis_budget_reason`, and narrowing `snap_kinds` requires `snap_kinds_reason`.
+`load_panel()` and the gate path (`rules_from()`) both refuse them without one —
+a rule enforced on only one of the two is enforced on neither, and
+`snap_kinds = []` would otherwise switch A-5 off panel-wide in one line that
+reads like configuration.
 
 The `[solve]` table is passed verbatim (with `[font]`) to
 `densui.solve.solve()`; `[probe]` + `[rules]` are exactly the `densui audit`

@@ -30,8 +30,27 @@ KNOB_ROW = {
     "units",
 }
 KNOB_UNIT = {"name", "center", "label", "widest"}
-RULES = {"graze_max_height", "graze_min_dx", "min_sibling_gap", "breathing_floor", "spill"}
-RATIO_ROW = {"measure", "ratio", "want", "tol"}
+RULES = {
+    "graze_max_height",
+    "graze_min_dx",
+    "min_sibling_gap",
+    "breathing_floor",
+    "spill",
+    "axis_budget_floor",
+    "axis_budget_reason",
+    "hit_kinds",
+    "snap_kinds",
+    "snap_kinds_reason",
+}
+RATIO_ROW = {"measure", "ratio", "span", "want", "tol"}
+RATIO_FORMS = ("measure", "ratio", "span")
+# Keys that let a panel out of a shipped rule, each with the reason key it costs
+# and what that reason must say. An exemption nobody had to justify is how a
+# rule dies while still appearing in the config.
+EXEMPTIONS = {
+    "axis_budget_floor": ("axis_budget_reason", "which structure of THIS panel earns it"),
+    "snap_kinds": ("snap_kinds_reason", "which measurement shows those boxes are not authored"),
+}
 
 
 class SpecError(ValueError):
@@ -61,7 +80,7 @@ def _ratio_token(tok, where, errors) -> None:
 
 
 def _ratio_row(k, v, errors) -> None:
-    """One [ratio] row: exactly one of measure/ratio, plus want and tol.
+    """One [ratio] row: exactly one of measure/ratio/span, plus want and tol.
 
     The dead `name = [want, tol]` pair form gets its own message: those rows
     were validated and executed by nothing for months, and their meaning
@@ -81,15 +100,47 @@ def _ratio_row(k, v, errors) -> None:
     for key in ("want", "tol"):
         if key in v and not isinstance(v[key], (int, float)):
             errors.append(f"{where}: {key} must be a number, got {v[key]!r}")
-    if ("measure" in v) == ("ratio" in v):
-        errors.append(f'{where}: needs exactly one of measure = "<kind>.<dim>" or ratio = [n, d]')
-    elif "measure" in v:
+    forms = [f for f in RATIO_FORMS if f in v]
+    if len(forms) != 1:
+        errors.append(
+            f'{where}: needs exactly one of measure = "<kind>.<dim>", ratio = [n, d] '
+            f"or span = [from, to], got {forms or 'none'}"
+        )
+    elif forms[0] == "measure":
         _ratio_token(v["measure"], where, errors)
-    elif not (isinstance(v["ratio"], list) and len(v["ratio"]) == 2):
-        errors.append(f"{where}: ratio must be a [numerator, denominator] pair, got {v['ratio']!r}")
+    elif not (isinstance(v[forms[0]], list) and len(v[forms[0]]) == 2):
+        pair = "[numerator, denominator]" if forms[0] == "ratio" else "[from, to]"
+        errors.append(f"{where}: {forms[0]} must be a {pair} pair, got {v[forms[0]]!r}")
     else:
-        for tok in v["ratio"]:
+        for tok in v[forms[0]]:
             _ratio_token(tok, where, errors)
+
+
+def _rules_table(spec: dict, errors: list[str]) -> dict:
+    """The [rules] table's own validation, in one place.
+
+    A1's floor and A-5's population are the two shipped rules a panel can
+    legally step out of, and both cost a written reason — `snap_kinds = []`
+    would otherwise switch integer edges off panel-wide in one line that reads
+    like configuration.
+    """
+    table = spec.get("rules", {})
+    _unknown(table, RULES, "rules", errors)
+    for key, (reason_key, what) in EXEMPTIONS.items():
+        if key in table and not str(table.get(reason_key, "")).strip():
+            errors.append(f"rules: {key} is declared without {reason_key} — state {what}")
+    return table
+
+
+def rules_table(spec: dict) -> dict:
+    """The validated [rules] table. Separate from load_panel() for the reason
+    ratio_rows() is: an audit config is often a PARTIAL panel.toml, and a rule
+    honoured on the gate path must be refused there too."""
+    errors: list[str] = []
+    table = _rules_table(spec, errors)
+    if errors:
+        raise SpecError(errors)
+    return table
 
 
 def ratio_rows(spec: dict) -> list[dict]:
@@ -160,7 +211,7 @@ def load_panel(spec: dict | str | pathlib.Path) -> dict:
 
     if "probe" in data:
         _require(data["probe"], ["root"], "probe", errors)
-    _unknown(data.get("rules", {}), RULES, "rules", errors)
+    _rules_table(data, errors)
     for k, v in data.get("ratio", {}).items():
         _ratio_row(k, v, errors)
 
