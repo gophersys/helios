@@ -243,5 +243,24 @@ grep -q decide the params gate under pipefail (SIGPIPE 141 hazard).
   full verify; W1's evidence includes its own break-tests) — recorded so
   the PR body states it plainly.
 
+## Red (W2) — proven
+- 27 tests in tests/test_axes.py, all red for the feature's absence
+  (AttributeError axis_census/check_axis_budget/check_hit_pitch/
+  check_integer_edges; Rules TypeError; SpecError unknown keys; span
+  KeyError at audit.py:245; telemetry lacks its row; registry UNMEASURED;
+  corpus seeds absent; psycho-math §8 unmarked both directions).
+- Suite 27 failed/106 passed; 133 collected, zero errors; zero regressions.
+- Bite: reference implementation 18/18 green; 25 wrong predicate
+  implementations all caught; doc-sweep mutations 8/8 caught (incl. the
+  ASCII-arrow imposter and marks-on-wrong-axioms) against md5-verified
+  untouched research file.
+- Six design calls pinned and recorded (x_axes = min over left/right/cx —
+  sum makes A1 unenforceable; controls = rhythm_kinds; span rows exempt
+  from spread; ink exemption lives in run_battery; reason enforced on BOTH
+  spec paths; census families exactly left/right/cx/w/h).
+- Declined for now: extending the marker sweep to LAYOUT-MATH's axiom list
+  (§8 is the scoped home; follow-up if wanted).
+
 ## Next
-W2 red tests (axes A1/A7/A8 + span row form + hit-pitch + integer edges).
+W2 green (implementer): demos may need declared axis-budget overrides with
+cited reasons — legal; tolerances are not.
