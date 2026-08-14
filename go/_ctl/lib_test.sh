@@ -697,26 +697,90 @@ TRANSITIVE_MODULE="envelope"
 # workspaceprovider now resolve, and this test is what said so — it refused to stay quiet and
 # failed on its own stale entries until they were deleted.
 #
-# The four that remain are two OTHER classes, both task #37's:
-#   go.sum drift  `objectstorage`, `dependencies` and `errors` are missing a go.sum ENTRY. No
-#                 replace line repairs a missing hash; it needs a go.sum write, which this
-#                 change's guards forbid.
-#   manifest drift `orchestrator` needs a second replace AND a direct dependency bump
-#                 (pgx/v5 5.7.6 -> 5.10.0), so it is not a one-line closure fix either.
+# AND THE REASON IS AN ASSERTION, NOT A COMMENT. This is the defect the table itself had, and it
+# is the most interesting thing this suite has caught. Two entries recorded a DIFFERENT-class
+# reason — a `kr/pretty` go.sum gap and a `pgx` bump — while the error those libraries ACTUALLY
+# produced was the SAME-class `envelope@v0.0.0: invalid version`. The prose described the error
+# that would appear AFTER the fix. So when an implementer added the missing `envelope` replace to
+# both, NOTHING changed: they stayed red, stayed legitimately exempt, and the census line was
+# byte-identical either side of the change. A same-class defect wearing a different-class label
+# was invisible to every check here.
 #
-# AND THEY ARE NOT INVISIBLE TO THE ORDINARY GATE, which an earlier version of this comment got
-# wrong. Measured at HEAD in disposable copies, before any edit:
-#   objectstorage  GOWORK=off go build ./...  exit 1  missing go.sum entry for kr/pretty@v0.3.1
-#   orchestrator   GOWORK=off go build ./...  exit 1  go: updates to go.mod needed
-# That matches the 16-library sweep, which recorded both as RED=5/5. `dependencies` and `errors`
-# DO build, vet and test green — those two are the ones only this test can see.
+# Each entry now carries an ANCHOR: a substring the library's observed error MUST contain. Three
+# arms police it, and two of them read the OBSERVATION rather than anything written by hand:
+#   reason-mismatch  the observed error does not contain the anchor -> the entry is describing a
+#                    defect this library does not have.
+#   same-class       the observed error names a SIBLING at v0.0.0 -> the closure defect this
+#                    change exists to fix. NOT EXEMPTIBLE, whatever the anchor says. This is the
+#                    mechanical form of "an exemption may hold only a defect of a DIFFERENT
+#                    class", and it is what would have caught the two above with no reliance on
+#                    the prose being honest.
+#   phantom          the entry names a library the scan never walked (renamed, deleted, typo'd).
+#
+# WHY THE ANCHOR IS A MODULE PATH WHERE ONE EXISTS. Go rewords its prose between releases —
+# "missing go.sum entry" gained "for go.mod file" — but the module path inside an error is DATA:
+# it is the identity of the thing that failed, and it is the exact discriminator that separates
+# `envelope` from `kr/pretty`. Where the error names no module at all (orchestrator prints only
+# `updates to go.mod needed`) the anchor is Go's own error string, which is the most stable
+# identifier available. Both are measured from a real run, never guessed.
+#
+# WHAT THIS DOES NOT FIX, stated plainly: the anchor is still typed by a human. What changed is
+# that it is now MECHANICALLY REFUTED on every run — a wrong anchor fails immediately, and the
+# same-class arm needs no anchor to be honest at all. The one residual hole is an anchor so
+# generic it matches anything, which the minimum length below closes for the degenerate cases.
+#
+# FORMAT: <library> | <anchor> | <reason>
 MODULE_GRAPH_EXEMPT_SOURCE=(
-  "objectstorage missing go.sum entry for github.com/kr/pretty@v0.3.1 — go.sum drift, task #37; also RED for go build"
-  "orchestrator  needs a second replace plus pgx/v5 5.7.6 -> 5.10.0 — manifest drift, task #37; also RED for go build"
-  "dependencies  missing go.sum entry for github.com/stretchr/testify@v1.11.1 — go.sum drift, task #37"
-  "errors        missing go.sum entry for github.com/stretchr/testify@v1.11.1 — go.sum drift, task #37"
+  "objectstorage | github.com/kr/pretty      | go.sum drift, task #37 — needs a go.sum write, which this change's guards forbid; also RED for go build"
+  "orchestrator  | updates to go.mod needed  | manifest drift, task #37 — the residual is the pgx/v5 5.7.6 -> 5.10.0 bump; also RED for go build"
+  "dependencies  | github.com/stretchr/testify | go.sum drift, task #37 — go build, vet and test are green, so only this test sees it"
+  "errors        | github.com/stretchr/testify | go.sum drift, task #37 — go build, vet and test are green, so only this test sees it"
 )
 MODULE_GRAPH_EXEMPT=("${MODULE_GRAPH_EXEMPT_SOURCE[@]}")
+
+# An anchor shorter than this cannot identify anything: `go:` matches every error Go prints, and
+# the empty string matches all of them. The shortest legitimate anchor in the table is 20
+# characters, and Go's shortest useful error phrase is well over 8.
+MODULE_GRAPH_ANCHOR_MINIMUM=8
+
+# A sibling that does not resolve prints its own path at the unpublished version. `v0.0.0` is
+# unpublished BY CONSTRUCTION here, so this pattern cannot match anything but the closure defect.
+SIBLING_FAILURE_PATTERN="github\.com/gophersys/libs/go/[a-z]+@v0\.0\.0"
+
+# ── telling a broken manifest from a broken network (test 21) ────────────────
+#
+# `go list -m all` returns the same non-zero for "a sibling is unreplaced" and "the proxy is
+# unreachable", and the second is not a finding about this code. With no network every library
+# goes red, twelve are not on the table, and the unexpected arm would hand a reader twelve
+# confident instructions to add a `replace` for a THIRD-PARTY module — for which no replace is
+# ever correct. This check runs on every push, so a CI network blip would produce twelve wrong
+# remediations.
+#
+# The discriminator is the error itself, and the MANIFEST markers are tested FIRST. That ordering
+# is load-bearing: an unreplaced private sibling fails THROUGH the network (`git ls-remote ...
+# could not read Username`), so it carries transport text too — but it also carries `invalid
+# version`, which no reachability failure produces. A missing go.sum entry is decided locally and
+# never reaches the network at all, so it survives an outage unchanged.
+MODULE_GRAPH_MANIFEST_MARKERS=(
+  "missing go.sum entry"
+  "invalid version"
+  "updates to go.mod needed"
+  "no required module provides"
+  "checksum mismatch"
+)
+MODULE_GRAPH_TRANSPORT_MARKERS=(
+  "dial tcp"
+  "connection refused"
+  "i/o timeout"
+  "no such host"
+  "TLS handshake"
+  "connection reset"
+  "Client.Timeout"
+  "network is unreachable"
+  "temporary failure in name resolution"
+  "module lookup disabled"
+  "server misbehaving"
+)
 
 # The anchor for the `exempt:stale` stimulus, and why it names a GREEN library rather than
 # repairing a red one.
@@ -737,6 +801,15 @@ MODULE_GRAPH_EXEMPT=("${MODULE_GRAPH_EXEMPT_SOURCE[@]}")
 # stimulus stops breaking the test and the driver says so out loud — "still passed under
 # exempt:stale" — rather than reporting a pass.
 STALE_EXEMPTION_LIB="configuration"
+
+# The anchors for the three remaining table stimuli. `WRONG_REASON_LIB` must be a library that is
+# genuinely on the table and genuinely red, so the only thing the stimulus changes is whether the
+# recorded anchor matches the observed error; `WRONG_REASON_ANCHOR` is a REAL module path from a
+# REAL error in this same tree — objectstorage's — so the stimulus proves the anchor is matched
+# against THIS library's error rather than against any error the tree happens to produce.
+WRONG_REASON_LIB="errors"
+WRONG_REASON_ANCHOR="github.com/kr/pretty"
+PHANTOM_EXEMPTION_LIB="phantomlibrary"
 
 # One go.mod parser, three outputs, so the scan and the repair can never disagree about what a
 # manifest says. `-v mode=`:
@@ -1439,36 +1512,84 @@ t_the_report_names_the_library_and_only_the_unreplaced_module() {
 # 2.1s between them. That is the price of the register being enumerated rather than skipped, and
 # it shrinks to ~2s the moment the table is empty.
 t_every_library_resolves_its_full_module_graph() {
-  local manifest lib out rc exempt reason scanned=0 red=0
-  local -a unexpected=() stale=()
+  local manifest lib out rc entry anchor reason sibling scanned=0 red=0
+  local -a walked=() unexpected=() stale=() mismatched=() same_class=()
   for manifest in "$MODULE_TREE"/*/go.mod; do
     [[ -f "$manifest" ]] || continue
     lib="$(basename "$(dirname "$manifest")")"
     scanned=$((scanned + 1))
+    walked+=("$lib")
     rc=0
     # GOWORK=off is the whole point: eden's go.work would resolve every sibling by directory and
     # this assertion would be about the workspace instead of about the library.
     out="$( cd "$(dirname "$manifest")" && GOWORK=off go list -m all 2>&1 )" || rc=$?
-    # An `if` context, never a bare assignment: under errexit a plain `reason="$(...)"` whose
+    [[ "$rc" -eq 0 ]] || assert_the_module_graph_error_is_about_the_code "$lib" "$out"
+    # An `if` context, never a bare assignment: under errexit a plain `entry="$(...)"` whose
     # substitution returns 1 — which is what "not exempt" IS — would kill the test outright.
-    exempt=1
+    entry=""
+    anchor=""
     reason=""
-    if reason="$(module_graph_exemption "$lib")"; then
-      exempt=0
+    if entry="$(module_graph_exemption "$lib")"; then
+      anchor="${entry%%$'\t'*}"
+      reason="${entry#*$'\t'}"
     fi
-    if [[ "$rc" -ne 0 ]]; then
-      red=$((red + 1))
-      if [[ "$exempt" -ne 0 ]]; then
-        unexpected+=("$(printf '%s (exit %s): %s' "$lib" "$rc" "$(head -2 <<< "$out")")")
+    if [[ "$rc" -eq 0 ]]; then
+      if [[ -n "$entry" ]]; then
+        stale+=("$lib — the table says: $reason")
       fi
-    elif [[ "$exempt" -eq 0 ]]; then
-      stale+=("$lib — the table says: $reason")
+      continue
+    fi
+    red=$((red + 1))
+    # THE SAME-CLASS ARM, and the only one that reads NOTHING written by hand. An unresolved
+    # sibling at v0.0.0 is the defect this whole change exists to fix; no exemption may hold it.
+    sibling="$(grep -oE "$SIBLING_FAILURE_PATTERN" <<< "$out" || true)"
+    sibling="${sibling%%$'\n'*}"
+    if [[ -n "$sibling" ]]; then
+      if [[ -n "$entry" ]]; then
+        same_class+=("$lib -> $sibling  (EXEMPT as: $reason)")
+      else
+        same_class+=("$lib -> $sibling")
+      fi
+      continue
+    fi
+    if [[ -z "$entry" ]]; then
+      unexpected+=("$(printf '%s (exit %s): %s' "$lib" "$rc" "$(head -2 <<< "$out")")")
+      continue
+    fi
+    # THE REASON ARM. An exempt library must fail for the reason the table records.
+    if ! grep -qF -- "$anchor" <<< "$out"; then
+      mismatched+=("$(printf '%s — recorded [%s], observed: %s' "$lib" "$anchor" "$(head -2 <<< "$out")")")
     fi
   done
   # A glob that matched nothing leaves every list empty and every arm silent.
   [[ "$scanned" -gt 0 ]] ||
     fail "no go.mod was read under $MODULE_TREE, so no module graph was loaded and this run asserted nothing"
   info "go list -m all: $scanned librar(y|ies) read, $red red, ${#MODULE_GRAPH_EXEMPT[@]} on the exemption table"
+  assert_every_exemption_names_a_real_library "${walked[@]}"
+
+  if [[ ${#same_class[@]} -gt 0 ]]; then
+    fail "$(printf '%s\n' \
+      "a library's module graph fails on an UNRESOLVED SIBLING at v0.0.0. That is the very defect" \
+      "this change exists to fix, so it is NOT EXEMPTIBLE — an exemption may hold only a defect of" \
+      "a DIFFERENT class, and an entry that covers this one makes the change's own claim false:" \
+      "" \
+      "${same_class[@]}" \
+      "" \
+      "add 'replace <module> v0.0.0 => ../<slug>' to THIS library's go.mod. A replace in a" \
+      "dependency's go.mod is ignored; only the main module's apply.")"
+  fi
+  if [[ ${#mismatched[@]} -gt 0 ]]; then
+    fail "$(printf '%s\n' \
+      "an exemption records a defect the library does not have. The anchor is the substring the" \
+      "observed error MUST contain, and these do not — so the entry is describing something else," \
+      "which is exactly how two same-class defects sat on this table wearing a different-class" \
+      "label while every arm stayed quiet:" \
+      "" \
+      "${mismatched[@]}" \
+      "" \
+      "correct the anchor in MODULE_GRAPH_EXEMPT_SOURCE to the module path the error names, or" \
+      "fix the library. Do not widen the anchor to make it match.")"
+  fi
   if [[ ${#unexpected[@]} -gt 0 ]]; then
     fail "$(printf '%s\n' \
       "a library's FULL module graph does not resolve, and it is not on the exemption table." \
@@ -1477,8 +1598,8 @@ t_every_library_resolves_its_full_module_graph() {
       "" \
       "${unexpected[@]}" \
       "" \
-      "the fix is a replace in THIS library's go.mod for the module named — a replace in a" \
-      "dependency's go.mod is ignored, only the main module's apply.")"
+      "no fix is prescribed here: the module named is not a sibling, so a replace is NOT the" \
+      "answer. Read the error — a go.sum gap needs a go.sum write, a version conflict needs a bump.")"
   fi
   if [[ ${#stale[@]} -gt 0 ]]; then
     fail "$(printf '%s\n' \
@@ -1490,14 +1611,94 @@ t_every_library_resolves_its_full_module_graph() {
   fi
 }
 
-# module_graph_exemption <lib> — prints the recorded reason and returns 0 when <lib> is exempt,
-# returns 1 otherwise. The table is `<lib> <reason>` and the library is the first field.
-module_graph_exemption() {
-  local lib="$1" entry name
+# assert_the_module_graph_error_is_about_the_code <lib> <output> — a HARNESS failure, not a
+# finding. `go list -m all` cannot reach the proxy and `go list -m all` found a broken manifest
+# are the same non-zero exit, and reporting the first as the second is how a network blip turns
+# into twelve confident, wrong instructions to add a replace for a third-party module.
+#
+# Manifest markers are tested FIRST and win. An unreplaced private sibling fails THROUGH the
+# network, so its error carries transport text as well — but it also carries `invalid version`,
+# which no reachability failure produces.
+assert_the_module_graph_error_is_about_the_code() {
+  local lib="$1" out="$2" marker
+  # An emptied marker list would make this classifier silently answer "manifest" to everything,
+  # which is the un-fixed behaviour wearing the fix's name.
+  [[ ${#MODULE_GRAPH_MANIFEST_MARKERS[@]} -gt 0 && ${#MODULE_GRAPH_TRANSPORT_MARKERS[@]} -gt 0 ]] ||
+    die "the module-graph marker lists are empty, so every error would be classified by default and nothing would be classified at all"
+  for marker in "${MODULE_GRAPH_MANIFEST_MARKERS[@]}"; do
+    if grep -qF -- "$marker" <<< "$out"; then
+      return 0
+    fi
+  done
+  for marker in "${MODULE_GRAPH_TRANSPORT_MARKERS[@]}"; do
+    if grep -qF -- "$marker" <<< "$out"; then
+      die "$(printf '%s\n' \
+        "HARNESS FAILURE, not a finding: the module proxy is unreachable, so this run measured" \
+        "the network rather than $lib's manifest. Every library would go red here and the" \
+        "remediation for each would be wrong. CHANGE NO go.mod." \
+        "" \
+        "$lib: $(head -3 <<< "$out")" \
+        "" \
+        "the transport marker matched was: $marker")"
+    fi
+  done
+  return 0
+}
+
+# assert_every_exemption_names_a_real_library <walked...> — the PHANTOM arm. Every other arm is
+# driven by a library the scan walked, so an entry whose library was renamed, deleted or typo'd is
+# reached by nothing and lives forever: the table reports one more debt than it holds and the
+# stale arm can never retire it. This one walks the TABLE instead of the tree.
+#
+# It also enforces the entry's SHAPE. An entry with no anchor would make the reason arm's
+# `grep -F ""` match every error ever printed — a check that cannot fail, dressed as one that can.
+assert_every_exemption_names_a_real_library() {
+  local -a walked=("$@")
+  local entry name anchor found lib
+  [[ ${#walked[@]} -gt 0 ]] ||
+    fail "no library was walked, so no exemption could be checked against one"
   for entry in ${MODULE_GRAPH_EXEMPT[@]+"${MODULE_GRAPH_EXEMPT[@]}"}; do
-    name="${entry%%[[:space:]]*}"
+    name="$(trim_field "${entry%%|*}")"
+    anchor="$(module_graph_exemption_anchor "$entry")"
+    [[ -n "$name" ]] || fail "an exemption entry names no library: [$entry]"
+    [[ "${#anchor}" -ge "$MODULE_GRAPH_ANCHOR_MINIMUM" ]] ||
+      fail "the exemption for '$name' carries the anchor [$anchor], under the $MODULE_GRAPH_ANCHOR_MINIMUM-character floor. An anchor that short matches any error Go prints, so the reason arm could never fail: [$entry]"
+    found=0
+    for lib in "${walked[@]}"; do
+      if [[ "$lib" == "$name" ]]; then
+        found=1
+        break
+      fi
+    done
+    [[ "$found" -eq 1 ]] ||
+      fail "the exemption table names '$name', which is not a library in $MODULE_TREE. Every other arm is driven by a library the scan walked, so a phantom entry is reached by nothing and can never be retired — the register would report a debt that does not exist: [$entry]"
+  done
+}
+
+# trim_field <text> — strips the surrounding blanks the table's column alignment introduces.
+trim_field() {
+  local text="$1"
+  text="${text#"${text%%[![:space:]]*}"}"
+  printf '%s' "${text%"${text##*[![:space:]]}"}"
+}
+
+# module_graph_exemption_anchor <entry> — field 2 of `<library> | <anchor> | <reason>`. A `|`
+# separator rather than whitespace, because an anchor may hold spaces: orchestrator's error names
+# no module at all and its anchor is Go's own phrase, `updates to go.mod needed`.
+module_graph_exemption_anchor() {
+  local rest="${1#*|}"
+  trim_field "${rest%%|*}"
+}
+
+# module_graph_exemption <lib> — prints "<anchor><TAB><reason>" and returns 0 when <lib> is
+# exempt, 1 otherwise.
+module_graph_exemption() {
+  local lib="$1" entry name rest
+  for entry in ${MODULE_GRAPH_EXEMPT[@]+"${MODULE_GRAPH_EXEMPT[@]}"}; do
+    name="$(trim_field "${entry%%|*}")"
     if [[ "$name" == "$lib" ]]; then
-      printf '%s' "${entry#"$name"}"
+      rest="${entry#*|}"
+      printf '%s\t%s' "$(module_graph_exemption_anchor "$entry")" "$(trim_field "${rest#*|}")"
       return 0
     fi
   done
@@ -1653,13 +1854,28 @@ counter_for() {
     t_the_report_names_the_library_and_only_the_unreplaced_module)
       printf 'tree:repaired\n'
       printf 'tree:repaired-minus-one-replace\n' ;;
-    # ONE COUNTER PER ARM. `transitive-replace-dropped` reopens exactly the closure 62c87f3
-    # closed, and it is the demonstration that this test reads something tests 18-20 cannot:
-    # they stay GREEN over that tree. `exempt:stale` lists a library that already resolves and
-    # proves the debt register cannot outlive its debt.
+    # ONE COUNTER PER ARM, and this test has six. The claim was made before it was true: the
+    # comment said "one per arm" while the vacuity floor, the phantom arm and the reason arm had
+    # no stimulus at all — three assertions that had never executed a failing path in this suite.
+    #   exempt:none                      four red libraries, none tabled        -> unexpected
+    #   tree:transitive-replace-dropped  a dropped sibling closure, not tabled  -> same-class
+    #   exempt:stale                     a green library that IS tabled         -> stale
+    #   exempt:same-class                a sibling defect, tabled with an
+    #                                    HONEST anchor                          -> same-class
+    #   exempt:wrong-reason              a real entry, an anchor its library's
+    #                                    error does not contain                 -> reason
+    #   exempt:phantom                   an entry naming no library in the tree -> phantom
+    #   exempt:empty-anchor              an entry whose anchor matches anything -> shape
+    #   tree:empty                       no manifest at all                     -> vacuity floor
     t_every_library_resolves_its_full_module_graph)
+      printf 'exempt:none\n'
       printf 'tree:transitive-replace-dropped\n'
-      printf 'exempt:stale\n' ;;
+      printf 'exempt:stale\n'
+      printf 'exempt:same-class\n'
+      printf 'exempt:wrong-reason\n'
+      printf 'exempt:phantom\n'
+      printf 'exempt:empty-anchor\n'
+      printf 'tree:empty\n' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
 }
@@ -1678,6 +1894,7 @@ counter_for() {
 # suite exists to catch: nothing said which assertions had and had not run. An unbuildable stimulus
 # is now a FAILING assertion that names the spec, and the remaining cases still run.
 apply() {
+  local apply_entry apply_replaced
   STIMULUS=""
   CONFIG="$SHARED_CONFIG"
   GO_BUILD_RC=0
@@ -1718,7 +1935,49 @@ apply() {
     # tree, so it can never go stale the way its predecessor did: it has no dependency on any
     # library staying broken.
     exempt:stale)
-      MODULE_GRAPH_EXEMPT+=("$STALE_EXEMPTION_LIB it already resolves; this entry is the stimulus, not a real debt") ;;
+      MODULE_GRAPH_EXEMPT+=("$STALE_EXEMPTION_LIB | it already resolves, so no anchor can match | the stimulus, not a real debt") ;;
+    # THE PHANTOM. An entry naming a library the scan never walks is reached by no other arm, so
+    # it can never be retired: the register reports a debt that does not exist.
+    exempt:phantom)
+      MODULE_GRAPH_EXEMPT+=("$PHANTOM_EXEMPTION_LIB | github.com/kr/pretty | the stimulus: this library does not exist") ;;
+    # THE COUNTER FOR THE UNEXPECTED ARM, and it needs its own because the sibling stimulus no
+    # longer reaches it: a dropped closure is now claimed by the more specific same-class arm,
+    # which is the right message but leaves `unexpected` — a red library that is simply not
+    # tabled — with nothing driving it. Emptying the table puts all four real debts in exactly
+    # that state, and none of their errors names a sibling.
+    exempt:none) MODULE_GRAPH_EXEMPT=() ;;
+    # THE EMPTY ANCHOR. `grep -F ""` matches every error ever printed, so an entry with no anchor
+    # turns the reason arm into a check that cannot fail while still looking like one that can.
+    exempt:empty-anchor)
+      MODULE_GRAPH_EXEMPT+=("$WRONG_REASON_LIB |  | the stimulus: no anchor at all") ;;
+    # THE WRONG REASON. One real entry keeps its library and loses its anchor to a module path
+    # taken from a DIFFERENT library's real error in this same tree. This is the prose defect,
+    # planted: an entry that describes a defect its library does not have.
+    exempt:wrong-reason)
+      apply_replaced=0
+      MODULE_GRAPH_EXEMPT=()
+      for apply_entry in "${MODULE_GRAPH_EXEMPT_SOURCE[@]}"; do
+        if [[ "$(trim_field "${apply_entry%%|*}")" == "$WRONG_REASON_LIB" ]]; then
+          MODULE_GRAPH_EXEMPT+=("$WRONG_REASON_LIB | $WRONG_REASON_ANCHOR | the stimulus: an anchor this library's error does not contain")
+          apply_replaced=$((apply_replaced + 1))
+        else
+          MODULE_GRAPH_EXEMPT+=("$apply_entry")
+        fi
+      done
+      # A stimulus that replaced nothing planted nothing. Reported as unbuildable, never as a pass.
+      if [[ "$apply_replaced" -eq 0 ]]; then
+        printf '\033[0;31m[test]\033[0m the exemption table holds no entry for %s, so the wrong-reason stimulus has no subject\n' "$WRONG_REASON_LIB" >&2
+        return 2
+      fi
+      ;;
+    # THE SAME-CLASS EXEMPTION: reopen agentruntime's closure AND table it, which is precisely the
+    # state two entries were in — a same-class defect wearing a different-class label. The anchor
+    # is honest here, so only the same-class arm can fire; that is what makes this stimulus prove
+    # the arm reads the OBSERVED error rather than the recorded prose.
+    exempt:same-class)
+      MODULE_TREE="$(mutant_tree transitive-replace-dropped)" || return 2
+      [[ -d "$MODULE_TREE" ]] || return 2
+      MODULE_GRAPH_EXEMPT+=("$TRANSITIVE_LIB | $SIBLING_PREFIX$TRANSITIVE_MODULE | the stimulus: a same-class defect, exempted") ;;
     real)        : ;;
     none:*)      return 1 ;;
     *) printf '\033[0;31m[test]\033[0m unknown stimulus spec: %s\n' "$1" >&2; return 2 ;;
