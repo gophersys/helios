@@ -1,10 +1,10 @@
 # hermetic-tier-fixture
 
-phase:    pr
+phase:    wait
 repo:     gophersys/libs
 branch:   fix/hermetic-tier-fixture
 worktree: ~/code/.worktrees/libs-hermetic-tier-fixture
-pr:       -
+pr:       16
 attempt:  0/2
 
 ## Goal
