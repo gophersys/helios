@@ -451,3 +451,17 @@ the LOOP.md rule from the corrective run (gates never share a chain with
 bookkeeping or commits) is now doubly earned. Also: the ~/code/.claude
 bullet converted from box to standing watch — it is performed every run,
 not completable.
+
+## 2026-08-14T00:28Z — ui-verifier agent (PLAN P7)
+Wrote .claude/agents/ui-verifier.md: read-only adversarial verifier that
+accepts only the executed battery as evidence — ctl.sh test + geometry as
+bare-rc commands, drive scenarios for gesture claims, fleet conclusions for
+fleet-relevant claims, and a ledger check (tick ⇒ LOG entry + content in
+tree, per today's repair). Renders may FAIL, never PASS (eyes doctrine).
+Verified every path the agent references exists (docs/eyes.md, LOOP.md,
+ctl.sh targets, the LOG ledger-repair entry). Gates bare: pytest 70 passed
+rc=0, ruff rc=0. Incident during the run, worth keeping: pathlib
+write_text does not create parent directories — .claude/agents/ did not
+exist and the first write failed loudly; the Write path (which creates
+parents) succeeded. The failure was visible precisely because the write
+was not chained behind a gate.

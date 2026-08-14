@@ -87,7 +87,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 - (standing watch, not a box) `~/code/.claude/`: checked every run by the
       loop protocol; still absent. If it appears: re-read precedence, record
       conflicts in LOG.md, never override it.
-- [ ] ⏳ 2026-08-14T00:24Z (loop) An `ui-verifier` agent definition: runs only the proof battery and
+- [x] An `ui-verifier` agent definition: runs only the proof battery and
       refuses to pass on assertion.
 
 - [ ] Rebase dense-ui-ci as a gophersys/base CHILD image (house convention:
