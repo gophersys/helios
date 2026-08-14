@@ -1,6 +1,6 @@
 # deep-craft
 
-phase:    red
+phase:    green
 repo:     gophersys/dense-ui
 branch:   feat/deep-craft
 worktree: ~/code/.worktrees/dense-ui-deep-craft
@@ -106,6 +106,31 @@ check).
 
 ## Proven
 - `git worktree add -b feat/deep-craft ... origin/main` → HEAD at 0dbf676.
+- RED (W0): `uv run --extra dev pytest tests/test_scorecard.py -v` → EXIT=1,
+  `12 failed, 1 passed in 0.20s`; every failure is the feature's absence
+  (ModuleNotFoundError: densui.score / ImportError / argparse invalid
+  choice 'score'). Whole suite `12 failed, 78 passed`, zero collection
+  errors, zero regressions vs 77-passed baseline.
+- Assertions BITE: scratchpad harness ran the real test functions against
+  11 deliberately wrong stub implementations — 11/11 caught for their own
+  named reason (incl. the exact lie W0 prevents: unmeasured reported as
+  measured=True; and an aesthetic-verdict key at top level).
+- Corpus fixture pair verified through REAL chrome on the existing audit
+  path: seeded rc=1 with the overlap named; clean rc=0.
+- One deliberately-green test (fixture guard) pins that CLEAN/SEEDED
+  fixtures are what the battery actually sees — declared, not smuggled.
+
+## Pinned interface (implementer builds to exactly this)
+- densui.score.UNMEASURED — sentinel object, not a string.
+- densui.score.REGISTRY: dict[str, Row]; Row.predicate = dotted string or
+  UNMEASURED. 14 kebab-case classes; battery six map to densui.audit.
+- densui.score.Target(name=..., probe_out=..., seeds=None) — kw-constructible.
+- run_scorecard(targets) -> {"classes": {cls: {measured, violations,
+  seed_caught}}, "failures": [str]} — top-level keys exactly those two.
+- CLI: densui score --corpus <dir> — scores seed dirs PRESENT, prints
+  report JSON, rc follows failures.
+- corpus/<class>/{page.html, panel.toml, TELL.md} at repo root; panel.toml
+  carries [probe].root; TELL.md is documentation, not parsed.
 
 ## Blocked
 Nothing.
