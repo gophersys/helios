@@ -19,7 +19,7 @@ ylw() { printf '\033[0;33m%s\033[0m' "$1"; }
 parse() {
   awk '
     /^  [a-z0-9-]+: *\{/ {
-      name=$1; sub(":","",name); body=$0; sub(/^[^{]*\{/,"",body); sub(/\}[[:space:]]*$/,"",body)
+      name=$1; sub(":","",name); body=$0; sub(/^[^{]*\{/,"",body); sub(/\}[[:space:]]*(#.*)?$/,"",body)
       n=split(body,parts,","); for(i=1;i<=n;i++){ split(parts[i],kv,":"); k=kv[1]; v=kv[2]
         gsub(/^[ \t]+|[ \t]+$/,"",k); gsub(/^[ \t]+|[ \t]+$/,"",v); gsub(/"/,"",v)
         if(k!="") print name"|"k"|"v }
@@ -38,14 +38,30 @@ names() { parse | awk -F'|' '{print $1}' | awk '!seen[$0]++'; }
 # ssh does not expand a tilde inside -i; it looks for a directory named "~".
 keypath() { case "$1" in \~/*) printf '%s\n' "$HOME/${1#\~/}" ;; *) printf '%s\n' "$1" ;; esac; }
 
-probe() {  # user host [key] -> prints hostname or an error token
+probe() {  # user host [key] -> prints HN:<hostname> on success, ERR:<cause> on failure
   # IdentitiesOnly keeps the agent and the default identities out, so a PASS
   # proves the DECLARED key works and not some other key that happens to be
   # loaded. The ${id[@]+...} form is for bash 3.2, where "${empty[@]}" is
   # unbound under set -u.
   id=(); [ -n "${3:-}" ] && id=(-i "$3" -o IdentitiesOnly=yes)
-  ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 -o BatchMode=yes \
-      ${id[@]+"${id[@]}"} "$1@$2" 'echo HN:$(hostname)' 2>&1 | grep -o 'HN:[^ ]*' | head -1
+  local out hn cause
+  out="$(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=8 -o BatchMode=yes \
+      ${id[@]+"${id[@]}"} "$1@$2" 'echo HN:$(hostname)' 2>&1)"
+  hn="$(printf '%s\n' "$out" | grep -o 'HN:[^ ]*' | head -1)"
+  if [ -n "$hn" ]; then
+    printf '%s\n' "$hn"; return 0
+  fi
+  # No hostname came back. Name why, so the caller shows the cause instead of
+  # collapsing auth, DNS, refusal and timeout into one bare "unreachable".
+  case "$out" in
+    *"Permission denied"*|*publickey*)                   cause=auth ;;
+    *"Could not resolve"*|*"Name or service not known"*) cause=dns ;;
+    *"Connection refused"*)                              cause=refused ;;
+    *"timed out"*)                                       cause=timeout ;;
+    *"No route to host"*)                                cause=no-route ;;
+    *) cause="$(printf '%s\n' "$out" | grep -v '^[[:space:]]*$' | tail -1)" ;;
+  esac
+  printf 'ERR:%s\n' "$cause"
 }
 
 echo "verifying access against contracts/access.yaml"
@@ -73,17 +89,20 @@ for m in $(names); do
         fi
       fi
       out="$(probe "$user" "$addr" "$key")"
-      if [ -z "$out" ]; then
-        printf '  %s %-13s %-14s unreachable as %s@%s\n' "$(red FAIL)" "$m" "$method" "$user" "$addr"; fail=$((fail+1))
-      else
-        got="${out#HN:}"
-        # hostname must contain the declared name — catches a machine answering
-        # at an address that now belongs to something else
-        case "$got" in
-          *"$m"*) printf '  %s %-13s %-14s %s\n' "$(grn PASS)" "$m" "$method" "$got"; pass=$((pass+1)) ;;
-          *)      printf '  %s %-13s %-14s answered as %s (expected %s)\n' "$(red FAIL)" "$m" "$method" "$got" "$m"; fail=$((fail+1)) ;;
-        esac
-      fi ;;
+      case "$out" in
+        HN:*)
+          got="${out#HN:}"
+          # hostname must contain the declared name — catches a machine answering
+          # at an address that now belongs to something else
+          case "$got" in
+            *"$m"*) printf '  %s %-13s %-14s %s\n' "$(grn PASS)" "$m" "$method" "$got"; pass=$((pass+1)) ;;
+            *)      printf '  %s %-13s %-14s answered as %s (expected %s)\n' "$(red FAIL)" "$m" "$method" "$got" "$m"; fail=$((fail+1)) ;;
+          esac ;;
+        ERR:*)
+          printf '  %s %-13s %-14s unreachable (%s) as %s@%s\n' "$(red FAIL)" "$m" "$method" "${out#ERR:}" "$user" "$addr"; fail=$((fail+1)) ;;
+        *)
+          printf '  %s %-13s %-14s unreachable as %s@%s\n' "$(red FAIL)" "$m" "$method" "$user" "$addr"; fail=$((fail+1)) ;;
+      esac ;;
     password)
       printf '  %s %-13s %-14s needs vault secret %s (not probed non-interactively)\n' "$(ylw SKIP)" "$m" "$method" "$(get "$m" secret)"; skip=$((skip+1)) ;;
     *)
