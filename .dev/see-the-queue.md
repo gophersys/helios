@@ -105,3 +105,105 @@ predate the entire floor rule. See task #60.
 Test author: F1 (guard the repo-wide floor), F2 (make the limitation case stop
 forbidding its own fix), F4 (the two missing fixture shapes).
 Then implementer: F3, F5, F7, F8.
+
+
+## Phase 2 round 2 — F2 and F3 closed, F1 proven UNCLOSABLE at the fixture layer
+
+```
+cases=11 assertion-failures=0   rc=0
+ctl.sh validate                 rc=0
+```
+
+### F1 — NOT a missing fixture. A SEAM property, and it was proven, not asserted.
+
+The test author reproduced my mutation, then instrumented a copy with `cmp` at the
+fixture branch and ran every fixture through it:
+
+```
+dispatch-only         PROBE identical rows=36
+floor-not-median      PROBE identical rows=21
+warm-and-cold-starts  PROBE identical rows=25
+uniform-saturation    PROBE identical rows=34
+mostly-contended      PROBE identical rows=20
+```
+
+`cp "$JOBS_SAMPLE" "$JOBS_WINDOW"` is **unconditional**, so the mutation swaps two
+BYTE-IDENTICAL files. **No fixture content can distinguish them — this is closed
+under all possible fixtures, not merely the ones written.** The live split is on
+`run.path` from the RUNS endpoint, and a jobs-API response carries no run path, so
+a fixture cannot express "these jobs belong to another workflow" at all.
+
+It declined to write a case that can never pass, and declined to add a dead
+fixture. That is the correct outcome and a better one than a green test.
+
+**SEAM NEEDED — implementer's change:**
+
+```
+preferred  the fixture carries the runs index beside the jobs:
+             {"runs":[{"id":..,"path":".github/workflows/validate.yml"}], "jobs":[..]}
+           and the fixture path splits on run_id -> path. Mirrors live exactly and
+           keeps run.path as the single split key, preserving the one-extractor rule.
+cheaper    read `.workflow_name` per job and match the workflow argument on the
+           fixture path. Works, but fixture and live would then split on DIFFERENT
+           fields — the exact divergence the one-extractor rule exists to stop.
+```
+
+### F2 — CLOSED, and the fix generalises
+
+The case now asserts the MECHANISM and never the sensitivity:
+
+```
+asserted      the floor is dragged into the contended cluster (computed BEFORE the
+              factor, so true for every K)
+asserted      the SMALLEST wait escapes — at a 410s floor the alarm is >= 410s for
+              any K >= 1, so a 400s wait is invisible whatever K is
+NOT asserted  how many of the other 15 are caught. That is K's business.
+```
+
+Band moved **[3,20] -> [2,20]**, and the lower bound is now held by false-fire
+evidence instead of by a limitation note. It also checked the same trap on the
+OTHER axis: at p=0/10/19 the limitation case fails, but the warm-start case fails
+at all of those too, so it is never a sole veto there either.
+
+### F3 — CLOSED, proven by mutation rather than by arrival
+
+Both fixtures were green on arrival (the behaviour existed, it was untested), so
+each was proven by breaking the code:
+
+```
+M1 skipped into the floor sample   -> floor 0s, 16 false fires, rc=1
+M2 skipped given a verdict         -> skipped=8 / checked=16 absent
+M3 in-flight out of the sample     -> floor 470s, exit 0 on a saturated window
+M4 in-flight given a verdict       -> pending=12 / checked=8 absent
+```
+
+Four mutants, four different assertions killing them.
+
+### The corridor is corrected
+
+Both old figures were arithmetic on one fixture rather than a sweep. The header now
+records the measured bands — `FLOOR_PERCENTILE [20,28]`, `ALARM_FACTOR [2,20]` —
+says "sweep, do not derive", and notes that the `f579be5` commit body stands wrong
+in the log and cannot be corrected.
+
+## DECIDED — K=2 must be excluded on dispatch-budget grounds
+
+The test author raised this and asked rather than assuming. **Add the 16s cold
+start.**
+
+The measured worst no-contention queue on this pool is **16s**. The warm-and-cold
+fixture tops out at 12s, so nothing currently rejects K=2 on budget grounds — and
+K=2 gives an 18s alarm, **2 seconds of margin** over the worst real dispatch. That
+is not a margin; one slightly slower cold start false-fires, which is the original
+defect returning by a different route.
+
+K=3 gives 27s against a 16s worst dispatch — 11s of headroom. The fixture should
+express the pool as measured, not as convenient, and the band should be constrained
+by the dispatch budget rather than by which fixtures happen to exist.
+
+## Next
+
+Implementer FIRST (the seam is a source change): the runs-index seam for F1, plus
+F5 (help text still describes the deleted rule), F7 (the rank is not "nearest
+rank"), F8 (the fixture-path message names the live workflow).
+Then test author: the F1 case once the seam exists, and the 16s cold start.
