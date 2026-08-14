@@ -755,8 +755,6 @@ TRANSITIVE_MODULE="envelope"
 #
 # FORMAT: <library> | <anchor> | <reason>
 MODULE_GRAPH_EXEMPT_SOURCE=(
-  "objectstorage | github.com/kr/pretty      | go.sum drift, task #37 — needs a go.sum write, which this change's guards forbid; also RED for go build"
-  "orchestrator  | updates to go.mod needed  | manifest drift, task #37 — the residual is the pgx/v5 5.7.6 -> 5.10.0 bump; also RED for go build"
   "dependencies  | github.com/stretchr/testify | go.sum drift, task #37 — go build, vet and test are green, so only this test sees it"
   "errors        | github.com/stretchr/testify | go.sum drift, task #37 — go build, vet and test are green, so only this test sees it"
 )
@@ -833,10 +831,11 @@ MODULE_GRAPH_TRANSPORT_MARKERS=(
 # The stimulus this replaces added the one missing replace to an exempt library. That worked
 # exactly once: agentsession was fixed for real, the mutant could no longer change anything, and
 # it took the whole suite down with it before the summary printed. Re-pointing it at another
-# entry would buy the same trap again, and worse — NONE of the four that remain is repairable by
-# adding a replace. Three are missing a go.sum HASH, which no go.mod edit supplies, and
-# orchestrator needs a version bump as well. A stimulus whose premise is "this library can be
-# repaired with one line" has no valid subject left in this tree.
+# entry would buy the same trap again, and worse — NEITHER of the two that remain is repairable by
+# adding a replace. Both (dependencies and errors) fail on the SAME third-party, test-only defect,
+# a missing go.sum HASH for testify@v1.11.1, which no sibling replace and no go.mod edit supplies.
+# A stimulus whose premise is "this library can be repaired with one line" has no valid subject
+# left in this tree.
 #
 # The arm under test is a predicate over the TABLE — "listed AND resolves" — so the stimulus
 # belongs on the table, exactly as REFUSE_VALUES and FRACTION_VALUES are stimuli on a value set.
@@ -849,11 +848,17 @@ STALE_EXEMPTION_LIB="configuration"
 
 # The anchors for `exempt:wrong-reason`, chosen so the stimulus reaches the REASON arm. The subject
 # must be a library genuinely on the table and genuinely red, so the only thing the stimulus changes
-# is whether the recorded anchor matches the observed error; `WRONG_REASON_ANCHOR` is a REAL module
-# path from a REAL error in this same tree — objectstorage's — so the stimulus proves the anchor is
-# matched against THIS library's error rather than against any error the tree happens to produce.
-# `orchestrator` fails on `updates to go.mod needed`, which `github.com/kr/pretty` does not contain.
-WRONG_REASON_LIB="orchestrator"
+# is whether the recorded anchor matches the observed error. `dependencies` fails on `missing go.sum
+# entry for github.com/stretchr/testify`, and `WRONG_REASON_ANCHOR` is a real module path that error
+# does NOT name, so the reason arm fires and proves the anchor is matched against THIS library's
+# observed error rather than against any error the tree happens to produce.
+#
+# It was `orchestrator` until orchestrator's graph was repaired and its entry left the table; the
+# tree that once carried a second, distinct error class (objectstorage's `kr/pretty`, orchestrator's
+# `updates to go.mod needed`) now resolves those two, so both remaining entries share the testify
+# defect. The wrong anchor is therefore a real module path that is simply absent from the subject's
+# error, which is all the reason arm needs.
+WRONG_REASON_LIB="dependencies"
 WRONG_REASON_ANCHOR="github.com/kr/pretty"
 PHANTOM_EXEMPTION_LIB="phantomlibrary"
 
