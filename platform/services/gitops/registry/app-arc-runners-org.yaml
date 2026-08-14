@@ -219,6 +219,14 @@ spec:
                   # and a secret volume is owned by root, so owner-only is
                   # readable here.
                   defaultMode: 0400
+                  # ESO materialises this Secret asynchronously, and Argo may sync
+                  # this pool before the Secret exists. `optional: true` lets a
+                  # runner pod START without the cert instead of hanging in
+                  # ContainerCreating. The cert is used only for arm64 mini builds
+                  # (D42, not yet enabled), so an absent cert breaks nothing now;
+                  # once D42 is on, a build that needs the cert fails LOUDLY at
+                  # build time rather than the pod hanging silently.
+                  optional: true
   destination:
     server: https://kubernetes.default.svc
     namespace: arc-runners
