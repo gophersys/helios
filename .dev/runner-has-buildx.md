@@ -417,3 +417,78 @@ build needs ~10 GB.
 Also flagged: three containers (`amazing_noyce`, `impl-validate-final2`,
 `bold_faraday`) are running from `ghcr.io/gophersys/base:latest`, left by another
 agent.
+
+
+## Phase 7 — the publish-order blocker is closed (`faa86d4`)
+
+The `base-runner` job now builds twice: `push: false` + `load: true` to a
+registry-less `SMOKE_REF`, then the smoke against that loaded ref, then a second
+`push: true` build, then `verify-published` (still after the push, as the test
+pins it).
+
+`SMOKE_REF` carries NO registry on purpose: nothing can pull it, so a load that
+did not happen fails the smoke instead of silently asserting against the last
+PUBLISHED image. That is the difference between a gate and a gate-shaped hole.
+
+### The reordering was EXECUTED, not read
+
+The workflow has no `continue-on-error` and no `if:` (grep rc=1), so a failed step
+ends the job. The three steps were run locally, twice, changing only the parent
+image:
+
+```
+A  BASE_IMAGE=dc-buildx-base:local            (base WITH the buildx install layer)
+   build --push=false --load   rc=0   nothing published
+   smoke                       rc=0   v0.36.1 matches the pin
+   publish                     REACHED
+   verify-published            after the push, as pinned
+
+B  BASE_IMAGE=ghcr.io/gophersys/base:latest   (published base, NO buildx layer)
+   build --push=false --load   rc=0   nothing published
+   smoke                       rc=1   docker: unknown command: docker buildx
+   JOB STOPS — the publish step is NEVER REACHED
+```
+
+Path B is a real build of the real `runner/Dockerfile` on a base that genuinely
+lacks the install. It substitutes for deleting the install block from a throwaway
+`base/Dockerfile`, which was attempted and ABANDONED at ~30s: the earlier cache
+prune meant that path needed a full ~10 GB / ~40 min rebuild against 6.1 GB free,
+and the implementer killed it to protect a Docker daemon shared with other agents
+rather than let it hit `No space left on device`. Correct call, and disclosed.
+
+```
+ctl.sh test      rc=0   publish-order 28 checks, 0 failed
+ctl.sh validate  rc=0
+diff .github/workflows/build-and-push.yml .ci/providers/github/build-and-push.yml   rc=0
+```
+
+### One file generates the other? NO — and a README lies about it
+
+There is no generator and no symlink. Both are regular files kept equal only by a
+`cmp` in `_ctl/tests/platform-policy.test.sh`. **`.ci/providers/README.md` claims
+`.github/workflows/*.yml` ARE symlinks into the provider directory.** That is
+false, and `.ci/README.md:23` states the truth ("a copy, not a symlink"). Two
+documents in one repository disagree about the mechanism, and the false one is the
+more authoritative-sounding. Untouched by this change — filed separately.
+
+### A scope expansion, flagged rather than hidden — and I am CONFIRMING it
+
+The implementer also edited `.claude/rules/00-identity.md`, outside the two files
+I scoped, because its sentence ("builds with `--push`, then verify-published") had
+become FALSE for `base-runner`. **Keep it.** Leaving a rule file describing a
+sequence the repository no longer performs is precisely the doc-truth defect this
+estate has spent the night finding. A change that falsifies a document and does
+not fix it is incomplete, not in-scope.
+
+### Fidelity gap, stated
+
+The local builds used the `docker` driver, not the `docker-container` driver
+`setup-buildx-action` creates in CI. Materialising `base` in a fresh
+docker-container builder needs ~10 GB, which this disk does not have. `--load`
+differs in mechanism only, but the SECOND (publish) build's cache hit is therefore
+NOT measured. No push to ghcr.io was performed.
+
+## Next
+
+Final verification, then the pull request. All findings from two verifier rounds
+plus the publish-order blocker are now closed.
