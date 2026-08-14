@@ -1,6 +1,6 @@
 # every-sibling-is-replaced
 
-phase:    fix — verifier round 2 returned 5 findings
+phase:    verify
 repo:     gophersys/libs
 branch:   fix/every-sibling-is-replaced
 worktree: ~/code/.worktrees/libs-replaces
@@ -389,3 +389,89 @@ Test author, in priority order:
 3. F4 — a counter-stimulus for the `scanned -gt 0` vacuity floor.
 4. F5 — a phantom exemption entry naming a library that does not exist must fail.
 5. Correct the orchestrator reason wording at :704 and :715.
+
+
+## Phase 10 — the exemption reasons are ASSERTIONS now (`b8a8cac`)
+
+Format is `<library> | <anchor> | <reason>`. Three arms police it, and **two read
+the OBSERVATION, not the prose**:
+
+```
+reason       the observed error does not contain the anchor
+same-class   the observed error names a SIBLING at v0.0.0 — not exemptible, whatever the anchor says
+phantom      the entry names a library the scan never walked
+```
+
+**The `same-class` arm is the one that closes the hole I opened.** It matches
+`github\.com/gophersys/libs/go/[a-z]+@v0\.0\.0` in the observed error and refuses
+any exemption over it — with ZERO reliance on the prose being honest. It would
+have caught `objectstorage` and `orchestrator` the day their reasons were written.
+
+**On anchoring, answered rather than guessed.** Anchor on the MODULE PATH where
+the error names one: Go rewords prose between releases (`missing go.sum entry`
+gained `for go.mod file`), but a module path inside an error is DATA — the
+identity of the thing that failed, and the exact discriminator between `envelope`
+and `kr/pretty`. Where no module is named (`orchestrator` prints only `updates to
+go.mod needed`) the anchor is Go's own error string. All four measured from a real
+run.
+
+**Does it move the prose problem? "Partly, and I will not pretend otherwise."**
+The anchor is still typed by a human; what changed is that it is mechanically
+refuted every run, and the same-class arm needs no hand-written input at all. The
+degenerate case — an anchor so generic it matches anything, since `grep -F ""`
+matches every error Go prints — is closed by an 8-character floor with its own
+counter-stimulus. An anchor that is wrong but plausible remains possible, and
+fails the moment the error it claims does not appear.
+
+### F3 — a network outage is no longer a code finding
+
+```
+--network none, GOPROXY=off
+[test] HARNESS FAILURE, not a finding: the module proxy is unreachable, so this run
+       measured the network rather than agentruntime's manifest. ... CHANGE NO go.mod.
+```
+
+The discriminator is sharp and worth keeping: manifest markers are tested FIRST,
+because an unreplaced private sibling fails THROUGH the network and carries
+transport text too — but it also carries `invalid version`, which no reachability
+failure ever produces. And the `unexpected` arm now prescribes no fix unless the
+module named is a sibling: *"no fix is prescribed here: the module named is not a
+sibling, so a replace is NOT the answer."* That kills the case where an outage
+told 12 libraries to add a replace for a third-party module.
+
+### It corrected my mapping
+
+I said `tree:transitive-replace-dropped` should fire `unexpected`. It fires
+`same-class` — the more specific arm claims it and gives the right fix. That left
+`unexpected` with no counter, so `exempt:none` was added. **Eight counters, eight
+arms, each verified to fire its own**, including both directions on the reason
+arm: a wrong recorded reason fails, and phase-1 green is all four anchors matching
+their observed errors.
+
+```
+bash go/_ctl/lib_test.sh   rc=0  126s  21 test(s) hold; 20 of 21 proven able to fail
+                                        across 37 counter-stimuli; 1 stated no counter
+bash ./ctl.sh validate     rc=0  validate: all checks passed
+shellcheck                 rc=0
+```
+
+### A red it refused to report away, and a retraction
+
+`validate` failed the FIRST time, rc=1, inside `verb_conservation_test.sh` with a
+false *"the verbs moved"* diff. Root cause found rather than rerun-until-green:
+
+```
+mktemp: failed to create directory ... No space left on device
+```
+
+The Docker VM was at 90%. `mktemp` returned empty, the suite built its sandbox at
+`/bin` and `/tree`, and recorded a **disk artifact as a contract change naming an
+innocent library**. Filed as task #69 — it is not this branch's file to fix.
+
+It also retracted its own intermediate claim: it had attributed 12G of growth to
+`verb_conservation_test.sh`, which was wrong, because `df /` inside a container
+reports the whole shared VM filesystem and the delta included other agents' runs.
+
+## Next
+
+Verification, then the pull request.
