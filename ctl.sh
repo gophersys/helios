@@ -197,7 +197,7 @@ Commands:
   verify-registry   Assert every in-repo Argo Application path resolves
   verify-structure  Assert contract front-matter/sections + chart READMEs
   verify-vault-refs Assert every named vault item resolves to EXACTLY one item
-  verify-buildx-key Assert the arc-org pool mounts the macOS buildx SSH key
+  verify-buildx-key Assert the arc-org pool mounts the buildkit client mTLS certs
   verify-runner-image <tag>  Assert a runner image works in the ARC pod shape
   verify-image-arch <ref>    Assert every manifest variant IS the arch it declares
   help              Show this message
@@ -259,9 +259,11 @@ function cmd_verify_vault_refs() {
 }
 
 function cmd_verify_buildx_key() {
-  # Assert the arc-org pool really receives the macOS buildx SSH key: vault-backed,
-  # mounted as a FILE, owner-only. A key mounted at the kubelet default 0644 is
-  # refused by ssh itself, and only at the first build.
+  # Assert the arc-org pool really receives the buildkit client mTLS certs:
+  # vault-backed, mounted read-only as a DIRECTORY of ca.pem/cert.pem/key.pem,
+  # owner-only, at the path the documented `--driver remote` step reads. Certs
+  # left at the kubelet default 0644 make the private key group-readable, and
+  # only the first build notices.
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-buildx-key.sh" "$@"
 }
 

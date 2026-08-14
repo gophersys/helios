@@ -65,9 +65,11 @@ jobs:
       - name: contracts and charts structure
         run: bash scripts/verify-structure.sh
 
-      # The arc-org pool builds arm64 natively on the Mac mini over `docker -H
-      # ssh://`. This asserts the key actually reaches the pod as a file that ssh
-      # will accept. No vault access is needed: it reads manifests only.
+      # The arc-org pool builds arm64 natively on the Mac mini's buildkitd over
+      # mTLS (`--driver remote`). This asserts the client CERTS actually reach the
+      # pod: one vault-backed Secret carrying exactly ca.pem/cert.pem/key.pem,
+      # mounted read-only as a directory, owner-only, at the path the documented
+      # buildx step reads. No vault access is needed: it reads manifests only.
       #
       # Its twin, `bash ctl.sh verify-vault-refs`, is deliberately NOT here. That
       # one asks the real Vaultwarden whether each named item resolves to exactly
@@ -75,7 +77,7 @@ jobs:
       # session. Adding it here would make it fail for the environment rather than
       # for the property, and the fix for that is always a skip. It is local-only,
       # like verify-access.
-      - name: arc-org receives the macOS buildx key
+      - name: arc-org receives the buildkit client certs
         run: bash scripts/verify-buildx-key.sh
 
       - name: qBittorrent config-enforce — tests + drift guard
