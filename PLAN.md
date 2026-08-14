@@ -97,6 +97,6 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 ## P8 — Repository hygiene
 
-- [ ] ADR system (`docs/adr/`) in the house style; ADR-0001: computed-not-
+- [ ] ⏳ 2026-08-14T00:29Z (loop) ADR system (`docs/adr/`) in the house style; ADR-0001: computed-not-
       judged; ADR-0002: licensed-assets policy.
 - [ ] README polish with one A/B strip and one gate-failure example.
