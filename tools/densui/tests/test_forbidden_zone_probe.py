@@ -17,8 +17,6 @@ test IS the probe, re-run on every gate, so the record cannot go stale.
 import pathlib
 import tomllib
 
-import pytest
-
 from densui.solve import solve
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]

@@ -420,3 +420,11 @@ Spillmann: resolved by method — ratio-only publication makes the [derived]
 composition the permanent form. LAYOUT-MATH notes §9 is fully dispositioned;
 canonical ~/.claude copies synced. Nothing in the calculus changed — which
 is itself the finding: the framework never leaned on the unknowns.
+
+## 2026-08-14T00:15Z — corrective: lint-dirty commit shipped; chain semantics bite again
+2b54434 pushed with an unused import despite ruff printing the finding in the
+same command — the multi-statement chain ran the commit segment regardless
+(`;` vs `&&` seam in the middle of the pipeline, same disease as the piped
+gates). Fixed forward. Standing tightening, now practised: gates run as
+their OWN commands with echoed bare rcs BEFORE any commit command is typed —
+never in the same chain as the commit.
