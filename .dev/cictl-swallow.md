@@ -743,3 +743,54 @@ function's body is a single pipeline.
 ## Next
 
 Test author: two tests, nothing else. Then the pull request.
+
+
+## Phase 10 — both new controls GUARDED (`7ad5f19`), 15/15
+
+**Test 1** — `t_a_shadowed_cictl_is_refused`. Stimulus is the worst case: a REAL
+cictl on PATH, shadowed by an injected `cictl()` that fails first and prints a
+listing last — the pair `command -v` cannot tell apart. RED by deleting the
+`shadowed` arm:
+
+```
+FAIL t_a_shadowed_cictl_is_refused
+     a shell function answered for cictl and the tier gated over what it printed:
+     alpha phase-gate implementation
+```
+
+The assertion is on the GATING, not the status, because that is the damage — 127
+alone cannot separate `shadowed` from `missing`, so it also reads the word
+`shadowed`.
+
+**Test 2** — the invariant, two stimuli (one mutation cannot be both "a violation
+exists" and "no reads exist"):
+
+```
+a second command grown into the read   -> validate rc=1, "holds more than one command"
+both reads turned into || true          -> validate rc=1, the scan finds NONE
+delete the require_...  call            -> both fail: "exists but never invoked"
+delete only the floor block             -> "status reads in .ci/ctl.sh: 0, each holding one command"
+```
+
+That last line is the night's clearest evidence: the check prints its own success
+line over ZERO reads. Task #71's lesson, in the check's own words, and the
+completeness floor is what stops it.
+
+```
+.ci/ctl_test.sh   rc=0   15 hold, 15 of 15 proven able to fail
+shellcheck        rc=0
+```
+
+## Filed, not fixed (the branch is landing — Mateo: land, do not perfect)
+
+- **Scope gap:** the invariant check covers `.ci/ctl.sh` only. Five other sites
+  carry the same `|| <var>=$?` shape, the worst being `ctl.sh:218` (a FUNCTION on
+  the left of `||`). Recorded, not widened.
+- `shopt -s inherit_errexit` inert for both shipped substitutions, and
+  unguardable without inventing code. Comment now says so honestly.
+- Tests 8/9/15 couple to `log_error`'s prefix — redden loudly if it changes.
+
+## Next
+
+ONE final adversarial pass on the whole branch — it lands FIRST in the audit's
+order, so it earns a clean read before the PR. Then the pull request.
