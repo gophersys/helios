@@ -344,5 +344,25 @@ earned). The three outside fixtures still heal with zero edits.
   never fires on the demos (all dials 28 on integer centres) — exercised
   by the odd-dial unit test only; non-integer dial tokens unspecified.
 
+## Red (W3) — proven
+- 21 tests (20 red for the feature's absence + 1 declared green honesty
+  guard). Dormancy caught in the act: page renders Courier New, config
+  declares Arial, densui audit rc=0 saying nothing. Suite 20 failed / 142
+  passed, 162 collected, zero errors.
+- Bite: reference implementation 21/21 in real chrome; 19/19 mutations
+  caught incl. the declared-list reader (document.fonts.check() measured
+  lying: answers true for "Nonsense Font ABC") and the tolerance-swallow.
+  The kerning mutation initially SURVIVED — re-measured 10 embedded faces,
+  sentinel redesigned with kern-bearing pairs (kerning-on costs 3.55-5.05px
+  across faces; kerning-off is 0.0000 on all ten at both sizes).
+- Flagged truth for green: telemetry/bench build.py hardcode a CSS family
+  while solving with the resolved font path — under DENSUI_FONT divergence
+  the new check fires as a TRUE positive. Legal fix chosen by orchestrator:
+  embed the solved TTF as an @font-face data URI (operator's own pattern),
+  never the tolerance. ctl.sh score must keep NOT exporting DENSUI_FONT.
+- Known limit recorded: metric clones (Arial<->Helvetica, identical
+  sentinel advances) are invisible to the advance check; family is
+  reported, not judged.
+
 ## Next
-W3 red (font identity), then consolidated verify, then PR.
+W3 green (implementer), then consolidated verify, then PR.
