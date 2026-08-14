@@ -112,9 +112,11 @@ check).
   choice 'score'). Whole suite `12 failed, 78 passed`, zero collection
   errors, zero regressions vs 77-passed baseline.
 - Assertions BITE: scratchpad harness ran the real test functions against
-  11 deliberately wrong stub implementations — 11/11 caught for their own
-  named reason (incl. the exact lie W0 prevents: unmeasured reported as
-  measured=True; and an aesthetic-verdict key at top level).
+  11 deliberately wrong stub implementations — 11/11 caught at red time.
+  (Verifier note: re-run after implementation the harness reports 10/11 —
+  stub 1's premise expired because corpus/overlap now exists; the verifier
+  proved that assertion still bites independently via its BREAK 6, a class
+  flipped to measured with no seed -> pytest red naming the missing dir.)
 - Corpus fixture pair verified through REAL chrome on the existing audit
   path: seeded rc=1 with the overlap named; clean rc=0.
 - One deliberately-green test (fixture guard) pins that CLEAN/SEEDED
@@ -134,6 +136,23 @@ check).
 
 ## Blocked
 Nothing.
+
+## Verify (W0) — verdicts
+Verifier (read-only + reversible breaks, all restored, tree byte-identical
+to 645cd3b after): breathing and gap-law seeds each went red TWO ways
+(defect un-planted; probe blinded); dangling registry symbol -> pytest red
+naming the row; injected "passes" key -> eyes-doctrine test red; measured-
+without-seed guard bites (BREAK 6); CI steps unconditional (no continue-on-
+error/if); zero test-file edits (diff 0 bytes); no masking constructs; no
+[rules] overrides; no Ableton content in corpus; TELL numbers match
+measured output; flake not reproduced in 3 full runs (90 passed each).
+FINDINGS: F1 (medium) score CLI has no should-pass targets — demos not
+wired, half the W0 sentence missing -> back to phase 3. F2 (low-med)
+breathing seed catchable only under element-box probing that no production
+panel uses; under production ink config the seed is NOT caught (verifier
+reproduced) -> back to phase 3. F3 (low) stale 11/11 quote -> fixed above.
+Pre-existing, out of scope, recorded for the PR body: ctl.sh:10 lets
+grep -q decide the params gate under pipefail (SIGPIPE 141 hazard).
 
 ## Green (W0) — proven
 - Orchestrator re-ran, bare rcs: `uv run --extra dev pytest -q` -> 90
