@@ -71,7 +71,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 - [x] Verify or discard the four unverified constants flagged in
       `framework/research/psycho-math.md` §9; update LAYOUT-MATH.
-- [ ] ⏳ 2026-08-14T00:13Z (loop) Empirically probe the forbidden-zone thresholds (1.03/1.45) on generated
+- [x] Empirically probe the forbidden-zone thresholds (1.03/1.45) on generated
       panels; record method + result.
 - [x] Extend typo-math with the fonts actually used here (per-face cap tables).
 - [x] dgrid tracks from font advances (grid_rows solver model; pulled forward on 3rd recurrence) — the display
@@ -84,9 +84,9 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
       cite THIS repo's framework files; keep the personal `~/.claude` copies as
       pointers (single canonical source: this repo). Update
       `~/.claude/CLAUDE.md` instrumentation list accordingly.
-- [ ] `~/code/.claude/`: still absent; if the loop ever finds it created,
-      re-read precedence and record any conflicts in LOG.md instead of
-      overriding it.
+- (standing watch, not a box) `~/code/.claude/`: checked every run by the
+      loop protocol; still absent. If it appears: re-read precedence, record
+      conflicts in LOG.md, never override it.
 - [ ] An `ui-verifier` agent definition: runs only the proof battery and
       refuses to pass on assertion.
 

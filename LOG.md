@@ -438,3 +438,16 @@ our two primary faces have nearly identical dy (1.68 vs 1.59 px @16) — the
 quiet reason box-centred labels survived the font swap unharmed; a dy≈0
 face like Inter would need the correction inverted, and the gate now flags
 any such newcomer. 70 tests green.
+
+## 2026-08-14T00:24Z — ledger repair: the probe's bookkeeping had silently vanished
+Forensics: the probe run's ruff failure broke its command chain AFTER the
+content was written but BEFORE the tick+LOG segment ran; the lint-fix
+commit's `git add -A` then swept the content in under its own message. Net:
+research note and tests live on main and in the suite, but PLAN showed the
+box locked-unticked and LOG never got the probe entry. Repaired both (this
+entry stands in for the lost one — the probe's numbers are in
+framework/research/forbidden-zone-probe.md). Third chain-semantics incident;
+the LOOP.md rule from the corrective run (gates never share a chain with
+bookkeeping or commits) is now doubly earned. Also: the ~/code/.claude
+bullet converted from box to standing watch — it is performed every run,
+not completable.
