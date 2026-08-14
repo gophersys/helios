@@ -1,6 +1,6 @@
 # every-sibling-is-replaced
 
-phase:    fix — final verify returned 8 findings
+phase:    verify (final)
 repo:     gophersys/libs
 branch:   fix/every-sibling-is-replaced
 worktree: ~/code/.worktrees/libs-replaces
@@ -714,3 +714,59 @@ and identity clean.
 Test author: revert the specificity arm + grammar assertions (F1/F2/F3), fix the
 two errexit sites (F4), correct the counts and the unescaped grep (F5-F8), and
 document the generic-anchor bound honestly. Then re-verify and PR.
+
+
+## Phase 14 — the regressed machinery DELETED, the sound core kept (`63299f9`, net -65 lines)
+
+**Deleted (F1/F2/F3):** everything `d031cdd` added for the generic-anchor and
+grammar-drift concerns — the specificity arm and its call, the corpus tracking,
+the `GENERIC_ANCHOR_*` anchors, the `exempt:generic-anchor` stimulus, and the two
+load-time grammar assertions.
+
+**Kept, with honest bounds in the comments:**
+- the widened regex — verified BEHAVIOURALLY via `exempt:same-class-rule-compliant-name`,
+  not by hand-picked example strings (which was F3's flaw).
+- the same-class arm — its bound now stated in code: *a generic anchor can hide a
+  drifted DIFFERENT-class reason, never a SIBLING defect, because same-class
+  catches every `…/go/<slug>@v0.0.0` whatever the prose says.* The generic-anchor
+  residual is a documented OPEN BOUND. One honest sentence over three broken
+  guards — which is the `less is more` call.
+
+**F4 — the two errexit sites phase 12 missed.** `typo_config` and `mutant_lib`
+both reached a bare `mktemp` through `X="$(fn)" || return 2`. Fixed with `|| die`.
+RED proven both ways via an injected failing `mktemp`:
+
+```
+OLD mutant_lib:  line 523: /lib.sh: Permission denied
+                 "the 'integration-untimed' mutant changed nothing"   <- disk fault as a code finding
+NEW mutant_lib:  "no throwaway directory could be created under /tmp/... ; check free space"
+                 FAIL — the counter-stimulus could not be built
+```
+
+The container runs as `dev` (non-root), so the old write got Permission denied and
+mislabelled it; as ROOT it would have written the mutant to `/lib.sh` outside the
+sandbox. Both now diagnose free space and the driver names them unbuildable
+without aborting — task #71's discipline, in the two places it was missed.
+
+**F5-F8:** the count is now honestly nine counters over SEVEN distinct arms (I had
+said ten/ten); `grep -qF` on the dotted prefix (was an unescaped BRE two lines
+under the comment forbidding exactly that); the "lock race is probabilistic" note
+corrected to UNWIRED.
+
+The one property worth preserving from the deleted machinery — same-class firing
+on a rule-compliant name — shown firing on `oauth2-provider@v0.0.0`. And the
+REASON arm (not the deleted specificity arm) now fires under `exempt:wrong-reason`.
+
+```
+bash go/_ctl/lib_test.sh   rc=0  136s   21 hold; 20 of 21 proven able to fail
+                                        across 38 counter-stimuli; 1 stated no counter
+bash ./ctl.sh validate     rc=0  17 project records hold; 3 mutants caught
+shellcheck                 rc=0
+disk 81% throughout, 0 space artifacts, 0 FAIL lines
+```
+
+## Next
+
+ONE final verify — the delete + F4 are the last change, and the core already
+passed a full pass. Then the pull request. This is step 5 of the audit's landing
+order.
