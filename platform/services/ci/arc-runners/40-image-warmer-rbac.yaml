@@ -1,0 +1,49 @@
+# RBAC for the ci-image-warmer DaemonSet — read-only, namespace-scoped.
+#
+# The warmer's GC keep-set is DERIVED from live truth at GC time: the images
+# the AutoscalingRunnerSets currently pin plus the images of pods currently in
+# the namespace. A hand-maintained list would drift, and a warmer deleting an
+# image the kubelet still wants would CAUSE the cold pull it exists to
+# prevent. These two reads are the only API access the warmer has; pulling
+# and removing images happens against the node's containerd socket, not the
+# API.
+#
+# WHO CAN REACH THE WARMER: nobody. It is a node-local process with no
+# service, no ingress (the namespace floor default-denies ingress anyway),
+# and its pods run no listener. Job workloads run inside the dind daemon of a
+# DIFFERENT pod and cannot address it. The containerd socket mount makes the
+# warmer node-root — the boundary is that nothing in the cluster can dial
+# into it, and its inputs are git-controlled manifests plus this read-only
+# view.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-image-warmer
+  namespace: arc-runners
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ci-image-warmer
+  namespace: arc-runners
+rules:
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [get, list]
+  - apiGroups: [actions.github.com]
+    resources: [autoscalingrunnersets]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-image-warmer
+  namespace: arc-runners
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ci-image-warmer
+subjects:
+  - kind: ServiceAccount
+    name: ci-image-warmer
+    namespace: arc-runners
