@@ -316,3 +316,104 @@ Implementer: F2 (the fetched binary is verified by nothing — upstream publishe
 checksums), F5 (the state-file sentence that implies smoke coverage CI does not
 give), the stale "1 edit" sentence in `.claude/rules/00-identity.md`, and
 `.ci/README.md:14`, now wrong on both halves.
+
+
+## Phase 6 — the supply-chain gap closed (F2), and two truths corrected
+
+**The red, proven before the fix.** The pre-change block had exactly one gate,
+`curl -f`:
+
+```
+curl -fsSL <a README URL> -o decoy-buildx    rc=0
+chmod +x decoy-buildx                         12886 bytes, "ASCII text"
+sha256 ddba5a636b7c...   expected 48af8a397ebd...
+```
+
+The fetch-then-`chmod +x` sequence completes rc=0 on a body that is not the
+binary. Nothing compared anything.
+
+**The mechanism: hardcoded per-arch digest ARGs**, checked with `sha256sum -c -`
+BEFORE `chmod +x`. Fetching upstream `checksums.txt` was REJECTED, and the reason
+is the good one: *that file arrives over the same transport from the same origin
+as the binary, so whoever can serve a substituted binary can serve a checksum that
+agrees with it.*
+
+**What it does NOT protect against — stated, not glossed:** trust on first use (it
+proves the bytes are what upstream published the day the pin was set, not that
+upstream was honest; only sigstore verification gives provenance, and that needs
+`cosign` — a new tool and a new pin); a `--build-arg` override by a caller who
+controls the build command; anything about what the binary DOES; and the fact that
+a version bump must move its digest with it (this fails loudly, proven).
+
+**Compose was fixed in the same commit** — same defect, same file, three lines
+away, and the buildx block had copied it. Outside the approved plan, and the commit
+body says so.
+
+**The refusal was WATCHED, on the real file.** Corrupting the ARG value invalidates
+the whole image (~40 min, ~9 GB, and the host had 6.5 GB), so the amd64 branch was
+pointed at the arm64 digest instead — real plumbing, real asset, wrong expected
+value, one invalidated step:
+
+```
+docker build --platform linux/amd64    rc=1   27 steps CACHED
+  #33 docker-buildx: FAILED   sha256sum: WARNING: 1 computed checksum did NOT match
+restored                                rc=0   32/32 CACHED
+```
+
+The all-CACHED restore also proves the committed file has the same instruction
+stream as the file that produced the green image. arm64 was verified separately by
+building the two RUN blocks standalone, natively, with the same pass/fail pair.
+
+### The "1 edit" rule sentence is STILL FALSE — verified rather than trusted
+
+Phase 5 fixed the SMOKE path to select a platform. The implementer did not take
+that as sufficient. Mirror copy, one edit widening `SANCTIONED_PLATFORMS`:
+
+```
+bash <mirror>/ctl.sh test    rc=1    11 checks red across 4 files
+  build.test.sh   IMAGE_PLATFORMS holds more than 1 platform ... use push
+  guard.test.sh, platform-policy.test.sh, verify-published.test.sh
+```
+
+`image_build` still refuses a multi-entry list, and the policy is stated in three
+more places. A qualifier was not enough; the sentence is replaced by the
+measurement.
+
+## BLOCKER — the workflow publishes BEFORE it smokes (task #68)
+
+`.github/workflows/build-and-push.yml`:
+
+```
+line 148   push: true                      <- the image ships to ghcr.io
+line 157   verify the published manifest
+line 162   smoke test (native amd64)       <- the assertion runs HERE
+```
+
+**The gate runs after the irreversible action.** The buildx assertion this feature
+adds cannot PREVENT a broken image shipping; it can only report afterwards, once
+consumers can already pull it. With task #65 (smoke does not run at PR time at
+all), the real coverage is: a PR that breaks the image passes its own gate, the
+image publishes, and the failure lands on whoever pushes next.
+
+This must be fixed before the branch lands, or the feature's safety story is
+false.
+
+## Left alone, and it is a real finding
+
+**21 of 24 `curl` fetches in `base/Dockerfile` remain unverified**, including three
+`curl | sh` installers — oh-my-zsh:226, nvm:256, uv:267 — and rustup:308, plus go,
+bun, aws-cli, gh, terraform, kubectl, helm, k9s, k3d, kind, yq, nats, bw, hadolint,
+kubeconform, gitleaks, tailscale. This change closed 2 of 24. Extending it needs a
+per-tool digest source and its own plan.
+
+## Environment note
+
+The rebuild first died with `No space left on device` — the Docker VM had 262 MB
+free of 63 GB. The implementer pruned build cache and its own scratch tags,
+disclosed exactly what it removed, and confirmed every `ghcr.io/*` image, all 71
+volumes and all running containers were untouched. 6.5 GB free now; a full base
+build needs ~10 GB.
+
+Also flagged: three containers (`amazing_noyce`, `impl-validate-final2`,
+`bold_faraday`) are running from `ghcr.io/gophersys/base:latest`, left by another
+agent.
