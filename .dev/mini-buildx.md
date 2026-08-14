@@ -348,3 +348,46 @@ mini's authorized_keys. Admin key `shared/ssh/macos-ci-runner` kept.
 It asserts the OLD SSH-mount design. After the implementer's rework it fails
 because the design changed; a test author rewrites it for the cert design. That
 red is expected evidence, not a defect.
+
+
+## Branch rework COMPLETE (`6ba6918`) — cert design wired, docs rewritten
+
+Red first (honest): `verify-vault-refs` rc=1, the branch still named the DELETED
+`shared/eden/macos-buildx-key`. Green after: rc=0, the three `buildkit-client-*`
+items each resolve to one item.
+
+- NEW `40-buildkit-client-certs-externalsecret.yaml` — 3 items -> one Secret with
+  ca.pem/cert.pem/key.pem. DELETED the old macos-buildx-key ExternalSecret.
+- arc-org mounts the cert Secret read-only at `/etc/buildkit-certs`, mode 0400
+  (dry-run confirms 256 = 0o400).
+- ALL docs rewritten: ci-substrate.md (security-model table + the 4 proofs + the
+  --driver remote step + autostart dependency), the machine README, identity.yaml,
+  and a NEW buildkitd-runbook.md.
+
+`validate` rc=0, kubeconform rc=0 on CI roots, no secret material in the diff.
+
+### ARC-ORG PLACEMENT — implementer's position, which I endorse
+
+**Keep it on arc-org.** The client cert reaches only the BUILD API over mTLS —
+no Engine API, no privileged, no insecure, all proven on the mini. That is a
+different risk class from the old Engine-API key, and the pool is already closed
+to public repos so a fork PR cannot reach the mini. Stated in the manifest comment
+and docs, not silent. FINAL CALL IS MATEO'S because every repo on the pool then
+shares one builder.
+
+### TWO BLOCKERS before this can be switched on (both Mateo's rollout call)
+
+1. **verify-buildx-key is RED** — it asserts the old SSH-mount design and makes the
+   CI `manifests` job red. Being rewritten now for the cert design (test author).
+   That red is expected evidence the design changed, not a defect.
+2. **The runner image needs buildx AND arc-org must pin a buildx-carrying image.**
+   `.devcontainer` #33 published base-runner WITH buildx (c69ffee), but arc-org is
+   pinned to the pre-buildx e0c6bc5. The `--driver remote` step needs buildx on the
+   runner, so arc-org's pin must be bumped. That is the pin-bump/rollout piece,
+   which is D42 territory and Mateo's decision.
+
+## Next
+
+Test author: rewrite verify-buildx-key for the cert design (make the branch green).
+Then the branch is READY, and its merge is Mateo's — pool placement + the arc-org
+pin bump + D42.
