@@ -72,7 +72,14 @@ I got this wrong TWICE before it was right, and the test must use the third form
 A count-based test would be wrong in both directions: false alarms on 11
 libraries, and it would still pass if a library replaced the WRONG module.
 
-## Plan
+## Plan — SUPERSEDED, see phases 7 and 9
+
+The plan below is the ORIGINAL scope and it is no longer true. It said 2
+libraries and "NOTHING ELSE"; the change is 8 `go.mod` files, and both
+`objectstorage` and `orchestrator` — listed here as deliberately excluded — were
+changed in `6738f52`. Kept verbatim rather than edited, because the amendments and
+their reasons are the record. A reader who stops here gets the wrong scope; the
+phases below are authoritative.
 
 APPROVED (self, under delegated authority).
 
@@ -475,3 +482,74 @@ reports the whole shared VM filesystem and the delta included other agents' runs
 ## Next
 
 Verification, then the pull request.
+
+
+## Phase 11 — final verification: the central claim SURVIVES, two latent gaps remain
+
+The verifier executed every attack and could not refute the branch.
+
+```
+ctl.sh validate            rc=0   913 lines, all checks passed
+go/_ctl/lib_test.sh        rc=0   115s   21 hold; 20 of 21 proven able to fail
+                                          across 37 counter-stimuli
+shellcheck (3 files)       rc=0
+```
+
+**All 22 added replace lines are load-bearing** — each dropped individually with
+`go mod edit -dropreplace`, 22 of 22 gave rc=1 naming that exact module at
+`@v0.0.0`. Zero inert lines. **`go.sum` sha256 IDENTICAL to origin/main for all 8
+touched libraries**, and every added `require` in edenhttp ends `// indirect`.
+
+**The exemption table holds NO same-class defect today.** All 16 libraries run:
+12 rc=0, 4 rc=1 — exactly the table. Every recorded anchor is present in its own
+library's observed error, and no `…/go/*@v0.0.0` appears in any of the four.
+
+**The network discriminator survives both outage shapes**, including the partial
+one I had not asked for: with `github.com` blackholed but the proxy reachable, a
+healthy library still returns rc=0 (no false red), while an unreplaced sibling
+produces `invalid version: git ls-remote … Failed to connect`, which carries the
+manifest marker AND matches the sibling regex. Manifest-first ordering classifies
+it as code, correctly.
+
+**The break-test names the right fix**, and test 18 stays GREEN over it — `forge`
+does not require `envelope` directly, so test 21 is genuinely carrying the weight.
+
+### Two LATENT gaps — not live defects, but the guard is for the NEXT library
+
+**F1 (MEDIUM). The same-class regex contradicts this repository's own naming rule.**
+
+```
+SIBLING_FAILURE_PATTERN="github\.com/gophersys/libs/go/[a-z]+@v0\.0\.0"
+```
+
+`.claude/rules/11-naming.md` defines the slug as `word ("-" word)*` with
+`word := [a-z][a-z0-9]*` — **digits and hyphens are legal**. A future `go/oauth2`
+or `go/agent-session` at `v0.0.0` is not matched. Two wrong results follow: on the
+table, the arm stays silent and the prose decides again — the exact state
+objectstorage and orchestrator were in; off the table, the `unexpected` arm prints
+*"a replace is NOT the answer"* when a replace is precisely the answer.
+
+The direct scan does not compensate: its awk is name-agnostic but reads DIRECT
+requirements only, and this class is transitive.
+
+**F2 (MEDIUM). The 8-character floor does not close the class it is documented to
+close.** `github.com` is 10 characters and appears in 3 of the 4 exempt libraries'
+real errors. Proven by break-test — anchor set to `github.com`, suite **stays
+green**. My sentence claiming the floor "closes the degenerate case" overstates;
+the code comment ("closes the degenerate cases") is the honest one.
+
+**Bounded, and this matters:** the same-class arm reads the OBSERVATION, so a
+generic anchor can hide only a drifted DIFFERENT-class reason — never a sibling
+defect. That is the difference between a weakened guard and a broken one.
+
+### Documentation findings, corrected above
+
+The plan section is now marked superseded (8 go.mod files, not 2). My claim that
+`1 stated no counter` is "honest" was wrong — the counter is UNWIRED, not
+probabilistic. Two `## Proven` lines remain unreproducible: one cites a scratchpad
+log from a previous session that no longer exists, the other names no command.
+
+## Next
+
+One more phase-2 pass for F1 and F2, so the guard holds for the next library
+rather than only for this tree. Then the pull request.
