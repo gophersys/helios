@@ -559,3 +559,19 @@ is in flight on main, bookkeeping pushes WAIT — the ci concurrency group
 (cancel-in-progress) killed a certification at 6m50s from a lock-refresh
 push. Gates: pytest 77 passed rc=0, ruff rc=0, native ./ctl.sh geometry
 rc=0 end-to-end through dump_dom (all three demos, no failures).
+
+## 2026-08-14T03:38Z — third and final layer of the chrome hang: quiescence
+With the orphan fix in and spawning centralized, the fleet failed FAST and
+NAMED (ProbeError at 120s) — which is what let the last layer be measured:
+google-chrome's new headless never reaches quiescence on the DejaVu-embedded
+5.25MB page (400s, zero bytes, a true hang — the 2.25MB fidelity page is
+fine, so the earlier "local test passed" was a wrong-page test). Chrome's
+own --timeout=20000 caps the idle wait: full DOM + probe output in 5s.
+Added to dump_dom with the reasoning in-line; fail-loud retained (pages
+signal completion in-DOM, so a too-early dump reads as "produced no
+output"). Proof: the full assemble --font DejaVu now passes rc=0 INSIDE the
+CI image on the exact page that hung, plus native gates (pytest 77 rc=0,
+ruff rc=0, geometry rc=0). Three layers, one incident: pipes held by a
+crashpad orphan; a second uncentralized spawn; and a page chrome will not
+call finished. Each surfaced only because the previous fix made the next
+failure loud.

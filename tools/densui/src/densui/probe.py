@@ -141,6 +141,13 @@ def dump_dom(
                     "--disable-background-networking",
                     f"--window-size={window}",
                     "--virtual-time-budget=6000",
+                    # Cap chrome's page-idle wait. The DejaVu-embedded pages
+                    # never reach new-headless quiescence (measured: 400s, no
+                    # exit, zero bytes) while --timeout serializes the full
+                    # DOM in ~5s with the probe output present. Pages signal
+                    # completion in-DOM, so a too-early dump still fails
+                    # loudly as "produced no output", never silently.
+                    "--timeout=20000",
                     "--dump-dom",
                     f"file://{page}",
                 ],
