@@ -1,6 +1,6 @@
 # cictl-swallow
 
-phase:    fix
+phase:    verify
 repo:     gophersys/libs
 branch:   fix/cictl-swallow
 worktree: ~/code/.worktrees/libs-cictl-swallow
@@ -382,3 +382,84 @@ Implementer: F1 (restore the diagnostic — it was never forbidden), F2(a)(b) (t
 comment must state what the shopt actually does), F3 (fix `:195` or record why
 not), F4 and F5 (this file's stale quotes — I will take those).
 Test author: F2(c) (guard the shopt), F6 (enforce TIER_VERBS).
+
+
+## Phase 6 — all three findings closed (`2928dce`)
+
+**F1 — the diagnostic is back.** The implementer owned the error plainly: it
+"stated it as a measured constraint when I had not measured it". The comment now
+spells out why this is NOT the refuted shape — there a FUNCTION was on the left of
+`||` and its body lost every status but the last; here `$?` is one external
+command's status with no earlier command to drop — and states the rule for the
+future: a second command goes on its own line above, in this shell.
+
+Proven on all three tier verbs with a cictl that exits 3 and prints NOTHING
+(0 bytes stdout, 0 bytes stderr, probed before the run):
+
+```
+affected-gate-fast       [error] cictl affected failed (exit 3) for base 'origin/main';
+                                 the affected set is unknown, so nothing was gated     rc=3
+affected-gate-substrate  identical                                                     rc=3
+gate-all                 identical                                                     rc=3
+cictl absent, all three  [error] missing required tool(s): cictl                       rc=127
+```
+
+**F2 — the comment now claims only what the line does**: command substitution
+only, and explicitly NOT process substitution — naming that `< <(f)` still
+discards `f`'s status, and that THAT, not the errexit default, was the swallow the
+affected set was fixed for.
+
+**F3 — fixed, and MY STIMULUS WAS WRONG.** I proposed a corrupt `.git/index`. The
+implementer ran it and it does not reproduce the false green: `git fetch` fails
+too, so the verb dies at 128 with the dirty-tree check merely bypassed. It
+isolated a fault that breaks `git status` ALONE (`status.showUntrackedFiles` set
+to a bad value — status exits 128 with empty stdout while `rev-parse` and `fetch`
+both return 0):
+
+```
+OLD  [ok]    release-check: ready (HEAD 2c8bc70...)                              rc=0
+NEW  [error] git status failed (exit 128) in ...; the tree's cleanliness is
+             unknown, so nothing is being released                               rc=128
+```
+
+with `NOT-COMMITTED.txt` present the whole time. The in-file comment cites the
+stimulus actually measured and records that the corrupt index does not show it.
+
+### Proven
+
+```
+.ci/ctl_test.sh              rc=0   7 ok phase 1, 7 ok phase 2, 7 of 7 proven able to fail
+shellcheck -S style          rc=0
+shellcheck -o all            SC2310=0  SC2311=0  SC2312=0   (53 findings, all SC2250 brace style)
+ctl_test.sh (root)           rc=0   10 hold, 10/10
+verb_conservation_test.sh    rc=0   17 records, 3 mutants caught
+ctl.sh validate              rc=0   all 6 suites ok
+```
+
+**SC2312 is now 0** — the `release-check` fix removed the last one in the file.
+
+### An environment failure, named rather than swallowed
+
+The first `validate` on the final tree returned rc=1: `test suite failed:
+templates/_ctl/template_test.sh`. Cause, from its own log: `mktemp: ... No space
+left on device`. The container overlay filled mid-run because another agent's
+concurrent base-image containers share the Docker VM disk. That suite reads
+nothing from `.ci/ctl.sh`; run in isolation on the same tree it is rc=0, 5/5. The
+implementer re-ran validate with `/tmp` bind-mounted to the host disk and it went
+green, and deliberately did NOT prune Docker state because other agents are live.
+
+That is the right handling: a red that is the environment's, isolated and proven
+so, not explained away.
+
+## Still open, recorded
+
+- `ctl.sh:79` at the repo root — `mapfile -t dirs < <(find ... -printf ...)`, same
+  class, GNU-only `-printf`, so on a BSD find `./ctl.sh status` reports 0
+  libraries with rc=0. Outside the file this change owns. Task #62.
+- 53 x SC2250 (brace style) in `.ci/ctl.sh`. Not this class; the repo gate runs
+  bare shellcheck.
+
+## Next
+
+Focused verification of the three fixes, then the pull request. This is the branch
+the consolidation audit puts FIRST in its landing order — "the gate that can fail".
