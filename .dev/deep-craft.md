@@ -1,6 +1,6 @@
 # deep-craft
 
-phase:    red
+phase:    green
 repo:     gophersys/dense-ui
 branch:   feat/deep-craft
 worktree: ~/code/.worktrees/dense-ui-deep-craft
@@ -199,5 +199,24 @@ grep -q decide the params gate under pipefail (SIGPIPE 141 hazard).
 - Follow-up noted for W1 (touches cli.py anyway): promote _collect/_rules
   to a public densui API — three consumers now (audit, score, operator gate).
 
+## Red (W1) — proven
+- 16 tests in tests/test_ratios.py, all red for the feature's absence:
+  AttributeError check_ratios (6); SpecError not raised on the legacy pair
+  form quoted verbatim from telemetry's panel.toml (5, incl. docs+demo
+  migration demands); the dormant check CAUGHT IN THE ACT via real chrome —
+  blocks 30px vs spec 45, densui audit rc=0, failures:[] (2); probe KeyError
+  'root' (1); registry size-ratio UNMEASURED + missing corpus seed (2).
+- Suite: 16 failed, 90 passed; collect rc=0, 106 tests, zero errors.
+- Bite harnesses (scratchpad, repo untouched): reference implementation
+  satisfies all 6 predicate tests; 7 wrong implementations each caught
+  (dormant, always-fails, mean-not-median, no-spread, message-without-
+  numbers, absent-kind-clean, inverted quotient). Corpus-completeness
+  auto-bite PROVEN by execution: registry flip alone turns
+  test_corpus_has_a_seed_for_every_measured_class red.
+- Named in advance: two existing green tests (docs example validates,
+  telemetry panel validates) MUST be migrated in the same implementation
+  change; telemetry's woken rows may legitimately fail — legal fix is the
+  spec row or the geometry, never the tolerance.
+
 ## Next
-W1 red tests (ratio predicate; telemetry's dormant [ratio] rows wake).
+W1 green (implementer), then W2 red.
