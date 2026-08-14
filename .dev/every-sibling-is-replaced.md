@@ -1,6 +1,6 @@
 # every-sibling-is-replaced
 
-phase:    verify
+phase:    fix — final verify returned 8 findings
 repo:     gophersys/libs
 branch:   fix/every-sibling-is-replaced
 worktree: ~/code/.worktrees/libs-replaces
@@ -641,3 +641,76 @@ measurement, not a fast green.
 Focused verification of the two new arms — this branch already passed a full
 adversarial pass on correctness, and these changes close the two gaps that pass
 named. Then the pull request.
+
+
+## Phase 13 — DOES NOT PASS. My latent-gap fix was worse than the gap.
+
+The focused verifier found that `d031cdd` — the commit meant to close the two
+LATENT gaps from the prior round — introduced a HIGH regression and does not
+actually close what it claims. The verified CORE (22 replace lines, the
+sibling-resolves check, the same-class arm, task #71's fix) is sound and untouched.
+
+**F1 (HIGH). The specificity arm pre-empts and MISDIAGNOSES.** It is called before
+the same-class / reason / unexpected / stale arms and `fail()` is `exit 1`, so it
+short-circuits all four. A new library red on the SAME third-party module as a
+tabled one (`testify`, already 2 of 4 anchors) makes the correct library's anchor
+"non-specific", and the message blames the wrong library with an instruction that
+cannot be followed — the anchor is already the module path the rule prescribes.
+**The confidently-wrong-instruction class this branch fixed once for the network
+case, reintroduced.** Green only because `exempt:none` empties the table so the arm
+iterates nothing.
+
+**F2 (MEDIUM). The specificity rule does not close the generic anchor**, and the
+code says it does. Set three anchors to `github.com`: phase 1 goes green, and with
+the stimulus value re-pointed the whole test is rc=0 while three of four anchors
+identify nothing. The stated bound (one-red-library) is wrong; the real bound is
+any set that agrees on a generic anchor.
+
+**F3 (MEDIUM). The two load-time assertions police two example strings, not the
+grammar.** A `*`->`?` drift in the slug pattern passes both assertions and the
+whole test stays green while every 3-word slug goes unmatched — the identical hole
+F1-of-the-prior-round was raised for, reachable without tripping a guard.
+
+## DECISION — delete the specificity machinery, keep the sound core. Less is more.
+
+The specificity arm was added to close the "generic anchor" gap. It introduced a
+regression (F1), does not close the gap (F2), and its grammar assertions are
+theatre (F3). **A broken guard is worse than a documented gap.**
+
+- **REVERT** the specificity arm and the load-time grammar assertions.
+- **KEEP** the widened regex — the verifier confirmed it is an EXACT transcription
+  (9 legal slugs match, 10 illegal do not, both prefix corruptions rejected). The
+  regex was never the problem; the assertions claiming to police it were.
+- **KEEP** the same-class arm — it reads the OBSERVATION, needs no anchor honesty,
+  and is the real protection. Its bound is real and honest: a generic anchor can
+  hide a drifted DIFFERENT-class reason, never a sibling defect, because the
+  same-class arm catches every `…/go/<slug>@v0.0.0` regardless of the recorded
+  prose.
+- **DOCUMENT** the generic-anchor residual as a known bound, not a closed one.
+
+**F4 (MEDIUM). The errexit swallow is LIVE in two more functions** — `typo_config`
+(:215) and `mutant_lib` (:493), both `X="$(fn)" || return 2` with no `|| die` on
+their `mktemp -d`. This is task #71's class, and phase 12 fixed only
+`copy_module_tree`. Under a full TMPDIR, `mutant_lib` writes the mutant to `/lib.sh`
+or dies reporting a disk fault as a code finding. **Add `|| die` to both** — the
+same fix phase 12 applied, in the two places it missed.
+
+**F5-F8 (LOW).** "ten distinct arms" is really eight (three stimuli fire
+same-class); a "six counters" comment sits above a ten-counter list; `repair_tree`
+and the census write carry the unchecked-write shape; `SIBLING_PREFIX` is used
+unescaped as a regex at :1157 (should be `grep -qF`); the "lock race is
+probabilistic" reason is still the known-false one phase 11 corrected.
+
+## What the verifier could NOT refute — the core holds
+
+Task #71's fix is load-bearing (pre-fix version truncates to 9 of 16 under a 72KB
+volume; shipped version fails naming the file). The regex is an exact
+transcription. The one-red-library bound is exactly as stated. Regression green:
+suite rc=0 72s, `validate` rc=0 786s, shellcheck rc=0. No masked exit codes. Scope
+and identity clean.
+
+## Next
+
+Test author: revert the specificity arm + grammar assertions (F1/F2/F3), fix the
+two errexit sites (F4), correct the counts and the unescaped grep (F5-F8), and
+document the generic-anchor bound honestly. Then re-verify and PR.
