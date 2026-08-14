@@ -150,8 +150,10 @@ in its provider copy, and the literal `SANCTIONED` in
 reads the value it checks agrees with any value, a wrong one included. The
 `build` verb also refuses a list of more than 1 entry, because `docker build`
 makes 1 image, so the local loop must name the 1 platform it wants. Measured on
-2026-08-13: 1 edit to `_ctl/lib.sh`, and nothing else, made 11 checks red in 4
-test files.
+2026-08-13: 1 edit to `_ctl/lib.sh`, and nothing else, made 8 checks red in 4
+test files — `build` 3, `guard` 1, `platform-policy` 2, `verify-published` 2. The
+per-file counts are here because the first version of this sentence said 11,
+which is the TOTAL check count of `guard.test.sh` read as its failure count.
 
 Verify a published image with `bash ./ctl.sh verify-published <image> [tag]`. A
 manifest declares a platform; that verb reads the manifest back out of the
