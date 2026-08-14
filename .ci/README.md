@@ -11,7 +11,7 @@ them. It is the only entrypoint that should appear in a CI pipeline YAML.
 ```
 .ci/
 ├── ctl.sh              bash orchestration (validate/build/push/smoke across all images)
-├── smoke.sh            post-build native-arch smoke test — one script, image arg
+├── smoke.sh            post-build smoke test — image arg + optional ref; 1 sanctioned platform, native when it can
 ├── project.json        Nx wrappers around each ctl.sh verb (ci-.devcontainer-*)
 ├── README.md           this file
 └── providers/          CI-system shim YAMLs — source of truth for each provider
@@ -40,6 +40,26 @@ bash .ci/ctl.sh <verb>
 | `push-all`              | GUARDED push of every image to ghcr.io                      |
 | `smoke-test-all`        | Run `smoke.sh` against each image after a local build       |
 | `help`                  | Show the inline verb index                                  |
+
+## Which images CI smokes
+
+`smoke-test-all` runs `smoke.sh` against every image. **No workflow calls it.**
+`.github/workflows/build-and-push.yml` runs `smoke.sh` in exactly 1 job, and it
+is the `base-runner` job:
+
+```
+bash .ci/smoke.sh base-runner base-runner:smoke
+```
+
+That job builds the image with `push: false` + `load: true` first, so the ref
+above is the LOADED local image and the check runs **before** anything reaches
+ghcr.io. The publish step comes after it, from the same cache.
+
+So `base`, `flutter`, `zephyr` and `zephyr-devbox` publish with nothing that
+asserts their content. Each of them inherits its tools from `base`, and the
+`SMOKE_BASE` block does apply the same checks to them, but no job runs that
+block for them. Read a green publish of those 4 images as "the image built",
+never as "the image was checked".
 
 ## Nx integration
 

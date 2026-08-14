@@ -6,27 +6,114 @@
 # `gh --version`, etc inside RUN steps: those binaries are built for the target,
 # and they could not run while an image was cross-built under QEMU. This script
 # re-introduces those checks as a post-build step that runs the already-built
-# image. Nothing is emulated here, and nothing is cross-built any more either.
+# image. Nothing is cross-built any more.
 #
-# Usage: bash .ci/smoke.sh <image>
+# It prefers to run the image NATIVELY, for that same reason, and the platform
+# resolver below is what makes that the default. On a developer host of another
+# architecture it runs the sanctioned image under emulation instead — which is
+# the only way to check the published image from that host at all, and it is
+# slower rather than impossible.
+#
+# Usage: bash .ci/smoke.sh <image> [ref]
 # where <image> ∈ {base, flutter, zephyr, zephyr-devbox, base-runner}
+# and [ref] is the exact image reference to test. The default is the :latest tag
+# that build-and-push.yml has just built, which is what CI runs. Naming a ref is
+# how an operator audits the SHA tag a cluster is actually running — and how a
+# developer proves a check against an image that is not the local :latest.
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Set before the source line, the way .ci/ctl.sh sets it: the git fallback in
+# _ctl/lib.sh reads the wrong root when this repository is a submodule worktree.
+REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 
-# The logging lives in _ctl/lib.sh, 1 time only.
+# The logging, the tool gate and the platform policy live in _ctl/lib.sh, 1 time
+# only.
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../_ctl/lib.sh
 source "$PROJECT_ROOT/../_ctl/lib.sh"
 
 IMAGE="${1:-}"
+REF_ARG="${2:-}"
 
 if [[ -z "$IMAGE" ]]; then
-  log_error "usage: bash .ci/smoke.sh <image>"
+  log_error "usage: bash .ci/smoke.sh <image> [ref]"
   exit 2
 fi
+
+# The buildx version base/Dockerfile pins. Read the way ctl.sh reads the hadolint
+# pin: the ARG is the single source of truth, and a version the image reports
+# back that differs from it is drift.
+#
+# The ARG NAME is matched by pattern rather than spelled out. Every version ARG
+# in this repository is <TOOL>_VERSION, and this asserts against whichever of
+# those names carries buildx, so the check does not fail over a spelling.
+#
+# 2 globals come out, never a printed value: BUILDX_PIN, and BUILDX_PIN_PROBLEM
+# when there is no pin to use. Both are passed into the image, so the reason is
+# printed next to the version it could not be compared against — an absent pin
+# and an absent plugin are 2 different defects and a reader has to be able to
+# tell which one fired.
+#
+# Every unreadable case ends with an empty BUILDX_PIN, so every one of them is a
+# FAILURE inside the image. What this function owes the reader is an accurate
+# SENTENCE. It used to answer "declares no ARG" whenever its single regex missed,
+# which is a lie when the file plainly declares one — an indented ARG, a value
+# written `v0.36.1`, or 2 candidate names each produced that same wrong sentence.
+BUILDX_PIN=""
+BUILDX_PIN_PROBLEM=""
+function resolve_buildx_pin() {
+  local file="$REPO_ROOT/base/Dockerfile"
+  BUILDX_PIN=""
+  BUILDX_PIN_PROBLEM=""
+
+  # Leading whitespace is allowed, and so is a `v` on the value: both are shapes
+  # a human writes, and neither is a reason to report the ARG as absent.
+  local strict='^[[:space:]]*ARG[[:space:]]+[A-Za-z0-9_]*BUILDX[A-Za-z0-9_]*=v?[0-9]+\.[0-9]+\.[0-9]+'
+  local loose='^[[:space:]]*ARG[[:space:]].*BUILDX'
+
+  local matches="" status=0
+  matches="$(grep -nE "$strict" "$file")" || status=$?
+  if [[ "$status" -ne 0 || -z "$matches" ]]; then
+    local loose_hits="" loose_status=0
+    loose_hits="$(grep -nE "$loose" "$file")" || loose_status=$?
+    if [[ "$loose_status" -eq 0 && -n "$loose_hits" ]]; then
+      BUILDX_PIN_PROBLEM="base/Dockerfile DOES declare a buildx ARG, in a shape this check cannot read as <NAME>=<semver>: ${loose_hits//$'\n'/ ; }"
+    else
+      BUILDX_PIN_PROBLEM="base/Dockerfile declares no ARG whose name carries BUILDX"
+    fi
+    return 0
+  fi
+
+  # More than 1 candidate NAME is an ambiguity, not a pin. Taking the first match
+  # silently answered with a decoy ARG that Docker never threads into the install.
+  local -a candidate_names=()
+  local name
+  while IFS= read -r name; do
+    [[ -z "$name" ]] && continue
+    candidate_names+=("$name")
+  done < <(printf '%s\n' "$matches" | sed -E 's/^[0-9]+:[[:space:]]*ARG[[:space:]]+([A-Za-z0-9_]+)=.*/\1/' | sort -u)
+
+  if [[ "${#candidate_names[@]}" -ne 1 ]]; then
+    # Joined by hand: "${array[*]}" uses only the FIRST character of IFS, so
+    # IFS=', ' would run the names together with no space after the comma.
+    local joined="" candidate
+    for candidate in "${candidate_names[@]}"; do
+      joined="${joined:+${joined}, }${candidate}"
+    done
+    BUILDX_PIN_PROBLEM="base/Dockerfile declares ${#candidate_names[@]} ARGs that could each be the buildx pin (${joined}); this check will not choose between them"
+    return 0
+  fi
+
+  # Docker uses the LAST declaration of a name, so the last one is the pin. The
+  # first one was what this read before, which disagrees with the built image
+  # whenever an ARG is re-declared further down.
+  local last
+  last="$(printf '%s\n' "$matches" | tail -n 1)"
+  BUILDX_PIN="$(printf '%s' "$last" | sed -E 's/.*=v?([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
+}
 
 # Common smoke-test body applied to every image. Checks both native binaries
 # (bw, gh, tailscale, kubectl, helm, terraform, k9s, go, rustc, nats) and
@@ -63,6 +150,46 @@ gremlins --version
 benchstat -h >/dev/null 2>&1 && echo "benchstat: ok"
 gitleaks version
 kubeconform -v
+echo "--- docker cli-plugins ---"
+# The runner image is the CLIENT of the arm64 builder: gophersys/infrastructure
+# dials the Mac mini over SSH and drives `docker buildx build` from inside the
+# job. The image shipped the compose plugin alone, so that documented step could
+# not run at all, and nothing here said so.
+#
+# `docker buildx version` reaches no daemon, so this is a pure image-content
+# check and it is meaningful in a plain `docker run` with no dind sidecar.
+if ! BUILDX_OUTPUT="$(docker buildx version 2>&1)"; then
+  echo "FAIL: docker buildx does not run in this image"
+  echo "      docker said: ${BUILDX_OUTPUT}"
+  echo "      /usr/local/lib/docker/cli-plugins holds:"
+  ls -1 /usr/local/lib/docker/cli-plugins || echo "      (there is no cli-plugins directory)"
+  exit 1
+fi
+echo "${BUILDX_OUTPUT}"
+# Drift guard. The version that RUNS must be the version base/Dockerfile pins.
+# EXPECTED_BUILDX_VERSION is read out of that ARG by .ci/smoke.sh on the host and
+# passed in here. An image that passes its own assertion while shipping a version
+# nobody declared is the defect this repository has already published once, so an
+# absent pin FAILS rather than skipping.
+BUILDX_INSTALLED=""
+if BUILDX_TOKENS="$(printf '%s' "${BUILDX_OUTPUT}" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')"; then
+  BUILDX_INSTALLED="$(printf '%s' "${BUILDX_TOKENS}" | head -n 1)"
+fi
+if [ -z "${BUILDX_INSTALLED}" ]; then
+  echo "FAIL: docker buildx runs but reports no version this check can read"
+  echo "      it printed: ${BUILDX_OUTPUT}"
+  exit 1
+fi
+if [ -z "${EXPECTED_BUILDX_VERSION}" ]; then
+  echo "FAIL: no buildx pin could be read, so the ${BUILDX_INSTALLED} in this image is checked against nothing"
+  echo "      ${BUILDX_PIN_PROBLEM}"
+  exit 1
+fi
+if [ "${BUILDX_INSTALLED}" != "v${EXPECTED_BUILDX_VERSION}" ]; then
+  echo "FAIL: buildx version drift: the image runs ${BUILDX_INSTALLED}, base/Dockerfile pins v${EXPECTED_BUILDX_VERSION}"
+  exit 1
+fi
+echo "docker buildx: ${BUILDX_INSTALLED} matches the pin in base/Dockerfile"
 EOF
 
 # Flutter adds flutter + adb checks on top of the base smoke.
@@ -161,15 +288,133 @@ ${SMOKE_DEVBOX}" ;;
     ;;
 esac
 
-REF="ghcr.io/gophersys/${IMAGE}:latest"
+REF="${REF_ARG:-ghcr.io/gophersys/${IMAGE}:latest}"
 
-log_info "running smoke test in ${REF}"
+# A missing tool is a failure, never a skip.
+require_cmd docker
+
+# Every entry of the list must be sanctioned before 1 of them is chosen.
+require_sanctioned_platforms
+
+# A smoke test runs 1 image, so it names exactly 1 platform. When the sanctioned
+# set holds several, the answer is to SELECT one — never to refuse to run.
+#
+# Refusing is what this block did first: it exited 1 whenever the list held more
+# than 1 entry. Widening SANCTIONED_PLATFORMS to a second architecture — the 1
+# edit this whole feature exists to make possible — would then have exited 1 at
+# build-and-push.yml BEFORE asserting anything, turning the publish job red while
+# checking nothing. .claude/rules/00-identity.md says "Widening it is 1 edit, and
+# every path reads it". This path reads it now.
+#
+# The token for the second architecture is deliberately not written anywhere in
+# this file: _ctl/tests/platform-policy.test.sh forbids it on the named build
+# path, and a comment is not an exemption.
+#
+# The order, and why:
+#   1. SMOKE_PLATFORM, when an operator names one deliberately. It must still be
+#      in the list, so this is a choice WITHIN the guard and not a way around it.
+#   2. the platform of the docker DAEMON, when the list holds it. This is the
+#      premise of the whole script: the version checks the Dockerfiles dropped
+#      could not run under emulation, so the native variant is the one to smoke.
+#      The moment arm64 is sanctioned, the amd64 runner smokes amd64 and the
+#      arm64 builder smokes arm64, each natively, with no further edit here.
+#   3. the only entry, when the list holds exactly 1. This is today, and on a
+#      developer host of another architecture it runs emulated.
+#   4. otherwise FAIL, naming the list and the daemon. An unspecified platform is
+#      how a smoke test silently asserts against the wrong architecture, which is
+#      worse than not running.
+#
+# The daemon is read rather than `uname -m` because the daemon is what runs the
+# container: on Docker Desktop the host is darwin and the daemon is linux.
+SMOKE_PLATFORM_RESOLVED=""
+function platform_is_listed() {
+  [[ ",${IMAGE_PLATFORMS}," == *",${1},"* ]]
+}
+function resolve_smoke_platform() {
+  local requested="${SMOKE_PLATFORM:-}"
+  if [[ -n "$requested" ]]; then
+    if ! platform_is_listed "$requested"; then
+      log_error "SMOKE_PLATFORM=${requested} is not in IMAGE_PLATFORMS (${IMAGE_PLATFORMS})"
+      log_error "a smoke test may choose among the sanctioned platforms; it may not add one"
+      exit 1
+    fi
+    SMOKE_PLATFORM_RESOLVED="$requested"
+    return 0
+  fi
+
+  local daemon="" status=0
+  daemon="$(docker version --format '{{.Server.Os}}/{{.Server.Arch}}')" || status=$?
+  if [[ "$status" -ne 0 || -z "$daemon" ]]; then
+    log_error "cannot read the platform of the docker daemon (docker version exited ${status})"
+    log_error "the daemon has to answer before this script can choose which image to run"
+    exit 1
+  fi
+
+  if platform_is_listed "$daemon"; then
+    SMOKE_PLATFORM_RESOLVED="$daemon"
+    return 0
+  fi
+  if [[ "$IMAGE_PLATFORMS" != *,* ]]; then
+    SMOKE_PLATFORM_RESOLVED="$IMAGE_PLATFORMS"
+    log_info "the daemon is ${daemon} and the only sanctioned platform is ${SMOKE_PLATFORM_RESOLVED}; this run is emulated"
+    return 0
+  fi
+
+  log_error "cannot choose a platform to smoke: the daemon is ${daemon}, which is not in IMAGE_PLATFORMS (${IMAGE_PLATFORMS})"
+  log_error "name one with SMOKE_PLATFORM=<platform>; running an unnamed one would assert against an architecture nobody chose"
+  exit 1
+}
+resolve_smoke_platform
+
+# The image has to be here before anything is asserted about it, and here FOR THE
+# PLATFORM that was chosen. A pull that failed and a tool that is absent both come
+# back as a non-zero status, and they are not the same defect — so the one that
+# happened is named.
+#
+# The architecture is read rather than assumed. `docker image inspect` answers
+# about whichever variant the local store holds, so an image of one architecture
+# satisfies a bare presence check, and `docker run --platform <the other one>`
+# then fails with "pull access denied ... may require 'docker login'" — a
+# message about credentials, for a defect that is an architecture. Measured.
+#
+# The inspect is quiet on purpose: its "No such image" is the expected answer on
+# a cold host, and the branch below acts on it.
+STORED_PLATFORM=""
+if ! STORED_PLATFORM="$(docker image inspect --format '{{.Os}}/{{.Architecture}}' "$REF" 2>/dev/null)"; then
+  STORED_PLATFORM=""
+fi
+if [[ "$STORED_PLATFORM" != "$SMOKE_PLATFORM_RESOLVED" ]]; then
+  if [[ -n "$STORED_PLATFORM" ]]; then
+    log_info "${REF} is in the local store as ${STORED_PLATFORM}, and this run needs ${SMOKE_PLATFORM_RESOLVED}"
+  else
+    log_info "${REF} is not in the local image store"
+  fi
+  log_info "pulling ${REF} for ${SMOKE_PLATFORM_RESOLVED}"
+  if ! docker pull --platform "$SMOKE_PLATFORM_RESOLVED" "$REF"; then
+    log_error "cannot obtain ${REF} for ${SMOKE_PLATFORM_RESOLVED}${STORED_PLATFORM:+ — the local store holds ${STORED_PLATFORM} instead}"
+    log_error "NOTHING was asserted about this image"
+    exit 1
+  fi
+fi
+
+# The pin the drift guard inside the image compares against, and the reason when
+# there is none. Both travel into the image, so an unreadable pin is reported
+# next to the version it could not be compared against.
+resolve_buildx_pin
+
+RUN_ARGS=(
+  --rm
+  --platform "$SMOKE_PLATFORM_RESOLVED"
+  -e "EXPECTED_BUILDX_VERSION=${BUILDX_PIN}"
+  -e "BUILDX_PIN_PROBLEM=${BUILDX_PIN_PROBLEM}"
+)
 if [[ "$IMAGE" == "zephyr-devbox" ]]; then
   # The devbox image defaults to USER root (sshd entrypoint) and its
   # entrypoint execs any provided argv; force the dev user so the base
   # checks run in the same identity as the other images.
-  docker run --rm --user dev "${REF}" /usr/bin/zsh -c "${SCRIPT}"
-else
-  docker run --rm "${REF}" /usr/bin/zsh -c "${SCRIPT}"
+  RUN_ARGS+=(--user dev)
 fi
+
+log_info "running smoke test in ${REF} (${SMOKE_PLATFORM_RESOLVED})"
+docker run "${RUN_ARGS[@]}" "${REF}" /usr/bin/zsh -c "${SCRIPT}"
 log_info "smoke test passed for ${IMAGE}"

@@ -139,8 +139,21 @@ assumed:
 
 **No arm64 consumer can be verified for any image today**, which is recorded in
 gophersys/infrastructure `docs/debt-register.md` D42. Widen
-`SANCTIONED_PLATFORMS` on the day a consumer exists, and not before. Widening it
-is 1 edit, and every path reads it.
+`SANCTIONED_PLATFORMS` on the day a consumer exists, and not before.
+
+**Widening it is not 1 edit.** Each shell path reads the list from that 1
+declaration, and `.ci/smoke.sh` selects a platform out of it rather than refusing
+a list of more than 1. But 3 other places STATE the same policy, and they must
+move with it: `PLATFORMS` in `.github/workflows/build-and-push.yml`, the same key
+in its provider copy, and the literal `SANCTIONED` in
+`_ctl/tests/platform-policy.test.sh`. That literal is deliberate — a test that
+reads the value it checks agrees with any value, a wrong one included. The
+`build` verb also refuses a list of more than 1 entry, because `docker build`
+makes 1 image, so the local loop must name the 1 platform it wants. Measured on
+2026-08-13: 1 edit to `_ctl/lib.sh`, and nothing else, made 8 checks red in 4
+test files — `build` 3, `guard` 1, `platform-policy` 2, `verify-published` 2. The
+per-file counts are here because the first version of this sentence said 11,
+which is the TOTAL check count of `guard.test.sh` read as its failure count.
 
 Verify a published image with `bash ./ctl.sh verify-published <image> [tag]`. A
 manifest declares a platform; that verb reads the manifest back out of the
@@ -180,6 +193,16 @@ The CI workflow enforces the same policy. It sets up buildx, builds with
 `--platform ${{ env.PLATFORMS }} --push`, and then runs `verify-published`
 against the SHA tag it just pushed. It sets up no QEMU: emulation is what a
 cross-platform build needed, and there is no cross-platform build.
+
+The `base-runner` job builds **twice**, and the order is the point. The first
+build sets `push: false` + `load: true`, so the image goes into the local image
+store and not to ghcr.io. The smoke test then asserts the content of that loaded
+image. Only then does the second build push, from the cache the first one wrote.
+A push cannot be undone and no job here rolls one back, so a check that runs
+after the push reports a broken image but cannot stop one from reaching a
+consumer. `_ctl/tests/publish-order.test.sh` holds that order in the pull request
+gate. `load: true` takes 1 platform, so read the arm64 note at the top of that
+test file before you widen `SANCTIONED_PLATFORMS`.
 
 ## Dev-in-container expectation
 
