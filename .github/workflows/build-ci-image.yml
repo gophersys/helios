@@ -31,6 +31,7 @@ concurrency:
 jobs:
   build:
     runs-on: arc-org      # dind sidecar provides Docker
+    timeout-minutes: 45   # image pull+build+push on a slow day, with margin
     steps:
       - uses: actions/checkout@v4
 

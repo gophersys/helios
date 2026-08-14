@@ -2,6 +2,9 @@ name: ci
 on:
   push: { branches: [main] }
 
+env:
+  PYTHONUNBUFFERED: "1"   # gates must stream — silence is indistinguishable from a hang
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -9,6 +12,7 @@ concurrency:
 jobs:
   test:
     runs-on: arc-org  # the org ARC fleet — eden/infrastructure owns the controller
+    timeout-minutes: 30   # a hung job must fail loudly, not hold the fleet seat for 6h
     container:
       image: ghcr.io/gophersys/dense-ui-ci:latest   # browser + fonts + uv + node baked
       credentials:
@@ -22,6 +26,7 @@ jobs:
 
   geometry:
     runs-on: arc-org
+    timeout-minutes: 30
     container:
       image: ghcr.io/gophersys/dense-ui-ci:latest
       credentials:

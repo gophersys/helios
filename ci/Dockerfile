@@ -38,6 +38,11 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
     && rm -rf /var/lib/apt/lists/* \
     && ln -sf /usr/bin/google-chrome-stable /usr/local/bin/densui-chromium
 ENV DENSUI_CHROME=/usr/local/bin/densui-chromium
+# Gates stream their verdicts: without this, python block-buffers when piped
+# and uv mutes progress on non-tty, so a slow CI step is indistinguishable
+# from a hung one (proven in run 31761167311 — 9.5 silent minutes read as a
+# stall and got cancelled).
+ENV PYTHONUNBUFFERED=1
 
 # node 22 root-wide (base's node is nvm/profile-homed under `dev`; gates run as root)
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
