@@ -1,6 +1,6 @@
 # kubeconform-floor
 
-phase:    plan
+phase:    red
 repo:     gophersys/infrastructure
 branch:   ci/kubeconform-floor
 worktree: ~/code/.worktrees/infra-kubeconform-floor
