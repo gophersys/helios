@@ -1,0 +1,149 @@
+# The ci-image-warmer's inputs: the :latest opt-in list and the warmer script.
+#
+# TWO KINDS OF IMAGE, TWO SOURCES OF TRUTH — deliberately:
+#   - PINNED tags (what pods actually run) are NOT listed here. The script
+#     derives them live from the AutoscalingRunnerSet specs and the pods in
+#     the namespace, so this file can never drift against a pin and cause the
+#     GC to delete an image the kubelet still wants.
+#   - :latest opt-ins (tomorrow's bump, warm before it lands) ARE listed here,
+#     because "which families do we pre-warm" is a policy choice, not a fact
+#     derivable from the cluster.
+#
+# GC scope: the warmer only ever REMOVES refs whose repository appears in the
+# keep-set's repositories. An image family it does not manage is invisible to
+# it — system images, app images and k3s's own pause image are untouchable by
+# construction.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ci-image-warmer
+  namespace: arc-runners
+data:
+  latest-images: |
+    # one image per line; '#' comments allowed. These are pulled fresh every
+    # pass so the NEXT pin bump finds its layers already on the node.
+    ghcr.io/gophersys/base-runner:latest
+
+  warm.py: |
+    """ci-image-warmer — keep runner images hot on this node's containerd.
+
+    Pass = derive keep-set (live pins + latest opt-ins) -> pull every image
+    -> GC managed-family refs not in the keep-set -> re-list and assert every
+    keep-set image is present. Any failure exits 1: a warmer that cannot warm
+    must crashloop visibly, never idle as a green no-op. Runs one pass at
+    start, then one per UTC day at WARM_HOUR.
+    """
+    import base64
+    import datetime
+    import json
+    import pathlib
+    import ssl
+    import subprocess
+    import sys
+    import time
+    import urllib.request
+
+    K3S = "/host/k3s"
+    CTR = [K3S, "ctr", "-n", "k8s.io"]
+    SA = pathlib.Path("/var/run/secrets/kubernetes.io/serviceaccount")
+    NS = "arc-runners"
+    WARM_HOUR = 3  # 03:xx UTC daily
+
+    def log(msg):
+        print(f"[warmer] {msg}", flush=True)
+
+    def api_get(path):
+        token = (SA / "token").read_text().strip()
+        ctx = ssl.create_default_context(cafile=str(SA / "ca.crt"))
+        req = urllib.request.Request(
+            f"https://kubernetes.default.svc{path}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        with urllib.request.urlopen(req, context=ctx, timeout=30) as fh:
+            return json.load(fh)
+
+    def ghcr_user():
+        cfg = json.loads(pathlib.Path("/creds/.dockerconfigjson").read_text())
+        auth = cfg["auths"]["ghcr.io"]["auth"]
+        return base64.b64decode(auth).decode()  # "user:token"
+
+    def live_pins():
+        pins = set()
+        sets_ = api_get(f"/apis/actions.github.com/v1alpha1/namespaces/{NS}/autoscalingrunnersets")
+        for item in sets_.get("items", []):
+            spec = item.get("spec", {}).get("template", {}).get("spec", {})
+            for c in spec.get("containers", []) + spec.get("initContainers", []):
+                if c.get("image"):
+                    pins.add(c["image"])
+        pods = api_get(f"/api/v1/namespaces/{NS}/pods")
+        for pod in pods.get("items", []):
+            spec = pod.get("spec", {})
+            for c in spec.get("containers", []) + spec.get("initContainers", []):
+                if c.get("image"):
+                    pins.add(c["image"])
+        if not pins:
+            raise SystemExit("derived zero pins — the API read is broken, refusing to GC blind")
+        return pins
+
+    def latest_optins():
+        lines = pathlib.Path("/config/latest-images").read_text().splitlines()
+        return {ln.strip() for ln in lines if ln.strip() and not ln.strip().startswith("#")}
+
+    def ctr_images():
+        out = subprocess.run(CTR + ["images", "ls", "-q"], capture_output=True, text=True, timeout=60)
+        if out.returncode != 0:
+            raise SystemExit(f"ctr images ls failed rc={out.returncode}: {out.stderr.strip()[-300:]}")
+        return {ln.strip() for ln in out.stdout.splitlines() if ln.strip()}
+
+    def repo_of(ref):
+        base = ref.split("@", 1)[0]
+        return base.rsplit(":", 1)[0] if ":" in base.split("/")[-1] else base
+
+    def one_pass():
+        creds = ghcr_user()
+        pins = live_pins()
+        optins = latest_optins()
+        want = pins | optins
+        log(f"keep-set: {len(pins)} live pins + {len(optins)} latest opt-ins = {len(want)}")
+        pulled = 0
+        for img in sorted(want):
+            cmd = CTR + ["images", "pull"]
+            if img.startswith("ghcr.io/"):
+                cmd += ["--user", creds]
+            cmd.append(img)
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+            if r.returncode != 0:
+                raise SystemExit(f"pull FAILED for {img} rc={r.returncode}: {r.stderr.strip()[-300:]}")
+            pulled += 1
+            log(f"pulled {img}")
+        if pulled != len(want):
+            raise SystemExit(f"pulled {pulled} != intended {len(want)} — refusing to report success")
+        managed_repos = {repo_of(i) for i in want if i.startswith("ghcr.io/gophersys/")}
+        removed = []
+        for ref in sorted(ctr_images()):
+            if repo_of(ref) in managed_repos and ref not in want and not ref.startswith("sha256:"):
+                r = subprocess.run(CTR + ["images", "rm", ref], capture_output=True, text=True, timeout=120)
+                if r.returncode != 0:
+                    raise SystemExit(f"GC rm FAILED for {ref}: {r.stderr.strip()[-300:]}")
+                removed.append(ref)
+                log(f"removed superseded {ref}")
+        after = ctr_images()
+        missing = sorted(i for i in want if i not in after)
+        if missing:
+            raise SystemExit(f"POST-GC ASSERTION FAILED — keep-set images absent: {missing}")
+        log(f"pass complete: {pulled} warm, {len(removed)} removed, keep-set verified present")
+
+    def seconds_until_next(hour):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        nxt = now.replace(hour=hour, minute=30, second=0, microsecond=0)
+        if nxt <= now:
+            nxt += datetime.timedelta(days=1)
+        return (nxt - now).total_seconds()
+
+    if __name__ == "__main__":
+        one_pass()
+        while True:
+            s = seconds_until_next(WARM_HOUR)
+            log(f"sleeping {int(s)}s until next pass")
+            time.sleep(s)
+            one_pass()

@@ -1,0 +1,94 @@
+# ci-image-warmer — every runner-eligible node keeps the runner images hot.
+#
+# WHY: docs/ci-substrate.md's design makes the kubelet's per-node containerd
+# cache the thing that makes pools fast. That cache is warm only after the
+# first job on a node pays the pull, goes cold for a new tag the moment a pin
+# bumps, and old tags linger until disk-pressure eviction. This DaemonSet
+# closes all three gaps: it pulls the keep-set on start and nightly (03:30
+# UTC), so the first job after a deploy is warm; it pulls each family's
+# :latest so tomorrow's bump lands on warm layers; and it removes superseded
+# managed-family refs explicitly instead of waiting for kubelet GC.
+#
+# The keep-set is DERIVED live (scale-set specs + running pods, see the RBAC
+# file) — the one hand-maintained input is the :latest opt-in list in the
+# ConfigMap. Warming is read-only with respect to what CI executes: pods keep
+# pinning by sha tag, Argo specs never change, a warmer outage degrades to
+# the old cold-pull behaviour and nothing else.
+#
+# Scheduling mirrors the arc-org pool exactly (NotIn k3s-w-4): warm precisely
+# the nodes a runner can land on. No tolerations — if control-plane nodes are
+# tainted away from runners they are tainted away from the warmer too.
+#
+# SECURITY: the pod mounts the node's containerd socket and the k3s binary,
+# which is node-root in effect. It runs no listener, has no Service, sits
+# behind the namespace's default-deny ingress, and its API access is the
+# read-only Role in 40-. Jobs run inside a DIFFERENT pod's dind daemon and
+# cannot address this one. Credential: the same ghcr-pull dockerconfigjson
+# the kubelet uses (debt D24 applies to it already).
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: ci-image-warmer
+  namespace: arc-runners
+spec:
+  selector:
+    matchLabels:
+      app: ci-image-warmer
+  template:
+    metadata:
+      labels:
+        app: ci-image-warmer
+    spec:
+      serviceAccountName: ci-image-warmer
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: NotIn
+                    values: ["k3s-w-4"]
+      containers:
+        - name: warmer
+          # Public library image, digest-pinned: the warmer must not itself
+          # depend on the private registry it exists to warm.
+          image: docker.io/library/python:3.12-alpine
+          command: ["python3", "/config/warm.py"]
+          securityContext:
+            # Node-root by mount, not by capability: the containerd socket is
+            # root-owned, so the process runs as root; privileged is not
+            # needed and not granted.
+            runAsUser: 0
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: k3s-bin
+              mountPath: /host/k3s
+              readOnly: true
+            - name: containerd-sock
+              mountPath: /run/k3s/containerd
+            - name: config
+              mountPath: /config
+              readOnly: true
+            - name: ghcr-creds
+              mountPath: /creds
+              readOnly: true
+      volumes:
+        - name: k3s-bin
+          hostPath:
+            path: /usr/local/bin/k3s
+            type: File
+        - name: containerd-sock
+          hostPath:
+            path: /run/k3s/containerd
+            type: Directory
+        - name: config
+          configMap:
+            name: ci-image-warmer
+        - name: ghcr-creds
+          secret:
+            secretName: ghcr-pull
