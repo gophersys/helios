@@ -1002,7 +1002,7 @@ _api_snapshot() {
   ( cd "$PROJECT_ROOT"
     go list ./... 2>/dev/null | while IFS= read -r pkg; do
       printf '## %s\n' "$pkg"
-      go doc -short "$pkg" 2>/dev/null | sort
+      go doc -short "$pkg" 2>/dev/null | LC_ALL=C sort
     done
   )
 }
