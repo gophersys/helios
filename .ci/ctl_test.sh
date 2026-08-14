@@ -494,7 +494,8 @@ run_verb() {
   : > "$log"
   # BASH_ENV is how the shadow reaches the tier's shell: bash reads it when it starts a
   # script. With SHADOW=none the file does not exist and bash reads nothing.
-  OUT="$(PATH="$fix/bin" EDEN_TEST_GATED_LOG="$log" BASH_ENV="$fix/inject.sh" \
+  # NX_BASE is fixed here as PATH is, so the outer job's value cannot leak in. origin/main is a valid refspec, so the planted fetch fails at the missing remote — the wanted fault — under any outer value.
+  OUT="$(PATH="$fix/bin" EDEN_TEST_GATED_LOG="$log" BASH_ENV="$fix/inject.sh" NX_BASE=origin/main \
     "$REAL_BASH" "$fix/.ci/ctl.sh" "$verb" 2>&1)" || RC=$?
   GATED="$(cat "$log")"
 }
