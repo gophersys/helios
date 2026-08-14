@@ -1,10 +1,10 @@
 # shellcheck-floor
 
-phase:    pr
+phase:    wait
 repo:     gophersys/infrastructure
 branch:   ci/shellcheck-floor
 worktree: ~/code/.worktrees/infra-shellcheck-floor
-pr:       -
+pr:       176
 attempt:  0/2
 
 ## REMINDER: delete this .dev file in the FINAL commit before merge; prove gone with git cat-file -e.
