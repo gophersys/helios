@@ -594,3 +594,17 @@ reworded; proof it can fail). Gates native: pytest 77 rc=0, ruff rc=0,
 node --check rc=0, geometry rc=0. Decisive proof: full assemble --font
 DejaVu rc=0 INSIDE the CI image on the page behind all three fleet
 failures. Certification push follows.
+
+## 2026-08-14T04:21Z — P-final: base-child rebase FLEET-CERTIFIED; the plan is complete
+Run 31769177098: test and geometry both green on ghcr.io/gophersys/
+dense-ui-ci built FROM gophersys/base (pre-pulled with GHCR_PULL_TOKEN per
+eden lesson L3), google-chrome via Google's apt repo, PYTHONUNBUFFERED
+baked, 30m job caps, and the CDP measurement runner. The box consumed one
+secret grant (Mateo, via vault), one image rebuild chain, and a three-layer
+chrome forensic (see the last four entries). Collateral shipped along the
+way: infrastructure PR #174 (ci-image-warmer, awaiting Mateo), the
+dense-ui-as-pool recommendation (parked, Mateo's call), and a LOOP.md rule
+born from cancelling our own certification with a bookkeeping push. PLAN.md
+now has zero unchecked boxes. BLOCKED.md: the grant entry marked resolved
+with the PAT-rotation note. The loop's remaining duties are maintenance:
+fleet health, drift sync, and whatever Mateo adds next.

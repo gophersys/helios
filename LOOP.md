@@ -45,6 +45,9 @@ follow it exactly.
 
 - Skip or soften a failing gate; a gate that cannot run is a failure.
 - Bypass `ctl.sh`: gates run through it, so CI and humans see the same truth.
+- Push to main while a fleet certification run is in flight — the ci
+  concurrency group cancels the running proof (a lock-refresh push killed a
+  certification at 6m50s on 2026-08-14). Bookkeeping waits for the verdict.
 - Pipe a gate's output through grep/tail/head in the same command that decides
   success — the pipeline's exit status masks the gate's (three real bites:
   fmt rc, geometry rc twice). Run the gate BARE, capture rc, read output after.

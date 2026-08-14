@@ -8,7 +8,11 @@ Decision needed: run `zsh ~/code/dense-ui/loop/install.sh` yourself, or keep
 the loop session-bound. Default if forced: stay session-bound.
 
 
-## 2026-08-14 — grant GHCR_PULL_TOKEN to dense-ui (base-child image rebase)
+## 2026-08-14 — RESOLVED: GHCR_PULL_TOKEN granted; base-child rebase landed
+Resolution: Mateo unlocked the vault and chose the forge PAT (over-scoped —
+same practice as eden's ghcr-pull, tracked there as debt D24; rotate both to
+a read:packages token when one exists). The rebase is fleet-certified.
+Original entry follows for the record.
 Context: the house convention (eden/.devcontainer/base) is base -> child
 images adding domain toolchains; dense-ui-ci currently sits on debian
 directly (deliberate at the time: no pull secret, ubuntu snap-chromium, CDN
