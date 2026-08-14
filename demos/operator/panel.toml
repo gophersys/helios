@@ -155,6 +155,43 @@ columns = [
   { strings = ["Osc<Vel", "0", "-48", "Q"] },
 ]
 
+# The ONE probe config for this panel: `densui score` reads it, and
+# build/overlap_audit.py loads it through the same CLI loaders, so the geometry
+# gate and the scorecard cannot measure two different part sets of one page.
+# overlap_audit.py remains a separate gate purely for what the scorecard has no
+# vocabulary for: the widest-string sweep and the osc-column alignment key.
+[probe]
+page = "operator.html"         # written by build/assemble.py; ctl.sh builds before scoring
+root = ".device"
+root_width = 1253
+text_kinds = ["label", "value", "checklabel", "clabel", "num"]
+
+[probe.containers]
+plate = ".plate"
+dgrid = "#dgrid"
+
+[probe.parts]
+label = ".op-knob-label"
+dial = ".op-knob-dial"
+value = ".op-knob-value"
+checkbox = ".op-check-box"
+checklabel = ".op-check-label"
+dd = ".op-dd"
+chip = ".op-chip"
+pairopt = ".op-pair-opt"
+led = ".op-led"
+badge = ".badge"
+glyph = "svg.p-pt-glyph"
+clabel = ".clabel"
+num = ".op-num"
+head = ".dhead"
+thumb = "canvas"
+
+[rules]
+graze_max_height = 2.5   # measured: value ink may graze its OWN dial ring by 2.5px
+graze_min_dx = 8.0       #           starting 8px right of the dial centre
+spill = [["dgrid", "clabel", 12.0]]   # declared: display column labels overhang the grid
+
 # Static line-2 positions (measured from the gridline crops; not solver-owned)
 [emit]
 knob_row_order = ["lfo", "filter", "pitch", "global"]

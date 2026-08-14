@@ -82,6 +82,7 @@ label = "TX Power"
 widest = "-20 dBm"
 
 [probe]
+page = "telemetry.html"        # what `densui score` probes; `densui audit` is given it
 root = ".panel"
 root_width = 1120
 text_kinds = ["label", "value", "clabel", "num"]

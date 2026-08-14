@@ -1,6 +1,6 @@
 # deep-craft
 
-phase:    verify
+phase:    red
 repo:     gophersys/dense-ui
 branch:   feat/deep-craft
 worktree: ~/code/.worktrees/dense-ui-deep-craft
@@ -175,5 +175,29 @@ grep -q decide the params gate under pipefail (SIGPIPE 141 hazard).
   CSS-px stable across host fonts instead of flipping inside a 4px
   macOS-vs-CI metrics window.
 
+## Fix round (W0 findings) — proven
+- F1 fixed: score takes positional should-pass targets through the same
+  _collect/_rules path (seeds=None); ctl.sh score builds the demos (shared
+  build_demos() with geometry) then scores corpus + all three; unprobeable
+  should-pass target rc=2 named, never skipped. Break-test: planted gap-law
+  in a scratch COPY of bench -> rc=1 naming the demo target and class.
+  Fleet path proven: DENSUI_FONT=DejaVu ./ctl.sh score rc=0, nine targets.
+- F2 fixed: breathing seed reworked under production config
+  (text_kinds=["value"]); ink clearance MEASURED across 13 mac faces
+  (-0.23..+0.81px, fires on all) AND the CI image's DejaVu faces inlined as
+  data URIs (-0.17px, fires); bounded band: >=1.69px to the breathing floor,
+  >=1.27px to containment slack, vs 1.04px face spread. Un-planted variant
+  rc=1.
+- Fix 3 (drift twin, flagged by implementer, approved): operator's
+  [probe]/[rules] live ONLY in panel.toml; overlap_audit.py consumes it via
+  the CLI's _collect/_rules (-24 lines, dead PAGE assignment gone). Proof
+  the twin is dead: one edit (remove led) moved BOTH paths 128->124 parts
+  identically; before, only the score path would have moved.
+- Orchestrator re-ran bare: ./ctl.sh score rc=0 (3 should-pass rows),
+  pytest 90 passed rc=0. Implementer: geometry rc=0 (128 parts both paths),
+  ./ctl.sh test rc=0, ruff+format rc=0, zero test-file edits.
+- Follow-up noted for W1 (touches cli.py anyway): promote _collect/_rules
+  to a public densui API — three consumers now (audit, score, operator gate).
+
 ## Next
-dev-planner returns a plan; STOP and show Mateo.
+W1 red tests (ratio predicate; telemetry's dormant [ratio] rows wake).

@@ -85,15 +85,22 @@ def cmd_score(args) -> int:
     seeds = sorted(d for d in corpus.iterdir() if d.is_dir()) if corpus.is_dir() else []
     if not seeds:
         return _die(f"no seed directories under {corpus} — a corpus that cannot be scored fails")
+    scoreable = [(d, d.name) for d in seeds] + [(pathlib.Path(t), None) for t in args.target]
     targets = []
-    for d in seeds:
+    for d, seeded in scoreable:
+        what = f"corpus seed {d.name}" if seeded else f"should-pass target {d}"
         try:
             with open(d / "panel.toml", "rb") as fh:
                 cfg = tomllib.load(fh)
-            out = _collect(d / "page.html", cfg["probe"])
+            out = _collect(d / cfg["probe"].get("page", "page.html"), cfg["probe"])
         except (OSError, tomllib.TOMLDecodeError, KeyError, probe.ProbeError) as exc:
-            return _die(f"corpus seed {d.name}: {exc}")
-        targets.append(score.Target(name=str(d), probe_out=out, seeds=d.name, rules=_rules(cfg)))
+            return _die(f"{what}: {exc}")
+        # stderr, so stdout stays one parseable report: which targets were
+        # scored is otherwise invisible — the report is per CLASS, not per
+        # target, and a demo silently dropped would read as a clean run.
+        role = f"seeds {seeded}" if seeded else "should pass"
+        print(f"densui score: {d} ({role})", file=sys.stderr)
+        targets.append(score.Target(name=str(d), probe_out=out, seeds=seeded, rules=_rules(cfg)))
     report = score.run_scorecard(targets)
     print(json.dumps(report, indent=2))
     return 1 if report["failures"] else 0
@@ -144,8 +151,14 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--sweep-js", help="JS file injected before probing (content sweep)")
     a.set_defaults(fn=cmd_audit)
 
-    sc = sub.add_parser("score", help="craft scorecard over a seeded corpus")
+    sc = sub.add_parser("score", help="craft scorecard over a seeded corpus + should-pass targets")
     sc.add_argument("--corpus", required=True, help="directory of <defect-class>/ seed dirs")
+    sc.add_argument(
+        "target",
+        nargs="*",
+        help="should-pass directory: panel.toml ([probe].page names its page); "
+        "any violation there fails the run",
+    )
     sc.set_defaults(fn=cmd_score)
 
     z = sub.add_parser("zoom", help="gridline-labelled anatomy zoom of a bitmap region")

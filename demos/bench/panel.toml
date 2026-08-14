@@ -46,6 +46,7 @@ label = "I-Limit"
 widest = "2.00 A"
 
 [probe]
+page = "bench.html"            # what `densui score` probes; `densui audit` is given it
 root = ".panel"
 root_width = 760
 text_kinds = ["label", "value", "num", "clabel"]

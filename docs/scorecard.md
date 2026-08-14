@@ -1,7 +1,7 @@
 # The craft scorecard — coverage and failures, never a verdict
 
 `./ctl.sh score` runs every registered defect-class predicate over a corpus of
-seeded pages and prints one JSON report:
+seeded pages AND over the three demos, and prints one JSON report:
 
 ```
 {"classes": {"<class>": {"measured": bool, "violations": [...], "seed_caught": bool|null}},
@@ -27,6 +27,27 @@ what is MEASURED, what VIOLATED, and nothing else.
    deliberate defect of that class, `panel.toml` with the `[probe]` selectors,
    and `TELL.md` naming the defect. If the predicate stays silent on its own
    seed, `densui score` exits non-zero: a check that cannot fail is the defect.
+
+## Should-pass targets
+
+```
+densui score --corpus corpus demos/operator demos/telemetry demos/bench
+```
+
+Every positional argument is a directory that must come out CLEAN: its
+`panel.toml` supplies the `[probe]` config (with `page` naming the rendered
+file) and its `[rules]`, and any violation of any class fails the run, named
+with the target. Half the point of the scorecard is there: a corpus proves the
+predicates can fire, the demos prove they are not firing on the work we ship.
+
+The demo pages are build artifacts, so `./ctl.sh score` builds all three before
+scoring them — a target that cannot be probed exits non-zero and names itself.
+It is never skipped, because a target silently dropped reads exactly like a
+target that passed.
+
+A corpus seed must ALSO run the configuration production runs. `corpus/breathing`
+declares `text_kinds = ["value"]` like the demos do, because a defect visible
+only to element-box probing certifies a code path no panel uses.
 
 ## Measured today
 

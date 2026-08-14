@@ -12,7 +12,7 @@ design, exactly the input shapes of the tools that consume them:
 | `[census]` | humans + gates | pointer to the stage-1 census file |
 | `[tracks]` | layout CSS | L1 zoning: fixed column tracks, gaps (A-2: never content-sized) |
 | `[solve.*]` | `densui.solve.solve()` | flow_rows / knob_rows — anchors, floors, labels, widest strings |
-| `[probe]` | `densui.probe.collect()` | root, root_width, containers, parts, text_kinds |
+| `[probe]` | `densui.probe.collect()` | page, root, root_width, containers, parts, text_kinds |
 | `[rules]` | `densui.audit.Rules` | graze, floors, declared spills |
 | `[ratio]` | ratio audit | `name = [want, tol]` rows measured from the reference |
 
@@ -73,6 +73,7 @@ label = "Gamma"
 widest = "20.0 kHz"
 
 [probe]
+page = "example.html"    # the rendered page `densui score` measures (default page.html)
 root = ".panel"
 root_width = 800
 text_kinds = ["label", "value"]
@@ -98,6 +99,8 @@ dial = [28, 1]
 
 The `[solve]` table is passed verbatim (with `[font]`) to
 `densui.solve.solve()`; `[probe]` + `[rules]` are exactly the `densui audit`
-CLI config. `densui.spec.load_panel()` validates the file with NAMED errors — every
+CLI config, which takes its page as an argument and ignores `probe.page` —
+`densui score`, which is handed a directory, reads it. `densui.spec.load_panel()`
+validates the file with NAMED errors — every
 problem at once, full path, did-you-mean suggestions — before any consumer
 runs. The operator emitter validates on load.
