@@ -400,3 +400,12 @@ proven (eval exception, missing page). CDP chosen over Playwright-MCP: the
 fleet image already carries everything needed and the founding session's
 ad-hoc scripts showed raw CDP suffices — no new dependency for the
 container. PLAN tick used the new assert-old-form-gone rule. 67 tests.
+
+## 2026-08-14T00:03Z — P5 eyes doctrine ✓ — PHASE 5 COMPLETE
+docs/eyes.md: the incident record generalized — five visual misreads, each
+one passed inspection and fell to arithmetic, now a table with costs. Six
+rules: eyes discover, never decide; gates pass only on numerics; "looks
+off" is a valid FAIL that must decompose into a predicate; measure again,
+never average; proxies are eyes at one remove (local develops, fleet
+certifies); taste is named as taste. P5 done — the eyes work went CDP-lean
+instead of Playwright-heavy and the doctrine explains why that was enough.
