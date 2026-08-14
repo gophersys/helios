@@ -1,6 +1,6 @@
 # hermetic-tier-fixture
 
-phase:    red
+phase:    verify
 repo:     gophersys/libs
 branch:   fix/hermetic-tier-fixture
 worktree: ~/code/.worktrees/libs-hermetic-tier-fixture
@@ -43,6 +43,13 @@ NX_BASE values. dev-test-author owns this; NO dev-implementer (no source file to
   (rc=128)`, `FAIL t_a_fault_inside_the_producer_fails_the_tier`, SUITE_RC=1. Byte-for-byte the
   runner's failure. THE RED IS PROVEN, for the right reason.
 - Proof env verified: base:latest lacks cictl (runner-layer only, #20) → MUST use base-runner.
+- FIX applied + GREEN proven by dev-test-author (commit 1bb9a94, only .ci/ctl_test.sh, +2/-1):
+  one token `NX_BASE=origin/main` added to run_verb's env prefix + a one-line STE comment.
+  In base-runner: test 6 under NX_BASE=origin/main~1 → SUITE_RC=0 (was the red); under origin/main
+  → 0; under UNSET → 0; FULL suite under origin/main~1 → 15/15 hold + 15/15 proven-able-to-fail,
+  SUITE_RC=0; shellcheck .ci/ctl_test.sh clean. Assertions untouched, no other file changed.
+- Phase 4 gate `bash .ci/ctl.sh validate` running in base-runner (git commondir mounted so the
+  worktree gitdir resolves); result pending.
 
 ## Proven
 Established across three prior investigation firings (evidence in task #76):
