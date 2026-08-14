@@ -411,6 +411,19 @@ precondition genuinely mutes 3 controls); operator's 1.5 stands (measured
 emptiness. F5 docstring corrected with measured numbers; F6 comment fixed;
 F7 citation de-Abletoned (implementer).
 
+## Fix-round pins (F1-F5) — proven red
+- 9 red for the right reasons (DID-NOT-RAISE on the 1.0 floor with the
+  finding EXECUTING first: worst sprawl clears 1.0; unknown exempt/reason
+  keys; empty-fonts-table passes; report rows lack targets_measured/
+  exempt; telemetry ships the dead floor). 5 existing tests legitimately
+  flipped, named. F5 docstring re-measured, not repeated (operator ink
+  0.4373, telemetry 0.4178, type-size 0.593, prose 0.8 — three quantities
+  named apart).
+- Reference implementation: 89 passed across four files — satisfiable.
+  12/12 switch-off mutations caught, incl. exempt-invisible,
+  exempt-counted-as-measured, blanket-exemption, seed-exemption-unreported.
+- Suite 9 failed / 157 passed, 166 collected, zero errors.
+
 ## Next
-Author pins F1-F5; implementer lands + F6/F7; re-verify the three fixes
-only; then PR.
+Implementer lands F1-F4 + F6/F7; targeted re-verify of the three fixes;
+then PR.

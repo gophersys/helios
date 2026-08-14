@@ -123,10 +123,26 @@ def test_every_dimension_resolves_and_a_row_within_tolerance_is_silent():
 
 
 def test_ratio_row_is_the_text_to_control_identity():
-    """The quotient form, and the reason this predicate exists: label.h/dial.h
-    is the identity-carrying ratio (DENSE-UI §Ratios — Operator sits near 0.8;
-    library defaults land near 0.44 and read as generated). Absolute sizes can
-    all be plausible while the relation between them is the tell."""
+    """The quotient form: a RELATION, not a size. Absolute sizes can all be
+    plausible while the relation between them is the tell.
+
+    A row must name WHICH relation, because three different "text:control"
+    numbers circulate in this repository and they are not one quantity:
+
+    * ink `label.h / dial.h` — what this row form measures, parts being glyph
+      ink (A-4). Measured on the built demos: operator 11.81/27.00 = 0.437
+      over 22 knobs, telemetry 11.70/28.00 = 0.418;
+    * type size `label_fs / knob.h` — what operator's own hand-written row
+      checks (`build/ratio_audit.py`: `text_knob_ratio`, want 0.593). A
+      declared font-size over a control height is larger by construction: the
+      em box is taller than the ink inside it;
+    * DENSE-UI §L3's prose, "Operator: ~0.8 — text nearly knob-height", which
+      matches neither measurement and states no method.
+
+    So this fixture — 12px of ink over a 27px dial, 0.444, the region the
+    replica actually measures — FAILS a row wanting 0.593, which is the
+    type-size number applied to an ink measurement. Naming the quantity per
+    row is what makes that confusion unshippable."""
     row = {"name": "text_control", "ratio": ["label.h", "dial.h"], "want": 0.593, "tol": 0.06}
 
     fails = audit.check_ratios(PANEL, [row])

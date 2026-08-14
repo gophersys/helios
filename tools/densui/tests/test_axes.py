@@ -405,11 +405,91 @@ def test_the_budget_is_silent_at_or_below_the_floor_in_CONTROLS():
 def test_axis_budget_floor_is_a_declared_override_not_a_constant():
     """A panel that genuinely needs a lower floor declares one. The predicate
     reads it off the rules — a hard-coded 3.0 makes the override a lie the
-    config tells."""
-    lowered = audit.Rules(axis_budget_floor=1.0, axis_budget_reason="five isolated test points")
+    config tells.
 
-    assert audit.check_axis_budget(SPRAWL, lowered) == []
+    The example is 1.5, operator's declared floor, and the pair of assertions
+    is what makes a floor a CLAIM: four controls on two axes clear 1.5 and
+    fail 3.0. A floor that nothing can fail is the next test."""
+    lowered = audit.Rules(
+        axis_budget_floor=1.5, axis_budget_reason="four racks of mixed grids (measured 1.63)"
+    )
+
+    assert audit.check_axis_budget(GRID, lowered) == [], "2.00 per axis clears a floor of 1.5"
+    assert audit.check_axis_budget(GRID, audit.Rules()) != [], "and the same panel fails 3.0"
     assert audit.Rules().axis_budget_floor == 3.0, "DENSE-UI A1's ~3 is the default"
+
+
+def test_a_floor_at_or_below_one_is_refused_because_nothing_can_fail_it(font_path):
+    """A1's quotient is controls ÷ control x-axes, and a class needs at least
+    one control to exist, so the axis count can never exceed the control count
+    and the quotient can never fall below 1.00. `axis_budget_floor = 1.0` is
+    therefore the rule switched OFF, written in the one form that reads like
+    the rule switched ON — and two demos shipped exactly that.
+
+    The demonstration comes first, because the refusal is only justified by it:
+    the sprawliest panel expressible — five controls, five separate vertical
+    lines, the shape A1 exists to name — scores exactly 1.00 and clears the
+    floor. A panel that cannot state a budget declares the exemption below,
+    where the report can see it; it does not dress the switch-off as a number.
+    """
+    off = audit.Rules(axis_budget_floor=1.0, axis_budget_reason="five isolated test points")
+
+    assert audit.axis_census(SPRAWL)["x_axes"] == len(SPRAWL), (
+        "one axis per control, the worst case"
+    )
+    assert audit.check_axis_budget(SPRAWL, off) == [], "1.00 clears 1.0 — the floor cannot fire"
+
+    with pytest.raises(SpecError) as exc:
+        load_panel(
+            minimal_spec(
+                font_path,
+                rules={"axis_budget_floor": 1.0, "axis_budget_reason": "one control per column"},
+            )
+        )
+    named = [e for e in exc.value.errors if "axis_budget_floor" in e]
+    assert named, exc.value.errors
+    assert "1.0" in named[0] and "cannot fire" in named[0], (
+        f"the error must say WHY a floor at or below 1.0 is refused: {named[0]}"
+    )
+
+    with pytest.raises(SpecError) as gate:
+        rules_from({"rules": {"axis_budget_floor": 0.5, "axis_budget_reason": "because"}})
+    assert any("axis_budget_floor" in e for e in gate.value.errors), gate.value.errors
+
+
+def test_a_panel_that_cannot_state_a_budget_declares_an_exemption_and_pays_for_it(font_path):
+    """The honest form of "this rule does not apply here": one boolean, a
+    written reason, and a line in the report (tests/test_scorecard.py pins the
+    visibility — an exemption nobody can see is the silent pass again).
+
+    Telemetry is the real case. One control per rail column is the design, so
+    the quotient is 1.00 and A1's premise — repeated structure — is simply
+    absent; there is no honest floor to declare, because every floor above 1.0
+    fires and every floor at or below it is dead. It says so instead.
+
+    The exemption is load-bearing here: the same five-control sprawl fails the
+    default floor, and goes silent only because the panel declared itself out
+    of the rule."""
+    declared = {
+        "axis_budget_exempt": True,
+        "axis_budget_reason": "one control per rail column by design; A1's premise is repetition",
+    }
+
+    assert load_panel(minimal_spec(font_path, rules=declared))["rules"] == declared
+    rules = rules_from({"rules": declared})
+    assert rules.axis_budget_exempt is True
+    assert rules.axis_budget_floor == 3.0, "an exemption is not a lowered floor"
+
+    assert audit.check_axis_budget(SPRAWL, audit.Rules()) != [], "the geometry does fail A1"
+    assert audit.check_axis_budget(SPRAWL, rules) == [], "and the declared exemption mutes it"
+
+    with pytest.raises(SpecError) as exc:
+        load_panel(minimal_spec(font_path, rules={"axis_budget_exempt": True}))
+    assert any("axis_budget_reason" in e for e in exc.value.errors), exc.value.errors
+
+    with pytest.raises(SpecError) as gate:
+        rules_from({"rules": {"axis_budget_exempt": True}})
+    assert any("axis_budget_reason" in e for e in gate.value.errors), gate.value.errors
 
 
 def test_axis_budget_override_without_a_reason_is_a_spec_error(font_path):
@@ -442,15 +522,36 @@ def test_narrowing_the_snap_population_without_a_reason_is_a_spec_error(font_pat
     assert any("snap_kinds_reason" in e for e in gate.value.errors), gate.value.errors
 
 
+def test_narrowing_the_hit_target_vocabulary_without_a_reason_is_a_spec_error(font_path):
+    """The third exemption, and the one the consolidated verify walked
+    straight through: `hit_kinds = ["dial"]` deleted checkbox and thumb from
+    WCAG SC 2.5.8's population, and a real 12px pitch violation went green on
+    two lines that read like configuration.
+
+    hit_kinds is not a vocabulary a panel invents — it is which of its parts
+    a finger has to hit. Widening it is free; narrowing it is a claim about
+    the panel's own interaction, so it costs the same written reason the other
+    two exemptions cost, refused on both consuming paths."""
+    with pytest.raises(SpecError) as exc:
+        load_panel(minimal_spec(font_path, rules={"hit_kinds": ["dial"]}))
+    assert any("hit_kinds_reason" in e for e in exc.value.errors), exc.value.errors
+
+    with pytest.raises(SpecError) as gate:
+        rules_from({"rules": {"hit_kinds": []}})
+    assert any("hit_kinds_reason" in e for e in gate.value.errors), gate.value.errors
+
+
 def test_declared_rules_reach_the_predicate(font_path):
     """The other half: a justified override, and the hit-target vocabulary,
     survive both the validator and the one function every gate builds its Rules
     with. A key that validates but never reaches the predicate is a config that
-    silently does nothing."""
+    silently does nothing — and a reason that validates but never reaches the
+    Rules is a justification nothing can quote back."""
     declared = {
         "axis_budget_floor": 1.6,
         "axis_budget_reason": "bench holds one control per column by design (contract.md)",
         "hit_kinds": ["dial", "chip"],
+        "hit_kinds_reason": "measured: the 4 leds are indicators, not targets — nothing hits them",
         "snap_kinds": ["dial", "thumb"],
         "snap_kinds_reason": "measured: the 4 leds and 3 chips are sized by their own text",
     }
@@ -461,6 +562,7 @@ def test_declared_rules_reach_the_predicate(font_path):
     assert rules.axis_budget_floor == 1.6
     assert rules.axis_budget_reason.startswith("bench holds"), rules.axis_budget_reason
     assert rules.hit_kinds == frozenset({"dial", "chip"}), rules.hit_kinds
+    assert rules.hit_kinds_reason.startswith("measured:"), rules.hit_kinds_reason
     assert rules.snap_kinds == frozenset({"dial", "thumb"}), rules.snap_kinds
     assert rules.snap_kinds_reason.startswith("measured:"), rules.snap_kinds_reason
 
@@ -765,26 +867,50 @@ def test_telemetry_carries_its_row_pitch_again(font_path):
 def test_every_demo_declares_the_axis_budget_it_actually_has(font_path):
     """The default floor stays 3.0 — it is the aspiration for the dense
     repeated panels this framework targets, and lowering it silently would kill
-    the rule for everyone to spare three files. Instead each demo states its
-    own structure, in its own words, where the gate can read it.
+    the rule for everyone to spare three files. Each demo states its own
+    structure instead, in the form that is TRUE of it, where the gate reads it.
 
-    The floors are the measured ratios rounded down to a legal claim: bench and
-    telemetry hold ONE control per column by design (measured 1.00 each), and
-    operator is four racks of mixed grids (measured 1.63). A reason is required
-    by the spec; that it is a SENTENCE rather than a shrug is required here."""
-    for demo, floor in (("bench", 1.0), ("telemetry", 1.0), ("operator", 1.5)):
-        panel = REPO / "demos" / demo / "panel.toml"
-        data = tomllib.loads(panel.read_text())
-        rules = data.get("rules", {})
+    Three different situations, three different declarations, and the
+    difference is the point:
 
-        assert rules.get("axis_budget_floor") == floor, (
-            f"{demo}: declares {rules.get('axis_budget_floor')!r}, measured ratio needs {floor}"
-        )
-        reason = rules.get("axis_budget_reason", "")
-        assert len(reason.split()) >= 4, f"{demo}: the reason must be a sentence, got {reason!r}"
+    * telemetry measures 1.00 — one control per rail column. No floor can
+      express that (1.0 cannot fire, anything above it fires), so it declares
+      the EXEMPTION and says why. Its previous `axis_budget_floor = 1.0` was
+      the rule switched off in the costume of the rule switched on;
+    * bench holds three controls, which the precondition mutes by itself. It
+      declares NOTHING: a floor there would be a claim doing no work, and the
+      default already says what is true;
+    * operator measures 1.63 and declares 1.5 — a real, falsifiable claim. If
+      the replica ever sprawls past it, the gate fails, which is what a floor
+      is for.
+    """
+    telemetry = tomllib.loads((REPO / "demos" / "telemetry" / "panel.toml").read_text())
+    rules = telemetry.get("rules", {})
+    assert rules.get("axis_budget_exempt") is True, (
+        f"telemetry cannot state a budget; it must declare the exemption, got {rules!r}"
+    )
+    assert "axis_budget_floor" not in rules, (
+        f"a floor and an exemption are two answers: {rules.get('axis_budget_floor')!r}"
+    )
+    assert len(rules.get("axis_budget_reason", "").split()) >= 4, rules.get("axis_budget_reason")
+    telemetry["font"]["path"] = font_path
+    assert load_panel(telemetry)["rules"]["axis_budget_exempt"] is True
 
-        data["font"]["path"] = font_path
-        assert load_panel(data)["rules"]["axis_budget_floor"] == floor
+    bench = tomllib.loads((REPO / "demos" / "bench" / "panel.toml").read_text())
+    axis_keys = {k for k in bench.get("rules", {}) if k.startswith("axis_budget")}
+    assert not axis_keys, (
+        f"bench's three controls are muted by the precondition itself — {axis_keys} claims nothing"
+    )
+
+    operator = tomllib.loads((REPO / "demos" / "operator" / "panel.toml").read_text())
+    rules = operator.get("rules", {})
+    assert rules.get("axis_budget_floor") == 1.5, (
+        f"operator measured 1.63 and must keep a falsifiable floor, got {rules.get('axis_budget_floor')!r}"
+    )
+    assert not rules.get("axis_budget_exempt"), "operator CAN state a budget, so it does"
+    assert len(rules.get("axis_budget_reason", "").split()) >= 4, rules.get("axis_budget_reason")
+    operator["font"]["path"] = font_path
+    assert load_panel(operator)["rules"]["axis_budget_floor"] == 1.5
 
 
 def test_only_operator_exempts_itself_from_the_integer_edges():

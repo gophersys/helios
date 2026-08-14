@@ -47,7 +47,11 @@ REQUIRED_CLASSES = {
 BATTERY_CLASSES = {"overlap", "crowding", "gap-law", "containment", "breathing", "alignment"}
 FUTURE_CLASSES = {"component-anatomy", "colour"}
 
-CLASS_ROW_KEYS = {"measured", "violations", "seed_caught"}
+# `targets_measured` and `exempt` are the consolidated verify's answer to a
+# hole it found by exploit: a panel could declare itself out of a class in two
+# unreasoned lines and the report was indistinguishable from a clean run. What
+# a class did NOT measure is now part of what it reports.
+CLASS_ROW_KEYS = {"measured", "violations", "seed_caught", "targets_measured", "exempt"}
 REPORT_KEYS = {"classes", "failures"}
 
 
@@ -69,6 +73,20 @@ SEEDED_OVERLAP = {
     "parts": [
         part("p", "dial", "a", (0, 0, 27, 27)),
         part("p", "value", "b", (10, 10, 60, 24)),
+    ],
+}
+# Five 27px dials, each on its own diagonal step: five distinct control
+# x-axes for five controls, so the axis budget reads 1.00 against a floor of
+# 3.0 and FIRES. Clean under every other class — no two dials share a
+# vertical band (no crowding pair, no gap-law pair, one dial per line), the
+# centres are 56.6px apart (WCAG pitch), the edges are whole px, and the
+# container holds them all. That is what makes the exemption test below
+# about the exemption and nothing else.
+SPRAWLING = {
+    "containers": [{"id": "p", "r": (0, 0, 400, 400)}],
+    "parts": [
+        part("p", "dial", owner, (v, v, v + 27, v + 27))
+        for owner, v in (("a", 10), ("b", 50), ("c", 90), ("d", 130), ("e", 170))
     ],
 }
 
@@ -171,12 +189,20 @@ def test_unmeasured_is_reported_and_never_reads_as_a_pass():
 
     assert set(report["classes"]) == set(score.REGISTRY), "every class gets a row, measured or not"
     colour, overlap = report["classes"]["colour"], report["classes"]["overlap"]
-    assert colour == {"measured": False, "violations": [], "seed_caught": None}, (
-        f"an unmeasured class must report measured=False, got {colour}"
-    )
-    assert overlap == {"measured": True, "violations": [], "seed_caught": None}, (
-        f"a measured class with nothing to report is measured=True, got {overlap}"
-    )
+    assert colour == {
+        "measured": False,
+        "violations": [],
+        "seed_caught": None,
+        "targets_measured": 0,
+        "exempt": [],
+    }, f"an unmeasured class must report measured=False over zero targets, got {colour}"
+    assert overlap == {
+        "measured": True,
+        "violations": [],
+        "seed_caught": None,
+        "targets_measured": 1,
+        "exempt": [],
+    }, f"a measured class with nothing to report ran over its one target, got {overlap}"
     assert report["failures"] == [], "a clean target with no seed is not a failure"
 
 
@@ -223,6 +249,61 @@ def test_should_pass_target_with_violations_fails_and_lists_them():
     assert report["failures"], "an unseeded target with violations must fail the run"
     joined = " | ".join(report["failures"])
     assert "demos/telemetry" in joined and "overlap" in joined, joined
+
+
+def test_an_exempt_target_is_named_in_the_report_and_never_silently_passes():
+    """A panel may declare itself out of a class it cannot state — but the
+    report has to SAY SO, per class and by name.
+
+    The consolidated verify took a panel out of the axis budget with two
+    unreasoned config lines and the run stayed green and silent; a scorecard
+    that reports coverage cannot count a target it never judged as one it
+    judged clean. So each class row carries how many targets it actually
+    measured, and which ones bought their way out.
+
+    The exemption is per CLASS, never a blanket: the same target is still
+    measured by everything else. And it is load-bearing here — the last block
+    shows this geometry failing the moment it stops being exempt, so the
+    silence above is the exemption working rather than a blind predicate."""
+    from densui import audit, score
+
+    excused = audit.Rules(
+        axis_budget_exempt=True,
+        axis_budget_reason="one control per rail column by design; A1's premise is repetition",
+    )
+    report = score.run_scorecard(
+        [
+            score.Target(name="demos/telemetry", probe_out=SPRAWLING, rules=excused),
+            score.Target(name="demos/bench", probe_out=CLEAN),
+        ]
+    )
+
+    sprawl = report["classes"]["axis-sprawl"]
+    assert sprawl["exempt"] == ["demos/telemetry"], f"the excused target must be named: {sprawl}"
+    assert sprawl["targets_measured"] == 1, f"only bench was actually judged: {sprawl}"
+    assert sprawl["violations"] == [], sprawl
+    assert report["failures"] == [], report["failures"]
+
+    other = report["classes"]["overlap"]
+    assert other["targets_measured"] == 2, f"an exemption is per class, not a blanket: {other}"
+    assert other["exempt"] == [], other
+
+    judged = score.run_scorecard([score.Target(name="demos/telemetry", probe_out=SPRAWLING)])
+    assert judged["failures"], "the exemption must be load-bearing: this geometry fails without it"
+    assert judged["classes"]["axis-sprawl"]["targets_measured"] == 1
+
+    # And the exemption cannot be pointed at a seed: a corpus page that plants a
+    # defect and then declares itself out of the class that catches it is a
+    # check that cannot fail, dressed as two clean rows.
+    conflicted = score.run_scorecard(
+        [
+            score.Target(
+                name="corpus/axis-sprawl", probe_out=SPRAWLING, seeds="axis-sprawl", rules=excused
+            )
+        ]
+    )
+    assert conflicted["failures"], "a seed that exempts itself from its own class must fail the run"
+    assert any("axis-sprawl" in f for f in conflicted["failures"]), conflicted["failures"]
 
 
 def test_corpus_has_a_seed_for_every_measured_class():

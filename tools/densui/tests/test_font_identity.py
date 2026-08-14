@@ -216,19 +216,28 @@ def test_advance_is_compared_at_the_declared_size_not_the_rendered_one(font_path
     assert len(audit.check_font_identity(wrong, face, 16)) == 1
 
 
-def test_a_declared_face_with_no_probe_evidence_is_a_failure(font_path):
-    """The dormancy shape, in its W3 costume: a panel that declares a TTF and
-    probe output with no `fonts` table at all measured NOTHING, and reporting
-    that clean is the lie this workstream exists to end. It fails, and says
-    that the measurement did not run."""
+def test_a_declared_face_with_nothing_measured_is_a_failure(font_path):
+    """The dormancy shape, in its W3 costume — and the guard is EMPTINESS, not
+    key presence.
+
+    A key-presence guard is dead code the moment probe.js always writes
+    `fonts: {}`, and the consolidated verify proved it by exploit: deleting
+    `text_kinds` from a panel.toml empties the table, and a page rendering
+    Courier where the panel declares a sans face went GREEN. Two shapes, one
+    verdict — a declared face that reaches here with nothing measured is a
+    failure that says so."""
     from densui import audit
 
-    blind = {"scale": 1, "containers": [], "parts": []}
+    face = Face(font_path)
+    absent = {"scale": 1, "containers": [], "parts": []}
+    empty = {"scale": 1, "containers": [], "parts": [], "fonts": {}}
 
-    fails = audit.check_font_identity(blind, Face(font_path), 16)
-
-    assert len(fails) == 1, f"a face declared against a blind probe must fail: {fails}"
-    assert "font" in fails[0].lower(), fails[0]
+    for shape, out in (("no fonts key", absent), ("an empty fonts table", empty)):
+        fails = audit.check_font_identity(out, face, 16)
+        assert len(fails) == 1, f"a face declared against {shape} must fail: {fails}"
+        assert "measured" in fails[0].lower(), (
+            f"{shape}: the failure must say nothing was measured: {fails[0]}"
+        )
 
 
 def test_a_panel_that_declares_no_face_measures_nothing(font_path):
