@@ -50,7 +50,7 @@ Every one of these passed visual inspection. Every one fell to arithmetic.
 |---|---|---|
 | anatomy discovery | measure.zoom / compare.side_by_side | no |
 | geometry truth | solve + audit battery + ratio + sweep | YES |
-| face identity | audit.check_font_identity (rendered advance vs solved face) | YES |
+| face identity | audit.check_font_identity (sentinel advance at 16px vs solved face) | YES |
 | behaviour truth | drive scenarios, contract drills | YES |
 | bug reporting | any pair of eyes | fail only, via a new predicate |
 

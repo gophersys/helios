@@ -155,8 +155,10 @@ replacing is worth a sentence.
 `[font]` is read twice, and the second read is what keeps the first honest.
 `densui.solve` sizes every reserved box from its advances; then
 `densui.audit.check_font_identity` measures, per text kind on the RENDERED page,
-the advance of a pinned 73-glyph sentinel and fails when it differs from the
-declared face by more than 0.5px at `[font].size`. A page that draws a face the
+the advance of a pinned 73-glyph sentinel — always at the canonical 16px, never
+at the kind's own rendered size, since identity is a property of the face and a
+fractional rendered size is the ratio predicate's business — and fails when it
+differs from the declared face by more than 0.5px. A page that draws a face the
 solver never saw reserves room for text that is not there, and nothing else in
 the battery can see it — parts carry glyph ink, and ink is where the glyphs
 are, never which face drew them. The path is resolved by

@@ -14,6 +14,13 @@ function densuiProbe(cfg) {
    * and a drift between the two copies compares different sentences and calls
    * the difference a substitution. */
   var SENTINEL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 AV To Wa";
+  /* The one size that sentinel is ever measured at, byte-identical to
+   * densui.audit.FONT_IDENTITY_SIZE_PX. Which face was drawn is not a fact about
+   * the size a kind renders at, and measuring each kind at its own size drags a
+   * platform's fractional-size behaviour into the verdict: an autoscaled kind at
+   * 15.552px measured 0.0875% narrow on the fleet while the 16px kinds on the
+   * same page, in the same run, with the same face, were exact. */
+  var FONT_IDENTITY_SIZE_PX = 16;
   var GENERIC = ['serif', 'sans-serif', 'monospace', 'cursive', 'fantasy', 'system-ui',
                  'ui-serif', 'ui-sans-serif', 'ui-monospace', 'ui-rounded', 'math', 'emoji',
                  'fangsong'];
@@ -115,19 +122,25 @@ function densuiProbe(cfg) {
     /* Font identity per text kind: the face drawn, and the sentinel advance the
      * reserved boxes were computed from. `fonts` is emitted whatever the
      * configuration says — a table that came and went with it would make "no
-     * measurement" indistinguishable from "no text kinds". resolvedFamily()
-     * leaves mctx on a probe font, so the measuring font is set AFTER it, and
-     * kerning is off: Face.adv() sums glyph advances, and a kerned width is a
-     * different quantity (3.55-5.05px on this sentinel). */
+     * measurement" indistinguishable from "no text kinds". The kind's own style
+     * and weight travel, and so does its declared family LIST rather than the
+     * resolved name: the list is what chrome resolves, it resolves the same way
+     * at every size, and a resolved name of '(default)' is not a family the font
+     * shorthand accepts. Only the size is replaced. resolvedFamily() leaves mctx
+     * on a probe font, so the measuring font is set AFTER it, and kerning is
+     * off: Face.adv() sums glyph advances, and a kerned width is a different
+     * quantity (3.55-5.05px on this sentinel). */
     (cfg.textKinds || []).forEach(function (kind) {
       var sel = cfg.parts[kind];
       var el = sel ? root.querySelector(sel) : null;
       if (!el) return;
       var cs = getComputedStyle(el);
       var family = resolvedFamily(cs);
-      mctx.font = fontSpec(cs);
+      mctx.font = cs.fontStyle + ' ' + cs.fontWeight + ' ' + FONT_IDENTITY_SIZE_PX + 'px ' +
+                  cs.fontFamily;
       mctx.fontKerning = 'none';
       out.fonts[kind] = { family: family, size_px: parseFloat(cs.fontSize),
+                          measured_at_px: FONT_IDENTITY_SIZE_PX,
                           advance_px: mctx.measureText(SENTINEL).width };
     });
 

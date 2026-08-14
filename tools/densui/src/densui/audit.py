@@ -42,6 +42,13 @@ FONT_SENTINEL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 012345678
 # pair measured (Courier New against Menlo) is 2.0px apart. So the band is spent
 # on substitution and nothing else.
 FONT_IDENTITY_TOL_PX = 0.5
+# The one size the sentinel is ever measured at, named identically in probe.js.
+# Which FACE a page drew is not a fact about the size a kind renders at, so
+# pinning the measurement to a single integral size keeps the platform's
+# fractional-size behaviour out of the verdict: the fleet measured operator's
+# autoscaled num (15.552px) 0.0875% narrow while the 16px kinds on the same
+# page, in the same run, with the same face, were exact.
+FONT_IDENTITY_SIZE_PX = 16.0
 AXIS_QUANTUM_PX = 0.5  # R7.4: 0.5px is exactly detectable, so it is the class width
 _EDGE_NAMES = ("left", "top", "right", "bottom")
 # Chrome's LayoutUnit is 1/64 px, so a real fractional edge is at least 0.015625
@@ -478,8 +485,15 @@ def check_font_identity(probe_out: dict, face: Face | None, size: float) -> list
     deleting `text_kinds` from a panel.toml empties the table, and a page
     drawing the wrong face passed on that route.
 
-    The measured advance is scaled to the declared size before the band applies,
-    so ±0.5px means the same thing for a 13px value as for a 16px label.
+    The comparison happens where the measurement was taken: the probe measures
+    the sentinel at FONT_IDENTITY_SIZE_PX for every kind, `Face.adv` scales
+    exactly, and no rescaling step exists. A kind's rendered `size_px` is
+    evidence check_ratios judges, never the comparison point — normalizing to a
+    declared size multiplies the measurement error by `size / size_px`, which
+    reported a 0.62px substitution on operator's autoscaled kinds with the
+    family resolved correctly (a real substitution is 5 to 40px). `size` is the
+    declared `[font].size` and no longer enters the verdict; it stays on the
+    signature for the callers that pass it.
     """
     if face is None:
         return []
@@ -490,15 +504,15 @@ def check_font_identity(probe_out: dict, face: Face | None, size: float) -> list
                 "the rendered face was never compared and every reserved box is unproven"
             )
         ]
-    want = face.adv(FONT_SENTINEL, size)
     fails = []
     for kind, ev in sorted(probe_out["fonts"].items()):
-        got = ev["advance_px"] * size / ev["size_px"]
+        at = ev["measured_at_px"]
+        want, got = face.adv(FONT_SENTINEL, at), ev["advance_px"]
         delta = got - want
         if abs(delta) > FONT_IDENTITY_TOL_PX:
             fails.append(
-                f"{kind}: rendered face {ev['family']} advances {got:.2f}px over the "
-                f"sentinel, the declared face {want:.2f}px ({delta:+.2f}px, "
+                f"{kind}: at {at:g}px the rendered face {ev['family']} advances {got:.2f}px "
+                f"over the sentinel, the declared face {want:.2f}px ({delta:+.2f}px, "
                 f"tol ±{FONT_IDENTITY_TOL_PX}) — the boxes were solved from a face "
                 f"this page did not draw"
             )

@@ -465,5 +465,20 @@ comparison-point correction, not a tolerance widen. This is the LAST
 attempt in the phase-7 budget; if the fleet stays red after it, STOP and
 report per the process.
 
+## Phase 7 attempt 2 — resolved locally, fleet verdict pending
+The author's algebra proved my rendered-size fix INSUFFICIENT before a
+fleet round was burned (removing normalization leaves raw -0.585px; the
+fleet platform measures the sentinel 0.0875% narrower at FRACTIONAL sizes
+only — the same page's 16px kinds passed). Accepted their abstraction-level
+fix: identity is size-independent, so the sentinel is measured at the
+canonical FONT_IDENTITY_SIZE_PX = 16 in the kind's declared style (the
+declared list travels because "(default)" is not a valid font-shorthand
+family), evidence gains measured_at_px, comparison at that size, band 0.5
+NEVER widened. Bite: the correct-arithmetic-but-fractional-measuring
+implementation passes every unit test and is caught only by the
+real-chrome pin. Landed: 168 passed rc=0, all gates green, operator
+clabel/num delta -0.0006 (was -0.62/-0.60 on the fleet), seed caught "at
+16px" with margins 40.23px mac / 5.27px CI = 10-80x the band.
+
 ## Next
-Author re-pins; implementer lands; push; fleet decides.
+Fleet verdict on the canonical-size round; then the final stop.
