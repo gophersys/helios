@@ -109,6 +109,9 @@ CICTL="absent"
 MUTATION="none"
 # TREE is the third stimulus: what state of the working tree `release-check` meets.
 TREE="clean"
+# SHADOW is the fourth: what the tier's own shell resolves the tool NAME to. A tool can be
+# present on PATH and still not be the thing that runs.
+SHADOW="none"
 # OUT, RC and GATED hold the last run_verb result: its merged output, its exit status, and
 # the record of which fixture library was gated with which verb.
 OUT=""
@@ -202,6 +205,35 @@ install_mutation() {
       ' "$target" > "$mutated" ||
         fail "the mutation found no single 'cictl updatability -C' invocation to turn into a consumer of the affected set; the dispatcher has been refactored and this test must be re-read"
       ;;
+    # ANCHOR: the status read that produces the affected set. A second command is grown INSIDE
+    # its substitution — the regression the one-command invariant exists to catch, and the
+    # exact edit a reader would make to fetch the base before diffing it.
+    second-command-in-a-status-read)
+      awk '
+        /^  listing="\$\(cictl affected/ {
+          print "  listing=\"$(git -C \"$REPO_ROOT\" fetch --quiet origin \"$NX_BASE\"; cictl affected -C \"$REPO_ROOT\" --base \"$NX_BASE\")\" || status=$?"
+          hits++
+          next
+        }
+        { print }
+        END { if (hits != 1) { exit 3 } }
+      ' "$target" > "$mutated" ||
+        fail "the mutation found no single affected-set status read to grow a second command into; the line has been refactored and this test must be re-read"
+      ;;
+    # ANCHOR: every `|| status=$?`, of which this file has exactly 2. They become `|| true` —
+    # the shape this repository bans — so the reads still exist but no longer take a status,
+    # and the check that scans for them finds NONE. That is the stimulus the floor exists for.
+    status-reads-made-blind)
+      awk '
+        /\|\| status=\$\?$/ {
+          sub(/\|\| status=\$\?$/, "|| true")
+          hits++
+        }
+        { print }
+        END { if (hits != 2) { exit 3 } }
+      ' "$target" > "$mutated" ||
+        fail "the mutation did not find exactly 2 '|| status=\$?' reads to blind; the file's status reads have changed and this test must be re-read"
+      ;;
     # No anchor at all: the shape is APPENDED after main, where it never runs and only the
     # linter reads it. It is the counter-stimulus for the shape test, and it doubles as the
     # proof that the optional check really looked at this file.
@@ -253,7 +285,55 @@ new_fixture() {
   done
   write_project "$fix" go/alpha
   write_project "$fix" go/beta
+  # The repository-level ctl.sh `.ci/ctl.sh validate` delegates to. It stands in for the
+  # twenty-minute half, so a `validate` run here measures what .ci/ctl.sh does BEFORE the
+  # delegation and nothing else; without it every validate would end at a missing file and a
+  # check that failed could not be told from one that never ran.
+  cat > "$fix/ctl.sh" <<'ROOT'
+#!/usr/bin/env bash
+#
+# The delegation target. It is not the subject of any test here.
+set -Eeuo pipefail
+printf 'fixture root ctl.sh: %s\n' "$*"
+ROOT
+  chmod +x "$fix/ctl.sh"
+  install_shadow "$fix"
   printf '%s' "$fix"
+}
+
+# install_shadow <fixture> writes the file BASH_ENV points at, and PROVES what it did. A
+# shell FUNCTION named after the tool is the shape `command -v` answered 0 for: the tier then
+# reads a status through `$( … ) || status=$?`, where a function's body drops every status but
+# its last. The body here is the attack in full — a command that FAILS, then a listing that
+# succeeds — so a tier that accepts it gates a project over a diff nothing ever computed.
+install_shadow() {
+  local fix="$1" kind
+  case "$SHADOW" in
+    none) rm -f "$fix/inject.sh" ;;
+    function)
+      cat > "$fix/inject.sh" <<'INJECT'
+# Sourced by every non-interactive bash through BASH_ENV — a CI runner can set it, and
+# `export -f` reaches the same place by another door. It prints nothing of its own.
+cictl() {
+  git -C /nonexistent-repository rev-parse --show-toplevel
+  printf 'go/alpha\n'
+}
+INJECT
+      ;;
+    *) die "unknown shadow stimulus: $SHADOW" ;;
+  esac
+  # What will the tier's own shell say the name resolves to? Asked in a shell built exactly
+  # like the one run_verb starts, because a shadow that is not in force would leave the test
+  # measuring the ordinary path and calling it proof.
+  # shellcheck disable=SC2016  # `type -t` must run in the INNER shell — that is the whole question
+  kind="$(PATH="$fix/bin" BASH_ENV="$fix/inject.sh" "$REAL_BASH" -c 'printf "%s" "$(type -t cictl)"')"
+  if [[ "$SHADOW" == "function" ]]; then
+    [[ "$kind" == "function" ]] ||
+      fail "the shadow is not in force: the tier's shell resolves cictl as '${kind:-nothing}', so the run would prove nothing"
+  else
+    [[ "$kind" != "function" ]] ||
+      fail "a shadow is in force although none was asked for: cictl resolves as a function"
+  fi
 }
 
 # new_release_fixture prints a tree `release-check` can reach a verdict in: a committed tree
@@ -412,12 +492,15 @@ run_verb() {
   log="${fix}.gated.log"
   RC=0
   : > "$log"
-  OUT="$(PATH="$fix/bin" EDEN_TEST_GATED_LOG="$log" \
+  # BASH_ENV is how the shadow reaches the tier's shell: bash reads it when it starts a
+  # script. With SHADOW=none the file does not exist and bash reads nothing.
+  OUT="$(PATH="$fix/bin" EDEN_TEST_GATED_LOG="$log" BASH_ENV="$fix/inject.sh" \
     "$REAL_BASH" "$fix/.ci/ctl.sh" "$verb" 2>&1)" || RC=$?
   GATED="$(cat "$log")"
 }
 
-out_has() { grep -Fq -- "$1" <<<"$OUT"; }
+out_has()  { grep -Fq -- "$1" <<<"$OUT"; }
+out_hasE() { grep -Eq -- "$1" <<<"$OUT"; }
 
 # assert_verb_ran refuses a vacuous verdict: a run that died before it announced the tier
 # never reached the affected set, so it proves nothing about the affected set.
@@ -675,6 +758,68 @@ t_the_tier_verb_list_is_conserved() {
     fail "the verbs that gate the affected set are not the ones TIER_VERBS covers — derived [$(tr '\n' ' ' <<<"$derived")] vs TIER_VERBS [$(tr '\n' ' ' <<<"$expected")]; a consumer outside that list is a tier this suite never checks"
 }
 
+# 13. A tool can be on PATH and still not be what runs. `command -v cictl` answers 0 for a
+# shell FUNCTION, so it could never establish the premise the affected-set read depends on:
+# that the thing on the left of `|| status=$?` is a single external command with a single
+# status. A function has a BODY, and only its last command's status survives — so an injected
+# `cictl()` that fails first and prints a listing last hands the tier a green diff nothing
+# computed. This stimulus is the worst case of the three that were measured: a REAL cictl is
+# on PATH, and a function shadows it, which is precisely the pair `command -v` cannot tell
+# apart. The counter removes the function and nothing else.
+#
+# Both failure arms exit 127, so the status alone cannot say WHICH one fired; the assertion
+# reads the word only the shadow arm produces.
+t_a_shadowed_cictl_is_refused() {
+  local fix
+  fix="$(new_fixture)"
+  install_cictl "$fix"
+  run_verb "$fix" affected-gate-fast
+  assert_verb_ran affected-gate-fast
+  [[ -z "$GATED" ]] ||
+    fail "a shell function answered for cictl and the tier gated over what it printed: $GATED"
+  ! out_has 'affected project(s) green' ||
+    fail "the tier declared the affected projects green from a listing a shell function invented: $OUT"
+  [[ "$RC" -eq 127 ]] ||
+    fail "cictl resolves to a shell function in the tier's shell and the tier exited $RC, not 127: $OUT"
+  out_has 'shadowed' ||
+    fail "the tier refused, but never said the tool was SHADOWED; a missing tool and a shadowed one exit alike, so the message is the only thing that tells a reader which happened: $OUT"
+}
+
+# 14. The one-command invariant, checked where the pr tier already runs it. The affected set
+# is safe only while exactly one external command sits on the left of `|| status=$?`, and
+# nothing but this check makes that true tomorrow. The stimulus is the edit a reader would
+# plausibly make — fold the base fetch into the substitution — and the check must name the
+# line and fail `validate`.
+#
+# This also pins that the check is CALLED: deleting the call from cmd_validate leaves the
+# violation unreported, and this test reddens.
+t_a_second_command_in_a_status_read_fails_validate() {
+  local fix
+  fix="$(new_fixture)"
+  run_verb "$fix" validate
+  [[ "$RC" -eq 1 ]] ||
+    fail "a status read grew a second command and validate exited $RC, not 1: $OUT"
+  out_hasE '\.ci/ctl\.sh:[0-9]+ holds more than one command' ||
+    fail "validate failed without naming the line that takes a status from more than one command: $OUT"
+}
+
+# 15. The floor, and the half that matters most. 0 status reads found and 0 status reads
+# checked are the same green: a rename, a refactor, or a read written in another shape puts
+# this file's status reads out of the check's reach, and the check would then report a clean
+# sheet over nothing. The stimulus turns both reads into `|| true` — the shape this repository
+# bans — so the reads still exist and the scan finds NONE of them.
+t_a_status_check_that_finds_nothing_fails_validate() {
+  local fix
+  fix="$(new_fixture)"
+  run_verb "$fix" validate
+  [[ "$RC" -eq 1 ]] ||
+    fail "the check found no status read at all and validate exited $RC, not 1; finding none is finding nothing, never a clean sheet: $OUT"
+  ! out_has 'each holding one command' ||
+    fail "the check reported its success line over a file whose status reads it never found: $OUT"
+  out_has '[error]' ||
+    fail "the check found nothing and logged no error of its own: $OUT"
+}
+
 TESTS=(
   t_a_missing_cictl_fails_the_tier
   t_a_failing_cictl_fails_the_tier
@@ -688,6 +833,9 @@ TESTS=(
   t_a_dirty_tree_is_refused
   t_a_clean_tree_on_main_reports_ready
   t_the_tier_verb_list_is_conserved
+  t_a_shadowed_cictl_is_refused
+  t_a_second_command_in_a_status_read_fails_validate
+  t_a_status_check_that_finds_nothing_fails_validate
 )
 
 # ── the stimulus tables ─────────────────────────────────────────────────────
@@ -710,6 +858,10 @@ stimulus_for() {
     t_a_dirty_tree_is_refused)                     printf 'dirty' ;;
     t_a_clean_tree_on_main_reports_ready)          printf 'clean' ;;
     t_the_tier_verb_list_is_conserved)             printf 'reports' ;;
+    # The worst case of the 3 measured: a real cictl IS on PATH, and a function shadows it.
+    t_a_shadowed_cictl_is_refused)                 printf 'reports,shadowed-cictl' ;;
+    t_a_second_command_in_a_status_read_fails_validate) printf 'absent,second-command-in-a-status-read' ;;
+    t_a_status_check_that_finds_nothing_fails_validate) printf 'absent,status-reads-made-blind' ;;
     *) die "no phase-1 stimulus is declared for $1" ;;
   esac
 }
@@ -742,6 +894,12 @@ counter_for() {
       printf 'dirty:one uncommitted file appears, so the tree is no longer releasable' ;;
     t_the_tier_verb_list_is_conserved)
       printf 'reports,updatability-gates:a verb outside the list starts gating the affected set' ;;
+    t_a_shadowed_cictl_is_refused)
+      printf 'reports:the injected function is gone, so the name resolves to the real cictl on PATH' ;;
+    t_a_second_command_in_a_status_read_fails_validate)
+      printf 'absent:the status read holds one command again, as the file ships it' ;;
+    t_a_status_check_that_finds_nothing_fails_validate)
+      printf 'absent:both status reads take a status again, so the check finds the 2 it ships with' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
 }
@@ -758,13 +916,16 @@ apply() {
   CICTL="absent"
   MUTATION="none"
   TREE="clean"
+  SHADOW="none"
   local IFS=','
   for token in $head; do
     case "$token" in
       absent|failing|silent|empty|partial|reports)              CICTL="$token" ;;
       fault-before-the-producer|suppressed-call-appended)       MUTATION="$token" ;;
       updatability-gates)                                       MUTATION="$token" ;;
+      second-command-in-a-status-read|status-reads-made-blind)  MUTATION="$token" ;;
       clean|dirty|status-broken)                                TREE="$token" ;;
+      shadowed-cictl)                                           SHADOW="function" ;;
       *) die "unknown stimulus token '$token' in spec: $spec" ;;
     esac
   done
