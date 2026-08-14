@@ -564,3 +564,108 @@ Test author: finding 1 (a silent-cictl stimulus that actually guards the
 diagnostic), finding 4 (a release-check test), plus phase 5's F2(c) and F6 which I
 failed to dispatch.
 Then implementer: findings 2 and 3.
+
+
+## Phase 8 — the suite went 7 -> 12, and the fixture stopped answering the test (`62e171c`)
+
+**Finding 1 closed, and it was worse than one line.** `write_cictl` now takes a
+diagnostic switch, and a `silent` stimulus makes cictl fail having written **0
+bytes to either stream** — measured by `assert_cictl_is_silent` BEFORE every run,
+which counts the bytes and fails naming them, because one escaping byte puts the
+fixture back in the position of answering the test.
+
+Red produced by deleting ONLY the `log_error` line, `return "$status"` untouched:
+
+```
+suite at HEAD (7 tests):   rc=0   7 of 7 proven able to fail        <- the hole, reproduced
+this suite  (12 tests):    rc=1   FAIL t_a_silent_cictl_failure_is_still_explained
+   the tool failed without a word of its own, and the tier's log never names it
+   [info] affected-gate-fast: phase-gate implementation ...          <- the ENTIRE log of the red job
+```
+
+Exactly one test reddens; the other eleven stay green, so the mutant is isolated.
+
+**The class audit.** It walked every `out_has` and named what supplies the string:
+
+```
+test 1  'cictl'                    require_cmd's own log_error, no stub exists   CODE
+test 2/4 'cictl','unknown revision' the stub's stderr                            FIXTURE -> relabelled
+test 6  'does not appear to be...'  git's stderr — and that IS its job           fixture, by design
+test 8  'cictl','[error]'           the tier alone, proven by the silence probe  CODE
+test 9  '[error]'                   log_error; git's own `error:` has no brackets CODE
+test 10/11 'dirty','ready'          the tier's logger                            CODE
+```
+
+Tests 2 and 4 keep their assertions — nothing weakened — but now say what they
+actually prove: **pass-through of the tool's own stream**, a real and different
+property. The tier's own diagnostic is measurable only under silence.
+
+**release-check gained 3 tests, pinning 128 rather than "non-zero"**, for a reason
+worth keeping: the counter-stimulus is the same uncommitted file with git ABLE to
+answer, which is a legitimate refusal at 1. A coerced status would make "git could
+not tell me" and "the tree is dirty" the same event to every reader.
+
+**F6 closed behaviourally**: verbs come from `bash .ci/ctl.sh __verbs` — ask the
+program, never parse it — and a verb that GATES a project is a consumer by
+definition. Derived set must equal `TIER_VERBS`, with a floor of 1 so an empty
+list cannot compare equal to an empty derivation.
+
+**It found the same defect in its OWN harness.** `run_verb` wrote `gated.log`
+INSIDE the fixture, so every tree was untracked-dirty and release-check's clean
+case was unreachable — the harness supplying the very thing the test reads.
+Artifacts are now siblings of the fixture, never inside it.
+
+```
+bash .ci/ctl_test.sh   rc=0   12 hold, 12 of 12 proven able to fail   0.85s
+shellcheck -S style    rc=0
+```
+
+## F2(c) — the test was REFUSED, and the refusal is correct
+
+Measured, bash 5.2.21:
+
+```
+                                          without shopt      with shopt
+neutral   x="$(false; echo late)"          x=late, rc=0       rc=1   <- the option works
+left of ||  (BOTH substitutions in the file)  s=0 x=late      s=0 x=late   <- BYTE-IDENTICAL
+```
+
+`inherit_errexit` is **INERT for the shipped code**. Bash's errexit suppression
+propagates into the substitution subshell and overrides it — the same propagation
+`go/_ctl/lib.sh` already recorded for `_gate_run`.
+
+The only test available would plant a multi-command substitution in a NEUTRAL
+position: a construct the file does not contain and its own comment forbids. It
+would pass today for a reason unrelated to the shipped code's safety, and a reader
+would take a green "inherit_errexit is guarded" as evidence the substitutions are
+protected. They are not. What protects them is that each holds exactly ONE
+command.
+
+> "That is a check that would be believed, which is the one thing worse than no
+> check."
+
+### MY DECISION: pin the one-command invariant, and keep the shopt with an honest comment
+
+Two options were offered. I take the first.
+
+**Do NOT restructure the capture to make the shopt do real work.** To both catch
+the status AND keep errexit active inside the substitution needs a trap or a
+neutral form that cannot report the status — the shapes measured in phase 5. That
+is a redesign of a call site three verifier rounds have now cleared.
+
+**The real protection is the one-command invariant, so CHECK IT.** It currently
+lives in a comment, and this file's comments about this exact line have been wrong
+three times.
+
+**Keep `shopt -s inherit_errexit`**, because a future NEUTRAL substitution
+elsewhere in the file would genuinely be covered — but its comment must say
+plainly that it is inert for the current call sites and why. A guard described as
+protecting something it does not protect is how this comment got rewritten twice
+already.
+
+## Next
+
+Implementer: verifier findings 2 (the header comment, false a third time) and 3
+(`require_cmd` uses `command -v`, which returns 0 for a shell function, so the
+"single EXTERNAL command" premise is stated but not established), plus the
+one-command invariant above.
