@@ -5,7 +5,7 @@ repo:     gophersys/dense-ui
 branch:   feat/deep-craft
 worktree: ~/code/.worktrees/dense-ui-deep-craft
 pr:       -
-attempt:  1/2
+attempt:  2/2
 
 ## Goal
 A full-depth improvement pass over the dense-ui system — tooling, accuracy,
@@ -387,5 +387,30 @@ earned). The three outside fixtures still heal with zero edits.
 - Known limits recorded: metric clones invisible to advance; one element
   probed per kind; a mistyped DENSUI_FONT falls through (prior behaviour).
 
+## Consolidated verify — REFUTED in part; fix round dispatched
+Verifier held everything it attacked EXCEPT three checks that cannot fail:
+F1 (HIGH) controls/x_axes >= 1.0 always, so the 1.0 floors the ORCHESTRATOR
+ordered for bench/telemetry made A1 unfalsifiable on two shipped panels —
+the exact dead-rule-in-config the reason-key exists to stop, built by the
+decision-maker. F2 hit_kinds=[] switches off WCAG for free. F3 the
+font-identity no-evidence guard is dead code (fonts:{} always present; a
+Courier-vs-sans page passes by deleting text_kinds). F4 the report cannot
+distinguish measured-nothing from passed (what hid F1-F3). F5 the ratio
+test docstring conflates three quantities (ink 0.437 / type-size 0.593 /
+prose 0.8). F6 stale comment; F7 an Ableton prose citation in corpus.
+Everything else held: all break-tests red-and-restored (incl. solver
+box-parity reverted in place -> the exact 53.5/81.5 pair returns), ledger
+reproduces exactly, test files byte-identical to their red commits, no
+masking, three-source scorecard honesty, eyes doctrine, both font paths
+green twice, operator's exemption numbers all true.
+CORRECTED DECISIONS (orchestrator): floors <= 1.0 refused; telemetry gets
+an EXPLICIT axis_budget_exempt + reason, visible in the report (F4's
+per-class targets_measured/exempt fields); bench declares nothing (default
+precondition genuinely mutes 3 controls); operator's 1.5 stands (measured
+1.63 — falsifiable). hit_kinds joins EXEMPTIONS. Font guard tests table
+emptiness. F5 docstring corrected with measured numbers; F6 comment fixed;
+F7 citation de-Abletoned (implementer).
+
 ## Next
-Consolidated adversarial verify over the whole branch, then PR.
+Author pins F1-F5; implementer lands + F6/F7; re-verify the three fixes
+only; then PR.
