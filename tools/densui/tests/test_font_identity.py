@@ -18,11 +18,17 @@ Five properties are load-bearing and each has a test here:
    implementation reading the declared list would report a face that is not on
    the machine and call it identity;
 2. the discriminator is the measured ADVANCE of a pinned sentinel, because the
-   advance is what the reserved box was computed from. Measured in real chrome
-   over ten embedded faces at 16px and 13px, canvas `measureText` and
-   `Face.adv()` agree to 0.0000px once kerning is off, and disagree by 3.55px
-   (Arial) to 5.05px (DejaVu Sans) with it on. So the 0.5px band is spent on
-   substitution and nothing else;
+   advance is what the reserved box was computed from. The sentinel is measured
+   at ONE canonical integral size (16px) in each kind's resolved family — never
+   at the kind's own rendered size, and never rescaled to the declared size.
+   Identity is size-independent, and both of the other choices drag a
+   platform's fractional-size behaviour into the verdict; the fleet proved that
+   on operator's autoscaled kinds (see the comparison-point test). Measured in
+   real chrome over ten embedded faces, canvas `measureText` and `Face.adv()`
+   agree to 0.0000px once kerning is off, and disagree by 3.55px (Arial) to
+   5.05px (DejaVu Sans) with it on. A real substitution at 16px is 5.27px
+   (DejaVu Sans against its Mono) to 40.23px (Arial against Courier New), so
+   the 0.5px band separates faces, never arithmetic;
 3. a substitution fails and the message carries the kind, BOTH advances and the
    delta. "font mismatch" is not something anyone can act on;
 4. it reaches every gate path. The face comes from the `[font]` table every
@@ -114,15 +120,36 @@ value = ".value"
 """
 
 
-def evidence(face: Face, size_px: float, *, off: float = 0.0, family: str = EMBEDDED) -> dict:
-    """One kind's font evidence as the probe reports it: the resolved family,
-    the size that kind rendered at, and the sentinel's advance at that size.
-    `off` displaces the advance by px AT THE REFERENCE SIZE (16), so a test can
-    say "0.6px wrong" once and mean the same thing for a 13px kind."""
+# The canonical identity size. Which FACE a page drew is not a fact about the
+# size a kind happens to render at, and Face.adv scales exactly, so the
+# sentinel is measured at ONE integral size for every kind and the platform's
+# fractional-size behaviour never reaches the comparison. The fleet is what
+# bought this number: operator's autoscaled kinds (num at 15.552px) measured
+# 0.0875% narrow there, while the 16px kinds on the same page, in the same run,
+# with the same face, were exact.
+CANONICAL_PX = 16.0
+
+
+def evidence(
+    face: Face,
+    size_px: float,
+    *,
+    off: float = 0.0,
+    family: str = EMBEDDED,
+    measured_at_px: float = CANONICAL_PX,
+) -> dict:
+    """One kind's font evidence as the probe reports it.
+
+    `size_px` is the size that kind actually RENDERED at — evidence, and the
+    world check_ratios judges, never the comparison point. `measured_at_px` is
+    the size the sentinel was measured at, and `advance_px` is its advance
+    there. `off` displaces the advance in px at the measured size, which is
+    where the band applies."""
     return {
         "family": family,
         "size_px": size_px,
-        "advance_px": face.adv(SENTINEL, size_px) + off * size_px / 16.0,
+        "measured_at_px": measured_at_px,
+        "advance_px": face.adv(SENTINEL, measured_at_px) + off,
     }
 
 
@@ -143,22 +170,29 @@ def test_substituted_face_fails_and_names_the_kind_both_advances_and_the_delta(
     the gate output has to know WHICH text is wrong and BY HOW MUCH before they
     can decide whether the CSS, the webfont or the spec is at fault, so the
     kind, the resolved family, both advances and the delta all travel with the
-    failure."""
+    failure.
+
+    The margin is also pinned, and it is what makes 0.5px a safe band: measured
+    at the canonical size, a real substitution is 5px (DejaVu Sans against its
+    own Mono, the CI image's only pair) to 40px (Arial against Courier New)
+    wide. Nothing that is merely arithmetic reaches 5px; nothing that is a
+    different face lands inside 0.5px."""
     from densui import audit
 
     declared, rendered = Face(font_path), Face(other_font_path)
-    out = probed({"value": evidence(rendered, 16)})
+    out = probed({"value": evidence(rendered, size_px=13)})
 
     fails = audit.check_font_identity(out, declared, 16)
 
     assert len(fails) == 1, fails
     msg = fails[0]
-    delta = rendered.adv(SENTINEL, 16) - declared.adv(SENTINEL, 16)
+    delta = rendered.adv(SENTINEL, CANONICAL_PX) - declared.adv(SENTINEL, CANONICAL_PX)
+    assert abs(delta) >= 5.0, f"a substitution must be decisive at {CANONICAL_PX}px: {delta}"
     for token in (
         "value",
         EMBEDDED,
-        f"{rendered.adv(SENTINEL, 16):.2f}",
-        f"{declared.adv(SENTINEL, 16):.2f}",
+        f"{rendered.adv(SENTINEL, CANONICAL_PX):.2f}",
+        f"{declared.adv(SENTINEL, CANONICAL_PX):.2f}",
         f"{abs(delta):.2f}",
     ):
         assert token in msg, f"the failure must carry {token!r}: {msg}"
@@ -197,23 +231,76 @@ def test_the_band_is_half_a_pixel_and_it_is_the_outside_that_fails(font_path):
         assert len(fails) == 1, f"{off:+}px is outside the band: {fails}"
 
 
-def test_advance_is_compared_at_the_declared_size_not_the_rendered_one(font_path):
-    """A panel renders labels at 16 and stream values at 13; the tolerance must
-    mean the same thing for both, so the measured advance is scaled to the
-    declared [font].size before the band applies. A 13px kind measured exactly
-    right passes, and one that is 0.6px wrong AT 16 fails — even though its raw
-    error at 13px is 0.49px, which a comparison at the rendered size would wave
-    through with the same number in it."""
+def test_the_comparison_happens_at_the_size_the_sentinel_was_measured_at(font_path):
+    """The band applies where the measurement was taken, and the measurement is
+    taken at ONE integral size on every kind. `Face.adv()` scales exactly, so
+    `adv(SENTINEL, measured_at_px)` is the expectation, and no rescaling step
+    exists anywhere.
+
+    THE BAND IS UNCHANGED AT 0.5px. This is not a widened tolerance; it is the
+    fractional size leaving the measurement instead of being tolerated in the
+    arithmetic, and the fleet earned it. The first shape of this predicate
+    normalized the measurement to the declared size (`advance_px * size /
+    size_px`), multiplying every measurement error by `size / size_px`. On
+    operator, whose grid autoscale renders `clabel` and `num` at fractional
+    sizes, the fleet reported
+
+        clabel: rendered face Ableton Sans Small advances 707.85px over the
+        sentinel, the declared face 708.47px (-0.62px, tol ±0.5)
+
+    with the family resolved CORRECTLY — a substitution is 5 to 40px, so 0.62px
+    was arithmetic, not a face. That page passes on macOS chrome, which agrees
+    with fontTools to -0.0005px at those same fractional sizes (measured:
+    operator clabel 15.1px, num 15.6px), and the fleet's own 16px kinds passed
+    on the same page in the same run. Removing the normalization alone would
+    have left -0.585px there, still outside the band: the fractional size had
+    to leave the measurement.
+
+    So a kind's rendered size is EVIDENCE, never the comparison point, and the
+    three discriminators are:
+
+    * a kind rendered at 15.552px whose sentinel was measured at 16 and is
+      exact passes — a normalizing predicate rescales it by 16/15.552 and
+      reports a 68px substitution that is not there;
+    * 0.45px wrong is inside the band and 0.55px is outside it, whatever the
+      kind renders at;
+    * the verdict does not depend on the declared [font].size at all, that
+      being a fact about the spec rather than about what the browser drew."""
     from densui import audit
 
     face = Face(font_path)
-    exact = probed({"value": evidence(face, 13)})
-    wrong = probed({"value": evidence(face, 13, off=0.6)})
-    raw_error = wrong["fonts"]["value"]["advance_px"] - face.adv(SENTINEL, 13)
+    autoscaled = probed({"num": evidence(face, size_px=15.552)})
+    inside = probed({"value": evidence(face, size_px=13, off=0.45)})
+    outside = probed({"value": evidence(face, size_px=20, off=0.55)})
 
-    assert audit.check_font_identity(exact, face, 16) == []
-    assert raw_error < TOL_PX, f"the wrong case must be inside the band at 13px: {raw_error}"
-    assert len(audit.check_font_identity(wrong, face, 16)) == 1
+    assert audit.check_font_identity(autoscaled, face, 16) == [], (
+        "a fractional RENDERED size cannot move a measurement taken at 16px"
+    )
+    assert audit.check_font_identity(inside, face, 16) == [], "0.45px is inside the 0.5px band"
+    assert len(audit.check_font_identity(outside, face, 16)) == 1, "0.55px is outside it"
+
+    for declared in (16, 13, 15.552, 20):
+        assert audit.check_font_identity(inside, face, declared) == [], declared
+        assert len(audit.check_font_identity(outside, face, declared)) == 1, declared
+
+
+def test_the_failure_names_the_size_the_sentinel_was_measured_at(font_path):
+    """The message has to carry the comparison point or a reader cannot check
+    the arithmetic — and it must be the MEASURED-at size, not the declared one
+    and not the kind's rendered one, because those are three different numbers
+    on an autoscaled panel."""
+    from densui import audit
+
+    face = Face(font_path)
+    out = probed({"num": evidence(face, size_px=15.552, measured_at_px=20, off=3)})
+
+    fails = audit.check_font_identity(out, face, 16)
+
+    assert len(fails) == 1, fails
+    assert "20" in fails[0], f"the measured-at size is the comparison point: {fails[0]}"
+    assert f"{face.adv(SENTINEL, 20):.2f}" in fails[0], (
+        f"the expectation must be the one at 20px, not at the declared 16: {fails[0]}"
+    )
 
 
 def test_a_declared_face_with_nothing_measured_is_a_failure(font_path):
@@ -399,9 +486,41 @@ def test_probe_reports_the_face_the_page_actually_rendered(tmp_path, font_path):
     face = Face(font_path)
     for kind, ev in fonts.items():
         assert ev["family"] == EMBEDDED, f"{kind}: rendered face unnamed: {ev}"
-        want = face.adv(SENTINEL, ev["size_px"])
+        want = face.adv(SENTINEL, ev["measured_at_px"])
         assert abs(ev["advance_px"] - want) <= 0.05, f"{kind}: {ev['advance_px']} vs {want}"
     assert len(out["parts"]) == 2, "the existing output must be unchanged by the addition"
+
+
+def test_the_sentinel_is_measured_at_the_canonical_identity_size(tmp_path, font_path):
+    """Where the fractional size actually leaves: the PROBE picks the size the
+    sentinel is measured at, and it picks the same integral one for every kind.
+
+    Identity is a property of the face. The size a kind renders at is
+    check_ratios' business and stays in the evidence for the report's honesty —
+    but it is not the comparison point, and it is exactly the term that made
+    the fleet red on a correctly-resolved face. This page renders its label at
+    16 and its value at 13; both must report the sentinel measured at 16. A
+    probe that measures each kind at its own rendered size passes every unit
+    test in this file and still hands the fleet the number that failed it."""
+    from densui import audit, probe
+
+    page = tmp_path / "page.html"
+    page.write_text(styled(font_path))
+
+    out = probe.collect(page, text_kinds={"label", "value"}, **PROBE_ARGS)
+
+    assert audit.FONT_IDENTITY_SIZE_PX == CANONICAL_PX
+    assert "FONT_IDENTITY_SIZE_PX" in PROBE_JS.read_text(), (
+        f"{PROBE_JS} must name the canonical size it measures at, greppable from both ends"
+    )
+    face = Face(font_path)
+    for kind, ev in sorted(out["fonts"].items()):
+        assert ev["measured_at_px"] == CANONICAL_PX, f"{kind}: measured at {ev}"
+        want = face.adv(SENTINEL, ev["measured_at_px"])
+        assert abs(ev["advance_px"] - want) <= 0.05, f"{kind}: {ev['advance_px']} vs {want}"
+    assert (out["fonts"]["label"]["size_px"], out["fonts"]["value"]["size_px"]) == (16, 13), (
+        "the RENDERED sizes stay in the evidence — the report may not lose them"
+    )
 
 
 def test_probe_reports_the_resolved_family_not_the_declared_list(tmp_path, font_path):
