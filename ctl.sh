@@ -198,6 +198,8 @@ Commands:
   verify-structure  Assert contract front-matter/sections + chart READMEs
   verify-runner-image <tag>  Assert a runner image works in the ARC pod shape
   verify-image-arch <ref>    Assert every manifest variant IS the arch it declares
+  verify-runner-queue [repo] [workflow] [runs]
+                    Assert no job waited far past the measured dispatch floor
   help              Show this message
 
 Every verb in the dispatcher below must appear in this list. Two did not
@@ -226,6 +228,18 @@ function cmd_verify_runner_image() {
   # can see a broken Docker socket, and two defects reached a published image
   # that way.
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-runner-image.sh" "$@"
+}
+
+function cmd_verify_runner_queue() {
+  # Assert no job's queue rose far above the dispatch floor of the pool, where
+  # the floor is a low percentile of the queue times of EVERY workflow in the
+  # window. `timeout-minutes` counts execution only, so a job that waits 18
+  # minutes for a slot and then runs for 151 seconds reports success and no
+  # dashboard notices. The rule was `queue > execution` until 79d7fe3; it fired
+  # on 17 of 36 arc-org jobs and all 17 were false, because a pod start costs
+  # about 10 s and those jobs ran for 8 s. Read-only: it reads the runs and jobs
+  # APIs.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-runner-queue.sh" "$@"
 }
 
 function cmd_verify_registry() {
@@ -261,6 +275,7 @@ function main() {
     verify-structure) cmd_verify_structure "$@" ;;
     verify-image-arch)   cmd_verify_image_arch   "$@" ;;
     verify-runner-image) cmd_verify_runner_image "$@" ;;
+    verify-runner-queue) cmd_verify_runner_queue "$@" ;;
     generate-index) cmd_generate_index "$@" ;;
     help|"")        usage ;;
     *)              log_error "unknown command: '$cmd'"; usage; exit 1 ;;
