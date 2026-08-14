@@ -50,5 +50,13 @@ Every one of these passed visual inspection. Every one fell to arithmetic.
 |---|---|---|
 | anatomy discovery | measure.zoom / compare.side_by_side | no |
 | geometry truth | solve + audit battery + ratio + sweep | YES |
+| face identity | audit.check_font_identity (sentinel advance at 16px vs solved face) | YES |
 | behaviour truth | drive scenarios, contract drills | YES |
 | bug reporting | any pair of eyes | fail only, via a new predicate |
+
+Rule 5's four lost rounds are now a predicate. A substituted face is invisible
+to every other row of this table — parts carry glyph INK, and ink is where the
+glyphs are, never which face drew it — so "Arial ≈ DejaVu" could only be
+refuted by the fleet, one round at a time. It is now measured per text kind, on
+the page, against the face the boxes were solved from, and it fails the gate
+instead of the round.

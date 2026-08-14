@@ -1,4 +1,4 @@
-"""densui CLI — solve / audit / zoom / compare from the shell.
+"""densui CLI — solve / audit / score / zoom / compare from the shell.
 
 Every subcommand fails loudly with a named cause and a non-zero exit; output
 is JSON on stdout so pipelines can consume it.
@@ -30,6 +30,8 @@ def cmd_solve(args) -> int:
 
 def cmd_audit(args) -> int:
     from densui import audit, probe
+    from densui.probe_config import collect_panel, rules_from
+    from densui.spec import SpecError
 
     try:
         with open(args.config, "rb") as fh:
@@ -37,35 +39,58 @@ def cmd_audit(args) -> int:
     except (OSError, tomllib.TOMLDecodeError) as exc:
         return _die(f"bad audit config {args.config}: {exc}")
     try:
-        pr = cfg["probe"]
+        rules = rules_from(cfg)
+    except SpecError as exc:
+        return _die(f"bad audit config {args.config}: {exc}")
+    try:
         sweep_js = pathlib.Path(args.sweep_js).read_text() if args.sweep_js else ""
-        out = probe.collect(
-            args.page,
-            root=pr["root"],
-            containers=pr.get("containers", {}),
-            parts=pr.get("parts", {}),
-            text_kinds=set(pr.get("text_kinds", [])),
-            owner_attr=pr.get("owner_attr", "data-addr"),
-            root_width=pr.get("root_width"),
-            extra_js=sweep_js,
-        )
+        out = collect_panel(args.page, cfg["probe"], sweep_js)
     except (KeyError, probe.ProbeError) as exc:
         return _die(f"probe failed: {exc}")
-    rules_cfg = cfg.get("rules", {})
-    legal = None
-    if "graze_max_height" in rules_cfg:
-        legal = audit.knob_value_graze(
-            rules_cfg["graze_max_height"], rules_cfg.get("graze_min_dx", 8.0)
-        )
-    rules = audit.Rules(
-        min_sibling_gap=rules_cfg.get("min_sibling_gap", 2.0),
-        breathing_floor=rules_cfg.get("breathing_floor", 2.5),
-        legal_overlap=legal,
-        spill_slack={(c, k): float(v) for c, k, v in rules_cfg.get("spill", [])},
-    )
     fails = audit.run_battery(out, rules)
-    print(json.dumps({"parts": len(out["parts"]), "failures": fails}, indent=2))
+    # `ratios` and `fonts` are how a passing run is told apart from an ignored
+    # table: rc 0 is what the dormant rows already produced. `fonts` counts the
+    # text kinds whose rendered face was compared, which is 0 when the panel
+    # declares none — a number a reader can check against the census.
+    report = {
+        "parts": len(out["parts"]),
+        "ratios": len(rules.ratio_rows),
+        "fonts": len(out.get("fonts", {})) if rules.face else 0,
+        "failures": fails,
+    }
+    print(json.dumps(report, indent=2))
     return 1 if fails else 0
+
+
+def cmd_score(args) -> int:
+    from densui import probe, score
+    from densui.probe_config import collect_panel, rules_from
+    from densui.spec import SpecError
+
+    corpus = pathlib.Path(args.corpus)
+    seeds = sorted(d for d in corpus.iterdir() if d.is_dir()) if corpus.is_dir() else []
+    if not seeds:
+        return _die(f"no seed directories under {corpus} — a corpus that cannot be scored fails")
+    scoreable = [(d, d.name) for d in seeds] + [(pathlib.Path(t), None) for t in args.target]
+    targets = []
+    for d, seeded in scoreable:
+        what = f"corpus seed {d.name}" if seeded else f"should-pass target {d}"
+        try:
+            with open(d / "panel.toml", "rb") as fh:
+                cfg = tomllib.load(fh)
+            rules = rules_from(cfg)
+            out = collect_panel(d / cfg["probe"].get("page", "page.html"), cfg["probe"])
+        except (OSError, tomllib.TOMLDecodeError, KeyError, SpecError, probe.ProbeError) as exc:
+            return _die(f"{what}: {exc}")
+        # stderr, so stdout stays one parseable report: which targets were
+        # scored is otherwise invisible — the report is per CLASS, not per
+        # target, and a demo silently dropped would read as a clean run.
+        role = f"seeds {seeded}" if seeded else "should pass"
+        print(f"densui score: {d} ({role})", file=sys.stderr)
+        targets.append(score.Target(name=str(d), probe_out=out, seeds=seeded, rules=rules))
+    report = score.run_scorecard(targets)
+    print(json.dumps(report, indent=2))
+    return 1 if report["failures"] else 0
 
 
 def cmd_zoom(args) -> int:
@@ -112,6 +137,16 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--config", required=True, help="TOML: [probe] + [rules]")
     a.add_argument("--sweep-js", help="JS file injected before probing (content sweep)")
     a.set_defaults(fn=cmd_audit)
+
+    sc = sub.add_parser("score", help="craft scorecard over a seeded corpus + should-pass targets")
+    sc.add_argument("--corpus", required=True, help="directory of <defect-class>/ seed dirs")
+    sc.add_argument(
+        "target",
+        nargs="*",
+        help="should-pass directory: panel.toml ([probe].page names its page); "
+        "any violation there fails the run",
+    )
+    sc.set_defaults(fn=cmd_score)
 
     z = sub.add_parser("zoom", help="gridline-labelled anatomy zoom of a bitmap region")
     z.add_argument("image")

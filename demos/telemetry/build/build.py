@@ -12,6 +12,7 @@ import subprocess
 import sys
 import tomllib
 
+from densui.fontmetrics import FontError, font_face_css, resolve_path
 from densui.solve import SolveError, solve
 from densui.spec import SpecError, load_panel
 
@@ -19,6 +20,11 @@ HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 PANEL = ROOT / "panel.toml"
 OUT = ROOT / "telemetry.html"
+# The page names the face it EMBEDS, and embeds the face it SOLVED with, so
+# the rendered face is the solved face by construction on every host. Naming a
+# family instead resolves to a different file on each machine — or to nothing,
+# without erroring — and densui.audit.check_font_identity fails the build.
+FACE = "PanelFace"
 
 DEFAULTS = {"rail-3v3": "3.30 V", "rail-1v8": "1.80 V", "rail-io": "3.30 V",
             "ilimit": "0.50 A", "radio-ch": "15", "radio-pwr": "0 dBm"}
@@ -30,15 +36,6 @@ STREAMS = [("V", "3.300 V"), ("I", "142 mA")]
 def die(msg):
     print(f"BUILD FAILED: {msg}", file=sys.stderr)
     sys.exit(1)
-
-
-def font_path(data):
-    import os
-    for cand in (os.environ.get("DENSUI_FONT"), data["font"]["path"],
-                 "/System/Library/Fonts/Supplemental/Arial.ttf"):
-        if cand and pathlib.Path(cand).exists():
-            return cand
-    die("no usable font — set DENSUI_FONT")
 
 
 def knob(name, sol, label, value):
@@ -55,11 +52,11 @@ def main():
     sweep = "--sweep" in sys.argv
     values = WORST if sweep else DEFAULTS
     data = tomllib.loads(PANEL.read_text())
-    data["font"]["path"] = font_path(data)
     try:
+        data["font"]["path"] = resolve_path(data["font"]["path"])
         load_panel(data)
         out = solve({"font": data["font"], **data["solve"]})
-    except (SpecError, SolveError) as exc:
+    except (FontError, SpecError, SolveError) as exc:
         die(str(exc))
     t = data["tracks"]
     cols = t["columns"]
@@ -84,7 +81,8 @@ def main():
 
     html = f"""<meta charset="utf-8"><title>Telemetry Bench</title>
 <style>
-body {{ margin:0; background:#232629; font-family: "DejaVu Sans", Arial, sans-serif; }}
+{font_face_css(FACE, data["font"]["path"])}
+body {{ margin:0; background:#232629; font-family:'{FACE}'; }}
 .panel {{ position:relative; width:{data["panel"]["width"]}px; height:{data["panel"]["height"]}px;
   background:#565b60; margin:24px auto; border-radius:3px; }}
 .plate {{ position:absolute; top:8px; height:{data["panel"]["height"] - 16}px;

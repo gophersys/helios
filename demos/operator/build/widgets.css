@@ -32,7 +32,12 @@
   --op-led-red: #d84848;
   --op-knob-body: #c8c8c8;
   --op-needle-ink: #f2f2f2;
-  --op-font: "Ableton Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  /* The family assemble.py EMBEDS from the solved TTF, and the one the device
+     shell already names. "Ableton Sans" is a different face, installed on no
+     machine and inlined by nothing, so every widget here silently rendered
+     Helvetica Neue while its boxes were solved from Ableton Sans Small —
+     measured 31.74px apart on the identity sentinel. */
+  --op-font: "Ableton Sans Small", "Helvetica Neue", Helvetica, Arial, sans-serif;
 }
 
 /* Re-tint for widgets that live on the dark centre display. */

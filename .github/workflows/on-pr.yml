@@ -12,6 +12,7 @@ concurrency:
 
 permissions:
   contents: read
+  packages: read   # gates pulls a private ghcr image — declaring this block drops the default read
   pull-requests: write
 
 jobs:
@@ -28,6 +29,7 @@ jobs:
       - uses: actions/checkout@v4
       - run: ./ctl.sh test
       - run: ./ctl.sh geometry
+      - run: ./ctl.sh score
 
   review:
     runs-on: arc-review  # the review pool provisions CLAUDE_CODE_OAUTH_TOKEN

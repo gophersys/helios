@@ -135,6 +135,13 @@ def _solve_flow(name: str, row: dict, ctx: _Ctx) -> tuple[dict, list[str]]:
     return sol, corrections
 
 
+def _parity_center(center: float, dial: float) -> float:
+    """The nearest centre at which `center - dial/2` — the dial's left edge — is
+    a whole px (A-5). An even dial wants an integer centre, an odd one a half;
+    either way the move is at most half a pixel."""
+    return round(center - dial / 2) + dial / 2
+
+
 def _solve_grid(name: str, row: dict, ctx: _Ctx) -> dict:
     """Text-grid tracks: each column reserves the widest string it can ever
     render (labels AND sweep values) plus padding — no text track is ever
@@ -174,9 +181,26 @@ def _solve_knobs(name: str, row: dict, ctx: _Ctx) -> tuple[dict, list[str]]:
     sol: dict = {}
     prev_label_right = label_floor
     for k, u in enumerate(units):
-        center = centers[u["name"]]
+        # Both parities are settled before anything else is derived, and every
+        # nudge below moves by a whole px, so neither can be undone downstream.
+        center = _parity_center(centers[u["name"]], dial)
+        if center != centers[u["name"]]:
+            corrections.append(
+                f"{name}/{u['name']}: centre {centers[u['name']]:g} -> {center:g} "
+                f"(dial parity: the dial's left edge is a whole px, A-5)"
+            )
+            centers[u["name"]] = center
         label_adv = ctx.adv(u["label"])
         w = int(max(label_adv, dial) + 0.999) + 2
+        if (w - dial) % 2:
+            # The dial is centred inside this box by CSS (`margin: 0 auto`), so
+            # it renders at left + (w - dial)/2: an odd remainder puts a whole
+            # control on a half pixel however exact the box's own edges are.
+            corrections.append(
+                f"{name}/{u['name']}: box {w:g} -> {w + 1:g} "
+                f"(dial parity: a centred {dial:g}px dial needs an even remainder)"
+            )
+            w += 1
         left = round(center - w / 2)
         dial_left = round(center - dial / 2)
         if dial_left < dial_floor:

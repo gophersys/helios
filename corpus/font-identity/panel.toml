@@ -1,0 +1,22 @@
+# corpus seed — font-identity. Default audit.Rules(); no [rules] override,
+# because a seed that needs a loosened rule proves nothing about the shipped
+# predicate.
+#
+# The declared face is the container/CI truth, exactly as the demos declare it;
+# densui.fontmetrics.resolve_path falls through to a present sans on a Mac, so
+# this seed states "a sans" on both gate hosts and the page draws a mono face
+# on both. `label` is in text_kinds because font identity is measured per TEXT
+# KIND: a panel whose parts are all boxes has no face to compare.
+[font]
+path = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+size = 16
+
+[probe]
+root = ".panel"
+text_kinds = ["label"]
+
+[probe.containers]
+plate = ".plate"
+
+[probe.parts]
+label = ".k-label"

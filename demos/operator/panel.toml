@@ -155,6 +155,57 @@ columns = [
   { strings = ["Osc<Vel", "0", "-48", "Q"] },
 ]
 
+# The ONE probe config for this panel: `densui score` reads it, and
+# build/overlap_audit.py loads it through the same CLI loaders, so the geometry
+# gate and the scorecard cannot measure two different part sets of one page.
+# overlap_audit.py remains a separate gate purely for what the scorecard has no
+# vocabulary for: the widest-string sweep and the osc-column alignment key.
+[probe]
+page = "operator.html"         # written by build/assemble.py; ctl.sh builds before scoring
+root = ".device"
+root_width = 1253
+text_kinds = ["label", "value", "checklabel", "clabel", "num"]
+
+[probe.containers]
+plate = ".plate"
+dgrid = "#dgrid"
+
+[probe.parts]
+label = ".op-knob-label"
+dial = ".op-knob-dial"
+value = ".op-knob-value"
+checkbox = ".op-check-box"
+checklabel = ".op-check-label"
+dd = ".op-dd"
+chip = ".op-chip"
+pairopt = ".op-pair-opt"
+led = ".op-led"
+badge = ".badge"
+glyph = "svg.p-pt-glyph"
+clabel = ".clabel"
+num = ".op-num"
+head = ".dhead"
+thumb = "canvas"
+
+[rules]
+graze_max_height = 2.5   # measured: value ink may graze its OWN dial ring by 2.5px
+graze_min_dx = 8.0       #           starting 8px right of the dial centre
+spill = [["dgrid", "clabel", 12.0]]   # declared: display column labels overhang the grid
+axis_budget_floor = 1.5
+axis_budget_reason = """\
+four racks of mixed grids, not one repeated column: measured 44 controls on 27 \
+control x-axes = 1.63, and merging them further would stop being Operator"""
+# A-5's population, narrowed because this panel is a REPLICA. The reference's
+# rack rows sit on a 74.25px pitch, so 44 dial and 10 checkbox edges land on
+# half pixels vertically (measured on the built page); claiming integers of
+# them would mean abandoning the geometry this demo exists to reproduce. The
+# rack heads are the boxes here that ARE authored from tokens, and they measure
+# 0 fractional edges.
+snap_kinds = ["head"]
+snap_kinds_reason = """\
+replica of a measured reference: its 74.25px rack pitch puts 54 dial and \
+checkbox edges on half pixels, and only the 2 rack heads are token-sized"""
+
 # Static line-2 positions (measured from the gridline crops; not solver-owned)
 [emit]
 knob_row_order = ["lfo", "filter", "pitch", "global"]
