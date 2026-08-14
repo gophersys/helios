@@ -451,5 +451,19 @@ F7 citation de-Abletoned (implementer).
   block (1 line); ci.yml confirmed correct and left alone. attempt 1/2 on
   this failure.
 
+## Phase 7 attempt 2 — the fleet found a measurement-arithmetic defect
+Permission fix PROVEN: gates pulled the image and RAN (4m52s, params
+self-test + audits executing). Review round 2: PASS again. The real
+failure: operator clabel/num fail font identity at -0.62/-0.60px vs the
+0.5 band with the CORRECT family rendered — fractional font sizes (grid
+autoscale, num 15.552px) + the pinned normalization (advance * size /
+size_px) amplify chrome's platform-dependent font-size quantization. Mac
+chrome passed the same page. A true substitution measures 5-40px; 0.6px is
+arithmetic noise. Fix dispatched (test author): compare AT THE RENDERED
+size (want = face.adv(sentinel, size_px)), band unchanged at 0.5 — a
+comparison-point correction, not a tolerance widen. This is the LAST
+attempt in the phase-7 budget; if the fleet stays red after it, STOP and
+report per the process.
+
 ## Next
-Push the fix; gates re-run must pull and go green; then the final stop.
+Author re-pins; implementer lands; push; fleet decides.
