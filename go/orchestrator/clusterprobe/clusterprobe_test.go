@@ -104,7 +104,7 @@ func beatFor(id orchestrator.AgentID, phase agentruntime.HealthPhase, state agen
 
 // newProbe builds a Probe over the two fakes scoped to the test tenant (the common spine
 // every Observe test shares).
-func newProbe(t *testing.T, workspaces *fakeWorkspaces, health *fakeHealth) *clusterprobe.Probe {
+func newProbe(t *testing.T, workspaces *fakeWorkspaces, health *fakeHealth) *clusterprobe.ClusterProbe {
 	t.Helper()
 	probe, err := clusterprobe.New(
 		clusterprobe.Config{Tenant: testTenant()},
@@ -521,7 +521,7 @@ func TestObserve_RestartDeterminism(t *testing.T) {
 // Assertion helpers.
 // ─────────────────────────────────────────────────────────────────────────────.
 
-func observeOne(t *testing.T, probe *clusterprobe.Probe, id orchestrator.AgentID) orchestrator.Actual {
+func observeOne(t *testing.T, probe *clusterprobe.ClusterProbe, id orchestrator.AgentID) orchestrator.Actual {
 	t.Helper()
 	actual, err := probe.Observe(context.Background(), []orchestrator.AgentID{id})
 	if err != nil {

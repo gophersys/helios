@@ -25,7 +25,7 @@
 // EXISTING orchestrator.Actual value — it redefines neither (one concept, one home, 10 §9).
 // The heartbeat shape it reads is agentruntime.Heartbeat verbatim (the health-subject wire
 // contract owner); the workspace shape is workspaceprovider.Descriptor verbatim. New is the
-// pure constructor spine New(configuration Config, dependencies Deps) -> (*Probe, error): no I/O, no
+// pure constructor spine New(configuration Config, dependencies Deps) -> (*ClusterProbe, error): no I/O, no
 // clock read, no globals — every source arrives through an injected, consumer-defined port,
 // which is exactly what makes the cluster Probe fakeable without a real cluster or a real
 // NATS bus.
