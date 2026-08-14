@@ -71,7 +71,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 - [x] Verify or discard the four unverified constants flagged in
       `framework/research/psycho-math.md` §9; update LAYOUT-MATH.
-- [ ] Empirically probe the forbidden-zone thresholds (1.03/1.45) on generated
+- [ ] ⏳ 2026-08-14T00:13Z (loop) Empirically probe the forbidden-zone thresholds (1.03/1.45) on generated
       panels; record method + result.
 - [ ] Extend typo-math with the fonts actually used here (per-face cap tables).
 - [x] dgrid tracks from font advances (grid_rows solver model; pulled forward on 3rd recurrence) — the display
