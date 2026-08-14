@@ -53,6 +53,14 @@ def _of_parts_containers_rules(fn: Callable, out: dict, rules: audit.Rules) -> l
     return fn(out["parts"], out["containers"], rules)
 
 
+def _of_declared_rows(fn: Callable, out: dict, rules: audit.Rules) -> list:
+    """The rows come from the target's own panel.toml (probe_config.rules_from
+    carries them), so this class measures what each panel DECLARED — a target
+    declaring nothing contributes nothing, which is why the corpus seed is the
+    thing that proves the predicate can fire."""
+    return fn(out, rules.ratio_rows)
+
+
 @dataclass(frozen=True)
 class Row:
     """A defect class: the dotted predicate symbol, and how it is called.
@@ -74,8 +82,8 @@ REGISTRY: dict[str, Row] = {
     "containment": Row("densui.audit.check_containment", _of_parts_containers_rules),
     "breathing": Row("densui.audit.check_breathing", _of_parts_containers_rules),
     "alignment": Row("densui.audit.check_level", _of_parts),
+    "size-ratio": Row("densui.audit.check_ratios", _of_declared_rows),
     # Named by Mateo, predicate due in the workstream noted; UNMEASURED today.
-    "size-ratio": Row(UNMEASURED),  # W1
     "padding-rhythm": Row(UNMEASURED),  # W1
     "axis-sprawl": Row(UNMEASURED),  # W2
     "hit-pitch": Row(UNMEASURED),  # W2

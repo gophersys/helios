@@ -14,7 +14,7 @@ design, exactly the input shapes of the tools that consume them:
 | `[solve.*]` | `densui.solve.solve()` | flow_rows / knob_rows — anchors, floors, labels, widest strings |
 | `[probe]` | `densui.probe.collect()` | page, root, root_width, containers, parts, text_kinds |
 | `[rules]` | `densui.audit.Rules` | graze, floors, declared spills |
-| `[ratio]` | ratio audit | `name = [want, tol]` rows measured from the reference |
+| `[ratio]` | `densui.audit.check_ratios` | typed rows: `measure = "<kind>.<dim>"` or `ratio = [num, den]`, with `want` + `tol` |
 
 Invariants the file must honour (LAYOUT-MATH):
 
@@ -93,9 +93,19 @@ min_sibling_gap = 2.0
 breathing_floor = 2.5
 
 [ratio]
-panel_w = [800, 5]
-dial = [28, 1]
+panel_w = { measure = "root.w", want = 800, tol = 5 }
+dial = { measure = "dial.h", want = 28, tol = 1 }
+text_control = { ratio = ["label.h", "dial.h"], want = 0.593, tol = 0.06 }
 ```
+
+Each `[ratio]` row measures `"<kind>.<dim>"` — a `[probe.parts]` kind, or the
+reserved kind `root` for the panel itself — with `dim` one of `h`, `w`, `cx`,
+`cy`. A kind with several instances reduces by MEDIAN, and their spread is a
+failure of its own: three dials at 27/27/33 are a defect whose median is exact.
+A row that matched no element fails, because a row that measured nothing proves
+nothing. The `ratio = [numerator, denominator]` form states a RELATION, which is
+the identity-carrying one — text:control near 0.6 against the 0.44 of library
+defaults (DENSE-UI §Ratios).
 
 The `[solve]` table is passed verbatim (with `[font]`) to
 `densui.solve.solve()`; `[probe]` + `[rules]` are exactly the `densui audit`

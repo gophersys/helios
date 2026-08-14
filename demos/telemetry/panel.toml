@@ -101,8 +101,20 @@ clabel = ".s-label"
 min_sibling_gap = 2.0
 breathing_floor = 2.5
 
+# Executed by densui.audit.check_ratios on every gate. Before the typed form
+# these were `name = [want, tol]` pairs that named no measurement, and nothing
+# ever read them.
 [ratio]
-panel_w = [1120, 5]
-panel_h = [320, 5]
-dial = [28, 1]
-row = [72, 4]
+panel_w = { measure = "root.w", want = 1120, tol = 5 }
+panel_h = { measure = "root.h", want = 320, tol = 5 }
+dial = { measure = "dial.h", want = 28, tol = 1 }
+# NOT MIGRATED, and not silently dropped: `row = [72, 4]` (layers.md L2 —
+# label line 20 + 2 + dial 28 + value line 20). The row's box is `.k`, and any
+# part that spans the row overlaps the label/dial/value inside it: declaring
+# `unit = ".k"` was measured, and it produces 12 overlap failures and a box of
+# 50px (the value line is out of flow), so the row height has no probe
+# expression at all. Text is ink (A-4), so the two line boxes are invisible
+# too. The claim is font-independent as a DIFFERENCE of ink centres —
+# value.cy - label.cy = 50.00 measured, = 20 + 2 + 28 derived — which is a row
+# form check_ratios does not have. Restoring it is an open item, not a
+# tolerance question; see the PR body.

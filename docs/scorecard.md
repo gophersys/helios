@@ -59,8 +59,14 @@ only to element-box probing certifies a code path no panel uses.
 | `containment` | `densui.audit.check_containment` |
 | `breathing` | `densui.audit.check_breathing` |
 | `alignment` | `densui.audit.check_level` |
+| `size-ratio` | `densui.audit.check_ratios` |
 
-`size-ratio`, `padding-rhythm`, `axis-sprawl`, `hit-pitch`, `fractional-edges`,
+`size-ratio` is the one class a target must DECLARE to be scored on: its rows
+live in each panel.toml's `[ratio]` table, and `corpus/size-ratio` is what
+proves the predicate fires. A panel that declares no row contributes no
+violation — which is why the seed, not a demo, is the evidence.
+
+`padding-rhythm`, `axis-sprawl`, `hit-pitch`, `fractional-edges`,
 `font-identity`, `component-anatomy` and `colour` are UNMEASURED — named in the
 registry so the gap is visible, with no predicate claimed. `REGISTRY` is the
 source of truth; when a class flips to measured, its predicate, its corpus seed

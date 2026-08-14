@@ -218,5 +218,30 @@ grep -q decide the params gate under pipefail (SIGPIPE 141 hazard).
   change; telemetry's woken rows may legitimately fail — legal fix is the
   spec row or the geometry, never the tolerance.
 
+## Green (W1) — proven
+- Orchestrator re-ran bare: ./ctl.sh score rc=0 (size-ratio measured=True
+  seed_caught=True, failures=[]), pytest 106 passed rc=0. Implementer:
+  ruff+format rc=0, node --check rc=0, ./ctl.sh test rc=0, ./ctl.sh
+  geometry rc=0 with telemetry executing "ratios": 3 on every gate — the
+  months-dormant rows now live, passing against real geometry, no want or
+  tolerance touched. Break-test: un-planted seed on a scratch copy rc=1.
+  Zero test-file edits. _collect/_rules promoted to public
+  densui.probe_config (three consumers migrated, no behavior change,
+  proven by the gates).
+- Operator's hand-written ratio_audit rows deliberately NOT converted,
+  with measured evidence: label ink spread 3.25px over 22 labels -> 0.12
+  quotient units, would false-fire at the +-0.06 band; most rows (font
+  sizes, colours, scrollHeights) have no part-kind vocabulary.
+- OPEN, decided by orchestrator: telemetry's row=[72,4] has no expression
+  in the pinned vocabulary (implementer measured every candidate: spanning
+  parts overlap by construction, cy rows blocked by cross-row spread). The
+  claim IS font-independent as a difference of ink centres (value.cy -
+  label.cy = 50.00 measured = 20+2+28 derived). DECISION: a span row form
+  (span = ["label.cy","value.cy"], want, tol) goes into W2's red scope;
+  the un-migrated row stays as an in-file comment naming this.
+- Process note: one consolidated verifier pass runs after W3 (W0 got a
+  full verify; W1's evidence includes its own break-tests) — recorded so
+  the PR body states it plainly.
+
 ## Next
-W1 green (implementer), then W2 red.
+W2 red tests (axes A1/A7/A8 + span row form + hit-pitch + integer edges).

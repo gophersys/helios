@@ -77,7 +77,7 @@ be verified rather than inventing it.
 | Gap law | all same-neighbourhood gap pairs: equal ±3% or ≥1.5× | the "sloppy" interval |
 | Containment | child ⊆ parent content box (±1.5 px; declared spills only) | escapes |
 | Alignment | same-role edges/centres equal ±0.5 px within a rack; snapped to ints | 1-px "broken" reads |
-| Ratio table | rendered boxes vs the measured reference table ±5% | drift toward library defaults |
+| Ratio table | `densui.audit.check_ratios`: declared rows vs the rendered boxes (median per kind, instance spread its own failure) | drift toward library defaults |
 | Content sweep | re-validate with every enum at its widest string | value-dependent breakage |
 | Determinism | solve twice in reversed element order; identical output | order-dependent layout |
 

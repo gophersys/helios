@@ -18,38 +18,6 @@ def _die(msg: str) -> int:
     return 2
 
 
-def _collect(page, probe_cfg: dict, extra_js: str = "") -> dict:
-    from densui import probe
-
-    return probe.collect(
-        page,
-        root=probe_cfg["root"],
-        containers=probe_cfg.get("containers", {}),
-        parts=probe_cfg.get("parts", {}),
-        text_kinds=set(probe_cfg.get("text_kinds", [])),
-        owner_attr=probe_cfg.get("owner_attr", "data-addr"),
-        root_width=probe_cfg.get("root_width"),
-        extra_js=extra_js,
-    )
-
-
-def _rules(cfg: dict):
-    from densui import audit
-
-    rules_cfg = cfg.get("rules", {})
-    legal = None
-    if "graze_max_height" in rules_cfg:
-        legal = audit.knob_value_graze(
-            rules_cfg["graze_max_height"], rules_cfg.get("graze_min_dx", 8.0)
-        )
-    return audit.Rules(
-        min_sibling_gap=rules_cfg.get("min_sibling_gap", 2.0),
-        breathing_floor=rules_cfg.get("breathing_floor", 2.5),
-        legal_overlap=legal,
-        spill_slack={(c, k): float(v) for c, k, v in rules_cfg.get("spill", [])},
-    )
-
-
 def cmd_solve(args) -> int:
     from densui.solve import SolveError, solve
 
@@ -62,6 +30,8 @@ def cmd_solve(args) -> int:
 
 def cmd_audit(args) -> int:
     from densui import audit, probe
+    from densui.probe_config import collect_panel, rules_from
+    from densui.spec import SpecError
 
     try:
         with open(args.config, "rb") as fh:
@@ -69,17 +39,26 @@ def cmd_audit(args) -> int:
     except (OSError, tomllib.TOMLDecodeError) as exc:
         return _die(f"bad audit config {args.config}: {exc}")
     try:
+        rules = rules_from(cfg)
+    except SpecError as exc:
+        return _die(f"bad audit config {args.config}: {exc}")
+    try:
         sweep_js = pathlib.Path(args.sweep_js).read_text() if args.sweep_js else ""
-        out = _collect(args.page, cfg["probe"], sweep_js)
+        out = collect_panel(args.page, cfg["probe"], sweep_js)
     except (KeyError, probe.ProbeError) as exc:
         return _die(f"probe failed: {exc}")
-    fails = audit.run_battery(out, _rules(cfg))
-    print(json.dumps({"parts": len(out["parts"]), "failures": fails}, indent=2))
+    fails = audit.run_battery(out, rules)
+    # `ratios` is how a passing run is told apart from an ignored table: rc 0
+    # is what the dormant rows already produced.
+    report = {"parts": len(out["parts"]), "ratios": len(rules.ratio_rows), "failures": fails}
+    print(json.dumps(report, indent=2))
     return 1 if fails else 0
 
 
 def cmd_score(args) -> int:
     from densui import probe, score
+    from densui.probe_config import collect_panel, rules_from
+    from densui.spec import SpecError
 
     corpus = pathlib.Path(args.corpus)
     seeds = sorted(d for d in corpus.iterdir() if d.is_dir()) if corpus.is_dir() else []
@@ -92,15 +71,16 @@ def cmd_score(args) -> int:
         try:
             with open(d / "panel.toml", "rb") as fh:
                 cfg = tomllib.load(fh)
-            out = _collect(d / cfg["probe"].get("page", "page.html"), cfg["probe"])
-        except (OSError, tomllib.TOMLDecodeError, KeyError, probe.ProbeError) as exc:
+            rules = rules_from(cfg)
+            out = collect_panel(d / cfg["probe"].get("page", "page.html"), cfg["probe"])
+        except (OSError, tomllib.TOMLDecodeError, KeyError, SpecError, probe.ProbeError) as exc:
             return _die(f"{what}: {exc}")
         # stderr, so stdout stays one parseable report: which targets were
         # scored is otherwise invisible — the report is per CLASS, not per
         # target, and a demo silently dropped would read as a clean run.
         role = f"seeds {seeded}" if seeded else "should pass"
         print(f"densui score: {d} ({role})", file=sys.stderr)
-        targets.append(score.Target(name=str(d), probe_out=out, seeds=seeded, rules=_rules(cfg)))
+        targets.append(score.Target(name=str(d), probe_out=out, seeds=seeded, rules=rules))
     report = score.run_scorecard(targets)
     print(json.dumps(report, indent=2))
     return 1 if report["failures"] else 0

@@ -12,6 +12,10 @@ import difflib
 import pathlib
 import tomllib
 
+# The legal [ratio] dimensions come from the predicate that measures them: a
+# validator with its own copy of the set can accept a row nothing can measure.
+from densui.audit import RATIO_DIMS
+
 TOP = {"panel", "font", "census", "tracks", "solve", "probe", "rules", "ratio", "emit"}
 FLOW_ROW = {"pad", "right_edge", "units", "trailing"}
 FLOW_UNIT = {"name", "center", "box", "labels", "widest_value", "value_left_offset"}
@@ -27,6 +31,7 @@ KNOB_ROW = {
 }
 KNOB_UNIT = {"name", "center", "label", "widest"}
 RULES = {"graze_max_height", "graze_min_dx", "min_sibling_gap", "breathing_floor", "spill"}
+RATIO_ROW = {"measure", "ratio", "want", "tol"}
 
 
 class SpecError(ValueError):
@@ -47,6 +52,62 @@ def _require(table, keys, where, errors):
     for k in keys:
         if k not in table:
             errors.append(f"{where}: missing required key {k!r}")
+
+
+def _ratio_token(tok, where, errors) -> None:
+    if not isinstance(tok, str) or tok.rpartition(".")[2] not in RATIO_DIMS:
+        legal = ", ".join(sorted(RATIO_DIMS))
+        errors.append(f"{where}: {tok!r} is not <kind>.<dim> — legal dims are {legal}")
+
+
+def _ratio_row(k, v, errors) -> None:
+    """One [ratio] row: exactly one of measure/ratio, plus want and tol.
+
+    The dead `name = [want, tol]` pair form gets its own message: those rows
+    were validated and executed by nothing for months, and their meaning
+    changed when check_ratios landed — silently accepting the old shape is how
+    a dormant check survives its own rewrite.
+    """
+    where = f"ratio.{k}"
+    if not isinstance(v, dict):
+        errors.append(
+            f"{where}: the [want, tol] pair form is gone (it named no measurement) — use "
+            f'{{ measure = "dial.h", want = .., tol = .. }} or '
+            f'{{ ratio = ["label.h", "dial.h"], want = .., tol = .. }}, got {v!r}'
+        )
+        return
+    _unknown(v, RATIO_ROW, where, errors)
+    _require(v, ["want", "tol"], where, errors)
+    for key in ("want", "tol"):
+        if key in v and not isinstance(v[key], (int, float)):
+            errors.append(f"{where}: {key} must be a number, got {v[key]!r}")
+    if ("measure" in v) == ("ratio" in v):
+        errors.append(f'{where}: needs exactly one of measure = "<kind>.<dim>" or ratio = [n, d]')
+    elif "measure" in v:
+        _ratio_token(v["measure"], where, errors)
+    elif not (isinstance(v["ratio"], list) and len(v["ratio"]) == 2):
+        errors.append(f"{where}: ratio must be a [numerator, denominator] pair, got {v['ratio']!r}")
+    else:
+        for tok in v["ratio"]:
+            _ratio_token(tok, where, errors)
+
+
+def ratio_rows(spec: dict) -> list[dict]:
+    """The [ratio] table as densui.audit.check_ratios rows, validated.
+
+    Separate from load_panel() because an audit config is often a PARTIAL
+    panel.toml (a corpus seed declares [probe] and [ratio] and nothing else),
+    and a declared row must still be refused rather than silently skipped.
+    """
+    errors: list[str] = []
+    rows = []
+    for k, v in spec.get("ratio", {}).items():
+        _ratio_row(k, v, errors)
+        if isinstance(v, dict):
+            rows.append({"name": k, **v})
+    if errors:
+        raise SpecError(errors)
+    return rows
 
 
 def load_panel(spec: dict | str | pathlib.Path) -> dict:
@@ -101,10 +162,7 @@ def load_panel(spec: dict | str | pathlib.Path) -> dict:
         _require(data["probe"], ["root"], "probe", errors)
     _unknown(data.get("rules", {}), RULES, "rules", errors)
     for k, v in data.get("ratio", {}).items():
-        if not (
-            isinstance(v, list) and len(v) == 2 and all(isinstance(x, (int, float)) for x in v)
-        ):
-            errors.append(f"ratio.{k}: expected [want, tol], got {v!r}")
+        _ratio_row(k, v, errors)
 
     if errors:
         raise SpecError(errors)

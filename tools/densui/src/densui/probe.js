@@ -42,7 +42,10 @@ function densuiProbe(cfg) {
               (r.right - rr.left) / scale, (r.bottom - rr.top) / scale];
     }
 
-    var out = { scale: scale, containers: [], parts: [] };
+    /* root: the panel itself, which is neither a part nor a container — the
+     * only thing panel_w/panel_h ratio rows can measure. Same convention as
+     * containers[i].r, so x0/y0 are 0 and w/h are the design dimensions. */
+    var out = { scale: scale, root: rect(root, null), containers: [], parts: [] };
     Object.keys(cfg.containers).forEach(function (cid) {
       var els = document.querySelectorAll(cfg.containers[cid]);
       for (var i = 0; i < els.length; i++) {

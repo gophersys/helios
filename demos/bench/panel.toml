@@ -64,3 +64,12 @@ clabel = ".s-label"
 [rules]
 min_sibling_gap = 2.0
 breathing_floor = 2.5
+
+# The frame and the control size this panel declares above, proved on the
+# RENDERED page by densui.audit.check_ratios — the same three the telemetry
+# console carries, and the only ones a blind demo can state without a
+# reference: [panel] and the dial token are the spec, the probe is the truth.
+[ratio]
+panel_w = { measure = "root.w", want = 760, tol = 5 }
+panel_h = { measure = "root.h", want = 220, tol = 5 }
+dial = { measure = "dial.h", want = 28, tol = 1 }

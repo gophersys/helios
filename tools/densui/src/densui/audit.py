@@ -8,13 +8,21 @@ fail loudly on any non-empty result — never downgrade a failure to a warning.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import statistics
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 from densui.geometry import breathing, contains, gap_law_violations, hgap, inter
 
 Part = dict
 LegalOverlap = Callable[[Part, Part, tuple], bool]
+
+RATIO_DIMS = {
+    "h": lambda r: r[3] - r[1],
+    "w": lambda r: r[2] - r[0],
+    "cx": lambda r: (r[0] + r[2]) / 2,
+    "cy": lambda r: (r[1] + r[3]) / 2,
+}
 
 
 @dataclass
@@ -27,6 +35,7 @@ class Rules:
     composites: frozenset = frozenset({frozenset({"checkbox", "checklabel"})})
     legal_overlap: LegalOverlap | None = None
     spill_slack: dict = field(default_factory=dict)  # (container_prefix, kind) -> px
+    ratio_rows: tuple = ()  # the panel's [ratio] table, as check_ratios rows
 
 
 def knob_value_graze(max_height: float = 2.5, min_dx_from_center: float = 8.0) -> LegalOverlap:
@@ -201,6 +210,68 @@ def check_cross_alignment(parts: list[Part], group_key, tol: float = 1.0) -> lis
     ]
 
 
+def _ratio_series(probe_out: dict, token: str) -> list[float]:
+    """Every measurement a "<kind>.<dim>" token addresses, in document order.
+
+    "root" is the reserved kind for the probe root rect — panel_w/panel_h are
+    the panel itself, which is neither a part nor a container.
+    """
+    kind, _, dim = token.rpartition(".")
+    if dim not in RATIO_DIMS:
+        raise ValueError(f"ratio token {token!r}: legal dims are {', '.join(sorted(RATIO_DIMS))}")
+    of = RATIO_DIMS[dim]
+    if kind == "root":
+        root = probe_out.get("root")
+        return [of(root)] if root else []
+    return [of(p["r"]) for p in probe_out["parts"] if p["kind"] == kind]
+
+
+def check_ratios(probe_out: dict, rows: Sequence[dict]) -> list[str]:
+    """The declared [ratio] table, measured on the rendered page.
+
+    A row is {"name", "want", "tol"} plus either measure="<kind>.<dim>" (an
+    absolute size) or ratio=["<num>", "<den>"] (a relation — the identity
+    carrier: text:control near 0.6 vs the 0.44 of library defaults).
+
+    Multi-instance kinds reduce by MEDIAN, so one drifted instance cannot drag
+    the reported value, and their spread is reported as its own failure: three
+    dials at 27/27/33 are a defect whose median is exact. A row that matched
+    nothing fails — zero violations from a row that measured nothing is the
+    dormancy this predicate exists to end.
+    """
+    fails: list[str] = []
+    for row in rows:
+        name, want, tol = row["name"], row["want"], row["tol"]
+        tokens = list(row["ratio"]) if "ratio" in row else [row["measure"]]
+        series = [_ratio_series(probe_out, t) for t in tokens]
+        blind = [t for t, s in zip(tokens, series) if not s]
+        if blind:
+            fails.append(f"{name}: {' and '.join(blind)} matched no element — measured nothing")
+            continue
+        meds = [statistics.median(s) for s in series]
+        if len(meds) == 2 and meds[1] == 0:
+            fails.append(f"{name}: {tokens[1]} measures 0 — the quotient does not exist")
+            continue
+        if len(meds) == 2:
+            got = meds[0] / meds[1]
+            # tol is in the ROW's units, so instance spread is converted into
+            # them before comparison: d(q)/d(num) = 1/den, d(q)/d(den) = q/den.
+            sensitivity = [1 / meds[1], got / meds[1]]
+        else:
+            got, sensitivity = meds[0], [1.0]
+        if abs(got - want) > tol:
+            fails.append(f"{name}: {got:.2f} vs {want} (tol ±{tol})")
+        for token, values, k in zip(tokens, series, sensitivity):
+            spread = max(values) - min(values)
+            if spread * k > tol:
+                px = f"{spread:.2f}px" if k == 1.0 else f"{spread:.2f}px = {spread * k:.3f} of it"
+                fails.append(
+                    f"{name}: {len(values)} {token} instances spread {px} "
+                    f"(median {statistics.median(values):.2f}, tol ±{tol})"
+                )
+    return fails
+
+
 def run_battery(probe_out: dict, rules: Rules) -> list[str]:
     parts, containers = probe_out["parts"], probe_out["containers"]
     return (
@@ -210,4 +281,5 @@ def run_battery(probe_out: dict, rules: Rules) -> list[str]:
         + check_containment(parts, containers, rules)
         + check_breathing(parts, containers, rules)
         + check_level(parts)
+        + check_ratios(probe_out, rules.ratio_rows)
     )

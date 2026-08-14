@@ -4,9 +4,10 @@
 All geometry law lives in the densui package, and every selector, text kind
 and tolerance lives in panel.toml. This file declares only what the general
 scorecard has no vocabulary for: the worst-case sweep values and the
-osc-column alignment key. The probe config is loaded through the CLI's own
-loaders, so `ctl.sh geometry` and `ctl.sh score` cannot end up measuring two
-different part sets of the same page. Run via
+osc-column alignment key. The probe config is loaded through
+`densui.probe_config`, the same seam `densui audit` and `densui score` use, so
+`ctl.sh geometry` and `ctl.sh score` cannot end up measuring two different part
+sets of the same page. Run via
 `uv run --project ../../tools/densui` (assemble.py does) so densui resolves.
 """
 import pathlib
@@ -14,7 +15,7 @@ import sys
 import tomllib
 
 from densui import audit
-from densui.cli import _collect, _rules
+from densui.probe_config import collect_panel, rules_from
 
 PANEL = pathlib.Path(__file__).resolve().parents[1] / "panel.toml"
 
@@ -50,8 +51,8 @@ def osc_column_key(p):
 def main(page, sweep: bool) -> None:
     cfg = tomllib.loads(PANEL.read_text())
     page = page or PANEL.parent / cfg["probe"]["page"]
-    out = _collect(page, cfg["probe"], SWEEP_JS if sweep else "")
-    fails = audit.run_battery(out, _rules(cfg))
+    out = collect_panel(page, cfg["probe"], SWEEP_JS if sweep else "")
+    fails = audit.run_battery(out, rules_from(cfg))
     fails += audit.check_cross_alignment(out["parts"], osc_column_key)
     tag = "sweep" if sweep else "audit"
     pairs = len(out["parts"]) * (len(out["parts"]) - 1) // 2
