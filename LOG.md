@@ -465,3 +465,16 @@ write_text does not create parent directories — .claude/agents/ did not
 exist and the first write failed loudly; the Write path (which creates
 parents) succeeded. The failure was visible precisely because the write
 was not chained behind a gate.
+
+## 2026-08-14T00:30Z — ADR system (PLAN P8)
+docs/adr/ in the eden house style (template + numbered chain, Status/Date/
+Deciders, Context/Decision/Consequences). ADR-0001 records computed-not-
+judged: sizes from metrics/tokens only, renders may FAIL never PASS, bare
+exit codes, cannot-run = FAIL, fleet certifies. ADR-0002 records the
+licensed-assets policy — and writing it caught a wrong draft claim: the
+Live screenshot IS tracked (demos/operator/reference@2x.png); it is the one
+sanctioned research fixture, and the ADR now says so explicitly, plus the
+rule that going public requires purging it from history first. Claims
+verified against the tree before commit: operator.html git-ignored, ctl.sh
+--font mode present, cap-table gate present, no font binaries tracked.
+Gates bare: pytest 70 passed rc=0, ruff rc=0.
