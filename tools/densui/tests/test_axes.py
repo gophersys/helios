@@ -18,16 +18,20 @@ Six properties are load-bearing and each has a test here:
    `framework/research/psycho-math.md` R6.3 states it — the formula is quoted
    from that file here (the idiom of tests/test_spec_doc.py: a document whose
    number the code has drifted from is worse than no document);
-3. the axis budget divides CONTROLS by DISTINCT X-AXES, and an override of the
-   floor must carry a written reason — a per-panel exemption nobody had to
-   justify is how a rule dies while still appearing in the config;
+3. the axis budget is CONTROLS per CONTROL-AXIS, on both sides of the quotient,
+   and it is silent below `floor` controls. Measured on the real panels: ink
+   centres never coincide, so a whole-panel denominator scores telemetry 0.26
+   and operator 0.69 — every panel would need an override below 1.0, which is
+   the rule dying in config. With the control population it is 1.00 and 1.63.
+   An override of the floor must carry a written reason for the same reason;
 4. hit pitch is CENTRE-TO-CENTRE distance, never the edge gap. The two are not
    monotone in each other for targets of different sizes, and the edge-gap
    reading of SC 2.5.8 is the common wrong one;
-5. fractional edges are a defect at scale 1 and legitimate at any other scale —
-   a page rendered at 1.25x has root-relative CSS px that are FRACTIONS of a
-   device pixel by construction, and a check that fires there teaches the
-   engine to round away real geometry;
+5. integer EDGES is the invariant (A-5 says edges, not centres), over a
+   DECLARED population of authored boxes — a 27 px dial centred on x=49.5 has
+   integer edges and is legal, a 28 px dial centred on x=67.5 does not and is
+   the parity defect; a chip sized by its own text can carry no integer claim
+   at all. Fractional edges stay legitimate at any scale but 1;
 6. the three predicates run inside run_battery on default rules, so no gate
    path can leave them dormant;
 7. the research file's validator (psycho-math §8) names, per axiom, the symbol
@@ -173,6 +177,60 @@ COLUMNS_OF_THREE = [
     for i, y in enumerate((10, 60, 110))
 ]
 
+# Four controls on four axes, plus two labels that share nothing with anything.
+# The controls decide the verdict (4 / 4 = 1.0, a fail); the labels are in the
+# panel's Omega and in nothing else.
+MIXED_SPRAWL = [
+    part("p", "dial", "a", (10, 10, 37, 37)),
+    part("p", "dial", "b", (60, 10, 87, 37)),
+    part("p", "dial", "c", (110, 10, 137, 37)),
+    part("p", "dial", "d", (160, 10, 187, 37)),
+    part("p", "label", "t1", (0, 50, 100, 62)),
+    part("p", "label", "t2", (5, 70, 105, 82)),
+]
+# n=6: six singleton classes in each x family, {4 dials, 2 labels} in w and h.
+MIXED_CLASSES = {"left": [1] * 6, "right": [1] * 6, "cx": [1] * 6, "w": [4, 2], "h": [4, 2]}
+MIXED_CONTROL_CLASSES = {"left": [1] * 4, "right": [1] * 4, "cx": [1] * 4, "w": [4], "h": [4]}
+
+# Four dials of two widths on ONE centreline (36/38 left, 62/64 right, 50 cx) —
+# the centred column every dense panel is built from — with three labels
+# scattered across the panel. Controls: 4 / 1 = 4.0, a pass. Whole-panel: the
+# labels drag the census to four centre classes and it would read 1.0, a fail.
+SHARED_COLUMN = [
+    part("p", "dial", "a", (36, 10, 64, 38)),
+    part("p", "dial", "b", (38, 50, 62, 74)),
+    part("p", "dial", "c", (36, 90, 64, 118)),
+    part("p", "dial", "d", (38, 130, 62, 154)),
+    part("p", "label", "t1", (0, 170, 80, 182)),
+    part("p", "label", "t2", (200, 170, 280, 182)),
+    part("p", "label", "t3", (400, 170, 480, 182)),
+]
+
+# Two controls on two axes: the ratio is 1.0 and it means nothing — with fewer
+# controls than the floor there is no distribution to have. The second shape is
+# the corpus seeds' own geometry (tests/test_scorecard.py CLEAN), which the
+# first cut of this rule turned red for a defect class it does not carry.
+TWO_CONTROLS = [
+    part("p", "dial", "a", (10, 10, 37, 37)),
+    part("p", "dial", "b", (60, 50, 87, 77)),
+]
+# Exactly the floor in controls, each on its own axis — corpus/gap-law's shape,
+# where three dials at three x-positions ARE the seeded geometry.
+THREE_CONTROLS = TWO_CONTROLS + [part("p", "dial", "c", (110, 90, 137, 117))]
+SEED_SHAPE = [
+    part("p", "dial", "a", (10, 20, 37, 47)),
+    part("p", "value", "a", (34, 50, 80, 62)),
+]
+
+# MEASURED on the built demos (probe, scale == 1 exactly, both verified in the
+# scratch measurement this round): an ODD box on a half centre has integer
+# edges and is legal; an EVEN box on a half centre does not and is the parity
+# defect. operator's rack rows sit on a 74.25px pitch, so its dial tops are
+# fractional — a real A-5 violation of the vertical rhythm, reported here as
+# what the predicate does rather than tuned away.
+OPERATOR_DIAL = part("p", "dial", "osc.d.coarse", (36.0, 56.59375, 63.0, 83.59375))
+TELEMETRY_DIAL = part("p", "dial", "rail-3v3", (53.5, 38.0, 81.5, 66.0))
+
 
 def test_axis_census_counts_one_class_per_shared_coordinate():
     """The census is the vocabulary everything else in W2 speaks: how many
@@ -282,17 +340,66 @@ def test_axis_budget_is_silent_when_controls_share_their_axes():
     assert audit.check_axis_budget(COLUMN, audit.Rules()) == [], "four controls on one axis"
 
 
-def test_only_controls_count_toward_the_budget():
-    """Two dials and seven labels on a single centreline: the axis is shared,
-    but the panel bought it with two controls, so the ratio is 2.0 and it
-    fails. A1 says CONTROLS per axis — counting text as well would let a panel
-    buy its budget with labels, which is the opposite of the rule's intent.
-    Text is still censused: labels move the axis COUNT, never the numerator."""
-    parts = [target("dial", "d0", 50, 20, 28), target("dial", "d1", 50, 60, 28)]
-    parts += [target("label", f"t{i}", 50, 100 + 20 * i, 12) for i in range(7)]
+def test_the_budget_measures_controls_per_control_axis():
+    """Both sides of the quotient come from the CONTROL population, and the
+    reason is measured, not stylistic: text is glyph ink, and ink centres never
+    coincide, so counting text axes in the denominator scores telemetry 6/23 =
+    0.26 and operator 44/64 = 0.69 — every panel in the repository would need
+    an override below 1.0, which is A1 dying in config while still appearing in
+    it. Over controls the same panels read 1.00 and 1.63, which is a number a
+    panel can be fixed against.
 
-    fails = audit.check_axis_budget(parts, audit.Rules())
-    assert len(fails) == 1, f"2 controls on 1 axis is 2.0 < 3.0: {fails}"
+    So four dials on ONE centreline pass at 4.0 even with three labels
+    scattered across the panel (a whole-panel denominator reads 1.0 there and
+    fails the most ordinary layout in dense UI), and four dials on four axes
+    fail at 1.0 however the text is arranged.
+
+    Omega stays the panel-wide report: it is R6.3's objective over the whole
+    layout, so the message carries the panel's 57.5, not the controls' 24.0."""
+    assert audit.check_axis_budget(SHARED_COLUMN, audit.Rules()) == [], (
+        "four controls on one centreline is 4.0 — the labels are not axes they bought"
+    )
+
+    fails = audit.check_axis_budget(MIXED_SPRAWL, audit.Rules())
+    assert len(fails) == 1, f"4 controls on 4 control-axes is 1.0 < 3.0: {fails}"
+    msg = fails[0]
+    nums = re.findall(r"-?\d+(?:\.\d+)?", msg)
+    assert nums.count("4") >= 2, f"4 controls and 4 control-axes belong in the message: {msg}"
+
+    panel_omega, control_omega = omega_of(MIXED_CLASSES, 6), omega_of(MIXED_CONTROL_CLASSES, 4)
+    assert (round(panel_omega, 1), round(control_omega, 1)) == (57.5, 24.0), (
+        f"hand-check drifted: {panel_omega} / {control_omega}"
+    )
+    assert audit.axis_census(MIXED_SPRAWL)["omega"] == pytest.approx(panel_omega)
+    assert re.search(r"57\.5", msg), f"the panel's Omega belongs in the message: {msg}"
+    assert not re.search(r"\b24(\.0+)?(?!\d)", msg), f"not the control-only Omega: {msg}"
+
+
+def test_the_budget_is_silent_at_or_below_the_floor_in_CONTROLS():
+    """A ratio needs a distribution, and A1 is a rule about REPEATED structure —
+    repetition begins BEYOND the floor. At exactly three controls the statistic
+    is degenerate: it can only pass in the all-on-one-axis case, so it says
+    nothing about how the panel distributes anything. Hence `<=`, not `<`.
+
+    That is not a hypothetical either way: the first cut of this rule turned
+    three clean corpus fixtures red, each holding one dial and one value, and
+    the `<` reading additionally reds corpus/gap-law (3 dials at 3 x-positions,
+    which is that seed's whole point) and demos/bench — two panels failing a
+    class neither of them seeds.
+
+    The precondition counts CONTROLS, and it must not reach up and mute a real
+    sprawl: four controls, on four axes or on two, still state a budget."""
+    rules = audit.Rules()
+
+    assert audit.check_axis_budget(TWO_CONTROLS, rules) == [], "2 controls state no budget"
+    assert audit.check_axis_budget(SEED_SHAPE, rules) == [], "1 dial + 1 value: the seed shape"
+    assert audit.check_axis_budget(THREE_CONTROLS, rules) == [], (
+        "exactly the floor in controls is still no distribution — corpus/gap-law's shape"
+    )
+    assert audit.check_axis_budget(MIXED_SPRAWL, rules) != [], "4 controls do state one"
+    # The precondition counts CONTROLS, not axes: 4 controls on 2 axes is 2.0
+    # and is a real failure, though the axis count is itself below the floor.
+    assert audit.check_axis_budget(GRID, rules) != [], "4 controls on 2 axes is 2.0 < 3.0"
 
 
 def test_axis_budget_floor_is_a_declared_override_not_a_constant():
@@ -320,6 +427,21 @@ def test_axis_budget_override_without_a_reason_is_a_spec_error(font_path):
     assert any("axis_budget_reason" in e for e in gate.value.errors), gate.value.errors
 
 
+def test_narrowing_the_snap_population_without_a_reason_is_a_spec_error(font_path):
+    """The same lock on the other exemption, and the hole it closes is one this
+    file opened: `snap_kinds = []` would switch A-5 off panel-wide in one line
+    that reads like configuration. LAYOUT-MATH allows a declared legal
+    exception, but a DECLARED exception cites its measurement — so narrowing
+    the population costs a written reason, refused on both consuming paths."""
+    with pytest.raises(SpecError) as exc:
+        load_panel(minimal_spec(font_path, rules={"snap_kinds": []}))
+    assert any("snap_kinds_reason" in e for e in exc.value.errors), exc.value.errors
+
+    with pytest.raises(SpecError) as gate:
+        rules_from({"rules": {"snap_kinds": ["thumb"]}})
+    assert any("snap_kinds_reason" in e for e in gate.value.errors), gate.value.errors
+
+
 def test_declared_rules_reach_the_predicate(font_path):
     """The other half: a justified override, and the hit-target vocabulary,
     survive both the validator and the one function every gate builds its Rules
@@ -329,6 +451,8 @@ def test_declared_rules_reach_the_predicate(font_path):
         "axis_budget_floor": 1.6,
         "axis_budget_reason": "bench holds one control per column by design (contract.md)",
         "hit_kinds": ["dial", "chip"],
+        "snap_kinds": ["dial", "thumb"],
+        "snap_kinds_reason": "measured: the 4 leds and 3 chips are sized by their own text",
     }
 
     assert load_panel(minimal_spec(font_path, rules=declared))["rules"] == declared
@@ -337,6 +461,8 @@ def test_declared_rules_reach_the_predicate(font_path):
     assert rules.axis_budget_floor == 1.6
     assert rules.axis_budget_reason.startswith("bench holds"), rules.axis_budget_reason
     assert rules.hit_kinds == frozenset({"dial", "chip"}), rules.hit_kinds
+    assert rules.snap_kinds == frozenset({"dial", "thumb"}), rules.snap_kinds
+    assert rules.snap_kinds_reason.startswith("measured:"), rules.snap_kinds_reason
 
 
 def test_hit_pitch_is_centre_pitch_not_the_edge_gap():
@@ -400,6 +526,55 @@ def test_fractional_edges_fail_at_scale_one_naming_the_part_and_the_edge():
     assert re.search(r"10\.5", " | ".join(fails)), f"the offending value travels: {fails}"
 
 
+def test_integer_edges_are_the_invariant_and_a_half_centre_is_not_a_defect():
+    """A-5 says EDGES, and the difference is not academic — it is the whole
+    parity question, measured on the two demos this round:
+
+      operator  osc.d.coarse  27px box, centre x 49.5  -> 36.0 .. 63.0   legal
+      telemetry rail-3v3      28px box, centre x 67.5  -> 53.5 .. 81.5   defect
+
+    An odd box on a half centre lands on integers; an even box on a half centre
+    cannot. A predicate written against CENTRES would invert both verdicts:
+    it would flag operator's correct dial and clear telemetry's real one.
+
+    operator's dial TOPS are 56.59375 (its rack rows sit on a 74.25px pitch),
+    so the same dial is clean on x and fails on y. That is the vertical rhythm
+    being non-integral, which is exactly what A-5 exists to name."""
+    operator = audit.check_integer_edges([OPERATOR_DIAL], 1)
+    assert not any("left" in f or "right" in f for f in operator), (
+        f"27px on a .5 centre has integer edges — legal: {operator}"
+    )
+    assert [f for f in operator if "top" in f], f"56.59375 is a fractional top: {operator}"
+
+    telemetry = audit.check_integer_edges([TELEMETRY_DIAL], 1)
+    assert [f for f in telemetry if "left" in f], f"28px on a .5 centre is the defect: {telemetry}"
+    assert not any("top" in f or "bottom" in f for f in telemetry), telemetry
+
+    clean = part("p", "dial", "odd", (36, 57, 63, 84))  # 27px box, centres .5 in both axes
+    assert audit.check_integer_edges([clean], 1) == [], "half centres are never the claim"
+
+
+def test_the_integer_edge_tolerance_is_the_probes_own_arithmetic():
+    """Measured, not invented. Chrome lays out in LayoutUnits of 1/64 px, and
+    across all three built demos the smallest non-zero fractional part any
+    authored box carried was exactly 1/64 = 0.015625 — nothing between that and
+    zero exists in the data. So one LayoutUnit off an integer is a real
+    position and must fail, while double-subtraction noise from the probe's own
+    root-relative arithmetic (r.left - rr.left, then / scale) must not.
+
+    Pinned as the property rather than as a constant: any tolerance strictly
+    between 1e-9 and 1/64 satisfies both halves, and no tolerance outside that
+    band can."""
+    layout_unit = part("p", "dial", "one-layout-unit", (10 + 1 / 64, 20, 37, 47))
+    float_noise = part("p", "dial", "float-noise", (60 - 1e-9, 20, 87 + 1e-9, 47))
+
+    fails = audit.check_integer_edges([layout_unit, float_noise], 1)
+    assert [f for f in fails if "one-layout-unit" in f], f"1/64px is a real edge: {fails}"
+    assert not [f for f in fails if "float-noise" in f], (
+        f"1e-9 is arithmetic, not geometry: {fails}"
+    )
+
+
 def test_fractional_edges_are_legitimate_when_the_page_is_not_at_scale_one():
     """The guard, and the reason the scale is an argument: at 1.25x a page's
     root-relative CSS px are fractions of a device pixel BY CONSTRUCTION. A
@@ -452,30 +627,44 @@ def test_run_battery_composes_the_axis_budget():
     assert len(fails) == 1, f"this geometry violates the axis budget and nothing else: {fails}"
 
 
-def test_run_battery_scale_guards_the_integer_check_and_never_judges_glyph_ink():
-    """Two compositions in one geometry. Three dials on a shared left edge at
-    x=10.5 fail A-5 at scale 1 and are silent at scale 2. The value's ink box
-    is fractional too and must NEVER be reported: a glyph-ink rect (A-4) is
-    where the glyphs ARE — it is measured, not authored, and cannot be snapped.
-    Since check_integer_edges takes only (parts, scale), the text exemption
-    lives at this composition seam, where the rules are known.
+def test_run_battery_snaps_only_the_declared_population_and_guards_the_scale():
+    """Which boxes carry an integer claim is DECLARED, and the default is the
+    small set whose box comes from a token rather than from a string.
 
-    (Three controls on one axis also clears the axis budget, so these failures
-    are the fractional edges and nothing else.)"""
+    A glyph-ink rect (A-4) is where the glyphs are — measured, not placed. And
+    a `led`, though it is a control, is sized by its own content: measured on
+    operator, every led carries fractional edges (4 leds, 8 of them), as do its
+    chips, badges and dropdowns — boxes whose width is padding plus a text
+    advance cannot be integers on both sides, and asserting it of them turns
+    A-5 into noise nobody reads. `dial` and `checkbox` are the two kinds every
+    demo authors from a token, so they are the default population.
+
+    Same geometry, twice: fractional at scale 1, silent at scale 2. Since
+    check_integer_edges takes only (parts, scale), the population lives at this
+    composition seam, where the rules are known.
+
+    (Four controls on one left-edge axis also clears the axis budget, so these
+    failures are the fractional edges and nothing else.)"""
+    assert audit.Rules().snap_kinds == frozenset({"dial", "checkbox"}), audit.Rules().snap_kinds
+
     ink = {
         "scale": 1,
-        "containers": [{"id": "p", "r": (0, 0, 200, 160)}],
+        "containers": [{"id": "p", "r": (0, 0, 200, 180)}],
         "parts": [
             part("p", "dial", "a", (10.5, 20, 37.5, 47)),
             part("p", "dial", "b", (10.5, 60, 37.5, 87)),
             part("p", "dial", "c", (10.5, 100, 37.5, 127)),
-            part("p", "value", "a", (10.4, 130, 60.2, 142.5)),
+            part("p", "value", "a", (10.4, 130, 60.2, 142.5)),  # glyph ink
+            part("p", "led", "a", (10.4, 150, 30.4, 158)),  # content-sized control
         ],
     }
 
     fails = audit.run_battery(ink, audit.Rules())
-    assert fails and all("dial(" in f for f in fails), f"glyph ink is not a snappable edge: {fails}"
+    assert fails and all("dial(" in f for f in fails), f"only the declared population: {fails}"
     assert any("dial(a)" in f and "left" in f for f in fails), fails
+
+    widened = audit.Rules(snap_kinds=frozenset({"dial", "led"}))
+    assert any("led(a)" in f for f in audit.run_battery(ink, widened)), "declared, so judged"
 
     assert audit.run_battery({**ink, "scale": 2}, audit.Rules()) == [], (
         "scaled: no edge is a defect"
@@ -571,6 +760,160 @@ def test_telemetry_carries_its_row_pitch_again(font_path):
 
     data["font"]["path"] = font_path
     assert load_panel(data)["ratio"]["row"], "the restored row must validate"
+
+
+def test_every_demo_declares_the_axis_budget_it_actually_has(font_path):
+    """The default floor stays 3.0 — it is the aspiration for the dense
+    repeated panels this framework targets, and lowering it silently would kill
+    the rule for everyone to spare three files. Instead each demo states its
+    own structure, in its own words, where the gate can read it.
+
+    The floors are the measured ratios rounded down to a legal claim: bench and
+    telemetry hold ONE control per column by design (measured 1.00 each), and
+    operator is four racks of mixed grids (measured 1.63). A reason is required
+    by the spec; that it is a SENTENCE rather than a shrug is required here."""
+    for demo, floor in (("bench", 1.0), ("telemetry", 1.0), ("operator", 1.5)):
+        panel = REPO / "demos" / demo / "panel.toml"
+        data = tomllib.loads(panel.read_text())
+        rules = data.get("rules", {})
+
+        assert rules.get("axis_budget_floor") == floor, (
+            f"{demo}: declares {rules.get('axis_budget_floor')!r}, measured ratio needs {floor}"
+        )
+        reason = rules.get("axis_budget_reason", "")
+        assert len(reason.split()) >= 4, f"{demo}: the reason must be a sentence, got {reason!r}"
+
+        data["font"]["path"] = font_path
+        assert load_panel(data)["rules"]["axis_budget_floor"] == floor
+
+
+def test_only_operator_exempts_itself_from_the_integer_edges():
+    """The two verdicts this round separates, pinned as file content.
+
+    operator is a REPLICA: its 74.25px rack pitch and its five 28px dials on
+    half centres reproduce a measured reference, and LAYOUT-MATH allows a
+    declared legal exception that cites a measurement. So it narrows its snap
+    population — and, since dial and checkbox are the two kinds that carry the
+    fidelity (measured: 54 + 10 fractional edges), a narrowing that still
+    contained them would claim nothing.
+
+    telemetry and bench get NO exemption. Their half-pixel x-edges are a solver
+    parity defect in BLIND panels, with nothing to be faithful to, and the
+    solver contract below is what fixes them. A snap declaration in either file
+    would be this workstream conceding the defect instead of ending it."""
+    operator = tomllib.loads((REPO / "demos" / "operator" / "panel.toml").read_text())
+    rules = operator.get("rules", {})
+
+    assert "snap_kinds" in rules, "operator's fidelity exception must be DECLARED, not implicit"
+    assert not {"dial", "checkbox"} & set(rules["snap_kinds"]), (
+        f"operator cannot claim integer edges for the kinds that carry the "
+        f"reference geometry: {rules['snap_kinds']}"
+    )
+    reason = rules.get("snap_kinds_reason", "")
+    assert len(reason.split()) >= 4, f"the exception needs a written reason, got {reason!r}"
+    assert any(ch.isdigit() for ch in reason), (
+        f"a declared exception cites a MEASUREMENT, and a measurement has a number: {reason!r}"
+    )
+
+    for blind in ("telemetry", "bench"):
+        data = tomllib.loads((REPO / "demos" / blind / "panel.toml").read_text())
+        declared = set(data.get("rules", {})) & {"snap_kinds", "snap_kinds_reason"}
+        assert not declared, f"{blind} is blind geometry — it gets the solver fix, not {declared}"
+
+
+# --------------------------------------------------------------------------
+# the solver: parity, so that a blind panel's dials land on whole pixels
+# --------------------------------------------------------------------------
+
+
+def knob_spec(font_path, *, dial, units, **row) -> dict:
+    """A knob row shaped like tests/test_solve.py's, with the clearances given
+    room so the only corrections are the parity ones under test."""
+    spec = {
+        "plate_width": 800,
+        "dial": dial,
+        "tuck": 10,
+        "dial_floor": 0,
+        "label_floor": 0,
+        "equalize": False,
+        "units": units,
+    }
+    spec.update(row)
+    return {"font": {"path": font_path, "size": 16}, "knob_rows": {"row": spec}}
+
+
+def test_knob_row_centres_carry_the_dials_parity(font_path):
+    """The solver's own claim about where a dial sits: `center - dial/2` is the
+    dial's left edge, so it must be a whole pixel. An EVEN dial needs an
+    integer centre; an ODD dial needs a half one (27/2 = 13.5). Today the
+    solver rounds `dial_left` and the mismatch survives into the emitted page.
+
+    The move is at most half a pixel and it is REPORTED, like every other
+    correction the solver makes — a layout that silently disagrees with its
+    spec is the thing this module exists to prevent."""
+    from densui.solve import solve
+
+    units = [
+        {"name": "a", "center": 100, "label": "Alpha", "widest": "100 %"},
+        {"name": "b", "center": 220, "label": "Beta", "widest": "100 %"},
+        {"name": "c", "center": 340, "label": "Gamma", "widest": "100 %"},
+    ]
+
+    odd = solve(knob_spec(font_path, dial=27, units=units))
+    for name, solved in odd["knob_rows"]["row"].items():
+        anchor = next(u["center"] for u in units if u["name"] == name)
+        left_edge = solved["center"] - 27 / 2
+        assert left_edge == int(left_edge), f"{name}: dial left {left_edge} is not a whole px"
+        assert abs(solved["center"] - anchor) <= 0.5, f"{name}: parity costs at most half a px"
+    assert any("parity" in c for c in odd["corrections"]), odd["corrections"]
+
+    even = solve(knob_spec(font_path, dial=28, units=units))
+    for name, solved in even["knob_rows"]["row"].items():
+        anchor = next(u["center"] for u in units if u["name"] == name)
+        assert solved["center"] == anchor, f"{name}: an even dial on an integer centre is correct"
+
+
+def test_knob_row_boxes_carry_the_dials_parity_so_the_rendered_dial_is_whole(font_path):
+    """The MEASURED cause of telemetry's 53.5px dial edge, which the centre rule
+    alone does not touch: the dial is centred inside its unit box by CSS
+    (`.k-dial { margin: 2px auto 0 }`), so its rendered left is
+    `left + (width - dial)/2`. Solved today, telemetry's rails are
+
+        rail-3v3  center 60  width 31  left 44  ->  44 + (31-28)/2 = 45.5
+        rail-io   center 280 width 30  left 265 -> 265 + (30-28)/2 = 266.0
+
+    — every centre already satisfies `center - dial/2 ∈ ℤ` (46, 156, 266), so
+    the parity that breaks the panel is the RESERVED BOX's, not the centre's.
+    The box is font-derived (`int(max(label_adv, dial) + .999) + 2`), so its
+    parity flips with the label and the face; the fix is to grow it by at most
+    one px to the dial's parity, and report that.
+
+    The pre-correction widths are recomputed here from the same Face the solver
+    uses, for two reasons: to prove this label set actually EXERCISES the case
+    on whatever font the host has, and to bound the growth at 1px."""
+    from densui.fontmetrics import Face
+    from densui.solve import solve
+
+    dial = 28
+    labels = ["W", "WW", "WWW", "WWWW", "WWWWW", "WWWWWW"]
+    units = [
+        {"name": f"u{i}", "center": 100 + 120 * i, "label": label, "widest": "0"}
+        for i, label in enumerate(labels)
+    ]
+    face = Face(font_path)
+    raw = {u["name"]: int(max(face.adv(u["label"], 16), dial) + 0.999) + 2 for u in units}
+    assert any((w - dial) % 2 for w in raw.values()), (
+        f"this label set does not exercise box parity on {font_path}: {raw}"
+    )
+
+    out = solve(knob_spec(font_path, dial=dial, units=units))
+    for name, solved in out["knob_rows"]["row"].items():
+        width, left = solved["width"], solved["left"]
+        assert (width - dial) % 2 == 0, f"{name}: box {width} cannot centre a {dial}px dial"
+        rendered_left = left + (width - dial) / 2
+        assert rendered_left == int(rendered_left), f"{name}: dial renders at {rendered_left}"
+        assert 0 <= width - raw[name] <= 1, f"{name}: {raw[name]} -> {width} is more than a nudge"
+    assert any("parity" in c for c in out["corrections"]), out["corrections"]
 
 
 def test_the_three_axis_classes_are_measured_in_the_registry():

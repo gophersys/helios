@@ -310,5 +310,20 @@ DECISIONS (recorded verbatim in the dispatch):
    NO exemption: the solver gains a parity rule (center - dial/2 integer,
    adjustment reported as a correction) and their geometry goes clean.
 
+## W2 red round 2 — decisions pinned, one amended by measurement
+35 tests total. Orchestrator's centre-parity rule was measured ALREADY
+satisfied by telemetry (every centre - dial/2 integer); the half-pixel is
+BOX parity: build.py centres dials via margin:auto inside font-derived
+odd-width boxes. ACCEPTED both invariants: centre parity (<=0.5px move)
+AND box parity ((width-dial) even, growth <=1px), each reported as a
+"parity" correction. Also pinned: <= precondition; demo declarations
+(bench/telemetry floor 1.0, operator 1.5 + snap narrowing with a
+number-carrying reason); snap_kinds_reason required on both spec paths.
+Bites: revised reference 23/23; 15/15 wrong revised implementations
+caught (incl. centre-only, box-only, unreported, over-moving); 7/7 demo
+declaration mutations caught; shipped greens proven non-vacuous (18/23
+earned). The three outside fixtures still heal with zero edits.
+
 ## Next
-Author pins the decisions; implementer lands them; then W3.
+Implementer lands the revised W2 contract; expect 141 passed + clean
+gates; then W3.
