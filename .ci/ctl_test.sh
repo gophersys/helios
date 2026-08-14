@@ -107,6 +107,8 @@ ERREXIT_CHECK="check-set-e-suppressed"
 # express on its own. The driver repoints both between phase 1 and phase 2.
 CICTL="absent"
 MUTATION="none"
+# TREE is the third stimulus: what state of the working tree `release-check` meets.
+TREE="clean"
 # OUT, RC and GATED hold the last run_verb result: its merged output, its exit status, and
 # the record of which fixture library was gated with which verb.
 OUT=""
@@ -185,6 +187,21 @@ install_mutation() {
       ' "$target" > "$mutated" ||
         fail "the fault could not be planted: there is no single 'cictl affected -C' invocation to plant it before. The producer has been refactored, so this test must be re-read rather than repaired"
       ;;
+    # ANCHOR: the single `cictl updatability …` invocation. It turns a verb that does NOT
+    # read the affected set into one that does, which is the drift the tier-verb list has to
+    # notice: a new consumer added without being covered.
+    updatability-gates)
+      awk '
+        /^  cictl updatability -C/ {
+          print "  run_phase_gate_over_affected implementation"
+          hits++
+          next
+        }
+        { print }
+        END { if (hits != 1) { exit 3 } }
+      ' "$target" > "$mutated" ||
+        fail "the mutation found no single 'cictl updatability -C' invocation to turn into a consumer of the affected set; the dispatcher has been refactored and this test must be re-read"
+      ;;
     # No anchor at all: the shape is APPENDED after main, where it never runs and only the
     # linter reads it. It is the counter-stimulus for the shape test, and it doubles as the
     # proof that the optional check really looked at this file.
@@ -239,12 +256,76 @@ new_fixture() {
   printf '%s' "$fix"
 }
 
-# write_cictl <fixture> <listing> <exit-code> — the cictl the script under test will find.
-# `affected` prints the listing and exits with the code; a non-zero code also prints git's
-# own wording for an unresolvable base, because that stream reaching the reader is half of
-# what a failing gate owes.
+# new_release_fixture prints a tree `release-check` can reach a verdict in: a committed tree
+# on main, with an origin it can fetch and whose main is HEAD. TREE then decides what the
+# verb meets, and each variant is MEASURED before the run, never assumed:
+#
+#   clean          nothing uncommitted                     → the verb must report ready
+#   dirty          1 uncommitted file                      → the verb must refuse
+#   status-broken  the same uncommitted file, plus a bad `status.showUntrackedFiles`, so
+#                  `git status` EXITS NON-ZERO PRINTING NOTHING while rev-parse and fetch
+#                  stay healthy → the tier is told nothing, and must not call that clean
+new_release_fixture() {
+  local fix origin
+  fix="$(new_fixture)"
+  origin="$(mktemp -d "$WORK/origin.XXXXXX")/origin.git"
+  git -C "$fix" config user.email "ctl-test@example.invalid"
+  git -C "$fix" config user.name "ctl test"
+  git -C "$fix" checkout --quiet -b main
+  git -C "$fix" add -A
+  git -C "$fix" commit --quiet -m "fixture tree"
+  git init --quiet --bare "$origin"
+  git -C "$fix" remote add origin "$origin"
+  git -C "$fix" push --quiet origin main
+  case "$TREE" in
+    clean) : ;;
+    dirty|status-broken)
+      printf 'uncommitted\n' > "$fix/uncommitted.txt"
+      [[ "$TREE" == "dirty" ]] ||
+        git -C "$fix" config status.showUntrackedFiles bogusvalue
+      ;;
+    *) die "unknown tree stimulus: $TREE" ;;
+  esac
+  assert_tree_stimulus "$fix"
+  printf '%s' "$fix"
+}
+
+# assert_tree_stimulus <fixture> measures what the verb is about to meet. The status-broken
+# variant is the one that matters: if `git status` ever answered, or if fetch/rev-parse also
+# broke, the verb would fail somewhere else and the run would prove nothing about the branch
+# under test.
+assert_tree_stimulus() {
+  local fix="$1" out rc=0 fetch_rc=0
+  out="$(git -C "$fix" status --porcelain 2>/dev/null)" || rc=$?
+  git -C "$fix" fetch --quiet origin || fetch_rc=$?
+  [[ "$fetch_rc" -eq 0 ]] ||
+    fail "git fetch failed ($fetch_rc) in the fixture, so release-check would die there instead of at the branch under test"
+  case "$TREE" in
+    clean)
+      [[ "$rc" -eq 0 && -z "$out" ]] ||
+        fail "the 'clean' tree is not clean (status rc=$rc): $out" ;;
+    dirty)
+      [[ "$rc" -eq 0 && -n "$out" ]] ||
+        fail "the 'dirty' tree does not report as dirty (status rc=$rc): $out" ;;
+    status-broken)
+      [[ "$rc" -ne 0 ]] ||
+        fail "the 'status-broken' tree answered its status (rc=0), so nothing is broken and the run would prove nothing: $out"
+      [[ -z "$out" ]] ||
+        fail "the 'status-broken' tree printed on stdout, so the caller could still read a verdict: $out" ;;
+  esac
+}
+
+# write_cictl <fixture> <listing> <exit-code> <diagnostic:yes|no> — the cictl the script
+# under test will find.
+#
+# The DIAGNOSTIC switch is the point of this parameter. A stub that always prints something
+# on failure supplies the word "cictl" itself, which then satisfies any assertion that the
+# TIER named the tool — the assertion reads the fixture's own noise and never the code under
+# test. A tool that fails while printing nothing is both a real case (`cictl affected` can
+# die with an empty diagnostic) and the ONLY stimulus under which "the tier said which tool
+# failed" can be measured at all.
 write_cictl() {
-  local fix="$1" listing="$2" code="$3"
+  local fix="$1" listing="$2" code="$3" diagnostic="$4"
   {
     cat <<'HEAD'
 #!/usr/bin/env bash
@@ -254,19 +335,40 @@ set -Eeuo pipefail
 HEAD
     printf 'LISTING=%q\n' "$listing"
     printf 'CODE=%s\n' "$code"
+    printf 'DIAGNOSTIC=%q\n' "$diagnostic"
     cat <<'TAIL'
 if [[ "${1:-}" != "affected" ]]; then
   printf 'cictl: this fixture implements affected only, not %s\n' "${1:-}" >&2
   exit 64
 fi
 [[ -z "$LISTING" ]] || printf '%s\n' "$LISTING"
-if [[ "$CODE" -ne 0 ]]; then
+if [[ "$CODE" -ne 0 && "$DIAGNOSTIC" == "yes" ]]; then
   printf "cictl: fatal: ambiguous argument 'origin/main': unknown revision\n" >&2
 fi
 exit "$CODE"
 TAIL
   } > "$fix/bin/cictl"
   chmod +x "$fix/bin/cictl"
+}
+
+# assert_cictl_is_silent <fixture> measures the stub rather than trusting how it was
+# written: `affected` must exit non-zero having written 0 bytes to stdout AND 0 bytes to
+# stderr. If one byte carrying "cictl" escaped, the test that reads the tier's own
+# diagnostic would be reading the fixture instead, which is the defect this whole stimulus
+# exists to close.
+assert_cictl_is_silent() {
+  local fix="$1" out err rc=0 out_bytes err_bytes
+  # Siblings of the fixture, for the same reason run_verb's log is: nothing this harness
+  # writes may land inside the tree under test.
+  out="${fix}.silence.out"
+  err="${fix}.silence.err"
+  ( PATH="$fix/bin"; cictl affected --base origin/main ) >"$out" 2>"$err" || rc=$?
+  out_bytes="$(wc -c <"$out")"
+  err_bytes="$(wc -c <"$err")"
+  [[ "$rc" -ne 0 ]] ||
+    fail "the 'silent' stimulus exited 0, so there is no failure for the tier to report"
+  [[ "$out_bytes" -eq 0 && "$err_bytes" -eq 0 ]] ||
+    fail "the 'silent' stimulus is not silent (stdout ${out_bytes}B, stderr ${err_bytes}B); a test reading the tier's diagnostic would be reading this instead: $(cat "$out" "$err")"
 }
 
 # install_cictl <fixture> puts the stimulus in place AND proves it: an `absent` stimulus
@@ -277,10 +379,11 @@ install_cictl() {
   local fix="$1" found=0
   case "$CICTL" in
     absent)  rm -f "$fix/bin/cictl" ;;
-    failing) write_cictl "$fix" "" 2 ;;
-    empty)   write_cictl "$fix" "" 0 ;;
-    partial) write_cictl "$fix" "go/alpha" 2 ;;
-    reports) write_cictl "$fix" "$(printf 'go/alpha\ngo/beta')" 0 ;;
+    failing) write_cictl "$fix" "" 2 yes ;;
+    silent)  write_cictl "$fix" "" 2 no ;;
+    empty)   write_cictl "$fix" "" 0 no ;;
+    partial) write_cictl "$fix" "go/alpha" 2 yes ;;
+    reports) write_cictl "$fix" "$(printf 'go/alpha\ngo/beta')" 0 no ;;
     *) die "unknown cictl stimulus: $CICTL" ;;
   esac
   if ( PATH="$fix/bin"; command -v cictl >/dev/null ); then
@@ -293,6 +396,7 @@ install_cictl() {
     [[ "$found" -eq 1 ]] ||
       fail "the '$CICTL' stimulus left no reachable cictl on the fixture PATH, so the run would prove nothing"
   fi
+  [[ "$CICTL" != "silent" ]] || assert_cictl_is_silent "$fix"
 }
 
 # ── the harness ─────────────────────────────────────────────────────────────
@@ -300,12 +404,17 @@ install_cictl() {
 # run_verb <fixture> <verb> runs one tier verb over the fixture and sets OUT, RC and GATED.
 # The fixture PATH REPLACES the harness's, so the only cictl in reach is the stimulus.
 run_verb() {
-  local fix="$1" verb="$2"
+  local fix="$1" verb="$2" log
+  # The log is a SIBLING of the fixture, never a file inside it. A harness artifact written
+  # into the tree is untracked, which makes every tree dirty and takes `release-check`'s
+  # clean case out of reach — the harness would then be supplying the very thing the test
+  # reads. (Measured: with the log inside, the clean-tree test failed on `?? gated.log`.)
+  log="${fix}.gated.log"
   RC=0
-  : > "$fix/gated.log"
-  OUT="$(PATH="$fix/bin" EDEN_TEST_GATED_LOG="$fix/gated.log" \
+  : > "$log"
+  OUT="$(PATH="$fix/bin" EDEN_TEST_GATED_LOG="$log" \
     "$REAL_BASH" "$fix/.ci/ctl.sh" "$verb" 2>&1)" || RC=$?
-  GATED="$(cat "$fix/gated.log")"
+  GATED="$(cat "$log")"
 }
 
 out_has() { grep -Fq -- "$1" <<<"$OUT"; }
@@ -355,10 +464,13 @@ t_a_failing_cictl_fails_the_tier() {
     fail "cictl affected exited 2, and the tier reported an empty affected set instead of a failure (rc=$RC): $OUT"
   [[ "$RC" -ne 0 ]] ||
     fail "cictl affected exited 2 and the tier exited 0; the affected set was never known: $OUT"
-  out_has 'cictl' ||
-    fail "the tier failed without naming the tool that failed: $OUT"
+  # This stub SPEAKS on failure, so both lines below are about PASS-THROUGH — the tool's own
+  # stream reaching the reader — and NEITHER can show that the tier named the tool itself.
+  # That property is measurable only against a stub that says nothing (test 8).
   out_has 'unknown revision' ||
     fail "cictl's own diagnostic never reached the reader; a stream the tier cannot read must not be discarded: $OUT"
+  out_has 'cictl' ||
+    fail "neither the tool's own stream nor the tier's log named cictl anywhere: $OUT"
 }
 
 # 3. The guard against over-fixing, and it is NOT optional. A genuinely empty diff is a
@@ -393,8 +505,11 @@ t_a_partial_listing_that_fails_is_not_a_green_tier() {
     fail "cictl printed 1 project and then exited 2, and the tier exited 0 over a listing it cannot know is complete: $OUT"
   ! out_has 'affected project(s) green' ||
     fail "the tier declared the affected projects green from a listing that died half-way: $OUT"
+  # As in test 2, this stub speaks for itself, so these 2 lines pin PASS-THROUGH only.
+  out_has 'unknown revision' ||
+    fail "cictl's own diagnostic never reached the reader; a stream the tier cannot read must not be discarded: $OUT"
   out_has 'cictl' ||
-    fail "the tier failed without naming the tool that failed: $OUT"
+    fail "neither the tool's own stream nor the tier's log named cictl anywhere: $OUT"
 }
 
 # 5. The class. All 3 tier verbs reach run_phase_gate_over_affected, so all 3 read the same
@@ -463,6 +578,103 @@ t_the_producer_is_not_invoked_where_errexit_is_suppressed() {
     fail "the affected-set producer is invoked where set -e is suppressed, so only its LAST command's status can ever reach the tier: $out"
 }
 
+# 8. The tier's OWN diagnostic, which no other test in this file can see. Every other failing
+# stimulus uses a cictl that prints its own error, and that stderr flows to the same log, so
+# an assertion that "the tier named the tool" is satisfied by the FIXTURE's noise and would
+# stay green if the tier said nothing at all. Here cictl exits non-zero having written 0
+# bytes to either stream (measured, not assumed — see assert_cictl_is_silent), so the words
+# below can only come from the tier. Without them the whole CI log of a red job is the tier's
+# own announcement: nothing naming the tool, nothing saying the affected set was never known.
+t_a_silent_cictl_failure_is_still_explained() {
+  local fix
+  fix="$(new_fixture)"
+  install_cictl "$fix"
+  run_verb "$fix" affected-gate-fast
+  assert_verb_ran affected-gate-fast
+  ! out_has 'no affected projects' ||
+    fail "cictl failed silently, and the tier reported an empty affected set instead (rc=$RC): $OUT"
+  [[ "$RC" -ne 0 ]] ||
+    fail "cictl exited non-zero and the tier exited 0: $OUT"
+  out_has 'cictl' ||
+    fail "the tool failed without a word of its own, and the tier's log never names it, so the reader of this red job cannot tell what failed: $OUT"
+  out_has '[error]' ||
+    fail "the tool failed without a word of its own, and the tier logged no error line at all: $OUT"
+}
+
+# 9. The same class in the OTHER verb this change touched. `git status --porcelain` prints
+# nothing on stdout when it FAILS, so reading its output without its status called a broken
+# answer a clean tree, and release-check reported ready over an uncommitted file. The
+# stimulus is a bad `status.showUntrackedFiles`: status exits 128 printing nothing, while
+# rev-parse and fetch stay healthy, so nothing downstream catches it.
+#
+# 128 exactly, not merely non-zero: the counter-stimulus is the SAME uncommitted file with
+# git able to answer, which is a legitimate refusal at 1. A status coerced to 1 would make
+# "git could not tell me" and "the tree is dirty" the same event to every reader — the same
+# loss of signal as an absent tool coerced away from 127.
+t_a_git_status_that_fails_is_not_a_clean_tree() {
+  local fix
+  fix="$(new_release_fixture)"
+  run_verb "$fix" release-check
+  [[ "$RC" -eq 128 ]] ||
+    fail "git status could not answer and release-check exited $RC, not git's own 128; the tree's cleanliness was never known: $OUT"
+  out_has '[error]' ||
+    fail "git status failed and release-check logged no error of its own: $OUT"
+  ! out_has 'ready' ||
+    fail "release-check reported ready over a tree whose cleanliness it could not read: $OUT"
+}
+
+# 10. The non-regression on the other side of the same branch: a tree that IS dirty must
+# still be refused, and refused as a dirty tree (1), not as an unreadable one.
+t_a_dirty_tree_is_refused() {
+  local fix
+  fix="$(new_release_fixture)"
+  run_verb "$fix" release-check
+  [[ "$RC" -eq 1 ]] ||
+    fail "the tree holds an uncommitted file and release-check exited $RC, not 1: $OUT"
+  out_has 'dirty' ||
+    fail "release-check refused the tree without saying it was dirty: $OUT"
+  ! out_has 'ready' ||
+    fail "release-check reported ready over an uncommitted file: $OUT"
+}
+
+# 11. And the pass. A verb that cannot report ready is as useless as one that always does —
+# the same rule that keeps the empty affected set a clean pass in test 3.
+t_a_clean_tree_on_main_reports_ready() {
+  local fix
+  fix="$(new_release_fixture)"
+  run_verb "$fix" release-check
+  [[ "$RC" -eq 0 ]] ||
+    fail "the tree is committed, on main, and level with origin/main, and release-check exited $RC: $OUT"
+  out_has 'ready' ||
+    fail "release-check passed without reporting ready: $OUT"
+}
+
+# 12. TIER_VERBS says a 4th verb "has to be added here to be covered", and until now nothing
+# made that true: a new verb that read the affected set would simply not be covered by test
+# 5, silently. So the list is CONSERVED against the dispatcher's own behaviour — the verbs
+# are taken from `__verbs` (ask the program, never parse it: the rule .ci/ctl.sh:200 already
+# sets), each is run against a cictl that reports 2 projects, and a verb that GATES one is by
+# definition a consumer of the affected set. That derived set must be exactly TIER_VERBS.
+t_the_tier_verb_list_is_conserved() {
+  local fix verb listed=() gating=() derived expected
+  fix="$(new_fixture)"
+  install_cictl "$fix"
+  mapfile -t listed < <(PATH="$fix/bin" "$REAL_BASH" "$fix/.ci/ctl.sh" __verbs)
+  # A floor of 1: an empty verb list would make the comparison below vacuously equal to an
+  # empty derived set, and report a clean sheet over a dispatcher it never read.
+  [[ "${#listed[@]}" -gt 0 ]] ||
+    fail "the dispatcher listed no verbs at all, so nothing was compared against TIER_VERBS"
+  for verb in "${listed[@]}"; do
+    [[ -n "$verb" ]] || continue
+    run_verb "$fix" "$verb"
+    [[ -z "$GATED" ]] || gating+=("$verb")
+  done
+  derived="$(printf '%s\n' "${gating[@]:-}" | sort)"
+  expected="$(printf '%s\n' "${TIER_VERBS[@]}" | sort)"
+  [[ "$derived" == "$expected" ]] ||
+    fail "the verbs that gate the affected set are not the ones TIER_VERBS covers — derived [$(tr '\n' ' ' <<<"$derived")] vs TIER_VERBS [$(tr '\n' ' ' <<<"$expected")]; a consumer outside that list is a tier this suite never checks"
+}
+
 TESTS=(
   t_a_missing_cictl_fails_the_tier
   t_a_failing_cictl_fails_the_tier
@@ -471,6 +683,11 @@ TESTS=(
   t_every_tier_verb_refuses_a_missing_cictl
   t_a_fault_inside_the_producer_fails_the_tier
   t_the_producer_is_not_invoked_where_errexit_is_suppressed
+  t_a_silent_cictl_failure_is_still_explained
+  t_a_git_status_that_fails_is_not_a_clean_tree
+  t_a_dirty_tree_is_refused
+  t_a_clean_tree_on_main_reports_ready
+  t_the_tier_verb_list_is_conserved
 )
 
 # ── the stimulus tables ─────────────────────────────────────────────────────
@@ -487,6 +704,12 @@ stimulus_for() {
     t_a_fault_inside_the_producer_fails_the_tier)  printf 'reports,fault-before-the-producer' ;;
     # The shape test never runs the script, so which cictl the fixture holds cannot reach it.
     t_the_producer_is_not_invoked_where_errexit_is_suppressed) printf 'absent' ;;
+    t_a_silent_cictl_failure_is_still_explained)   printf 'silent' ;;
+    # release-check reads git, never cictl, so the tree is the whole stimulus.
+    t_a_git_status_that_fails_is_not_a_clean_tree) printf 'status-broken' ;;
+    t_a_dirty_tree_is_refused)                     printf 'dirty' ;;
+    t_a_clean_tree_on_main_reports_ready)          printf 'clean' ;;
+    t_the_tier_verb_list_is_conserved)             printf 'reports' ;;
     *) die "no phase-1 stimulus is declared for $1" ;;
   esac
 }
@@ -509,26 +732,42 @@ counter_for() {
       printf 'reports:no fault is planted, so every command in the producer succeeds' ;;
     t_the_producer_is_not_invoked_where_errexit_is_suppressed)
       printf 'absent,suppressed-call-appended:the suppressed-invocation shape is appended after main' ;;
+    t_a_silent_cictl_failure_is_still_explained)
+      printf 'empty:cictl prints the same nothing and exits 0, so only the STATUS differs' ;;
+    t_a_git_status_that_fails_is_not_a_clean_tree)
+      printf 'dirty:the bad status config is dropped, so git answers and the tree is merely dirty' ;;
+    t_a_dirty_tree_is_refused)
+      printf 'clean:the uncommitted file is not written, so there is nothing to refuse' ;;
+    t_a_clean_tree_on_main_reports_ready)
+      printf 'dirty:one uncommitted file appears, so the tree is no longer releasable' ;;
+    t_the_tier_verb_list_is_conserved)
+      printf 'reports,updatability-gates:a verb outside the list starts gating the affected set' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
 }
 
-# apply <spec> points the next run at the named stimulus. <spec> is
-# <cictl>[,<mutation>][:<the prose the driver prints>].
+# apply <spec> points the next run at the named stimulus. <spec> is a comma-separated list of
+# stimulus tokens, optionally followed by ':' and the prose the driver prints. Each token
+# names one axis — the cictl, the source mutation, the working tree — and every axis not
+# named returns to its neutral value, so a spec states exactly what it changes. An unknown
+# token is a hard error: a silently ignored one would run a test under a stimulus nobody
+# declared.
 apply() {
-  local spec="$1" head
+  local spec="$1" head token
   head="${spec%%:*}"
-  CICTL="${head%%,*}"
+  CICTL="absent"
   MUTATION="none"
-  [[ "$head" != *,* ]] || MUTATION="${head#*,}"
-  case "$CICTL" in
-    absent|failing|empty|partial|reports) ;;
-    *) die "unknown cictl in stimulus spec: $spec" ;;
-  esac
-  case "$MUTATION" in
-    none|fault-before-the-producer|suppressed-call-appended) ;;
-    *) die "unknown mutation in stimulus spec: $spec" ;;
-  esac
+  TREE="clean"
+  local IFS=','
+  for token in $head; do
+    case "$token" in
+      absent|failing|silent|empty|partial|reports)              CICTL="$token" ;;
+      fault-before-the-producer|suppressed-call-appended)       MUTATION="$token" ;;
+      updatability-gates)                                       MUTATION="$token" ;;
+      clean|dirty|status-broken)                                TREE="$token" ;;
+      *) die "unknown stimulus token '$token' in spec: $spec" ;;
+    esac
+  done
 }
 
 # ── the driver ──────────────────────────────────────────────────────────────
