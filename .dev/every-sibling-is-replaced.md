@@ -553,3 +553,91 @@ log from a previous session that no longer exists, the other names no command.
 
 One more phase-2 pass for F1 and F2, so the guard holds for the next library
 rather than only for this tree. Then the pull request.
+
+
+## Phase 12 — both latent gaps closed (`d031cdd`), and a real defect found in the harness
+
+**F1 — the pattern now follows the grammar, and is policed in BOTH directions.**
+Transcribed from `11-naming.md`, reusing `SIBLING_PREFIX` with its dots escaped —
+an unescaped `.` would have let `githubXcom/...` satisfy the arm:
+
+```
+SIBLING_SLUG_PATTERN='[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*'
+```
+
+Two LOAD-TIME assertions fail if the transcription and the rule ever disagree
+either way: it must ACCEPT a slug the rule permits and REJECT one it forbids.
+Proven against the old pattern:
+
+```
+[test] the sibling-failure pattern rejects a slug 11-naming.md permits
+       ('agent-session2'); it has drifted from the grammar it is transcribed from
+```
+
+**F2 — judged, not implemented blindly, and the judgement is the good part.** Plain
+cross-library uniqueness would fire on this tree, because `dependencies` and
+`errors` both legitimately fail on `testify`. The rule shipped instead:
+
+> an anchor may match another red library's error ONLY IF that library records the
+> SAME anchor.
+
+Sharing a defect is not the fault; **recording a different defect from the one you
+match** is. `testify` on both -> identical -> legal. `github.com` on
+`objectstorage`, matching `dependencies`' error whose anchor is
+`github.com/stretchr/testify` -> refused.
+
+The length floor stays for the empty case only, redocumented as the loose proxy it
+is. Stated bound, in the code: with exactly ONE red library the corpus is empty and
+a generic anchor is unpoliced — and the same-class arm still holds there, so the
+worst case remains a drifted different-class reason, never a hidden sibling defect.
+
+**It caught itself reintroducing the class.** Adding the specificity arm broke
+`exempt:wrong-reason`: swapping `errors`' anchor made `dependencies`' anchor
+non-specific, specificity is checked first, so it claimed the failure — and **the
+reason arm would have gone uncovered again, silently, while still scoring
+"proven"**. Re-aimed at `orchestrator`, which shares its defect with nobody, and
+all ten stimuli verified to fire ten distinct arms.
+
+### A REAL DEFECT IN THE HARNESS — filed as task #71
+
+The first full run came back rc=1. It checked the disk before believing the red —
+`No space left on device` — and then found something worse in the log:
+
+```
+mkdir: cannot create directory '.../tree.caUzdC/objectstorage': No space left on device
+```
+
+for FOUR libraries, **while `copy_module_tree` reported SUCCESS**. It is reached
+through `MODULE_TREE="$(mutant_tree ...)" || return 2`, and a `||`-left position
+suppresses errexit all the way down — the same suppression this file already
+documents at lib.sh's phase-gate call site, and the same one `.ci/ctl.sh:74` had.
+
+So the loop counted ITERATIONS rather than successful copies, cleared its `-gt 0`
+floor, and returned a **silently truncated tree**. A scan over three libraries
+believing it read sixteen, reporting a pass.
+
+Fixed: every command carries its own `|| die`, and **the floor is COMPLETENESS,
+not "more than none"**. Proven with a 200k tmpfs `/tmp`:
+
+```
+rc=1  [test] could not copy agentsession/go.sum into /tmp/.../tree.1oIprj (check free space)
+```
+
+The phase-8 hardening also earned its keep during that run: five unbuildable
+stimuli were named individually and the summary still printed.
+
+```
+bash go/_ctl/lib_test.sh   rc=0   188s   21 hold; 20 of 21 proven able to fail
+                                          across 39 counter-stimuli
+bash ./ctl.sh validate     rc=0   17 project records hold; 3 mutants caught
+shellcheck                 rc=0
+```
+
+188s against the ~115s I quoted: the VM is shared and under emulation. An honest
+measurement, not a fast green.
+
+## Next
+
+Focused verification of the two new arms — this branch already passed a full
+adversarial pass on correctness, and these changes close the two gaps that pass
+named. Then the pull request.
