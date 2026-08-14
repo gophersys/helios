@@ -362,14 +362,37 @@ statement, not an unguarded deliverable — filed for Mateo, branch proceeds.
 
 **Per-label floors (limitation 2)** — still unpinned, still needs a decision.
 
-## Still open, genuinely
+## A FALSE CLAIM I CARRIED — corrected here
 
-CI wiring: nothing runs these 13 cases automatically — `validate.yml` is not the
-test author's file. This is the SAME gap that let the queue verb ship untested in
-the first place, and it must be closed before merge, by the implementer or by me.
+Phase 4 said "nothing runs these 13 cases automatically" and I repeated it in three
+briefs. **It is FALSE at HEAD.** The gate step has existed since the FIRST branch
+commit `79d7fe3` and I never read the file to check:
+
+```
+.github/workflows/validate.yml:72   - name: runner-queue rule — fixture tests
+                              :73     run: bash scripts/test-verify-runner-queue.sh
+on: pull_request  (no paths filter, so reached on every PR)
+```
+
+The claim came from the audit, which ran on cloned copies, and I propagated it
+without opening `validate.yml` — the exact "assert, don't prove" failure I have
+held every agent to tonight. The CI-wiring implementer caught it by reading the
+file, and proved the properties empirically rather than trusting it:
+
+```
+control (unmodified copy)      cases=13  rc=0
+outlier neutralised            cases=13 assertion-failures=2  rc=1  gate RED
+gate-step wrapper, real tree   step_rc=0  gate GREEN
+```
+
+The step is a single unpiped command with no `|| true` / `2>/dev/null` /
+`continue-on-error`, so the harness's non-zero propagates step -> job -> gate. The
+fixture path needs no network and no credentials (`gh` is only a `command -v`
+presence check). So the "last thing before merge" was already done, and proven.
 
 ## Next
 
-Final verification. Then the implementer wires the suite into `validate.yml`, then
-the pull request. This branch is step 9 of the audit's landing order and it must
-land BEFORE mini-buildx — which is blocked on the security decision anyway.
+Final adversarial verification of the whole branch — it has never had a focused
+/dev verifier pass on its final state (it was built ad-hoc before the audit gave
+it one). Then the pull request. Step 9 of the audit's landing order; lands BEFORE
+mini-buildx, which is blocked on the security decision regardless.
