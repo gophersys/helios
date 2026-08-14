@@ -1,6 +1,6 @@
 # deep-craft
 
-phase:    pr
+phase:    submit
 repo:     gophersys/dense-ui
 branch:   feat/deep-craft
 worktree: ~/code/.worktrees/dense-ui-deep-craft
@@ -480,5 +480,10 @@ real-chrome pin. Landed: 168 passed rc=0, all gates green, operator
 clabel/num delta -0.0006 (was -0.62/-0.60 on the fleet), seed caught "at
 16px" with margins 40.23px mac / 5.27px CI = 10-80x the band.
 
-## Next
-Fleet verdict on the canonical-size round; then the final stop.
+## Fleet verdict — GREEN, proven ran
+gates pass 5m15s (log shows the suite executing: geometry audits, score
+with failures:[] across targets, ratio rows PASS); review pass (third
+round; round-1 verdict comment: APPROVE, independently confirming the
+three defect fixes). Phase 8: awaiting Mateo's merge word. On approval:
+delete this state file in the last commit, PROVE it gone from the merge
+target, merge with a merge commit, remove the worktree.
