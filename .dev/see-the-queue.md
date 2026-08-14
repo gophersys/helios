@@ -1,6 +1,6 @@
 # see-the-queue
 
-phase:    fix — audit returned 8 findings
+phase:    verify
 repo:     gophersys/infrastructure
 branch:   ci/see-the-queue
 worktree: ~/code/.worktrees/infra-queue
@@ -301,3 +301,75 @@ writing the F1 case.
 
 Test author: the F1 case (the seam now exists), the `[21, 28]` header correction,
 the 16s cold start I decided, and a judgement on the malformed-fixture hole.
+
+
+## Phase 4 — F1 CLOSED, the mutant dies (`5969c90`)
+
+```
+MUTATED line 295 (JOBS_SAMPLE -> JOBS_WINDOW):
+  the_floor_is_repo_wide_and_the_window_is_not   exit 0 want 1, "dispatch floor is 31s, want at most 10s"
+  changing_the_window_does_not_move_the_floor    no line matched /sample of 28/
+  MUTANT-rc=1
+RESTORED: 13/13, rc=0
+```
+
+Two cases, and the second catches the mutation through SAMPLE SIZE alone while its
+own verdict stays correct — the independent property, and why two cases beat one.
+The fixture reproduces the implementer's demonstration exactly: floor 3s / sample
+28 / alarm 9, versus window-only 31s / 8 / 93.
+
+**F4 (orphan run_id) — closed for EVERY fixture, not per-case.** A preflight over
+the whole testdata directory, so it covers fixtures nobody has written yet:
+
+```
+repo-wide-floor.json has job(s) whose run_id is not in its runs index: 32200009999
+  Such a job is dropped from the window in silence. Add the run, or fix the id.
+1 malformed fixture(s). No case was run.   rc=2
+```
+
+What it prevents, measured: `checked=19` instead of `checked=20`, no message,
+rc=0. A green run that silently measured 19 of 20 jobs — the truncated-corpus
+class (task #71) in the queue suite.
+
+### The band moved AGAIN, and the reason is the durable lesson
+
+```
+FLOOR_PERCENTILE [20, 28]     ALARM_FACTOR [2, 9]
+```
+
+`[21,28]` was right for the tree at that moment. The 16s cold start grew
+warm-and-cold 25 -> 26 jobs, which changed `ceil(n*p/100)`, and the edge returned
+to 20. K's ceiling dropped 20 -> 9 because the new fixture pairs a 3s floor with a
+30s wait. **Both numbers were correct for their own tree** — which is why "sweep
+after every fixture change" is now an instruction in the header, not a note.
+
+**A defect it INTRODUCED and the sweep caught:** the 16s job made
+`known_limitation` the sole case rejecting p=20 — the exact F2 veto defect I had
+it remove, reappearing through an unrelated fixture edit. Fixed by moving that
+fixture to 85% contended so the mechanism holds across the whole band. Verified:
+no sole vetoes remain at any rejected value. Review would not have caught this; the
+sweep did.
+
+## Two items I am NOT sending back — filed, not fixed (Mateo: land, do not perfect)
+
+**The 16s cold start does NOT exclude K=2.** I expected it to; measured, it does
+not — 16 < the 18s alarm K=2 gives, so it passes with 2s to spare. Rejecting K=2
+would mean asserting a HEADROOM POLICY rather than measuring evidence, which is a
+decision, not a test. **The shipped K=3 gives 11s of headroom against the 16s
+worst dispatch**, so the deliverable is sound; the band merely admits a thin value
+nobody shipped. The 2s margin is now VISIBLE in the fixture table. Not a false
+statement, not an unguarded deliverable — filed for Mateo, branch proceeds.
+
+**Per-label floors (limitation 2)** — still unpinned, still needs a decision.
+
+## Still open, genuinely
+
+CI wiring: nothing runs these 13 cases automatically — `validate.yml` is not the
+test author's file. This is the SAME gap that let the queue verb ship untested in
+the first place, and it must be closed before merge, by the implementer or by me.
+
+## Next
+
+Final verification. Then the implementer wires the suite into `validate.yml`, then
+the pull request. This branch is step 9 of the audit's landing order and it must
+land BEFORE mini-buildx — which is blocked on the security decision anyway.
