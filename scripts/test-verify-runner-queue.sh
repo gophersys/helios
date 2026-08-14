@@ -61,52 +61,64 @@
 #       sample nor the verdicts. A job still in flight is in the floor sample —
 #       its queue is already final — but gets no verdict, because it has no
 #       execution yet.
+#   C8  the floor is measured over every workflow in the window; the verdicts
+#       cover the requested workflow alone. Naming another workflow changes
+#       WHICH jobs are judged and nothing about the level they face.
 #
 # THE ADMISSIBLE BAND, MEASURED BY SWEEP AND NOT DERIVED
 # Both constants of the rule were swept against these cases, changing one token
-# of the script at a time and nothing else:
+# of the script at a time and nothing else. Re-measure after any fixture change:
+# every number here moved at least once when a fixture grew.
 #
 #   FLOOR_PERCENTILE   admissible [20, 28], shipped 25
 #     19 and below  estimator_clears_the_warm_start_cluster fails: the warm
 #                   cluster leaks into the floor and healthy jobs alarm.
 #     29 and above  estimator_is_a_floor_not_a_median fails: the floor climbs
 #                   into the contended cluster.
-#   ALARM_FACTOR       admissible [2, 20], shipped 3
+#   ALARM_FACTOR       admissible [2, 9], shipped 3
 #     1             3 cases fail, all of them false fires on healthy jobs.
-#     21 and above  estimator_is_a_floor_not_a_median fails.
+#     10 and above  the_floor_is_repo_wide_and_the_window_is_not fails: a 3 s
+#                   floor and a 30 s wait leave no room above 9.
 #
-# An earlier version of this header claimed K from 1.4 to 20.8, and the commit
-# message of f579be5 claimed 1.4 to 27. Both were arithmetic on 1 fixture rather
-# than a sweep, and both were wrong: K=1.4 and K=27 are red. Sweep, do not
-# derive. The commit message cannot be corrected and stands wrong in the log.
+# THE LOWER EDGE OF K IS EVIDENCE, NOT COMFORT. The worst no-contention queue
+# measured on this pool is 16 s and `slowest-cold-start` carries it. At K=2 the
+# alarm sits at 18 s, so that job passes with 2 s to spare — thin, but it passes,
+# and nothing here rejects K=2. To rule it out is to assert a headroom policy,
+# which is a decision and not a measurement. K=3 gives 27 s against 16 s.
 #
-# WHAT NO CASE HERE CAN SEE: THE REPO-WIDE SAMPLE
+# Two earlier claims in this header were arithmetic on 1 fixture rather than a
+# sweep, and both were wrong: K from 1.4 to 20.8 here, and 1.4 to 27 in the
+# commit body of f579be5. Sweep, do not derive. That commit body cannot be
+# corrected and stands wrong in the log.
+#
+# THE REPO-WIDE SAMPLE, AND HOW IT CAME TO BE TESTED
 # The headline of 79d7fe3 is that the floor comes from EVERY workflow in the
-# window while the verdicts stay on the requested workflow. NOTHING BELOW TESTS
-# THAT. Change 1 word — the sample loop reads `$JOBS_WINDOW` instead of
-# `$JOBS_SAMPLE` — and all cases here stay green, while the live answer moves
+# window while the verdicts stay on the requested workflow. For 2 commits
+# NOTHING tested it: reading `$JOBS_WINDOW` instead of `$JOBS_SAMPLE` in the
+# floor loop kept all 11 cases of the time green, while the live answer moved
 # from a 9 s floor over 107 jobs to a 7 s floor over 18.
 #
-# This is a property of the seam, not a missing fixture. On the fixture path the
-# script does `cp "$JOBS_SAMPLE" "$JOBS_WINDOW"`, so the 2 files are
-# byte-identical for every fixture — measured, with cmp, on all of them. The
-# mutation swaps 2 identical files, so NO fixture content can distinguish it.
-# The split happens live on `run.path` from the RUNS endpoint, and a jobs-API
-# response carries no run path, so the fixture cannot express "these jobs are
-# from another workflow" at all.
+# It was not a missing fixture. The fixture path did `cp "$JOBS_SAMPLE"
+# "$JOBS_WINDOW"`, so the 2 files were byte-identical for every fixture —
+# measured with cmp on all of them — and the mutation swapped 2 identical files.
+# No fixture CONTENT could distinguish it. The seam had to grow first, and it
+# did: a fixture may now carry a runs index beside its jobs,
+# `{"runs":[{"id":..,"path":..}], "jobs":[..]}`, split by run_id through the
+# same `case` pattern the live path uses. A bare jobs-API response has no index
+# and takes the old copy, so every earlier fixture still works unchanged.
 #
-# To close it the seam has to grow, and that is the implementer's change, not a
-# test file's:
-#   preferred  let the fixture carry the runs index beside the jobs, for example
-#              `{"runs":[{"id":...,"path":".github/workflows/validate.yml"}],
-#                "jobs":[...]}`, and split on run_id -> path. This mirrors the
-#              live path exactly, keeping run.path as the only split key.
-#   cheaper    read `.workflow_name` from each job and match it against the
-#              workflow argument on the fixture path. It works, but the fixture
-#              path and the live path would then split on different fields, and
-#              the 1-extractor rule in the script header exists to stop that.
-# With either, the case is: 1 fixture whose repo-wide quartile and
-# requested-workflow quartile differ enough to move a verdict.
+# `the_floor_is_repo_wide_and_the_window_is_not` kills that mutant now, and
+# `changing_the_window_does_not_move_the_floor` pins the other half: the floor
+# is the same 3 s whichever workflow is asked for. The second one catches the
+# mutation through the SAMPLE SIZE alone, because its own verdict stays correct
+# under it — a reminder that an exit code is the weakest thing a case can check.
+#
+# THE MISTAKE A HAND-WRITTEN RUNS INDEX INVITES: a job whose run_id is absent
+# from the index is dropped from the window in silence and still feeds the
+# floor. Measured on a fixture with 1 digit changed: `checked=19` instead of
+# `checked=20`, no message, exit 0. The preflight below rejects every fixture
+# with an orphaned run_id before any case runs, so the mistake cannot become a
+# green case that measures less than it claims.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -126,6 +138,8 @@ estimator_clears_the_warm_start_cluster
 known_limitation_quartile_rises_when_most_jobs_wait
 a_skipped_job_leaves_the_sample_and_the_verdicts
 a_job_in_flight_feeds_the_floor_but_gets_no_verdict
+the_floor_is_repo_wide_and_the_window_is_not
+changing_the_window_does_not_move_the_floor
 "
 
 # A missing tool is a failure, never a skip. The subject needs both, and it
@@ -141,6 +155,34 @@ if [ -n "$missing" ]; then
 fi
 if [ ! -x "$SUT" ] && [ ! -f "$SUT" ]; then
   echo "test-verify-runner-queue: subject not found: $SUT" >&2
+  exit 2
+fi
+
+# EVERY fixture is checked for 1 authoring mistake before any case runs. When a
+# fixture carries a runs index, a job whose run_id is absent from that index is
+# dropped from the window WITHOUT a word, while it still feeds the floor. The
+# case above it would then measure a smaller window than it claims and stay
+# green, which is the failure mode this whole suite exists to prevent. The guard
+# lives here rather than in 1 case, so it covers every fixture anybody adds
+# later. It is a harness error, not an assertion: it stops the run.
+orphans=0
+for fixture in "$DATA"/*.json; do
+  [ -f "$fixture" ] || continue
+  orphan_ids="$(jq -r '
+    if (.runs // []) | length == 0 then empty
+    else (.runs | map(.id)) as $known
+      | .jobs[] | select((.run_id as $i | $known | index($i)) == null)
+      | "\(.run_id) \(.name)"
+    end' "$fixture" | sort -u)"
+  if [ -n "$orphan_ids" ]; then
+    echo "test-verify-runner-queue: ${fixture##*/} has job(s) whose run_id is not in its runs index:" >&2
+    printf '%s\n' "$orphan_ids" | sed 's/^/  /' >&2
+    echo "  Such a job is dropped from the window in silence. Add the run, or fix the id." >&2
+    orphans=$((orphans + 1))
+  fi
+done
+if [ "$orphans" -gt 0 ]; then
+  echo "test-verify-runner-queue: $orphans malformed fixture(s). No case was run." >&2
   exit 2
 fi
 
@@ -162,13 +204,18 @@ bad() {
 # substitution carries that command's status, and nothing may run between the
 # two lines. A pipeline would report the status of its LAST stage instead, and
 # that misreading has produced 2 false findings in this repository.
+# Any argument after the fixture name is passed to the subject, so a case can
+# name the workflow whose jobs it wants verdicts on. The subject's signature is
+# [repo] [workflow] [runs], so naming a workflow means naming a repo first, even
+# though the fixture path never calls the API.
 run_fixture() {
   local fixture="$DATA/$1.json"
+  shift
   if [ ! -f "$fixture" ]; then
     echo "test-verify-runner-queue: fixture missing: $fixture" >&2
     exit 2
   fi
-  out="$(RUNNER_QUEUE_FIXTURE="$fixture" bash "$SUT" 2>&1)"
+  out="$(RUNNER_QUEUE_FIXTURE="$fixture" bash "$SUT" "$@" 2>&1)"
   rc=$?
   out="$(printf '%s\n' "$out" | sed "s/${ESC}\[[0-9;]*m//g")"
 }
@@ -367,10 +414,17 @@ test_estimator_clears_the_warm_start_cluster() {
 # 8. A KNOWN LIMITATION, WRITTEN DOWN AS A RUNNING CASE. Limitation 3 in the
 # header of verify-runner-queue.sh: when more than 3 of 4 jobs in the window are
 # contended, the lower quartile lands INSIDE the contended cluster and the alarm
-# goes quiet. This window is 16 of 20, which is 80%.
+# goes quiet. This window is 17 of 20, which is 85%.
+#
+# 85% and not the 80% it held first. At 80% the 4th job was healthy, and
+# `ceil(n*p/100)` selects rank 4 at p=20, so the mechanism held at the shipped
+# quartile and not one point below it — which made this case the ONLY thing
+# rejecting p=20, for a reason unrelated to its purpose. That is the same veto
+# defect this case was rewritten once to remove. A case that documents a
+# phenomenon must sit inside it, never on its edge.
 #
 # READ THIS BEFORE YOU CHANGE THE CASE. It asserts what the rule DOES today, not
-# what it SHOULD do. A window where 16 jobs waited between 400 s and 900 s is
+# what it SHOULD do. A window where 17 jobs waited between 400 s and 945 s is
 # saturated, and the quiet is the price of a quartile. When a wider sample lands
 # this case goes red. REWRITE it to assert the alarm. Do not delete it.
 #
@@ -389,7 +443,7 @@ test_estimator_clears_the_warm_start_cluster() {
 #                 a job that waited 400 s against a true 10 s floor is invisible
 #                 here whatever the factor is. That is the limitation, stated in
 #                 a way no sensitivity choice can satisfy or veto.
-#   NOT asserted  how many of the other 15 are caught. That is the factor's
+#   NOT asserted  how many of the other 16 are caught. That is the factor's
 #                 business, and this case has no opinion on it.
 #
 # It also prices the estimator honestly. The minimum, which case 7 rejects,
@@ -399,7 +453,7 @@ test_known_limitation_quartile_rises_when_most_jobs_wait() {
   run_fixture mostly-contended
   expect_verdict_rc "a window of 20 finished jobs must produce a verdict"
   expect_floor_at_least 300 \
-    "the mechanism: 80% contended drags the quartile into the contended cluster"
+    "the mechanism: 85% contended drags the quartile into the contended cluster"
   expect_no_line 'FAIL[[:space:]]+[0-9]{6,}[[:space:]]+contended-1[[:space:]]' \
     "the limitation: a 400 s wait sits below its own inflated floor and escapes"
 }
@@ -447,6 +501,49 @@ test_a_job_in_flight_feeds_the_floor_but_gets_no_verdict() {
   expect_line 'checked=8' "and none of them as checked"
   expect_no_line '(PASS|FAIL)[[:space:]]+[0-9]{6,}[[:space:]]+in-flight-' \
     "a job with no execution yet cannot be judged against its queue"
+}
+
+# 11. THE HEADLINE OF THE WHOLE BRANCH: the floor is repo-wide, the verdicts are
+# not. 20 validate jobs were served in 3 s and 8 pr-review jobs waited 30 s and
+# more. The pool's dispatch cost is 3 s, and it is visible ONLY in the jobs of
+# the other workflow.
+#   sample = all 28 jobs     floor  3s -> alarm  9s -> the 8 waits fire
+#   sample = the 8 in window floor 31s -> alarm 93s -> silence
+# The second reading is exactly what the floor loop produces if it reads
+# `$JOBS_WINDOW` instead of `$JOBS_SAMPLE`. Until this fixture existed that
+# 1-word change kept all 11 other cases green while the live floor moved from
+# 9 s over 107 jobs to 7 s over 18.
+#
+# `checked=8` is not decoration. A job whose run_id is missing from the runs
+# index is dropped from the window in silence, so the count is what proves the
+# window is the whole workflow and not a part of it.
+test_the_floor_is_repo_wide_and_the_window_is_not() {
+  run_fixture repo-wide-floor
+  expect_rc 1 "8 jobs waited 30 s and more against a 3 s pool floor (C1)"
+  expect_line 'sample of 28' \
+    "the floor must come from all 28 jobs, not from the 8 in the window"
+  expect_floor_at_most 10 \
+    "the pool's dispatch cost is 3 s and only the other workflow shows it"
+  expect_line 'FAIL.*review-1[[:space:]]' "the mildest wait must still fire"
+  expect_line 'FAIL.*review-8' "and so must the worst"
+  expect_line 'checked=8' "the window is the 4 pr-review runs, all of them"
+}
+
+# 12. The same fixture, the other workflow named. This is a DIFFERENT property
+# from case 11: not "the mutant dies" but "the floor does not move when the
+# window does". The sample is the pool, so naming another workflow must change
+# WHICH jobs are judged and nothing about the level they are judged against.
+# A floor that followed the window would report 3 s here and 31 s in case 11,
+# and both cases would still pass on their exit codes alone.
+test_changing_the_window_does_not_move_the_floor() {
+  run_fixture repo-wide-floor gophersys/infrastructure validate.yml
+  expect_rc 0 "a 3 s queue against a 3 s floor is dispatch, not contention (C1)"
+  expect_line 'sample of 28' "the sample is the pool, whichever window is asked for"
+  expect_floor_at_most 10 "the floor is the same 3 s it was in case 11"
+  expect_line 'checked=20' "the window is now the 5 validate runs"
+  expect_no_line 'FAIL[[:space:]]+[0-9]{6,}' "none of the 20 waited for anybody"
+  expect_no_line '(PASS|FAIL)[[:space:]]+[0-9]{6,}[[:space:]]+review-' \
+    "no pr-review job may be judged when validate.yml was asked for"
 }
 
 # -------- runner --------
