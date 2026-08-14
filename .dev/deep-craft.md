@@ -5,7 +5,7 @@ repo:     gophersys/dense-ui
 branch:   feat/deep-craft
 worktree: ~/code/.worktrees/dense-ui-deep-craft
 pr:       -
-attempt:  0/2
+attempt:  1/2
 
 ## Goal
 A full-depth improvement pass over the dense-ui system — tooling, accuracy,
@@ -261,6 +261,34 @@ grep -q decide the params gate under pipefail (SIGPIPE 141 hazard).
 - Declined for now: extending the marker sweep to LAYOUT-MATH's axiom list
   (§8 is the scoped home; follow-up if wanted).
 
+## W2 green attempt 1 — implementation complete, contract defects found
+Implementer built everything pinned (27/27 axes tests green) and STOPPED on
+three measured findings instead of papering over:
+1. Test-vs-test conflict: budget composed at floor 3.0 unconditionally
+   fails any <3-control panel by construction; three existing clean
+   fixtures (1 dial + 1 value) went red.
+2. The census population is wrong for the budget: ink centres never
+   coincide, so telemetry = 6 controls / 23 axes = 0.26; operator 0.69;
+   EVERY panel would need an override below 1.0 — the rule dying in config.
+3. Integer edges vs reality: telemetry/bench = 10 genuine .5 dial edges
+   (28px dials margin-auto centred in odd solved boxes — a REAL parity
+   defect, the feature working); operator = 110 fractional edges incl. 54
+   dial edges + line-height/autoscale-derived tops — needs measured
+   investigation of parity semantics (odd box at .5 centre IS
+   integer-edged), not blanket assertions.
+Also: three older corpus seeds now carry a second (axis) violation; §8
+A5/A9 left unmarked because their constants DIFFER from the research text
+(3px vs 2.0 min_sibling_gap; 1.50 vs 1.45) — an honest refusal worth its
+own look later.
+PHASE-2 RETURN directives (orchestrator): (a) budget numerator AND
+denominator over rules.rhythm_kinds — controls per control-axis; Ω may
+stay whole-panel as report; (b) budget silent when controls < floor
+(ratio uninformative), discriminating cases re-pinned at >=3 controls;
+(c) probe-side integer-edge check scoped by a declared population
+(rules.snap_kinds default ⊆ authored/solver-emitted kinds), parity-aware
+semantics investigated by MEASUREMENT on operator before pinning;
+telemetry/bench dial parity stays caught (geometry fix expected there).
+
 ## Next
-W2 green (implementer): demos may need declared axis-budget overrides with
-cited reasons — legal; tolerances are not.
+Test author revises the W2 pins per the three directives; implementer
+follows; then W3.
