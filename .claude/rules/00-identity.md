@@ -192,6 +192,16 @@ The CI workflow enforces the same policy. It sets up buildx, builds with
 against the SHA tag it just pushed. It sets up no QEMU: emulation is what a
 cross-platform build needed, and there is no cross-platform build.
 
+The `base-runner` job builds **twice**, and the order is the point. The first
+build sets `push: false` + `load: true`, so the image goes into the local image
+store and not to ghcr.io. The smoke test then asserts the content of that loaded
+image. Only then does the second build push, from the cache the first one wrote.
+A push cannot be undone and no job here rolls one back, so a check that runs
+after the push reports a broken image but cannot stop one from reaching a
+consumer. `_ctl/tests/publish-order.test.sh` holds that order in the pull request
+gate. `load: true` takes 1 platform, so read the arm64 note at the top of that
+test file before you widen `SANCTIONED_PLATFORMS`.
+
 ## Dev-in-container expectation
 
 Use these images for **development from inside the container**. They are not

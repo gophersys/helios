@@ -48,8 +48,12 @@ bash .ci/ctl.sh <verb>
 is the `base-runner` job:
 
 ```
-bash .ci/smoke.sh base-runner
+bash .ci/smoke.sh base-runner base-runner:smoke
 ```
+
+That job builds the image with `push: false` + `load: true` first, so the ref
+above is the LOADED local image and the check runs **before** anything reaches
+ghcr.io. The publish step comes after it, from the same cache.
 
 So `base`, `flutter`, `zephyr` and `zephyr-devbox` publish with nothing that
 asserts their content. Each of them inherits its tools from `base`, and the
