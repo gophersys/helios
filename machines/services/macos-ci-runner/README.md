@@ -57,41 +57,45 @@ Do not depend on any item below. None of them is done.
 A container builder WAS on this list. It is not any more: Docker Desktop is
 installed and it serves builds. Read the next section.
 
-## The arm64 buildx node
+## The arm64 buildkitd node
 
 The cluster uses this machine to build `linux/arm64` images natively. The k3s
 nodes are amd64, so they must emulate arm64, and emulation is slow. Measured on
 2026-08-13, same Dockerfile, images pulled first, `--no-cache`: arm64 native
 4.02s against amd64 emulated 13.8s, so 3.44 times faster.
 
-A build in the cluster reaches this machine with `docker -H ssh://`. It never
-becomes an Actions runner. The two paths are independent. The design and the
-workflow step are in `docs/ci-substrate.md`.
+A build in the cluster reaches this machine through a standalone `buildkitd`
+container, over mutual TLS. The machine never becomes an Actions runner. The two
+paths are independent. The design and the workflow step are in
+`docs/ci-substrate.md`; the setup is reproducible from `buildkitd-runbook.md` in
+this directory.
 
-Docker Desktop answers as server `28.1.1`, `arch=arm64`, `os=linux` (measured
-2026-08-13).
+`buildkitd` runs as the container `eden-buildkitd`. It listens on
+`tcp://10.168.0.92:1234` and exposes the BUILD API only — no Docker Engine API.
+It survives a reboot with `--restart unless-stopped` and the Docker-autostart
+chain below.
 
-### Two keys, and they are not the same key
+### The credential — a client certificate, over mTLS
 
-| key | restriction | used by |
-| --- | --- | --- |
-| `~/.ssh/macos-ci-runner` | none | `verify-access`, and any human task |
-| `~/.ssh/macos-buildx` | DIAL-ONLY | the `arc-org` runner pods only |
+`buildkitd` authenticates its clients with mutual TLS. The mini holds the server
+certificate; the cluster holds a client certificate, as the three vault items
+`shared/eden/buildkit-client-{ca,cert,key}`. Proven on 2026-08-14:
 
-The buildx key is installed in `~/.ssh/authorized_keys` as:
+| test | result |
+| --- | --- |
+| a native arm64 build through the node | exit 0, 9.3s |
+| a client with no certificate | refused — mTLS enforced |
+| `docker -H tcp://10.168.0.92:1234` | error — no Engine API on the port |
+| `docker run --privileged --pid=host` | error, NOT root — the escape is dead |
+| `docker buildx build --allow security.insecure` | refused — the entitlement is not allowed |
 
-```
-command="/Users/mateo/bin/docker system dial-stdio",restrict ssh-ed25519 ...
-```
+The client can submit a sandboxed build and nothing else. This replaces an SSH
+key that reached the Docker Engine API — root on this machine's Docker VM. That
+key is REVOKED from `~/.ssh/authorized_keys`, and its vault item
+`shared/eden/macos-buildx-key` is deleted.
 
-The forced command gives no shell, no file read and no port forward, and it still
-serves `docker -H ssh://`. All four results were measured on 2026-08-13. The
-cluster holds only this key, as the vault item `shared/eden/macos-buildx-key`.
-The admin key never enters the cluster.
-
-The restriction bounds ssh. It does not bound Docker: the dial exposes the whole
-Docker API of this machine, and a Docker API gives root on its host through a
-privileged container. Keep the `arc-org` pool closed to public repositories.
+The admin key `~/.ssh/macos-ci-runner` is a different key. It stays unrestricted,
+`verify-access` uses it, and it never enters the cluster.
 
 ### Three things are necessary after a reboot
 

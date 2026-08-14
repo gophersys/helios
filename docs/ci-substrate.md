@@ -227,7 +227,7 @@ The reviewer is not a gate. It cannot block a merge, because branch protection i
 not available on this plan (see debt-register D29). Its verdict is advice to the
 author, and the loop is bounded at 2 rounds.
 
-## The native arm64 builder — the Mac mini as a buildx node
+## The native arm64 builder — the Mac mini as a buildkitd node
 
 `arc-org` is amd64. It builds a `linux/arm64` image with QEMU emulation, and
 emulation is slow. The Mac mini is arm64, so it builds the same image natively.
@@ -240,9 +240,9 @@ Measured on 2026-08-13. The same Dockerfile, the images pulled first,
 | `linux/arm64` | native, on the mini | 4.01s / 4.02s / 4.02s |
 | `linux/amd64` | emulated | 14.05s / 13.65s / 13.74s |
 
-That is 3.44 times faster. A build sent through the remote node takes 3.25s. The
-build context transfers at approximately 100 MB/s, so a real context costs 1 to 2
-seconds.
+That is 3.44 times faster. Measured on 2026-08-14, a native arm64 build sent
+through the mini's buildkitd over mTLS took 9.3s end to end. The build context
+transfers at approximately 100 MB/s, so a real context costs 1 to 2 seconds.
 
 **The mini is a buildx NODE, not a pool.** A job keeps `runs-on: arc-org`. Only
 the arm64 part of the image build leaves the pod. This is why the `arc-arm64` row
@@ -251,26 +251,41 @@ arm64 natively.
 
 ### The credential
 
-The pool mounts the key as a file at `/etc/buildx-ssh/macos-buildx`, mode 0400.
-The manifests are `40-macos-buildx-key-externalsecret.yaml` (the vault link) and
+The pool mounts three PEM files at `/etc/buildkit-certs/` — `ca.pem`, `cert.pem`
+and `key.pem` — mode 0400. The manifests are
+`40-buildkit-client-certs-externalsecret.yaml` (the vault link) and
 `app-arc-runners-org.yaml` (the volume). Read the comments in both before you
-change either one. Three facts are not visible in the YAML:
+change either one.
 
-1. **The key is DIAL-ONLY.** On the mini it is installed as
-   `command="/Users/mateo/bin/docker system dial-stdio",restrict`. It gives no
-   shell, no file read and no port forward, and it still serves
-   `docker -H ssh://`. All four results were measured on 2026-08-13. An
-   unrestricted key on this pool would give every build a shell on the mini,
-   because every repository in the organization shares the pool.
-2. **The bound is on ssh, not on Docker.** The dial still exposes the whole
-   Docker API of the mini, and a Docker API gives root on its host through a
-   privileged container. So the pool must stay closed to public repositories. It
-   already is; see `docs/ci-runners.md`.
-3. **The admin key `~/.ssh/macos-ci-runner` is a different key.** It stays
-   unrestricted, `verify-access` uses it, and it never enters the cluster.
+**The security model — the BUILD API only, over mTLS.** The mini runs a
+standalone `buildkitd` container that listens on `tcp://10.168.0.92:1234`. It
+exposes the build API and never the Docker Engine API, and mTLS is enforced.
+Proven on the mini on 2026-08-14:
 
-`bash ctl.sh verify-buildx-key` asserts that the key reaches the pod as a file
-that ssh accepts. It reads manifests only, so CI runs it on every pull request.
+| test | result |
+| --- | --- |
+| a native arm64 build through the node | exit 0, 9.3s |
+| a client with no certificate | refused — mTLS enforced |
+| `docker -H tcp://10.168.0.92:1234` | error — no Engine API on the port |
+| `docker run --privileged --pid=host` through the port | error, NOT root — the escape is dead |
+| `docker buildx build --allow security.insecure` | refused — the entitlement is not allowed |
+
+The client can do one thing: submit a sandboxed build. This replaces an SSH key
+that reached the Docker Engine API, which is root on the mini's VM (task #66). The
+old vault item `shared/eden/macos-buildx-key` is deleted and the SSH key is
+revoked.
+
+**Why arc-org is acceptable now.** The certificate reaches every job on the
+shared `arc-org` pool, but it grants only a build. The pool already stays closed
+to public repositories (see `docs/ci-runners.md`), so a fork pull request cannot
+reach the mini. The final pool placement stays Mateo's call, because every
+repository on the pool then shares one builder on the mini.
+
+**The admin key `~/.ssh/macos-ci-runner` is separate.** It stays unrestricted,
+`verify-access` uses it, and it never enters the cluster.
+
+`bash ctl.sh verify-buildx-key` asserts that the credential reaches the pod as a
+file. It reads manifests only, so CI runs it on every pull request.
 
 ### The mini must serve builds after a reboot
 
@@ -286,25 +301,15 @@ With items 1 and 2 only, Docker stayed down for 422 seconds after a reboot. With
 all three, Docker answers 41 seconds after a reboot. The detail is in
 `machines/services/macos-ci-runner/README.md`.
 
-### How a workflow uses the node — BLOCKED, and by one line
+### How a workflow uses the node
 
-**The runner image has no buildx.** Measured on 2026-08-13 against the pinned
-image `ghcr.io/gophersys/base-runner:e0c6bc5`: `docker buildx version` exits 1
-with `unknown command: docker buildx`. `base` installs `docker-ce-cli` and then
-adds only the compose plugin to `/usr/local/lib/docker/cli-plugins`. buildx comes
-in the separate package `docker-buildx-plugin`, and nothing installs it.
-
-Everything else in that image is ready. The same measurement showed all of this:
-
-| property | result |
-| --- | --- |
-| the ssh client | OpenSSH 9.6p1 — present |
-| the process user | root, `HOME=/root`, so `$HOME/.ssh/config` is `/root/.ssh/config` |
-| the key as the kubelet projects it | `root:root 0400` — ssh accepted it |
-| `docker -H ssh://macos-buildx version` | `28.1.1 arm64 linux`, exit 0 |
-
-So the credential reaches a usable state and the dial works. Only the client is
-missing.
+**The runner image still needs buildx.** Measured on 2026-08-13 against the
+pinned image `ghcr.io/gophersys/base-runner:e0c6bc5`: `docker buildx version`
+exits 1 with `unknown command: docker buildx`. `base` installs `docker-ce-cli`
+and adds only the compose plugin to `/usr/local/lib/docker/cli-plugins`. buildx
+comes in the separate package `docker-buildx-plugin`, and nothing installs it.
+The `--driver remote` step below needs that plugin, so this dependency stays
+open.
 
 **The fix is one line, and it is in another repository.** Add
 `docker-buildx-plugin` beside `docker-ce-cli` in the `apt-get install` of
@@ -322,29 +327,19 @@ an unpinned version to every job.
 - name: Point buildx at the native arm64 node
   run: |
     set -euo pipefail
-    mkdir -p "$HOME/.ssh"
-    cat >> "$HOME/.ssh/config" <<'SSHCFG'
-    Host macos-buildx
-        HostName 10.168.0.92
-        User mateo
-        IdentityFile /etc/buildx-ssh/macos-buildx
-        IdentitiesOnly yes
-        StrictHostKeyChecking accept-new
-    SSHCFG
-    docker context create macos-buildx --docker "host=ssh://macos-buildx"
-    docker buildx create --name eden-multiarch --driver docker-container \
-      --platform linux/arm64 --node mini-arm64 macos-buildx
+    docker buildx create --name eden-mini --driver remote \
+      --driver-opt cacert=/etc/buildkit-certs/ca.pem,cert=/etc/buildkit-certs/cert.pem,key=/etc/buildkit-certs/key.pem \
+      tcp://10.168.0.92:1234
 ```
 
-Then build with `--builder eden-multiarch --platform linux/arm64`.
-
-The `ssh://` scheme needs the alias. Docker calls `ssh` with the host name only,
-so the key path and the user must come from `$HOME/.ssh/config`.
+Then build with `--builder eden-mini --platform linux/arm64`. The `remote` driver
+needs no ssh alias and no Docker context: buildx dials the mini's buildkitd over
+mTLS with the three PEM files from the mount.
 
 ### Why the step is in the workflow, and not in the pod spec
 
-The key mount belongs in the pod spec, and it is there. The two `create` commands
-do not, for three reasons:
+The credential mount belongs in the pod spec, and it is there. The `create`
+command does not, for three reasons:
 
 1. **A builder is per-container state.** `docker buildx create` writes to
    `$HOME/.docker/buildx` in the runner container. Every job gets a new pod, so a
@@ -359,12 +354,10 @@ do not, for three reasons:
    the runner starts.
 
 The cost of item 1 is small. `docker buildx create` writes local metadata only.
-BuildKit itself runs in a container named `buildx_buildkit_<node>` on the mini,
-so `buildx_buildkit_mini-arm64` for the node above. It starts at the first build
-and it stays up. Measured on 2026-08-13 with a throwaway builder of the same
-shape: a client with no local builder metadata, which is what a new pod has,
-reused the container that was already there, and kept its cache. The second build
-reported `CACHED`.
+The `remote` driver spawns no per-node BuildKit container: buildkitd already runs
+on the mini as `eden-buildkitd`, it starts at boot, and it keeps its cache across
+jobs. Measured on 2026-08-14: a fresh client with no local builder metadata,
+which is what a new pod has, reused the running daemon and its cache.
 
 **D42 stays open.** Do not add `linux/arm64` back to an image workflow in the same
 change that adds this builder. Prove the builder in CI first.

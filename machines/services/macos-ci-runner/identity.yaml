@@ -15,10 +15,11 @@
 #   2. Register the GitHub Actions runner. Until that is done, the release
 #      workflow of audiomotion-visualizer stays on the hosted macos-14 runner.
 #
-# A third item said "install a container runtime". It is done. Docker Desktop
-# serves native linux/arm64 builds to the cluster over `docker -H ssh://`, and
-# the machine is a buildx NODE, not a runner. The 2 paths are independent, so
-# item 2 above is still open. See README.md and docs/ci-substrate.md.
+# A third item said "install a container runtime". It is done. A standalone
+# `buildkitd` container serves native linux/arm64 builds to the cluster over
+# mutual TLS, and the machine is a buildx NODE, not a runner. The 2 paths are
+# independent, so item 2 above is still open. See README.md and
+# docs/ci-substrate.md.
 
 name: macos-ci-runner
 os: macos
