@@ -1,6 +1,6 @@
 # shellcheck-floor
 
-phase:    red
+phase:    green
 repo:     gophersys/infrastructure
 branch:   ci/shellcheck-floor
 worktree: ~/code/.worktrees/infra-shellcheck-floor
