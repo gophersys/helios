@@ -439,5 +439,17 @@ F7 citation de-Abletoned (implementer).
 - Teaching moved with the mechanism: DENSE-UI.md + ui-layout SKILL.md
   amended (refused band + exempt key), floor guidance intact.
 
+## PR #2 open — phase 6/7 record
+- review lane: PASS, verdict comment APPROVE ("no defect that should block
+  the merge"; independently confirmed the three defect fixes).
+- gates lane: failed in 22s at Initialize containers — "denied" pulling
+  the private CI image. Diagnosed from the log + three API facts: on-pr.yml
+  declared a permissions block (drops default packages:read); ci.yml has no
+  block and inherits repo-default read, which is why every push run pulled.
+  SURFACED not caused: the canary PR predates the containerized gates; this
+  is the first PR to exercise the pull. Fix: packages: read added to the
+  block (1 line); ci.yml confirmed correct and left alone. attempt 1/2 on
+  this failure.
+
 ## Next
-Open the PR; wait on fleet checks + review.
+Push the fix; gates re-run must pull and go green; then the final stop.
