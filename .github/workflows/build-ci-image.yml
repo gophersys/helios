@@ -44,6 +44,20 @@ jobs:
             echo "push=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # The base is a PRIVATE cross-repo package: GITHUB_TOKEN's packages:read
+      # covers only packages linked to THIS repo (eden lesson L3). Pre-pull
+      # with the pull PAT into the local store — docker build resolves FROM
+      # there — then log out so the push identity is GITHUB_TOKEN alone.
+      - name: Pre-pull the private base image
+        env:
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${GHCR_PULL_TOKEN:?secret GHCR_PULL_TOKEN is not set — a missing credential is a failure, not a skip}"
+          echo "$GHCR_PULL_TOKEN" | docker login ghcr.io -u pull --password-stdin
+          docker pull ghcr.io/gophersys/base:latest
+          docker logout ghcr.io
+
       - name: Log in to GHCR
         if: steps.mode.outputs.push == 'true'
         run: |
