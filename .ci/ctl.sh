@@ -20,8 +20,10 @@
 #
 set -Eeuo pipefail
 # A command-substitution subshell does NOT inherit errexit by default, so `$( a; b )` reports
-# b's status and drops a's. That default is the swallow this file was fixed for, so it is
-# closed for every substitution here rather than for the one call site the fix touched.
+# b's status and drops a's. This closes that for the COMMAND substitutions in this file. It
+# does NOT cover process substitution: `< <(f)` still discards f's status, and that — not this
+# default — was the swallow the affected set was fixed for, which is why the fix below is a
+# shape and this is only a guard against a future `$( … )` growing a second command.
 shopt -s inherit_errexit
 IFS=$'\n\t'
 
@@ -66,13 +68,13 @@ trap on_exit EXIT
 function run_phase_gate_over_affected() {
   local selector="$1"
   local -a projects=()
-  local listing=""
+  local listing="" status=0
 
   # The affected set is produced HERE, in the tier's own shell — the changed project roots,
   # one per line, repo-relative, via cictl (the nx-free, uniform "what changed"). It is NOT
-  # produced by a helper this function reads through a subshell, because every subshell shape
-  # throws the producer's status away, and that status is the only byte that tells a cictl
-  # which FAILED from a cictl that ran and found nothing:
+  # produced by a helper this function reads through a subshell, because both ways of reading
+  # a FUNCTION through one throw its status away, and that status is the only byte that tells
+  # a cictl which FAILED from a cictl that ran and found nothing:
   #
   #   mapfile -t projects < <(producer)   a process substitution is a subshell, so
   #                                       require_cmd's `exit 127` — and equally a bad base
@@ -80,17 +82,26 @@ function run_phase_gate_over_affected() {
   #                                       subshell alone. mapfile read an empty stream and
   #                                       the tier reported a clean no-op over libraries it
   #                                       had never looked at.
-  #   listing="$(producer)" || status=$?  puts the producer on the LEFT of `||`, which
-  #                                       disables errexit for its WHOLE body: only its LAST
+  #   listing="$(producer)" || status=$?  a FUNCTION on the left of `||` runs with errexit
+  #                                       disabled for its WHOLE body, so only its LAST
   #                                       command's status becomes the function's. The same
   #                                       swallow, one function inward, and silent until the
   #                                       body grows a second command.
   #
-  # With require_cmd and the tool itself running in this shell, errexit carries the exact
-  # status out of the tier verb (127 for an absent tool, rule 20) with no status left to
-  # discard — and there is no producer function for the shape to come back at.
+  # The `|| status=$?` below is NOT that shape: a single EXTERNAL command sits on the left, so
+  # `$?` is exactly that command's status and there is no earlier command whose status could
+  # be dropped. Keep it one command — a second one goes on its own line ABOVE, in this shell,
+  # where errexit reads it. require_cmd runs here too, so an absent tool exits 127 (rule 20)
+  # from the tier verb itself.
   require_cmd cictl
-  listing="$(cictl affected -C "$REPO_ROOT" --base "$NX_BASE")"
+  listing="$(cictl affected -C "$REPO_ROOT" --base "$NX_BASE")" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    # A cictl that fails silently prints nothing of its own, so without this line the whole CI
+    # log of a red job is the tier's announcement: nothing naming the tool, nothing saying the
+    # affected set was never known.
+    log_error "cictl affected failed (exit $status) for base '${NX_BASE}'; the affected set is unknown, so nothing was gated"
+    return "$status"
+  fi
   # `<<<""` yields ONE empty element, which would take a genuinely empty affected set out of
   # the no-op arm below.
   [[ -z "$listing" ]] || mapfile -t projects <<<"$listing"
@@ -192,7 +203,19 @@ function cmd_status() {
 
 function cmd_release_check() {
   require_cmd git
-  if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
+  # Same class as the affected set above: a `git status` that FAILS prints nothing on stdout,
+  # so `[[ -n "$(git … status --porcelain)" ]]` read it as a clean tree and waved a dirty one
+  # through. Measured with `status.showUntrackedFiles` set to a bad value — status exits 128
+  # printing nothing, while rev-parse and fetch stay healthy, so nothing downstream catches it
+  # and release-check printed "ready" over an uncommitted file. Read the status, then the
+  # output. (A corrupt .git/index does NOT show it: fetch fails too, and the verb dies there.)
+  local dirty="" status=0
+  dirty="$(git -C "$REPO_ROOT" status --porcelain)" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    log_error "git status failed (exit $status) in $REPO_ROOT; the tree's cleanliness is unknown, so nothing is being released"
+    return "$status"
+  fi
+  if [[ -n "$dirty" ]]; then
     log_error "working tree dirty; commit or stash before release"
     git -C "$REPO_ROOT" status --short >&2
     return 1
