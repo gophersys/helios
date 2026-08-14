@@ -10,7 +10,7 @@ require (
 	github.com/gophersys/libs/go/secrets v0.0.0
 	github.com/gophersys/libs/go/testing v0.0.0
 	github.com/gophersys/libs/go/workspaceprovider v0.0.0
-	github.com/jackc/pgx/v5 v5.7.6
+	github.com/jackc/pgx/v5 v5.10.0
 	github.com/nats-io/nats-server/v2 v2.14.2
 	github.com/nats-io/nats.go v1.52.0
 	go.uber.org/goleak v1.3.0
@@ -81,7 +81,7 @@ require (
 	golang.org/x/sync v0.21.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/term v0.43.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
