@@ -86,29 +86,59 @@ def collect(
     with tempfile.NamedTemporaryFile("w", suffix=".html", dir=page.parent, delete=False) as tf:
         tf.write(page.read_text() + inject)
         tmp = pathlib.Path(tf.name)
+    # Chrome's output is captured through FILES, never pipes. google-chrome
+    # daemonizes a crashpad handler that inherits the parent's stdout/stderr;
+    # with capture_output=True, subprocess.run() then blocks on the pipes
+    # until that orphan dies — which is never — even though chrome itself
+    # exited. Debian chromium builds disable crashpad, which is why this only
+    # surfaced when the CI image moved to google-chrome (fleet job hung 8+
+    # minutes with MAIN_CHROME_COUNT=0 and crashpad holding 2 pipe fds).
+    # File descriptors held by an orphan cannot block a read-after-exit, and
+    # the flags stop the handler existing at all. The timeout keeps a future
+    # never-exiting chrome a loud ProbeError instead of a hung fleet seat.
     try:
-        run = subprocess.run(
-            [
-                find_chrome(),
-                "--headless=new",
-                "--disable-gpu",
-                "--mute-audio",
-                "--no-sandbox",
-                f"--window-size={window}",
-                "--virtual-time-budget=6000",
-                "--dump-dom",
-                f"file://{tmp}",
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        hits = re.findall(r'<pre id="densui-probe">(.*?)</pre>', run.stdout, re.DOTALL)
+        with (
+            tempfile.TemporaryFile("w+", dir=page.parent) as out_fh,
+            tempfile.TemporaryFile("w+", dir=page.parent) as err_fh,
+        ):
+            try:
+                run = subprocess.run(
+                    [
+                        find_chrome(),
+                        "--headless=new",
+                        "--disable-gpu",
+                        "--mute-audio",
+                        "--no-sandbox",
+                        "--disable-crash-reporter",
+                        "--disable-breakpad",
+                        "--no-first-run",
+                        "--disable-background-networking",
+                        f"--window-size={window}",
+                        "--virtual-time-budget=6000",
+                        "--dump-dom",
+                        f"file://{tmp}",
+                    ],
+                    stdout=out_fh,
+                    stderr=err_fh,
+                    text=True,
+                    check=False,
+                    timeout=120,
+                )
+            except subprocess.TimeoutExpired as exc:
+                raise ProbeError(
+                    "chrome did not exit within 120s — the probe cannot "
+                    "measure, so it fails"
+                ) from exc
+            out_fh.seek(0)
+            stdout = out_fh.read()
+            err_fh.seek(0)
+            stderr = err_fh.read()
+        hits = re.findall(r'<pre id="densui-probe">(.*?)</pre>', stdout, re.DOTALL)
         match = hits[-1] if hits else None
         if not match:
             raise ProbeError(
                 f"probe produced no output (chrome rc={run.returncode}; "
-                f"stderr tail: {run.stderr[-300:]!r})"
+                f"stderr tail: {stderr[-300:]!r})"
             )
         return json.loads(html.unescape(match))
     finally:

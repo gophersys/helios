@@ -522,3 +522,23 @@ as a test, which fails on any future dangling citation (it would have
 failed before this fix). ~/.claude copies were NOT the broken side; no
 sync needed. Gates bare: pytest 74 passed rc=0, ruff rc=0 (one SIM102
 fixed properly, not suppressed).
+
+## 2026-08-14T02:51Z — the geometry "stall" was a crashpad orphan holding pipes
+Fleet forensics inside the live hung job (kubectl exec into the runner pod,
+docker exec into the job container): trivial dump-dom PASSED in the same
+container, MAIN_CHROME_COUNT=0, crashpad_handler alive 8 min holding 2 pipe
+fds, python waiting on read. Root cause: probe.py captured chrome via
+PIPES; google-chrome daemonizes crashpad which inherits stdout/stderr, so
+subprocess.run blocks until the orphan dies even after chrome exits.
+Debian chromium disables crashpad — the defect existed all along and only
+surfaced when the image moved to google-chrome. The image itself is
+innocent (proven twice: trivial page in-fleet, and the qemu repro reaching
+ratio_audit with live chrome).
+Fix: file-based capture (orphan-held fds cannot block a read-after-exit),
+--disable-crash-reporter/--disable-breakpad/--no-first-run/
+--disable-background-networking, and a 120s timeout that raises ProbeError.
+Mechanism A/B on this Mac: pipes 5.2s (orphan lifetime), files 0.0s.
+Two tests pin it (test_probe_orphan.py); the elapsed assertion fails under
+pipe capture by construction (60s orphan vs 20s bound). drive.py audited:
+already immune (DEVNULL + timeout + terminate). Gates: pytest 76 passed
+rc=0, ruff rc=0 after an unused-import fix. Hung run 31763912930 cancelled.
