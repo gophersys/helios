@@ -507,3 +507,18 @@ write token) — refused on least privilege. BLOCKED.md now carries the
 exact one-command unblock; on the next firing after the grant, the loop
 takes the rebase. Fleet checked: last three runs green. Gates bare:
 pytest 72 passed rc=0, ruff rc=0. No PLAN box ticked — none was workable.
+
+## 2026-08-14T00:44Z — skill re-anchoring mangle fixed (unplanned; found by drift check)
+Blocker unchanged (no repo secret, bw locked), so the run exercised the
+standing sync duty and the drift diff exposed a real defect: the automated
+re-anchoring that made the repo skills canonical had glued its annotations
+INSIDE backticked paths — 11 lines across ui-reason/ui-layout/ui-bind
+citing non-paths like `framework/ (this repo) — DENSE-UI.md`. An agent
+following the skills in-repo lost the documents those steps depend on.
+All 11 rewritten to real paths (each asserted found-once before replace);
+a sweep confirmed every backticked framework/demos/docs/tools citation in
+the skills now resolves. Pinned by tests/test_skill_paths.py — the sweep
+as a test, which fails on any future dangling citation (it would have
+failed before this fix). ~/.claude copies were NOT the broken side; no
+sync needed. Gates bare: pytest 74 passed rc=0, ruff rc=0 (one SIM102
+fixed properly, not suppressed).

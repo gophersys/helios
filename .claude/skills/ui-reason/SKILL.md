@@ -16,13 +16,13 @@ already had in mind.
 
 ## Read first
 
-- `framework/ (this repo) — DENSE-UI.md` — the framework. Budgets, axioms,
+- `framework/DENSE-UI.md` (this repo) — the framework. Budgets, axioms,
   all three gates in one page.
-- `demos/operator/spec/ (this repo; audits in demos/operator/build/) — canonical example: census.md` — a complete worked
+- `demos/operator/spec/census.md` (this repo; audits in `demos/operator/build/`) — a complete worked
   census: Ableton Live 12's Operator, ~63 parameters in 1500×260 px, taken from
   a screenshot. Read it before writing your own. It is what "done" looks like.
 - Deeper arguments, when a rule here is being resisted — all three in
-  `framework/ (this repo) — `: `draft-cognition.md` (why density is a memory
+  `framework/drafts/` (this repo): `draft-cognition.md` (why density is a memory
   argument), `draft-systems.md` (why the census is the schema's first draft),
   `draft-craft.md` (why unattributed ink is deleted).
 
@@ -114,7 +114,7 @@ measured center, never a chord (a chord scan under-read the knob by 35%); and
 verify the finished build with **reference-vs-built composites** per region —
 the ratio audit catches drift, only the composite catches wrong anatomy.
 
-Worked example: `demos/operator/spec/ (this repo; audits in demos/operator/build/) — canonical example: ratios.md`
+Worked example: `demos/operator/spec/ratios.md` (this repo)
 (including its corrections log — eyeballing failed twice before measuring won).
 
 ### 6. Assign exactly one read tier

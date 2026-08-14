@@ -24,12 +24,12 @@ did not commit.
 
 ## Read first
 
-- `framework/ (this repo) — DENSE-UI.md` — the framework in one page.
-- `demos/operator/spec/ (this repo; audits in demos/operator/build/) — canonical example: layers.md` — the worked layout:
+- `framework/DENSE-UI.md` (this repo) — the framework in one page.
+- `demos/operator/spec/layers.md` (this repo) — the worked layout:
   Operator's ~63 parameters resolved into 3 zones, 8 plates and one shared dark
   editor. Read it beside its own `census.md` in the same directory, so you can
   see which census fact forced which layout call.
-- In the same `framework/ (this repo) — ` directory: `draft-craft.md` for the
+- In `framework/drafts/` (this repo): `draft-craft.md` for the
   full argument behind each axiom, `draft-cognition.md` for the chunking and Fitts
   arithmetic, `draft-systems.md` for the binding obligation each layer carries.
 
@@ -285,7 +285,7 @@ size, and a one-gesture path to its default.
       differs. The audit catches geometry drift; only the composite catches
       wrong component anatomy, wrong two-line row structure, wrong value
       placement, and the wrong typeface.
-- [ ] **The proof battery run** (`framework/ (this repo) — LAYOUT-MATH.md`
+- [ ] **The proof battery run** (`framework/LAYOUT-MATH.md` (this repo)
       — the blind layout calculus; a worked validator is
       `example-operator/overlap_audit.py`): glyph-ink overlap with declared
       exceptions only; crowding floors (3 px ink gap, 2 px hairline); the

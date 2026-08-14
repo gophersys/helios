@@ -21,12 +21,12 @@ that is the state duplication this stage exists to prevent.
 
 ## Read first
 
-- `framework/ (this repo) — DENSE-UI.md` — the framework in one page.
-- `demos/operator/spec/ (this repo; audits in demos/operator/build/) — canonical example: contract.md` — the worked
+- `framework/DENSE-UI.md` (this repo) — the framework in one page.
+- `demos/operator/spec/contract.md` (this repo) — the worked
   contract: Operator's parameter tree, descriptor shape, event protocol and the
   per-control binding rules, all driving a real Web Audio engine. Read it beside
   `census.md` and `layers.md` in the same directory.
-- `framework/ (this repo) — draft-systems.md` — the full argument for the
+- `framework/drafts/draft-systems.md` (this repo) — the full argument for the
   seam, the sync model, and every rule of thumb below.
 
 ## Steps
