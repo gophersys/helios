@@ -32,3 +32,10 @@ run the command above) and the loop takes the rebase box on its next firing.
 On grant: the loop rebases ci/Dockerfile to FROM ghcr.io/gophersys/base with
 google-chrome-stable via Google's apt repo, and the fleet re-proves the chain.
 Default if forced: stay on debian (working, proven, lighter).
+
+**Loop is idle-hot as of 2026-08-14T00:50Z:** every PLAN box except this one
+is ticked and fleet-certified. Until the grant lands, each 5-minute firing
+can only re-verify the blocker and find nothing to do. Decision for Mateo:
+either run the one-command grant above (the loop then takes the rebase and
+the plan closes), or slow/disarm the launchd cadence until then — firings
+are cheap but not free.
