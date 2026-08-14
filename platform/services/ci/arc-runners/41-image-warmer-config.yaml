@@ -95,6 +95,24 @@ data:
             raise SystemExit(f"ctr images ls failed rc={out.returncode}: {out.stderr.strip()[-300:]}")
         return {ln.strip() for ln in out.stdout.splitlines() if ln.strip()}
 
+    def qualify(ref):
+        """Normalize a pod-spec image ref the way containerd's resolver does.
+
+        Pods legally declare short names (`docker:dind`); the kubelet
+        qualifies them, `ctr` does NOT — it parses `docker:dind` as host
+        `docker` port `dind` and dies. And `ctr images ls` always returns
+        qualified refs, so an unqualified keep-set entry would also make the
+        post-GC assertion report a present image as missing. Qualify once,
+        at derivation, so every later comparison is same-form. First-pass
+        failure on the fleet, 2026-08-14.
+        """
+        first = ref.split("/", 1)[0]
+        if "." in first or ":" in first or first == "localhost":
+            return ref
+        if "/" in ref:
+            return f"docker.io/{ref}"
+        return f"docker.io/library/{ref}"
+
     def repo_of(ref):
         base = ref.split("@", 1)[0]
         return base.rsplit(":", 1)[0] if ":" in base.split("/")[-1] else base
@@ -103,7 +121,7 @@ data:
         creds = ghcr_user()
         pins = live_pins()
         optins = latest_optins()
-        want = pins | optins
+        want = {qualify(i) for i in pins | optins}
         log(f"keep-set: {len(pins)} live pins + {len(optins)} latest opt-ins = {len(want)}")
         pulled = 0
         for img in sorted(want):
