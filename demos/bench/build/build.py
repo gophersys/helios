@@ -6,13 +6,13 @@ the event log as the alarm rail. Then the geometry battery judges the render
 against panel.toml. Run via `uv run --project ../../tools/densui`.
 """
 
-import os
 import pathlib
 import subprocess
 import sys
 import tomllib
 
 from densui.fakes import FakeSerial
+from densui.fontmetrics import FontError, font_face_css, resolve_path
 from densui.solve import SolveError, solve
 from densui.spec import SpecError, load_panel
 from densui.tree import Desc, Tree
@@ -21,6 +21,11 @@ HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
 PANEL = ROOT / "panel.toml"
 OUT = ROOT / "bench.html"
+# The page names the face it EMBEDS, and embeds the face it SOLVED with, so
+# the rendered face is the solved face by construction on every host. Naming a
+# family instead resolves to a different file on each machine — or to nothing,
+# without erroring — and densui.audit.check_font_identity fails the build.
+FACE = "PanelFace"
 
 
 def die(msg):
@@ -74,17 +79,11 @@ def session():
 
 def main():
     data = tomllib.loads(PANEL.read_text())
-    for cand in (os.environ.get("DENSUI_FONT"), data["font"]["path"],
-                 "/System/Library/Fonts/Supplemental/Arial.ttf"):
-        if cand and pathlib.Path(cand).exists():
-            data["font"]["path"] = cand
-            break
-    else:
-        die("no usable font")
     try:
+        data["font"]["path"] = resolve_path(data["font"]["path"])
         load_panel(data)
         sol = solve({"font": data["font"], **data["solve"]})["knob_rows"]["rails"]
-    except (SpecError, SolveError) as exc:
+    except (FontError, SpecError, SolveError) as exc:
         die(str(exc))
 
     tree, events = session()
@@ -110,7 +109,8 @@ def main():
 
     html = f"""<meta charset="utf-8"><title>Bench Contract</title>
 <style>
-body {{ margin:0; background:#232629; font-family:"DejaVu Sans",Arial,sans-serif; }}
+{font_face_css(FACE, data["font"]["path"])}
+body {{ margin:0; background:#232629; font-family:'{FACE}'; }}
 .panel {{ position:relative; width:{data["panel"]["width"]}px; height:{data["panel"]["height"]}px;
   background:#565b60; margin:24px auto; border-radius:3px; }}
 .plate {{ position:absolute; top:8px; left:{t["margin"]}px; width:{t["columns"][0]}px;

@@ -1,6 +1,6 @@
 # deep-craft
 
-phase:    green
+phase:    verify
 repo:     gophersys/dense-ui
 branch:   feat/deep-craft
 worktree: ~/code/.worktrees/dense-ui-deep-craft
@@ -364,5 +364,28 @@ earned). The three outside fixtures still heal with zero edits.
   sentinel advances) are invisible to the advance check; family is
   reported, not judged.
 
+## Green (W3) — proven
+- Orchestrator re-ran bare: pytest 162 passed rc=0; ./ctl.sh score rc=0 —
+  11 measured / 11 caught / failures=[]; honest unmeasured: colour,
+  component-anatomy, padding-rhythm. Implementer: ruff+format+node rc=0,
+  ./ctl.sh test rc=0, ./ctl.sh geometry rc=0 (telemetry "ratios":4
+  "fonts":4; bench 3/4; operator 18 fidelity rows PASS). Probe-verified:
+  telemetry reports the embedded PanelFace at the declared Face's own
+  advance; operator reports Ableton Sans Small at 689.02px.
+- THE TRUE POSITIVE: operator's widgets.css declared "Ableton Sans"
+  (installed nowhere, embedded by nothing) while assemble embeds "Ableton
+  Sans Small" — every probed kind on the fidelity build silently rendered
+  Helvetica Neue (-31.74px measured). Fixed by naming the embedded family;
+  fidelity rows unchanged; drift guard unchanged (the solver always used
+  the right face). Scope expansion accepted: without it a required gate
+  fails on this host.
+- Also accepted: docs/scorecard.md stale table corrected (three W2 classes
+  were still listed UNMEASURED against the doc's own same-commit rule).
+- telemetry/bench builds now embed the SOLVED TTF as data URI (PanelFace)
+  via the new shared fontmetrics.resolve_path/font_face_css — rendered face
+  is the solved face by construction.
+- Known limits recorded: metric clones invisible to advance; one element
+  probed per kind; a mistyped DENSUI_FONT falls through (prior behaviour).
+
 ## Next
-W3 green (implementer), then consolidated verify, then PR.
+Consolidated adversarial verify over the whole branch, then PR.

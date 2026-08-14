@@ -12,8 +12,12 @@ import math
 import statistics
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 
 from densui.geometry import breathing, contains, gap_law_violations, hgap, inter
+
+if TYPE_CHECKING:
+    from densui.fontmetrics import Face
 
 Part = dict
 LegalOverlap = Callable[[Part, Part, tuple], bool]
@@ -26,6 +30,18 @@ RATIO_DIMS = {
 }
 
 WCAG_TARGET_PITCH_PX = 24.0  # SC 2.5.8's circle diameter (psycho-math R3.4)
+# The string whose advance identifies a face. Both cases, the figures and a
+# space: 73 printable ASCII glyphs, so no Latin text face can miss one (Face.adv
+# RAISES on a missing glyph) and a per-glyph difference of a thousandth of an em
+# becomes tenths of a px. The alphabet runs in order, so no ligature sequence
+# occurs; the tail is three kerning pairs, which cost 3.55-5.05px across the ten
+# faces measured with kerning ON and 0.0000px with it off — the probe measures
+# glyph advances, and a kerned measurement would spend the band on nothing.
+FONT_SENTINEL = "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 AV To Wa"
+# Chrome and fontTools agree to 0.0000px on this string; the closest distinct
+# pair measured (Courier New against Menlo) is 2.0px apart. So the band is spent
+# on substitution and nothing else.
+FONT_IDENTITY_TOL_PX = 0.5
 AXIS_QUANTUM_PX = 0.5  # R7.4: 0.5px is exactly detectable, so it is the class width
 _EDGE_NAMES = ("left", "top", "right", "bottom")
 # Chrome's LayoutUnit is 1/64 px, so a real fractional edge is at least 0.015625
@@ -49,6 +65,8 @@ class Rules:
     legal_overlap: LegalOverlap | None = None
     spill_slack: dict = field(default_factory=dict)  # (container_prefix, kind) -> px
     ratio_rows: tuple = ()  # the panel's [ratio] table, as check_ratios rows
+    face: Face | None = None  # [font].path: the face every reserved box was solved from
+    font_size: float = 16.0  # [font].size: the size the identity band is expressed at
 
 
 def knob_value_graze(max_height: float = 2.5, min_dx_from_center: float = 8.0) -> LegalOverlap:
@@ -433,6 +451,48 @@ def check_ratios(probe_out: dict, rows: Sequence[dict]) -> list[str]:
     return fails
 
 
+def check_font_identity(probe_out: dict, face: Face | None, size: float) -> list[str]:
+    """The face the page RENDERED is the face the boxes were solved from.
+
+    Every reserved width in this system is `Face.adv()` of the widest string, so
+    a page that draws a different face — the family was never installed, a
+    webfont did not load, the stack's first entry does not exist on this host —
+    invalidates the geometry the rest of the battery proves, and does it
+    silently: parts carry glyph INK, and ink is where the glyphs are, never
+    which face drew them.
+
+    A panel that declares no [font] has nothing to be compared against and
+    contributes no measurement, as with the [ratio] table. A panel that DOES
+    declare one and reaches here with no `fonts` evidence measured nothing, and
+    that is a failure — reporting it clean is the dormancy this exists to end.
+
+    The measured advance is scaled to the declared size before the band applies,
+    so ±0.5px means the same thing for a 13px value as for a 16px label.
+    """
+    if face is None:
+        return []
+    if "fonts" not in probe_out:
+        return [
+            (
+                "font identity: the probe reported no fonts table — the rendered face "
+                "was never measured, so every reserved box is unproven"
+            )
+        ]
+    want = face.adv(FONT_SENTINEL, size)
+    fails = []
+    for kind, ev in sorted(probe_out["fonts"].items()):
+        got = ev["advance_px"] * size / ev["size_px"]
+        delta = got - want
+        if abs(delta) > FONT_IDENTITY_TOL_PX:
+            fails.append(
+                f"{kind}: rendered face {ev['family']} advances {got:.2f}px over the "
+                f"sentinel, the declared face {want:.2f}px ({delta:+.2f}px, "
+                f"tol ±{FONT_IDENTITY_TOL_PX}) — the boxes were solved from a face "
+                f"this page did not draw"
+            )
+    return fails
+
+
 def run_battery(probe_out: dict, rules: Rules) -> list[str]:
     parts, containers = probe_out["parts"], probe_out["containers"]
     # `scale` is additive: callers written before it exists measure at 1.
@@ -448,4 +508,5 @@ def run_battery(probe_out: dict, rules: Rules) -> list[str]:
         + check_hit_pitch(parts, rules)
         + check_integer_edges(snappable(parts, rules), scale)
         + check_ratios(probe_out, rules.ratio_rows)
+        + check_font_identity(probe_out, rules.face, rules.font_size)
     )

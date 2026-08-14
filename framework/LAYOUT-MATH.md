@@ -81,6 +81,7 @@ be verified rather than inventing it.
 | Axis budget | `densui.audit.check_axis_budget` over `densui.audit.axis_census`: controls ÷ distinct CONTROL x-axes ≥ 3, reporting the panel's Ω (R6.3); silent at or below the floor in controls; a lower floor is declared in `[rules]` with a written reason | axis proliferation (A1) |
 | Hit pitch | `densui.audit.check_hit_pitch`: 24 px circles on target centres do not intersect — centre pitch, never the edge gap | mis-clickable pairs (SC 2.5.8) |
 | Integer edges | `densui.audit.check_integer_edges` over `densui.audit.snappable`: every TOKEN-SIZED edge whole, at scale 1 only (glyph ink is measured, not placed; so is a box sized by its own content); narrowing the population is declared with a written reason | sub-pixel centroid shift (A-5) |
+| Face identity | `densui.audit.check_font_identity`: per text kind, the rendered advance of a pinned 73-glyph sentinel against the declared face's, ±0.5 px at `[font].size`, kerning off (`Face.adv()` sums glyph advances) | silent fallback — boxes reserved from a face the page never drew (A-1) |
 | Content sweep | re-validate with every enum at its widest string | value-dependent breakage |
 | Determinism | solve twice in reversed element order; identical output | order-dependent layout |
 

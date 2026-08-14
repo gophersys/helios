@@ -32,13 +32,18 @@ def collect_panel(page: str | pathlib.Path, probe_cfg: dict, extra_js: str = "")
 
 
 def rules_from(cfg: dict):
-    """audit.Rules from a panel.toml's [rules], carrying its [ratio] rows.
+    """audit.Rules from a panel.toml's [rules], carrying its [ratio] rows and
+    its [font].
 
     The rows travel with the rules because every consumer of the battery must
     execute what the file declared; a malformed row raises SpecError here
-    rather than measuring nothing quietly.
+    rather than measuring nothing quietly. The face travels the same way and
+    through the same ladder the demo builds resolve with (fontmetrics.
+    resolve_path), so the audit judges the page against the face the page was
+    actually built with.
     """
     from densui import audit
+    from densui.fontmetrics import Face, resolve_path
     from densui.spec import ratio_rows, rules_table
 
     rules_cfg = rules_table(cfg)
@@ -54,6 +59,13 @@ def rules_from(cfg: dict):
     for key in ("hit_kinds", "snap_kinds"):
         if key in rules_cfg:
             declared[key] = frozenset(rules_cfg[key])
+    # A panel that declares no [font] has no face to be judged against, and
+    # check_font_identity says nothing about it — the [ratio] contract exactly.
+    font_cfg = cfg.get("font", {})
+    if font_cfg:
+        declared["face"] = Face(resolve_path(font_cfg.get("path")))
+        if "size" in font_cfg:
+            declared["font_size"] = font_cfg["size"]
     return audit.Rules(
         min_sibling_gap=rules_cfg.get("min_sibling_gap", 2.0),
         breathing_floor=rules_cfg.get("breathing_floor", 2.5),

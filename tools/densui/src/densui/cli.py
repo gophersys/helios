@@ -48,9 +48,16 @@ def cmd_audit(args) -> int:
     except (KeyError, probe.ProbeError) as exc:
         return _die(f"probe failed: {exc}")
     fails = audit.run_battery(out, rules)
-    # `ratios` is how a passing run is told apart from an ignored table: rc 0
-    # is what the dormant rows already produced.
-    report = {"parts": len(out["parts"]), "ratios": len(rules.ratio_rows), "failures": fails}
+    # `ratios` and `fonts` are how a passing run is told apart from an ignored
+    # table: rc 0 is what the dormant rows already produced. `fonts` counts the
+    # text kinds whose rendered face was compared, which is 0 when the panel
+    # declares none — a number a reader can check against the census.
+    report = {
+        "parts": len(out["parts"]),
+        "ratios": len(rules.ratio_rows),
+        "fonts": len(out.get("fonts", {})) if rules.face else 0,
+        "failures": fails,
+    }
     print(json.dumps(report, indent=2))
     return 1 if fails else 0
 

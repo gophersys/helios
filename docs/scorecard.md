@@ -60,14 +60,18 @@ only to element-box probing certifies a code path no panel uses.
 | `breathing` | `densui.audit.check_breathing` |
 | `alignment` | `densui.audit.check_level` |
 | `size-ratio` | `densui.audit.check_ratios` |
+| `axis-sprawl` | `densui.audit.check_axis_budget` |
+| `hit-pitch` | `densui.audit.check_hit_pitch` |
+| `fractional-edges` | `densui.audit.check_integer_edges` |
+| `font-identity` | `densui.audit.check_font_identity` |
 
-`size-ratio` is the one class a target must DECLARE to be scored on: its rows
-live in each panel.toml's `[ratio]` table, and `corpus/size-ratio` is what
-proves the predicate fires. A panel that declares no row contributes no
+`size-ratio` and `font-identity` are the two classes a target must DECLARE to be
+scored on: the rows live in each panel.toml's `[ratio]` table, the face in its
+`[font]` table, and `corpus/size-ratio` and `corpus/font-identity` are what
+prove the predicates fire. A panel that declares neither contributes no
 violation — which is why the seed, not a demo, is the evidence.
 
-`padding-rhythm`, `axis-sprawl`, `hit-pitch`, `fractional-edges`,
-`font-identity`, `component-anatomy` and `colour` are UNMEASURED — named in the
+`padding-rhythm`, `component-anatomy` and `colour` are UNMEASURED — named in the
 registry so the gap is visible, with no predicate claimed. `REGISTRY` is the
 source of truth; when a class flips to measured, its predicate, its corpus seed
 and this table move in the same commit.

@@ -69,6 +69,14 @@ def _of_declared_rows(fn: Callable, out: dict, rules: audit.Rules) -> list:
     return fn(out, rules.ratio_rows)
 
 
+def _of_declared_face(fn: Callable, out: dict, rules: audit.Rules) -> list:
+    """The face and the reference size come from the target's own [font], which
+    probe_config.rules_from resolved the same way its build did. A target that
+    declares no face contributes nothing, so the corpus seed is again the thing
+    that proves the predicate can fire."""
+    return fn(out, rules.face, rules.font_size)
+
+
 @dataclass(frozen=True)
 class Row:
     """A defect class: the dotted predicate symbol, and how it is called.
@@ -94,9 +102,9 @@ REGISTRY: dict[str, Row] = {
     "axis-sprawl": Row("densui.audit.check_axis_budget", _of_parts_rules),
     "hit-pitch": Row("densui.audit.check_hit_pitch", _of_parts_rules),
     "fractional-edges": Row("densui.audit.check_integer_edges", _of_snappable_parts),
+    "font-identity": Row("densui.audit.check_font_identity", _of_declared_face),
     # Named by Mateo, predicate due in the workstream noted; UNMEASURED today.
     "padding-rhythm": Row(UNMEASURED),  # W1
-    "font-identity": Row(UNMEASURED),  # W3
     # No predicate is planned yet: bitmap assay and contrast maths.
     "component-anatomy": Row(UNMEASURED),
     "colour": Row(UNMEASURED),

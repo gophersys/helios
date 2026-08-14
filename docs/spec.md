@@ -8,7 +8,7 @@ design, exactly the input shapes of the tools that consume them:
 | Section | Consumer | Purpose |
 |---|---|---|
 | `[panel]` | everything | name, fixed frame (width x height in CSS px) |
-| `[font]` | `densui.solve` | the TTF whose advances size every reserved box (A-1) |
+| `[font]` | `densui.solve`, `densui.audit.check_font_identity` | the TTF whose advances size every reserved box (A-1), and the face the page must prove it rendered |
 | `[census]` | humans + gates | pointer to the stage-1 census file |
 | `[tracks]` | layout CSS | L1 zoning: fixed column tracks, gaps (A-2: never content-sized) |
 | `[solve.*]` | `densui.solve.solve()` | flow_rows / knob_rows — anchors, floors, labels, widest strings |
@@ -129,6 +129,28 @@ Both exemptions cost a written reason: `axis_budget_floor` requires
 a rule enforced on only one of the two is enforced on neither, and
 `snap_kinds = []` would otherwise switch A-5 off panel-wide in one line that
 reads like configuration.
+
+`[font]` is read twice, and the second read is what keeps the first honest.
+`densui.solve` sizes every reserved box from its advances; then
+`densui.audit.check_font_identity` measures, per text kind on the RENDERED page,
+the advance of a pinned 73-glyph sentinel and fails when it differs from the
+declared face by more than 0.5px at `[font].size`. A page that draws a face the
+solver never saw reserves room for text that is not there, and nothing else in
+the battery can see it — parts carry glyph ink, and ink is where the glyphs
+are, never which face drew them. The path is resolved by
+`densui.fontmetrics.resolve_path` (`DENSUI_FONT`, then the declared path, then a
+face known to be present on the host), which is the same ladder the demo builds
+resolve with, so the audit judges the page against the face the page was built
+with; a panel that declares no `[font]` is not judged at all, as with `[ratio]`.
+The `densui audit` report carries `"fonts": <text kinds compared>` beside
+`"ratios"` — rc 0 with 0 compared is a declared table nothing executed, which is
+exactly how the `[ratio]` rows stayed dormant for months.
+
+The other half of that contract is the page: name the family you EMBED. All
+three demos inline the solved TTF as an `@font-face` data URI
+(`densui.fontmetrics.font_face_css`) and name that family in their CSS, because
+a family NAME resolves to a different file on each host — or to nothing at all,
+silently.
 
 The `[solve]` table is passed verbatim (with `[font]`) to
 `densui.solve.solve()`; `[probe]` + `[rules]` are exactly the `densui audit`
