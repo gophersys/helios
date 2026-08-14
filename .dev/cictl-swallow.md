@@ -669,3 +669,77 @@ Implementer: verifier findings 2 (the header comment, false a third time) and 3
 (`require_cmd` uses `command -v`, which returns 0 for a shell function, so the
 "single EXTERNAL command" premise is stated but not established), plus the
 one-command invariant above.
+
+
+## Phase 9 — the comment is honest and the invariant is CHECKED (`4d18683`)
+
+**The header no longer contradicts the call site.** It opens with "INERT for both
+`$( … )` this file contains today, and kept anyway", carries the four measured
+numbers, and points at the one-command invariant as the real protection.
+
+**`require_cmd` now resolves with `type -t`, not `command -v`.** `file` passes;
+empty is `missing`; anything else is `shadowed`. Both arms exit 127. The premise
+"a required tool is an external program" is now true for EVERY tool — `git` gets
+it too, and so does any tool added later. Proven on the unmodified shipped file:
+
+```
+BASH_ENV cictl()                      rc=127  required tool(s) shadowed: cictl is a shell function
+export -f cictl                       rc=127  identical
+export -f WITH a real cictl on PATH   rc=127  identical
+plain absent                          rc=127  missing required tool(s): cictl
+```
+
+**`require_single_command_status_reads` is the invariant, and it fires.** Every
+non-comment line taking a status with `|| <var>=$?` must be one assignment of one
+substitution holding one command. Planted in scratch copies, never in-tree:
+
+```
+a second command grown into :97      validate rc=1, names the line
+  ... the same file, tier verb       rc=0 "all 1 affected project(s) green"   <- what it BLOCKS
+both reads made status-blind         validate rc=1  "finding none means it read nothing"
+the read split over 3 lines          validate rc=1  "a shape this check cannot read"
+the shipped file                     "status reads in .ci/ctl.sh: 2, each holding one command"
+```
+
+**shellcheck cannot express this** — measured, not assumed: on the grown file,
+`-o all` emits no SC2310/SC2311/SC2312 at all, and `check-set-e-suppressed` fires
+only on FUNCTION invocations, so it is blind to a second command beside an
+external one. That is why the two mechanisms compose rather than overlap: test 7
+switches SC2310 on for the function case, this check covers the second-command
+case.
+
+```
+.ci/ctl_test.sh              rc=0   12 hold, 12 of 12 proven able to fail
+shellcheck -o all            SC2310=0 SC2311=0 SC2312=0  (77 findings, all SC2250 brace style)
+.ci/ctl.sh validate          rc=0   958s
+ctl_test.sh / verb_conservation   rc=0 / rc=0
+```
+
+### THE LAST GAP, and it is the same shape as phase 7's finding 1
+
+**Neither new control has a test.** Delete the `shadowed` block, or the
+`require_single_command_status_reads` call in `cmd_validate`, and
+`bash .ci/ctl_test.sh` stays **rc=0, 12/12**.
+
+The primary fix is guarded — 12 tests cover the deleted producer, the restored
+diagnostic and release-check. But the `shadowed` arm is what closes the
+injected-function false green, so its silent removal is a real regression path,
+not merely missing polish.
+
+**This is the last round for this branch.** The bar is "would ship a false
+statement or an unguarded deliverable"; this clears it, and nothing else on the
+branch does.
+
+### Scope gap, recorded rather than silently widened
+
+The same `|| <var>=$?` shape lives at `ctl.sh:207` and `:218`,
+`go/_ctl/lib.sh:338`, `typescript/_ctl/lib.sh:490`,
+`templates/_ctl/template.sh:164`. Widening the check repo-wide would have turned
+those into gate failures in the same run. **`ctl.sh:218` is the worst of them** —
+`usage_cmds="$(_usage_verbs "$ctl")" || help_rc=$?` puts a FUNCTION on the left of
+`||`, the exact shape attempt 1 was refuted for, safe today only because that
+function's body is a single pipeline.
+
+## Next
+
+Test author: two tests, nothing else. Then the pull request.
