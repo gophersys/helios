@@ -396,3 +396,59 @@ Final adversarial verification of the whole branch — it has never had a focuse
 /dev verifier pass on its final state (it was built ad-hoc before the audit gave
 it one). Then the pull request. Step 9 of the audit's landing order; lands BEFORE
 mini-buildx, which is blocked on the security decision regardless.
+
+
+## Phase 5 — CODE VERIFIED PASS, but the PR is HELD on the reviewer (#60), and it is Mateo's call
+
+The final adversarial pass attacked all six vectors and could not refute the
+deliverable. The repo-wide floor guard, the anchoring (`job.created_at`, both
+refuted run-level anchors present only in comments), both bands (`FLOOR_PERCENTILE
+[20,28]`, `ALARM_FACTOR [2,9]` — swept and matching the header), the orphan
+preflight, and the CI wiring all survived. The tests fail against broken code
+(alarm inversion killed 22 assertions). No blocking finding.
+
+### The merge is blocked, and NOT on the code
+
+`review` is GREEN but reviewed NOTHING of the current branch. Proven by timestamp:
+
+```
+review APPROVE posted   2026-08-13 13:54 PDT
+review APPROVE posted   2026-08-13 14:21 PDT   <- Round 2 resolution check
+floor rule 79d7fe3      2026-08-13 14:40 PDT   <- AFTER both reviews
+branch HEAD             2026-08-13 19:56 PDT   <- 30+ commits after
+review run on HEAD 94a5abc:
+  "2 review(s) already posted on #172; the 2-round limit is reached,
+   so this push is not reviewed"                exit 0
+```
+
+Both approvals cover a version from BEFORE the dispatch-floor rule existed, and
+every push since has hit the 2-round limit and been silently not-reviewed. This is
+exactly task #60. Merge condition 3 ("pr-review APPROVE, or no reviewer") is NOT
+satisfied — infrastructure HAS a reviewer and it did not approve the code that
+would merge.
+
+I cannot self-merge this. It waits for Mateo: read it himself, or fix the
+round-limit reviewer (#60) so a re-run actually reviews. The /dev adversarial pass
+is the substitute evidence, and it says PASS.
+
+### Finding 3 — a stale line, corrected
+
+The phase-3 live block said "live gophersys/infrastructure rc=1, names the 1114s
+job". That is now FALSE at the default window: the 1114s outlier (run 31531318733)
+has aged out of the last 50 runs, so `verify-runner-queue.sh gophersys/infrastructure`
+now returns rc=0 (floor 6s, worst contention 7s). This is CORRECT behaviour for a
+history-reading tool — the header says "this reads HISTORY in the window you asked
+for" — but the committed record was stale. It reproduces at a 100-run window:
+`... pr-review.yml 100` -> rc=1, checked=36 fail=2. Corrected here.
+
+### Two LOW findings filed, not fixed (verifier judged non-blocking; Mateo: land, do not perfect)
+
+The rank-rounding mode and the alarm `-gt`/`-ge` boundary are each a property no
+fixture distinguishes — the same class as F1, but LOW: rounding moves a floor by 1s
+and the boundary is a single job at exactly `alarm`. Filed as a cheap follow-up.
+Not blocking, and the branch is held on Mateo regardless.
+
+## Next
+
+Mateo decides #172's merge (and #60, the reviewer that passes without reviewing).
+The code is clean. Nothing else on this branch is open.
