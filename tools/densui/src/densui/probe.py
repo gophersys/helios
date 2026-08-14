@@ -12,9 +12,7 @@ import html
 import json
 import os
 import pathlib
-import re
 import shutil
-import subprocess
 import tempfile
 
 _PROBE_JS = (pathlib.Path(__file__).parent / "probe.js").read_text()
@@ -87,83 +85,40 @@ def collect(
         tf.write(page.read_text() + inject)
         tmp = pathlib.Path(tf.name)
     try:
-        rc, stdout, stderr = dump_dom(tmp, window=window)
-        hits = re.findall(r'<pre id="densui-probe">(.*?)</pre>', stdout, re.DOTALL)
-        match = hits[-1] if hits else None
-        if not match:
-            raise ProbeError(
-                f"probe produced no output (chrome rc={rc}; "
-                f"stderr tail: {stderr[-300:]!r})"
-            )
-        return json.loads(html.unescape(match))
+        return json.loads(wait_for_pre(tmp, "densui-probe", window=window))
     finally:
         tmp.unlink(missing_ok=True)
 
 
-def dump_dom(
+def wait_for_pre(
     page: str | pathlib.Path,
+    pre_id: str,
     *,
     window: str = "1600,900",
-    timeout: int = 120,
-) -> tuple[int, str, str]:
-    """Run headless Chrome --dump-dom over a local page; (rc, stdout, stderr).
+    deadline_ms: int = 30000,
+) -> str:
+    """Return the textContent of <pre id=pre_id> once the page inserts it.
 
-    THE ONLY sanctioned way to invoke chrome for a measurement — a test pins
-    that no other file spawns --dump-dom. Chrome's output is captured through
-    FILES, never pipes: google-chrome daemonizes a crashpad handler that
-    inherits the parent's stdout/stderr, and with pipe capture
-    subprocess.run() blocks until that orphan dies — which is never — even
-    after chrome itself exits. Debian chromium disables crashpad, which is
-    why the defect stayed invisible until the CI image moved to
-    google-chrome; it then hung the fleet's geometry job twice, once through
-    collect() and once through a demo build script that had its own
-    pipe-captured spawn (the reason this function exists). File descriptors
-    held by an orphan cannot block a read-after-exit; the flags stop the
-    handler existing at all; the timeout keeps a future never-exiting chrome
-    a loud ProbeError instead of a hung fleet seat.
+    THE ONLY sanctioned way to run chrome for a measurement — a test pins
+    that nothing else spawns it. Measurement pages signal completion by
+    inserting a <pre>; this asks the page for it over CDP (drive.run_scenario
+    launches chrome with output on DEVNULL and kills it afterwards) and WE
+    own the deadline. Its predecessor (chrome's DOM-dump mode) depended on chrome's
+    quiescence heuristics and, on the fleet with font-heavy pages, hung
+    twice (no exit in 400s) and SIGABRTed once — three failure shapes, one
+    cause: chrome deciding when measurement ends. Now it never decides
+    anything: no pipes to hold (crashpad's orphan trick is moot), no
+    quiescence wait, and the browser dies in run_scenario's finally.
     """
-    page = pathlib.Path(page)
-    with (
-        tempfile.TemporaryFile("w+", dir=page.parent) as out_fh,
-        tempfile.TemporaryFile("w+", dir=page.parent) as err_fh,
-    ):
-        try:
-            run = subprocess.run(
-                [
-                    find_chrome(),
-                    "--headless=new",
-                    "--disable-gpu",
-                    "--mute-audio",
-                    "--no-sandbox",
-                    "--disable-crash-reporter",
-                    "--disable-breakpad",
-                    "--no-first-run",
-                    "--disable-background-networking",
-                    f"--window-size={window}",
-                    "--virtual-time-budget=6000",
-                    # Cap chrome's page-idle wait. The DejaVu-embedded pages
-                    # never reach new-headless quiescence (measured: 400s, no
-                    # exit, zero bytes) while --timeout serializes the full
-                    # DOM in ~5s with the probe output present. Pages signal
-                    # completion in-DOM, so a too-early dump still fails
-                    # loudly as "produced no output", never silently.
-                    "--timeout=20000",
-                    "--dump-dom",
-                    f"file://{page}",
-                ],
-                stdout=out_fh,
-                stderr=err_fh,
-                text=True,
-                check=False,
-                timeout=timeout,
-            )
-        except subprocess.TimeoutExpired as exc:
-            raise ProbeError(
-                f"chrome did not exit within {timeout}s — the probe cannot "
-                "measure, so it fails"
-            ) from exc
-        out_fh.seek(0)
-        stdout = out_fh.read()
-        err_fh.seek(0)
-        stderr = err_fh.read()
-    return run.returncode, stdout, stderr
+    from densui.drive import DriveError, run_scenario
+
+    try:
+        results = run_scenario(
+            page,
+            [{"op": "wait_pre", "id": pre_id, "deadlineMs": deadline_ms}],
+            window=window,
+            timeout_s=deadline_ms / 1000 + 15,
+        )
+    except DriveError as exc:
+        raise ProbeError(f"probe produced no output: {exc}") from exc
+    return html.unescape(results[0])

@@ -575,3 +575,22 @@ ruff rc=0, geometry rc=0). Three layers, one incident: pipes held by a
 crashpad orphan; a second uncentralized spawn; and a page chrome will not
 call finished. Each surfaced only because the previous fix made the next
 failure loud.
+
+## 2026-08-14T04:13Z — measurement moved to CDP; chrome no longer decides anything
+The DOM-dump approach was the wrong abstraction and kept failing DIFFERENT
+ways on the fleet with the same binary and flags (hang at quiescence twice,
+instant SIGABRT once, then hang again with the idle-cap flag that had fixed
+it locally). Root cause across all shapes: measurement ended when CHROME
+decided it ended. Replaced with the CDP idiom the repo already owned in
+drive: a wait_pre op polls the page for its completion <pre> over the
+debugger, probe.wait_for_pre() wraps it (collect() and ratio_audit both
+route through), chrome output is DEVNULL (no pipes to hold), the deadline
+is ours, and the browser is killed in run_scenario's finally. drive's
+launch gained the crashpad-hygiene flags. Pipe-era fake-chrome tests were
+retired (a fake cannot serve a debugger); replaced with real-chrome CDP
+tests: happy path, named-deadline failure, and a centralization sweep
+banning the DOM-dump string repo-wide (it failed first on three comments —
+reworded; proof it can fail). Gates native: pytest 77 rc=0, ruff rc=0,
+node --check rc=0, geometry rc=0. Decisive proof: full assemble --font
+DejaVu rc=0 INSIDE the CI image on the page behind all three fleet
+failures. Certification push follows.

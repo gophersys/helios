@@ -50,6 +50,13 @@ def run_scenario(
             "--disable-gpu",
             "--mute-audio",
             "--no-sandbox",
+            # crashpad hygiene: google-chrome daemonizes a crash handler that
+            # outlives the browser; on the fleet it held inherited fds and
+            # flapped between hang and SIGABRT. No handler, no phone-home.
+            "--disable-crash-reporter",
+            "--disable-breakpad",
+            "--no-first-run",
+            "--disable-background-networking",
             f"--window-size={window}",
             f"--remote-debugging-port={port}",
             f"file://{page}",

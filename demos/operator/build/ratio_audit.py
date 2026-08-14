@@ -10,7 +10,7 @@ import pathlib
 import re
 import sys
 
-from densui.probe import ProbeError, dump_dom
+from densui.probe import ProbeError, wait_for_pre
 BUILD = pathlib.Path(__file__).resolve().parent
 PAGE = BUILD.parent / "operator.html"
 
@@ -82,21 +82,14 @@ def die(msg: str) -> None:
 def main() -> None:
     tmp = BUILD.parent / "_ratio_audit.html"
     tmp.write_text(PAGE.read_text() + PROBE)
-    # dump_dom is the ONE sanctioned chrome runner: file-captured (crashpad
-    # orphans held pipe-captured output open forever — hung the fleet twice),
-    # crashpad-disabled, and bounded by a named ProbeError timeout.
+    # wait_for_pre is the ONE sanctioned chrome runner: CDP asks the page for
+    # its completion <pre> directly — no quiescence heuristics, no pipes, and
+    # the deadline is ours (the DOM-dump mode hung twice and SIGABRTed once on the
+    # fleet before this).
     try:
-        rc, stdout, stderr = dump_dom(tmp)
+        d = json.loads(wait_for_pre(tmp, "ratio-audit"))
     except ProbeError as exc:
         die(f"{exc} — the audit cannot run, so the build fails (never skips)")
-    m = re.search(r'<pre id="ratio-audit">(.*?)</pre>', stdout, re.S)
-    if not m:
-        die(
-            f"probe produced no output (chrome rc={rc}; "
-            f"stderr tail: {stderr[-400:]!r})"
-        )
-    import html
-    d = json.loads(html.unescape(m.group(1)))
     # A reported grid autoscale changes grid type sizes BY DESIGN; the
     # expectation follows the report (the page carries the comment).
     m_scale = re.search(r"/\* grid autoscale ([0-9.]+):", PAGE.read_text())

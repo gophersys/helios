@@ -61,6 +61,24 @@ async function run() {
       await send('Input.dispatchMouseEvent',
         { type: 'mouseWheel', x: step.x, y: step.y, deltaX: 0, deltaY: step.deltaY });
       results.push(null);
+    } else if (step.op === 'wait_pre') {
+      // Poll for a completion <pre> the page inserts when its measurement is
+      // done. This replaces chrome's DOM-dump mode, whose exit hinges on its
+      // quiescence heuristics — which hung (twice) and SIGABRTed (once) on
+      // the fleet with font-heavy pages. CDP asks the page directly and WE
+      // decide the deadline.
+      const deadline = Date.now() + (step.deadlineMs || 30000);
+      const expr = '(function(){var e=document.getElementById(' +
+        JSON.stringify(step.id) + ');return e?e.textContent:null;})()';
+      let content = null;
+      while (Date.now() < deadline) {
+        const r = await send('Runtime.evaluate', { expression: expr, returnByValue: true });
+        if (r.exceptionDetails) throw new Error('wait_pre eval threw: ' + JSON.stringify(r.exceptionDetails.exception));
+        if (r.result.value !== null && r.result.value !== undefined) { content = r.result.value; break; }
+        await new Promise((res) => setTimeout(res, 250));
+      }
+      if (content === null) throw new Error('wait_pre: #' + step.id + ' did not appear within ' + (step.deadlineMs || 30000) + 'ms');
+      results.push(content);
     } else {
       throw new Error('unknown op ' + step.op);
     }
