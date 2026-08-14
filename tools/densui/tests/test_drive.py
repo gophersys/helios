@@ -1,4 +1,3 @@
-
 import pytest
 
 from densui.drive import DriveError, run_scenario
