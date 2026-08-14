@@ -1,6 +1,6 @@
 # pr-content-check
 
-phase:    red
+phase:    verify
 repo:     gophersys/.devcontainer
 branch:   ci/pr-content-check
 worktree: ~/code/.worktrees/devcontainer-pr-content-check
@@ -72,3 +72,28 @@ TESTS (mirror the file's existing counter-stimulus doctrine):
 4. <file>_has_no_orphan_version_ARG ×5 real Dockerfiles — every declared version ARG is referenced (GREEN today).
 
 GATE: `bash ./ctl.sh validate` (shellchecks the edited test) + `bash ./ctl.sh test` (runs it). Tools: bash/grep/sed/shellcheck/jq present; hadolint via pinned image.
+
+## Proven (phase 2 red→green + phase 4 gates, RUN not asserted)
+- RED (right reason): with `orphan_args` stubbed to print nothing —
+  `bash _ctl/tests/dockerfile-args.test.sh` → `--- FAIL: counter_stimulus_orphan_ARG_is_reported`
+  "the fixture carries a declared-unreferenced version ARG and the detector found nothing". Not a
+  compile error — the detector is silent on a KNOWN orphan. (26 checks, 2 failed.)
+- GREEN: real `orphan_args` → `=== dockerfile-args.test.sh: 26 checks, 0 failed`. Includes the 5
+  `<file>_references_every_version_it_declares` real-tree checks (0 orphans on the tree).
+- Break-test A (counter-stimulus falsifiable): referenced the fixture's orphan → the counter-stimulus
+  flipped RED; reverted (fixture untracked → Edit, not git checkout) → green.
+- Break-test B (real-tree branch falsifiable): added the orphan fixture to DOCKERFILES → the shipped
+  `..._references_every_version_it_declares` fired naming ABANDONED_TOOL_VERSION; reverted → green.
+- Gates (re-run by orchestrator, not the sub-agent): `bash ./ctl.sh validate` → `validate: OK`;
+  `bash ./ctl.sh test` → `test: OK (7 files)`.
+- Plan deviation (test-author, correct): `assert_not_contains` is grep -F substring, so `TOOL_VERSION`
+  ⊂ `ABANDONED_TOOL_VERSION` would false-fire. Referenced ARG renamed `KEPT_TOOL_VERSION` (no overlap).
+
+## Files
+- MODIFIED `_ctl/tests/dockerfile-args.test.sh`: `orphan_args()`; `ORPHAN_FIXTURE`; section 2b (orphan
+  counter-stimulus ×5); real-tree orphan check ×5; header documents both directions. 16→26 checks.
+- NEW `_ctl/tests/fixtures/orphan-arg/Dockerfile`: KEPT_TOOL_VERSION (declared+ref),
+  ABANDONED_TOOL_VERSION (orphan), `# ARG COMMENTED_OUT_VERSION` (comment, not a declaration).
+
+## Next
+dev-verifier: refute done-ness. Then remove .dev before the PR (pr-review flags it); open PR.
