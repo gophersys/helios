@@ -282,3 +282,69 @@ which is reasonable evidence and MUST be described as what it is.
 
 Do not resume this branch until the credential design is settled. That decision is
 Mateo's — it is a security posture question, not an implementation detail.
+
+
+## REBUILT 2026-08-14 — buildkitd over mTLS, and the root hole is CLOSED (Mateo: "rebuild it")
+
+The SSH-key design was found to grant root on the mini's Docker VM (task #66) and
+was rebuilt as a standalone `buildkitd` exposing the BUILD API only. Built and
+PROVEN live on the mini:
+
+```
+arm64 build through the remote builder   rc=0, 9.3s
+no client cert                            rc=1 refused (mTLS enforced)
+docker -H tcp://10.168.0.92:1234 version   error — NO Engine API on the port
+docker -H tcp://... run --privileged --pid=host   error, NOT "pwned" — the old escape is DEAD
+docker buildx build --allow security.insecure    rc=1, "entitlement security.insecure is not allowed"
+```
+
+The client cert can submit only SANDBOXED builds. No Engine API, no privileged
+steps, no host access.
+
+### THE RUNBOOK — reproduce the mini's buildkitd from scratch (cite this in the doc)
+
+```sh
+# 1. certs (on any machine with openssl)
+openssl genrsa -out ca-key.pem 4096
+openssl req -new -x509 -days 3650 -key ca-key.pem -sha256 -out ca.pem -subj "/CN=eden-buildkit-ca"
+openssl genrsa -out daemon-key.pem 4096
+openssl req -new -key daemon-key.pem -out daemon.csr -subj "/CN=macos-ci-runner"
+# server SAN MUST carry the mini's IP — buildx verifies the cert against tcp://10.168.0.92
+printf 'subjectAltName=IP:10.168.0.92,IP:127.0.0.1,DNS:macos-ci-runner
+extendedKeyUsage=serverAuth
+' > d.cnf
+openssl x509 -req -days 3650 -in daemon.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out daemon.pem -sha256 -extfile d.cnf
+openssl genrsa -out client-key.pem 4096
+openssl req -new -key client-key.pem -out client.csr -subj "/CN=eden-ci-buildx-client"
+printf 'extendedKeyUsage=clientAuth
+' > c.cnf
+openssl x509 -req -days 3650 -in client.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client.pem -sha256 -extfile c.cnf
+
+# 2. on the mini — the cred helper must be on PATH, and Docker Desktop file-sharing
+#    rejects a bind mount of a home path, so seed a VOLUME via docker cp:
+export PATH="/Applications/Docker.app/Contents/Resources/bin:$HOME/bin:$PATH"
+docker volume create eden-bk-certs
+docker create --name bkseed --entrypoint /bin/sh -v eden-bk-certs:/certs moby/buildkit:latest
+docker cp ca.pem bkseed:/certs/ ; docker cp daemon.pem bkseed:/certs/ ; docker cp daemon-key.pem bkseed:/certs/
+docker rm bkseed
+docker run -d --name eden-buildkitd --restart unless-stopped --privileged -p 1234:1234   -v eden-bk-certs:/certs:ro moby/buildkit:latest --addr tcp://0.0.0.0:1234   --tlscacert /certs/ca.pem --tlscert /certs/daemon.pem --tlskey /certs/daemon-key.pem
+
+# 3. client (CI, or any host with the 3 client-side certs)
+docker buildx create --name eden-mini --driver remote   --driver-opt cacert=ca.pem,cert=client.pem,key=client-key.pem tcp://10.168.0.92:1234
+```
+
+Survives reboot via `--restart unless-stopped` + the Docker-autostart chain
+(LaunchAgent `com.gophersys.docker-autostart` + auto-login). Confirmed running
+policy=unless-stopped.
+
+### Secrets
+
+Vault: `shared/eden/buildkit-client-{ca,cert,key}` created, one match each. Old
+root-granting `shared/eden/macos-buildx-key` DELETED, SSH dial key revoked from the
+mini's authorized_keys. Admin key `shared/ssh/macos-ci-runner` kept.
+
+### The `verify-buildx-key` suite will go RED — correctly
+
+It asserts the OLD SSH-mount design. After the implementer's rework it fails
+because the design changed; a test author rewrites it for the cert design. That
+red is expected evidence, not a defect.
