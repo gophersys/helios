@@ -118,8 +118,9 @@ function cmd_validate() {
   log_info "validating infrastructure tree"
   local rc=0
 
-  # project.json files must parse as JSON
-  require_cmd jq shellcheck
+  # project.json files must parse as JSON. shellcheck is required too, but by
+  # scripts/lint-shell.sh, which gates it itself (exit 127, FAIL-NOT-SKIP).
+  require_cmd jq
   local pj_files=()
   while IFS= read -r f; do
     pj_files+=("$f")
@@ -134,38 +135,10 @@ function cmd_validate() {
   done
   log_info "parsed ${#pj_files[@]} project.json file(s)"
 
-  # Bash scripts must be syntactically valid
-  local sh_files=()
-  while IFS= read -r f; do
-    sh_files+=("$f")
-  done < <(find "$PROJECT_ROOT" -name '*.sh' -not -path '*/node_modules/*' -not -path '*/.git/*')
-
-  local sh
-  for sh in "${sh_files[@]}"; do
-    if ! bash -n "$sh" 2>/dev/null; then
-      log_error "bash syntax error: ${sh#"$PROJECT_ROOT"/}"
-      rc=1
-    fi
-  done
-  log_info "checked ${#sh_files[@]} bash script(s) for syntax"
-
-  # Run the linter at full strictness. Warning, info and style findings fail the
-  # build. A missing linter is a FAILURE, not a skip: this branch used to
-  # print "shellcheck not installed — skipping lint" and then "validate: OK",
-  # which is a green result that checked nothing. Proven by running validate with
-  # the linter removed from PATH.
-  local sc_fail=0
-  for sh in "${sh_files[@]}"; do
-    if ! shellcheck "$sh" >/dev/null 2>&1; then
-      log_error "shellcheck errors: ${sh#"$PROJECT_ROOT"/}"
-      sc_fail=1
-    fi
-  done
-  if [[ $sc_fail -eq 0 ]]; then
-    log_info "shellcheck clean (strict mode)"
-  else
-    rc=1
-  fi
+  # Shell scripts: discovery, the FLOOR, bash -n and shellcheck now live in one
+  # home that this verb and CI share. It fails loudly when it finds nothing to
+  # lint, and it surfaces findings instead of hiding them behind >/dev/null.
+  bash "$PROJECT_ROOT/scripts/lint-shell.sh" "$PROJECT_ROOT" || rc=1
 
   if [[ $rc -eq 0 ]]; then
     log_info "validate: OK"
