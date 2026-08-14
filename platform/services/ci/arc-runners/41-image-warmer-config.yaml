@@ -120,8 +120,19 @@ data:
             raise SystemExit(f"pulled {pulled} != intended {len(want)} — refusing to report success")
         managed_repos = {repo_of(i) for i in want if i.startswith("ghcr.io/gophersys/")}
         removed = []
+        # GC candidates are TAG-form refs only. containerd also holds
+        # digest-qualified refs (repo@sha256:...) for LIVE images; the
+        # keep-set is tag-form, so a digest ref of a kept image would pass
+        # `ref not in want` and be deleted out from under a running pod —
+        # and the post-GC assertion, which checks tag-form presence, would
+        # not see it. Reviewer-caught on PR #174.
         for ref in sorted(ctr_images()):
-            if repo_of(ref) in managed_repos and ref not in want and not ref.startswith("sha256:"):
+            if (
+                repo_of(ref) in managed_repos
+                and "@" not in ref
+                and ref not in want
+                and not ref.startswith("sha256:")
+            ):
                 r = subprocess.run(CTR + ["images", "rm", ref], capture_output=True, text=True, timeout=120)
                 if r.returncode != 0:
                     raise SystemExit(f"GC rm FAILED for {ref}: {r.stderr.strip()[-300:]}")

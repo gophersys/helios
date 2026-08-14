@@ -50,9 +50,11 @@ spec:
                     values: ["k3s-w-4"]
       containers:
         - name: warmer
-          # Public library image, digest-pinned: the warmer must not itself
-          # depend on the private registry it exists to warm.
-          image: docker.io/library/python:3.12-alpine
+          # Public library image, pinned by manifest-list digest so a tag
+          # re-point cannot change what runs node-root; the warmer must not
+          # itself depend on the private registry it exists to warm.
+          # 3.12-alpine as of 2026-08-14.
+          image: docker.io/library/python:3.12-alpine@sha256:78098ea6a3a9c6a7727a5d4674e4a44e57e01fac878ee9cb4d24a86bd93916ff
           command: ["python3", "/config/warm.py"]
           securityContext:
             # Node-root by mount, not by capability: the containerd socket is
