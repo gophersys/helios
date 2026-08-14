@@ -139,8 +139,19 @@ assumed:
 
 **No arm64 consumer can be verified for any image today**, which is recorded in
 gophersys/infrastructure `docs/debt-register.md` D42. Widen
-`SANCTIONED_PLATFORMS` on the day a consumer exists, and not before. Widening it
-is 1 edit, and every path reads it.
+`SANCTIONED_PLATFORMS` on the day a consumer exists, and not before.
+
+**Widening it is not 1 edit.** Each shell path reads the list from that 1
+declaration, and `.ci/smoke.sh` selects a platform out of it rather than refusing
+a list of more than 1. But 3 other places STATE the same policy, and they must
+move with it: `PLATFORMS` in `.github/workflows/build-and-push.yml`, the same key
+in its provider copy, and the literal `SANCTIONED` in
+`_ctl/tests/platform-policy.test.sh`. That literal is deliberate — a test that
+reads the value it checks agrees with any value, a wrong one included. The
+`build` verb also refuses a list of more than 1 entry, because `docker build`
+makes 1 image, so the local loop must name the 1 platform it wants. Measured on
+2026-08-13: 1 edit to `_ctl/lib.sh`, and nothing else, made 11 checks red in 4
+test files.
 
 Verify a published image with `bash ./ctl.sh verify-published <image> [tag]`. A
 manifest declares a platform; that verb reads the manifest back out of the

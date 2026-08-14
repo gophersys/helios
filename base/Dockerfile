@@ -80,6 +80,17 @@ ARG NATS_VERSION=0.3.2                                                 # latest 
 ARG OCI_CLI_VERSION=3.79.0                                             # latest LTS as of 2026-04-20
 ARG AWS_CLI_VERSION=2.34.32                                            # latest LTS as of 2026-04-20
 
+# Digest of each docker cli-plugin. The 2 arrive as release binaries and not as
+# apt packages, so nothing but the value below says the bytes are the ones
+# upstream published. A version bump above needs its digests bumped here too, and
+# the build FAILS at that RUN line when it does not. The ARG name carries the
+# asset suffix, because buildx names its architectures amd64/arm64 while compose
+# names them x86_64/aarch64.
+ARG DOCKER_COMPOSE_SHA256_X86_64=a0298760c9772d2c06888fc8703a487c94c3c3b0134adeef830742a2fc7647b4
+ARG DOCKER_COMPOSE_SHA256_AARCH64=e8105a3e687ea7e0b0f81abe4bf9269c8a2801fb72c2b498b5ff2472bc54145f
+ARG DOCKER_BUILDX_SHA256_AMD64=48af8a397ebd60178778bf63611dbcebe5f5e7a9be90eb9147b24b9587455778
+ARG DOCKER_BUILDX_SHA256_ARM64=5d0cafd9d16afe1a0f0d9529885344ace2cc99efdd531b6c783c5455a6001569
+
 # Dev QA.
 ARG HADOLINT_VERSION=2.14.0                                            # latest LTS as of 2026-04-19
 ARG KUBECONFORM_VERSION=0.8.0                                          # latest release as of 2026-08-10
@@ -487,13 +498,14 @@ RUN install -m 0755 -d /etc/apt/keyrings \
 # docker-compose standalone binary pinned to DOCKER_COMPOSE_VERSION so we are
 # independent of whatever compose-plugin version apt has at build time.
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=x86_64 ;; \
-      linux/arm64) ARCH=aarch64 ;; \
+      linux/amd64) ARCH=x86_64;  SHA256="${DOCKER_COMPOSE_SHA256_X86_64}" ;; \
+      linux/arm64) ARCH=aarch64; SHA256="${DOCKER_COMPOSE_SHA256_AARCH64}" ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && mkdir -p /usr/local/lib/docker/cli-plugins \
  && curl -fsSL "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-linux-${ARCH}" \
       -o /usr/local/lib/docker/cli-plugins/docker-compose \
+ && echo "${SHA256}  /usr/local/lib/docker/cli-plugins/docker-compose" | sha256sum -c - \
  && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 # NOTE: no docker compose version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
@@ -503,13 +515,14 @@ RUN case "${TARGETPLATFORM}" in \
 # builder — a job dials the builder over SSH and drives `docker buildx build`
 # from inside this image — so the plugin belongs here and not in the job.
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
-      linux/arm64) ARCH=arm64 ;; \
+      linux/amd64) ARCH=amd64; SHA256="${DOCKER_BUILDX_SHA256_AMD64}" ;; \
+      linux/arm64) ARCH=arm64; SHA256="${DOCKER_BUILDX_SHA256_ARM64}" ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && mkdir -p /usr/local/lib/docker/cli-plugins \
  && curl -fsSL "https://github.com/docker/buildx/releases/download/v${DOCKER_BUILDX_VERSION}/buildx-v${DOCKER_BUILDX_VERSION}.linux-${ARCH}" \
       -o /usr/local/lib/docker/cli-plugins/docker-buildx \
+ && echo "${SHA256}  /usr/local/lib/docker/cli-plugins/docker-buildx" | sha256sum -c - \
  && chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
 # NOTE: no docker buildx version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
