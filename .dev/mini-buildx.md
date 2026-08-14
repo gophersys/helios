@@ -1,6 +1,6 @@
 # mini-buildx
 
-phase:    verify
+phase:    BLOCKED — do not merge
 repo:     gophersys/infrastructure
 branch:   feat/mini-buildx
 worktree: ~/code/.worktrees/infra-buildx
@@ -203,3 +203,82 @@ first sync.
 ## Next
 
 Unblock the image: add buildx to `gophersys/.devcontainer` base/Dockerfile.
+
+
+## DO NOT MERGE — two blocking findings, both mine
+
+A 10-agent consolidation audit found two defects in decisions I made and stated as
+proven. Both are recorded here so the branch cannot be picked up and landed by
+someone reading only the green checks.
+
+### BLOCKER 1 (SECURITY) — the "dial-only" key grants root on the mini's Docker VM
+
+I reported the key "grants a BuildKit dial and nothing else", proven four ways.
+The four tests were correct and IRRELEVANT to the real surface. Confirmed by
+direct measurement:
+
+```
+ssh exec / scp / sftp / -L / -R          blocked      <- the four I tested
+docker run --privileged --pid=host       "I am root"  rc=0
+docker run -v /:/host:ro  ls /host/etc/shadow         CAN read the VM root filesystem
+```
+
+The forced command hands the caller the **Docker Engine API**, which is
+root-equivalent by design. Docker has no meaningful authorization model — you
+either reach the socket or you do not. And this branch mounts that key into the
+GENERAL `arc-org` pool, which every repository shares, including pull-request
+builds. The "dial-only" framing is exactly what made that feel acceptable.
+
+**The fix is architectural.** Run standalone `buildkitd` on the mini and connect
+buildx over TCP with mTLS (`--driver remote`), exposing the BUILD API and never
+the Engine API. That is the honest version of what I claimed to have built, and it
+also removes the Docker Desktop GUI dependency that forced the auto-login +
+LaunchAgent stack.
+
+Filed as task #66. No live exposure: `kubectl get secret macos-buildx-key -n
+arc-runners` -> NotFound, and the vault item is consumed by nothing.
+
+### BLOCKER 2 (AVAILABILITY) — the required volume can stop ALL CI, with no ordering to prevent it
+
+I decided the volume stays REQUIRED rather than `optional: true`, reasoning that a
+missing secret should block the pod and that it "self-heals within seconds once
+ESO syncs". **That assumed the ExternalSecret exists by then. Nothing guarantees
+it does.**
+
+The ExternalSecret is applied by a DIFFERENT Argo Application
+(`app-arc-netpol.yaml`, path `platform/services/ci/arc-runners`) from the pool
+Application, and:
+
+```
+grep -rn 'sync-wave' platform/services/gitops/registry/   -> nothing
+```
+
+There is no ordering anywhere in the registry. If the pool syncs first, every
+runner pod in the org fails to start, ALL CI stops, and the tool you would use to
+diagnose and fix it is CI. No branch states a rollback.
+
+It compounds: the ESO template has never executed against the live vault. The
+newline fix is proven only by an offline sprig render plus a source read of ESO
+v1.3.2 from the module proxy, and nobody confirmed which ESO version the cluster
+actually runs.
+
+**Before this lands, in order:**
+1. Prove the render OUT OF BAND — one throwaway ExternalSecret in a scratch
+   namespace against the same vault item, then check the materialised secret's
+   LENGTH (`| base64 -d | wc -c`), never echoing the value.
+2. Either mark the volume `optional: true`, or put an explicit sync-wave on the
+   ExternalSecret Application ahead of the pool Application — and prove the
+   ordering, not assume it.
+3. State the rollback.
+
+### Also from the audit, not blocking but true
+
+`docs/ci-substrate.md` presents pod runtime behaviour as measured fact ("the key
+as the kubelet projects it | root:root 0400 — ssh accepted it"). No kubelet has
+ever projected that key. The check was a `docker run` simulating the projection,
+which is reasonable evidence and MUST be described as what it is.
+
+## Next
+
+Do not resume this branch until the credential design is settled. That decision is
+Mateo's — it is a security posture question, not an implementation detail.
