@@ -289,6 +289,26 @@ stay whole-panel as report; (b) budget silent when controls < floor
 semantics investigated by MEASUREMENT on operator before pinning;
 telemetry/bench dial parity stays caught (geometry fix expected there).
 
+## W2 revision — measured, three decisions taken (orchestrator)
+Test author re-measured everything (scale is EXACTLY 1 on all demos; the
+smallest fractional part is Chrome's LayoutUnit 1/64 — no normalization
+noise exists; 27px-box-on-.5-centre is integer-edged and legal, 28px-on-.5
+is the parity defect). 26/30 revised tests already earned-green against
+the shipped implementation, proven non-vacuous by running 9 wrong
+implementations of the revised contract (all caught) and 17 of the
+unrevised one (all caught). The three previously-broken fixtures heal
+under the revised contract with zero edits.
+DECISIONS (recorded verbatim in the dispatch):
+1. Precondition boundary is <= (silent while controls <= floor): A1 is a
+   rule about repetition, which begins beyond the floor.
+2. Default floor stays 3.0; the three demos DECLARE their structure via
+   axis_budget_floor + reason (bench/telemetry 1.0 one-control-per-column;
+   operator 1.5 four-racks) — the override mechanism exists for this.
+3. Operator's 74.25px pitch + five 28px-on-.5 dials are FIDELITY — a
+   declared, measurement-citing snap_kinds narrowing (with a newly-required
+   snap_kinds_reason, closing the quiet-emptying hole). Telemetry/bench get
+   NO exemption: the solver gains a parity rule (center - dial/2 integer,
+   adjustment reported as a correction) and their geometry goes clean.
+
 ## Next
-Test author revises the W2 pins per the three directives; implementer
-follows; then W3.
+Author pins the decisions; implementer lands them; then W3.
