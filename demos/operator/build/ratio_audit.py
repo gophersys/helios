@@ -86,12 +86,15 @@ def main() -> None:
     # orphans held pipe-captured output open forever — hung the fleet twice),
     # crashpad-disabled, and bounded by a named ProbeError timeout.
     try:
-        rc, stdout, _ = dump_dom(tmp)
+        rc, stdout, stderr = dump_dom(tmp)
     except ProbeError as exc:
         die(f"{exc} — the audit cannot run, so the build fails (never skips)")
     m = re.search(r'<pre id="ratio-audit">(.*?)</pre>', stdout, re.S)
     if not m:
-        die(f"probe produced no output (chrome rc={rc})")
+        die(
+            f"probe produced no output (chrome rc={rc}; "
+            f"stderr tail: {stderr[-400:]!r})"
+        )
     import html
     d = json.loads(html.unescape(m.group(1)))
     # A reported grid autoscale changes grid type sizes BY DESIGN; the
