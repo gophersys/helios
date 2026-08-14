@@ -86,60 +86,77 @@ def collect(
     with tempfile.NamedTemporaryFile("w", suffix=".html", dir=page.parent, delete=False) as tf:
         tf.write(page.read_text() + inject)
         tmp = pathlib.Path(tf.name)
-    # Chrome's output is captured through FILES, never pipes. google-chrome
-    # daemonizes a crashpad handler that inherits the parent's stdout/stderr;
-    # with capture_output=True, subprocess.run() then blocks on the pipes
-    # until that orphan dies — which is never — even though chrome itself
-    # exited. Debian chromium builds disable crashpad, which is why this only
-    # surfaced when the CI image moved to google-chrome (fleet job hung 8+
-    # minutes with MAIN_CHROME_COUNT=0 and crashpad holding 2 pipe fds).
-    # File descriptors held by an orphan cannot block a read-after-exit, and
-    # the flags stop the handler existing at all. The timeout keeps a future
-    # never-exiting chrome a loud ProbeError instead of a hung fleet seat.
     try:
-        with (
-            tempfile.TemporaryFile("w+", dir=page.parent) as out_fh,
-            tempfile.TemporaryFile("w+", dir=page.parent) as err_fh,
-        ):
-            try:
-                run = subprocess.run(
-                    [
-                        find_chrome(),
-                        "--headless=new",
-                        "--disable-gpu",
-                        "--mute-audio",
-                        "--no-sandbox",
-                        "--disable-crash-reporter",
-                        "--disable-breakpad",
-                        "--no-first-run",
-                        "--disable-background-networking",
-                        f"--window-size={window}",
-                        "--virtual-time-budget=6000",
-                        "--dump-dom",
-                        f"file://{tmp}",
-                    ],
-                    stdout=out_fh,
-                    stderr=err_fh,
-                    text=True,
-                    check=False,
-                    timeout=120,
-                )
-            except subprocess.TimeoutExpired as exc:
-                raise ProbeError(
-                    "chrome did not exit within 120s — the probe cannot "
-                    "measure, so it fails"
-                ) from exc
-            out_fh.seek(0)
-            stdout = out_fh.read()
-            err_fh.seek(0)
-            stderr = err_fh.read()
+        rc, stdout, stderr = dump_dom(tmp, window=window)
         hits = re.findall(r'<pre id="densui-probe">(.*?)</pre>', stdout, re.DOTALL)
         match = hits[-1] if hits else None
         if not match:
             raise ProbeError(
-                f"probe produced no output (chrome rc={run.returncode}; "
+                f"probe produced no output (chrome rc={rc}; "
                 f"stderr tail: {stderr[-300:]!r})"
             )
         return json.loads(html.unescape(match))
     finally:
         tmp.unlink(missing_ok=True)
+
+
+def dump_dom(
+    page: str | pathlib.Path,
+    *,
+    window: str = "1600,900",
+    timeout: int = 120,
+) -> tuple[int, str, str]:
+    """Run headless Chrome --dump-dom over a local page; (rc, stdout, stderr).
+
+    THE ONLY sanctioned way to invoke chrome for a measurement — a test pins
+    that no other file spawns --dump-dom. Chrome's output is captured through
+    FILES, never pipes: google-chrome daemonizes a crashpad handler that
+    inherits the parent's stdout/stderr, and with pipe capture
+    subprocess.run() blocks until that orphan dies — which is never — even
+    after chrome itself exits. Debian chromium disables crashpad, which is
+    why the defect stayed invisible until the CI image moved to
+    google-chrome; it then hung the fleet's geometry job twice, once through
+    collect() and once through a demo build script that had its own
+    pipe-captured spawn (the reason this function exists). File descriptors
+    held by an orphan cannot block a read-after-exit; the flags stop the
+    handler existing at all; the timeout keeps a future never-exiting chrome
+    a loud ProbeError instead of a hung fleet seat.
+    """
+    page = pathlib.Path(page)
+    with (
+        tempfile.TemporaryFile("w+", dir=page.parent) as out_fh,
+        tempfile.TemporaryFile("w+", dir=page.parent) as err_fh,
+    ):
+        try:
+            run = subprocess.run(
+                [
+                    find_chrome(),
+                    "--headless=new",
+                    "--disable-gpu",
+                    "--mute-audio",
+                    "--no-sandbox",
+                    "--disable-crash-reporter",
+                    "--disable-breakpad",
+                    "--no-first-run",
+                    "--disable-background-networking",
+                    f"--window-size={window}",
+                    "--virtual-time-budget=6000",
+                    "--dump-dom",
+                    f"file://{page}",
+                ],
+                stdout=out_fh,
+                stderr=err_fh,
+                text=True,
+                check=False,
+                timeout=timeout,
+            )
+        except subprocess.TimeoutExpired as exc:
+            raise ProbeError(
+                f"chrome did not exit within {timeout}s — the probe cannot "
+                "measure, so it fails"
+            ) from exc
+        out_fh.seek(0)
+        stdout = out_fh.read()
+        err_fh.seek(0)
+        stderr = err_fh.read()
+    return run.returncode, stdout, stderr

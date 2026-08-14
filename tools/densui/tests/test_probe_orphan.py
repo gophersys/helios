@@ -15,6 +15,7 @@ mechanism is recorded in LOG.md (2026-08-14).
 """
 
 import json
+import pathlib
 import stat
 import time
 
@@ -61,3 +62,19 @@ def test_orphan_free_failure_still_loud(tmp_path, monkeypatch):
     page.write_text("<html><body></body></html>")
     with pytest.raises(probe.ProbeError, match="no output"):
         probe.collect(page, root="body", containers={}, parts={})
+
+def test_chrome_spawning_is_centralized():
+    """Every --dump-dom invocation must go through probe.dump_dom.
+
+    The crashpad hang shipped TWICE because a demo build script carried its
+    own pipe-captured chrome spawn that the probe.py fix could not reach.
+    The hardened runner is only a fix if it is the only runner.
+    """
+    repo = pathlib.Path(__file__).resolve().parents[3]
+    offenders = []
+    for f in repo.rglob("*.py"):
+        if ".venv" in f.parts or f.name == "probe.py" or f.name == "test_probe_orphan.py":
+            continue
+        if "dump-dom" in f.read_text(encoding="utf-8", errors="ignore"):
+            offenders.append(str(f.relative_to(repo)))
+    assert not offenders, f"direct chrome spawns outside probe.dump_dom: {offenders}"

@@ -542,3 +542,20 @@ Two tests pin it (test_probe_orphan.py); the elapsed assertion fails under
 pipe capture by construction (60s orphan vs 20s bound). drive.py audited:
 already immune (DEVNULL + timeout + terminate). Gates: pytest 76 passed
 rc=0, ruff rc=0 after an unused-import fix. Hung run 31763912930 cancelled.
+
+## 2026-08-14T03:15Z — the hang had a SECOND call site; chrome spawning centralized
+The certification run hung again at ratio_audit — same crashpad shape, but
+this time chrome itself was alive with --crashpad-handler-pid in its args,
+proving the invocation never went through the fixed probe.collect():
+demos/operator/build/ratio_audit.py carried its OWN pipe-captured chrome
+spawn. A fix that must be repeated is not a fix: extracted the hardened
+runner as probe.dump_dom() (file capture, crashpad-disabling flags, named
+ProbeError timeout), collect() and ratio_audit now both route through it,
+and test_chrome_spawning_is_centralized pins the abstraction — no repo file
+outside probe.py may contain a --dump-dom invocation (the test caught its
+own docstring on first run; excluded itself, incidentally proving it can
+fail). Also learned this hour and now standing: while a fleet certification
+is in flight on main, bookkeeping pushes WAIT — the ci concurrency group
+(cancel-in-progress) killed a certification at 6m50s from a lock-refresh
+push. Gates: pytest 77 passed rc=0, ruff rc=0, native ./ctl.sh geometry
+rc=0 end-to-end through dump_dom (all three demos, no failures).

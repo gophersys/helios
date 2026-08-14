@@ -8,10 +8,9 @@ tolerance fails the build. A missing Chrome fails the build (FAIL-NOT-SKIP).
 import json
 import pathlib
 import re
-import subprocess
 import sys
 
-from densui.probe import ProbeError, find_chrome
+from densui.probe import ProbeError, dump_dom
 BUILD = pathlib.Path(__file__).resolve().parent
 PAGE = BUILD.parent / "operator.html"
 
@@ -81,20 +80,18 @@ def die(msg: str) -> None:
 
 
 def main() -> None:
-    try:
-        chrome = find_chrome()
-    except ProbeError as exc:
-        die(f"{exc} — the audit cannot run, so the build fails (never skips)")
     tmp = BUILD.parent / "_ratio_audit.html"
     tmp.write_text(PAGE.read_text() + PROBE)
-    r = subprocess.run(
-        [chrome, "--headless=new", "--disable-gpu", "--mute-audio", "--no-sandbox",
-         "--window-size=1600,900", "--virtual-time-budget=6000", "--dump-dom",
-         f"file://{tmp}"],
-        capture_output=True, text=True)
-    m = re.search(r'<pre id="ratio-audit">(.*?)</pre>', r.stdout, re.S)
+    # dump_dom is the ONE sanctioned chrome runner: file-captured (crashpad
+    # orphans held pipe-captured output open forever — hung the fleet twice),
+    # crashpad-disabled, and bounded by a named ProbeError timeout.
+    try:
+        rc, stdout, _ = dump_dom(tmp)
+    except ProbeError as exc:
+        die(f"{exc} — the audit cannot run, so the build fails (never skips)")
+    m = re.search(r'<pre id="ratio-audit">(.*?)</pre>', stdout, re.S)
     if not m:
-        die(f"probe produced no output (chrome rc={r.returncode})")
+        die(f"probe produced no output (chrome rc={rc})")
     import html
     d = json.loads(html.unescape(m.group(1)))
     # A reported grid autoscale changes grid type sizes BY DESIGN; the
