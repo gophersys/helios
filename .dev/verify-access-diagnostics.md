@@ -1,6 +1,6 @@
 # verify-access-diagnostics
 
-phase:    plan
+phase:    green
 repo:     gophersys/infrastructure
 branch:   fix/verify-access-diagnostics
 worktree: ~/code/.worktrees/infra-verify-access
