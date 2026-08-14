@@ -1,6 +1,6 @@
 # runner-has-buildx
 
-phase:    fix
+phase:    pr
 repo:     gophersys/.devcontainer
 branch:   feat/runner-has-buildx
 worktree: ~/code/.worktrees/dc-buildx
@@ -370,7 +370,7 @@ Phase 5 fixed the SMOKE path to select a platform. The implementer did not take
 that as sufficient. Mirror copy, one edit widening `SANCTIONED_PLATFORMS`:
 
 ```
-bash <mirror>/ctl.sh test    rc=1    11 checks red across 4 files
+bash <mirror>/ctl.sh test    rc=1    8 checks red across 4 files
   build.test.sh   IMAGE_PLATFORMS holds more than 1 platform ... use push
   guard.test.sh, platform-policy.test.sh, verify-published.test.sh
 ```
@@ -492,3 +492,55 @@ NOT measured. No push to ghcr.io was performed.
 
 Final verification, then the pull request. All findings from two verifier rounds
 plus the publish-order blocker are now closed.
+
+
+## Phase 8 — VERIFIED, and the last false number is gone
+
+A third verifier round passed the branch on one condition: correct the
+measurement the branch itself introduced. Done, and the implementer re-measured
+rather than taking my word:
+
+```
+one edit: SANCTIONED_PLATFORMS="linux/amd64" -> "linux/amd64,linux/arm64"
+bash ./ctl.sh test    rc=1    8 '--- FAIL:' lines
+  build.test.sh            6 checks, 3 failed
+  guard.test.sh           11 checks, 1 failed     <- the source of the wrong "11"
+  platform-policy.test.sh  8 checks, 2 failed
+  verify-published.test.sh 6 checks, 2 failed
+```
+
+"4 test files" was TRUE; only the count was wrong. The rule file now carries the
+per-file breakdown, so a reader can CHECK THE SUM — a bare total is what allowed
+`11 checks, 1 failed` to be misread in the first place.
+
+**The README lie was 5 places, not 1** — lines 8, 19, 23, 25-27 and 33 of
+`.ci/providers/README.md`, including an ACTIVE INSTRUCTION to run
+`ln -s` to link the file into `.github/workflows/`, which would have broken the
+`cmp` that keeps the two copies equal. Verified rather than assumed: `git ls-files
+-s` gives mode `100644` on all three workflow files and `test -L` says REGULAR.
+
+**And it caught its own over-claim mid-write.** It first wrote that
+`platform-policy.test.sh` keeps the pair equal; the `cmp` is hardcoded to
+`build-and-push.yml` alone, so a SECOND file in that directory would get nothing.
+It rewrote the sentence to state that limit rather than ship a new
+believed-but-empty claim inside a commit whose purpose is deleting one.
+
+### The verifier's judgement on the known debt — none of it blocks
+
+- smoke not at PR time (#65): repo-wide design; blocking on it would block the fix for #68
+- 21 of 24 unverified curl fetches: this branch closes 2 and writes down the rest;
+  blocking means closing 0
+- `_ctl/lib.sh:48` hardcoded namespace: ergonomic, no correctness effect
+- the 4 unsmoked publishers: now named and ratcheted, strictly better than before
+
+### One watch item for the PR body, not a blocker
+
+`load: true` materialises the image on the runner: `base-runner` is **10.6 GB
+uncompressed** (2.39 GB compressed). Before this branch the job streamed the build
+straight to ghcr.io and never materialised it locally; now it does, on top of the
+copy buildkit holds. Nobody has measured whether `ubuntu-latest` has room after
+`free-disk-space`, and it cannot be measured anywhere but CI.
+
+**It fails CLOSED** — the load step dies before the publish, so nothing broken
+ships — but `base-runner` would go red on main and publish nothing. Watch the
+first run.
