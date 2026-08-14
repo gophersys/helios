@@ -100,10 +100,15 @@ clabel = ".s-label"
 [rules]
 min_sibling_gap = 2.0
 breathing_floor = 2.5
-axis_budget_floor = 1.0
+# No floor can express this panel: the quotient is 1.00, and A1's quotient
+# never goes below 1.00, so every floor above it fires and none at or below it
+# can. The exemption is the honest form, and densui score names this panel
+# under axis-sprawl instead of counting it clean.
+axis_budget_exempt = true
 axis_budget_reason = """\
 one control per column by design: each rail owns its own vertical line so its \
-stream cells can sit under it (measured 6 controls on 6 control x-axes = 1.00)"""
+stream cells can sit under it (measured 6 controls on 6 control x-axes = 1.00), \
+so A1's premise — repeated structure across axes — is absent here"""
 
 # Executed by densui.audit.check_ratios on every gate. Before the typed form
 # these were `name = [want, tol]` pairs that named no measurement, and nothing

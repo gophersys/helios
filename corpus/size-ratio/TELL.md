@@ -2,8 +2,9 @@
 
 The label is 9px type against a 28px dial. Every absolute size on this page is
 plausible on its own; the RELATION between them is the tell — 9/28 = 0.32 in
-type-size terms, which is where generated panels land, against the ~0.6 a
-drawn panel of this class sits at (DENSE-UI §Ratios; Operator measures 0.593).
+type-size terms, which is where generated panels land. The drawn reference
+measures ~0.44 in ink terms; type-size ratios differ, and the two must never be
+compared across bases (see DENSE-UI §Ratios).
 
 `densui.audit.check_ratios` measures glyph ink, not type size, so the numbers it
 reports are on that basis: an all-caps label's ink is its cap height, 0.72em on

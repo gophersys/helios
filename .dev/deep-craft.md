@@ -1,6 +1,6 @@
 # deep-craft
 
-phase:    verify
+phase:    pr
 repo:     gophersys/dense-ui
 branch:   feat/deep-craft
 worktree: ~/code/.worktrees/dense-ui-deep-craft
@@ -424,6 +424,20 @@ F7 citation de-Abletoned (implementer).
   exempt-counted-as-measured, blanket-exemption, seed-exemption-unreported.
 - Suite 9 failed / 157 passed, 166 collected, zero errors.
 
+## Fix round landed — proven
+- pytest 166 passed rc=0; ruff + format rc=0; ./ctl.sh score rc=0 with
+  axis-sprawl.exempt = ["demos/telemetry"] NAMED in the report and
+  targets_measured 13 vs 14; ./ctl.sh test rc=0; ./ctl.sh geometry rc=0.
+- The verifier's three exploits now CAUGHT with teaching messages: 1.0
+  floor -> SpecError "cannot fire ... declares axis_budget_exempt instead";
+  unreasoned hit_kinds=[] -> SpecError naming hit_kinds_reason; deleted
+  text_kinds -> "no text kind was measured — the fonts table is empty".
+- Exemption honesty MEASURED: telemetry 6/6 = 1.00 fires under default
+  rules (the class would fire; the exemption is real); bench 3 controls is
+  muted by the precondition under defaults (its silence is not a
+  declaration).
+- Teaching moved with the mechanism: DENSE-UI.md + ui-layout SKILL.md
+  amended (refused band + exempt key), floor guidance intact.
+
 ## Next
-Implementer lands F1-F4 + F6/F7; targeted re-verify of the three fixes;
-then PR.
+Open the PR; wait on fleet checks + review.

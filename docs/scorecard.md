@@ -4,7 +4,8 @@
 seeded pages AND over the three demos, and prints one JSON report:
 
 ```
-{"classes": {"<class>": {"measured": bool, "violations": [...], "seed_caught": bool|null}},
+{"classes": {"<class>": {"measured": bool, "violations": [...], "seed_caught": bool|null,
+                         "targets_measured": int, "exempt": ["<target>", ...]}},
  "failures": [...]}
 ```
 
@@ -12,6 +13,16 @@ Those two top-level keys are the whole vocabulary. There is no field for
 "looks human", "reads as generated", or "passes" — `docs/eyes.md` governs, and
 no predicate in this repository can support such a claim. The scorecard reports
 what is MEASURED, what VIOLATED, and nothing else.
+
+`measured` says a predicate EXISTS; `targets_measured` says how many targets it
+actually judged, and `exempt` names the targets that declared themselves out of
+that class (`[rules]` `axis_budget_exempt`, docs/spec.md). Without those two
+fields a class that judged nothing is indistinguishable from a class that found
+nothing — which is how a panel bought its way out of the axis budget in two
+config lines and the run stayed green and silent. An exemption is per class:
+the same target is still judged by every other one, it is still refused without
+a written reason, and a corpus seed that exempts itself from the class it seeds
+fails the run, because that is once again a check that cannot fail.
 
 ## The three properties it exists to hold
 
@@ -37,8 +48,12 @@ densui score --corpus corpus demos/operator demos/telemetry demos/bench
 Every positional argument is a directory that must come out CLEAN: its
 `panel.toml` supplies the `[probe]` config (with `page` naming the rendered
 file) and its `[rules]`, and any violation of any class fails the run, named
-with the target. Half the point of the scorecard is there: a corpus proves the
-predicates can fire, the demos prove they are not firing on the work we ship.
+with the target. Half the point of the scorecard is there — but the two halves
+prove different things, and the difference matters: only the CORPUS proves a
+predicate can fire. A demo proves the predicate is PRESENT on the work we ship
+and that it is not firing there, which is a statement about the panel, not
+about the check. A green demo run is compatible with a blind predicate; a
+caught seed is not.
 
 The demo pages are build artifacts, so `./ctl.sh score` builds all three before
 scoring them — a target that cannot be probed exits non-zero and names itself.
@@ -70,6 +85,12 @@ scored on: the rows live in each panel.toml's `[ratio]` table, the face in its
 `[font]` table, and `corpus/size-ratio` and `corpus/font-identity` are what
 prove the predicates fire. A panel that declares neither contributes no
 violation — which is why the seed, not a demo, is the evidence.
+
+`axis-sprawl` is the one class a target may declare itself OUT of, and
+`demos/telemetry` does: one control per rail column measures 1.00, which no
+floor can express (see docs/spec.md). It appears under that class's `exempt`
+list on every run, and it is not counted in `targets_measured` — the report
+says the panel was excused, never that it was judged clean.
 
 `padding-rhythm`, `component-anatomy` and `colour` are UNMEASURED — named in the
 registry so the gap is visible, with no predicate claimed. `REGISTRY` is the

@@ -53,7 +53,10 @@ not an aesthetic one.
   `densui.audit.axis_census` counts the axes a rendered panel actually draws
   (and Bonsiepe's Ω, psycho-math R6.3) and `densui.audit.check_axis_budget`
   spends them; a panel that earns a lower floor declares it in `[rules]` with a
-  written `axis_budget_reason`.
+  written `axis_budget_reason`. A floor at or below 1.0 is refused at load:
+  controls per control-axis never falls below 1.00, so such a floor is the rule
+  switched off. A panel that can state no budget declares `axis_budget_exempt`
+  with the same written `axis_budget_reason` instead.
 - **A2 — Contrast rises as area falls.** Ground flattest, plates next, labels,
   values, then state marks strongest. Nothing large may be loud.
 - **A3 — Delete edges before content.** Plates are a 2–4 % luminance step and a

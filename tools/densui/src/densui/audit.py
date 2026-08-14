@@ -56,9 +56,11 @@ class Rules:
     containment_slack: float = 1.5
     axis_budget_floor: float = 3.0  # DENSE-UI A1: controls / distinct control x-axes
     axis_budget_reason: str = ""  # spec.py refuses a lowered floor without one
+    axis_budget_exempt: bool = False  # the only honest way out: no floor <= 1.0 can fire
     text_kinds: frozenset = frozenset({"label", "value", "checklabel", "clabel", "num"})
     rhythm_kinds: frozenset = frozenset({"dial", "checkbox", "dd", "chip", "pairopt", "led"})
     hit_kinds: frozenset = frozenset({"dial", "checkbox", "thumb"})
+    hit_kinds_reason: str = ""  # spec.py refuses a narrowed hit population without one
     snap_kinds: frozenset = frozenset({"dial", "checkbox"})  # A-5's population
     snap_kinds_reason: str = ""  # spec.py refuses a narrowed population without one
     composites: frozenset = frozenset({frozenset({"checkbox", "checklabel"})})
@@ -309,7 +311,14 @@ def check_axis_budget(parts: list[Part], rules: Rules) -> list[str]:
     there: A1 is about repeated structure, and repetition begins beyond the
     floor. Omega stays the PANEL's, because R6.3's objective is the whole
     layout's complexity, not the controls'.
+
+    A panel of one control per column has no budget to state: every floor above
+    1.00 fires and none at or below it can (spec.py refuses those). It declares
+    `axis_budget_exempt` with its reason instead, which densui.score reports by
+    name — excused is not the same answer as clean.
     """
+    if rules.axis_budget_exempt:
+        return []
     controls = [p for p in parts if p["kind"] in rules.rhythm_kinds]
     if len(controls) <= rules.axis_budget_floor:
         return []
@@ -463,19 +472,22 @@ def check_font_identity(probe_out: dict, face: Face | None, size: float) -> list
 
     A panel that declares no [font] has nothing to be compared against and
     contributes no measurement, as with the [ratio] table. A panel that DOES
-    declare one and reaches here with no `fonts` evidence measured nothing, and
-    that is a failure — reporting it clean is the dormancy this exists to end.
+    declare one and reaches here with an EMPTY table measured nothing, and that
+    is a failure — reporting it clean is the dormancy this exists to end. The
+    test is emptiness rather than the key: probe.js always writes `fonts`, so
+    deleting `text_kinds` from a panel.toml empties the table, and a page
+    drawing the wrong face passed on that route.
 
     The measured advance is scaled to the declared size before the band applies,
     so ±0.5px means the same thing for a 13px value as for a 16px label.
     """
     if face is None:
         return []
-    if "fonts" not in probe_out:
+    if not probe_out.get("fonts"):
         return [
             (
-                "font identity: the probe reported no fonts table — the rendered face "
-                "was never measured, so every reserved box is unproven"
+                "font identity: no text kind was measured — the fonts table is empty, so "
+                "the rendered face was never compared and every reserved box is unproven"
             )
         ]
     want = face.adv(FONT_SENTINEL, size)

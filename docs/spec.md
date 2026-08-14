@@ -123,12 +123,34 @@ for the 24 px WCAG pitch check (default `dial`, `checkbox`, `thumb`), and
 `checkbox` — the two every demo authors from a token; a box whose width is
 padding plus a text advance cannot be integral on both sides).
 
-Both exemptions cost a written reason: `axis_budget_floor` requires
-`axis_budget_reason`, and narrowing `snap_kinds` requires `snap_kinds_reason`.
-`load_panel()` and the gate path (`rules_from()`) both refuse them without one —
-a rule enforced on only one of the two is enforced on neither, and
-`snap_kinds = []` would otherwise switch A-5 off panel-wide in one line that
-reads like configuration.
+**A floor at or below 1.0 is refused.** The quotient is controls ÷ control
+x-axes and a class needs a control to exist, so it never falls below 1.00: such
+a floor is A1 switched OFF, written in the form that reads like A1 switched on,
+and two demos shipped exactly that before this band existed. A panel whose
+controls do not repeat states no floor at all — it declares
+`axis_budget_exempt = true`, which `densui score` reports by name under
+`axis-sprawl` (docs/scorecard.md) rather than counting as clean.
+
+Three rules can be stepped out of — the axis budget (A1), the hit population
+(A8) and the snap population (A-5) — and the pattern is the same for all three:
+the step costs a written reason, and both consuming paths (`load_panel()` and
+the gate path `rules_from()`) refuse it without one, because a rule enforced on
+one of the two is enforced on neither. The budget has two forms, so four keys
+carry three reasons:
+
+| Key | Reason it costs | What the reason must say |
+|---|---|---|
+| `axis_budget_floor` | `axis_budget_reason` | which structure of THIS panel earns the lower floor |
+| `axis_budget_exempt` | `axis_budget_reason` | why the panel can state no budget at all |
+| `hit_kinds` | `hit_kinds_reason` | which measurement shows the dropped kinds are not targets |
+| `snap_kinds` | `snap_kinds_reason` | which measurement shows those boxes are not authored |
+
+`hit_kinds = []` or `snap_kinds = []` would otherwise switch WCAG 2.5.8 or A-5
+off panel-wide in one line that reads like configuration — the consolidated
+verify walked straight through the hit-target one, taking a real 12 px pitch
+violation green. Declaring either key at all costs its reason: the validator
+does not try to tell a widening from a narrowing, and a vocabulary worth
+replacing is worth a sentence.
 
 `[font]` is read twice, and the second read is what keeps the first honest.
 `densui.solve` sizes every reserved box from its advances; then

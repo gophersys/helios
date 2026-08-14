@@ -54,7 +54,13 @@ def rules_from(cfg: dict):
         )
     # Declared keys only, so audit.Rules stays the single source of every
     # default — a floor copied to here is a second number to keep in step.
-    scalars = ("axis_budget_floor", "axis_budget_reason", "snap_kinds_reason")
+    scalars = (
+        "axis_budget_floor",
+        "axis_budget_reason",
+        "axis_budget_exempt",
+        "hit_kinds_reason",
+        "snap_kinds_reason",
+    )
     declared = {k: rules_cfg[k] for k in scalars if k in rules_cfg}
     for key in ("hit_kinds", "snap_kinds"):
         if key in rules_cfg:

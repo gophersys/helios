@@ -39,6 +39,7 @@ class _Unmeasured:
 UNMEASURED = _Unmeasured()
 
 Adapter = Callable[[Callable, dict, audit.Rules], list]
+Exempt = Callable[[audit.Rules], bool]
 
 
 def _of_parts(fn: Callable, out: dict, rules: audit.Rules) -> list:
@@ -77,17 +78,29 @@ def _of_declared_face(fn: Callable, out: dict, rules: audit.Rules) -> list:
     return fn(out, rules.face, rules.font_size)
 
 
+def _axis_budget_exempted(rules: audit.Rules) -> bool:
+    """Only this class has a declared way out, and the [rules] key it reads is
+    the one spec.py makes a panel justify in writing."""
+    return rules.axis_budget_exempt
+
+
 @dataclass(frozen=True)
 class Row:
-    """A defect class: the dotted predicate symbol, and how it is called.
+    """A defect class: the dotted predicate symbol, how it is called, and how a
+    target declares itself out of it.
 
     The symbol is a string so the registry can be checked against the code —
     a row naming something that does not exist is a believed check that runs
     nothing, and tests/test_scorecard.py fails on it.
+
+    `exempt` reads the target's own rules. A class without one cannot be
+    stepped out of at all, which is the default: an exemption is a claim about
+    a panel's structure, and only A1 has a shape no floor can express.
     """
 
     predicate: str | _Unmeasured
     call: Adapter | None = None
+    exempt: Exempt | None = None
 
 
 REGISTRY: dict[str, Row] = {
@@ -99,12 +112,12 @@ REGISTRY: dict[str, Row] = {
     "breathing": Row("densui.audit.check_breathing", _of_parts_containers_rules),
     "alignment": Row("densui.audit.check_level", _of_parts),
     "size-ratio": Row("densui.audit.check_ratios", _of_declared_rows),
-    "axis-sprawl": Row("densui.audit.check_axis_budget", _of_parts_rules),
+    "axis-sprawl": Row("densui.audit.check_axis_budget", _of_parts_rules, _axis_budget_exempted),
     "hit-pitch": Row("densui.audit.check_hit_pitch", _of_parts_rules),
     "fractional-edges": Row("densui.audit.check_integer_edges", _of_snappable_parts),
     "font-identity": Row("densui.audit.check_font_identity", _of_declared_face),
-    # Named by Mateo, predicate due in the workstream noted; UNMEASURED today.
-    "padding-rhythm": Row(UNMEASURED),  # W1
+    # Named by Mateo, predicate owed by a future feature; UNMEASURED today.
+    "padding-rhythm": Row(UNMEASURED),
     # No predicate is planned yet: bitmap assay and contrast maths.
     "component-anatomy": Row(UNMEASURED),
     "colour": Row(UNMEASURED),
@@ -133,14 +146,24 @@ def _resolve(dotted: str) -> Callable:
 def run_scorecard(targets: list[Target]) -> dict:
     """Score every target against every registered class.
 
-    Returns {"classes": {cls: {measured, violations, seed_caught}},
-    "failures": [str]} — coverage and failures, nothing else.
+    Returns {"classes": {cls: {measured, violations, seed_caught,
+    targets_measured, exempt}}, "failures": [str]} — coverage and failures,
+    nothing else.
+
+    `targets_measured` and `exempt` are what keep "measured nothing" apart from
+    "found nothing": a class that judged no target reports zero, and a target
+    that declared itself out of a class is named there rather than counted as
+    clean. The exemption is per class — everything else still measures it — and
+    it may never be pointed at a seed: a page that plants a defect and then
+    steps out of the class that catches it is a check that cannot fail.
     """
     classes = {
         name: {
             "measured": row.predicate is not UNMEASURED,
             "violations": [],
             "seed_caught": None,
+            "targets_measured": 0,
+            "exempt": [],
         }
         for name, row in REGISTRY.items()
     }
@@ -157,6 +180,16 @@ def run_scorecard(targets: list[Target]) -> dict:
         for name, row in REGISTRY.items():
             if row.predicate is UNMEASURED or row.call is None:
                 continue
+            if row.exempt is not None and row.exempt(rules):
+                classes[name]["exempt"].append(t.name)
+                if t.seeds == name:
+                    classes[name]["seed_caught"] = False
+                    failures.append(
+                        f"{t.name}: seeds {name} and declares itself exempt from it — "
+                        f"the seed could never be caught"
+                    )
+                continue
+            classes[name]["targets_measured"] += 1
             found = row.call(_resolve(row.predicate), t.probe_out, rules)
             classes[name]["violations"].extend(f"{t.name}: {v}" for v in found)
             if t.seeds == name:

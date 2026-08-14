@@ -64,10 +64,9 @@ clabel = ".s-label"
 [rules]
 min_sibling_gap = 2.0
 breathing_floor = 2.5
-axis_budget_floor = 1.0
-axis_budget_reason = """\
-one control per column by design: the contract demo shows three rails side by \
-side, each on its own vertical line (measured 3 controls on 3 control x-axes)"""
+# Nothing about the axis budget: three controls sit at or below the default
+# floor, where A1 is silent by construction, so any declaration here would be a
+# claim doing no work.
 
 # The frame and the control size this panel declares above, proved on the
 # RENDERED page by densui.audit.check_ratios — the same three the telemetry

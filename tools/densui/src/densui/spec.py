@@ -38,7 +38,9 @@ RULES = {
     "spill",
     "axis_budget_floor",
     "axis_budget_reason",
+    "axis_budget_exempt",
     "hit_kinds",
+    "hit_kinds_reason",
     "snap_kinds",
     "snap_kinds_reason",
 }
@@ -49,8 +51,15 @@ RATIO_FORMS = ("measure", "ratio", "span")
 # rule dies while still appearing in the config.
 EXEMPTIONS = {
     "axis_budget_floor": ("axis_budget_reason", "which structure of THIS panel earns it"),
+    "axis_budget_exempt": ("axis_budget_reason", "why this panel can state no budget at all"),
+    "hit_kinds": ("hit_kinds_reason", "which measurement shows the dropped kinds are not targets"),
     "snap_kinds": ("snap_kinds_reason", "which measurement shows those boxes are not authored"),
 }
+# A1's quotient is controls ÷ control x-axes, and a class needs a control to
+# exist, so it never falls below 1.00. A floor at or under that is the rule
+# switched OFF wearing the costume of the rule switched on — two demos shipped
+# exactly that. axis_budget_exempt is where a panel says so out loud.
+AXIS_BUDGET_DEAD_FLOOR = 1.0
 
 
 class SpecError(ValueError):
@@ -119,16 +128,23 @@ def _ratio_row(k, v, errors) -> None:
 def _rules_table(spec: dict, errors: list[str]) -> dict:
     """The [rules] table's own validation, in one place.
 
-    A1's floor and A-5's population are the two shipped rules a panel can
-    legally step out of, and both cost a written reason — `snap_kinds = []`
-    would otherwise switch integer edges off panel-wide in one line that reads
-    like configuration.
+    A1's budget, A8's hit population and A-5's snap population are the shipped
+    rules a panel can legally step out of, and each costs a written reason —
+    `snap_kinds = []` or `hit_kinds = []` would otherwise switch a rule off
+    panel-wide in one line that reads like configuration.
     """
     table = spec.get("rules", {})
     _unknown(table, RULES, "rules", errors)
     for key, (reason_key, what) in EXEMPTIONS.items():
         if key in table and not str(table.get(reason_key, "")).strip():
             errors.append(f"rules: {key} is declared without {reason_key} — state {what}")
+    floor = table.get("axis_budget_floor")
+    if isinstance(floor, (int, float)) and floor <= AXIS_BUDGET_DEAD_FLOOR:
+        errors.append(
+            f"rules: axis_budget_floor = {floor} cannot fire — controls ÷ control x-axes "
+            f"never falls below {AXIS_BUDGET_DEAD_FLOOR:.2f}, so this floor is A1 switched "
+            f"off; a panel that can state no budget declares axis_budget_exempt instead"
+        )
     return table
 
 
