@@ -86,6 +86,10 @@ and the numbers when it fails.
 
 ## Psychophysics constants the layout consumes
 
+(Every constant below is verified or [derived]; the research file's §9 now
+carries a DISPOSITION for each former unknown — nothing here rests on an
+unresolved citation.)
+
 - px↔arcmin bridge: `K = 3437.75·(25.4/PPI)/D_mm`; reference K=1.34 (45 px/deg).
 - Fitts: `ID = log2(A/W + 1)` is scale-invariant — densify uniformly for free;
   halving W at fixed A costs ~233 ms per acquisition. Cut travel (re-zone)

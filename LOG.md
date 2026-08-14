@@ -409,3 +409,14 @@ off" is a valid FAIL that must decompose into a predicate; measure again,
 never average; proxies are eyes at one remove (local develops, fleet
 certifies); taste is named as taste. P5 done — the eyes work went CDP-lean
 instead of Playwright-heavy and the doctrine explains why that was enough.
+
+## 2026-08-14T00:09Z — P6: the four §9 unknowns dispositioned
+Kubovy: form confirmed + a published parameterization located (k=150, s=−1
+in accessible secondary sources); the operative 1.2–1.45 band unchanged —
+the law justifies the band, it does not replace it. Tullis: unverifiable via
+open sources after four targeted searches, equations used nowhere, attempt
+trail recorded. "25–30% density": formally discarded as folklore. Gori &
+Spillmann: resolved by method — ratio-only publication makes the [derived]
+composition the permanent form. LAYOUT-MATH notes §9 is fully dispositioned;
+canonical ~/.claude copies synced. Nothing in the calculus changed — which
+is itself the finding: the framework never leaned on the unknowns.

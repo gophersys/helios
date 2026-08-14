@@ -374,15 +374,26 @@ A15 no layout change increases mean A/W over the measured co-use pairs
 
 ---
 
-## 9. What I could not verify
+## 9. Dispositions (each former unknown now has a verdict — 2026-08-14 pass)
 
-- **Kubovy's attraction constant α** — the Pure Distance Law's exponential form is verified;
-  the fitted constant was paywalled on every accessible route. R5.4 uses the measured
-  1.2–1.45 band instead.
-- **Tullis's regression coefficients and local-density kernel** — the four metrics and their
-  relative predictive power are verified; the equations are not.
-- **Any published maximum screen-density percentage** — the frequently repeated "25–30%" did
-  not survive a search for a primary source. Not used anywhere above.
-- **Absolute detection thresholds in Gori & Spillmann** — the paper reports only the ratios
-  (5.2× / 7.4× / 6.6×). The absolute `w_det` in R5.1 comes from the separate spatial-interval
-  literature (2–4%); the composition is marked **[derived]**.
+- **Kubovy's attraction constant — PARTIALLY VERIFIED.** The Pure Distance Law's
+  form is confirmed against accessible sources (log-odds linear in relative
+  distance (|b|−|a|)/min(|a|,|b|); Cognitive Psychology 35, 71–98, 1998), and
+  the secondary literature around it reports a published parameterization of
+  the attraction function (k = 150, s = −1; semanticscholar/researchgate
+  adaptations of the paper's figures). The constant parameterizes dot-lattice
+  phenomenology, not UI gap ratios, so R5.4's operative 1.2–1.45 band is
+  UNCHANGED — the band is the design rule; the law is its justification.
+- **Tullis's regression coefficients — UNVERIFIABLE via open sources.** Four
+  targeted searches (2026-08-14): the four metrics and their predictive power
+  confirm repeatedly; the equations live only inside Human Factors 25(6),
+  657–682. The equations are used NOWHERE in this framework; if they ever
+  are, the paper must be obtained first. Attempt trail recorded here so
+  nobody repeats the search thinking it was never tried.
+- **"25–30% maximum screen density" — DISCARDED.** No primary source exists
+  on any accessible route; the number is folklore. It was never used above
+  and is now formally dead: do not reintroduce it without a citation.
+- **Gori & Spillmann absolute thresholds — RESOLVED BY METHOD.** The paper
+  publishes ratios only (5.2× / 7.4× / 6.6×) by design; composing them with
+  the spatial-interval JND literature (2–4%) is the correct permanent form,
+  not a workaround. The **[derived]** marking on R5.1 is the final state.

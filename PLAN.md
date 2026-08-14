@@ -69,7 +69,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 ## P6 — Research continuation
 
-- [ ] ⏳ 2026-08-14T00:08Z (loop) Verify or discard the four unverified constants flagged in
+- [x] Verify or discard the four unverified constants flagged in
       `framework/research/psycho-math.md` §9; update LAYOUT-MATH.
 - [ ] Empirically probe the forbidden-zone thresholds (1.03/1.45) on generated
       panels; record method + result.
