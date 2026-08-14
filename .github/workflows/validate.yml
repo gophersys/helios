@@ -88,15 +88,14 @@ jobs:
     runs-on: arc-org
     steps:
       - uses: actions/checkout@v4
+      # scripts/lint-shell.sh discovers the scripts, enforces a FLOOR (0 found is
+      # a failure, not a silent green), and runs bash -n + shellcheck at full
+      # strictness. The old `find … | xargs -0 -r shellcheck` swallowed an empty
+      # list: -r ran shellcheck 0 times and exited 0. One home shared with ctl.sh.
       - name: shellcheck
-        run: |
-          set -euo pipefail
-          # The runner image carries shellcheck, so there is no download to fail
-          # silently. Full strictness, no -S filter: ctl.sh states that warning,
-          # info and style findings fail the build, and this now matches it.
-          # Measured before the change: 0 findings across all 18 scripts.
-          find . -name '*.sh' -not -path './.git/*' -print0 \
-            | xargs -0 -r shellcheck
+        run: bash scripts/lint-shell.sh
+      - name: shellcheck floor — fixture tests
+        run: bash scripts/test-lint-shell.sh
 
   exposure:
     # A job with no limit inherits the GitHub default of 360 minutes. On a self-
