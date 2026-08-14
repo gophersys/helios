@@ -1,6 +1,6 @@
 # pr-content-check
 
-phase:    plan
+phase:    red
 repo:     gophersys/.devcontainer
 branch:   ci/pr-content-check
 worktree: ~/code/.worktrees/devcontainer-pr-content-check
@@ -49,3 +49,26 @@ dev-planner: read validate.yml, build-and-push.yml, smoke.sh (its per-image expe
 Dockerfiles (base/flutter/zephyr/base-runner), and .ci/ctl.sh. Recommend (a)/(b)/(c) with reasons +
 the exact PR-time check + test recipe (for (a): a fixture Dockerfile missing a tool → the check fails).
 Owners: test → dev-test-author; the check script/workflow → dev-implementer.
+
+## Plan — APPROVED (dev-planner + orchestrator)
+The FAITHFUL PR-time check ("does the built image contain the tool") is BUILD-ONLY; a static tool→
+Dockerfile map would be a second drifting list this repo forbids ("an allowlist is a place for a real
+defect to hide"). So:
+- ESCALATE to Mateo: affected-only build+smoke at PR time (option c) — a CI-cost decision. NO code.
+- SHIP NOW: the ORPHAN-ARG invariant, added to the EXISTING `_ctl/tests/dockerfile-args.test.sh` (which
+  already has the DANGLING direction: referenced-but-undeclared). ORPHAN = declared-but-unreferenced
+  version ARG — the tell of a deleted RUN-install with a lingering `ARG *_VERSION`. Single source = the
+  Dockerfile; NO external list; already runs in the PR gate (`ctl.sh test`). Reuse the file's existing
+  `declared_args`/`version_references` helpers. Catches the common partial deletion at PR time; a clean
+  full-block deletion stays post-merge (build-only, escalated). Verified GREEN on the tree today (0 orphans).
+
+OWNERSHIP: entirely in `_ctl/tests/dockerfile-args.test.sh` + a new `_ctl/tests/fixtures/dangling-arg/
+Dockerfile` (an orphan ARG) → dev-test-author. dev-implementer has NO file to touch.
+
+TESTS (mirror the file's existing counter-stimulus doctrine):
+1. counter_stimulus_orphan_ARG_is_reported — orphan_args() on a fixture names the declared-unreferenced ARG.
+2. counter_stimulus_does_not_report_a_referenced_ARG — a declared+referenced ARG is NOT reported (not over-broad).
+3. counter_stimulus_orphan_detector_ignores_comments — a commented ARG line is not a declaration.
+4. <file>_has_no_orphan_version_ARG ×5 real Dockerfiles — every declared version ARG is referenced (GREEN today).
+
+GATE: `bash ./ctl.sh validate` (shellchecks the edited test) + `bash ./ctl.sh test` (runs it). Tools: bash/grep/sed/shellcheck/jq present; hadolint via pinned image.
