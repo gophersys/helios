@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# _ctl/tests/dockerfile-args.test.sh — every version reference resolves.
+# _ctl/tests/dockerfile-args.test.sh — every version ARG and reference agree.
 #
 # Static means static: this file reads files. It starts no container, it calls
 # no daemon and it reaches no network, so it runs identically on a laptop and on
@@ -8,10 +8,22 @@
 #
 # What it encodes: the ARGs-at-top convention in .claude/rules/00-identity.md
 # says every tool version is an ARG at the top of its Dockerfile and a RUN line
-# threads it in. That leaves one way to break a Dockerfile silently — rename or
-# delete the ARG and leave the reference behind. `${GONE_VERSION}` expands to the
-# empty string, so `curl` fetches a URL with no version in it and the build dies
-# with a 404, at push time, in a job nobody is watching.
+# threads it in. That leaves TWO ways to break a Dockerfile silently, and this
+# file checks both directions of the ARG-to-reference correspondence:
+#
+#   DANGLING — a version-shaped ${NAME} is referenced but no ARG declares it.
+#   Rename or delete the ARG and leave the reference behind: `${GONE_VERSION}`
+#   expands to the empty string, so `curl` fetches a URL with no version in it
+#   and the build dies with a 404, at push time, in a job nobody is watching.
+#
+#   ORPHAN — a version-shaped `ARG NAME_VERSION` is declared but no RUN line
+#   references it. Delete a RUN-install and leave its `ARG *_VERSION` at the top,
+#   or rename an ARG and drop its last use: the build still SUCCEEDS, so nothing
+#   fails — but the ARG is now a stale pin for a tool the image no longer
+#   installs, which is the tell that image content changed under a pull request.
+#   The full "does the built image contain the tool" check is build-only and
+#   stays post-merge; this static invariant catches the common partial deletion
+#   at PR time, with no external tool list to drift.
 #
 # Nothing caught that. `ctl.sh validate` runs shellcheck, jq, hadolint and the
 # no-hardcoded-semver check, and a dangling reference passes all 4: it is
@@ -60,8 +72,11 @@ DOCKERFILES=(
 )
 
 # The counter-stimulus. A detector that has only ever seen correct input has
-# never been observed to fire.
+# never been observed to fire. One fixture per direction: the dangling one
+# carries a reference no ARG declares, the orphan one carries an ARG no RUN
+# references.
 FIXTURE="$TESTS_DIR/fixtures/dangling-arg/Dockerfile"
+ORPHAN_FIXTURE="$TESTS_DIR/fixtures/orphan-arg/Dockerfile"
 
 # The shape of a name this test governs.
 VERSION_REFERENCE='\$\{[A-Za-z_][A-Za-z0-9_]*(_VERSION|_REF|_CHANNEL)\}'
@@ -111,6 +126,39 @@ function dangling_references() {
   done < "$file"
 
   printf '%s' "$hits"
+}
+
+# orphan_args <file> — every version-shaped name an ARG in the file DECLARES
+# that no braced ${NAME} in the same file REFERENCES. Prints nothing when clean,
+# 1 name per line otherwise.
+#
+# The mirror of dangling_references. A dangling reference names a version with
+# no ARG; an orphan ARG declares a version with no reference — the residue of a
+# deleted RUN-install whose `ARG *_VERSION` was left at the top, or a rename that
+# dropped the ARG's last use. The build still succeeds, so nothing else catches
+# it: the ARG is simply a stale pin for a tool the image no longer installs.
+#
+# Only version-shaped names are considered, for the reason stated in the header:
+# a non-version ARG (BASE_IMAGE, USERNAME, DOCKER_GROUP_GID) is governed by no
+# convention that requires a reference, so it must never be flagged. "Reference"
+# is the SAME braced ${NAME} the dangling detector uses; the real tree threads
+# every version ARG in braced form, so the two directions agree.
+function orphan_args() {
+  local file="$1"
+  local declared referenced name orphans=""
+  declared="$(declared_args "$file")"
+  referenced="$(version_references "$file")"
+
+  while IFS= read -r name; do
+    [[ -z "$name" ]] && continue
+    [[ "$name" =~ (_VERSION|_REF|_CHANNEL)$ ]] || continue
+    if ! printf '%s\n' "$referenced" | grep -qx -- "$name"; then
+      orphans="${orphans:+${orphans}
+}${name}"
+    fi
+  done < <(printf '%s\n' "$declared")
+
+  printf '%s' "$orphans"
 }
 
 printf '=== RUN  %s\n' "$TEST_NAME"
@@ -166,6 +214,42 @@ else
     "that name appears only inside a comment in the fixture"
 fi
 
+# -------- 2b. the orphan counter-stimulus: the detector FIRES --------
+# The mirror of section 2. A declared-but-unreferenced version ARG is a real
+# defect too — a deleted RUN-install leaves its `ARG *_VERSION` at the top — and
+# a detector that has never reported one has never been watched to work.
+if [[ ! -f "$ORPHAN_FIXTURE" ]]; then
+  fail_check "counter_stimulus_orphan_fixture_exists" \
+    "the fixture this test proves the orphan detector with is absent: ${ORPHAN_FIXTURE}"
+else
+  pass_check "counter_stimulus_orphan_fixture_exists"
+
+  orphan_hits="$(orphan_args "$ORPHAN_FIXTURE")"
+
+  if [[ -z "$orphan_hits" ]]; then
+    fail_check "counter_stimulus_orphan_ARG_is_reported" \
+      "the fixture carries a declared-unreferenced version ARG and the detector found nothing" \
+      "the detector cannot fail, so its verdict on the real Dockerfiles is worthless"
+  else
+    pass_check "counter_stimulus_orphan_ARG_is_reported"
+  fi
+
+  assert_contains "counter_stimulus_names_the_orphan_ARG" \
+    "$orphan_hits" "ABANDONED_TOOL_VERSION" \
+    "the report has to name the orphan, not only count it"
+
+  # The other half of a usable detector. One that reports every declared ARG is
+  # as useless as one that reports none: a declared AND referenced ARG is not an
+  # orphan, and reporting it would fire on every version ARG in the repository.
+  assert_not_contains "counter_stimulus_does_not_report_a_referenced_ARG" \
+    "$orphan_hits" "KEPT_TOOL_VERSION" \
+    "KEPT_TOOL_VERSION is declared AND referenced in the fixture and must not be reported"
+
+  assert_not_contains "counter_stimulus_orphan_ignores_commented_ARG" \
+    "$orphan_hits" "COMMENTED_OUT_VERSION" \
+    "that name appears only inside a commented '# ARG' line, which is not a declaration"
+fi
+
 # -------- 3. every reference in every Dockerfile resolves --------
 for relative in "${DOCKERFILES[@]}"; do
   file="$REPO_ROOT/$relative"
@@ -196,6 +280,19 @@ for relative in "${DOCKERFILES[@]}"; do
       "these references expand to the empty string, so the build fetches a URL with no version in it:" \
       "$hits" \
       "declare each one as an ARG at the top of ${relative}, or fix the name the RUN line asks for"
+  fi
+
+  # The mirror direction: every version ARG the file DECLARES is threaded by a
+  # RUN line. An orphan is a version pin for a tool the image no longer installs
+  # — the tell of a deleted RUN-install that left its `ARG *_VERSION` behind.
+  orphans="$(orphan_args "$file")"
+  if [[ -z "$orphans" ]]; then
+    pass_check "${relative}_references_every_version_it_declares"
+  else
+    fail_check "${relative}_references_every_version_it_declares" \
+      "these version ARGs are declared but no RUN line references them, so they pin a tool nothing installs:" \
+      "$orphans" \
+      "remove the stale ARG, or restore the RUN line that threaded it"
   fi
 done
 
