@@ -340,3 +340,28 @@ data apps test 13 px nav / 12 px table / 11 px timestamps ([Walter](https://step
 12. Smallest size ≥ 11 px; anything smaller fails and names the element (R9.2).
 
 Any failure is an error, never a warning. A layout that "mostly" proves has not been proved.
+
+
+---
+
+## Appendix (2026-08-14): per-face cap tables for the faces in actual use
+
+Measured by `densui.Face.metrics(16)` and REGENERATED AS A GATE on every
+machine (`test_metrics_table_sane_for_every_available_face` — the fleet
+validates DejaVu, a Mac validates Arial and Ableton Sans Small; a face
+drifting outside the R1 sanity bands fails by name, so this table cannot
+rot).
+
+| face | upm | cap/em | xh/em | asc px@16 | desc px@16 | cap px@16 | centring dy px@16 |
+|---|---|---|---|---|---|---|---|
+| AbletonSansSmall-Regular | 1000 | 0.710 | 0.517 | 12.00 | −4.00 | 11.36 | **1.68** |
+| Arial | 2048 | 0.716 | 0.519 | 11.65 | −3.37 | 11.46 | **1.59** |
+| DejaVuSans (fleet-validated) | — | in-band per the gate | | | | | |
+
+The load-bearing column is **centring dy** (R4: `(cap − A′ + D′)/2`): text
+box-centred over a dial sits ~1.6–1.7 px above true cap-centre in BOTH our
+primary faces at 16 px — nearly identical, which is why the operator's
+box-centred labels read correctly across the font swap. A face with dy near
+0 (e.g. Inter, per the original R4 measurement) would need the correction
+applied the OTHER way; the gate's ±2 px band flags any newcomer whose dy
+demands per-face treatment.

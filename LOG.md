@@ -428,3 +428,13 @@ same command — the multi-statement chain ran the commit segment regardless
 gates). Fixed forward. Standing tightening, now practised: gates run as
 their OWN commands with echoed bare rcs BEFORE any commit command is typed —
 never in the same chain as the commit.
+
+## 2026-08-14T00:19Z — P6: per-face cap tables, regenerated as a gate
+Face.metrics() emits the appendix table (upm, cap/em, xh/em, asc/desc, and
+the R4 centring correction dy) and a permanent test regenerates it per
+machine with sanity bands — the fleet validates DejaVu, Macs validate Arial
+and Ableton Sans Small, and a face outside the bands fails BY NAME. Finding:
+our two primary faces have nearly identical dy (1.68 vs 1.59 px @16) — the
+quiet reason box-centred labels survived the font swap unharmed; a dy≈0
+face like Inter would need the correction inverted, and the gate now flags
+any such newcomer. 70 tests green.

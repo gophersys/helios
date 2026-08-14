@@ -73,7 +73,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
       `framework/research/psycho-math.md` §9; update LAYOUT-MATH.
 - [ ] ⏳ 2026-08-14T00:13Z (loop) Empirically probe the forbidden-zone thresholds (1.03/1.45) on generated
       panels; record method + result.
-- [ ] ⏳ 2026-08-14T00:18Z (loop) Extend typo-math with the fonts actually used here (per-face cap tables).
+- [x] Extend typo-math with the fonts actually used here (per-face cap tables).
 - [x] dgrid tracks from font advances (grid_rows solver model; pulled forward on 3rd recurrence) — the display
       grid is the last hand-sized text geometry; DejaVu round 4 proved it
       (clabel ink gaps 1.4/1.8px), current fix is gap arithmetic only.
