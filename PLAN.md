@@ -99,4 +99,4 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 - [x] ADR system (`docs/adr/`): ADR-0001 computed-not-judged;
       ADR-0002 licensed-assets policy.
-- [ ] ⏳ 2026-08-14T00:33Z (loop) README polish with one A/B strip and one gate-failure example.
+- [x] README polish with one A/B strip and one gate-failure example.

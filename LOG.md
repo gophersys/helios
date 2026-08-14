@@ -478,3 +478,19 @@ rule that going public requires purging it from history first. Claims
 verified against the tree before commit: operator.html git-ignored, ctl.sh
 --font mode present, cap-table gate present, no font binaries tracked.
 Gates bare: pytest 70 passed rc=0, ruff rc=0.
+
+## 2026-08-14T00:36Z — README polish (PLAN P8)
+A/B strip: judged-vs-measured table quoting the corrections log verbatim
+(Ø34 invented / Ø20 chord-scan / Ø27 measured; 11px vs 16px; 63:37 vs
+151:160) — numbers only, no derived-from-screenshot imagery, per ADR-0002.
+Gate-failure example: a REAL refusal, captured live from
+docs/examples/crowded.toml (committed) — "row/coarse: widest value ink
+ends 103.4, crowds next dial at 64.0 (needs +43px > anchor_tolerance 2)",
+rc=2. Two new tests pin it: the refusal fires with both part names and the
+bound, and the same spec solves under tolerance 200 — proving the refusal
+is load-bearing, not a malformed spec. Also: canary line removed; layout
+table now covers telemetry, bench, docs/adr, ci/, loop/, ui-verifier.
+Learned en route: the CLI reads solver sections at TOP level; the demos'
+`[solve.*]` prefix is unwrapped by their build scripts — first attempt
+produced an EMPTY solve, visible only because the output was read, not
+assumed. Gates bare: pytest 72 passed rc=0, ruff rc=0.
