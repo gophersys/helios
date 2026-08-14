@@ -1,6 +1,6 @@
 # shellcheck-floor
 
-phase:    plan
+phase:    red
 repo:     gophersys/infrastructure
 branch:   ci/shellcheck-floor
 worktree: ~/code/.worktrees/infra-shellcheck-floor
@@ -49,7 +49,41 @@ Mateo-blocked, so #57 proceeds independently; whichever merges second gets a cle
 ## Blocked
 Nothing. Non-Mateo (CI hardening, not a contract/chart change).
 
+## Plan — APPROVED (dev-planner + orchestrator, 2026-08-14)
+ONE HOME: NEW `scripts/lint-shell.sh` (dev-implementer) — matches infra's verify-*.sh pattern (rule
+40; verify-structure/verify-registry-paths/verify-exposure are each one script called by BOTH ctl.sh
++ validate.yml). It: discovers `.sh` once (bash 3.2-safe `while read -r -d ''`, NO mapfile), FLOOR
+(0 files → exit 1 naming it), `bash -n` each, then `shellcheck "${files[@]}"` with findings VISIBLE
+(the old ctl.sh hid them via >/dev/null). NO `xargs -0 -r` (the -r is the swallow). Missing shellcheck
+→ exit 127 (FAIL-NOT-SKIP). Prints `lint-shell: linted N shell script(s)`.
+- ctl.sh (dev-implementer): line 122 `require_cmd jq shellcheck`→`require_cmd jq`; replace the shell
+  block (137-168) with `bash "$PROJECT_ROOT/scripts/lint-shell.sh" "$PROJECT_ROOT" || rc=1`.
+- .github/workflows/validate.yml (dev-implementer): replace the shellcheck job body (92-99) with
+  `run: bash scripts/lint-shell.sh` + a step `run: bash scripts/test-lint-shell.sh`. Confined to the
+  shellcheck job (83-99).
+- scripts/test-lint-shell.sh (NEW, dev-test-author): case suite mirroring test-verify-runner-queue.sh.
+
+TESTS (dev-test-author, scripts/test-lint-shell.sh):
+1. floor_fires_on_empty_tree — `lint-shell.sh "$(mktemp -d)"` exits ≠0 + "no shell scripts found".
+2. a_violating_script_fails — mktemp dir w/ one SC2086-violating .sh → exits ≠0 AND the finding is in output.
+3. lints_the_real_tree — `lint-shell.sh "$REPO_ROOT"` exits 0, count ≥1.
+4. ctl_validate_uses_the_shared_linter — `bash ctl.sh validate` exits 0 + output has `lint-shell: linted`.
+BAD FIXTURES under mktemp ONLY (never in the repo tree — the real gate would lint them red). Both new
+.sh must be shellcheck-clean (the gate lints them).
+
+RED framing: the NEW script/floor does not exist yet, so its tests fail (script absent / floor not
+enforced); PLUS the current-bug reproduction stands: `printf '' | xargs -0 -r shellcheck; echo $?` → 0.
+GREEN: implementer creates lint-shell.sh + wiring → all 4 cases pass; `ctl.sh validate` green; real
+tree lints 21→23 files.
+
+CONFLICT: DISJOINT vs #175 — #175 hits validate.yml @65 (manifests) + ctl.sh @196/256/273; this hits
+validate.yml @83-99 (shellcheck job) + cmd_validate @117-176, and MOST logic moves to 2 NEW files.
+Git auto-merges; second-to-land takes a clean update.
+
+FOLLOW-UP (not this PR): the SAME `xargs -0 -r kubeconform` swallow at validate.yml:49 — same class,
+different job/tool. Filed separately to keep this PR focused.
+
 ## Next
-dev-planner: read infra .claude/rules/* + verify-structure conventions; decide the one-home approach
-(a shared `scripts/lint-shell.sh` vs inline floors in both), name the test mechanism for the ctl.sh
-floor, and give the red/green recipe. Then approve.
+dev-test-author: write scripts/test-lint-shell.sh (4 cases above), prove RED (the floor script/behaviour
+is absent; + reproduce the current xargs -r zero-file green). Ownership: test-lint-shell.sh →
+dev-test-author; lint-shell.sh + ctl.sh + validate.yml → dev-implementer.
