@@ -207,3 +207,97 @@ Implementer FIRST (the seam is a source change): the runs-index seam for F1, plu
 F5 (help text still describes the deleted rule), F7 (the rank is not "nearest
 rank"), F8 (the fixture-path message names the live workflow).
 Then test author: the F1 case once the seam exists, and the 16s cold start.
+
+
+## Phase 3 — the seam is built and the mutant is KILLABLE (`ebed9f4`, `1dee494`)
+
+The red was the surviving mutant itself: the implementer reproduced
+`JOBS_SAMPLE -> JOBS_WINDOW` independently and got `cases=11
+assertion-failures=0`. Items 2-4 had no test at all; their red was the measured
+falsehood.
+
+### The seam, and it preserves the one-extractor rule
+
+A fixture may now carry `{"runs":[{"id":..,"path":..}], "jobs":[..]}`. The fixture
+path selects jobs by `run_id` through **the literally identical `case` pattern the
+live path uses**, and the field list is SHARED — `RUN_FIELDS='[ .id, .path ] |
+@tsv'` feeds both `.workflow_runs[]` (live) and `(.runs // [])[]` (fixture). Only
+the envelope key differs, which the two APIs force. `run.path` stays the single
+split key.
+
+**Backward compatibility:** `(.runs // [])` yields an empty index for a bare
+jobs-API response, which takes the old `cp` branch. All 11 existing fixtures work
+unmodified — and the header now records what a bare fixture CAN prove (floor
+arithmetic, the rule, the verdict loop, skipped/pending) and what it CANNOT (which
+jobs feed which sample).
+
+**The demonstration — the one-word revert is now killable:**
+
+```
+scratch fixture: 8 pr-review jobs waiting 30-37s + 20 validate jobs served in 3s
+SHIPPED   floor  3s — sample of 28   alarm  9s   rc=1, 8 flagged
+MUTANT    floor 31s — sample of  8   alarm 93s   rc=0, 0 flagged
+```
+
+Same fixture with `validate.yml` as the second argument: same repo-wide floor over
+28 jobs, window of 20, rc=0 — **the split moves the window without moving the
+floor**, which is the property the whole design rests on. Scratch fixture deleted.
+
+### The rank formula changed, and THE BAND MOVED — swept, not assumed
+
+`ceil(n*p/100)`, clamped to >= 1. The old `n*p/100 + 1` sits one order statistic
+higher **only when `n*p/100` is a whole number**, and it biases the floor UP, which
+makes a saturation detector less sensitive. The reasoning recorded in the file is
+the part worth keeping: the false-fire margin is `ALARM_FACTOR`'s job and the
+header prices it explicitly (16s worst dispatch vs a 27s alarm). **A second margin
+hidden inside the estimator is a constant nobody can read, and it scales with n.**
+
+```
+FLOOR_PERCENTILE band:  [20, 28]  ->  [21, 28]
+NEW   p=20 rc=1 (3 failures)   p=21..28 rc=0   p=29 rc=1
+OLD   p=19 rc=1 (3 failures)   p=20..28 rc=0   p=29 rc=1
+```
+
+Only the lower bound moved, by one, and the cause is exact: at p=20 on the 25-job
+warm-and-cold fixture, `25*20/100 = 5` precisely, so the new rank 5 lands on the
+LAST warm start (7s) and `estimator_clears_the_warm_start_cluster` correctly
+rejects it. Shipped 25 keeps 4 below and 3 above. The "never a sole veto" property
+survives — at p=20 the warm-start case fails alongside `known_limitation`.
+
+`mostly-contended` floor 410s -> **400s**, exactly the figure the audit computed
+for a true nearest rank.
+
+### The live answer did not move, and it said WHY
+
+```
+bash scripts/verify-runner-queue.sh gophersys/infrastructure   rc=1
+  dispatch floor 7s — the lower quartile of a sample of 103 job(s), every workflow
+  worst: 31531318733 review queue=1114s contention=1107s exec=151s
+```
+
+Byte-identical to the pre-change baseline it captured first, because
+`103*25/100 = 25.75` is not a whole number so both formulas agree at rank 26.
+Confirmed independently against the cached sample.
+
+### The help text names no constant, deliberately
+
+`ctl.sh:201` now reads "Assert no job waited far past the measured dispatch
+floor". It names **no number**: `ALARM_FACTOR` may move inside its band, and a `3`
+copied into `ctl.sh` would go stale exactly the way the deleted sentence did.
+
+## Two things for the test author
+
+**The header's band is now off by one.** `test-verify-runner-queue.sh:69-72`
+records `[20, 28]` and "19 and below"; it must be `[21, 28]` and "20 and below".
+Nothing is red today because the suite is green at the shipped 25 — the number is
+simply false now, which is the exact defect class this branch exists to close.
+
+**A malformed-fixture hole, flagged before it bites:** a `run_id` in a fixture's
+jobs that the runs index does NOT carry is silently dropped from the window while
+staying in the sample. No committed fixture exercises it. Worth knowing while
+writing the F1 case.
+
+## Next
+
+Test author: the F1 case (the seam now exists), the `[21, 28]` header correction,
+the 16s cold start I decided, and a judgement on the malformed-fixture hole.
