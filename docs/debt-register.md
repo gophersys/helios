@@ -320,9 +320,10 @@ The full inventory is in `docs/machine-inventory.md` (2026-08-09). Undeclared:
 (1) `mateos-macbook-air` — `machines/development/` is empty, so the workstation
 that holds every kubeconfig, the vault CLI and the OCI CLI has no identity file;
 (2) the hypervisors `pve-00` and `pve-03` — only `pve-01` is declared, and all 3
-hosts run the 8 k3s VMs. Unverified: (3) `arm-builder`, `macos-ci-runner` and
-`windows-ci-runner` are declared but do not appear on the tailnet. The stated
-consumers of arm-builder were codectl and fintel, and codectl no longer exists.
+hosts run the 8 k3s VMs. Unverified: (3) `windows-ci-runner` is declared but it
+does not appear on the tailnet. `arm-builder` was terminated on 2026-08-10.
+`macos-ci-runner` was measured on the machine on 2026-08-13, and it is reachable
+by key on the LAN, but it is not on the tailnet yet.
 Stale: (4) `sentinel-00` and `sentinel-01` (the instances are terminated) and 2
 laptops offline for 153 days still hold tailnet identities. Every tailnet device
 is a possible entry point.

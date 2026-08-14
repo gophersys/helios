@@ -190,7 +190,8 @@ Top-level infrastructure control. Delegates to machines/, clusters/, etc.
 Commands:
   status            Summarize counts of hosts, clusters, providers, platform, charts
   validate          Lint all project.json + bash scripts (jq + shellcheck REQUIRED)
-  generate-index    Regenerate machines/README.md + machines/ledger.md from hosts/
+  generate-index    Regenerate machines/README.md + machines/ledger.md from
+                    machines/{development,services}/*/identity.yaml
   verify-access     Assert every machine in contracts/access.yaml is reachable
   verify-exposure   Assert every hostname matches contracts/exposure.yaml
   verify-registry   Assert every in-repo Argo Application path resolves
@@ -202,7 +203,9 @@ Commands:
   help              Show this message
 
 Every verb in the dispatcher below must appear in this list. Two did not
-(verify-access, verify-exposure) and both are wired into CI.
+(verify-access, verify-exposure). CI runs verify-exposure. CI does not run
+verify-access: that verb needs LAN and tailnet access, and a CI runner does not
+have it. Run verify-access by hand from a machine on the tailnet.
 EOF
 }
 
