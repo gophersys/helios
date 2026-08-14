@@ -1,6 +1,6 @@
 # cictl-swallow
 
-phase:    verify
+phase:    fix
 repo:     gophersys/libs
 branch:   fix/cictl-swallow
 worktree: ~/code/.worktrees/libs-cictl-swallow
@@ -384,7 +384,7 @@ not), F4 and F5 (this file's stale quotes — I will take those).
 Test author: F2(c) (guard the shopt), F6 (enforce TIER_VERBS).
 
 
-## Phase 6 — all three findings closed (`2928dce`)
+## Phase 6 — three of SIX findings closed (see the correction below) (`2928dce`)
 
 **F1 — the diagnostic is back.** The implementer owned the error plainly: it
 "stated it as a measured constraint when I had not measured it". The comment now
@@ -463,3 +463,104 @@ so, not explained away.
 
 Focused verification of the three fixes, then the pull request. This is the branch
 the consolidation audit puts FIRST in its landing order — "the gate that can fail".
+
+
+## Phase 7 — VERIFIER SAYS DOES NOT PASS. Five findings, one of them mine.
+
+`validate` rc=0 in 21m25s and every `## Proven` line re-ran green. The code is
+correct for every stimulus reachable in CI. It still does not pass.
+
+### 1 (HIGH) — the phase-6 deliverable is UNGUARDED
+
+Delete the `log_error "cictl affected failed (exit $status) ..."` line at
+`.ci/ctl.sh:102`, keep `return "$status"`, and the suite is **rc=0, 7 of 7
+proven able to fail**.
+
+Why it survives: `write_cictl` (`.ci/ctl_test.sh:246-270`) ALWAYS prints
+`cictl: fatal: ambiguous argument 'origin/main'` on a non-zero code, so tests 2
+and 4's `out_has 'cictl'` pass from **the fixture's own stderr**, never from the
+diagnostic. **No test drives the silent-cictl case** — which is precisely the case
+the implementer measured to justify F1 ("a red job whose log never names cictl").
+
+Deleting the whole `if` block DOES redden. So the `return` is guarded and the
+message is not. The entire content of the finding phase 5 ranked HIGH ships
+untested.
+
+### 2 (MEDIUM-HIGH) — the `inherit_errexit` comment is false for the THIRD time
+
+`inherit_errexit` does NOT apply to a command substitution on the LEFT of `||`,
+and BOTH substitutions this change introduced (`:97`, `:213`) are exactly that
+shape. Measured, shopt set, bash 5.2.21:
+
+```
+out="$(/bin/false; printf 'late\n')" || s=$?      ->  s=0   out=late
+```
+
+End-to-end on the shipped file, growing `:97` to two commands exactly as the
+header comment invites:
+
+```
+affected-gate-fast   rc=0
+  fatal: 'origin' does not appear to be a git repository
+  [ok] gate (implementation): all 1 affected project(s) green      <- the original false green
+  .ci/ctl_test.sh rc=0, 7/7        shellcheck -o all: no SC231x
+```
+
+The in-function comment at `:91-95` states the CORRECT rule ("keep it one command
+— a second one goes on its own line ABOVE"). The header contradicts it. **A
+maintainer reading the header will make the change that reopens the defect.**
+
+### 3 (MEDIUM) — `require_cmd` does not establish the "single EXTERNAL command" premise
+
+`command -v` returns 0 for a shell FUNCTION. Nothing makes `cictl` external. On
+the SHIPPED, unmodified file:
+
+```
+export -f cictl  (first command fails, last succeeds)   ->  rc=0, "all 1 affected project(s) green"
+BASH_ENV=<file defining cictl()>                        ->  rc=0, identical
+```
+
+A `cictl()` defined INSIDE `.ci/ctl.sh` is caught (SC2310, test 7 reddens —
+verified). The injected-function vector is caught by nothing. Realism in GitHub
+Actions is low, but the comment states the premise as measured fact.
+
+### 4 (MEDIUM) — the release-check fix has no test of any kind
+
+`grep -rn 'release-check\|release_check' *_test.sh .ci/*_test.sh` -> no match. The
+one changed code path with zero mechanical proof, carrying a fix for the same
+false-green class this branch exists to kill. Its stimulus lives in a comment
+instead of a test.
+
+### 5 (LOW) — MY ERROR: "all three findings closed" was wrong
+
+**Phase 5 raised SIX findings.** I assigned F1, F2(a)(b) and F3 to the
+implementer, said F2(c) and F6 would go to the test author — and never dispatched
+it. `git diff 626dced..HEAD -- .ci/ctl_test.sh` is **EMPTY**. The test author has
+not run since phase 4.
+
+So `## Still open, recorded` listed two items when four were open, and the header
+declared an open set closed. Corrected above.
+
+Also uncorrected from phase 5: `## Proven` still quotes `cictl affected failed
+(exit 127) ... nothing was gated` for an ABSENT cictl — measured, `require_cmd`
+exits BEFORE the substitution and the log reads `missing required tool(s): cictl`.
+And `SC2311 = 0` is vacuous: ShellCheck 0.9.0 emits no SC231x for `x="$(f)"` at
+all, so reporting 0 is a green that checked nothing.
+
+## What survived, and it is substantial
+
+`validate` rc=0 21m25s with all six suites `ok:`. **SC2312 = 0 is real, not bought
+with a suppression** — the only `# shellcheck disable` in `.ci/` is SC2016 for an
+awk program, and the trajectory is measured: origin/main 2 -> c4ea722 1 ->
+9aedae1 1 -> 2928dce 0. The F3 release-check fix reproduces exactly, including no
+regression on clean and dirty trees. The F1 block reproduces byte for byte against
+a silent cictl. `status` is genuinely local across four calls in one process. The
+suite still reddens against origin/main (6 failures) and against attempt 1 (2).
+Zero process substitutions. No masked exit codes anywhere.
+
+## Next
+
+Test author: finding 1 (a silent-cictl stimulus that actually guards the
+diagnostic), finding 4 (a release-check test), plus phase 5's F2(c) and F6 which I
+failed to dispatch.
+Then implementer: findings 2 and 3.
