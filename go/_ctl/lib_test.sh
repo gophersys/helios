@@ -211,9 +211,17 @@ run_lint() {
 # YAML accepts `allow-parallel-runner` silently and golangci-lint then exits 3,
 # so this is the mistake that only `config verify` can catch.
 typo_config() {
-  local dst
-  dst="$(mktemp -d "$WORK/cfg.XXXXXX")/.golangci.yml"
-  awk '{ print } /^run:$/ { print "  allow-parallel-runner: true" }' "$SHARED_CONFIG" > "$dst"
+  local dir dst
+  # `|| die`, not a bare substitution: this function is reached through `CONFIG="$(typo_config)"
+  # || return 2`, a ||-LEFT position that SUPPRESSES errexit all the way down (task #71's class).
+  # A failing `mktemp` there left `dst=/.golangci.yml` and the awk wrote to `/`, reporting a full
+  # TMPDIR as a config defect. mktemp fails loudly, and the write is confirmed on disk.
+  dir="$(mktemp -d "$WORK/cfg.XXXXXX")" ||
+    die "no throwaway directory could be created under $WORK for the typo config; check free space before reading any result from this run"
+  dst="$dir/.golangci.yml"
+  awk '{ print } /^run:$/ { print "  allow-parallel-runner: true" }' "$SHARED_CONFIG" > "$dst" ||
+    die "could not write the typo config to $dst (check free space); a failed write here reports a disk fault as a config finding"
+  [[ -s "$dst" ]] || die "the typo config at $dst is empty; the copy did not land"
   if cmp -s "$SHARED_CONFIG" "$dst"; then
     die "the typo mutant changed nothing: $SHARED_CONFIG has no top-level run: block"
   fi
@@ -490,7 +498,12 @@ run_real_lane() {
 # is exactly the true statement "lib.sh has no such argument yet".
 mutant_lib() {
   local spec="$1" dir dst rc=0
-  dir="$(mktemp -d "$WORK/mut.XXXXXX")"
+  # `|| die`, not a bare substitution: this function is reached through `LIB="$(mutant_lib …)" ||
+  # return 2`, a ||-LEFT position that SUPPRESSES errexit all the way down (task #71's class). A
+  # failing `mktemp` there left `dst=/lib.sh` and the awk wrote the mutant to the ROOT filesystem,
+  # reporting a full TMPDIR as though lib.sh had no such anchor. mktemp fails loudly instead.
+  dir="$(mktemp -d "$WORK/mut.XXXXXX")" ||
+    die "no throwaway directory could be created under $WORK for the lib.sh mutant; check free space before reading any result from this run"
   dst="$dir/lib.sh"
   # is_log: a log_* call or a comment DESCRIBES the lane; it does not run it. Mutating those
   # would let a fix that only prints the budget survive, which is the very thing test 10 exists
@@ -641,6 +654,10 @@ mutant_lib() {
       ;;
     *) die "unknown lib.sh mutant: $spec" ;;
   esac
+  # The awk redirections above carry `|| rc=$?`, but a WRITE failure and a "changed nothing" both
+  # surface as non-zero there. Confirm the mutant is actually on disk before trusting the diff, so
+  # a full TMPDIR cannot pass an empty or absent file off as a mutant.
+  [[ -s "$dst" ]] || die "the '$spec' mutant produced no file at $dst (check free space); a failed write must not be read as a mutant"
   if cmp -s "$LIB_SOURCE" "$dst"; then
     die "the '$spec' mutant reported a change but produced an identical file: $LIB_SOURCE"
   fi
@@ -724,17 +741,17 @@ TRANSITIVE_MODULE="envelope"
 # `updates to go.mod needed`) the anchor is Go's own error string, which is the most stable
 # identifier available. Both are measured from a real run, never guessed.
 #
-# WHAT THIS DOES NOT FIX, stated plainly: the anchor is still typed by a human. What changed is
-# that it is now MECHANICALLY REFUTED on every run — a wrong anchor fails immediately, and the
-# same-class arm needs no anchor to be honest at all.
-#
-# A GENERIC ANCHOR was the residual hole, and a length floor was too loose to close it:
-# `github.com` is 10 characters and appears in three of the four exempt libraries' real errors, so
-# it cleared the floor and the arm stayed green. The property that actually distinguishes a useful
-# anchor is SPECIFICITY TO ITS OWN LIBRARY — see assert_every_anchor_identifies_its_own_defect. The
-# bound on the damage, which is why this was never a broken guard: the same-class arm reads the
-# OBSERVATION, so a generic anchor can hide a drifted DIFFERENT-class reason and never a sibling
-# defect.
+# WHAT THIS DOES NOT FIX, stated plainly: the anchor is still typed by a human, and a GENERIC
+# anchor is a KNOWN, OPEN bound — `github.com` matches three of the four exempt libraries' errors,
+# so an entry could record it and the reason arm would not object. That bound is TOLERABLE for one
+# reason, and only one: the same-class arm reads the OBSERVATION, not the anchor. It fires on every
+# `…/go/<slug>@v0.0.0` in the error whatever the prose says, so a generic anchor can hide a drifted
+# DIFFERENT-class reason — never a SIBLING defect, which is the class this whole change exists to
+# fence. A guard that tried to close the generic-anchor gap by comparing anchors across libraries
+# was written and DELETED: it fired on the CORRECT library when two libraries shared a third-party
+# defect (testify, already 2 of 4 anchors), short-circuited the real arms, and shipped a
+# confidently-wrong instruction naming a library that was not broken — the exact failure it was
+# meant to prevent. One documented open bound beats a broken guard.
 #
 # FORMAT: <library> | <anchor> | <reason>
 MODULE_GRAPH_EXEMPT_SOURCE=(
@@ -745,12 +762,11 @@ MODULE_GRAPH_EXEMPT_SOURCE=(
 )
 MODULE_GRAPH_EXEMPT=("${MODULE_GRAPH_EXEMPT_SOURCE[@]}")
 
-# The floor closes ONE case and is documented as closing only that: an anchor of zero or near-zero
-# length. `grep -F ""` matches every error ever printed, so an empty anchor turns the reason arm
-# into a check that cannot fail. It is a PROXY for specificity and a loose one — `github.com` is 10
-# characters, clears this floor, and appears in three of the four exempt libraries' real errors.
-# What actually closes that case is assert_every_anchor_identifies_its_own_defect below; this floor
-# is kept because the degenerate case deserves its own message rather than a cross-library one.
+# The floor closes ONE case, and is documented as closing only that: an anchor of zero or near-zero
+# length. `grep -F ""` matches every error ever printed, so an empty anchor would turn the reason
+# arm into a check that cannot fail. It is NOT a specificity guard — `github.com` is 10 characters,
+# clears it, and still identifies almost nothing (the generic-anchor bound above). It exists only so
+# the empty/near-empty anchor gets its own precise message instead of silently disabling an arm.
 MODULE_GRAPH_ANCHOR_MINIMUM=8
 
 # THE SLUG GRAMMAR, TRANSCRIBED FROM .claude/rules/11-naming.md (HNS-1):
@@ -758,27 +774,23 @@ MODULE_GRAPH_ANCHOR_MINIMUM=8
 #     slug := word ("-" word)*
 #     word := [a-z][a-z0-9]*
 #
-# DIGITS AND HYPHENS ARE LEGAL. This pattern was `[a-z]+`, which is not the documented grammar and
-# is not what `hnslint` accepts: measured, `oauth2@v0.0.0` and `agent-session@v0.0.0` both failed to
-# match. No library is named that way TODAY, so nothing was mis-reported — but the next one that is
-# would have been wrong in two ways, and the second is worse than the first. On the table, the
-# same-class arm goes silent and the prose decides, which is precisely the state that let two
-# same-class defects sit here unnoticed. OFF the table, the `unexpected` arm fires and prints "the
-# module named is not a sibling, so a replace is NOT the answer" — when a replace is exactly the
-# answer. That is the confidently-wrong-instruction failure the network classifier already fixed
-# once, and it must not come back through the naming rule.
+# DIGITS AND HYPHENS ARE LEGAL. This pattern was `[a-z]+`, which is neither the documented grammar
+# nor what `hnslint` accepts: measured, `oauth2@v0.0.0` and `agent-session@v0.0.0` both failed to
+# match it. No library is named with a digit or a hyphen TODAY, so nothing was mis-reported — but
+# the next one that is would have gone wrong two ways: on the table the same-class arm falls silent
+# and the prose decides, and OFF the table the `unexpected` arm prints "the module named is not a
+# sibling, so a replace is NOT the answer" when a replace is exactly the answer. The widened pattern
+# is verified behaviourally by exempt:same-class-rule-compliant-name below, which fails unless the
+# same-class arm fires on `oauth2-provider@v0.0.0` — a slug that exercises both a digit and a hyphen.
 #
-# IF 11-naming.md CHANGES THE GRAMMAR, CHANGE THIS. It is transcribed, not guessed, and the two
-# assertions below fail the moment the transcription and the rule disagree in either direction.
+# IF 11-naming.md CHANGES THE GRAMMAR, CHANGE THIS to match. Load-time assertions that claimed to
+# police the transcription were written and DELETED: a `*`->`?` drift passes a two-example check
+# while every 3-word slug goes unmatched, so they asserted a rigour they did not have. The honest
+# guard is the behavioural stimulus, not a pair of hand-picked examples.
 SIBLING_SLUG_PATTERN='[a-z][a-z0-9]*(-[a-z][a-z0-9]*)*'
 # The prefix is reused rather than re-spelled, with its dots escaped: a dot in an unescaped regex
 # matches any character, which would let `githubXcom/...` satisfy the same-class arm.
 SIBLING_FAILURE_PATTERN="${SIBLING_PREFIX//./\\.}${SIBLING_SLUG_PATTERN}@v0\.0\.0"
-grep -qE "$SIBLING_FAILURE_PATTERN" <<< "${SIBLING_PREFIX}agent-session2@v0.0.0" ||
-  die "the sibling-failure pattern rejects a slug 11-naming.md permits ('agent-session2'); it has drifted from the grammar it is transcribed from: $SIBLING_FAILURE_PATTERN"
-if grep -qE "$SIBLING_FAILURE_PATTERN" <<< "${SIBLING_PREFIX}Agent_Session@v0.0.0"; then
-  die "the sibling-failure pattern accepts a slug 11-naming.md forbids ('Agent_Session'); a pattern that matches anything cannot identify the closure defect: $SIBLING_FAILURE_PATTERN"
-fi
 
 # ── telling a broken manifest from a broken network (test 21) ────────────────
 #
@@ -835,33 +847,22 @@ MODULE_GRAPH_TRANSPORT_MARKERS=(
 # exempt:stale" — rather than reporting a pass.
 STALE_EXEMPTION_LIB="configuration"
 
-# The anchors for the three remaining table stimuli. `WRONG_REASON_LIB` must be a library that is
-# genuinely on the table and genuinely red, so the only thing the stimulus changes is whether the
-# recorded anchor matches the observed error; `WRONG_REASON_ANCHOR` is a REAL module path from a
-# REAL error in this same tree — objectstorage's — so the stimulus proves the anchor is matched
-# against THIS library's error rather than against any error the tree happens to produce.
-# The anchors for `exempt:wrong-reason`, chosen so the stimulus reaches the REASON arm and only it.
-# It used to swap `errors`' anchor, which stopped working the moment the specificity arm went in:
-# `dependencies` and `errors` share the testify defect, so changing one of them made the OTHER's
-# anchor non-specific and specificity — which is checked first — claimed the failure instead. The
-# reason arm would have gone uncovered again, silently. `orchestrator` is the subject now because
-# it shares its defect with nobody, and the wrong anchor is `objectstorage`'s REAL anchor, so the
-# specificity rule sees two entries recording an identical anchor and stays quiet by design.
+# The anchors for `exempt:wrong-reason`, chosen so the stimulus reaches the REASON arm. The subject
+# must be a library genuinely on the table and genuinely red, so the only thing the stimulus changes
+# is whether the recorded anchor matches the observed error; `WRONG_REASON_ANCHOR` is a REAL module
+# path from a REAL error in this same tree — objectstorage's — so the stimulus proves the anchor is
+# matched against THIS library's error rather than against any error the tree happens to produce.
+# `orchestrator` fails on `updates to go.mod needed`, which `github.com/kr/pretty` does not contain.
 WRONG_REASON_LIB="orchestrator"
 WRONG_REASON_ANCHOR="github.com/kr/pretty"
 PHANTOM_EXEMPTION_LIB="phantomlibrary"
 
-# The anchor for `exempt:generic-anchor`. `github.com` is 10 characters — it CLEARS the length
-# floor — and it appears in three of the four exempt libraries' real errors. That is the measured
-# proof the floor is a loose proxy, so it is the stimulus the specificity arm is driven by.
-GENERIC_ANCHOR_LIB="objectstorage"
-GENERIC_ANCHOR_VALUE="github.com"
-
-# The anchors for `exempt:same-class-rule-compliant-name`, the stimulus a `[a-z]+` slug pattern
-# defeats. The slug exercises BOTH characters the old pattern rejected: a digit and a hyphen.
+# The anchors for `exempt:same-class-rule-compliant-name`, the stimulus the old `[a-z]+` slug pattern
+# defeated. The slug exercises BOTH characters that pattern rejected: a digit and a hyphen.
 # `invalid version` is the recorded anchor because it TRULY appears in the observed error, so the
-# reason arm is satisfied and only the same-class arm can fire — which is what makes this stimulus
-# a test of the pattern rather than of the prose.
+# reason arm is satisfied and only the same-class arm can fire — which is what makes this stimulus a
+# test of the widened pattern rather than of the prose, and the one property worth keeping from the
+# deleted specificity machinery: the same-class arm already provides it.
 RULE_COMPLIANT_HOST_LIB="codeinsight"
 RULE_COMPLIANT_SLUG="oauth2-provider"
 
@@ -1154,7 +1155,8 @@ mutant_tree() {
       manifest="$tree/$RULE_COMPLIANT_HOST_LIB/go.mod"
       [[ -f "$manifest" ]] ||
         die "the '$spec' tree mutant has no $RULE_COMPLIANT_HOST_LIB/go.mod to mutate in $tree"
-      if grep -q "$SIBLING_PREFIX$RULE_COMPLIANT_SLUG" "$manifest"; then
+      # grep -F: the prefix is full of dots, and an unescaped dot in a BRE matches any character.
+      if grep -qF "$SIBLING_PREFIX$RULE_COMPLIANT_SLUG" "$manifest"; then
         die "the '$spec' tree mutant changed nothing: $RULE_COMPLIANT_HOST_LIB already mentions $RULE_COMPLIANT_SLUG"
       fi
       printf '\nrequire %s%s v0.0.0\n' "$SIBLING_PREFIX" "$RULE_COMPLIANT_SLUG" >> "$manifest"
@@ -1594,7 +1596,7 @@ t_the_report_names_the_library_and_only_the_unreplaced_module() {
 # 2.1s between them. That is the price of the register being enumerated rather than skipped, and
 # it shrinks to ~2s the moment the table is empty.
 t_every_library_resolves_its_full_module_graph() {
-  local manifest lib out rc entry anchor reason sibling scanned=0 red=0 corpus=""
+  local manifest lib out rc entry anchor reason sibling scanned=0 red=0
   local -a walked=() unexpected=() stale=() mismatched=() same_class=()
   for manifest in "$MODULE_TREE"/*/go.mod; do
     [[ -f "$manifest" ]] || continue
@@ -1622,9 +1624,6 @@ t_every_library_resolves_its_full_module_graph() {
       continue
     fi
     red=$((red + 1))
-    # The corpus every anchor is tested against for specificity. One record per RED library,
-    # `<lib><TAB><error flattened to one line>`, because an anchor is a single-line substring.
-    corpus+="$lib"$'\t'"$(tr '\n' ' ' <<< "$out")"$'\n'
     # THE SAME-CLASS ARM, and the only one that reads NOTHING written by hand. An unresolved
     # sibling at v0.0.0 is the defect this whole change exists to fix; no exemption may hold it.
     sibling="$(grep -oE "$SIBLING_FAILURE_PATTERN" <<< "$out" || true)"
@@ -1651,7 +1650,6 @@ t_every_library_resolves_its_full_module_graph() {
     fail "no go.mod was read under $MODULE_TREE, so no module graph was loaded and this run asserted nothing"
   info "go list -m all: $scanned librar(y|ies) read, $red red, ${#MODULE_GRAPH_EXEMPT[@]} on the exemption table"
   assert_every_exemption_names_a_real_library "${walked[@]}"
-  assert_every_anchor_identifies_its_own_defect "$corpus"
 
   if [[ ${#same_class[@]} -gt 0 ]]; then
     fail "$(printf '%s\n' \
@@ -1761,61 +1759,6 @@ assert_every_exemption_names_a_real_library() {
   done
 }
 
-# assert_every_anchor_identifies_its_own_defect <corpus> — the SPECIFICITY arm, and the honest
-# replacement for a character count. The floor is a proxy: `github.com` clears 8 characters, matches
-# three of the four exempt libraries' errors, and a break-test proved the suite stays green with it
-# recorded — the arm advertised as proven while identifying nothing.
-#
-# THE PROPERTY, and why it is not plain uniqueness. "An anchor must match no other library's error"
-# is too strong and would fire on this tree as it stands: `dependencies` and `errors` BOTH fail on
-# `github.com/stretchr/testify@v1.11.1`, legitimately, because it is genuinely the same defect. Two
-# libraries sharing an anchor is not the fault — RECORDING A DIFFERENT DEFECT FROM THE ONE YOU
-# MATCH is. So:
-#
-#   an anchor may match another red library's error ONLY IF that library records the SAME anchor.
-#
-# `github.com/stretchr/testify` on both -> legal, identical anchors, one shared defect.
-# `github.com` on objectstorage        -> matches dependencies' error, whose anchor is
-#                                         `github.com/stretchr/testify` -> NOT identical -> refused.
-#
-# KNOWN BOUND, stated rather than hidden: the corpus is the red libraries of THIS run, so with one
-# red library there is nothing to compare against and a generic anchor there is unpoliced. The
-# same-class arm still holds in that state — it reads the observation — so the worst case remains a
-# drifted different-class reason, never a hidden sibling defect.
-assert_every_anchor_identifies_its_own_defect() {
-  local corpus="$1" entry name anchor other other_error other_entry other_anchor
-  # Not a vacuity hole: an empty corpus means no library is red, and any table entry is then
-  # already caught by the stale arm.
-  [[ -n "$corpus" ]] || return 0
-  for entry in ${MODULE_GRAPH_EXEMPT[@]+"${MODULE_GRAPH_EXEMPT[@]}"}; do
-    name="$(trim_field "${entry%%|*}")"
-    anchor="$(module_graph_exemption_anchor "$entry")"
-    # An absent anchor is the shape arm's finding, already reported by the caller above.
-    [[ -n "$anchor" ]] || continue
-    while IFS=$'\t' read -r other other_error; do
-      [[ -n "$other" && "$other" != "$name" ]] || continue
-      grep -qF -- "$anchor" <<< "$other_error" || continue
-      other_anchor=""
-      if other_entry="$(module_graph_exemption "$other")"; then
-        other_anchor="${other_entry%%$'\t'*}"
-      fi
-      [[ "$other_anchor" == "$anchor" ]] ||
-        fail "$(printf '%s\n' \
-          "the anchor recorded for '$name' also matches '$other', which records something else." \
-          "An anchor identifies WHICH defect a library has; one that matches another library's" \
-          "error while recording a different reason identifies nothing, and the reason arm can" \
-          "never fail for it." \
-          "" \
-          "  $name  records [$anchor]" \
-          "  $other  records [${other_anchor:-<not on the table>}]" \
-          "  $other's error: $other_error" \
-          "" \
-          "narrow the anchor to the module path or phrase unique to $name's failure. Two libraries" \
-          "MAY share an anchor when they genuinely share the defect — then record it identically.")"
-    done <<< "$corpus"
-  done
-}
-
 # trim_field <text> — strips the surrounding blanks the table's column alignment introduces.
 trim_field() {
   local text="$1"
@@ -1919,7 +1862,7 @@ counter_for() {
     t_real_findings_are_still_reported_as_findings) printf 'exit:3\n' ;;
     t_a_clean_run_passes)                           printf 'exit:3\n' ;;
     t_the_shared_config_is_schema_valid)            printf 'config:typo\n' ;;
-    t_concurrent_lints_do_not_collide)              printf 'none:the counter is a config without the key, and a lock race is probabilistic; it is measured in phase 1, never asserted here\n' ;;
+    t_concurrent_lints_do_not_collide)              printf 'none:this test states no counter-stimulus — the config-without-the-key counter is UNWIRED, not merely deferred; the collision is measured in phase 1 and never asserted as a discriminator here\n' ;;
     # A green `go build` makes the build dimension legitimately PASS, which is exactly the row
     # the test forbids — so a test that stopped reading the summary cannot survive this.
     t_phase_gate_all_never_records_pass_for_a_failing_verb) printf 'gobuild:0\n' ;;
@@ -1995,35 +1938,32 @@ counter_for() {
     t_the_report_names_the_library_and_only_the_unreplaced_module)
       printf 'tree:repaired\n'
       printf 'tree:repaired-minus-one-replace\n' ;;
-    # ONE COUNTER PER ARM, and this test has six. The claim was made before it was true: the
-    # comment said "one per arm" while the vacuity floor, the phantom arm and the reason arm had
-    # no stimulus at all — three assertions that had never executed a failing path in this suite.
+    # NINE counters over SEVEN distinct arms — the same-class arm has three, because a sibling can
+    # reach it three ways and each is a real state a library was or could be in. Every arm has at
+    # least one; the vacuity floor, the phantom arm and the reason arm each had NONE before, three
+    # assertions that had never executed a failing path in this suite.
     #   exempt:none                      four red libraries, none tabled        -> unexpected
     #   tree:transitive-replace-dropped  a dropped sibling closure, not tabled  -> same-class
+    #   exempt:same-class                a sibling defect, tabled, honest anchor -> same-class
+    #   exempt:same-class-rule-compliant-name
+    #                                    a sibling under a slug with a digit and
+    #                                    a hyphen, tabled                       -> same-class,
+    #                                    and green under the old `[a-z]+` pattern
     #   exempt:stale                     a green library that IS tabled         -> stale
-    #   exempt:same-class                a sibling defect, tabled with an
-    #                                    HONEST anchor                          -> same-class
     #   exempt:wrong-reason              a real entry, an anchor its library's
     #                                    error does not contain                 -> reason
     #   exempt:phantom                   an entry naming no library in the tree -> phantom
-    #   exempt:empty-anchor              an entry whose anchor matches anything -> shape
-    #   exempt:generic-anchor            an anchor that clears the floor and
-    #                                    matches another library's error        -> specificity
-    #   exempt:same-class-rule-compliant-name
-    #                                    a closure defect under a slug with a
-    #                                    digit and a hyphen, honestly anchored  -> same-class,
-    #                                    and ONLY if the pattern follows 11-naming.md
+    #   exempt:empty-anchor              an entry with no anchor at all         -> shape floor
     #   tree:empty                       no manifest at all                     -> vacuity floor
     t_every_library_resolves_its_full_module_graph)
       printf 'exempt:none\n'
       printf 'tree:transitive-replace-dropped\n'
-      printf 'exempt:stale\n'
       printf 'exempt:same-class\n'
       printf 'exempt:same-class-rule-compliant-name\n'
+      printf 'exempt:stale\n'
       printf 'exempt:wrong-reason\n'
       printf 'exempt:phantom\n'
       printf 'exempt:empty-anchor\n'
-      printf 'exempt:generic-anchor\n'
       printf 'tree:empty\n' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
@@ -2124,11 +2064,6 @@ apply() {
     exempt:wrong-reason)
       replace_exemption_anchor "$WRONG_REASON_LIB" "$WRONG_REASON_ANCHOR" \
         "the stimulus: an anchor this library's error does not contain" || return 2 ;;
-    # THE GENERIC ANCHOR. It clears the length floor and matches three of the four exempt
-    # libraries' errors, so it is the measured proof that a character count is not specificity.
-    exempt:generic-anchor)
-      replace_exemption_anchor "$GENERIC_ANCHOR_LIB" "$GENERIC_ANCHOR_VALUE" \
-        "the stimulus: long enough to clear the floor, generic enough to identify nothing" || return 2 ;;
     # A CLOSURE DEFECT WEARING A RULE-COMPLIANT NAME, tabled with an anchor that HONESTLY matches.
     # Every arm but same-class is therefore satisfied, so this stimulus fails only if the sibling
     # pattern follows 11-naming.md's grammar. Under the old `[a-z]+` the whole test went green.
