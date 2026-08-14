@@ -64,7 +64,7 @@ commit. Mark in-progress boxes with `⏳ <ISO-time>` and stuck ones with `⚠`.
 
 - [x] Integrate a CDP interaction loop for gesture-level
       verification (drags, menus, wheel), replacing ad-hoc CDP scripts.
-- [ ] `docs/eyes.md`: when screenshots may be consulted (anatomy discovery)
+- [ ] ⏳ 2026-08-14T00:03Z (loop) `docs/eyes.md`: when screenshots may be consulted (anatomy discovery)
       and when they may not (never to pass a gate).
 
 ## P6 — Research continuation
