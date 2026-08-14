@@ -57,13 +57,56 @@
 #       measured inside 1 saturated run rises with that run and hides it.
 #   C6  the estimator sits ABOVE the warm-start cluster and at or below the top
 #       of the cold-start cluster. Not the minimum, not the median.
+#   C7  a job that never reached a runner (`skipped`) is in neither the floor
+#       sample nor the verdicts. A job still in flight is in the floor sample —
+#       its queue is already final — but gets no verdict, because it has no
+#       execution yet.
 #
-# WHAT IS DELIBERATELY NOT PINNED
-# The exact percentile and the exact factor stay free inside a corridor. With
-# the lower quartile these fixtures need a floor of 9 s to pass a queue of 12 s
-# and to fail a queue of 250 s, so `queue > floor * K` holds for K from 1.4 to
-# 20.8. Any low percentile that lands between 8 s and 16 s satisfies C6. Pick a
-# pair and say why in the script.
+# THE ADMISSIBLE BAND, MEASURED BY SWEEP AND NOT DERIVED
+# Both constants of the rule were swept against these cases, changing one token
+# of the script at a time and nothing else:
+#
+#   FLOOR_PERCENTILE   admissible [20, 28], shipped 25
+#     19 and below  estimator_clears_the_warm_start_cluster fails: the warm
+#                   cluster leaks into the floor and healthy jobs alarm.
+#     29 and above  estimator_is_a_floor_not_a_median fails: the floor climbs
+#                   into the contended cluster.
+#   ALARM_FACTOR       admissible [2, 20], shipped 3
+#     1             3 cases fail, all of them false fires on healthy jobs.
+#     21 and above  estimator_is_a_floor_not_a_median fails.
+#
+# An earlier version of this header claimed K from 1.4 to 20.8, and the commit
+# message of f579be5 claimed 1.4 to 27. Both were arithmetic on 1 fixture rather
+# than a sweep, and both were wrong: K=1.4 and K=27 are red. Sweep, do not
+# derive. The commit message cannot be corrected and stands wrong in the log.
+#
+# WHAT NO CASE HERE CAN SEE: THE REPO-WIDE SAMPLE
+# The headline of 79d7fe3 is that the floor comes from EVERY workflow in the
+# window while the verdicts stay on the requested workflow. NOTHING BELOW TESTS
+# THAT. Change 1 word — the sample loop reads `$JOBS_WINDOW` instead of
+# `$JOBS_SAMPLE` — and all cases here stay green, while the live answer moves
+# from a 9 s floor over 107 jobs to a 7 s floor over 18.
+#
+# This is a property of the seam, not a missing fixture. On the fixture path the
+# script does `cp "$JOBS_SAMPLE" "$JOBS_WINDOW"`, so the 2 files are
+# byte-identical for every fixture — measured, with cmp, on all of them. The
+# mutation swaps 2 identical files, so NO fixture content can distinguish it.
+# The split happens live on `run.path` from the RUNS endpoint, and a jobs-API
+# response carries no run path, so the fixture cannot express "these jobs are
+# from another workflow" at all.
+#
+# To close it the seam has to grow, and that is the implementer's change, not a
+# test file's:
+#   preferred  let the fixture carry the runs index beside the jobs, for example
+#              `{"runs":[{"id":...,"path":".github/workflows/validate.yml"}],
+#                "jobs":[...]}`, and split on run_id -> path. This mirrors the
+#              live path exactly, keeping run.path as the only split key.
+#   cheaper    read `.workflow_name` from each job and match it against the
+#              workflow argument on the fixture path. It works, but the fixture
+#              path and the live path would then split on different fields, and
+#              the 1-extractor rule in the script header exists to stop that.
+# With either, the case is: 1 fixture whose repo-wide quartile and
+# requested-workflow quartile differ enough to move a verdict.
 set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -81,6 +124,8 @@ sample_of_none_fails_loudly
 long_queue_with_long_execution_fires
 estimator_clears_the_warm_start_cluster
 known_limitation_quartile_rises_when_most_jobs_wait
+a_skipped_job_leaves_the_sample_and_the_verdicts
+a_job_in_flight_feeds_the_floor_but_gets_no_verdict
 "
 
 # A missing tool is a failure, never a skip. The subject needs both, and it
@@ -133,6 +178,16 @@ expect_rc() { # <want> <why>
     return 0
   fi
   bad "exit $rc, want $1 — $2"
+  printf '%s\n' "$out" | tail -4 | sed 's/^/      | /'
+}
+
+# For a case that must read the exit code without pinning the sensitivity. 0 and
+# 1 are both verdicts; 2, 3 and 127 mean the verb never reached one.
+expect_verdict_rc() { # <why>
+  if [ "$rc" -eq 0 ] || [ "$rc" -eq 1 ]; then
+    return 0
+  fi
+  bad "exit $rc is not a verdict, want 0 or 1 — $1"
   printf '%s\n' "$out" | tail -4 | sed 's/^/      | /'
 }
 
@@ -315,22 +370,83 @@ test_estimator_clears_the_warm_start_cluster() {
 # goes quiet. This window is 16 of 20, which is 80%.
 #
 # READ THIS BEFORE YOU CHANGE THE CASE. It asserts what the rule DOES today, not
-# what it SHOULD do. A silent verdict on a window where 16 jobs waited between
-# 400 s and 900 s is NOT the behaviour anybody chose; it is the price of a
-# quartile, and the fix is a wider sample, which is the same fix limitation 1
-# needs. When that fix lands this case goes red. REWRITE it to assert the alarm.
-# Do not delete it, and do not weaken it to keep the suite green.
+# what it SHOULD do. A window where 16 jobs waited between 400 s and 900 s is
+# saturated, and the quiet is the price of a quartile. When a wider sample lands
+# this case goes red. REWRITE it to assert the alarm. Do not delete it.
 #
-# It also records the cost of the estimator we chose. The minimum, which case 7
-# rejects, would have a floor of 9 s here and would fire. The quartile buys
-# quiet on healthy short jobs and pays for it exactly here.
+# IT ASSERTS THE MECHANISM, NEVER THE SENSITIVITY. An earlier version of this
+# case demanded exit 0, and that made it the ONLY thing in the suite that
+# forbade ALARM_FACTOR=2 — a strictly MORE sensitive alarm, which on this very
+# fixture starts catching the contention the case exists to describe as
+# uncaught. A case that records a weakness must never be the thing that blocks
+# the weakness being fixed. So:
+#
+#   asserted      the floor is dragged into the contended cluster. That is the
+#                 mechanism, it is computed before the factor is applied, and it
+#                 is true for every choice of factor.
+#   asserted      the SMALLEST wait in the cluster escapes. At a floor of 410 s
+#                 the alarm is at or above 410 s for any factor of 1 or more, so
+#                 a job that waited 400 s against a true 10 s floor is invisible
+#                 here whatever the factor is. That is the limitation, stated in
+#                 a way no sensitivity choice can satisfy or veto.
+#   NOT asserted  how many of the other 15 are caught. That is the factor's
+#                 business, and this case has no opinion on it.
+#
+# It also prices the estimator honestly. The minimum, which case 7 rejects,
+# would keep a 9 s floor here and would fire. The quartile buys quiet on healthy
+# short jobs and pays for it exactly on this shape.
 test_known_limitation_quartile_rises_when_most_jobs_wait() {
   run_fixture mostly-contended
+  expect_verdict_rc "a window of 20 finished jobs must produce a verdict"
   expect_floor_at_least 300 \
     "the mechanism: 80% contended drags the quartile into the contended cluster"
-  expect_rc 0 \
-    "the consequence, and the limitation: the alarm is silent on a window that
-      a wider sample would report"
+  expect_no_line 'FAIL[[:space:]]+[0-9]{6,}[[:space:]]+contended-1[[:space:]]' \
+    "the limitation: a 400 s wait sits below its own inflated floor and escapes"
+}
+
+# 9. A SKIPPED JOB IS NOT A SAMPLE. GitHub never sent it to a runner, so it has
+# no queue and no execution, and it reports every timestamp at the same instant.
+# That reads as a queue of 0 s. 8 of those zeros in a sample of 24 pull the
+# lower quartile to 0 s and the alarm down with it, so the exclusion is
+# load-bearing on the FLOOR and not only on the count.
+#   skipped excluded  floor 10s -> alarm 30s -> silent, which is correct
+#   skipped counted   floor  0s -> alarm  0s -> all 16 healthy jobs fire
+# Both branches of the verdict loop had no coverage at all before this case and
+# case 10. A commit message claimed a fixture for them; no such fixture existed.
+test_a_skipped_job_leaves_the_sample_and_the_verdicts() {
+  run_fixture skipped-jobs
+  expect_rc 0 "16 healthy cold starts and 8 skips are not a saturated pool (C1)"
+  expect_no_line 'FAIL[[:space:]]+[0-9]{6,}' "nothing here waited for anybody"
+  expect_floor_at_least 8 \
+    "a skipped job reports a 0 s queue. It must not enter the floor sample"
+  expect_line 'skipped=8' "the 8 skips must be counted as skipped"
+  expect_line 'checked=16' "and must not be counted as checked"
+  expect_no_line '(PASS|FAIL)[[:space:]]+[0-9]{6,}[[:space:]]+skipped-' \
+    "a job that never reached a runner gets no verdict"
+}
+
+# 10. A JOB STILL IN FLIGHT GETS NO VERDICT, BUT ITS QUEUE STILL COUNTS. It has
+# no execution yet, so there is nothing to judge. Its QUEUE is already final, so
+# it belongs in the floor sample. That asymmetry is what keeps saturation
+# visible: a saturated pool is full of jobs that have not finished, and dropping
+# them from the sample takes the healthy short queues out with them and lifts
+# the floor over the very waits we are looking for. Here the 12 unfinished jobs
+# are the only healthy ones in the window.
+#   queues counted   floor  10s -> alarm   30s -> the 8 real waits fire
+#   queues dropped   floor 470s -> alarm 1410s -> nothing fires. Silence.
+test_a_job_in_flight_feeds_the_floor_but_gets_no_verdict() {
+  run_fixture jobs-in-flight
+  expect_rc 1 "8 jobs waited 400 s and more on a 10 s floor (C1)"
+  expect_floor_at_most 60 \
+    "the unfinished jobs hold the floor down. Their queue is already final"
+  expect_line 'FAIL.*waited-1[[:space:]]' "the shortest real wait must fire"
+  expect_line 'FAIL.*waited-8' "and so must the longest"
+  expect_line 'in-flight-1[[:space:]]+still in flight' \
+    "an unfinished job is reported, not judged"
+  expect_line 'pending=12' "all 12 unfinished jobs must be counted as pending"
+  expect_line 'checked=8' "and none of them as checked"
+  expect_no_line '(PASS|FAIL)[[:space:]]+[0-9]{6,}[[:space:]]+in-flight-' \
+    "a job with no execution yet cannot be judged against its queue"
 }
 
 # -------- runner --------
