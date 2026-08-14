@@ -106,12 +106,13 @@ data:
         at derivation, so every later comparison is same-form. First-pass
         failure on the fleet, 2026-08-14.
         """
+        if "/" not in ref:
+            # no path separator: any colon is a TAG, never a port
+            return f"docker.io/library/{ref}"
         first = ref.split("/", 1)[0]
         if "." in first or ":" in first or first == "localhost":
             return ref
-        if "/" in ref:
-            return f"docker.io/{ref}"
-        return f"docker.io/library/{ref}"
+        return f"docker.io/{ref}"
 
     def repo_of(ref):
         base = ref.split("@", 1)[0]
