@@ -21,7 +21,11 @@ three real incidents). The battery, from the repo root:
 2. `./ctl.sh geometry` — per demo: solver + drift guard, ratio table,
    glyph-ink audit, widest-string sweep (operator fidelity + telemetry
    defaults/sweep + bench drill-render).
-3. For gesture claims: a `densui.drive` scenario that measures the
+3. `./ctl.sh score` — the craft scorecard over `corpus/`: every registered
+   defect-class predicate, per-class coverage and violations, non-zero when
+   a class misses its own seeded defect. It reports UNMEASURED classes and
+   never issues an aesthetic pass (docs/scorecard.md).
+4. For gesture claims: a `densui.drive` scenario that measures the
    behaviour (real travel, real wheel delta, real state readback).
 
 ## Rules

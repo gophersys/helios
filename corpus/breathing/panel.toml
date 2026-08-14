@@ -1,0 +1,16 @@
+# corpus seed — breathing. Default audit.Rules(); no [rules] override, because a
+# seed that needs a loosened rule proves nothing about the shipped predicate.
+#
+# `value` is deliberately NOT declared in text_kinds: the probe then measures
+# the element box instead of glyph ink, so this seed's clearance is CSS px and
+# not a function of whichever font the host resolves. audit.Rules.text_kinds
+# (a separate list) still puts `value` under the breathing check — which is the
+# wiring this seed exists to prove.
+[probe]
+root = ".panel"
+
+[probe.containers]
+plate = ".plate"
+
+[probe.parts]
+value = ".value"

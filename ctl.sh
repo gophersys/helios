@@ -32,6 +32,11 @@ case "$cmd" in
     # the contract demo: drill session -> render tree state -> battery
     (cd demos/bench && uv run --project ../../tools/densui python3 build/build.py)
     ;;
+  score)
+    # the craft scorecard: every registered predicate over the seeded corpus.
+    # rc!=0 when a class misses its OWN seed — a check that cannot fail is the defect.
+    uv run --project tools/densui densui score --corpus corpus
+    ;;
   test-review)
     # The review standard is org-central: cictl/review/review.sh reviews PRs on
     # the arc-review pool (wired in .github/workflows/on-pr.yml), and cictl

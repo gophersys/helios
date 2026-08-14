@@ -1,6 +1,6 @@
 # deep-craft
 
-phase:    green
+phase:    verify
 repo:     gophersys/dense-ui
 branch:   feat/deep-craft
 worktree: ~/code/.worktrees/dense-ui-deep-craft
@@ -134,6 +134,27 @@ check).
 
 ## Blocked
 Nothing.
+
+## Green (W0) — proven
+- Orchestrator re-ran, bare rcs: `uv run --extra dev pytest -q` -> 90
+  passed rc=0; `./ctl.sh score` -> rc=0, all six battery seeds caught
+  (alignment, breathing, containment, crowding, gap-law, overlap),
+  failures=[]. Implementer's own evidence: ruff rc=0 (+format on its two
+  files), ./ctl.sh test rc=0, ./ctl.sh geometry rc=0 (demos run through the
+  extracted _collect/_rules path, so the refactor is proven by that green),
+  break-test on a scratch COPY of the corpus (worktree untouched):
+  un-planted overlap seed -> rc=1 with "seeded overlap defect not caught".
+- Count correction accepted: 90 not 91 (the 78 baseline already included
+  the deliberately-green fixture guard; 77+13=90).
+- Flake recorded, not claimed fixed: test_drive pointer-timing failed once
+  post-change, passed 5 subsequent runs; nothing on its path touched.
+- Scope note: implementer added `./ctl.sh score` to ci.yml + on-pr.yml (2
+  lines) — kept: W0 says wired into CI; an unwired verb is a gate that
+  does not exist.
+- Breathing seed design choice documented in its TELL.md/panel.toml: value
+  measured as element box (not glyph ink) so the 1.0px seed clearance is
+  CSS-px stable across host fonts instead of flipping inside a 4px
+  macOS-vs-CI metrics window.
 
 ## Next
 dev-planner returns a plan; STOP and show Mateo.

@@ -63,7 +63,8 @@ never by the renderer.
 | `demos/operator/` | worked example: a playable Web Audio replica of Ableton Operator, solver-laid-out, gate-proven (needs local fonts — see its README) |
 | `demos/telemetry/` | first fully-blind panel: designed and built with no reference image, passing its own battery |
 | `demos/bench/` | the CONTRACT demo: rendered from a live parameter tree after a scripted drill session — the pixels are evidence of contract states |
-| `docs/` | `eyes.md` (what looking may and may not decide), `spec.md`, `adr/` (ADR-0001 computed-not-judged, ADR-0002 licensed assets) |
+| `corpus/` | one minimal page per measured defect class, seeded with exactly one deliberate defect its predicate must catch (`./ctl.sh score`) |
+| `docs/` | `eyes.md` (what looking may and may not decide), `spec.md`, `scorecard.md`, `adr/` (ADR-0001 computed-not-judged, ADR-0002 licensed assets) |
 | `ci/` | the `dense-ui-ci` image (Chromium + fonts + uv); CI runs the same gates as `ctl.sh` |
 | `loop/` | the autonomous 5-minute work loop (launchd; armed manually) |
 | `.claude/` | repo instrumentation: rules, `ui-reason`/`ui-layout`/`ui-bind` skills, the `ui-verifier` agent |

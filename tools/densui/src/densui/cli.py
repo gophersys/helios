@@ -1,4 +1,4 @@
-"""densui CLI — solve / audit / zoom / compare from the shell.
+"""densui CLI — solve / audit / score / zoom / compare from the shell.
 
 Every subcommand fails loudly with a named cause and a non-zero exit; output
 is JSON on stdout so pipelines can consume it.
@@ -16,6 +16,38 @@ import tomllib
 def _die(msg: str) -> int:
     print(f"densui: {msg}", file=sys.stderr)
     return 2
+
+
+def _collect(page, probe_cfg: dict, extra_js: str = "") -> dict:
+    from densui import probe
+
+    return probe.collect(
+        page,
+        root=probe_cfg["root"],
+        containers=probe_cfg.get("containers", {}),
+        parts=probe_cfg.get("parts", {}),
+        text_kinds=set(probe_cfg.get("text_kinds", [])),
+        owner_attr=probe_cfg.get("owner_attr", "data-addr"),
+        root_width=probe_cfg.get("root_width"),
+        extra_js=extra_js,
+    )
+
+
+def _rules(cfg: dict):
+    from densui import audit
+
+    rules_cfg = cfg.get("rules", {})
+    legal = None
+    if "graze_max_height" in rules_cfg:
+        legal = audit.knob_value_graze(
+            rules_cfg["graze_max_height"], rules_cfg.get("graze_min_dx", 8.0)
+        )
+    return audit.Rules(
+        min_sibling_gap=rules_cfg.get("min_sibling_gap", 2.0),
+        breathing_floor=rules_cfg.get("breathing_floor", 2.5),
+        legal_overlap=legal,
+        spill_slack={(c, k): float(v) for c, k, v in rules_cfg.get("spill", [])},
+    )
 
 
 def cmd_solve(args) -> int:
@@ -37,35 +69,34 @@ def cmd_audit(args) -> int:
     except (OSError, tomllib.TOMLDecodeError) as exc:
         return _die(f"bad audit config {args.config}: {exc}")
     try:
-        pr = cfg["probe"]
         sweep_js = pathlib.Path(args.sweep_js).read_text() if args.sweep_js else ""
-        out = probe.collect(
-            args.page,
-            root=pr["root"],
-            containers=pr.get("containers", {}),
-            parts=pr.get("parts", {}),
-            text_kinds=set(pr.get("text_kinds", [])),
-            owner_attr=pr.get("owner_attr", "data-addr"),
-            root_width=pr.get("root_width"),
-            extra_js=sweep_js,
-        )
+        out = _collect(args.page, cfg["probe"], sweep_js)
     except (KeyError, probe.ProbeError) as exc:
         return _die(f"probe failed: {exc}")
-    rules_cfg = cfg.get("rules", {})
-    legal = None
-    if "graze_max_height" in rules_cfg:
-        legal = audit.knob_value_graze(
-            rules_cfg["graze_max_height"], rules_cfg.get("graze_min_dx", 8.0)
-        )
-    rules = audit.Rules(
-        min_sibling_gap=rules_cfg.get("min_sibling_gap", 2.0),
-        breathing_floor=rules_cfg.get("breathing_floor", 2.5),
-        legal_overlap=legal,
-        spill_slack={(c, k): float(v) for c, k, v in rules_cfg.get("spill", [])},
-    )
-    fails = audit.run_battery(out, rules)
+    fails = audit.run_battery(out, _rules(cfg))
     print(json.dumps({"parts": len(out["parts"]), "failures": fails}, indent=2))
     return 1 if fails else 0
+
+
+def cmd_score(args) -> int:
+    from densui import probe, score
+
+    corpus = pathlib.Path(args.corpus)
+    seeds = sorted(d for d in corpus.iterdir() if d.is_dir()) if corpus.is_dir() else []
+    if not seeds:
+        return _die(f"no seed directories under {corpus} — a corpus that cannot be scored fails")
+    targets = []
+    for d in seeds:
+        try:
+            with open(d / "panel.toml", "rb") as fh:
+                cfg = tomllib.load(fh)
+            out = _collect(d / "page.html", cfg["probe"])
+        except (OSError, tomllib.TOMLDecodeError, KeyError, probe.ProbeError) as exc:
+            return _die(f"corpus seed {d.name}: {exc}")
+        targets.append(score.Target(name=str(d), probe_out=out, seeds=d.name, rules=_rules(cfg)))
+    report = score.run_scorecard(targets)
+    print(json.dumps(report, indent=2))
+    return 1 if report["failures"] else 0
 
 
 def cmd_zoom(args) -> int:
@@ -112,6 +143,10 @@ def main(argv: list[str] | None = None) -> int:
     a.add_argument("--config", required=True, help="TOML: [probe] + [rules]")
     a.add_argument("--sweep-js", help="JS file injected before probing (content sweep)")
     a.set_defaults(fn=cmd_audit)
+
+    sc = sub.add_parser("score", help="craft scorecard over a seeded corpus")
+    sc.add_argument("--corpus", required=True, help="directory of <defect-class>/ seed dirs")
+    sc.set_defaults(fn=cmd_score)
 
     z = sub.add_parser("zoom", help="gridline-labelled anatomy zoom of a bitmap region")
     z.add_argument("image")

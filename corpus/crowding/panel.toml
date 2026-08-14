@@ -1,0 +1,10 @@
+# corpus seed — crowding. Default audit.Rules(); no [rules] override, because a
+# seed that needs a loosened rule proves nothing about the shipped predicate.
+[probe]
+root = ".panel"
+
+[probe.containers]
+plate = ".plate"
+
+[probe.parts]
+blk = ".blk"
