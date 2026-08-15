@@ -186,6 +186,12 @@ spec:
                     mountPath: /home/runner/_work
                   - name: dind-sock
                     mountPath: /var/run
+                  # The buildkitd client certificate. It is mounted into the
+                  # RUNNER and not into dind: the buildx client that dials the
+                  # mini over mTLS runs here.
+                  - name: buildkit-client-certs
+                    mountPath: /etc/buildkit-certs
+                    readOnly: true
 
             volumes:
               - name: work
@@ -196,6 +202,31 @@ spec:
               - name: dind-externals
                 emptyDir:
                   sizeLimit: 2Gi
+              # Native arm64 builds run on the Mac mini's buildkitd over mTLS.
+              # Credential: 40-buildkit-client-certs-externalsecret.yaml in this
+              # repo. The client reaches the BUILD API only — no Engine API, no
+              # privileged step — which is what makes it tolerable on a pool that
+              # every repository shares. Usage: docs/ci-substrate.md.
+              - name: buildkit-client-certs
+                secret:
+                  secretName: buildkit-client-certs
+                  # 0400, NOT 400. Kubernetes parses a manifest as YAML 1.1, so a
+                  # leading zero means octal and this really is 0400. Written as
+                  # `400` it would be decimal 400, which renders 0620 — group
+                  # writable. key.pem is the client's mTLS key, so keep it
+                  # owner-only.
+                  # The runner container runs as root (see .devcontainer/runner),
+                  # and a secret volume is owned by root, so owner-only is
+                  # readable here.
+                  defaultMode: 0400
+                  # ESO materialises this Secret asynchronously, and Argo may sync
+                  # this pool before the Secret exists. `optional: true` lets a
+                  # runner pod START without the cert instead of hanging in
+                  # ContainerCreating. The cert is used only for arm64 mini builds
+                  # (D42, not yet enabled), so an absent cert breaks nothing now;
+                  # once D42 is on, a build that needs the cert fails LOUDLY at
+                  # build time rather than the pod hanging silently.
+                  optional: true
   destination:
     server: https://kubernetes.default.svc
     namespace: arc-runners

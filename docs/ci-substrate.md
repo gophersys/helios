@@ -227,6 +227,141 @@ The reviewer is not a gate. It cannot block a merge, because branch protection i
 not available on this plan (see debt-register D29). Its verdict is advice to the
 author, and the loop is bounded at 2 rounds.
 
+## The native arm64 builder — the Mac mini as a buildkitd node
+
+`arc-org` is amd64. It builds a `linux/arm64` image with QEMU emulation, and
+emulation is slow. The Mac mini is arm64, so it builds the same image natively.
+
+Measured on 2026-08-13. The same Dockerfile, the images pulled first,
+`--no-cache`, and the warm-up run discarded:
+
+| target | method | time |
+| --- | --- | --- |
+| `linux/arm64` | native, on the mini | 4.01s / 4.02s / 4.02s |
+| `linux/amd64` | emulated | 14.05s / 13.65s / 13.74s |
+
+That is 3.44 times faster. Measured on 2026-08-14, a native arm64 build sent
+through the mini's buildkitd over mTLS took 9.3s end to end. The build context
+transfers at approximately 100 MB/s, so a real context costs 1 to 2 seconds.
+
+**The mini is a buildx NODE, not a pool.** A job keeps `runs-on: arc-org`. Only
+the arm64 part of the image build leaves the pod. This is why the `arc-arm64` row
+in the table above stays "planned": you do not need a second scale set to build
+arm64 natively.
+
+### The credential
+
+The pool mounts three PEM files at `/etc/buildkit-certs/` — `ca.pem`, `cert.pem`
+and `key.pem` — mode 0400. The manifests are
+`40-buildkit-client-certs-externalsecret.yaml` (the vault link) and
+`app-arc-runners-org.yaml` (the volume). Read the comments in both before you
+change either one.
+
+**The security model — the BUILD API only, over mTLS.** The mini runs a
+standalone `buildkitd` container that listens on `tcp://10.168.0.92:1234`. It
+exposes the build API and never the Docker Engine API, and mTLS is enforced.
+Proven on the mini on 2026-08-14:
+
+| test | result |
+| --- | --- |
+| a native arm64 build through the node | exit 0, 9.3s |
+| a client with no certificate | refused — mTLS enforced |
+| `docker -H tcp://10.168.0.92:1234` | error — no Engine API on the port |
+| `docker run --privileged --pid=host` through the port | error, NOT root — the escape is dead |
+| `docker buildx build --allow security.insecure` | refused — the entitlement is not allowed |
+
+The client can do one thing: submit a sandboxed build. This replaces an SSH key
+that reached the Docker Engine API, which is root on the mini's VM (task #66). The
+old vault item `shared/eden/macos-buildx-key` is deleted and the SSH key is
+revoked.
+
+**Why arc-org is acceptable now.** The certificate reaches every job on the
+shared `arc-org` pool, but it grants only a build. The pool already stays closed
+to public repositories (see `docs/ci-runners.md`), so a fork pull request cannot
+reach the mini. The final pool placement stays Mateo's call, because every
+repository on the pool then shares one builder on the mini.
+
+**The admin key `~/.ssh/macos-ci-runner` is separate.** It stays unrestricted,
+`verify-access` uses it, and it never enters the cluster.
+
+`bash ctl.sh verify-buildx-key` asserts that the credential reaches the pod as a
+file. It reads manifests only, so CI runs it on every pull request.
+
+### The mini must serve builds after a reboot
+
+The mini needs three things, and each one was proven necessary by removing it:
+
+1. Docker Desktop `AutoStart=True`.
+2. macOS auto-login. Docker Desktop is a GUI application, so it cannot start
+   without a user session.
+3. The LaunchAgent `com.gophersys.docker-autostart`. The settings flag never
+   registered a login item, so it alone does not start Docker.
+
+With items 1 and 2 only, Docker stayed down for 422 seconds after a reboot. With
+all three, Docker answers 41 seconds after a reboot. The detail is in
+`machines/services/macos-ci-runner/README.md`.
+
+### How a workflow uses the node
+
+**The runner image still needs buildx.** Measured on 2026-08-13 against the
+pinned image `ghcr.io/gophersys/base-runner:e0c6bc5`: `docker buildx version`
+exits 1 with `unknown command: docker buildx`. `base` installs `docker-ce-cli`
+and adds only the compose plugin to `/usr/local/lib/docker/cli-plugins`. buildx
+comes in the separate package `docker-buildx-plugin`, and nothing installs it.
+The `--driver remote` step below needs that plugin, so this dependency stays
+open.
+
+**The fix is one line, and it is in another repository.** Add
+`docker-buildx-plugin` beside `docker-ce-cli` in the `apt-get install` of
+`base/Dockerfile` in `gophersys/.devcontainer`, then publish and pin the new tag
+with the 3 preconditions in `app-arc-runners-org.yaml`.
+
+**Do not install buildx inside the job.** The rule at the top of this document
+puts software capability in the image, and `validate.yml` has no tool-install
+step for that reason. A download in the build path adds a network dependency and
+an unpinned version to every job.
+
+### The step to add, once the image carries buildx
+
+```yaml
+- name: Point buildx at the native arm64 node
+  run: |
+    set -euo pipefail
+    docker buildx create --name eden-mini --driver remote \
+      --driver-opt cacert=/etc/buildkit-certs/ca.pem,cert=/etc/buildkit-certs/cert.pem,key=/etc/buildkit-certs/key.pem \
+      tcp://10.168.0.92:1234
+```
+
+Then build with `--builder eden-mini --platform linux/arm64`. The `remote` driver
+needs no ssh alias and no Docker context: buildx dials the mini's buildkitd over
+mTLS with the three PEM files from the mount.
+
+### Why the step is in the workflow, and not in the pod spec
+
+The credential mount belongs in the pod spec, and it is there. The `create`
+command does not, for three reasons:
+
+1. **A builder is per-container state.** `docker buildx create` writes to
+   `$HOME/.docker/buildx` in the runner container. Every job gets a new pod, so a
+   builder made at pod start dies with that pod. The job must make it again.
+2. **An init container writes to its own file system.** It cannot put the builder
+   into the runner container. Only a shared volume crosses that boundary, and
+   that volume would hide `$HOME/.docker`, which also holds the registry
+   credentials.
+3. **A wrapper around `run.sh` would touch every job.** `arc-org` is the pool that
+   every repository shares. One stuck pod on it starved every repository for 47
+   minutes on 2026-08-11. A step that only image builds need must not run before
+   the runner starts.
+
+The cost of item 1 is small. `docker buildx create` writes local metadata only.
+The `remote` driver spawns no per-node BuildKit container: buildkitd already runs
+on the mini as `eden-buildkitd`, it starts at boot, and it keeps its cache across
+jobs. Measured on 2026-08-14: a fresh client with no local builder metadata,
+which is what a new pod has, reused the running daemon and its cache.
+
+**D42 stays open.** Do not add `linux/arm64` back to an image workflow in the same
+change that adds this builder. Prove the builder in CI first.
+
 ## How to add a pool
 
 1. Add a CI job in `.devcontainer/.github/workflows/build-and-push.yml`. The job

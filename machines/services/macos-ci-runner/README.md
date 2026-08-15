@@ -50,11 +50,70 @@ Do not depend on any item below. None of them is done.
 1. **The tailnet.** Tailscale is not installed, so the machine does not appear
    in `tailscale status`. The machine is on the LAN only. The name
    `macos-ci-runner` is reserved in the tailnet, not live.
-2. **A container builder.** Docker, Colima and Podman are all absent. Homebrew,
-   Go and Tailscale are absent too. When the Linux VM is added, give it 4 GB of
-   swap, because the host has only 8 GB of memory.
+2. **Homebrew and Go.** Both are absent.
 3. **The GitHub Actions runner.** It is not configured against the org. Until it
    is, the release workflow keeps the hosted `macos-14` runner.
+
+A container builder WAS on this list. It is not any more: Docker Desktop is
+installed and it serves builds. Read the next section.
+
+## The arm64 buildkitd node
+
+The cluster uses this machine to build `linux/arm64` images natively. The k3s
+nodes are amd64, so they must emulate arm64, and emulation is slow. Measured on
+2026-08-13, same Dockerfile, images pulled first, `--no-cache`: arm64 native
+4.02s against amd64 emulated 13.8s, so 3.44 times faster.
+
+A build in the cluster reaches this machine through a standalone `buildkitd`
+container, over mutual TLS. The machine never becomes an Actions runner. The two
+paths are independent. The design and the workflow step are in
+`docs/ci-substrate.md`; the setup is reproducible from `buildkitd-runbook.md` in
+this directory.
+
+`buildkitd` runs as the container `eden-buildkitd`. It listens on
+`tcp://10.168.0.92:1234` and exposes the BUILD API only — no Docker Engine API.
+It survives a reboot with `--restart unless-stopped` and the Docker-autostart
+chain below.
+
+### The credential — a client certificate, over mTLS
+
+`buildkitd` authenticates its clients with mutual TLS. The mini holds the server
+certificate; the cluster holds a client certificate, as the three vault items
+`shared/eden/buildkit-client-{ca,cert,key}`. Proven on 2026-08-14:
+
+| test | result |
+| --- | --- |
+| a native arm64 build through the node | exit 0, 9.3s |
+| a client with no certificate | refused — mTLS enforced |
+| `docker -H tcp://10.168.0.92:1234` | error — no Engine API on the port |
+| `docker run --privileged --pid=host` | error, NOT root — the escape is dead |
+| `docker buildx build --allow security.insecure` | refused — the entitlement is not allowed |
+
+The client can submit a sandboxed build and nothing else. This replaces an SSH
+key that reached the Docker Engine API — root on this machine's Docker VM. That
+key is REVOKED from `~/.ssh/authorized_keys`, and its vault item
+`shared/eden/macos-buildx-key` is deleted.
+
+The admin key `~/.ssh/macos-ci-runner` is a different key. It stays unrestricted,
+`verify-access` uses it, and it never enters the cluster.
+
+### Three things are necessary after a reboot
+
+Each one was proven necessary by removing it and measuring the result.
+
+1. Docker Desktop `AutoStart=True`.
+2. macOS auto-login. Docker Desktop is a GUI application, so it cannot start
+   without a user session.
+3. The LaunchAgent `com.gophersys.docker-autostart`. The `AutoStart` flag never
+   registered a login item, so the flag alone does not start Docker.
+
+| configuration | Docker answers |
+| --- | --- |
+| items 1 and 2 only | not at 422s after the reboot |
+| all 3 items | at 41s after the reboot |
+
+Item 3 is the one that is easy to miss, because item 1 looks like it should be
+enough. It is not.
 
 ## Why a self-hosted runner instead of the hosted macos-14 runner used today
 - It costs 0 Actions minutes. GitHub bills macOS at 10 times the rate on a

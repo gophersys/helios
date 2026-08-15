@@ -7,15 +7,19 @@
 # ENROLLED on 2026-08-13. Every hardware value below was measured on the
 # machine on that date. None of them is an estimate.
 #
-# Half enrolled, not fully enrolled. These 3 items remain. Do not depend on
-# them, because none of them is done:
+# Half enrolled, not fully enrolled. These 2 items remain. Do not depend on
+# them, because neither is done:
 #   1. Join the tailnet. Tailscale is not installed, so the machine answers on
 #      the LAN only. `tailscale_hostname` below is a reserved name, not a live
 #      one.
-#   2. Install a container runtime. Docker, Colima and Podman are all absent.
-#      Give the Linux VM 4 GB of swap, because the host has only 8 GB of memory.
-#   3. Register the GitHub Actions runner. Until that is done, the release
+#   2. Register the GitHub Actions runner. Until that is done, the release
 #      workflow of audiomotion-visualizer stays on the hosted macos-14 runner.
+#
+# A third item said "install a container runtime". It is done. A standalone
+# `buildkitd` container serves native linux/arm64 builds to the cluster over
+# mutual TLS, and the machine is a buildx NODE, not a runner. The 2 paths are
+# independent, so item 2 above is still open. See README.md and
+# docs/ci-substrate.md.
 
 name: macos-ci-runner
 os: macos

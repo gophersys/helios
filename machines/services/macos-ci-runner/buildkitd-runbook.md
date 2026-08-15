@@ -1,0 +1,94 @@
+# RUNBOOK — reproduce the mini's buildkitd from scratch
+
+This procedure rebuilds the native arm64 build node on the Mac mini. The node is
+a standalone `buildkitd` container. It exposes the BUILD API only, over mutual
+TLS. It does not expose the Docker Engine API.
+
+Use this runbook when you set up a new mini, rotate the certificates, or recover
+the node after a wipe. The design and the workflow step are in
+`docs/ci-substrate.md`. The machine facts are in `README.md`.
+
+## The security model — one line
+
+The client certificate can submit a sandboxed build and nothing else. Proven on
+the mini on 2026-08-14: no Engine API on the port, `--privileged --pid=host` does
+NOT give root, and `--allow security.insecure` is refused. See
+`docs/ci-substrate.md` for the full table.
+
+## Two things that will trip you up
+
+1. **The server certificate MUST carry the mini's IP in its SAN.** buildx checks
+   the certificate against `tcp://10.168.0.92`, so the SAN needs
+   `IP:10.168.0.92`. A certificate with a CN only is refused.
+2. **Docker Desktop rejects a bind mount of a home path.** Its file-sharing
+   layer does not share an arbitrary home directory, so a `-v $HOME/certs:/certs`
+   bind mount fails. Seed a named volume with `docker cp` instead.
+
+## Step 1 — the certificates (on any machine with openssl)
+
+```sh
+openssl genrsa -out ca-key.pem 4096
+openssl req -new -x509 -days 3650 -key ca-key.pem -sha256 -out ca.pem -subj "/CN=eden-buildkit-ca"
+
+openssl genrsa -out daemon-key.pem 4096
+openssl req -new -key daemon-key.pem -out daemon.csr -subj "/CN=macos-ci-runner"
+# server SAN MUST carry the mini's IP — buildx verifies the cert against tcp://10.168.0.92
+printf 'subjectAltName=IP:10.168.0.92,IP:127.0.0.1,DNS:macos-ci-runner\nextendedKeyUsage=serverAuth\n' > d.cnf
+openssl x509 -req -days 3650 -in daemon.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out daemon.pem -sha256 -extfile d.cnf
+
+openssl genrsa -out client-key.pem 4096
+openssl req -new -key client-key.pem -out client.csr -subj "/CN=eden-ci-buildx-client"
+printf 'extendedKeyUsage=clientAuth\n' > c.cnf
+openssl x509 -req -days 3650 -in client.csr -CA ca.pem -CAkey ca-key.pem -CAcreateserial -out client.pem -sha256 -extfile c.cnf
+```
+
+The daemon keeps `ca.pem`, `daemon.pem` and `daemon-key.pem`. The client keeps
+`ca.pem`, `client.pem` and `client-key.pem`.
+
+## Step 2 — the daemon (on the mini)
+
+The cred helper must be on `PATH`. Seed the certificates into a named volume,
+because a home-path bind mount fails.
+
+```sh
+export PATH="/Applications/Docker.app/Contents/Resources/bin:$HOME/bin:$PATH"
+docker volume create eden-bk-certs
+docker create --name bkseed --entrypoint /bin/sh -v eden-bk-certs:/certs moby/buildkit:latest
+docker cp ca.pem bkseed:/certs/
+docker cp daemon.pem bkseed:/certs/
+docker cp daemon-key.pem bkseed:/certs/
+docker rm bkseed
+docker run -d --name eden-buildkitd --restart unless-stopped --privileged -p 1234:1234 \
+  -v eden-bk-certs:/certs:ro moby/buildkit:latest --addr tcp://0.0.0.0:1234 \
+  --tlscacert /certs/ca.pem --tlscert /certs/daemon.pem --tlskey /certs/daemon-key.pem
+```
+
+The daemon survives a reboot with `--restart unless-stopped` plus the
+Docker-autostart chain (the LaunchAgent `com.gophersys.docker-autostart` and
+auto-login). See the reboot table in `README.md`.
+
+## Step 3 — the client credential (into Vaultwarden)
+
+The cluster reads the client certificate from Vaultwarden. Store the three client
+PEM files as three items, one body per item:
+
+| vault item | body |
+| --- | --- |
+| `shared/eden/buildkit-client-ca` | `ca.pem` |
+| `shared/eden/buildkit-client-cert` | `client.pem` |
+| `shared/eden/buildkit-client-key` | `client-key.pem` |
+
+The ExternalSecret `40-buildkit-client-certs-externalsecret.yaml` pulls all three
+into one Kubernetes Secret with the keys `ca.pem`, `cert.pem` and `key.pem`. Never
+commit a PEM file. Verify the three names with
+`bash ctl.sh verify-vault-refs` — each must resolve to exactly one item.
+
+## Prove the node from a client
+
+```sh
+docker buildx create --name eden-mini --driver remote \
+  --driver-opt cacert=ca.pem,cert=client.pem,key=client-key.pem tcp://10.168.0.92:1234
+```
+
+A build through `--builder eden-mini --platform linux/arm64` must succeed. A build
+with no certificate must be refused.
