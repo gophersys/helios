@@ -11,3 +11,28 @@ require (
 	go.uber.org/goleak v1.3.0
 	pgregory.net/rapid v1.3.0
 )
+
+require (
+	github.com/antithesishq/antithesis-sdk-go v0.7.0-default-no-op // indirect
+	github.com/google/go-tpm v0.9.8 // indirect
+	github.com/gophersys/libs/go/secrets v0.0.0 // indirect
+	github.com/klauspost/compress v1.18.6 // indirect
+	github.com/minio/highwayhash v1.0.4 // indirect
+	github.com/nats-io/jwt/v2 v2.8.2 // indirect
+	github.com/nats-io/nkeys v0.4.16 // indirect
+	github.com/nats-io/nuid v1.0.1 // indirect
+	golang.org/x/crypto v0.52.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
+	golang.org/x/time v0.15.0 // indirect
+)
+
+replace (
+	github.com/gophersys/libs/go/agentruntime v0.0.0 => ../agentruntime
+	github.com/gophersys/libs/go/agentsession v0.0.0 => ../agentsession
+	github.com/gophersys/libs/go/dependencies v0.0.0 => ../dependencies
+	github.com/gophersys/libs/go/envelope v0.0.0 => ../envelope
+	github.com/gophersys/libs/go/errors v0.0.0 => ../errors
+	github.com/gophersys/libs/go/observability v0.0.0 => ../observability
+	github.com/gophersys/libs/go/secrets v0.0.0 => ../secrets
+	github.com/gophersys/libs/go/testing v0.0.0 => ../testing
+)
