@@ -76,7 +76,10 @@ function count_libs_in() {
   fi
   local count=0
   local dirs=()
-  mapfile -t dirs < <(find "$base" -mindepth 1 -maxdepth 4 -type f -name project.json -printf '%h\n' | sort -u)
+  # BSD find (the macOS dev host) lacks the GNU print-format primary, so the version
+  # that used it errored and this process substitution silently yielded zero libraries.
+  # Strip the trailing /project.json with sed to get the dir — portable on BSD and GNU.
+  mapfile -t dirs < <(find "$base" -mindepth 1 -maxdepth 4 -type f -name project.json | sed 's#/[^/]*$##' | sort -u)
   for dir in "${dirs[@]}"; do
     if [[ -f "$dir/ctl.sh" ]]; then
       count=$((count + 1))
@@ -173,6 +176,22 @@ function cmd_validate() {
       log_info "  ok: ${script#"$PROJECT_ROOT"/}"
     else
       log_error "  shellcheck failed: ${script#"$PROJECT_ROOT"/}"
+      failures=$((failures + 1))
+    fi
+  done
+
+  # Portability floor: the macOS dev host runs BSD find, which lacks the GNU
+  # print-format primary. A find that uses it errors, and a discovery loop reading its
+  # process substitution then SILENTLY reports zero — the FAIL-NOT-SKIP class that made
+  # count_libs_in report 0 libraries on macOS. Reject the primary in every shell script.
+  # The pattern brackets the leading dash so it matches the find flag, never the printf
+  # builtin, and stays BSD-grep safe.
+  log_info "validating no GNU-only find print-format primary (BSD/macOS portability)"
+  for script in "${ctl_scripts[@]:-}" "${test_scripts[@]:-}"; do
+    [[ -z "$script" ]] && continue
+    if grep -nE '[-]printf' "$script" >/dev/null 2>&1; then
+      log_error "  GNU-only find print-format primary (fails on BSD, silently yields empty): ${script#"$PROJECT_ROOT"/}"
+      grep -nE '[-]printf' "$script" | sed 's/^/      /'
       failures=$((failures + 1))
     fi
   done
