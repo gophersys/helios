@@ -1,0 +1,15 @@
+{
+    // Hush CMake
+    "cmake.configureOnOpen": false,
+    // IntelliSense
+    "C_Cpp.default.compilerPath": "/usr/home/zephyr-sdk-0.16.1/arm-zephyr-eabi/bin/arm-zephyr-eabi-gcc",
+    "C_Cpp.default.compileCommands": "/workspaces/concord/libs/zephyr/.intellisense/build/compile_commands.json",
+    // File Associations
+    "files.associations": {},
+    // Editor actions
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+        "source.fixAll": "explicit",
+        "C_Cpp.ResetDatabase": "explicit"
+    },
+}
