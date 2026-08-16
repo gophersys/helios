@@ -2,7 +2,8 @@
 
 Status: specification, ready to build. Do not derive again.
 Sources: the image-architecture design and the measured image census
-(2026-08 image-consolidation program). Sizes come from the census.
+(2026-08 image-consolidation program). Decision record: ADR-0003
+(`docs/adr/0003-ui-image-consolidation.md`). Sizes come from the census.
 `EST` marks an estimate. All other sizes are measured.
 Language: ASD-STE100 Simplified Technical English.
 
@@ -39,8 +40,9 @@ When the `ui` image is green (migration step (c), section 5):
 - `.devcontainer/Dockerfile` — deleted.
 - `.github/workflows/build-ci-image.yml` — deleted.
 - The `|| (retry without gh)` fallback in the old devcontainer build —
-  it dies with the file. It let the image tag with `gh` silently absent.
-  That breaks FAIL-NOT-SKIP and must not return in any form.
+  it dies with the file. It let `gh` be absent without failing the image
+  build. That is acceptable for a comfort package in a devcontainer, but
+  the pattern must not migrate to gate tooling.
 
 The census verdict on this repo: **zero toolchain drift** between dev
 and CI, because dev built FROM the CI image. The `ui` image keeps that
@@ -177,19 +179,41 @@ Run the repo's own gates inside the candidate image, as root, against
 a pinned research-ui checkout:
 
 ```bash
-docker run --rm -v "$PWD:/w" -w /w -e DENSUI_CHROME <candidate-ref> \
-  bash -lc 'bash ctl.sh test'
 docker run --rm -v "$PWD:/w" -w /w <candidate-ref> \
-  bash -lc 'bash ctl.sh geometry && bash ctl.sh score'
+  bash -lc 'bash ctl.sh test'
+docker run --rm -v "$PWD:/w" -w /w <candidate-ref> bash -lc '
+  set -euo pipefail
+  bash ctl.sh geometry | tee /tmp/geo.txt
+  bash ctl.sh score    | tee /tmp/score.txt
+  grep -Eq "\"parts\": *[1-9]" /tmp/geo.txt \
+    || { echo "geometry report has no non-zero parts count"; exit 1; }
+  grep -Eq "\"targets_measured\": *[1-9]" /tmp/score.txt \
+    || { echo "score report measured no targets"; exit 1; }'
 ```
+
+Both commands rely on the image's baked `ENV DENSUI_CHROME` (group 4,
+section 2). Do not pass `-e DENSUI_CHROME` without a value: docker then
+overrides the baked value with an unset one (host-unset) or an empty
+string (`-e DENSUI_CHROME=`), and `probe.py` treats both the same —
+`if env:` is false for `""` — so it silently falls through to its
+candidate search. The probe may then find the image's Chrome by path
+and pass without proving the baked `ENV` (defeating assertion 2), or
+fail with `no Chrome/Chromium found` when no candidate exists. The
+`DENSUI_CHROME=<path> does not exist` error fires only for a non-empty
+path that does not exist.
 
 Assertions:
 
 1. Exit 0 on each command.
 2. The probe battery started headless Chrome through `DENSUI_CHROME`
    (the probe output names the browser binary and version).
-3. `geometry` and `score` produce real numeric output for the pinned
-   fixture — not an empty report. An empty report is red.
+3. `geometry` and `score` produce real reports for the pinned
+   fixture — not empty ones. An empty report is red. The command block
+   enforces this by field name, not by the presence of a stray digit:
+   the `geometry` capture must carry a non-zero `"parts"` count (the
+   demo-build reports) and the `score` capture a non-zero
+   `"targets_measured"` count (the scorecard), so a report that is
+   empty, malformed, or mere error text fails the gate.
 4. `uv run` resolved as root (proves the root-wide uv), and
    `node --check` ran as root (proves the root-wide Node 22).
 
