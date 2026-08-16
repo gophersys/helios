@@ -185,26 +185,35 @@ docker run --rm -v "$PWD:/w" -w /w <candidate-ref> bash -lc '
   set -euo pipefail
   bash ctl.sh geometry | tee /tmp/geo.txt
   bash ctl.sh score    | tee /tmp/score.txt
-  grep -q "[0-9]" /tmp/geo.txt \
-    || { echo "geometry produced no numeric output"; exit 1; }
-  grep -q "[0-9]" /tmp/score.txt \
-    || { echo "score produced no numeric output"; exit 1; }'
+  grep -Eq "\"parts\": *[1-9]" /tmp/geo.txt \
+    || { echo "geometry report has no non-zero parts count"; exit 1; }
+  grep -Eq "\"targets_measured\": *[1-9]" /tmp/score.txt \
+    || { echo "score report measured no targets"; exit 1; }'
 ```
 
 Both commands rely on the image's baked `ENV DENSUI_CHROME` (group 4,
 section 2). Do not pass `-e DENSUI_CHROME` without a value: docker then
-exports an empty string, and `probe.py` fails with
-`DENSUI_CHROME= does not exist` on a correctly built image.
+overrides the baked value with an unset one (host-unset) or an empty
+string (`-e DENSUI_CHROME=`), and `probe.py` treats both the same —
+`if env:` is false for `""` — so it silently falls through to its
+candidate search. The probe may then find the image's Chrome by path
+and pass without proving the baked `ENV` (defeating assertion 2), or
+fail with `no Chrome/Chromium found` when no candidate exists. The
+`DENSUI_CHROME=<path> does not exist` error fires only for a non-empty
+path that does not exist.
 
 Assertions:
 
 1. Exit 0 on each command.
 2. The probe battery started headless Chrome through `DENSUI_CHROME`
    (the probe output names the browser binary and version).
-3. `geometry` and `score` produce real numeric output for the pinned
-   fixture — not an empty report. An empty report is red. The command
-   block enforces this: each report is captured, and a `grep` for a
-   digit fails the gate when the report is empty or non-numeric.
+3. `geometry` and `score` produce real reports for the pinned
+   fixture — not empty ones. An empty report is red. The command block
+   enforces this by field name, not by the presence of a stray digit:
+   the `geometry` capture must carry a non-zero `"parts"` count (the
+   demo-build reports) and the `score` capture a non-zero
+   `"targets_measured"` count (the scorecard), so a report that is
+   empty, malformed, or mere error text fails the gate.
 4. `uv run` resolved as root (proves the root-wide uv), and
    `node --check` ran as root (proves the root-wide Node 22).
 
