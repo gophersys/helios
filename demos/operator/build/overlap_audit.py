@@ -1,21 +1,21 @@
 #!/usr/bin/env python3
-"""Operator overlap/containment audit — thin wrapper over densui.probe/audit.
+"""Operator overlap/containment audit — thin wrapper over ui.probe/audit.
 
-All geometry law lives in the densui package, and every selector, text kind
+All geometry law lives in the ui package, and every selector, text kind
 and tolerance lives in panel.toml. This file declares only what the general
 scorecard has no vocabulary for: the worst-case sweep values and the
 osc-column alignment key. The probe config is loaded through
-`densui.probe_config`, the same seam `densui audit` and `densui score` use, so
+`ui.probe_config`, the same seam `ui audit` and `ui score` use, so
 `ctl.sh geometry` and `ctl.sh score` cannot end up measuring two different part
 sets of the same page. Run via
-`uv run --project ../../tools/densui` (assemble.py does) so densui resolves.
+`uv run --project ../../tools/ui` (assemble.py does) so ui resolves.
 """
 import pathlib
 import sys
 import tomllib
 
-from densui import audit
-from densui.probe_config import collect_panel, rules_from
+from ui import audit
+from ui.probe_config import collect_panel, rules_from
 
 PANEL = pathlib.Path(__file__).resolve().parents[1] / "panel.toml"
 

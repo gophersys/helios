@@ -1,5 +1,5 @@
 # Bench panel — the CONTRACT demo's face. Geometry solved like every panel;
-# VALUES come from a live densui.tree after a scripted drill session, so the
+# VALUES come from a live ui.tree after a scripted drill session, so the
 # render is evidence of contract states, not a mock.
 
 [panel]
@@ -46,7 +46,7 @@ label = "I-Limit"
 widest = "2.00 A"
 
 [probe]
-page = "bench.html"            # what `densui score` probes; `densui audit` is given it
+page = "bench.html"            # what `ui score` probes; `ui audit` is given it
 root = ".panel"
 root_width = 760
 text_kinds = ["label", "value", "num", "clabel"]
@@ -69,7 +69,7 @@ breathing_floor = 2.5
 # claim doing no work.
 
 # The frame and the control size this panel declares above, proved on the
-# RENDERED page by densui.audit.check_ratios — the same three the telemetry
+# RENDERED page by ui.audit.check_ratios — the same three the telemetry
 # console carries, and the only ones a blind demo can state without a
 # reference: [panel] and the dial token are the spec, the probe is the truth.
 [ratio]

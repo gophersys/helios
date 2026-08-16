@@ -1,6 +1,6 @@
 # CENSUS — Ableton Live 12 "Operator" device panel
 
-Stage-1 output of the Dense-UI framework: a full parameter census taken from the
+Stage-1 output of the ui research framework: a full parameter census taken from the
 reference screenshot, before any layout decision. Every control is listed with
 its type, value model, displayed value in the reference, and visual state.
 

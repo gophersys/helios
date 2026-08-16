@@ -1,6 +1,6 @@
 # CENSUS — firmware bring-up telemetry console (designed BLIND)
 
-Stage-1 output of the Dense-UI framework, with **no reference image**: every
+Stage-1 output of the ui research framework, with **no reference image**: every
 decision below comes from the framework's own budgets and the verified
 constants in `framework/research/` — this demo exists to prove the method
 works without eyes on a precedent. Subject: the bench console for bringing up

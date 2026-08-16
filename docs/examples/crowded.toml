@@ -1,5 +1,5 @@
 # The README's gate-failure example: a 240px plate asked to hold two dials
-# whose widest value string cannot fit. `densui solve` must REFUSE this spec
+# whose widest value string cannot fit. `ui solve` must REFUSE this spec
 # (rc=2) naming both parts, the two coordinates, and the shortfall — see
 # README "What a gate failure looks like". test_readme_example.py holds the
 # refusal stable; font.path is substituted per platform by the test fixture.

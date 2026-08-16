@@ -608,3 +608,15 @@ born from cancelling our own certification with a bookkeeping push. PLAN.md
 now has zero unchecked boxes. BLOCKED.md: the grant entry marked resolved
 with the PAT-rotation note. The loop's remaining duties are maintenance:
 fleet health, drift sync, and whatever Mateo adds next.
+
+## 2026-08-16T23:20Z — the densui brand generalized to ui
+
+Mateo's order: it is just research right now, make it general. The rename,
+in one PR: `tools/densui` -> `tools/ui` (git mv), the python package and
+CLI `densui` -> `ui`, `DENSUI_CHROME` -> `UI_CHROME`, `DENSUI_FONT` ->
+`UI_FONT`, the `densui-chromium` symlink -> `ui-chromium`, and the
+Dense-UI name generalized to "the ui research framework" in living prose.
+Entries above this line predate the rename and keep their original names —
+they were true when written. Framework file names (`framework/DENSE-UI.md`,
+its section citations) and the installed launchd identity
+`com.mateosegura.dense-ui-loop` are deliberately unchanged.

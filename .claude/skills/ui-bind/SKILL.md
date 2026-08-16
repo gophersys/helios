@@ -1,6 +1,6 @@
 ---
 name: ui-bind
-description: Stage 3 of the Dense-UI framework — write the contract that binds every control of a dense panel to one address in one parameter tree, behind a single adapter seam. Use after Gate 2 has passed, when wiring an instrument panel, bring-up bench or telemetry console to a backend (in-process engine, OSC, WebSocket, serial, firmware), or when a panel shows stale readings, echo loops, or values that move under the cursor. Produces contract.md and ends at Gate 3, whose drills are run, never asserted.
+description: Stage 3 of the ui research framework — write the contract that binds every control of a dense panel to one address in one parameter tree, behind a single adapter seam. Use after Gate 2 has passed, when wiring an instrument panel, bring-up bench or telemetry console to a backend (in-process engine, OSC, WebSocket, serial, firmware), or when a panel shows stale readings, echo loops, or values that move under the cursor. Produces contract.md and ends at Gate 3, whose drills are run, never asserted.
 ---
 
 # Stage 3 — CONTRACT (behaviour + binding)

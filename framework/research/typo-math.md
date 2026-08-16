@@ -346,7 +346,7 @@ Any failure is an error, never a warning. A layout that "mostly" proves has not 
 
 ## Appendix (2026-08-14): per-face cap tables for the faces in actual use
 
-Measured by `densui.Face.metrics(16)` and REGENERATED AS A GATE on every
+Measured by `ui.Face.metrics(16)` and REGENERATED AS A GATE on every
 machine (`test_metrics_table_sane_for_every_available_face` — the fleet
 validates DejaVu, a Mac validates Arial and Ableton Sans Small; a face
 drifting outside the R1 sanity bands fails by name, so this table cannot

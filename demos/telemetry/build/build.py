@@ -2,9 +2,9 @@
 """Telemetry blind demo — static render (Gate 2: defaults, no backend).
 
 Everything is generated from panel.toml: tracks, solved knob positions,
-reserved cells. The page is then judged by `densui audit` reading the SAME
+reserved cells. The page is then judged by `ui audit` reading the SAME
 panel.toml — build-vs-spec, there being no bitmap. Run via
-`uv run --project ../../tools/densui python3 build/build.py`.
+`uv run --project ../../tools/ui python3 build/build.py`.
 """
 
 import pathlib
@@ -12,9 +12,9 @@ import subprocess
 import sys
 import tomllib
 
-from densui.fontmetrics import FontError, font_face_css, resolve_path
-from densui.solve import SolveError, solve
-from densui.spec import SpecError, load_panel
+from ui.fontmetrics import FontError, font_face_css, resolve_path
+from ui.solve import SolveError, solve
+from ui.spec import SpecError, load_panel
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -23,7 +23,7 @@ OUT = ROOT / "telemetry.html"
 # The page names the face it EMBEDS, and embeds the face it SOLVED with, so
 # the rendered face is the solved face by construction on every host. Naming a
 # family instead resolves to a different file on each machine — or to nothing,
-# without erroring — and densui.audit.check_font_identity fails the build.
+# without erroring — and ui.audit.check_font_identity fails the build.
 FACE = "PanelFace"
 
 DEFAULTS = {"rail-3v3": "3.30 V", "rail-1v8": "1.80 V", "rail-io": "3.30 V",
@@ -118,8 +118,8 @@ body {{ margin:0; background:#232629; font-family:'{FACE}'; }}
         print(f"  correction: {corr}")
 
     r = subprocess.run(["uv", "run", "--project",
-                        str((HERE / "../../../tools/densui").resolve()),
-                        "densui", "audit", str(OUT), "--config", str(PANEL)],
+                        str((HERE / "../../../tools/ui").resolve()),
+                        "ui", "audit", str(OUT), "--config", str(PANEL)],
                        text=True)
     if r.returncode != 0:
         die("overlap audit failed")

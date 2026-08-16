@@ -43,8 +43,8 @@ hold two dials whose widest value string does not fit
 example cannot rot — output verbatim, ink decimals vary by face):
 
 ```
-$ densui solve crowded.toml
-densui: solve failed: row/coarse: widest value ink ends 103.4, crowds next dial at 64.0 (needs +43px > anchor_tolerance 2)
+$ ui solve crowded.toml
+ui: solve failed: row/coarse: widest value ink ends 103.4, crowds next dial at 64.0 (needs +43px > anchor_tolerance 2)
 $ echo $?
 2
 ```
@@ -59,7 +59,7 @@ never by the renderer.
 | Path | What |
 |---|---|
 | `framework/` | `DENSE-UI.md` (the method), `LAYOUT-MATH.md` (the calculus), lens drafts, `research/` (verified sources behind every constant) |
-| `tools/densui/` | the calculus as a Python package: font metrics, solver, geometry predicates, glyph-ink probe, CDP gesture driver, tree/seam contract reference (uv project; `uv run --extra dev pytest`) |
+| `tools/ui/` | the calculus as a Python package: font metrics, solver, geometry predicates, glyph-ink probe, CDP gesture driver, tree/seam contract reference (uv project; `uv run --extra dev pytest`) |
 | `demos/operator/` | worked example: a playable Web Audio replica of Ableton Operator, solver-laid-out, gate-proven (needs local fonts — see its README) |
 | `demos/telemetry/` | first fully-blind panel: designed and built with no reference image, passing its own battery |
 | `demos/bench/` | the CONTRACT demo: rendered from a live parameter tree after a scripted drill session — the pixels are evidence of contract states |

@@ -1,6 +1,6 @@
 # research-ui — instructions for Claude sessions
 
-This repository is the home of the Dense-UI research programme: general-purpose
+This repository is the home of the ui research programme: general-purpose
 tools and framework for blind dense-UI layout. **Nothing outside
 `demos/operator/` may be Ableton-specific.**
 
@@ -12,13 +12,13 @@ tools and framework for blind dense-UI layout. **Nothing outside
    outranks personal defaults inside `~/code`.
 3. This file + `.claude/` here — outranks both inside this repository.
 4. The personal `ui-*` skills and `ui-architect` agent in `~/.claude` cite
-   `~/.claude/references/dense-ui/` — a snapshot of this repo's `framework/`.
+   `~/.claude/references/ui-research/` — a snapshot of this repo's `framework/`.
    THIS repo is the source of truth going forward; sync direction repo -> home
    (PLAN P7 tracks the dedup).
 
 ## Hard rules
 
-- Layout is computed, never judged: geometry comes from `tools/densui` +
+- Layout is computed, never judged: geometry comes from `tools/ui` +
   measured anchors; every change to a demo re-runs its gates. A hand-edited
   solved-position block is a defect.
 - FAIL-NOT-SKIP: a gate that cannot run fails the build and names the missing
@@ -41,7 +41,7 @@ tools and framework for blind dense-UI layout. **Nothing outside
 ## Gates
 
 ```sh
-cd tools/densui && uv run --extra dev pytest && uv run --extra dev ruff check .
+cd tools/ui && uv run --extra dev pytest && uv run --extra dev ruff check .
 node --check demos/operator/build/*.js
 python3 demos/operator/build/assemble.py     # full build: solver + 6 proofs (macOS + local fonts)
 ```

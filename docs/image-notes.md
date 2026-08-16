@@ -61,12 +61,12 @@ pin without an override reason fails review.
 | 1 | GTK/webkit/Tauri dev libs (moved out of base) | `libgtk-3-dev`, `libwebkit2gtk-4.1-dev`, `librsvg2-dev`, `libayatana-appindicator3-dev` | ~450 MB EST |
 | 2 | clang (moved out of base) | apt `clang` | ~550 MB EST |
 | 3 | Rust | `components/rust.sh`: rustup stable, minimal profile + rustfmt + clippy. SHARED with `_delta/embedded.sh`. Must be idempotent: a second caller detects the toolchain, asserts the version, exits 0 | 675 MB |
-| 4 | Browser | amd64: `google-chrome-stable` from Google's apt repo. arm64: a pinned non-snap Chromium (see section 3, risk R3). BOTH arches get the `/usr/local/bin/densui-chromium` symlink and `ENV DENSUI_CHROME` | in group total |
+| 4 | Browser | amd64: `google-chrome-stable` from Google's apt repo. arm64: a pinned non-snap Chromium (see section 3, risk R3). BOTH arches get the `/usr/local/bin/ui-chromium` symlink and `ENV UI_CHROME` | in group total |
 | 5 | Fonts | `fonts-dejavu-core`. `ctl.sh` uses the fallback font path `/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf` for `assemble.py` off-macOS | small |
 | 6 | Node 22 root-wide | NodeSource install. Reason: gates run as root; cloud's Node 24 is nvm-homed under the `dev` user and root does not see it | in group total |
 | 7 | uv root-wide | Install at `/usr/local/bin`. Same reason: cloud's uv lives in `/home/dev/.local/bin` | small |
 | 8 | `ENV PYTHONUNBUFFERED=1` | Set in the Dockerfile, not the script (a script cannot set ENV). Reason: gates must stream output. A silent step read as a stall and got cancelled (run 31761167311) | 0 |
-| 9 | Proof block | `densui-chromium --version && uv --version && node --version && python3 --version` — or the build FAILS and names the tool | 0 |
+| 9 | Proof block | `ui-chromium --version && uv --version && node --version && python3 --version` — or the build FAILS and names the tool | 0 |
 
 Delta total: **cloud + ~1.7 GB** per arch (EST until first build).
 
@@ -121,8 +121,8 @@ the build FAILS and names the node.
 - Candidate source: Debian's `chromium`, apt-pinned. **Unproven.**
   Prove it before the first arm64 publish.
 - Both arches MUST resolve the same entry point: the
-  `/usr/local/bin/densui-chromium` symlink and `ENV DENSUI_CHROME`.
-  `tools/densui/src/densui/probe.py` reads `DENSUI_CHROME`. Gates must
+  `/usr/local/bin/ui-chromium` symlink and `ENV UI_CHROME`.
+  `tools/ui/src/ui/probe.py` reads `UI_CHROME`. Gates must
   not branch on arch.
 - Version skew is structural: amd64 Chrome and arm64 Chromium will not
   have the same version. See open question Q2.
@@ -165,7 +165,7 @@ thing. Nothing skips.
 ### 4.1 Build-time proof (inside `_delta/ui.sh`)
 
 ```bash
-densui-chromium --version
+ui-chromium --version
 uv --version
 node --version        # must report v22.x
 python3 --version
@@ -173,7 +173,7 @@ python3 --version
 
 Any non-zero exit fails the BUILD, before any tag exists.
 
-### 4.2 The densui probe battery (per arch, executed)
+### 4.2 The ui probe battery (per arch, executed)
 
 Run the repo's own gates inside the candidate image, as root, against
 a pinned research-ui checkout:
@@ -191,21 +191,21 @@ docker run --rm -v "$PWD:/w" -w /w <candidate-ref> bash -lc '
     || { echo "score report measured no targets"; exit 1; }'
 ```
 
-Both commands rely on the image's baked `ENV DENSUI_CHROME` (group 4,
-section 2). Do not pass `-e DENSUI_CHROME` without a value: docker then
+Both commands rely on the image's baked `ENV UI_CHROME` (group 4,
+section 2). Do not pass `-e UI_CHROME` without a value: docker then
 overrides the baked value with an unset one (host-unset) or an empty
-string (`-e DENSUI_CHROME=`), and `probe.py` treats both the same —
+string (`-e UI_CHROME=`), and `probe.py` treats both the same —
 `if env:` is false for `""` — so it silently falls through to its
 candidate search. The probe may then find the image's Chrome by path
 and pass without proving the baked `ENV` (defeating assertion 2), or
 fail with `no Chrome/Chromium found` when no candidate exists. The
-`DENSUI_CHROME=<path> does not exist` error fires only for a non-empty
+`UI_CHROME=<path> does not exist` error fires only for a non-empty
 path that does not exist.
 
 Assertions:
 
 1. Exit 0 on each command.
-2. The probe battery started headless Chrome through `DENSUI_CHROME`
+2. The probe battery started headless Chrome through `UI_CHROME`
    (the probe output names the browser binary and version).
 3. `geometry` and `score` produce real reports for the pinned
    fixture — not empty ones. An empty report is red. The command block

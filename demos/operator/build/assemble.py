@@ -100,7 +100,7 @@ def main() -> None:
 
     # Solved positions — geometry is computed, never hand-written.
     solver_cmd = ["uv", "run", "--project",
-                  str((BUILD / "../../../tools/densui").resolve()), "python3",
+                  str((BUILD / "../../../tools/ui").resolve()), "python3",
                   str(BUILD / "solve_layout.py")]
     if args.font:
         solver_cmd += ["--font", args.font]
@@ -122,19 +122,19 @@ def main() -> None:
 
     # Gate 2 ratio audit — geometry drift fails the build.
     r = subprocess.run(["uv", "run", "--project",
-                        str((BUILD / "../../../tools/densui").resolve()), "python3",
+                        str((BUILD / "../../../tools/ui").resolve()), "python3",
                         str(BUILD / "ratio_audit.py")], text=True)
     if r.returncode != 0:
         die("ratio audit failed")
 
     # Overlap audit — any illegal glyph/box intersection fails the build.
-    r = subprocess.run(["uv", "run", "--project", str((BUILD / "../../../tools/densui").resolve()), "python3",
+    r = subprocess.run(["uv", "run", "--project", str((BUILD / "../../../tools/ui").resolve()), "python3",
                         str(BUILD / "overlap_audit.py")], text=True)
     if r.returncode != 0:
         die("overlap audit failed")
 
     # Content sweep — same proofs with every value at its widest string.
-    r = subprocess.run(["uv", "run", "--project", str((BUILD / "../../../tools/densui").resolve()), "python3",
+    r = subprocess.run(["uv", "run", "--project", str((BUILD / "../../../tools/ui").resolve()), "python3",
                         str(BUILD / "overlap_audit.py"), "--sweep"], text=True)
     if r.returncode != 0:
         die("content sweep failed")

@@ -2,7 +2,7 @@
 
 Applies to every file under `demos/` and `tools/`.
 
-- Geometry has two legal sources: font metrics (via `densui.fontmetrics`) or a
+- Geometry has two legal sources: font metrics (via `ui.fontmetrics`) or a
   declared token/anchor in a spec file. A number typed from visual judgement is
   a defect — including "small nudges".
 - Any change that can move a rendered box re-runs the demo's gates in the same

@@ -1,6 +1,6 @@
 # LAYERS — layout plan for the Operator replica
 
-Stage-2 output of the Dense-UI framework. The layout is decided in six layers,
+Stage-2 output of the ui research framework. The layout is decided in six layers,
 each committed before the next. No control appears before its layer.
 
 ## L0 — Frame

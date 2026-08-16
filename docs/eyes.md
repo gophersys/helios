@@ -20,13 +20,13 @@ Every one of these passed visual inspection. Every one fell to arithmetic.
 ## The rules
 
 1. **Eyes are for DISCOVERY, never for verdicts.** Zoomed anatomy reads
-   (8×, gridline-labelled — `densui.measure.zoom`) and reference-vs-built
-   composites (`densui.compare`) exist to generate HYPOTHESES: "the needle
+   (8×, gridline-labelled — `ui.measure.zoom`) and reference-vs-built
+   composites (`ui.compare`) exist to generate HYPOTHESES: "the needle
    looks dark", "the row seems two-line". Every hypothesis then becomes a
-   measurement (`densui.measure`), a spec entry, or it dies.
+   measurement (`ui.measure`), a spec entry, or it dies.
 2. **A gate may never pass because something "looks right".** Pass criteria
    are: the solver's inequalities, the ratio table, the glyph-ink battery,
-   the sweep, the drills, and gesture behaviour via `densui.drive` — all
+   the sweep, the drills, and gesture behaviour via `ui.drive` — all
    numeric, all named, all bare-exit-code. A screenshot is not an argument.
 3. **A gate may FAIL from looking** — a human (or a model) seeing something
    wrong is a valid *bug report*. The fix path is mandatory: decompose the
