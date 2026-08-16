@@ -36,7 +36,12 @@ source "$PROJECT_ROOT/_ctl/lib.sh"
 # It is a CI image, not a devcontainer, so it has no devcontainer.json. One
 # Dockerfile serves every parent — RUNNER_PARENT selects which — so adding
 # `zephyr-runner` is a matrix entry, never a new directory.
-BUILD_ORDER=(base base-runner flutter zephyr zephyr-devbox)
+#
+# `cloud` is the successor image of the consolidation program (ledger #94):
+# the reduced base + the CI fold, built FROM ubuntu directly. It is ADDITIVE
+# today — no existing image depends on it and it depends on none — and the
+# category images will layer on it in later steps of the migration.
+BUILD_ORDER=(base base-runner flutter zephyr zephyr-devbox cloud)
 
 # -------- helpers --------
 # Image name -> source directory. These are 1:1 except for the `+ runner`

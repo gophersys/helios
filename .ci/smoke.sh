@@ -15,7 +15,7 @@
 # slower rather than impossible.
 #
 # Usage: bash .ci/smoke.sh <image> [ref]
-# where <image> ∈ {base, flutter, zephyr, zephyr-devbox, base-runner}
+# where <image> ∈ {base, flutter, zephyr, zephyr-devbox, base-runner, cloud}
 # and [ref] is the exact image reference to test. The default is the :latest tag
 # that build-and-push.yml has just built, which is what CI runs. Naming a ref is
 # how an operator audits the SHA tag a cluster is actually running — and how a
@@ -62,6 +62,29 @@ fi
 # SENTENCE. It used to answer "declares no ARG" whenever its single regex missed,
 # which is a lie when the file plainly declares one — an indented ARG, a value
 # written `v0.36.1`, or 2 candidate names each produced that same wrong sentence.
+# The cloud image pins buildx in versions.env, the one home of the new
+# mechanism, so its expected version is read THERE and never out of
+# base/Dockerfile — the two families must be free to move apart.
+function resolve_cloud_buildx_pin() {
+  local file="$REPO_ROOT/versions.env"
+  BUILDX_PIN=""
+  BUILDX_PIN_PROBLEM=""
+  local line="" status=0
+  line="$(grep -E '^DOCKER_BUILDX_VERSION=' "$file")" || status=$?
+  if [[ "$status" -ne 0 || -z "$line" ]]; then
+    BUILDX_PIN_PROBLEM="versions.env declares no DOCKER_BUILDX_VERSION pin"
+    return 0
+  fi
+  line="${line%%#*}"
+  line="${line%"${line##*[![:space:]]}"}"
+  BUILDX_PIN="${line#DOCKER_BUILDX_VERSION=}"
+  BUILDX_PIN="${BUILDX_PIN#v}"
+  if ! [[ "$BUILDX_PIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    BUILDX_PIN_PROBLEM="versions.env holds DOCKER_BUILDX_VERSION='${BUILDX_PIN}', which this check cannot read as <semver>"
+    BUILDX_PIN=""
+  fi
+}
+
 BUILDX_PIN=""
 BUILDX_PIN_PROBLEM=""
 function resolve_buildx_pin() {
@@ -270,8 +293,116 @@ cictl help >/dev/null
 command -v cictl
 EOF
 
+# The cloud image: the reduced base + the CI fold, one image for dev and CI.
+# Self-contained on purpose — cloud DROPS tools the base smoke asserts
+# (terraform, rustc, cargo), so appending to SMOKE_BASE would assert content
+# the image is defined not to have. Runs as the image default user (dev),
+# which is the user a devcontainer and an ARC pod that keeps the default get.
+read -r -d '' SMOKE_CLOUD <<'EOF' || true
+set -e
+echo "--- cloud smoke ---"
+uname -m
+test "${GOPHERSYS_DEVCONTAINER}" = "cloud"
+bw --version
+gh --version
+tailscale version
+kubectl version --client
+helm version --short
+k9s version --short
+go version
+node --version
+bun --version
+python3 --version
+uv --version
+nats --version
+yq --version
+echo "--- ADR-0020 gate toolchain (Kubernetes substrates + Go gate tools) ---"
+k3d version
+kind version
+gofumpt --version
+golangci-lint --version
+govulncheck -version
+gosec --version
+gremlins --version
+benchstat -h >/dev/null 2>&1 && echo "benchstat: ok"
+gitleaks version
+kubeconform -v
+echo "--- the Go caches are OUT of the image (the 1.6 GB fix) ---"
+# The gate-tools layer measured 2.06 GB in base because the RUN never removed
+# the module and build caches. The cleanup is MANDATORY in cloud, and a green
+# smoke on an image that silently kept them would bless the exact regression.
+if [ -d "${GOPATH}/pkg/mod" ]; then echo "FAIL: ${GOPATH}/pkg/mod is still in the image"; exit 1; fi
+if [ -d "${HOME}/.cache/go-build" ]; then echo "FAIL: ${HOME}/.cache/go-build is still in the image"; exit 1; fi
+echo "go caches: absent, as built"
+echo "--- docker cli-plugins ---"
+# `docker buildx version` reaches no daemon, so this is a pure image-content
+# check. The CI pod is the CLIENT of the remote arm64 builder, and base-runner
+# measurably shipped without the plugin once.
+if ! BUILDX_OUTPUT="$(docker buildx version 2>&1)"; then
+  echo "FAIL: docker buildx does not run in this image"
+  echo "      docker said: ${BUILDX_OUTPUT}"
+  echo "      /usr/local/lib/docker/cli-plugins holds:"
+  ls -1 /usr/local/lib/docker/cli-plugins || echo "      (there is no cli-plugins directory)"
+  exit 1
+fi
+echo "${BUILDX_OUTPUT}"
+# Drift guard. The version that RUNS must be the version versions.env pins.
+# EXPECTED_BUILDX_VERSION is read out of versions.env by .ci/smoke.sh on the
+# host and passed in here; an absent pin FAILS rather than skipping.
+BUILDX_INSTALLED=""
+if BUILDX_TOKENS="$(printf '%s' "${BUILDX_OUTPUT}" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')"; then
+  BUILDX_INSTALLED="$(printf '%s' "${BUILDX_TOKENS}" | head -n 1)"
+fi
+if [ -z "${BUILDX_INSTALLED}" ]; then
+  echo "FAIL: docker buildx runs but reports no version this check can read"
+  echo "      it printed: ${BUILDX_OUTPUT}"
+  exit 1
+fi
+if [ -z "${EXPECTED_BUILDX_VERSION}" ]; then
+  echo "FAIL: no buildx pin could be read, so the ${BUILDX_INSTALLED} in this image is checked against nothing"
+  echo "      ${BUILDX_PIN_PROBLEM}"
+  exit 1
+fi
+if [ "${BUILDX_INSTALLED}" != "v${EXPECTED_BUILDX_VERSION}" ]; then
+  echo "FAIL: buildx version drift: the image runs ${BUILDX_INSTALLED}, versions.env pins v${EXPECTED_BUILDX_VERSION}"
+  exit 1
+fi
+echo "docker buildx: ${BUILDX_INSTALLED} matches the pin in versions.env"
+echo "--- cloud components: debug, protocols, data clients, comforts ---"
+dlv version
+buf --version
+grpcurl -version
+psql --version
+sqlite3 --version
+redis-cli --version
+bat --version
+htop --version
+btop --version
+http --version
+echo "--- the CI fold: runner + agents (inert files in a devcontainer) ---"
+test -x /home/runner/run.sh
+# The runner writes .runner and .credentials into /home/runner at
+# registration. An unwritable directory means every pod fails to start, and
+# it is invisible until a job is queued. The first runner build shipped that.
+test -w /home/runner || { echo "FAIL: /home/runner is not writable"; exit 1; }
+test -d /home/runner/externals
+test -w /home/runner/_work
+/home/runner/bin/Runner.Listener --version
+# A pod that runs as root needs this or run.sh exits 1 in under a second.
+[ "${RUNNER_ALLOW_RUNASROOT:-}" = "1" ] || { echo "FAIL: RUNNER_ALLOW_RUNASROOT is not 1; run.sh will refuse to start as root"; exit 1; }
+# node must resolve in a NON-login shell: CI jobs run bash, not an interactive zsh.
+command -v node >/dev/null || { echo "FAIL: node is not on PATH"; exit 1; }
+echo "--- CI tooling + the harness bake (ADR-0021 pins) ---"
+cictl help >/dev/null
+command -v cictl
+claude --version
+omp --version
+codex --version
+EOF
+
 case "$IMAGE" in
   base)    SCRIPT="$SMOKE_BASE" ;;
+  cloud)   SCRIPT="$SMOKE_CLOUD" ;;
   base-runner) SCRIPT="${SMOKE_BASE}
 ${SMOKE_RUNNER}" ;;
   flutter) SCRIPT="${SMOKE_BASE}
@@ -283,7 +414,7 @@ ${SMOKE_ZEPHYR}
 ${SMOKE_DEVBOX}" ;;
   *)
     log_error "unknown image: '$IMAGE'"
-    log_error "valid images: base, base-runner, flutter, zephyr, zephyr-devbox"
+    log_error "valid images: base, base-runner, flutter, zephyr, zephyr-devbox, cloud"
     exit 2
     ;;
 esac
@@ -399,8 +530,36 @@ fi
 
 # The pin the drift guard inside the image compares against, and the reason when
 # there is none. Both travel into the image, so an unreadable pin is reported
-# next to the version it could not be compared against.
-resolve_buildx_pin
+# next to the version it could not be compared against. The cloud image reads
+# its pin from versions.env — the one home of the new mechanism; every other
+# image reads base/Dockerfile's ARG.
+if [[ "$IMAGE" == "cloud" ]]; then
+  resolve_cloud_buildx_pin
+else
+  resolve_buildx_pin
+fi
+
+# The R4 size gate, cloud only: the acceptance budget is <= 5.5 GB (decimal,
+# the unit every census figure uses). It runs on the HOST against the loaded
+# or pulled image, BEFORE the container smoke, and in CI this whole script
+# runs before the push — so an oversize image never reaches a consumer. The
+# budget does not move quietly: above it, the next levers are the
+# --no-install-recommends audit, stripping the Go gate binaries, splitting
+# build-essential out — and past those, the decision goes back to a human.
+if [[ "$IMAGE" == "cloud" ]]; then
+  CLOUD_SIZE_BUDGET_BYTES=5500000000
+  CLOUD_SIZE_BYTES=""
+  if ! CLOUD_SIZE_BYTES="$(docker image inspect --format '{{.Size}}' "$REF")"; then
+    log_error "cannot read the size of ${REF}; the 5.5 GB gate cannot run, which is a FAILURE and not a skip"
+    exit 1
+  fi
+  if [[ "$CLOUD_SIZE_BYTES" -gt "$CLOUD_SIZE_BUDGET_BYTES" ]]; then
+    log_error "cloud size gate: ${REF} is ${CLOUD_SIZE_BYTES} bytes, over the ${CLOUD_SIZE_BUDGET_BYTES}-byte (5.5 GB) budget"
+    log_error "the budget is acceptance metric 2 of the image program (risk R4); it does not move quietly"
+    exit 1
+  fi
+  log_info "cloud size gate: ${CLOUD_SIZE_BYTES} bytes <= ${CLOUD_SIZE_BUDGET_BYTES} (5.5 GB budget)"
+fi
 
 RUN_ARGS=(
   --rm

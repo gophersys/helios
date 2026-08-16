@@ -1,6 +1,6 @@
 # cloud-image
 
-phase:    intake
+phase:    verify
 repo:     gophersys/.devcontainer
 branch:   feat/cloud-image
 worktree: ~/code/.worktrees/.devcontainer-cloud-image
@@ -45,7 +45,36 @@ down by copying blocks verbatim and asserting content in SMOKE_CLOUD.
 
 ## Proven
 
-(nothing yet)
+Only things that RAN, with the command and the result:
+
+- RED: `bash _ctl/tests/publish-order.test.sh` exit=1 —
+  `FAIL: ..._declares_the_expected_jobs` naming `cloud` in BOTH workflow
+  copies. `bash _ctl/tests/dockerfile-args.test.sh` exit=1 —
+  `FAIL: every_named_Dockerfile_exists` naming `cloud/Dockerfile`.
+  `bash _ctl/tests/platform-policy.test.sh` exit=1 —
+  `FAIL: every_named_build_path_file_exists` naming `cloud/ctl.sh` and
+  `cloud/project.json`. All three failed for exactly the feature's reason.
+- GREEN: `bash ./ctl.sh validate` exit=0 — `validate: OK` (shellcheck -x -S
+  style over every script incl. the 12 components, jq, hadolint 2.14.0 in
+  container mode, ARG discipline, all 6 Dockerfiles).
+- GREEN: `bash ./ctl.sh test` exit=0 — all 7 suites: build 6, dockerfile-args
+  29, guard 11, platform-policy 8, publish-order 28, tripwire 5,
+  verify-published 6 checks, 0 failed.
+- `bash cloud/ctl.sh help` exit=0 — the dispatcher sources the library and
+  prints the cloud usage block.
+- versions_env_build_args probe: 47 `--build-arg` pairs generated from
+  versions.env (GO_VERSION=1.26.5, CICTL_VERSION=v0.1.0, OMP_VERSION=17.2.5
+  spot-checked). BREAK-TEST: a file with the line `BADLINE` made it exit 1
+  with "unreadable pin line ... 'BADLINE' — want NAME=value" — the check can
+  fail.
+- BUILD_ORDER agreement (the validate.yml step, run locally): both greps
+  print `BUILD_ORDER=(base base-runner flutter zephyr zephyr-devbox cloud)`
+  — AGREE.
+- Provider copy: `cmp .github/workflows/build-and-push.yml
+  .ci/providers/github/build-and-push.yml` exit=0 — byte-identical.
+- Local amd64 image build: RUNNING in the background on this arm64 host
+  (emulated; scratchpad cloud-build.log). Result and measured size recorded
+  here when it finishes; remote CI is the prover either way.
 
 ## Blocked
 
@@ -53,4 +82,4 @@ down by copying blocks verbatim and asserting content in SMOKE_CLOUD.
 
 ## Next
 
-Write the red test expectations and prove them failing.
+Push the branch, open the PR (DO NOT MERGE), watch checks up to 30 min.
