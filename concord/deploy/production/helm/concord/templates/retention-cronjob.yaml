@@ -1,0 +1,114 @@
+{{- if .Values.retention.testPackages.enabled }}
+---
+# ── Test-Package Retention CronJob ─────────────────────────
+# Daily cleanup of DEVELOPMENT test packages older than the
+# retention window. Released packages and any package referenced
+# by a TestRun, manufacturing session, or stage-config binding
+# are never touched. Each dev upload now lands a new immutable
+# row, so without this job the test_packages table grows
+# linearly with upload frequency.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: concord-retention-test-packages
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    app.kubernetes.io/name: concord-retention-test-packages
+    app.kubernetes.io/component: retention
+spec:
+  schedule: {{ .Values.retention.testPackages.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: concord-retention-test-packages
+        spec:
+          {{- include "concord.workloadNodeSelector" (dict "workload" "platform" "extra" dict) | nindent 10 }}
+          restartPolicy: OnFailure
+          containers:
+            - name: retention
+              image: "{{ .Values.httpApi.image.repository }}:{{ .Values.httpApi.image.tag }}"
+              imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+              command:
+                - python3
+                - -m
+                - src.services.retention
+                - test-packages
+                - --days
+                - {{ .Values.retention.testPackages.retentionDays | default 30 | quote }}
+                - --keep
+                - {{ .Values.retention.testPackages.keepLatest | default 5 | quote }}
+              envFrom:
+                - configMapRef:
+                    name: concord-config
+                - secretRef:
+                    name: concord-secrets
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+{{- end }}
+{{- if .Values.retention.mfgSessionReaper.enabled }}
+---
+# ── Orphan Manufacturing Session Reaper ───────────────────
+# Sweeps ACTIVE manufacturing sessions whose K8s runner pod
+# is gone but the DB row never flipped to FAILED. Runs on a
+# tight schedule because a stuck session leaves its fixture
+# LOCKED and operators can't recover without manual SQL.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: concord-mfg-session-reaper
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    app.kubernetes.io/name: concord-mfg-session-reaper
+    app.kubernetes.io/component: retention
+spec:
+  schedule: {{ .Values.retention.mfgSessionReaper.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/name: concord-mfg-session-reaper
+        spec:
+          {{- include "concord.workloadNodeSelector" (dict "workload" "platform" "extra" dict) | nindent 10 }}
+          restartPolicy: OnFailure
+          serviceAccountName: concord-http-api
+          containers:
+            - name: reaper
+              image: "{{ .Values.httpApi.image.repository }}:{{ .Values.httpApi.image.tag }}"
+              imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+              command:
+                - python3
+                - -m
+                - src.services.mfg_session_reaper
+                - --minutes
+                - {{ .Values.retention.mfgSessionReaper.stalenessMinutes | default 30 | quote }}
+              envFrom:
+                - configMapRef:
+                    name: concord-config
+                - secretRef:
+                    name: concord-secrets
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 128Mi
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+{{- end }}

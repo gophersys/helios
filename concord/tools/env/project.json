@@ -1,0 +1,70 @@
+{
+  "name": "env",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/env",
+  "projectType": "application",
+  "tags": ["type:tool"],
+  "targets": {
+    "setup": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "bash tools/env/ctl.sh development setup"
+        },
+        "staging": {
+          "command": "bash tools/env/ctl.sh staging setup"
+        },
+        "production": {
+          "command": "bash tools/env/ctl.sh production setup"
+        }
+      }
+    },
+    "preflight": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "bash tools/env/ctl.sh development preflight"
+        },
+        "staging": {
+          "command": "bash tools/env/ctl.sh staging preflight"
+        },
+        "production": {
+          "command": "bash tools/env/ctl.sh production preflight"
+        }
+      }
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash tools/env/ctl.sh validate",
+        "cwd": "{workspaceRoot}"
+      }
+    },
+    "status": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "bash tools/env/ctl.sh development status"
+        },
+        "staging": {
+          "command": "bash tools/env/ctl.sh staging status"
+        },
+        "production": {
+          "command": "bash tools/env/ctl.sh production status"
+        }
+      }
+    }
+  }
+}

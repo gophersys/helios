@@ -1,0 +1,190 @@
+{
+  "name": "git-poller",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/backend/git-poller",
+  "projectType": "application",
+  "tags": [
+    "scope:backend",
+    "type:app"
+  ],
+  "implicitDependencies": [
+    "protocols"
+  ],
+  "targets": {
+    "get-build-info": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          "echo \"APP_VERSION=$(git describe --tags --always 2>/dev/null || echo dev)\"",
+          "echo \"GIT_COMMIT=$(git rev-parse --short=7 HEAD)\"",
+          "echo \"GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)\"",
+          "echo \"GIT_DIRTY=$([ -n \"$(git status --porcelain)\" ] && echo true || echo false)\"",
+          "echo \"BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
+          "echo \"BUILD_HOST=$(hostname)\""
+        ]
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "dependsOn": [
+        "get-build-info"
+      ],
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "nx run git-poller:containerize -c development"
+        },
+        "staging": {
+          "command": "nx run git-poller:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run git-poller:containerize -c production"
+        }
+      },
+      "cache": false
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "defaultConfiguration": "development",
+      "dependsOn": [
+        "protocols:create"
+      ],
+      "options": {
+        "context": "{workspaceRoot}",
+        "cwd": "{workspaceRoot}",
+        "file": "apps/backend/git-poller/deploy/Dockerfile",
+        "push": false,
+        "load": true,
+        "build-args": [
+          "APP_VERSION",
+          "ENVIRONMENT",
+          "GIT_COMMIT",
+          "GIT_BRANCH",
+          "BUILD_TIME",
+          "BUILD_HOST"
+        ]
+      },
+      "configurations": {
+        "development": {
+          "tags": [
+            "concord/git-poller:development"
+          ],
+          "platforms": []
+        },
+        "staging": {
+          "tags": [
+            "concord/git-poller:staging",
+            "containers.ad.corekinect.com/concord-git-poller:staging"
+          ]
+        },
+        "production": {
+          "tags": [
+            "concord/git-poller:production",
+            "containers.ad.corekinect.com/concord-git-poller:production"
+          ],
+          "platforms": [
+            "linux/amd64"
+          ]
+        }
+      },
+      "cache": false
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "echo 'Skipping push for development'"
+        },
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-git-poller:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-git-poller:production"
+        }
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "push"
+      ],
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "echo 'Skipping deploy for development'"
+        },
+        "staging": {
+          "command": "./deploy/ctl.sh staging deploy"
+        },
+        "production": {
+          "command": "./deploy/ctl.sh production deploy"
+        }
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/git-poller",
+        "command": "python3 -m pytest"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/git-poller",
+        "command": "python3 -c \"import py_compile,glob;[py_compile.compile(f,doraise=True) for f in glob.glob('src/**/*.py',recursive=True)]\""
+      }
+    },
+    "check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          {
+            "command": "nx typecheck git-poller"
+          },
+          {
+            "command": "nx test git-poller"
+          }
+        ]
+      }
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/git-poller",
+        "command": "python3 -m pytest --cov=src --cov-fail-under=90 --cov-report=term-missing -q --tb=no"
+      }
+    },
+    "complexity": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "python3 .ci/lib/check_complexity.py apps/backend/git-poller/src --allowlist=.ci/complexity-allowlist.json"
+      }
+    },
+    "security": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/git-poller",
+        "command": "python3 -m bandit -r src/ -lll -iii -q --exclude src/tests"
+      }
+    }
+  }
+}

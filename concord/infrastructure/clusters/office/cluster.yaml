@@ -1,0 +1,240 @@
+name: office
+description: On-premise K3s HA cluster — CoreKinect office lab
+apiServer: https://10.4.45.10:6443
+distribution: k3s
+version: v1.33.5+k3s1
+
+registry:
+  mode: local-import
+  host: containers.ad.corekinect.com
+
+ingress:
+  controller: traefik
+  className: traefik
+
+storage:
+  defaultClass: local-path
+  provisioner: rancher.io/local-path
+
+# ── Cluster Dependencies ───────────────────────────────────────
+# Helm charts installed by bootstrap.sh as cluster-level services.
+# These are infrastructure services that applications depend on —
+# NOT the applications themselves (those live in deploy/).
+#
+# Order matters: dependencies are installed top-to-bottom.
+# Each dependency can override shared values from dependencies/<name>/values.yaml.
+
+dependencies:
+  - name: cert-manager
+    chart: jetstack/cert-manager
+    repo: https://charts.jetstack.io
+    version: v1.17.2
+    namespace: cert-manager
+    # values: uses shared defaults from infrastructure/dependencies/cert-manager/values.yaml
+    postInstall:
+      # After cert-manager is running, apply the CA issuer. The local CA
+      # is kept available for future internal-only certs (mTLS, etc.),
+      # but ingress TLS is not managed by cert-manager today — see
+      # networking/certificates/README.md.
+      - networking/cert-manager-ca.yaml
+
+  # ── Future dependencies (uncomment when ready) ────────────────
+  # - name: opentelemetry-collector
+  #   chart: open-telemetry/opentelemetry-collector
+  #   repo: https://open-telemetry.github.io/opentelemetry-helm-charts
+  #   version: 0.108.0
+  #   namespace: observability
+  #
+  # - name: vault
+  #   chart: hashicorp/vault
+  #   repo: https://helm.releases.hashicorp.com
+  #   version: 0.28.0
+  #   namespace: vault
+
+# ── Workload Types ─────────────────────────────────────────────
+# Abstract workload categories that map to K8s nodeSelectors.
+# Each type defines what runs on it, minimum requirements, and
+# which nodes in this cluster fulfill that role.
+#
+# Pods use: nodeSelector: { concord.corekinect.com/workload: <type> }
+# A single node can serve multiple workload types.
+
+workloadTypes:
+  platform:
+    description: Concord application services (API, frontend, docs, git-poller, pypi)
+    requirements:
+      cpu: 2
+      memory: 4Gi
+      network: cluster-internal + ingress
+    services:
+      - http-api
+      - frontend
+      - docs
+      - git-poller
+      - pypi
+
+  data:
+    description: Stateful storage services (databases, object storage)
+    requirements:
+      cpu: 2
+      memory: 4Gi
+      storage: SSD preferred, PVC-backed
+      network: cluster-internal only
+    services:
+      - postgres
+      - minio
+    notes: >
+      On managed cloud (EKS), replace with RDS + S3 and disable
+      in-cluster infrastructure via Helm values.
+
+  build:
+    description: General-purpose build execution (firmware, containers, packages)
+    requirements:
+      cpu: 4
+      memory: 8Gi
+      storage: Fast temp disk for workspaces + ccache
+      docker: Socket or DinD access required
+      network: Outbound internet (pull dependencies), cluster-internal
+    services:
+      - build-service
+      - build-workers (dynamically spawned)
+    notes: >
+      Horizontal scaling lever for build throughput. Add more build
+      nodes to parallelize firmware builds, container builds, etc.
+
+  devops:
+    description: "Standalone CI platform (Helm chart: concord-ci)"
+    requirements:
+      cpu: 8
+      memory: 16Gi
+      docker: DinD sidecar (full docker-compose stack for nightly E2E)
+      network: Outbound internet (git clone, npm install) + cluster-internal
+    services:
+      - concord-ci-minio (artifact storage, 5Gi PVC)
+      - concord-ci-admin (dashboard, SvelteKit + SQLite on 1Gi PVC)
+      - concord-ci-nightly (CronJob, daily 2 AM, DinD sidecar)
+      - concord-ci-weekly (CronJob, Saturday 3 AM, AI-powered analysis)
+    helm_chart: deploy/ci/helm/concord-ci/
+    notes: >
+      Fully independent from the main platform. Survives platform crashes.
+      Own MinIO instance, own SQLite database, own dashboard at admin.concord.local.
+      Managed via: bash deploy/ci/ctl.sh start|stop|update|status
+
+  worker:
+    description: Ephemeral job execution (validation runs, manufacturing jobs)
+    requirements:
+      cpu: 1
+      memory: 2Gi
+      network: Cluster-internal + edge node access (gRPC to MTIBs)
+    services:
+      - validation-runner (K8s Jobs)
+      - manufacturing-jobs (K8s Jobs)
+    notes: >
+      Horizontal scaling lever for test/manufacturing throughput.
+      Stateless — more workers = more parallel product validation.
+
+  edge:
+    description: Hardware-attached nodes with physical access to DUTs
+    requirements:
+      arch: arm64
+      network: LAN access to test fixtures (UART, SWD, power)
+      physical: USB/serial connection to MTIB hardware
+    services:
+      - mtib-server
+    notes: >
+      Always on-premise by definition. In a hybrid cloud setup,
+      edge nodes stay in the lab and connect via VPN to the
+      cloud-hosted control plane.
+
+# ── Nodes ──────────────────────────────────────────────────────
+# Each node lists its workload types (can have multiple).
+# bootstrap.sh applies concord.corekinect.com/workload-<type>=true
+# for each type, plus concord.corekinect.com/workload=<primary>.
+
+nodes:
+  servers:
+    - name: concordserver01
+      ip: 10.4.45.11
+      cpu: 2
+      memory: 4Gi
+      roles: [control-plane, etcd, master]
+      workloads: [platform]
+
+    - name: concordserver02
+      ip: 10.4.45.12
+      cpu: 2
+      memory: 4Gi
+      roles: [control-plane, etcd, master]
+      workloads: [platform]
+
+    - name: concordserver03
+      ip: 10.4.45.13
+      cpu: 2
+      memory: 4Gi
+      roles: [control-plane, etcd, master]
+      workloads: [platform, data]
+
+  agents:
+    - name: concordagent01
+      ip: 10.4.45.21
+      cpu: 2
+      memory: 4Gi
+      workloads: [platform, worker, data]
+
+    - name: concordagent02
+      ip: 10.4.45.22
+      cpu: 2
+      memory: 4Gi
+      workloads: [platform, worker]
+
+    - name: concordagent03
+      ip: 10.4.45.23
+      cpu: 2
+      memory: 4Gi
+      workloads: [data, worker]
+
+    - name: concordproxy
+      ip: 10.4.45.30
+      cpu: 8
+      memory: 16Gi
+      workloads: [devops, build]
+
+    - name: wanda
+      ip: 10.4.45.32
+      cpu: 16
+      memory: 32Gi
+      workloads: [build, devops]
+
+  edge:
+    - name: verdin-imx8mm-15005696
+      ip: 10.4.45.33
+      arch: arm64
+      workloads: [edge]
+
+    - name: verdin-imx8mm-15005670
+      ip: 10.4.45.34
+      arch: arm64
+      workloads: [edge]
+
+    - name: verdin-imx8mm-15005721
+      ip: 10.4.45.36
+      arch: arm64
+      workloads: [edge]
+
+    - name: verdin-imx8mm-15005714
+      ip: 10.4.45.37
+      arch: arm64
+      workloads: [edge]
+
+    - name: verdin-imx8mm-15005668
+      ip: 10.4.45.39
+      arch: arm64
+      workloads: [edge]
+
+
+namespaces:
+  - staging
+  - production
+  - validation
+  - devops
+  - development

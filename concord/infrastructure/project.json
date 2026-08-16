@@ -1,0 +1,143 @@
+{
+  "name": "infrastructure",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "infrastructure",
+  "projectType": "application",
+  "targets": {
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          "bash infrastructure/tests/test-cluster-yaml.sh",
+          "bash infrastructure/tests/test-rbac.sh",
+          "bash infrastructure/tests/test-manifests.sh",
+          "bash infrastructure/tests/test-bootstrap.sh",
+          "bash infrastructure/tests/test-secrets.sh"
+        ]
+      }
+    },
+
+    "bootstrap": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office bootstrap"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks bootstrap"]
+        }
+      }
+    },
+
+    "status": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office status"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks status"]
+        }
+      }
+    },
+
+    "teardown": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office teardown"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks teardown"]
+        }
+      }
+    },
+
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office validate"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks validate"]
+        }
+      }
+    },
+
+    "kubeconfig": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office kubeconfig"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks kubeconfig"]
+        }
+      }
+    },
+
+    "kubeconfig-batch": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office kubeconfig batch"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks kubeconfig batch"]
+        }
+      }
+    },
+
+    "kubeconfig-list": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office kubeconfig list"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks kubeconfig list"]
+        }
+      }
+    },
+
+    "secrets": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "office": {
+          "commands": ["bash infrastructure/ctl.sh office secrets"]
+        },
+        "eks": {
+          "commands": ["bash infrastructure/ctl.sh eks secrets"]
+        }
+      }
+    }
+  },
+  "tags": ["scope:infrastructure"]
+}

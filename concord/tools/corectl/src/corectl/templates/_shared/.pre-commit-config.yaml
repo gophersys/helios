@@ -1,0 +1,24 @@
+# generated-by: corectl/corekinect {{framework_version}} — do not hand-edit; run `corectl test update` to refresh
+#
+# Pre-commit hooks for this corectl test app. Install once per clone:
+#
+#     pip install pre-commit && pre-commit install
+#
+# After that, every `git commit` runs `corectl test validate` and aborts
+# if it fails. The corectl validate gate also enforces this hook is
+# installed — clones without it fail validate.
+
+repos:
+  - repo: local
+    hooks:
+      - id: corectl-validate
+        name: corectl test validate
+        entry: corectl test validate
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+        description: |
+          Run the local validate pipeline (structure, semantics,
+          compatibility, framework artifacts) before every commit.
+          Catches drift, missing tests, broken fixtures.

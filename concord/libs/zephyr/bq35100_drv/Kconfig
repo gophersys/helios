@@ -1,0 +1,58 @@
+# Copyright (c) 2024 CoreKinect Inc.
+
+menu "BQ35100 Primary Battery Fuel Gauge Driver"
+
+menuconfig CK_BQ35100
+    bool "Texas Instruments BQ35100 primary battery fuel gauge"
+    depends on I2C && SENSOR
+    help
+      Enable support for the Texas Instruments BQ35100 primary battery
+      fuel gauge with impedance tracking. Supports Li-SOCl2 and Li-MnO2
+      chemistries with three gauging modes: Accumulator (coulomb counting),
+      State-of-Health (voltage correlation), and End-of-Service (impedance
+      correlation). Provides voltage, current, temperature, capacity,
+      impedance, and SOH measurements via the Zephyr sensor API.
+
+if CK_BQ35100
+
+config CK_BQ35100_INIT_PRIORITY
+    int "Initialization priority"
+    default 90
+    help
+      Initialization priority for the BQ35100 driver.
+      Should be initialized after the I2C bus driver.
+
+config CK_BQ35100_LOG_LEVEL
+    int "Log level"
+    default 3
+    range 0 4
+    help
+      Set the log level for the BQ35100 driver.
+        0 = OFF  - No logging
+        1 = ERR  - Error messages only
+        2 = WRN  - Warnings and errors
+        3 = INF  - Informational messages (default)
+        4 = DBG  - Debug messages (verbose)
+
+config CK_BQ35100_TRIGGER
+    bool "Interrupt trigger support"
+    depends on GPIO
+    default y
+    help
+      Enable ALERT interrupt trigger support. The BQ35100 ALERT pin
+      signals battery low, temperature threshold, SOH low, EOS
+      detection, gauge done, and initialization complete events.
+      Requires the alert-gpios property in devicetree.
+
+config CK_BQ35100_SHELL
+    bool "Shell commands"
+    depends on SHELL
+    default y
+    help
+      Enable shell commands for interactive BQ35100 diagnostics.
+      Provides: bq35100 read, status, info, start, stop, unseal,
+      seal, new_battery, and flash_read commands.
+
+endif # CK_BQ35100
+
+endmenu

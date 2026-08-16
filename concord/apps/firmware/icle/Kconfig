@@ -1,0 +1,93 @@
+# SPDX-License-Identifier: Apache-2.0
+# ICLE Super Monitor Kconfig
+
+mainmenu "ICLE Super Monitor Configuration"
+
+source "Kconfig.zephyr"
+
+# Network Control Service (ported from Helios runtime)
+rsource "src/services/netctl/Kconfig"
+
+menu "ICLE Application Settings"
+
+config ICLE_WIFI_SSID
+	string "Default WiFi SSID"
+	default "CoreKinect_2G"
+	help
+	  Default WiFi network SSID for initial connection.
+	  Can be overridden at runtime via Config Mode.
+
+config ICLE_WIFI_PSK
+	string "Default WiFi Password"
+	default "Trap101!"
+	help
+	  Default WiFi network password for initial connection.
+	  Can be overridden at runtime via Config Mode.
+
+config ICLE_BACKEND_URL
+	string "Backend API URL"
+	default "http://concord.ad.corekinect.com/api"
+	help
+	  Base URL for the Concord backend API.
+	  Used for log sync and configuration.
+
+config ICLE_DEVICE_ID
+	string "Device ID"
+	default "icle-001"
+	help
+	  Unique identifier for this ICLE device.
+	  Used for backend registration and log attribution.
+
+config ICLE_SAMPLE_INTERVAL_MS
+	int "Sample interval (ms)"
+	default 100
+	range 10 10000
+	help
+	  Interval between power measurements in Logger Mode.
+	  Lower values = higher resolution but more data.
+
+config ICLE_SYNC_INTERVAL_MS
+	int "HTTP sync interval (ms)"
+	default 60000
+	range 5000 3600000
+	help
+	  Interval between HTTP sync attempts in Logger Mode.
+	  Set higher to reduce network traffic.
+
+config ICLE_CONFIG_TIMEOUT_MS
+	int "Config mode timeout (ms)"
+	default 300000
+	range 60000 3600000
+	help
+	  Idle timeout before returning to deep sleep from Config Mode.
+	  Default is 5 minutes (300000 ms).
+
+config ICLE_LOG_FORMAT_CSV
+	bool "Use CSV log format (instead of binary)"
+	default n
+	help
+	  If enabled, logs are stored as CSV files.
+	  Binary format is more compact but less human-readable.
+
+config ICLE_LOG_MAX_SIZE
+	int "Maximum log file size (bytes)"
+	default 1048576
+	range 65536 16777216
+	help
+	  Maximum size of a single log file before rotation.
+	  Default is 1MB (1048576 bytes).
+
+config ICLE_AUTO_WIFI_CONNECT
+	bool "Auto-connect to WiFi on boot"
+	default y
+	depends on WIFI
+	help
+	  Automatically connect to WiFi on boot using configured SSID/PSK
+
+config ICLE_LED_BLINK_INTERVAL_MS
+	int "LED blink interval (ms)"
+	default 500
+	help
+	  Interval for status LED blinking
+
+endmenu

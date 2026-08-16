@@ -1,0 +1,15 @@
+[project]
+name = "concord-{{pkg_type}}-{{product}}"
+version = "0.1.0"
+description = "Concord {{pkg_type}} test package for {{product}} / {{board}}"
+requires-python = ">=3.10"
+dependencies = [
+    "corekinect>=0.3.0",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["tests*", "testbeds*"]

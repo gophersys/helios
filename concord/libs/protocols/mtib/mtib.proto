@@ -1,0 +1,494 @@
+syntax = "proto3";
+
+option go_package = "bitbucket.org/corekinect/concord/libs/protocols/mtib";
+
+package mtib.v1;
+
+// This is the main interface used to access all the functionality built
+// into the MTIB hardware.
+//
+// This service gets served at port 50053
+//
+service MtibV1 {
+  // HealthCheck
+  rpc HealthCheck(Empty) returns (HealthCheckResponse) {}
+
+  // Gpio
+  rpc GpioConfig(GpioConfigRequest) returns (GpioConfigResponse) {}
+  rpc GpioWrite(GpioWriteRequest) returns (GpioWriteResponse) {}
+  rpc GpioRead(GpioReadRequest) returns (GpioReadResponse) {}
+
+  // Adc
+  rpc AdcRead(AdcReadRequest) returns (AdcReadResponse) {}
+  rpc AdcReadAll(Empty) returns (AdcReadAllResponse) {}
+
+  // Sensors
+  rpc AltimeterRead(Empty) returns (AltimeterReadResponse) {}
+  rpc AccelRead(Empty) returns (AccelReadResponse) {}
+
+  // Motion
+  rpc GetMotionStatus(Empty) returns (GetMotionStatusResponse) {}
+  rpc MotionStart(MotionStartRequest) returns (stream MotionStartResponse) {}
+  rpc MotionHome(Empty) returns (MotionHomeResponse) {}
+  rpc MotionStop(Empty) returns (MotionStopResponse) {}
+
+  // Firmware
+  rpc ListProgrammers(Empty) returns (ListProgrammersResponse) {}
+  rpc ListFwFiles(Empty) returns (ListFwFilesResponse) {}
+  rpc UploadFwFile(stream UploadFwFileRequest) returns (UploadFwFileResponse) {}
+  rpc DeleteFwFile(DeleteFwFileRequest) returns (DeleteFwFileResponse) {}
+  rpc FlashFwFile(FlashFwFileRequest) returns (FlashFwFileResponse) {}
+  rpc EraseFlash(EraseFlashRequest) returns (EraseFlashResponse) {}
+  rpc EnableAppProtect(EnableAppProtectRequest)
+      returns (EnableAppProtectResponse) {}
+
+  // Uart streams
+  rpc UartStream(stream UartStreamRequest) returns (stream UartStreamResponse) {
+  }
+
+  // Power
+  rpc PowerEnable(PowerEnableRequest) returns (PowerResponse) {}
+  rpc PowerDisable(PowerDisableRequest) returns (PowerResponse) {}
+  rpc PowerRead(PowerReadRequest) returns (PowerReadResponse) {}
+  rpc PowerMeasure(PowerMeasureRequest) returns (PowerMeasureResponse) {}
+  rpc PowerStream(PowerStreamRequest) returns (stream PowerStreamResponse) {}
+
+  // GPIO watch
+  rpc GpioWatch(GpioWatchRequest) returns (stream GpioWatchEvent) {}
+
+  // ADC stream
+  rpc AdcStream(AdcStreamRequest) returns (stream AdcStreamResponse) {}
+
+  // NFC
+  rpc NfcPoll(NfcPollRequest) returns (NfcPollResponse) {}
+  rpc NfcReadNdef(NfcReadNdefRequest) returns (NfcReadNdefResponse) {}
+
+  // Observability
+  rpc GetSnapshot(Empty) returns (GetSnapshotResponse) {}
+}
+
+// Shared
+message Empty {}
+
+// Health Check
+message HealthCheckResponse {
+  bool ready = 1;
+  repeated string errors = 2;
+  string hw_revision = 3;           // "REV1.2"
+  repeated string capabilities = 4;  // ["power", "gpio", "adc", "uart", "flash", "motion", "observability"]
+}
+
+// Gpio
+enum GpioDirection {
+  GPIO_DIRECTION_UNDEFINED = 0;
+  GPIO_DIRECTION_INPUT = 1;
+  GPIO_DIRECTION_OUTPUT = 2;
+}
+
+enum GpioResistorConfig {
+  GPIO_RESISTOR_UNDEFINED = 0;
+  GPIO_RESISTOR_PULL_UP = 1;
+  GPIO_RESISTOR_PULL_DOWN = 2;
+  GPIO_RESISTOR_NONE = 3;
+}
+
+enum GpioEdge {
+  GPIO_EDGE_RISING = 0;
+  GPIO_EDGE_FALLING = 1;
+  GPIO_EDGE_BOTH = 2;
+}
+
+message GpioConfigRequest {
+  int32 gpio = 1;
+  GpioDirection direction = 2;
+  GpioResistorConfig resistor = 3;
+}
+
+message GpioConfigResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GpioWriteRequest {
+  int32 gpio = 1;
+  bool state = 2;
+}
+
+message GpioWriteResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GpioReadRequest { int32 gpio = 1; }
+
+message GpioReadResponse {
+  bool success = 1;
+  string message = 2;
+  bool state = 3;
+}
+
+// GPIO Watch
+message GpioWatchRequest {
+  int32 gpio = 1;
+  GpioEdge edge = 2;
+}
+
+message GpioWatchEvent {
+  int32 gpio = 1;
+  bool state = 2;
+  uint64 timestamp_ms = 3;
+}
+
+// Adc
+message AdcReadRequest { int32 channel = 1; }
+
+message AdcReadResponse {
+  bool success = 1;
+  string message = 2;
+  double voltage_v = 3;
+}
+
+message AdcReadAllResponse {
+  bool success = 1;
+  string message = 2;
+  repeated double voltages_v = 3;
+}
+
+// ADC Stream
+message AdcStreamRequest {
+  repeated int32 channels = 1;
+  uint32 interval_ms = 2;   // Default: 100 (10 Hz)
+}
+
+message AdcStreamSample {
+  uint64 timestamp_ms = 1;
+  int32 channel = 2;
+  double voltage_v = 3;
+}
+
+message AdcStreamResponse {
+  repeated AdcStreamSample samples = 1;
+}
+
+// Power
+message PowerResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+enum PowerChannel {
+  POWER_CHANNEL_DUT = 0;          // Main DUT power (INA219 @ 0x40, MCP4017)
+  POWER_CHANNEL_CHARGER = 1;      // Charge rail (INA219 @ 0x41)
+  POWER_CHANNEL_JOULESCOPE = 2;   // USB-attached Joulescope JS220 (optional, always-on when connected)
+}
+
+message PowerEnableRequest {
+  PowerChannel channel = 1;
+  double voltage_v = 2;     // Only meaningful for DUT channel
+}
+
+message PowerDisableRequest {
+  PowerChannel channel = 1;
+}
+
+message PowerReadRequest {
+  PowerChannel channel = 1;
+}
+
+message PowerReadResponse {
+  bool success = 1;
+  string message = 2;
+  bool enabled = 3;
+  double voltage_v = 4;
+  double current_ma = 5;
+  double power_mw = 6;
+  double current_na = 7;    // Nanoamp-resolution reading (Joulescope only, 0 for INA219)
+}
+
+message PowerMeasureRequest {
+  PowerChannel channel = 1;
+  float duration_s = 2;
+}
+
+message PowerMeasureResponse {
+  bool success = 1;
+  string message = 2;
+  float duration_s = 3;
+  float average_ma = 4;
+  float min_ma = 5;
+  float max_ma = 6;
+  float average_mv = 7;
+  uint32 sample_count = 8;
+  float average_na = 9;     // Nanoamp-resolution average (Joulescope only)
+  float min_na = 10;        // Nanoamp-resolution min (Joulescope only)
+  float max_na = 11;        // Nanoamp-resolution max (Joulescope only)
+}
+
+message PowerSample {
+  uint64 timestamp_ms = 1;
+  float voltage_mv = 2;
+  float current_ma = 3;
+  float current_na = 4;    // Nanoamp-resolution sample (Joulescope only)
+}
+
+message PowerStreamRequest {
+  PowerChannel channel = 1;
+}
+
+message PowerStreamResponse {
+  repeated PowerSample samples = 1;
+}
+
+// Sensors
+message AltimeterReadResponse {
+  bool success = 1;
+  string message = 2;
+
+  double temperature_f = 3;
+  double pressure_hg = 4;
+  double altitude_ft = 5;
+}
+
+message AccelReadResponse {
+  bool success = 1;
+  string message = 2;
+
+  double x_g = 3;
+  double y_g = 4;
+  double z_g = 5;
+}
+
+// Motion
+enum MotionStatus {
+  MOTION_STATUS_UNDEFINED = 0;
+  MOTION_STATUS_IDLE = 1;
+  MOTION_STATUS_MOVING = 2;
+  MOTION_STATUS_ERRORED = 3;
+}
+
+message MotionStartRequest {
+  // How long to dwell at the end of each move. (both forward and backward)
+  float dwell_seconds = 2;
+
+  // Acceleration in mm/s^2.
+  float accel_mm_s2 = 5;
+
+  // Speed in mm/s.
+  float speed_mm_s = 3;
+
+  oneof move_type {
+    // If duration is given, the default speed and acceleration will be used.
+    // and the device will move back and forth until the duration is reached.
+    float duration_seconds = 1;
+
+    // Distance in mm. If this is greater than 0, the device will move the given distance.
+    float distance_mm = 4;
+  }
+}
+
+message MotionStartResponse {
+  bool success = 1;
+  string message = 2;
+  
+  // Progress information (subsequent messages after the first)
+  MotionStatus status = 3;
+  optional int64 time_elapsed_seconds = 4;     // Time the motion has been running
+  optional double distance_covered_mm = 5;      // Total distance covered so far
+  optional double distance_remaining_mm = 6;     // Distance left to cover (if distance-based)
+  optional int64 time_remaining_seconds = 7;   // Time remaining (if duration-based)
+  optional int32 target_duration_seconds = 8;   // What was requested
+  optional int32 target_distance_mm = 9;        // What was requested
+}
+
+message MotionHomeResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message MotionStopResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetMotionStatusResponse {
+  bool success = 1;
+  string message = 2;
+
+  MotionStatus status = 3;
+  
+  // Progress information (only populated when status is MOVING)
+  optional int64 time_elapsed_seconds = 4;  // Time the motion has been running
+  optional double distance_covered_mm = 5;   // Total distance covered so far
+  optional double distance_remaining_mm = 6; // Distance left to cover (if distance-based)
+  optional int64 time_remaining_seconds = 7; // Time remaining (if duration-based)
+  
+  // Target information (what was requested)
+  optional int32 target_duration_seconds = 8; // What was requested
+  optional int32 target_distance_mm = 9;       // What was requested
+}
+
+// Firmware
+enum ProgrammerType {
+  PROGRAMMER_TYPE_UNDEFINED = 0;
+  PROGRAMMER_TYPE_JLINK = 1;
+  PROGRAMMER_TYPE_BLACKMAGIC = 2;
+}
+
+enum HostType {
+  HOST_TYPE_UNDEFINED = 0;
+  HOST_TYPE_NRF9160 = 1;
+  HOST_TYPE_NRF9160_MODEM = 2;
+  HOST_TYPE_NRF52840 = 3;
+  HOST_TYPE_NRF5340 = 4;
+  HOST_TYPE_NRF9151 = 5;
+  HOST_TYPE_NRF9151_MODEM = 6;
+}
+
+message Programmer {
+  ProgrammerType type = 1;
+  HostType host = 2;
+  string serial = 3;        // J-Link serial number (e.g., "821009546")
+  bool connected = 4;       // True if device is connected and detected
+}
+
+message ListProgrammersResponse {
+  bool success = 1;
+  string message = 2;
+
+  repeated Programmer programmers = 3;
+}
+
+message FwFileInfo {
+  string name = 1;
+  HostType target = 2;
+  int64 size_b = 3;
+  string sha256_digest = 4;
+}
+
+message ListFwFilesResponse {
+  bool success = 1;
+  string message = 2;
+
+  repeated FwFileInfo files = 3;
+}
+
+message UploadFwFileRequest {
+  string name = 1;
+  HostType target = 2;
+
+  bytes content = 4;
+}
+
+message UploadFwFileResponse {
+  bool success = 1;
+  string message = 2;
+
+  string sha256_digest = 3;
+}
+
+message DeleteFwFileRequest { FwFileInfo file_info = 1; }
+
+message DeleteFwFileResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message FlashFwFileRequest {
+  FwFileInfo file_info = 1;
+  bool sector_erase = 2;
+  bool recover = 3;
+}
+
+message FlashFwFileResponse {
+  bool success = 1;
+  string message = 2;
+
+  int32 time_ms = 3;
+}
+
+message EnableAppProtectRequest { HostType target = 1; }
+
+message EnableAppProtectResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message EraseFlashRequest {
+  HostType target = 1; 
+  bool recover = 2;
+}
+
+message EraseFlashResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Observability
+message SnapshotPower {
+  PowerChannel channel = 1;
+  bool enabled = 2;
+  double voltage_v = 3;
+  double current_ma = 4;
+}
+
+message SnapshotGpio {
+  int32 gpio = 1;
+  bool state = 2;
+}
+
+message SnapshotAdc {
+  int32 channel = 1;
+  double voltage_v = 2;
+}
+
+message GetSnapshotResponse {
+  bool success = 1;
+  string message = 2;
+  uint64 timestamp_ms = 3;
+  string hw_revision = 4;
+  repeated SnapshotPower power = 5;
+  repeated SnapshotGpio gpio = 6;
+  repeated SnapshotAdc adc = 7;
+}
+
+// Uart streams
+message UartStreamRequest {
+  HostType target = 1;
+  bytes data = 2;
+}
+
+message UartStreamResponse {
+  bool success = 1;
+  string message = 2;
+
+  HostType target = 3;
+  bytes data = 4;
+}
+
+// NFC
+message NfcPollRequest {
+  uint32 timeout_ms = 1;   // How long to poll for a tag (default: 1000ms)
+}
+
+message NfcPollResponse {
+  bool success = 1;
+  string message = 2;
+  bool tag_present = 3;
+  bytes uid = 4;            // Tag UID (4 or 7 bytes)
+}
+
+message NfcReadNdefRequest {
+  uint32 timeout_ms = 1;   // How long to wait for tag (default: 1000ms)
+}
+
+message NdefRecord {
+  uint32 tnf = 1;          // Type Name Format (0x01 = Well-Known)
+  bytes type = 2;           // Record type (e.g., "T" for Text)
+  bytes payload = 3;        // Record payload
+}
+
+message NfcReadNdefResponse {
+  bool success = 1;
+  string message = 2;
+  repeated NdefRecord records = 3;
+}

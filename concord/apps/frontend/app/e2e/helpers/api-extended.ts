@@ -1,0 +1,601 @@
+/**
+ * Extended API helpers for the E2E story suite.
+ * Re-exports existing helpers and adds Bitbucket, CoreCloud, MTIB, Fixtures,
+ * Users, Queue, Sessions, and cleanup helpers.
+ *
+ * Uses plain fetch (not Playwright's page.request) so they can be called from
+ * global setup/teardown and non-page contexts.
+ */
+
+// Re-export the base helpers for convenience
+export { apiGet, apiPost, apiPut, apiDelete, getProducts, createProduct, deleteProduct } from './api';
+
+const API_URL = process.env.E2E_API_URL || 'http://localhost:9001';
+const API_KEY = 'ck_ci_admin_x8K2mP9vL4nQ7wR1tY6uI3oA5sD0fG';
+const BB_API = 'https://api.bitbucket.org/2.0';
+
+// ── Internal fetch wrappers ──────────────────────────────────
+
+async function concordGet<T = unknown>(path: string): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    headers: { Authorization: `ApiKey ${API_KEY}` },
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(`GET ${path} failed (${res.status}): ${JSON.stringify(body)}`);
+  return body.data;
+}
+
+async function concordPost<T = unknown>(path: string, data: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `ApiKey ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(`POST ${path} failed (${res.status}): ${JSON.stringify(body)}`);
+  return body.data;
+}
+
+async function concordPut<T = unknown>(path: string, data: unknown): Promise<T> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'PUT',
+    headers: {
+      Authorization: `ApiKey ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(`PUT ${path} failed (${res.status}): ${JSON.stringify(body)}`);
+  return body.data;
+}
+
+async function concordDelete(path: string): Promise<void> {
+  const res = await fetch(`${API_URL}${path}`, {
+    method: 'DELETE',
+    headers: { Authorization: `ApiKey ${API_KEY}` },
+  });
+  if (!res.ok && res.status !== 404) {
+    const body = await res.text();
+    throw new Error(`DELETE ${path} failed (${res.status}): ${body}`);
+  }
+}
+
+function bbHeaders(): Record<string, string> {
+  const token = process.env.BITBUCKET_API_TOKEN;
+  if (!token) throw new Error('BITBUCKET_API_TOKEN not set');
+  return { Authorization: `Bearer ${token}` };
+}
+
+// ── Bitbucket ────────────────────────────────────────────────
+
+export async function syncConcordMain(workspace: string, repo: string): Promise<void> {
+  // No-op — the main branch is the source of truth; sync is implicit
+}
+
+export async function createBranch(
+  workspace: string,
+  repo: string,
+  name: string,
+  from: string,
+): Promise<void> {
+  const res = await fetch(`${BB_API}/repositories/${workspace}/${repo}/refs/branches`, {
+    method: 'POST',
+    headers: { ...bbHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      target: { hash: from },
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Create branch ${name} failed (${res.status}): ${body}`);
+  }
+}
+
+export async function deleteBranch(workspace: string, repo: string, name: string): Promise<void> {
+  const res = await fetch(
+    `${BB_API}/repositories/${workspace}/${repo}/refs/branches/${name}`,
+    { method: 'DELETE', headers: bbHeaders() },
+  );
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`Delete branch ${name} failed (${res.status})`);
+  }
+}
+
+export async function createPR(
+  workspace: string,
+  repo: string,
+  source: string,
+  target: string,
+  title: string,
+): Promise<number> {
+  const res = await fetch(`${BB_API}/repositories/${workspace}/${repo}/pullrequests`, {
+    method: 'POST',
+    headers: { ...bbHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      title,
+      source: { branch: { name: source } },
+      destination: { branch: { name: target } },
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Create PR failed (${res.status}): ${body}`);
+  }
+  const data = await res.json();
+  return data.id;
+}
+
+export async function declinePR(workspace: string, repo: string, prId: number): Promise<void> {
+  const res = await fetch(
+    `${BB_API}/repositories/${workspace}/${repo}/pullrequests/${prId}/decline`,
+    { method: 'POST', headers: bbHeaders() },
+  );
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`Decline PR #${prId} failed (${res.status})`);
+  }
+}
+
+export interface PR {
+  id: number;
+  title: string;
+  state: string;
+  source: { branch: { name: string } };
+}
+
+export async function listPRs(workspace: string, repo: string): Promise<PR[]> {
+  const res = await fetch(
+    `${BB_API}/repositories/${workspace}/${repo}/pullrequests?state=OPEN&pagelen=50`,
+    { headers: bbHeaders() },
+  );
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.values || [];
+}
+
+// ── CoreCloud ────────────────────────────────────────────────
+
+export async function cleanupCorecloudDevice(_deviceId: string): Promise<void> {
+  // CoreCloud device cleanup is a no-op for now — no delete endpoint exists.
+  // Devices persist across test runs. Future: unregister if endpoint becomes available.
+}
+
+// ── MTIB ─────────────────────────────────────────────────────
+
+export async function checkMtibHealth(host: string, port: number): Promise<boolean> {
+  const { createConnection } = await import('node:net');
+  return new Promise<boolean>((resolve) => {
+    const sock = createConnection({ host, port, timeout: 3_000 }, () => {
+      sock.destroy();
+      resolve(true);
+    });
+    sock.on('error', () => {
+      sock.destroy();
+      resolve(false);
+    });
+    sock.on('timeout', () => {
+      sock.destroy();
+      resolve(false);
+    });
+  });
+}
+
+// ── Products (extended) ──────────────────────────────────────
+
+export interface ProductConfig {
+  name: string;
+  slug?: string;
+  description?: string;
+  fwRepoSlug?: string;
+  mfgFwRepoSlug?: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+}
+
+export async function createProductViaAPI(config: ProductConfig): Promise<Product> {
+  return concordPost<Product>('/v2/products', config);
+}
+
+export interface StageConfig {
+  type?: string;
+  watchBranch?: string;
+  triggerTypes?: string[];
+  recipe?: string;
+  boardRevisionId?: string;
+  name?: string;
+}
+
+const VALIDATION_STAGE_NAMES: Record<number, string> = {
+  1: 'Smoke',
+  2: 'Driver',
+  3: 'Integration',
+  4: 'Regression',
+  5: 'FUOTA',
+};
+
+export async function configureStage(
+  productId: string,
+  stage: number,
+  config: StageConfig,
+): Promise<void> {
+  const stageType = config.type || 'VALIDATION';
+  // Try PUT (update existing config) first, fall back to POST (create new)
+  try {
+    await concordPut(`/v2/products/${productId}/stages/${stage}`, config);
+  } catch (err: any) {
+    if (err.message?.includes('404')) {
+      const name = config.name || VALIDATION_STAGE_NAMES[stage] || `Stage ${stage}`;
+      await concordPost(`/v2/products/${productId}/stages`, { type: stageType, stage, name, ...config });
+    } else {
+      throw err;
+    }
+  }
+}
+
+// ── Fixtures ─────────────────────────────────────────────────
+
+export interface DesignConfig {
+  name: string;
+  description?: string;
+  boardRevisionId?: string;
+  revision?: string;
+  slotCount?: number;
+  notes?: string;
+}
+
+export interface TestBedDesign {
+  id: string;
+  name: string;
+}
+
+export async function createTestBedDesign(config: DesignConfig): Promise<TestBedDesign> {
+  return concordPost<TestBedDesign>('/v2/test-bed-designs', config);
+}
+
+export async function deleteTestBedDesign(designId: string): Promise<void> {
+  await concordDelete(`/v2/test-bed-designs/${designId}`);
+}
+
+export async function getTestBedDesign(designId: string): Promise<TestBedDesign> {
+  return concordGet<TestBedDesign>(`/v2/test-bed-designs/${designId}`);
+}
+
+export async function updateTestBedDesign(designId: string, data: Partial<DesignConfig>): Promise<TestBedDesign> {
+  const res = await fetch(`${API_URL}/v2/test-bed-designs/${designId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `ApiKey ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(`PATCH /v2/test-bed-designs/${designId} failed (${res.status}): ${JSON.stringify(body)}`);
+  return body.data;
+}
+
+export async function listTestBedDesigns(): Promise<TestBedDesign[]> {
+  const result = await concordGet<{ data: TestBedDesign[] }>('/v2/test-bed-designs');
+  return (result as any).data || result;
+}
+
+export interface FixtureConfig {
+  name: string;
+  designId?: string;
+  type?: string;
+  productId?: string;
+  stationId?: string;
+  description?: string;
+  slots?: Array<{ slotIndex: number; label?: string }>;
+}
+
+export interface Fixture {
+  id: string;
+  name: string;
+  type?: string;
+  status?: string;
+  stationId?: string;
+  slots?: Array<{ id: string; slotIndex: number; label?: string; nodeId?: string }>;
+  [key: string]: unknown;
+}
+
+export async function createFixture(config: FixtureConfig): Promise<Fixture> {
+  return concordPost<Fixture>('/v2/fixtures', config);
+}
+
+export async function getFixture(fixtureId: string): Promise<Fixture> {
+  return concordGet<Fixture>(`/v2/fixtures/${fixtureId}`);
+}
+
+export async function updateFixture(fixtureId: string, data: Partial<FixtureConfig>): Promise<Fixture> {
+  return concordPut<Fixture>(`/v2/fixtures/${fixtureId}`, data);
+}
+
+export async function deleteFixture(fixtureId: string): Promise<void> {
+  await concordDelete(`/v2/fixtures/${fixtureId}`);
+}
+
+export async function listFixtures(): Promise<Fixture[]> {
+  const result = await concordGet<{ data: Fixture[] }>('/v2/fixtures');
+  return (result as any).data || result;
+}
+
+export async function createSlot(fixtureId: string, data: { slotIndex: number; label?: string }): Promise<{ id: string; slotIndex: number }> {
+  return concordPost<{ id: string; slotIndex: number }>(`/v2/fixtures/${fixtureId}/slots`, data);
+}
+
+export async function deleteSlot(fixtureId: string, slotId: string): Promise<void> {
+  await concordDelete(`/v2/fixtures/${fixtureId}/slots/${slotId}`);
+}
+
+export async function assignNodeToSlot(
+  fixtureId: string,
+  slotId: string,
+  nodeId: string | null,
+): Promise<unknown> {
+  return concordPost(`/v2/fixtures/${fixtureId}/slots/${slotId}/assign`, { nodeId });
+}
+
+export async function deployFixture(fixtureId: string): Promise<unknown> {
+  return concordPost(`/v2/fixtures/${fixtureId}/deploy`, {});
+}
+
+export async function undeployFixture(fixtureId: string): Promise<unknown> {
+  return concordPost(`/v2/fixtures/${fixtureId}/undeploy`, {});
+}
+
+export async function getFixtureDeployStatus(fixtureId: string): Promise<unknown> {
+  return concordGet(`/v2/fixtures/${fixtureId}/deploy-status`);
+}
+
+export interface NodeConfig {
+  name: string;
+  hostname: string;
+  type?: string;
+  ipAddress?: string;
+  hardwareRevision?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface Node {
+  id: string;
+  name: string;
+  hostname: string;
+  type?: string;
+  status?: string;
+  ipAddress?: string;
+  [key: string]: unknown;
+}
+
+export async function createNode(config: NodeConfig): Promise<Node> {
+  return concordPost<Node>('/v2/devices/mtibs', config);
+}
+
+export async function getNode(nodeId: string): Promise<Node> {
+  return concordGet<Node>(`/v2/devices/mtibs/${nodeId}`);
+}
+
+export async function deleteNode(nodeId: string): Promise<void> {
+  await concordDelete(`/v2/devices/mtibs/${nodeId}`);
+}
+
+export async function listNodes(): Promise<Node[]> {
+  const result = await concordGet<{ data: Node[] }>('/v2/devices/mtibs');
+  return (result as any).data || result;
+}
+
+// ── Users ────────────────────────────────────────────────────
+
+export interface UserConfig {
+  email: string;
+  name: string;
+  role: string;
+  password?: string;
+  permissionSetId?: string;
+}
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+}
+
+export async function createUserViaAPI(config: UserConfig): Promise<User> {
+  return concordPost<User>('/v2/users', config);
+}
+
+export async function deleteUserViaAPI(userId: string): Promise<void> {
+  await concordDelete(`/v2/users/${userId}`);
+}
+
+// ── Queue ────────────────────────────────────────────────────
+
+export interface QueueFilters {
+  status?: string;
+  productId?: string;
+}
+
+export interface QueueEntry {
+  id: string;
+  buildRunId: string;
+  stage: number;
+  priority: number;
+  status: string;
+  fixtureId?: string | null;
+  sessionId?: string | null;
+  reason?: string | null;
+  errorMessage?: string | null;
+  requestedAt?: string;
+  assignedAt?: string | null;
+  startedAt?: string | null;
+  completedAt?: string | null;
+  buildRun?: { id: string; name: string; product: string; branch: string; status: string };
+  fixture?: { id: string; name: string; status: string } | null;
+  session?: { id: string; name: string; status: string } | null;
+}
+
+export interface QueueStats {
+  queued: number;
+  running: number;
+  completed: number;
+  failed: number;
+  cancelled: number;
+  total: number;
+}
+
+export async function getQueueEntries(filters?: QueueFilters): Promise<QueueEntry[]> {
+  const params = new URLSearchParams();
+  if (filters?.status) params.set('status', filters.status);
+  if (filters?.productId) params.set('productId', filters.productId);
+  const qs = params.toString();
+  const result = await concordGet<{ data: QueueEntry[]; pagination: unknown }>(`/v2/sessions/queue${qs ? `?${qs}` : ''}`);
+  return (result as any)?.data || result;
+}
+
+export async function getQueueEntry(entryId: string): Promise<QueueEntry> {
+  return concordGet<QueueEntry>(`/v2/sessions/queue/${entryId}`);
+}
+
+export async function createQueueEntry(data: {
+  buildRunId: string;
+  stage?: number;
+  priority?: number;
+  reason?: string;
+}): Promise<QueueEntry> {
+  return concordPost<QueueEntry>('/v2/sessions/queue', data);
+}
+
+export async function cancelQueueEntryAPI(entryId: string): Promise<QueueEntry> {
+  return concordPost<QueueEntry>(`/v2/sessions/queue/${entryId}/cancel`, {});
+}
+
+export async function promoteQueueEntryAPI(entryId: string): Promise<QueueEntry> {
+  return concordPost<QueueEntry>(`/v2/sessions/queue/${entryId}/promote`, {});
+}
+
+export async function updateQueueEntry(entryId: string, data: { priority?: number; reason?: string }): Promise<QueueEntry> {
+  const res = await fetch(`${API_URL}/v2/sessions/queue/${entryId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `ApiKey ${API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  const body = await res.json();
+  if (!res.ok) throw new Error(`PATCH /v2/sessions/queue/${entryId} failed (${res.status}): ${JSON.stringify(body)}`);
+  return body.data;
+}
+
+export async function getQueueStats(): Promise<QueueStats> {
+  return concordGet<QueueStats>('/v2/sessions/queue/stats');
+}
+
+export async function triggerScheduler(): Promise<{ processed: boolean; reason?: string; entryId?: string; sessionId?: string }> {
+  return concordPost('/v2/sessions/queue/schedule', {});
+}
+
+// ── Build Runs ──────────────────────────────────────────────
+
+export interface BuildRunConfig {
+  product: string;
+  board: string;
+  branch: string;
+  name?: string;
+  triggerType?: string;
+  matrixMode?: string;
+}
+
+export interface BuildRun {
+  id: string;
+  name: string;
+  status: string;
+  product: string;
+  branch: string;
+  board: string;
+}
+
+export async function createBuildRun(config: BuildRunConfig): Promise<BuildRun> {
+  return concordPost<BuildRun>('/v2/builds/runs', config);
+}
+
+export async function getBuildRun(runId: string): Promise<BuildRun> {
+  return concordGet<BuildRun>(`/v2/builds/runs/${runId}`);
+}
+
+export async function waitForQueueStatus(
+  entryId: string,
+  targetStatus: string | string[],
+  timeout = 60_000,
+): Promise<QueueEntry> {
+  const statuses = Array.isArray(targetStatus) ? targetStatus : [targetStatus];
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const entry = await getQueueEntry(entryId);
+    if (statuses.includes(entry.status)) return entry;
+    await new Promise((r) => setTimeout(r, 2_000));
+  }
+  throw new Error(`Queue entry ${entryId} did not reach status ${statuses.join('|')} within ${timeout / 1000}s`);
+}
+
+// ── Sessions ─────────────────────────────────────────────────
+
+export interface Session {
+  id: string;
+  status: string;
+}
+
+export async function waitForSessionComplete(
+  sessionId: string,
+  timeout = 300_000,
+): Promise<Session> {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    const session = await concordGet<Session>(`/v2/validation/runs/${sessionId}`);
+    if (['PASSED', 'FAILED', 'ERROR', 'CANCELLED'].includes(session.status)) {
+      return session;
+    }
+    await new Promise((r) => setTimeout(r, 3_000));
+  }
+  throw new Error(`Session ${sessionId} did not complete within ${timeout / 1000}s`);
+}
+
+// ── Cleanup ──────────────────────────────────────────────────
+
+export async function resetDatabase(): Promise<void> {
+  // Database reset is handled in global-setup via prisma CLI.
+  // This function is a no-op for in-test use.
+}
+
+export async function cleanupBitbucketBranches(prefix: string): Promise<void> {
+  const workspace = process.env.BITBUCKET_WORKSPACE || 'corekinect';
+  const repo = 'alpha_fw';
+  try {
+    const res = await fetch(
+      `${BB_API}/repositories/${workspace}/${repo}/refs/branches?q=name ~ "${prefix}"&pagelen=100`,
+      { headers: bbHeaders() },
+    );
+    if (!res.ok) return;
+    const data = (await res.json()) as { values?: Array<{ name: string }> };
+    for (const branch of data.values || []) {
+      await deleteBranch(workspace, repo, branch.name);
+    }
+  } catch {
+    // Best effort
+  }
+}
+
+export async function cleanupMinioArtifacts(_prefix: string): Promise<void> {
+  // MinIO cleanup is handled at teardown via DB reset orphaning references.
+  // Direct S3 cleanup would require the MinIO client SDK.
+}
