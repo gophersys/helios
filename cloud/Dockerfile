@@ -533,7 +533,12 @@ RUN DELVE_VERSION="${DELVE_VERSION}" bash /opt/delta/components/delve.sh
 RUN BUF_VERSION="${BUF_VERSION}" GRPCURL_VERSION="${GRPCURL_VERSION}" bash /opt/delta/components/protocols.sh
 
 # The docker buildx cli-plugin — closes the measured base-runner gap.
-RUN DOCKER_BUILDX_VERSION="${DOCKER_BUILDX_VERSION}" bash /opt/delta/components/buildx.sh
+# The prefix names the component's FULL pin contract. The ARGs reach the
+# script through the RUN environment either way (the pin gate above runs on
+# exactly that mechanism); the prefix is the call site documenting its
+# component, and an understated one misleads.
+RUN DOCKER_BUILDX_VERSION="${DOCKER_BUILDX_VERSION}" DOCKER_BUILDX_SHA256_AMD64="${DOCKER_BUILDX_SHA256_AMD64}" \
+    DOCKER_BUILDX_SHA256_ARM64="${DOCKER_BUILDX_SHA256_ARM64}" bash /opt/delta/components/buildx.sh
 
 # The CI fold: Actions runner + .NET deps + cictl.
 RUN RUNNER_VERSION="${RUNNER_VERSION}" CICTL_VERSION="${CICTL_VERSION}" bash /opt/delta/components/runner.sh
