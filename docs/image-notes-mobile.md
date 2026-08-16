@@ -43,11 +43,18 @@ itself is dropped. The census proves each group serves the lane.
 
 | # | Group | Exact content | Size |
 |---|---|---|---|
-| 1 | apt | `openjdk-21-jdk-headless`, `libglu1-mesa`, `ninja-build`, `file` (`--no-install-recommends`, lists cleaned in the same RUN) | ~300 MB EST |
+| 1 | apt | `openjdk-${JAVA_VERSION}-jdk-headless` (resolves to 21 from the guarded default below), `libglu1-mesa`, `ninja-build`, `file` (`--no-install-recommends`, lists cleaned in the same RUN) | ~300 MB EST |
 | 2 | Android SDK | cmdline-tools `14742923`; `platform-tools`; `platforms;android-36`; `build-tools;36.1.0`; licenses accepted at build time via `sdkmanager --licenses` | ~1.3 GB EST |
 | 3 | Flutter SDK | `3.41.7` `stable` tarball from `storage.googleapis.com/flutter_infra_release`, with the bundled Dart | ~1.8 GB EST |
 
 Delta total ≈ **3.4 GB EST**. Image total ≈ cloud + 3.4 GB per arch.
+
+Row 1 shows the package in its parameterized form because that is what
+`flutter/Dockerfile` writes: `openjdk-${JAVA_VERSION}-jdk-headless` with
+`ARG JAVA_VERSION=21`. The 00-identity.md image table still says
+"OpenJDK 17" for flutter. That row is stale against the Dockerfile pin.
+Correct 00-identity.md in its own change; this spec follows the
+Dockerfile.
 
 **Pins (one home, top of `mobile.sh`, guarded defaults):**
 
@@ -107,10 +114,13 @@ rejects platforms outside `linux/amd64|linux/arm64`.
 
 ## 3. Dual-arch notes
 
-Policy: `linux/amd64,linux/arm64` for mobile and mobile-runner. No QEMU,
-ever. amd64 builds native on the cluster (arc-org). arm64 builds native on
-the mini's buildkitd (`tcp://10.168.0.92:1234`, mTLS, BUILD API only). If
-the mini is down, the build FAILS and names the node.
+Target policy — it lands at M3 (§5): `linux/amd64,linux/arm64` for mobile
+and mobile-runner. Today `SANCTIONED_PLATFORMS` in `_ctl/lib.sh` holds
+`linux/amd64` only, so a `mobile/ctl.sh` that declares arm64 before M3
+fails `require_sanctioned_platforms`. No QEMU, ever. amd64 builds native
+on the cluster (arc-org). arm64 builds native on the mini's buildkitd
+(`tcp://10.168.0.92:1234`, mTLS, BUILD API only). If the mini is down,
+the build FAILS and names the node.
 
 ### 3.1 Arch risk specific to mobile (design risk R2)
 
@@ -141,10 +151,12 @@ the mini is down, the build FAILS and names the node.
 
 - The mini has 8 GB RAM. ALL mini runner work joins ONE GitHub concurrency
   group: `mini-serial`, `cancel-in-progress: false`. Members: iOS builds,
-  arm64 image smokes.
-- buildkitd work arrives over the BUILD API and does NOT respect the
-  group. An arm64 image build can land during an iOS build (design risk
-  R1). Until measured, treat parallel mini load as unknown.
+  the arm64 image build + smoke job (§4.3).
+- buildkitd work from other clients arrives over the BUILD API and does
+  NOT respect the group. Such a build can land during an iOS build (design
+  risk R1). The mobile publish gate is not that client: its arm64 build
+  runs from a `mini-serial` job (§4.3). Until measured, treat parallel
+  mini load as unknown.
 - Mini health workflow (scheduled; red = FAIL and name the node): disk
   floor ≥ 20 GB free after pruning (docker prune, buildkitd GC, Xcode
   DerivedData, Flutter cache); buildkitd liveness (`buildctl debug
@@ -158,6 +170,11 @@ Correctness first: a version print does not prove the toolchain. The gate
 that proves mobile is **a real APK built from a real Flutter project**.
 Every gate FAILS loudly. A gate that cannot run (mini unreachable, image
 not local) is a failure that names the missing thing.
+
+Every command in this section assumes M1 is complete. `.ci/smoke.sh`
+accepts `mobile` only after M1 step 3 renames the `flutter)` case arm and
+the valid-images list. Run these commands before M1 and the script fails
+with `unknown image: 'mobile'`.
 
 ### 4.1 Job 1 — amd64 build + smoke BEFORE publish (arc-org pod)
 
@@ -200,22 +217,28 @@ link between pinned parts. Network note: the first build downloads Gradle,
 pub packages, and engine artifacts — see open Q2 (bake caches vs allow
 network in this gate).
 
-### 4.3 Jobs 2–4 — arm64 and the manifest
+### 4.3 Jobs 2–3 — arm64 and the manifest
+
+The arm64 half obeys the same law as §4.1 and as the base-runner job in
+00-identity.md: build → smoke the LOADED image → only then push. A push
+cannot be undone, so no tag — the per-arch `-arm64` tag included — may
+reach ghcr before the native smoke is green.
 
 ```bash
-# Job 2 — arm64 build on the mini's buildkitd (same arc-org pod, remote driver).
+# Job 2 — arm64 build + smoke + push, ON the mini (joins mini-serial).
+# runs-on: [self-hosted, macos, mini]. The buildx client runs where the
+# buildkitd and the arm64-native docker both live, so --load stays local.
 docker buildx create --name mini --driver remote tcp://10.168.0.92:1234 \
   <mTLS flags; certs from secret buildkit-client-certs>
-docker buildx build --builder mini --platform linux/arm64 \
+docker buildx build --builder mini --platform linux/arm64 --load \
   --file mobile/Dockerfile \
-  --tag "ghcr.io/gophersys/mobile:${SHA}-arm64" --push .
+  --tag "ghcr.io/gophersys/mobile:${SHA}-arm64" .
+bash .ci/smoke.sh mobile "ghcr.io/gophersys/mobile:${SHA}-arm64"   # LOADED image, pre-push; SAME script, APK gate included
+docker buildx build --builder mini --platform linux/arm64 --push \
+  --file mobile/Dockerfile \
+  --tag "ghcr.io/gophersys/mobile:${SHA}-arm64" .                  # second build: cache hit, push only
 
-# Job 3 — arm64 smoke ON the mini (native execution; joins mini-serial).
-# runs-on: [self-hosted, macos, mini]; the mini's docker runs linux/arm64 natively.
-docker pull "ghcr.io/gophersys/mobile:${SHA}-arm64"
-bash .ci/smoke.sh mobile "ghcr.io/gophersys/mobile:${SHA}-arm64"   # SAME script, APK gate included
-
-# Job 4 — manifest merge + verify.
+# Job 3 — manifest merge + verify.
 docker buildx imagetools create \
   -t "ghcr.io/gophersys/mobile:${SHA}" -t ghcr.io/gophersys/mobile:latest \
   "ghcr.io/gophersys/mobile:${SHA}-amd64" "ghcr.io/gophersys/mobile:${SHA}-arm64"
@@ -223,9 +246,14 @@ docker buildx imagetools create \
 # [infra] ctl.sh verify-image-arch <ref>: read the ELF machine bytes per arch.
 ```
 
+The two-build shape is the base-runner pattern from 00-identity.md: the
+first build loads and does not push, the smoke asserts the loaded image,
+and the second build pushes from the cache the first one wrote.
+
 An emulated smoke is forbidden. The D42 defect passed an emulated smoke
-and shipped mislabelled. Job 3 on the mini is the only sanctioned arm64
-execution.
+and shipped mislabelled. Job 2 on the mini is the only sanctioned arm64
+execution. Because the whole arm64 lane runs inside `mini-serial`, the
+publish gate's own build also respects the group (§3.3, risk R1).
 
 ### 4.4 The iOS gate and the weekly emulator gate
 
@@ -263,10 +291,11 @@ until Mateo authorizes deletion.
 **M1 — rename flutter → mobile (design step a).**
 1. `git mv flutter mobile`; image name → `ghcr.io/gophersys/mobile`;
    `ENV GOPHERSYS_DEVCONTAINER=mobile`; Dockerfile contents unchanged.
-2. Sync the graph in all 4 places: `BUILD_ORDER` in `_ctl` (place 1), the
-   byte-identical provider copy (place 2), eden `project.json`
-   `dependsOn` (place 3), `build-and-push.yml` job `needs` in BOTH copies
-   (place 4).
+2. Sync the graph in the 4 places 00-identity.md names: `BUILD_ORDER` in
+   `./ctl.sh` AND in `.ci/ctl.sh` (place 1 — 2 files); `dependsOn` in the
+   image's own `project.json` in this repo (place 2); job `needs` in
+   `.github/workflows/build-and-push.yml` (place 3); the byte-identical
+   provider copy `.ci/providers/github/build-and-push.yml` (place 4).
 3. `.ci/smoke.sh`: the `flutter)` case arm and the valid-images list →
    `mobile`.
 4. Update the warmer image list and any devcontainer.json that names
@@ -332,8 +361,9 @@ when a consumer exists.
    fails loudly if absent; verify a node and label it before scheduling.
 7. **Mini under concurrent load (design R1).** 8 GB covers neither an iOS
    build nor an image build comfortably, and buildkitd ignores
-   `mini-serial`. Measure before trusting parallel load; a RAM upgrade or
-   a build window is the real fix.
+   `mini-serial` for every client outside the mobile gate (§3.3). Measure
+   before trusting parallel load; a RAM upgrade or a build window is the
+   real fix.
 8. **Delta sizes are EST.** The flutter image was never local; ~3.4 GB is
    an estimate. The first M2 build measures it; the size-budget test
    records the real number.
