@@ -1,4 +1,4 @@
-# CI image for gophersys/hardware — KiCad 10 CLI + the Python test stack.
+# CI image for gophersys/research-hardware — KiCad 10 CLI + the Python test stack.
 #
 # Deliberately NOT the devcontainer image (.devcontainer/Dockerfile): that one
 # carries editors, zsh, Node, gh and Claude Code for interactive work. CI needs
@@ -8,7 +8,7 @@
 # keep the two in sync when bumping KiCad, since the devcontainer is what
 # developers reproduce failures in.
 #
-# Published as ghcr.io/gophersys/hardware-ci by .github/workflows/build-ci-image.yml.
+# Published as ghcr.io/gophersys/research-hardware-ci by .github/workflows/build-ci-image.yml.
 
 FROM ubuntu:24.04
 
