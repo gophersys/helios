@@ -67,7 +67,12 @@ mkdir -p /home/runner/_work
 chown -R dev:dev /home/runner
 
 # cictl — the CI contract tool, public precisely so this needs no credential.
+# GOMODCACHE/GOCACHE are pinned under /root EXPLICITLY: the image-wide ENV
+# sets GOPATH=/home/dev/go, so a bare root-run `go install` would write its
+# module cache into ${GOPATH}/pkg/mod — the exact directory the cloud smoke
+# asserts absent. Pinning them makes the rm below remove what was written.
 CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN=/usr/local/bin \
+  GOMODCACHE=/root/go/pkg/mod GOCACHE=/root/.cache/go-build \
   go install "github.com/gophersys/cictl/cmd/cictl@${CICTL_VERSION}"
 chmod 0755 /usr/local/bin/cictl
 rm -rf /root/go /root/.cache/go-build

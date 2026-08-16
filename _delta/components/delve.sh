@@ -16,7 +16,13 @@ IFS=$'\n\t'
 
 : "${DELVE_VERSION:?DELVE_VERSION is not in versions.env}"
 
+# GOMODCACHE/GOCACHE are pinned under /root EXPLICITLY: the image-wide ENV
+# sets GOPATH=/home/dev/go, so a bare root-run `go install` would write its
+# module cache into ${GOPATH}/pkg/mod — the exact directory the cloud smoke
+# asserts absent (the 1.6 GB fix). Pinning the caches makes the rm below
+# remove what was actually written.
 CGO_ENABLED=0 GOTOOLCHAIN=local GOWORK=off GOFLAGS=-mod=mod GOBIN=/usr/local/bin \
+  GOMODCACHE=/root/go/pkg/mod GOCACHE=/root/.cache/go-build \
   go install "github.com/go-delve/delve/cmd/dlv@v${DELVE_VERSION}"
 chmod 0755 /usr/local/bin/dlv
 rm -rf /root/go /root/.cache/go-build
