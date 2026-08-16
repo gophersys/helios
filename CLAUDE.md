@@ -18,7 +18,7 @@ tools and framework for blind dense-UI layout. **Nothing outside
 
 ## Hard rules
 
-- Layout is computed, never judged: geometry comes from `tools/densui` +
+- Layout is computed, never judged: geometry comes from `tools/ui` +
   measured anchors; every change to a demo re-runs its gates. A hand-edited
   solved-position block is a defect.
 - FAIL-NOT-SKIP: a gate that cannot run fails the build and names the missing
@@ -41,7 +41,7 @@ tools and framework for blind dense-UI layout. **Nothing outside
 ## Gates
 
 ```sh
-cd tools/densui && uv run --extra dev pytest && uv run --extra dev ruff check .
+cd tools/ui && uv run --extra dev pytest && uv run --extra dev ruff check .
 node --check demos/operator/build/*.js
 python3 demos/operator/build/assemble.py     # full build: solver + 6 proofs (macOS + local fonts)
 ```

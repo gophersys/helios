@@ -1,7 +1,7 @@
 # fractional-edges — the seeded defect
 
 Four dials in one column. `dial(d2)` is at `top: 60.5px`, so its top edge
-measures 60.5 and its bottom 88.5. `densui.audit.check_integer_edges` names the
+measures 60.5 and its bottom 88.5. `ui.audit.check_integer_edges` names the
 part, the edge and the value at scale 1 (LAYOUT-MATH A-5, psycho-math R6.2):
 hyperacuity reads a luminance centroid, so an antialiased half pixel is SEEN as
 half a pixel — it does not average away, and no amount of antialiasing hides it.

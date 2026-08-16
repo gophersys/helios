@@ -7,7 +7,7 @@ never which face drew them. Every reserved width in this system is
 panel like this one reserves room for text that is not there — and the rest of
 the battery keeps passing, because it measures where the ink landed.
 
-`densui.audit.check_font_identity` measures the ADVANCE of a pinned 73-glyph
+`ui.audit.check_font_identity` measures the ADVANCE of a pinned 73-glyph
 sentinel, which is the quantity the boxes were computed from, with kerning off
 (canvas kerns; `Face.adv()` sums glyph advances, and on this sentinel the two
 differ by 3.55–5.05px with kerning left on — the whole band, spent on nothing).

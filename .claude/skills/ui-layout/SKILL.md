@@ -270,19 +270,19 @@ size, and a one-gesture path to its default.
 - [ ] Every annunciator lists source address, mapping, staleness deadline and
       degraded appearance.
 - [ ] Axis count recorded; controls ÷ axes ≥ ~3, both sides counted over the
-      CONTROLS. **Counted by `densui.audit.axis_census` on the rendered panel
-      and spent by `densui.audit.check_axis_budget`** — drawing the axes by eye
+      CONTROLS. **Counted by `ui.audit.axis_census` on the rendered panel
+      and spent by `ui.audit.check_axis_budget`** — drawing the axes by eye
       is the estimate this replaces. A lower floor is legitimate only as a
       `[rules]` `axis_budget_floor` with a written `axis_budget_reason`. A floor
       at or below 1.0 is refused at load — controls per control-axis never falls
       below 1.00 — so a panel that can state no budget declares
       `axis_budget_exempt` with its `axis_budget_reason` instead.
-- [ ] **Hit pitch measured**: `densui.audit.check_hit_pitch` — 24 px circles on
+- [ ] **Hit pitch measured**: `ui.audit.check_hit_pitch` — 24 px circles on
       the target centres do not intersect (WCAG 2.2 SC 2.5.8). The edge gap is
       the wrong reading and passes layouts that mis-click.
-- [ ] **Integer edges proved**: `densui.audit.check_integer_edges` on the solved
+- [ ] **Integer edges proved**: `ui.audit.check_integer_edges` on the solved
       output and on the probe rects at scale 1, over the population
-      `densui.audit.snappable` declares (`[rules]` `snap_kinds`, default the
+      `ui.audit.snappable` declares (`[rules]` `snap_kinds`, default the
       token-sized `dial` and `checkbox`). Glyph ink and any box sized by its own
       content carry no integer claim; narrowing further costs a written
       `snap_kinds_reason`.

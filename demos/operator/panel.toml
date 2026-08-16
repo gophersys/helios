@@ -1,4 +1,4 @@
-# Operator panel — data, not code. [solve] is densui.solve input verbatim
+# Operator panel — data, not code. [solve] is ui.solve input verbatim
 # (docs/spec.md). Anchors are the measured reference centres (spec/ratios.md);
 # rhythm corrections are applied by the solver and reported.
 
@@ -155,7 +155,7 @@ columns = [
   { strings = ["Osc<Vel", "0", "-48", "Q"] },
 ]
 
-# The ONE probe config for this panel: `densui score` reads it, and
+# The ONE probe config for this panel: `ui score` reads it, and
 # build/overlap_audit.py loads it through the same CLI loaders, so the geometry
 # gate and the scorecard cannot measure two different part sets of one page.
 # overlap_audit.py remains a separate gate purely for what the scorecard has no

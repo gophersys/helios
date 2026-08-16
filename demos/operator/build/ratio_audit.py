@@ -10,7 +10,7 @@ import pathlib
 import re
 import sys
 
-from densui.probe import ProbeError, wait_for_pre
+from ui.probe import ProbeError, wait_for_pre
 BUILD = pathlib.Path(__file__).resolve().parent
 PAGE = BUILD.parent / "operator.html"
 

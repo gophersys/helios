@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Operator layout — a thin emitter over densui.solve + panel.toml.
+"""Operator layout — a thin emitter over ui.solve + panel.toml.
 
-All geometry law lives in the densui package; all numbers live in panel.toml.
+All geometry law lives in the ui package; all numbers live in panel.toml.
 This file only maps solved positions onto the demo's CSS selectors, in the
 byte-identical format the migration was proven against
-(build/expected_positions.css). Run via `uv run --project ../../tools/densui`.
+(build/expected_positions.css). Run via `uv run --project ../../tools/ui`.
 """
 import argparse
 import pathlib
@@ -12,8 +12,8 @@ import re
 import sys
 import tomllib
 
-from densui.solve import SolveError, solve
-from densui.spec import SpecError, load_panel
+from ui.solve import SolveError, solve
+from ui.spec import SpecError, load_panel
 
 HERE = pathlib.Path(__file__).resolve().parent
 PANEL = HERE.parent / "panel.toml"

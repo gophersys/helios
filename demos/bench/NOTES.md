@@ -3,7 +3,7 @@
 1. **The render is a snapshot, not a session.** The drill session runs at
    build time and the page shows its outcome; live interaction (drag ->
    seam -> device -> confirm animation) needs a JS runtime binding of
-   densui.tree's semantics — a port, not a design gap: every behaviour is
+   ui.tree's semantics — a port, not a design gap: every behaviour is
    already specified and drilled in Python.
 2. **The event log's prose is mine.** The framework decides which states
    exist (coerced, stale, reverted); the sentences describing them are

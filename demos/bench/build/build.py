@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Bench demo — the contract's face. A scripted drill session runs against
-densui.tree + FakeSerial; the page renders THE TREE'S RESULTING STATE:
+ui.tree + FakeSerial; the page renders THE TREE'S RESULTING STATE:
 coerced confirms, a stale stream as dash+red, the lost write reverted, and
 the event log as the alarm rail. Then the geometry battery judges the render
-against panel.toml. Run via `uv run --project ../../tools/densui`.
+against panel.toml. Run via `uv run --project ../../tools/ui`.
 """
 
 import pathlib
@@ -11,11 +11,11 @@ import subprocess
 import sys
 import tomllib
 
-from densui.fakes import FakeSerial
-from densui.fontmetrics import FontError, font_face_css, resolve_path
-from densui.solve import SolveError, solve
-from densui.spec import SpecError, load_panel
-from densui.tree import Desc, Tree
+from ui.fakes import FakeSerial
+from ui.fontmetrics import FontError, font_face_css, resolve_path
+from ui.solve import SolveError, solve
+from ui.spec import SpecError, load_panel
+from ui.tree import Desc, Tree
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent
@@ -24,7 +24,7 @@ OUT = ROOT / "bench.html"
 # The page names the face it EMBEDS, and embeds the face it SOLVED with, so
 # the rendered face is the solved face by construction on every host. Naming a
 # family instead resolves to a different file on each machine — or to nothing,
-# without erroring — and densui.audit.check_font_identity fails the build.
+# without erroring — and ui.audit.check_font_identity fails the build.
 FACE = "PanelFace"
 
 
@@ -148,8 +148,8 @@ body {{ margin:0; background:#232629; font-family:'{FACE}'; }}
     print(f"wrote {OUT}")
 
     r = subprocess.run(["uv", "run", "--project",
-                        str((HERE / "../../../tools/densui").resolve()),
-                        "densui", "audit", str(OUT), "--config", str(PANEL)], text=True)
+                        str((HERE / "../../../tools/ui").resolve()),
+                        "ui", "audit", str(OUT), "--config", str(PANEL)], text=True)
     if r.returncode != 0:
         die("overlap audit failed")
 

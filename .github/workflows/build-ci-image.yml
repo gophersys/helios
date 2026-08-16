@@ -76,7 +76,7 @@ jobs:
       - name: Verify chromium in the built image
         run: |
           set -euo pipefail
-          docker run --rm "$IMAGE:${{ github.sha }}" densui-chromium --version
+          docker run --rm "$IMAGE:${{ github.sha }}" ui-chromium --version
 
       - name: Push
         if: steps.mode.outputs.push == 'true'

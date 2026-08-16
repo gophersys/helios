@@ -25,7 +25,7 @@ follow it exactly.
 5. Work it. Definition of done:
    - code + tests (prove a new check can fail before trusting it passes);
    - gates green: `uv run --extra dev pytest` + `ruff check` in
-     `tools/densui`; `node --check` on any touched JS; touched demos re-run
+     `tools/ui`; `node --check` on any touched JS; touched demos re-run
      their assemble gates;
    - docs updated in the same commit; nothing Ableton-specific outside
      `demos/operator/`;

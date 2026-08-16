@@ -50,8 +50,8 @@ not an aesthetic one.
 - **A1 — Crowding is axis proliferation, not control count.** Fix a crowded
   panel by merging alignment axes, never by deleting parameters. Target:
   controls ÷ distinct axes ≥ ~3. Executable, not advisory:
-  `densui.audit.axis_census` counts the axes a rendered panel actually draws
-  (and Bonsiepe's Ω, psycho-math R6.3) and `densui.audit.check_axis_budget`
+  `ui.audit.axis_census` counts the axes a rendered panel actually draws
+  (and Bonsiepe's Ω, psycho-math R6.3) and `ui.audit.check_axis_budget`
   spends them; a panel that earns a lower floor declares it in `[rules]` with a
   written `axis_budget_reason`. A floor at or below 1.0 is refused at load:
   controls per control-axis never falls below 1.00, so such a floor is the rule

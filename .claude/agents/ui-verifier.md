@@ -25,7 +25,7 @@ three real incidents). The battery, from the repo root:
    defect-class predicate, per-class coverage and violations, non-zero when
    a class misses its own seeded defect. It reports UNMEASURED classes and
    never issues an aesthetic pass (docs/scorecard.md).
-4. For gesture claims: a `densui.drive` scenario that measures the
+4. For gesture claims: a `ui.drive` scenario that measures the
    behaviour (real travel, real wheel delta, real state readback).
 
 ## Rules

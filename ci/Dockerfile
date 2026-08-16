@@ -36,8 +36,8 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
     && apt-get install -y -q --no-install-recommends \
       google-chrome-stable fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/* \
-    && ln -sf /usr/bin/google-chrome-stable /usr/local/bin/densui-chromium
-ENV DENSUI_CHROME=/usr/local/bin/densui-chromium
+    && ln -sf /usr/bin/google-chrome-stable /usr/local/bin/ui-chromium
+ENV UI_CHROME=/usr/local/bin/ui-chromium
 # Gates stream their verdicts: without this, python block-buffers when piped
 # and uv mutes progress on non-tty, so a slow CI step is indistinguishable
 # from a hung one (proven in run 31761167311 — 9.5 silent minutes read as a
@@ -52,4 +52,4 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 RUN curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
 
 # prove the critical tools before this image can ever be tagged
-RUN densui-chromium --version && uv --version && node --version && python3 --version
+RUN ui-chromium --version && uv --version && node --version && python3 --version

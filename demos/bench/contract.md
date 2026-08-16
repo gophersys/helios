@@ -1,9 +1,9 @@
 # CONTRACT — the bench demo (stage 3, EXECUTED)
 
-The telemetry console's backend, run for real: `densui.tree.Tree` is the
-framework's stage-3 reference implementation and `densui.fakes.FakeSerial`
+The telemetry console's backend, run for real: `ui.tree.Tree` is the
+framework's stage-3 reference implementation and `ui.fakes.FakeSerial`
 is the fake backend Gate 3 demands. The drills are tests in
-`tools/densui/tests/test_bench_contract.py` — they run on every `ctl.sh
+`tools/ui/tests/test_bench_contract.py` — they run on every `ctl.sh
 test`, locally and on the fleet, so the contract stage can never regress
 into prose.
 

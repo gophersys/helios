@@ -1,7 +1,7 @@
 # axis-sprawl — the seeded defect
 
 Five dials, each on its own vertical line: five distinct left edges, five right
-edges, five centres. `densui.audit.check_axis_budget` reads 5 controls ÷ 5
+edges, five centres. `ui.audit.check_axis_budget` reads 5 controls ÷ 5
 x-axes = 1.00 against DENSE-UI A1's floor of ~3, and reports Ω 34.83 with it
 (three x families of five singleton classes at N=5: `3 × 5 × log2 5`).
 

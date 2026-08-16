@@ -6,7 +6,7 @@ type-size terms, which is where generated panels land. The drawn reference
 measures ~0.44 in ink terms; type-size ratios differ, and the two must never be
 compared across bases (see DENSE-UI §Ratios).
 
-`densui.audit.check_ratios` measures glyph ink, not type size, so the numbers it
+`ui.audit.check_ratios` measures glyph ink, not type size, so the numbers it
 reports are on that basis: an all-caps label's ink is its cap height, 0.72em on
 both gate faces, so the correct 16px label would measure `16 x 0.72 / 28 = 0.41`
 and this page measures **0.23**. The declared row wants 0.41 ±0.06, and the

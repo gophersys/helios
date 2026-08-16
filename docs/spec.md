@@ -8,17 +8,17 @@ design, exactly the input shapes of the tools that consume them:
 | Section | Consumer | Purpose |
 |---|---|---|
 | `[panel]` | everything | name, fixed frame (width x height in CSS px) |
-| `[font]` | `densui.solve`, `densui.audit.check_font_identity` | the TTF whose advances size every reserved box (A-1), and the face the page must prove it rendered |
+| `[font]` | `ui.solve`, `ui.audit.check_font_identity` | the TTF whose advances size every reserved box (A-1), and the face the page must prove it rendered |
 | `[census]` | humans + gates | pointer to the stage-1 census file |
 | `[tracks]` | layout CSS | L1 zoning: fixed column tracks, gaps (A-2: never content-sized) |
-| `[solve.*]` | `densui.solve.solve()` | flow_rows / knob_rows — anchors, floors, labels, widest strings |
-| `[probe]` | `densui.probe.collect()` | page, root, root_width, containers, parts, text_kinds |
-| `[rules]` | `densui.audit.Rules` | graze, floors, declared spills, hit kinds, the axis budget |
-| `[ratio]` | `densui.audit.check_ratios` | typed rows: `measure = "<kind>.<dim>"`, `ratio = [num, den]` or `span = [from, to]`, with `want` + `tol` |
+| `[solve.*]` | `ui.solve.solve()` | flow_rows / knob_rows — anchors, floors, labels, widest strings |
+| `[probe]` | `ui.probe.collect()` | page, root, root_width, containers, parts, text_kinds |
+| `[rules]` | `ui.audit.Rules` | graze, floors, declared spills, hit kinds, the axis budget |
+| `[ratio]` | `ui.audit.check_ratios` | typed rows: `measure = "<kind>.<dim>"`, `ratio = [num, den]` or `span = [from, to]`, with `want` + `tol` |
 
 Invariants the file must honour (LAYOUT-MATH):
 
-- **Anchors are measured**, from the reference bitmap (`densui.measure`) or a
+- **Anchors are measured**, from the reference bitmap (`ui.measure`) or a
   design decision recorded in the census — never eyeballed.
 - **Sizes have two legal sources**: the `[font]` advances, or a declared token
   in this file. There is no third source.
@@ -74,7 +74,7 @@ label = "Gamma"
 widest = "20.0 kHz"
 
 [probe]
-page = "example.html"    # the rendered page `densui score` measures (default page.html)
+page = "example.html"    # the rendered page `ui score` measures (default page.html)
 root = ".panel"
 root_width = 800
 text_kinds = ["label", "value"]
@@ -128,7 +128,7 @@ x-axes and a class needs a control to exist, so it never falls below 1.00: such
 a floor is A1 switched OFF, written in the form that reads like A1 switched on,
 and two demos shipped exactly that before this band existed. A panel whose
 controls do not repeat states no floor at all — it declares
-`axis_budget_exempt = true`, which `densui score` reports by name under
+`axis_budget_exempt = true`, which `ui score` reports by name under
 `axis-sprawl` (docs/scorecard.md) rather than counting as clean.
 
 Three rules can be stepped out of — the axis budget (A1), the hit population
@@ -153,8 +153,8 @@ does not try to tell a widening from a narrowing, and a vocabulary worth
 replacing is worth a sentence.
 
 `[font]` is read twice, and the second read is what keeps the first honest.
-`densui.solve` sizes every reserved box from its advances; then
-`densui.audit.check_font_identity` measures, per text kind on the RENDERED page,
+`ui.solve` sizes every reserved box from its advances; then
+`ui.audit.check_font_identity` measures, per text kind on the RENDERED page,
 the advance of a pinned 73-glyph sentinel — always at the canonical 16px, never
 at the kind's own rendered size, since identity is a property of the face and a
 fractional rendered size is the ratio predicate's business — and fails when it
@@ -162,24 +162,24 @@ differs from the declared face by more than 0.5px. A page that draws a face the
 solver never saw reserves room for text that is not there, and nothing else in
 the battery can see it — parts carry glyph ink, and ink is where the glyphs
 are, never which face drew them. The path is resolved by
-`densui.fontmetrics.resolve_path` (`DENSUI_FONT`, then the declared path, then a
+`ui.fontmetrics.resolve_path` (`UI_FONT`, then the declared path, then a
 face known to be present on the host), which is the same ladder the demo builds
 resolve with, so the audit judges the page against the face the page was built
 with; a panel that declares no `[font]` is not judged at all, as with `[ratio]`.
-The `densui audit` report carries `"fonts": <text kinds compared>` beside
+The `ui audit` report carries `"fonts": <text kinds compared>` beside
 `"ratios"` — rc 0 with 0 compared is a declared table nothing executed, which is
 exactly how the `[ratio]` rows stayed dormant for months.
 
 The other half of that contract is the page: name the family you EMBED. All
 three demos inline the solved TTF as an `@font-face` data URI
-(`densui.fontmetrics.font_face_css`) and name that family in their CSS, because
+(`ui.fontmetrics.font_face_css`) and name that family in their CSS, because
 a family NAME resolves to a different file on each host — or to nothing at all,
 silently.
 
 The `[solve]` table is passed verbatim (with `[font]`) to
-`densui.solve.solve()`; `[probe]` + `[rules]` are exactly the `densui audit`
+`ui.solve.solve()`; `[probe]` + `[rules]` are exactly the `ui audit`
 CLI config, which takes its page as an argument and ignores `probe.page` —
-`densui score`, which is handed a directory, reads it. `densui.spec.load_panel()`
+`ui score`, which is handed a directory, reads it. `ui.spec.load_panel()`
 validates the file with NAMED errors — every
 problem at once, full path, did-you-mean suggestions — before any consumer
 runs. The operator emitter validates on load.

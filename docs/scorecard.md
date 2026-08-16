@@ -31,18 +31,18 @@ fails the run, because that is once again a check that cannot fail.
    that never ran is the exact lie this repository has already shipped once:
    `demos/telemetry/panel.toml` declared `[ratio]` rows that nothing executed.
 2. **A registry row naming a symbol that does not exist is a failure.**
-   `densui.score.REGISTRY` holds dotted symbol names, and a test resolves every
+   `ui.score.REGISTRY` holds dotted symbol names, and a test resolves every
    one of them — a believed check that runs nothing cannot survive the suite.
 3. **A predicate that misses its own seeded defect fails the run.** Each
    measured class owns `corpus/<class>/` — `page.html` with exactly ONE
    deliberate defect of that class, `panel.toml` with the `[probe]` selectors,
    and `TELL.md` naming the defect. If the predicate stays silent on its own
-   seed, `densui score` exits non-zero: a check that cannot fail is the defect.
+   seed, `ui score` exits non-zero: a check that cannot fail is the defect.
 
 ## Should-pass targets
 
 ```
-densui score --corpus corpus demos/operator demos/telemetry demos/bench
+ui score --corpus corpus demos/operator demos/telemetry demos/bench
 ```
 
 Every positional argument is a directory that must come out CLEAN: its
@@ -68,17 +68,17 @@ only to element-box probing certifies a code path no panel uses.
 
 | Class | Predicate |
 |---|---|
-| `overlap` | `densui.audit.check_overlaps` |
-| `crowding` | `densui.audit.check_crowding` |
-| `gap-law` | `densui.audit.check_gap_law` |
-| `containment` | `densui.audit.check_containment` |
-| `breathing` | `densui.audit.check_breathing` |
-| `alignment` | `densui.audit.check_level` |
-| `size-ratio` | `densui.audit.check_ratios` |
-| `axis-sprawl` | `densui.audit.check_axis_budget` |
-| `hit-pitch` | `densui.audit.check_hit_pitch` |
-| `fractional-edges` | `densui.audit.check_integer_edges` |
-| `font-identity` | `densui.audit.check_font_identity` |
+| `overlap` | `ui.audit.check_overlaps` |
+| `crowding` | `ui.audit.check_crowding` |
+| `gap-law` | `ui.audit.check_gap_law` |
+| `containment` | `ui.audit.check_containment` |
+| `breathing` | `ui.audit.check_breathing` |
+| `alignment` | `ui.audit.check_level` |
+| `size-ratio` | `ui.audit.check_ratios` |
+| `axis-sprawl` | `ui.audit.check_axis_budget` |
+| `hit-pitch` | `ui.audit.check_hit_pitch` |
+| `fractional-edges` | `ui.audit.check_integer_edges` |
+| `font-identity` | `ui.audit.check_font_identity` |
 
 `size-ratio` and `font-identity` are the two classes a target must DECLARE to be
 scored on: the rows live in each panel.toml's `[ratio]` table, the face in its
