@@ -6,7 +6,7 @@
 
 set -euo pipefail
 
-IMAGE="ghcr.io/mateosegura/dev-env-hardware:latest"
+IMAGE="ghcr.io/mateosegura/dev-env-research-hardware:latest"
 PLATFORM="linux/amd64"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

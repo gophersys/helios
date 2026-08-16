@@ -5,7 +5,7 @@ When invoked via `/loop`, follow this protocol.
 ## On Every Invocation
 
 1. **Read PROGRESS.md** — this is the single source of truth
-2. **Run tests** — from `~/code/hardware`:
+2. **Run tests** — from `~/code/research-hardware`:
    ```bash
    .venv/bin/pytest tests/ -q
    ```

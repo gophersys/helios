@@ -69,7 +69,7 @@ Update tests that encoded old behavior in the same commit; document each.
 ## Handoff (when done)
 Update PROGRESS.md + this doc's status line; ensure branches pushed with
 PRs stacked; write a summary of what shipped + known gaps; instruct the
-user to run `/code-review ultra` from ~/code/hardware on the top branch.
+user to run `/code-review ultra` from ~/code/research-hardware on the top branch.
 
 STATUS: stage 1 complete (feat/de-legacy, PR open → feat/layout-engine);
 stage 2 factory orchestrator complete (feat/ingest-factory): factory CLI

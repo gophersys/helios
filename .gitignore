@@ -1,5 +1,9 @@
 # Data (large, cloned repos)
-data/raw/
+# No trailing slash: `data/raw/` matches only a directory, so a symlink named
+# data/raw slips past it and gets committed — which is exactly how a dangling
+# absolute symlink to the pre-rename checkout broke CI (mkdir -p on a dangling
+# symlink fails).
+data/raw
 data/parsed/
 data/patterns/
 data/validated/
@@ -8,7 +12,7 @@ data/validated/
 __pycache__/
 *.pyc
 *.pyo
-.venv/
+.venv
 *.egg-info/
 
 # Environment
@@ -31,7 +35,7 @@ Thumbs.db
 .idea/
 *.rpt
 .claude/worktrees/
-data/zephyr/
-data/ingest/
+data/zephyr
+data/ingest
 data/datasheets/
 data/footprint_index.json

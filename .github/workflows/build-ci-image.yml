@@ -21,10 +21,10 @@ on:
 
 permissions:
   contents: read
-  packages: write         # push to ghcr.io/gophersys/hardware-ci
+  packages: write         # push to ghcr.io/gophersys/research-hardware-ci
 
 env:
-  IMAGE: ghcr.io/gophersys/hardware-ci
+  IMAGE: ghcr.io/gophersys/research-hardware-ci
 
 jobs:
   build:

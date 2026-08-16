@@ -36,7 +36,7 @@ def _find_repo_root() -> Path | None:
     """This worktree first, then the main checkout (data/ is not synced
     into worktrees; reading the main repo's data/ is sanctioned)."""
     for cand in (Path(__file__).resolve().parents[2],
-                 Path("/Users/mateo/code/hardware")):
+                 Path("/Users/mateo/code/research-hardware")):
         if (cand / "data" / "zephyr" / "zephyr").is_dir():
             return cand
     return None

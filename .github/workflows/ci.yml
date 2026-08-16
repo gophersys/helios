@@ -1,11 +1,11 @@
-# Lint + test for gophersys/hardware.
+# Lint + test for gophersys/research-hardware.
 #
 # Runs on the org's self-hosted ARC runners (defined in the infrastructure repo,
 # platform/services/gitops/registry/app-arc-runners-org.yaml). Those runners are
 # a stock actions-runner image with a privileged dind sidecar and NO sudo, so
 # anything KiCad-shaped has to come from a container rather than apt.
 #
-# The whole point of this workflow is that ghcr.io/gophersys/hardware-ci carries
+# The whole point of this workflow is that ghcr.io/gophersys/research-hardware-ci carries
 # KiCad 10: without it the ERC/DRC/Gerber/netlist half of the suite skips, which
 # is exactly the blind spot this repo had before CI existed.
 #
@@ -28,7 +28,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  IMAGE: ghcr.io/gophersys/hardware-ci:latest
+  IMAGE: ghcr.io/gophersys/research-hardware-ci:latest
 
 jobs:
   ci:

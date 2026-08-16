@@ -52,7 +52,7 @@ pytest or ruff installed — always use the venv binaries:
 .venv/bin/ruff check src/ tests/    # must pass before committing
 ```
 
-Working directory is `~/code/hardware`.
+Working directory is `~/code/research-hardware`.
 
 ## Tests and KiCad
 

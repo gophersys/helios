@@ -20,7 +20,7 @@ from src.ecad.model import ElectricalType, PinRole
 # working tree (worktree agents read real data from the main repo).
 _CANDIDATES = [
     Path(__file__).resolve().parents[2] / "data" / "datasheets",
-    Path("/Users/mateo/code/hardware/data/datasheets"),
+    Path("/Users/mateo/code/research-hardware/data/datasheets"),
 ]
 DATASHEETS = next((p for p in _CANDIDATES if p.is_dir()), _CANDIDATES[0])
 

@@ -1,5 +1,5 @@
 {
-  "name": "hardware",
+  "name": "research-hardware",
   "build": {
     "dockerfile": "Dockerfile"
   },

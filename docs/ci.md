@@ -30,7 +30,7 @@ change and no new credentials to use it.
 
 ## The CI image
 
-`ghcr.io/gophersys/hardware-ci` — built from `ci/Dockerfile`: Ubuntu 24.04, KiCad 10 from
+`ghcr.io/gophersys/research-hardware-ci` — built from `ci/Dockerfile`: Ubuntu 24.04, KiCad 10 from
 the `ppa:kicad/kicad-10.0-releases` PPA, plus `kiutils`, `sexpdata`, `pytest`, `ruff`
 pinned to the versions the project develops against.
 
