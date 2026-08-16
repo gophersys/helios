@@ -6,7 +6,7 @@ follow it exactly.
 
 ## Every run, in order
 
-1. `cd ~/code/dense-ui && git pull --rebase` (abort the run on conflict; note
+1. `cd ~/code/research-ui && git pull --rebase` (abort the run on conflict; note
    it in LOG.md).
 2. Load instrumentation, in precedence order: `~/.claude/CLAUDE.md` (personal
    defaults), `~/code/.claude/` **if it exists** (it does not today — check,

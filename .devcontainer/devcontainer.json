@@ -1,5 +1,5 @@
 {
-  "name": "dense-ui",
+  "name": "research-ui",
   "build": { "dockerfile": "Dockerfile" },
   "postCreateCommand": "./ctl.sh test",
   "customizations": {

@@ -20,7 +20,7 @@ jobs:
     runs-on: arc-org  # the org ARC fleet — same gates as on-push, same image as the devcontainer
     timeout-minutes: 30   # a hung job must fail loudly, not hold the fleet seat for 6h
     container:
-      image: ghcr.io/gophersys/dense-ui-ci:latest
+      image: ghcr.io/gophersys/research-ui-ci:latest
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}

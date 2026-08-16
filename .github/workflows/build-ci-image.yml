@@ -1,4 +1,4 @@
-# Builds and publishes the dense-ui CI image (browser + fonts + toolchains).
+# Builds and publishes the research-ui CI image (browser + fonts + toolchains).
 # Mirrors hardware's build-ci-image.yml: rebuild on definition changes, weekly
 # for security patches, and on demand; on PRs it builds but never pushes.
 name: build-ci-image
@@ -22,7 +22,7 @@ permissions:
   packages: write
 
 env:
-  IMAGE: ghcr.io/gophersys/dense-ui-ci
+  IMAGE: ghcr.io/gophersys/research-ui-ci
 
 concurrency:
   group: build-ci-image-${{ github.ref }}
