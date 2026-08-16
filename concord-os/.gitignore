@@ -1,0 +1,8 @@
+.repo
+build
+downloads
+torizon/layers/*
+!layers/meta-corekienct
+sstate-cache
+setup-environment
+.devcontainer/.umbrella-gitdir

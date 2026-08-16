@@ -1,0 +1,34 @@
+{
+    "name": "Yocto Build Environment",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "."
+    },
+    "runArgs": [
+        "--rm",
+        "--env-file",
+        ".devcontainer/.env"
+    ],
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/concord/concord-os-yocto,type=bind",
+    "workspaceFolder": "/workspaces/concord/concord-os-yocto",
+    "initializeCommand": ".devcontainer/init-umbrella-gitdir.sh",
+    "mounts": [
+        "source=${localWorkspaceFolder}/.devcontainer/.umbrella-gitdir,target=/workspaces/.git/modules/concord/concord-os-yocto,type=bind"
+    ],
+    "remoteUser": "usersetup",
+    "remoteEnv": {
+        "WORKDIR": "${containerWorkspaceFolder}/torizon"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "yocto-project.yocto-bitbake",
+                "plorefice.devicetree",
+                "ms-python.python",
+                "mads-hartmann.bash-ide-vscode"
+            ]
+        }
+    },
+    "postStartCommand": "chmod +x .devcontainer/start.sh && .devcontainer/start.sh"
+}
