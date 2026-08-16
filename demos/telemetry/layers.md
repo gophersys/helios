@@ -60,7 +60,7 @@ deliberately and locally: alarms are the exception that proves the ground).
 
 ## L5 — Gestures
 
-Identical vocabulary to every Dense-UI panel (drag/shift/dblclick/wheel);
+Identical vocabulary to every panel in this framework (drag/shift/dblclick/wheel);
 ilimit additionally requires a 300ms hold-to-engage (reversal stays cheap —
 release aborts; no dialog). The whole plate selects; the editor shows the
 selected zone's full parameter grid.

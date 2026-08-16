@@ -1,4 +1,4 @@
-"""ui — the Dense-UI layout calculus as a library.
+"""ui — the blind layout calculus as a library.
 
 Layout is computed, never judged; correctness is proved, never seen.
 See framework/LAYOUT-MATH.md for the axioms these functions implement.

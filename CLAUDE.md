@@ -1,6 +1,6 @@
 # research-ui — instructions for Claude sessions
 
-This repository is the home of the Dense-UI research programme: general-purpose
+This repository is the home of the ui research programme: general-purpose
 tools and framework for blind dense-UI layout. **Nothing outside
 `demos/operator/` may be Ableton-specific.**
 
@@ -12,7 +12,7 @@ tools and framework for blind dense-UI layout. **Nothing outside
    outranks personal defaults inside `~/code`.
 3. This file + `.claude/` here — outranks both inside this repository.
 4. The personal `ui-*` skills and `ui-architect` agent in `~/.claude` cite
-   `~/.claude/references/dense-ui/` — a snapshot of this repo's `framework/`.
+   `~/.claude/references/ui-research/` — a snapshot of this repo's `framework/`.
    THIS repo is the source of truth going forward; sync direction repo -> home
    (PLAN P7 tracks the dedup).
 

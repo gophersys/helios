@@ -1,6 +1,6 @@
 ---
 name: ui-layout
-description: Stage 2 of the Dense-UI framework — commit the layout of a dense fixed-size panel in six layers L0 to L5, in order. Use after a parameter census exists and Gate 1 has passed, when deciding zones, plates, alignment axes, colour channels and gestures for an instrument panel, engineering console or telemetry dashboard, or when a panel already feels crowded and needs its axes merged. Produces layers.md and ends at Gate 2; no binding until it passes.
+description: Stage 2 of the ui research framework — commit the layout of a dense fixed-size panel in six layers L0 to L5, in order. Use after a parameter census exists and Gate 1 has passed, when deciding zones, plates, alignment axes, colour channels and gestures for an instrument panel, engineering console or telemetry dashboard, or when a panel already feels crowded and needs its axes merged. Produces layers.md and ends at Gate 2; no binding until it passes.
 ---
 
 # Stage 2 — LAYERS (layout committed L0→L5)

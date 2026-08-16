@@ -1,6 +1,6 @@
 ---
 name: ui-reason
-description: Stage 1 of the Dense-UI framework — take the parameter census before any layout exists. Use when starting a dense, fixed-size panel (instrument, bring-up bench, telemetry console, engineering dashboard), when replicating a hardware or software device from a screenshot, or when an existing panel has too many controls and nobody can say how many. Produces census.md and ends at Gate 1; no layout word may be written until it passes.
+description: Stage 1 of the ui research framework — take the parameter census before any layout exists. Use when starting a dense, fixed-size panel (instrument, bring-up bench, telemetry console, engineering dashboard), when replicating a hardware or software device from a screenshot, or when an existing panel has too many controls and nobody can say how many. Produces census.md and ends at Gate 1; no layout word may be written until it passes.
 ---
 
 # Stage 1 — REASON (the census)

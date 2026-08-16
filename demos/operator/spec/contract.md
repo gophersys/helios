@@ -1,6 +1,6 @@
 # CONTRACT — control behavior + backend binding for the Operator replica
 
-Stage-3 output of the Dense-UI framework. Every control binds to one address in
+Stage-3 output of the ui research framework. Every control binds to one address in
 one parameter tree. The UI never talks to the audio engine directly; both sides
 talk to the tree. This is the seam that generalizes (synth today, hardware
 console tomorrow: same tree, different transport).
