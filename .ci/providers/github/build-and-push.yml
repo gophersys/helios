@@ -1,6 +1,7 @@
 name: build-and-push
 
-# Publishes the IDP image set (base + base-runner + flutter + zephyr + zephyr-devbox)
+# Publishes the IDP image set (base + base-runner + flutter + zephyr + zephyr-devbox
+# + cloud)
 # to the GitHub Container Registry. Every image is built for linux/amd64 on every
 # push to main. On semver tag pushes (v*) we also publish a :v<semver> tag.
 # Flutter and zephyr consume base — and zephyr-devbox consumes zephyr — via
@@ -380,3 +381,120 @@ jobs:
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image.
         run: bash ./ctl.sh verify-published zephyr-devbox ${{ needs.base.outputs.short }}
+
+  # The cloud image: the reduced base + the CI fold (image-architecture, ledger
+  # #94). ADDITIVE and independent — FROM ubuntu directly, no needs. Its gate
+  # order is the one the publish-order test demands: build to the local store,
+  # smoke the loaded image (content checks + the 5.5 GB size gate), and only
+  # then push. The build context is the REPOSITORY ROOT because versions.env
+  # and _delta/ sit beside the image directories, and every version pin arrives
+  # as a build-arg generated from versions.env — the one home for every pin.
+  cloud:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 90
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # The tag the build below LOADS into the local docker image store, and the
+      # ref the smoke test then runs. It carries no registry on purpose: nothing
+      # can pull it, so a load that did not happen fails the smoke step instead
+      # of quietly asserting against the last image that was published.
+      SMOKE_REF: cloud:smoke
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free up runner disk
+        # The hosted runner ships ~14 GB free; a build of these large images exhausts it
+        # ("No space left on device") on 1 platform as well as on 2. Reclaim ~25-30 GB of
+        # preinstalled SDKs we never use, keeping docker/buildx intact.
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: short-sha
+        id: sha
+        run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
+      - name: extract semver tag
+        id: semver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
+      - name: generate the build args from versions.env
+        # The one-home rule reaching CI: one --build-arg per pin line, the same
+        # list `cloud/ctl.sh` generates locally. The Dockerfile's pin gate fails
+        # the build naming any pin this step failed to carry.
+        id: versions
+        run: |
+          {
+            echo 'args<<VERSIONS_EOF'
+            sed -e 's/#.*$//' -e 's/[[:space:]]*$//' -e '/^$/d' versions.env
+            echo 'VERSIONS_EOF'
+          } >> "$GITHUB_OUTPUT"
+      - name: build the image, load it locally, publish nothing yet
+        # The gate has to run before the irreversible action. A push cannot be
+        # undone and no job here rolls one back, so a smoke test placed after it
+        # reports a broken image but cannot stop one reaching a consumer.
+        # buildx loads this build into the local docker image store instead, the
+        # step after it asserts the content, and only then does the publish step
+        # ship the same build. The second build reads the cache this one writes,
+        # so publishing costs a layer copy rather than a rebuild.
+        #
+        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
+        # the image store holds a single image. That holds for as long as
+        # PLATFORMS names 1 platform — read the arm64 note at the top of
+        # _ctl/tests/publish-order.test.sh before widening it.
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: cloud/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          load: true
+          build-args: ${{ steps.versions.outputs.args }}
+          tags: ${{ env.SMOKE_REF }}
+          cache-from: type=gha,scope=cloud
+          cache-to: type=gha,mode=max,scope=cloud
+      - name: smoke test (native amd64)
+        # Content checks for every kept tool group, the CI fold, the harness
+        # bake, the absent-Go-cache assertion, and the 5.5 GB size gate (R4).
+        # It runs the LOADED image, which is the exact build the publish step
+        # below then copies to ghcr.io.
+        run: bash .ci/smoke.sh cloud ${{ env.SMOKE_REF }}
+      - name: publish the image the smoke test passed
+        # The same build definition as the load step above — same context, same
+        # build-args, same platform — so buildx resolves every layer from the
+        # cache that step wrote and this one only uploads. It writes no cache of
+        # its own for that reason.
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: cloud/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          build-args: ${{ steps.versions.outputs.args }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/cloud:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/cloud:${{ steps.sha.outputs.short }}
+            ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/cloud:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
+          cache-from: type=gha,scope=cloud
+      - name: verify the published manifest
+        # A push DECLARES a platform; this reads what the registry actually
+        # holds. At the SHA tag, never at :latest, so a concurrent run cannot
+        # make this describe somebody else's image.
+        run: bash ./ctl.sh verify-published cloud ${{ steps.sha.outputs.short }}

@@ -23,6 +23,14 @@
 #                          only to declare a measured narrower target, and give
 #                          the measurement. Every entry must still be sanctioned.
 #   IMAGE_BUILD_ARGS       Optional array. Extra arguments for docker build.
+#   IMAGE_BUILD_CONTEXT    Optional. The build context directory. The default
+#                          is PROJECT_ROOT. The cloud image sets the repository
+#                          root, because versions.env and _delta/ sit one level
+#                          above its directory.
+#   IMAGE_DOCKERFILE       Optional. An explicit --file for docker build. The
+#                          default is empty, which keeps docker's own default:
+#                          <context>/Dockerfile. Set it whenever
+#                          IMAGE_BUILD_CONTEXT is not the image directory.
 #
 # This metadata is read at call time, so a script can set it after the source
 # line, for example to use a value that this file computes:
@@ -74,6 +82,33 @@ fi
 if ! declare -p IMAGE_BUILD_ARGS >/dev/null 2>&1; then
   IMAGE_BUILD_ARGS=()
 fi
+
+# versions_env_build_args <file> — append one `--build-arg NAME=value` to
+# IMAGE_BUILD_ARGS for every pin line of a versions.env file. This is how the
+# one-home rule reaches docker: versions.env holds the value, the Dockerfile
+# declares a value-less ARG, and this function is the only bridge between them.
+# A trailing `# comment` on a line is stripped; a non-empty line without `=` is
+# a FAILURE that names the line, because a silently skipped pin would surface
+# later as an empty version in a download URL.
+function versions_env_build_args() {
+  local file="$1" line name value
+  if [[ ! -f "$file" ]]; then
+    log_error "versions file not found: ${file}"
+    exit 1
+  fi
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    line="${line%%#*}"
+    line="${line%"${line##*[![:space:]]}"}"
+    [[ -z "$line" ]] && continue
+    if [[ "$line" != *=* ]]; then
+      log_error "unreadable pin line in ${file}: '${line}' — want NAME=value"
+      exit 1
+    fi
+    name="${line%%=*}"
+    value="${line#*=}"
+    IMAGE_BUILD_ARGS+=(--build-arg "${name}=${value}")
+  done < "$file"
+}
 
 # -------- logging --------
 function log_info()  { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
@@ -212,11 +247,16 @@ function image_build() {
     exit 1
   fi
   log_info "building ${IMAGE_REF} (${IMAGE_PLATFORMS})"
+  local -a file_args=()
+  if [[ -n "${IMAGE_DOCKERFILE:-}" ]]; then
+    file_args=(--file "${IMAGE_DOCKERFILE}")
+  fi
   docker build \
     --platform "${IMAGE_PLATFORMS}" \
     "${IMAGE_BUILD_ARGS[@]+"${IMAGE_BUILD_ARGS[@]}"}" \
+    "${file_args[@]+"${file_args[@]}"}" \
     -t "${IMAGE_REF}" \
-    "$PROJECT_ROOT"
+    "${IMAGE_BUILD_CONTEXT:-$PROJECT_ROOT}"
 }
 
 function image_push() {
@@ -230,13 +270,18 @@ function image_push() {
   fi
   image_ref_sha="${IMAGE_REGISTRY_NAMESPACE}/${IMAGE_NAME}:${short_sha}"
   log_info "buildx (${IMAGE_PLATFORMS}) + push to ${IMAGE_REF} and ${image_ref_sha}"
+  local -a file_args=()
+  if [[ -n "${IMAGE_DOCKERFILE:-}" ]]; then
+    file_args=(--file "${IMAGE_DOCKERFILE}")
+  fi
   docker buildx build \
     --platform "${IMAGE_PLATFORMS}" \
     "${IMAGE_BUILD_ARGS[@]+"${IMAGE_BUILD_ARGS[@]}"}" \
+    "${file_args[@]+"${file_args[@]}"}" \
     --tag "${IMAGE_REF}" \
     --tag "${image_ref_sha}" \
     --push \
-    "$PROJECT_ROOT"
+    "${IMAGE_BUILD_CONTEXT:-$PROJECT_ROOT}"
 }
 
 # verify-published [tag] — read the manifest of a published tag and assert it

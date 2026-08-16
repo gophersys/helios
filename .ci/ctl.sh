@@ -28,8 +28,9 @@ REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 # shellcheck source=../_ctl/lib.sh
 source "$REPO_ROOT/_ctl/lib.sh"
 
-# Dependency order — parents first.
-BUILD_ORDER=(base base-runner flutter zephyr zephyr-devbox)
+# Dependency order — parents first. `cloud` stands alone (FROM ubuntu): the
+# additive successor image of the consolidation program (ledger #94).
+BUILD_ORDER=(base base-runner flutter zephyr zephyr-devbox cloud)
 
 # Image name -> source directory. 1:1 except the `+ runner` variants: one
 # directory (`runner/`) builds `<parent>-runner` for every parent. Mirrors the
