@@ -76,12 +76,29 @@ Only things that RAN, with the command and the result:
   (emulated; scratchpad cloud-build.log). Result and measured size recorded
   here when it finishes; remote CI is the prover either way.
 
+## Review
+
+Round 1 (REQUEST_CHANGES, 1 finding):
+
+- Finding 1 (Correctness): the buildx call at cloud/Dockerfile:536 passes
+  only DOCKER_BUILDX_VERSION of buildx.sh's 3 required pins; claim: the
+  build fails there. DISPOSITION: edit applied (ca30aa6 — the call site now
+  names its full pin contract), failure claim REFUTED by execution: a
+  positive/negative build pair on the branch's real buildx.sh behind the
+  byte-identical prefix — positive (all 3 pins as --build-arg) exit 0 with
+  sha256 OK + `buildx v0.36.1` proof; negative (SHA args omitted) exit 1 at
+  buildx.sh:17 naming DOCKER_BUILDX_SHA256_AMD64. Same-stage valued ARGs
+  are RUN environment — the pin gate (Dockerfile:125-166) runs on exactly
+  that mechanism. Spec §3.3 unchanged; no check weakened. Evidence posted
+  on the PR (comment 5310082039).
+- Gates after the change: validate OK, test OK (7 files).
+
 ## Blocked
 
 (nothing)
 
 ## Next
 
-Watch PR #38 checks (validate + pr-review) up to 30 min; fix once if red.
+Watch PR #38 round-2 review (triggered by the ca30aa6 push) up to 25 min.
 The local amd64 build runs in the background (attempt 2 after a Docker-VM
 disk exhaustion, not a Dockerfile defect); record its size here when done.
