@@ -1,0 +1,35 @@
+menuconfig CK_PKT_ANALYZER
+    bool "CoreKinect packet analyzer (iface + cipher observability)"
+    help
+      Wireshark-style capture of iface transport events and cipher packet
+      headers. Off by default; all hooks compile to nothing when disabled.
+
+if CK_PKT_ANALYZER
+
+config CK_PKT_ANALYZER_BACKEND_LOG
+    bool "Log backend: decoded packets on the Zephyr log"
+    default y
+
+config CK_PKT_ANALYZER_HEXDUMP
+    bool "Hexdump payload bytes in the log backend"
+    depends on CK_PKT_ANALYZER_BACKEND_LOG
+
+config CK_PKT_ANALYZER_BACKEND_NET
+    bool "Net backend: JSON events over UDP to a collector"
+    select NET_UDP
+
+config CK_PKT_ANALYZER_NET_HOST
+    string "Collector host (name or IPv4)"
+    depends on CK_PKT_ANALYZER_BACKEND_NET
+    default "10.42.5.40"
+
+config CK_PKT_ANALYZER_NET_PORT
+    int "Collector UDP port"
+    depends on CK_PKT_ANALYZER_BACKEND_NET
+    default 9999
+
+config CK_PKT_ANALYZER_LOG_LEVEL
+    int "Analyzer log level"
+    default 3
+
+endif # CK_PKT_ANALYZER
