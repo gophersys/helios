@@ -1,4 +1,4 @@
-# dense-ui — instructions for Claude sessions
+# research-ui — instructions for Claude sessions
 
 This repository is the home of the Dense-UI research programme: general-purpose
 tools and framework for blind dense-UI layout. **Nothing outside

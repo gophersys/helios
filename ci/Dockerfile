@@ -1,4 +1,4 @@
-# CI image for gophersys/dense-ui — browser and fonts baked in, so a missing
+# CI image for gophersys/research-ui — browser and fonts baked in, so a missing
 # tool is a HARD FAIL at build time, never a per-job install (ADR-0020
 # posture).
 #
@@ -17,7 +17,7 @@
 # The devcontainer (.devcontainer/Dockerfile) builds FROM this image, so dev
 # and CI cannot drift.
 #
-# Published as ghcr.io/gophersys/dense-ui-ci by .github/workflows/build-ci-image.yml,
+# Published as ghcr.io/gophersys/research-ui-ci by .github/workflows/build-ci-image.yml,
 # which pre-pulls the private base with GHCR_PULL_TOKEN — a cross-repo
 # package; GITHUB_TOKEN's packages:read covers only this repo's own packages
 # (eden lesson L3).
