@@ -1,0 +1,286 @@
+-- west build: running target ram_report
+[0/1] cd /workspaces/concord/libs/zephyr/iface/samples/socket_client/build && /usr/bin/python3.10 /ncs/zephyr/scripts/footprint/size_report -k /workspaces/concord/libs/zephyr/iface/samples/socket_client/build/zephyr/zephyr.elf -z /ncs/zephyr -o /workspaces/concord/libs/zephyr/iface/samples/socket_client/build --workspace=/ncs -d 99 ram
+Path                                                                                             Size    %  
+==============================================================================================================
+Root                                                                                            63130 100.00%
+├── (hidden)                                                                                     4027   6.38%
+├── (no paths)                                                                                   5113   8.10%
+│   ├── SystemCoreClock                                                                             4   0.01%
+│   ├── SystemD2Clock                                                                               4   0.01%
+│   ├── _impure_ptr                                                                                 4   0.01%
+│   ├── _kernel                                                                                    36   0.06%
+│   ├── _sw_isr_table                                                                            1200   1.90%
+│   ├── buf.0                                                                                      24   0.04%
+│   ├── buffer.1                                                                                 1024   1.62%
+│   ├── data.0                                                                                      3   0.00%
+│   ├── dynamic_regions.0                                                                          12   0.02%
+│   ├── impure_data                                                                                96   0.15%
+│   ├── k_sys_work_q                                                                              216   0.34%
+│   ├── once.0                                                                                      1   0.00%
+│   ├── once.1                                                                                      1   0.00%
+│   ├── wait_q.0                                                                                    8   0.01%
+│   ├── z_idle_threads                                                                            184   0.29%
+│   ├── z_interrupt_stacks                                                                       2112   3.35%
+│   └── z_main_thread                                                                             184   0.29%
+├── WORKSPACE                                                                                       4   0.01%
+│   └── modules                                                                                     4   0.01%
+│       └── crypto                                                                                  4   0.01%
+│           └── mbedtls                                                                             4   0.01%
+│               └── library                                                                         4   0.01%
+│                   └── platform_util.c                                                             4   0.01%
+│                       └── memset_func                                                             4   0.01%
+└── ZEPHYR_BASE                                                                                 53986  85.52%
+    ├── arch                                                                                        1   0.00%
+    │   └── arm                                                                                     1   0.00%
+    │       └── core                                                                                1   0.00%
+    │           └── aarch32                                                                         1   0.00%
+    │               └── mpu                                                                         1   0.00%
+    │                   └── arm_mpu.c                                                               1   0.00%
+    │                       └── static_regions_num                                                  1   0.00%
+    ├── drivers                                                                                 15194  24.07%
+    │   ├── clock_control                                                                          30   0.05%
+    │   │   └── clock_stm32_ll_h7.c                                                                30   0.05%
+    │   │       ├── __devstate_dts_ord_9                                                            2   0.00%
+    │   │       └── stm32_clock_control_api                                                        28   0.04%
+    │   ├── entropy                                                                               122   0.19%
+    │   │   └── entropy_stm32.c                                                                   122   0.19%
+    │   │       ├── __devstate_dts_ord_76                                                           2   0.00%
+    │   │       ├── entropy_stm32_rng_config                                                        4   0.01%
+    │   │       ├── entropy_stm32_rng_data                                                        108   0.17%
+    │   │       └── pclken_rng                                                                      8   0.01%
+    │   ├── ethernet                                                                            14646  23.20%
+    │   │   └── eth_stm32_hal.c                                                                 14646  23.20%
+    │   │       ├── __devstate_dts_ord_66                                                           2   0.00%
+    │   │       ├── __net_if_dev_dts_ord_66_0                                                      28   0.04%
+    │   │       ├── __net_if_dts_ord_66_0                                                          72   0.11%
+    │   │       ├── _net_l2_data_dts_ord_660                                                       28   0.04%
+    │   │       ├── dma_rx_buffer                                                                6112   9.68%
+    │   │       ├── dma_rx_desc_tab                                                                96   0.15%
+    │   │       ├── dma_tx_buffer                                                                6112   9.68%
+    │   │       ├── dma_tx_desc_tab                                                                96   0.15%
+    │   │       ├── eth0_data                                                                    2048   3.24%
+    │   │       └── tx_config                                                                      52   0.08%
+    │   ├── gpio                                                                                  198   0.31%
+    │   │   └── gpio_stm32.c                                                                      198   0.31%
+    │   │       ├── __devstate_dts_ord_123                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_124                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_125                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_126                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_127                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_128                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_129                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_32                                                           2   0.00%
+    │   │       ├── __devstate_dts_ord_35                                                           2   0.00%
+    │   │       ├── __devstate_dts_ord_37                                                           2   0.00%
+    │   │       ├── __devstate_dts_ord_92                                                           2   0.00%
+    │   │       ├── gpio_stm32_data_a                                                              16   0.03%
+    │   │       ├── gpio_stm32_data_b                                                              16   0.03%
+    │   │       ├── gpio_stm32_data_c                                                              16   0.03%
+    │   │       ├── gpio_stm32_data_d                                                              16   0.03%
+    │   │       ├── gpio_stm32_data_e                                                              16   0.03%
+    │   │       ├── gpio_stm32_data_f                                                              16   0.03%
+    │   │       ├── gpio_stm32_data_g                                                              16   0.03%
+    │   │       ├── gpio_stm32_data_h                                                              16   0.03%
+    │   │       ├── gpio_stm32_data_i                                                              16   0.03%
+    │   │       ├── gpio_stm32_data_j                                                              16   0.03%
+    │   │       └── gpio_stm32_data_k                                                              16   0.03%
+    │   ├── interrupt_controller                                                                  162   0.26%
+    │   │   └── intc_exti_stm32.c                                                                 162   0.26%
+    │   │       ├── __devstate_dts_ord_73                                                           2   0.00%
+    │   │       ├── exti_data                                                                     128   0.20%
+    │   │       └── exti_irq_table                                                                 32   0.05%
+    │   ├── reset                                                                                   2   0.00%
+    │   │   └── reset_stm32.c                                                                       2   0.00%
+    │   │       └── __devstate_dts_ord_40                                                           2   0.00%
+    │   ├── serial                                                                                 18   0.03%
+    │   │   └── uart_stm32.c                                                                       18   0.03%
+    │   │       ├── __devstate_dts_ord_82                                                           2   0.00%
+    │   │       └── uart_stm32_data_0                                                              16   0.03%
+    │   └── timer                                                                                  16   0.03%
+    │       └── cortex_m_systick.c                                                                 16   0.03%
+    │           ├── announced_cycles                                                                4   0.01%
+    │           ├── cycle_count                                                                     4   0.01%
+    │           ├── last_load                                                                       4   0.01%
+    │           └── overflow_cyc                                                                    4   0.01%
+    ├── kernel                                                                                  11602  18.38%
+    │   ├── init.c                                                                              10449  16.55%
+    │   │   ├── z_idle_stacks                                                                     384   0.61%
+    │   │   ├── z_main_stack                                                                    10064  15.94%
+    │   │   └── z_sys_post_kernel                                                                   1   0.00%
+    │   ├── sched.c                                                                                37   0.06%
+    │   │   ├── pending_current                                                                     4   0.01%
+    │   │   ├── slice_expired                                                                       1   0.00%
+    │   │   ├── slice_max_prio                                                                      4   0.01%
+    │   │   ├── slice_ticks                                                                         4   0.01%
+    │   │   └── slice_timeouts                                                                     24   0.04%
+    │   ├── system_work_q.c                                                                      1088   1.72%
+    │   │   └── sys_work_q_stack                                                                 1088   1.72%
+    │   ├── timeout.c                                                                              20   0.03%
+    │   │   ├── announce_remaining                                                                  4   0.01%
+    │   │   ├── curr_tick                                                                           8   0.01%
+    │   │   └── timeout_list                                                                        8   0.01%
+    │   └── work.c                                                                                  8   0.01%
+    │       └── pending_cancels                                                                     8   0.01%
+    ├── lib                                                                                       156   0.25%
+    │   ├── libc                                                                                    4   0.01%
+    │   │   └── newlib                                                                              4   0.01%
+    │   │       └── libc-hooks.c                                                                    4   0.01%
+    │   │           └── _stdout_hook                                                                4   0.01%
+    │   └── os                                                                                    152   0.24%
+    │       ├── fdtable.c                                                                         148   0.23%
+    │       │   ├── fdtable                                                                       128   0.20%
+    │       │   └── fdtable_lock                                                                   20   0.03%
+    │       └── printk.c                                                                            4   0.01%
+    │           └── _char_out                                                                       4   0.01%
+    └── subsys                                                                                  27033  42.82%
+        ├── debug                                                                                  61   0.10%
+        │   └── thread_info.c                                                                      61   0.10%
+        │       ├── _kernel_thread_info_num_offsets                                                 4   0.01%
+        │       ├── _kernel_thread_info_offsets                                                    56   0.09%
+        │       └── _kernel_thread_info_size_t_size                                                 1   0.00%
+        ├── logging                                                                               124   0.20%
+        │   ├── backends                                                                           26   0.04%
+        │   │   └── log_backend_uart.c                                                             26   0.04%
+        │   │       ├── backend_cb_log_backend_uart                                                 8   0.01%
+        │   │       ├── in_panic                                                                    1   0.00%
+        │   │       ├── log_format_current                                                          4   0.01%
+        │   │       ├── log_output_uart_control_block                                              12   0.02%
+        │   │       └── uart_output_buf                                                             1   0.00%
+        │   ├── log_core.c                                                                         90   0.14%
+        │   │   ├── backend_attached                                                                1   0.00%
+        │   │   ├── buffered_cnt                                                                    4   0.01%
+        │   │   ├── dropped_cnt                                                                     4   0.01%
+        │   │   ├── initialized                                                                     4   0.01%
+        │   │   ├── log_buffer                                                                     64   0.10%
+        │   │   ├── log_msg_ptr                                                                     4   0.01%
+        │   │   ├── panic_mode                                                                      1   0.00%
+        │   │   ├── timestamp_freq                                                                  4   0.01%
+        │   │   └── timestamp_func                                                                  4   0.01%
+        │   └── log_output.c                                                                        8   0.01%
+        │       ├── freq                                                                            4   0.01%
+        │       └── timestamp_div                                                                   4   0.01%
+        └── net                                                                                 26848  42.53%
+            ├── ip                                                                              25520  40.42%
+            │   ├── connection.c                                                                  580   0.92%
+            │   │   ├── conn_lock                                                                  20   0.03%
+            │   │   ├── conn_unused                                                                 8   0.01%
+            │   │   ├── conn_used                                                                   8   0.01%
+            │   │   └── conns                                                                     544   0.86%
+            │   ├── dhcpv4.c                                                                       88   0.14%
+            │   │   ├── dhcpv4_ifaces                                                               8   0.01%
+            │   │   ├── lock                                                                       20   0.03%
+            │   │   ├── mgmt4_cb                                                                   12   0.02%
+            │   │   └── timeout_work                                                               48   0.08%
+            │   ├── icmpv4.c                                                                       20   0.03%
+            │   │   ├── echo_request_handler                                                       12   0.02%
+            │   │   └── handlers                                                                    8   0.01%
+            │   ├── icmpv6.c                                                                       20   0.03%
+            │   │   ├── echo_request_handler                                                       12   0.02%
+            │   │   └── handlers                                                                    8   0.01%
+            │   ├── ipv6_mld.c                                                                     12   0.02%
+            │   │   └── mld_query_input_handler                                                    12   0.02%
+            │   ├── ipv6_nbr.c                                                                    844   1.34%
+            │   │   ├── ipv6_nd_reachable_timer                                                    48   0.08%
+            │   │   ├── ipv6_ns_reply_timer                                                        48   0.08%
+            │   │   ├── na_input_handler                                                           12   0.02%
+            │   │   ├── nbr_lock                                                                   24   0.04%
+            │   │   ├── net_neighbor                                                               12   0.02%
+            │   │   ├── net_neighbor_pool                                                         672   1.06%
+            │   │   ├── ns_input_handler                                                           12   0.02%
+            │   │   ├── ra_input_handler                                                           12   0.02%
+            │   │   └── stale_counter                                                               4   0.01%
+            │   ├── nbr.c                                                                          72   0.11%
+            │   │   └── net_neighbor_lladdr                                                        72   0.11%
+            │   ├── net_context.c                                                                1128   1.79%
+            │   │   ├── contexts                                                                 1104   1.75%
+            │   │   └── contexts_lock                                                              24   0.04%
+            │   ├── net_if.c                                                                      756   1.20%
+            │   │   ├── active_address_lifetime_timers                                              8   0.01%
+            │   │   ├── active_dad_timers                                                           8   0.01%
+            │   │   ├── active_prefix_lifetime_timers                                               8   0.01%
+            │   │   ├── active_router_timers                                                        8   0.01%
+            │   │   ├── active_rs_timers                                                            8   0.01%
+            │   │   ├── address_lifetime_timer                                                     48   0.08%
+            │   │   ├── dad_timer                                                                  48   0.08%
+            │   │   ├── default_iface                                                               4   0.01%
+            │   │   ├── ipv4_addresses                                                             88   0.14%
+            │   │   ├── ipv6_addresses                                                            276   0.44%
+            │   │   ├── link_callbacks                                                              8   0.01%
+            │   │   ├── lock                                                                       20   0.03%
+            │   │   ├── mcast_monitor_callbacks                                                     8   0.01%
+            │   │   ├── prefix_lifetime_timer                                                      48   0.08%
+            │   │   ├── router_timer                                                               48   0.08%
+            │   │   ├── routers                                                                    72   0.11%
+            │   │   └── rs_timer                                                                   48   0.08%
+            │   ├── net_mgmt.c                                                                   1164   1.84%
+            │   │   ├── _k_fifo_buf_event_msgq                                                     40   0.06%
+            │   │   ├── event_callbacks                                                             8   0.01%
+            │   │   ├── event_msgq                                                                 48   0.08%
+            │   │   ├── global_event_mask                                                           4   0.01%
+            │   │   ├── mgmt_stack                                                                832   1.32%
+            │   │   ├── mgmt_thread_data                                                          184   0.29%
+            │   │   ├── net_mgmt_callback_lock                                                     20   0.03%
+            │   │   ├── net_mgmt_event_lock                                                        20   0.03%
+            │   │   └── new_event                                                                   8   0.01%
+            │   ├── net_pkt.c                                                                   13280  21.04%
+            │   │   ├── _k_mem_slab_buf_rx_pkts                                                   952   1.51%
+            │   │   ├── _k_mem_slab_buf_tx_pkts                                                   952   1.51%
+            │   │   ├── _net_buf_rx_bufs                                                         1008   1.60%
+            │   │   ├── _net_buf_tx_bufs                                                         1008   1.60%
+            │   │   ├── net_buf_data_rx_bufs                                                     4608   7.30%
+            │   │   ├── net_buf_data_tx_bufs                                                     4608   7.30%
+            │   │   ├── rx_bufs                                                                    44   0.07%
+            │   │   ├── rx_pkts                                                                    28   0.04%
+            │   │   ├── tx_bufs                                                                    44   0.07%
+            │   │   └── tx_pkts                                                                    28   0.04%
+            │   ├── net_tc.c                                                                     1816   2.88%
+            │   │   ├── rx_classes                                                                216   0.34%
+            │   │   └── rx_stack                                                                 1600   2.53%
+            │   ├── route.c                                                                       896   1.42%
+            │   │   ├── active_route_lifetime_timers                                                8   0.01%
+            │   │   ├── lock                                                                       20   0.03%
+            │   │   ├── net_nbr_routes                                                             12   0.02%
+            │   │   ├── net_route_entries_pool                                                    576   0.91%
+            │   │   ├── net_route_nexthop_pool                                                    224   0.35%
+            │   │   ├── route_lifetime_timer                                                       48   0.08%
+            │   │   └── routes                                                                      8   0.01%
+            │   └── tcp.c                                                                        4844   7.67%
+            │       ├── _k_mem_slab_buf_tcp_conns_slab                                           3456   5.47%
+            │       ├── tcp_conns                                                                   8   0.01%
+            │       ├── tcp_conns_slab                                                             28   0.04%
+            │       ├── tcp_fin_timeout_ms                                                          4   0.01%
+            │       ├── tcp_lock                                                                   20   0.03%
+            │       ├── tcp_recv_cb                                                                 4   0.01%
+            │       ├── tcp_send_cb                                                                 4   0.01%
+            │       ├── tcp_work_q                                                                216   0.34%
+            │       ├── unique_key                                                                 16   0.03%
+            │       └── work_q_stack                                                             1088   1.72%
+            ├── l2                                                                                189   0.30%
+            │   └── ethernet                                                                      189   0.30%
+            │       └── arp.c                                                                     189   0.30%
+            │           ├── arp_cache_initialized                                                   1   0.00%
+            │           ├── arp_entries                                                            96   0.15%
+            │           ├── arp_free_entries                                                        8   0.01%
+            │           ├── arp_mutex                                                              20   0.03%
+            │           ├── arp_pending_entries                                                     8   0.01%
+            │           ├── arp_request_timer                                                      48   0.08%
+            │           └── arp_table                                                               8   0.01%
+            └── lib                                                                              1139   1.80%
+                ├── config                                                                         76   0.12%
+                │   └── init.c                                                                     76   0.12%
+                │       ├── counter                                                                24   0.04%
+                │       ├── mgmt4_cb                                                               12   0.02%
+                │       ├── mgmt_iface_cb                                                          12   0.02%
+                │       ├── services_flags                                                          4   0.01%
+                │       └── waiter                                                                 24   0.04%
+                └── dns                                                                          1063   1.68%
+                    └── resolve.c                                                                1063   1.68%
+                        ├── _net_buf_dns_msg_pool                                                  24   0.04%
+                        ├── _net_buf_dns_qname_pool                                                24   0.04%
+                        ├── dns_default_ctx                                                       160   0.25%
+                        ├── dns_msg_pool                                                           44   0.07%
+                        ├── dns_qname_pool                                                         44   0.07%
+                        ├── net_buf_data_dns_msg_pool                                             512   0.81%
+                        └── net_buf_data_dns_qname_pool                                           255   0.40%
+==============================================================================================================
+                                                                                                63130

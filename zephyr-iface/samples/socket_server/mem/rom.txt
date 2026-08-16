@@ -1,0 +1,1661 @@
+-- west build: running target rom_report
+[0/1] cd /workspaces/concord/libs/zephyr/iface/samples/socket_server/build && /usr/bin/python3.10 /ncs/zephyr/scripts/footprint/size_report -k /workspaces/concord/libs/zephyr/iface/samples/socket_server/build/zephyr/zephyr.elf -z /ncs/zephyr -o /workspaces/concord/libs/zephyr/iface/samples/socket_server/build --workspace=/ncs -d 99 rom
+Path                                                                                             Size    %  
+==============================================================================================================
+Root                                                                                           133076 100.00%
+├── (hidden)                                                                                     6025   4.53%
+├── (no paths)                                                                                   6858   5.15%
+│   ├── D1CorePrescTable                                                                           16   0.01%
+│   ├── SystemCoreClock                                                                             4   0.00%
+│   ├── SystemD2Clock                                                                               4   0.00%
+│   ├── __addsf3                                                                                  352   0.26%
+│   ├── __aeabi_f2uiz                                                                              62   0.05%
+│   ├── __aeabi_fdiv                                                                              310   0.23%
+│   ├── __aeabi_frsub                                                                             364   0.27%
+│   ├── __aeabi_fsub                                                                              356   0.27%
+│   ├── __aeabi_l2f                                                                               124   0.09%
+│   ├── __aeabi_ldiv0                                                                               2   0.00%
+│   ├── __device_dts_ord_123                                                                       24   0.02%
+│   ├── __device_dts_ord_124                                                                       24   0.02%
+│   ├── __device_dts_ord_125                                                                       24   0.02%
+│   ├── __device_dts_ord_126                                                                       24   0.02%
+│   ├── __device_dts_ord_127                                                                       24   0.02%
+│   ├── __device_dts_ord_128                                                                       24   0.02%
+│   ├── __device_dts_ord_129                                                                       24   0.02%
+│   ├── __device_dts_ord_32                                                                        24   0.02%
+│   ├── __device_dts_ord_35                                                                        24   0.02%
+│   ├── __device_dts_ord_37                                                                        24   0.02%
+│   ├── __device_dts_ord_40                                                                        24   0.02%
+│   ├── __device_dts_ord_66                                                                        24   0.02%
+│   ├── __device_dts_ord_73                                                                        24   0.02%
+│   ├── __device_dts_ord_76                                                                        24   0.02%
+│   ├── __device_dts_ord_82                                                                        24   0.02%
+│   ├── __device_dts_ord_9                                                                         24   0.02%
+│   ├── __device_dts_ord_92                                                                        24   0.02%
+│   ├── __floatsisf                                                                                28   0.02%
+│   ├── __floatundisf                                                                             140   0.11%
+│   ├── __floatunsisf                                                                              36   0.03%
+│   ├── __func__.0                                                                                 12   0.01%
+│   ├── __func__.1                                                                                 25   0.02%
+│   ├── __func__.2                                                                                 25   0.02%
+│   ├── __memcpy_chk                                                                               38   0.03%
+│   ├── __mulsf3                                                                                  360   0.27%
+│   ├── __udivmoddi4                                                                              672   0.50%
+│   ├── _ctype_                                                                                   257   0.19%
+│   ├── _impure_ptr                                                                                 4   0.00%
+│   ├── _net_l2_ETHERNET                                                                           16   0.01%
+│   ├── _strerror_r                                                                               972   0.73%
+│   ├── _strtol_l.constprop.0                                                                     252   0.19%
+│   ├── _strtoul_l.constprop.0                                                                    228   0.17%
+│   ├── _sw_isr_table                                                                            1200   0.90%
+│   ├── _user_strerror                                                                              4   0.00%
+│   ├── addr.0                                                                                      4   0.00%
+│   ├── addr.1                                                                                      4   0.00%
+│   ├── all_nodes_mcast_group.0                                                                    16   0.01%
+│   ├── chk_fail_msg.0                                                                             30   0.02%
+│   ├── data.0                                                                                      3   0.00%
+│   ├── impure_data                                                                                96   0.07%
+│   ├── in6addr_any                                                                                16   0.01%
+│   ├── levels.0                                                                                   24   0.02%
+│   ├── line_range_0.6                                                                              2   0.00%
+│   ├── line_range_1.5                                                                              2   0.00%
+│   ├── line_range_2.4                                                                              2   0.00%
+│   ├── line_range_3.3                                                                              2   0.00%
+│   ├── line_range_4.2                                                                              2   0.00%
+│   ├── line_range_5.1                                                                              2   0.00%
+│   ├── line_range_6.0                                                                              2   0.00%
+│   ├── memcmp                                                                                     32   0.02%
+│   ├── memcpy                                                                                     28   0.02%
+│   ├── memmove                                                                                    52   0.04%
+│   ├── memset                                                                                     16   0.01%
+│   ├── mpu_config                                                                                  8   0.01%
+│   ├── net_buf_fixed_cb                                                                           12   0.01%
+│   ├── strchr                                                                                     26   0.02%
+│   ├── strcmp                                                                                     20   0.02%
+│   ├── strerror                                                                                   20   0.02%
+│   ├── strlen                                                                                     16   0.01%
+│   ├── strncpy                                                                                    38   0.03%
+│   ├── strnlen                                                                                    24   0.02%
+│   ├── strrchr                                                                                    40   0.03%
+│   ├── strtol                                                                                     20   0.02%
+│   ├── strtoul                                                                                    20   0.02%
+│   └── wait_q.0                                                                                    8   0.01%
+├── /                                                                                            2000   1.50%
+│   ├── usr                                                                                        36   0.03%
+│   │   └── home                                                                                   36   0.03%
+│   │       └── zephyr-sdk-0.16.1                                                                  36   0.03%
+│   │           └── arm-zephyr-eabi                                                                36   0.03%
+│   │               └── arm-zephyr-eabi                                                            36   0.03%
+│   │                   └── sys-include                                                            36   0.03%
+│   │                       ├── ssp                                                                28   0.02%
+│   │                       │   └── ssp.h                                                          28   0.02%
+│   │                       │       └── __chk_fail                                                 28   0.02%
+│   │                       └── sys                                                                 8   0.01%
+│   │                           └── errno.h                                                         8   0.01%
+│   │                               └── __errno                                                     8   0.01%
+│   └── workspaces                                                                               1964   1.48%
+│       └── concord                                                                              1964   1.48%
+│           └── libs                                                                             1964   1.48%
+│               └── zephyr                                                                       1964   1.48%
+│                   └── iface                                                                    1964   1.48%
+│                       ├── samples                                                               692   0.52%
+│                       │   └── socket_server                                                     692   0.52%
+│                       │       └── src                                                           692   0.52%
+│                       │           └── main.c                                                    692   0.52%
+│                       │               ├── log_const_socket_client                                 8   0.01%
+│                       │               ├── main                                                  456   0.34%
+│                       │               └── print_net_addr                                        228   0.17%
+│                       └── zephyr                                                               1272   0.96%
+│                           └── src                                                              1272   0.96%
+│                               ├── iface.c                                                       188   0.14%
+│                               │   ├── iface_accept                                               24   0.02%
+│                               │   ├── iface_close                                                 8   0.01%
+│                               │   ├── iface_create                                               24   0.02%
+│                               │   ├── iface_recv                                                 48   0.04%
+│                               │   ├── iface_send                                                 48   0.04%
+│                               │   ├── log_const_iface                                             8   0.01%
+│                               │   └── tal_ops                                                    28   0.02%
+│                               ├── socket                                                       1076   0.81%
+│                               │   └── socket.c                                                 1076   0.81%
+│                               │       ├── socket_accept                                         168   0.13%
+│                               │       ├── socket_close                                          128   0.10%
+│                               │       ├── socket_connect                                         92   0.07%
+│                               │       ├── socket_create                                         184   0.14%
+│                               │       ├── socket_recv                                           188   0.14%
+│                               │       ├── socket_send                                           152   0.11%
+│                               │       └── socket_set_opt                                        164   0.12%
+│                               └── utils                                                           8   0.01%
+│                                   └── assembler.c                                                 8   0.01%
+│                                       └── log_const_uart_assembler                                8   0.01%
+├── OUTPUT_DIR                                                                                    786   0.59%
+│   └── zephyr                                                                                    786   0.59%
+│       ├── dev_handles.c                                                                         166   0.12%
+│       │   ├── __devicehdl_dts_ord_123                                                             8   0.01%
+│       │   ├── __devicehdl_dts_ord_124                                                             8   0.01%
+│       │   ├── __devicehdl_dts_ord_125                                                             8   0.01%
+│       │   ├── __devicehdl_dts_ord_126                                                             8   0.01%
+│       │   ├── __devicehdl_dts_ord_127                                                             8   0.01%
+│       │   ├── __devicehdl_dts_ord_128                                                             8   0.01%
+│       │   ├── __devicehdl_dts_ord_129                                                             8   0.01%
+│       │   ├── __devicehdl_dts_ord_32                                                              8   0.01%
+│       │   ├── __devicehdl_dts_ord_35                                                              8   0.01%
+│       │   ├── __devicehdl_dts_ord_37                                                              8   0.01%
+│       │   ├── __devicehdl_dts_ord_40                                                             10   0.01%
+│       │   ├── __devicehdl_dts_ord_66                                                              8   0.01%
+│       │   ├── __devicehdl_dts_ord_73                                                              6   0.00%
+│       │   ├── __devicehdl_dts_ord_76                                                              8   0.01%
+│       │   ├── __devicehdl_dts_ord_82                                                             10   0.01%
+│       │   ├── __devicehdl_dts_ord_9                                                              36   0.03%
+│       │   └── __devicehdl_dts_ord_92                                                              8   0.01%
+│       ├── include                                                                                18   0.01%
+│       │   └── generated                                                                          18   0.01%
+│       │       └── syscalls                                                                       18   0.01%
+│       │           └── reset.h                                                                    18   0.01%
+│       │               └── reset_line_toggle                                                      18   0.01%
+│       ├── isr_tables.c                                                                          600   0.45%
+│       │   └── _irq_vector_table                                                                 600   0.45%
+│       └── misc                                                                                    2   0.00%
+│           └── generated                                                                           2   0.00%
+│               └── configs.c                                                                       2   0.00%
+│                   └── _ConfigAbsSyms                                                              2   0.00%
+├── WORKSPACE                                                                                    9164   6.89%
+│   ├── modules                                                                                  9112   6.85%
+│   │   ├── crypto                                                                               3320   2.49%
+│   │   │   └── mbedtls                                                                          3320   2.49%
+│   │   │       └── library                                                                      3320   2.49%
+│   │   │           ├── md5.c                                                                    3292   2.47%
+│   │   │           │   ├── mbedtls_internal_md5_process                                         2788   2.10%
+│   │   │           │   ├── mbedtls_md5                                                            66   0.05%
+│   │   │           │   ├── mbedtls_md5_finish                                                    226   0.17%
+│   │   │           │   ├── mbedtls_md5_free                                                       14   0.01%
+│   │   │           │   ├── mbedtls_md5_init                                                       12   0.01%
+│   │   │           │   ├── mbedtls_md5_starts                                                     44   0.03%
+│   │   │           │   └── mbedtls_md5_update                                                    142   0.11%
+│   │   │           └── platform_util.c                                                            28   0.02%
+│   │   │               ├── mbedtls_platform_zeroize                                               24   0.02%
+│   │   │               └── memset_func                                                             4   0.00%
+│   │   └── hal                                                                                  5792   4.35%
+│   │       ├── cmsis                                                                             136   0.10%
+│   │       │   └── CMSIS                                                                         136   0.10%
+│   │       │       └── Core                                                                      136   0.10%
+│   │       │           └── Include                                                               136   0.10%
+│   │       │               └── core_cm7.h                                                        136   0.10%
+│   │       │                   ├── __NVIC_DisableIRQ                                              36   0.03%
+│   │       │                   ├── __NVIC_EnableIRQ                                               28   0.02%
+│   │       │                   ├── __NVIC_SetPriority                                             36   0.03%
+│   │       │                   └── __NVIC_SystemReset                                             36   0.03%
+│   │       └── stm32                                                                            5656   4.25%
+│   │           └── stm32cube                                                                    5656   4.25%
+│   │               └── stm32h7xx                                                                5656   4.25%
+│   │                   └── drivers                                                              5656   4.25%
+│   │                       ├── include                                                           104   0.08%
+│   │                       │   └── stm32h7xx_ll_system.h                                         104   0.08%
+│   │                       │       ├── LL_SYSCFG_GetEXTISource                                    44   0.03%
+│   │                       │       └── LL_SYSCFG_SetEXTISource                                    60   0.05%
+│   │                       └── src                                                              5552   4.17%
+│   │                           ├── Legacy                                                       4612   3.47%
+│   │                           │   └── stm32h7xx_hal_eth.c                                      4612   3.47%
+│   │                           │       ├── ETH_DMARxDescListInit                                 108   0.08%
+│   │                           │       ├── ETH_DMATxDescListInit                                  88   0.07%
+│   │                           │       ├── ETH_MACDMAConfig                                      220   0.17%
+│   │                           │       ├── ETH_MAC_MDIO_ClkConfig                                120   0.09%
+│   │                           │       ├── ETH_Prepare_Tx_Descriptors                            848   0.64%
+│   │                           │       ├── ETH_SetDMAConfig                                      172   0.13%
+│   │                           │       ├── ETH_SetMACConfig                                      432   0.32%
+│   │                           │       ├── HAL_ETH_BuildRxDescriptors                            138   0.10%
+│   │                           │       ├── HAL_ETH_DescAssignMemory                               78   0.06%
+│   │                           │       ├── HAL_ETH_EEECallback                                     2   0.00%
+│   │                           │       ├── HAL_ETH_GetDMAError                                     4   0.00%
+│   │                           │       ├── HAL_ETH_GetError                                        4   0.00%
+│   │                           │       ├── HAL_ETH_GetMACConfig                                  486   0.37%
+│   │                           │       ├── HAL_ETH_GetMACError                                     4   0.00%
+│   │                           │       ├── HAL_ETH_GetMACFilterConfig                            126   0.09%
+│   │                           │       ├── HAL_ETH_GetRxDataBuffer                               162   0.12%
+│   │                           │       ├── HAL_ETH_GetRxDataLength                                54   0.04%
+│   │                           │       ├── HAL_ETH_GetState                                        8   0.01%
+│   │                           │       ├── HAL_ETH_IRQHandler                                    376   0.28%
+│   │                           │       ├── HAL_ETH_Init                                          312   0.23%
+│   │                           │       ├── HAL_ETH_IsRxDataAvailable                             274   0.21%
+│   │                           │       ├── HAL_ETH_MspInit                                         2   0.00%
+│   │                           │       ├── HAL_ETH_PMTCallback                                     2   0.00%
+│   │                           │       ├── HAL_ETH_ReadPHYRegister                                96   0.07%
+│   │                           │       ├── HAL_ETH_SetMACConfig                                   26   0.02%
+│   │                           │       ├── HAL_ETH_SetMACFilterConfig                             96   0.07%
+│   │                           │       ├── HAL_ETH_SetMDIOClockRange                             120   0.09%
+│   │                           │       ├── HAL_ETH_Start_IT                                      166   0.12%
+│   │                           │       ├── HAL_ETH_Transmit_IT                                    86   0.06%
+│   │                           │       └── HAL_ETH_WakeUpCallback                                  2   0.00%
+│   │                           ├── stm32h7xx_hal.c                                                20   0.02%
+│   │                           │   └── HAL_SYSCFG_ETHInterfaceSelect                              20   0.02%
+│   │                           ├── stm32h7xx_hal_rcc.c                                           604   0.45%
+│   │                           │   ├── HAL_RCC_GetHCLKFreq                                        68   0.05%
+│   │                           │   └── HAL_RCC_GetSysClockFreq                                   536   0.40%
+│   │                           └── stm32h7xx_ll_utils.c                                          316   0.24%
+│   │                               └── LL_SetFlashLatency                                        316   0.24%
+│   └── nrf                                                                                        52   0.04%
+│       └── lib                                                                                    52   0.04%
+│           └── fatal_error                                                                        52   0.04%
+│               └── fatal_error.c                                                                  52   0.04%
+│                   ├── k_sys_fatal_error_handler                                                  44   0.03%
+│                   └── log_const_fatal_error                                                       8   0.01%
+└── ZEPHYR_BASE                                                                                108243  81.34%
+    ├── arch                                                                                     3184   2.39%
+    │   └── arm                                                                                  3184   2.39%
+    │       └── core                                                                             3184   2.39%
+    │           └── aarch32                                                                      3184   2.39%
+    │               ├── cortex_m                                                                 2020   1.52%
+    │               │   ├── fault.c                                                              1786   1.34%
+    │               │   │   ├── bus_fault                                                         356   0.27%
+    │               │   │   ├── debug_monitor                                                      40   0.03%
+    │               │   │   ├── fault_handle                                                       74   0.06%
+    │               │   │   ├── get_esf                                                            84   0.06%
+    │               │   │   ├── hard_fault                                                        264   0.20%
+    │               │   │   ├── mem_manage_fault                                                  404   0.30%
+    │               │   │   ├── memory_fault_recoverable                                            4   0.00%
+    │               │   │   ├── reserved_exception                                                 64   0.05%
+    │               │   │   ├── usage_fault                                                       288   0.22%
+    │               │   │   ├── z_arm_fault                                                       132   0.10%
+    │               │   │   ├── z_arm_fault_init                                                   16   0.01%
+    │               │   │   └── z_arm_is_synchronous_svc                                           60   0.05%
+    │               │   ├── irq_init.c                                                             52   0.04%
+    │               │   │   └── z_arm_interrupt_init                                               52   0.04%
+    │               │   ├── scb.c                                                                 130   0.10%
+    │               │   │   ├── sys_arch_reboot                                                     6   0.00%
+    │               │   │   ├── z_arm_clear_arm_mpu_config                                         40   0.03%
+    │               │   │   └── z_arm_init_arch_hw_at_boot                                         84   0.06%
+    │               │   └── thread_abort.c                                                         52   0.04%
+    │               │       └── z_impl_k_thread_abort                                              52   0.04%
+    │               ├── fatal.c                                                                   184   0.14%
+    │               │   ├── esf_dump                                                              148   0.11%
+    │               │   ├── z_arm_fatal_error                                                      24   0.02%
+    │               │   └── z_do_kernel_oops                                                       12   0.01%
+    │               ├── irq_manage.c                                                               72   0.05%
+    │               │   ├── arch_irq_disable                                                       10   0.01%
+    │               │   ├── arch_irq_enable                                                        10   0.01%
+    │               │   ├── arch_irq_is_enabled                                                    28   0.02%
+    │               │   ├── z_arm_irq_priority_set                                                 12   0.01%
+    │               │   └── z_irq_spurious                                                         12   0.01%
+    │               ├── mpu                                                                       600   0.45%
+    │               │   ├── arm_core_mpu.c                                                         96   0.07%
+    │               │   │   ├── log_const_mpu                                                       8   0.01%
+    │               │   │   ├── static_regions                                                     24   0.02%
+    │               │   │   ├── z_arm_configure_dynamic_mpu_regions                                36   0.03%
+    │               │   │   └── z_arm_configure_static_mpu_regions                                 28   0.02%
+    │               │   ├── arm_mpu.c                                                             358   0.27%
+    │               │   │   ├── arm_core_mpu_configure_dynamic_mpu_regions                          8   0.01%
+    │               │   │   ├── arm_core_mpu_configure_static_mpu_regions                           8   0.01%
+    │               │   │   ├── arm_core_mpu_disable                                               20   0.02%
+    │               │   │   ├── arm_core_mpu_enable                                                24   0.02%
+    │               │   │   ├── mpu_configure_region                                               62   0.05%
+    │               │   │   ├── mpu_configure_regions                                             112   0.08%
+    │               │   │   ├── region_allocate_and_init                                           56   0.04%
+    │               │   │   └── z_arm_mpu_init                                                     68   0.05%
+    │               │   └── arm_mpu_v7_internal.h                                                 146   0.11%
+    │               │       ├── mpu_configure_dynamic_mpu_regions                                  52   0.04%
+    │               │       ├── mpu_configure_static_mpu_regions                                   20   0.02%
+    │               │       ├── mpu_partition_is_valid                                             34   0.03%
+    │               │       └── region_init                                                        40   0.03%
+    │               ├── nmi.c                                                                      12   0.01%
+    │               │   └── z_arm_nmi                                                              12   0.01%
+    │               ├── prep_c.c                                                                   56   0.04%
+    │               │   └── z_arm_prep_c                                                           56   0.04%
+    │               ├── swap.c                                                                     56   0.04%
+    │               │   └── arch_swap                                                              56   0.04%
+    │               └── thread.c                                                                  184   0.14%
+    │                   ├── arch_new_thread                                                        68   0.05%
+    │                   ├── arch_switch_to_main_thread                                             44   0.03%
+    │                   └── z_check_thread_stack_fail                                              72   0.05%
+    ├── drivers                                                                                 11454   8.61%
+    │   ├── clock_control                                                                        1340   1.01%
+    │   │   └── clock_stm32_ll_h7.c                                                              1340   1.01%
+    │   │       ├── __devstate_dts_ord_9                                                            2   0.00%
+    │   │       ├── __init___device_dts_ord_9                                                       8   0.01%
+    │   │       ├── enabled_clock                                                                  36   0.03%
+    │   │       ├── get_bus_clock                                                                   6   0.00%
+    │   │       ├── get_hclk_frequency                                                             56   0.04%
+    │   │       ├── get_pllout_frequency                                                           14   0.01%
+    │   │       ├── get_pllsrc_frequency                                                           28   0.02%
+    │   │       ├── get_vco_input_range                                                           116   0.09%
+    │   │       ├── get_vco_output_range                                                           10   0.01%
+    │   │       ├── optimize_regulator_voltage_scale                                               48   0.04%
+    │   │       ├── prepare_regulator_voltage_scale                                                48   0.04%
+    │   │       ├── set_up_fixed_clock_sources                                                    104   0.08%
+    │   │       ├── set_up_plls                                                                   200   0.15%
+    │   │       ├── stm32_clock_control_api                                                        28   0.02%
+    │   │       ├── stm32_clock_control_configure                                                  68   0.05%
+    │   │       ├── stm32_clock_control_get_subsys_rate                                           308   0.23%
+    │   │       ├── stm32_clock_control_init                                                      188   0.14%
+    │   │       ├── stm32_clock_control_off                                                        36   0.03%
+    │   │       └── stm32_clock_control_on                                                         36   0.03%
+    │   ├── console                                                                               100   0.08%
+    │   │   └── uart_console.c                                                                    100   0.08%
+    │   │       ├── __init_uart_console_init                                                        8   0.01%
+    │   │       ├── console_out                                                                    40   0.03%
+    │   │       ├── uart_console_hook_install                                                      24   0.02%
+    │   │       └── uart_console_init                                                              28   0.02%
+    │   ├── entropy                                                                              1122   0.84%
+    │   │   └── entropy_stm32.c                                                                  1122   0.84%
+    │   │       ├── __devstate_dts_ord_76                                                           2   0.00%
+    │   │       ├── __init___device_dts_ord_76                                                      8   0.01%
+    │   │       ├── configure_rng                                                                  28   0.02%
+    │   │       ├── entropy_stm32_got_error                                                        28   0.02%
+    │   │       ├── entropy_stm32_rng_api                                                           8   0.01%
+    │   │       ├── entropy_stm32_rng_config                                                        4   0.00%
+    │   │       ├── entropy_stm32_rng_data                                                        108   0.08%
+    │   │       ├── entropy_stm32_rng_get_entropy                                                  84   0.06%
+    │   │       ├── entropy_stm32_rng_get_entropy_isr                                              92   0.07%
+    │   │       ├── entropy_stm32_rng_init                                                        124   0.09%
+    │   │       ├── generate_from_isr                                                             112   0.08%
+    │   │       ├── pclken_rng                                                                      8   0.01%
+    │   │       ├── pool_filling_work_handler                                                      22   0.02%
+    │   │       ├── random_byte_get                                                               100   0.08%
+    │   │       ├── recover_seed_error                                                             36   0.03%
+    │   │       ├── rng_pool_get                                                                  168   0.13%
+    │   │       ├── rng_pool_init                                                                  16   0.01%
+    │   │       ├── rng_pool_put                                                                   38   0.03%
+    │   │       ├── start_pool_filling                                                             56   0.04%
+    │   │       └── stm32_rng_isr                                                                  80   0.06%
+    │   ├── ethernet                                                                             4400   3.31%
+    │   │   └── eth_stm32_hal.c                                                                  4400   3.31%
+    │   │       ├── HAL_ETH_DMAErrorCallback                                                      104   0.08%
+    │   │       ├── HAL_ETH_MACErrorCallback                                                      104   0.08%
+    │   │       ├── HAL_ETH_RxCpltCallback                                                         10   0.01%
+    │   │       ├── HAL_ETH_TxCpltCallback                                                         10   0.01%
+    │   │       ├── __devstate_dts_ord_66                                                           2   0.00%
+    │   │       ├── __init___device_dts_ord_66                                                      8   0.01%
+    │   │       ├── __net_if_dev_dts_ord_66_0                                                      28   0.02%
+    │   │       ├── __net_if_dts_ord_66_0                                                          72   0.05%
+    │   │       ├── __pinctrl_dev_config__device_dts_ord_66                                         8   0.01%
+    │   │       ├── __pinctrl_state_pins_0__device_dts_ord_66                                      72   0.05%
+    │   │       ├── __pinctrl_states__device_dts_ord_66                                             8   0.01%
+    │   │       ├── eth0_config                                                                    32   0.02%
+    │   │       ├── eth0_data                                                                    2048   1.54%
+    │   │       ├── eth0_irq_config                                                                20   0.02%
+    │   │       ├── eth_api                                                                        28   0.02%
+    │   │       ├── eth_iface_init                                                                 56   0.04%
+    │   │       ├── eth_initialize                                                                640   0.48%
+    │   │       ├── eth_isr                                                                        12   0.01%
+    │   │       ├── eth_rx                                                                        276   0.21%
+    │   │       ├── eth_stm32_hal_get_capabilities                                                  4   0.00%
+    │   │       ├── eth_stm32_hal_set_config                                                       78   0.06%
+    │   │       ├── eth_tx                                                                        464   0.35%
+    │   │       ├── generate_mac                                                                   24   0.02%
+    │   │       ├── get_iface                                                                       4   0.00%
+    │   │       ├── log_const_eth_stm32_hal                                                         8   0.01%
+    │   │       ├── read_eth_phy_register                                                           8   0.01%
+    │   │       ├── rx_thread                                                                     224   0.17%
+    │   │       └── setup_mac_filter                                                               48   0.04%
+    │   ├── gpio                                                                                 1292   0.97%
+    │   │   └── gpio_stm32.c                                                                     1292   0.97%
+    │   │       ├── __devstate_dts_ord_123                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_124                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_125                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_126                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_127                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_128                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_129                                                          2   0.00%
+    │   │       ├── __devstate_dts_ord_32                                                           2   0.00%
+    │   │       ├── __devstate_dts_ord_35                                                           2   0.00%
+    │   │       ├── __devstate_dts_ord_37                                                           2   0.00%
+    │   │       ├── __devstate_dts_ord_92                                                           2   0.00%
+    │   │       ├── __init___device_dts_ord_123                                                     8   0.01%
+    │   │       ├── __init___device_dts_ord_124                                                     8   0.01%
+    │   │       ├── __init___device_dts_ord_125                                                     8   0.01%
+    │   │       ├── __init___device_dts_ord_126                                                     8   0.01%
+    │   │       ├── __init___device_dts_ord_127                                                     8   0.01%
+    │   │       ├── __init___device_dts_ord_128                                                     8   0.01%
+    │   │       ├── __init___device_dts_ord_129                                                     8   0.01%
+    │   │       ├── __init___device_dts_ord_32                                                      8   0.01%
+    │   │       ├── __init___device_dts_ord_35                                                      8   0.01%
+    │   │       ├── __init___device_dts_ord_37                                                      8   0.01%
+    │   │       ├── __init___device_dts_ord_92                                                      8   0.01%
+    │   │       ├── gpio_stm32_cfg_a                                                               20   0.02%
+    │   │       ├── gpio_stm32_cfg_b                                                               20   0.02%
+    │   │       ├── gpio_stm32_cfg_c                                                               20   0.02%
+    │   │       ├── gpio_stm32_cfg_d                                                               20   0.02%
+    │   │       ├── gpio_stm32_cfg_e                                                               20   0.02%
+    │   │       ├── gpio_stm32_cfg_f                                                               20   0.02%
+    │   │       ├── gpio_stm32_cfg_g                                                               20   0.02%
+    │   │       ├── gpio_stm32_cfg_h                                                               20   0.02%
+    │   │       ├── gpio_stm32_cfg_i                                                               20   0.02%
+    │   │       ├── gpio_stm32_cfg_j                                                               20   0.02%
+    │   │       ├── gpio_stm32_cfg_k                                                               20   0.02%
+    │   │       ├── gpio_stm32_clock_request                                                       40   0.03%
+    │   │       ├── gpio_stm32_config                                                              82   0.06%
+    │   │       ├── gpio_stm32_configure                                                           56   0.04%
+    │   │       ├── gpio_stm32_configure_raw                                                      180   0.14%
+    │   │       ├── gpio_stm32_driver                                                              36   0.03%
+    │   │       ├── gpio_stm32_enable_int                                                          60   0.05%
+    │   │       ├── gpio_stm32_flags_to_conf                                                      126   0.09%
+    │   │       ├── gpio_stm32_get_exti_source                                                     46   0.03%
+    │   │       ├── gpio_stm32_init                                                                44   0.03%
+    │   │       ├── gpio_stm32_isr                                                                 20   0.02%
+    │   │       ├── gpio_stm32_manage_callback                                                     12   0.01%
+    │   │       ├── gpio_stm32_pin_interrupt_configure                                            148   0.11%
+    │   │       ├── gpio_stm32_port_clear_bits_raw                                                 12   0.01%
+    │   │       ├── gpio_stm32_port_get_raw                                                        12   0.01%
+    │   │       ├── gpio_stm32_port_set_bits_raw                                                   10   0.01%
+    │   │       ├── gpio_stm32_port_set_masked_raw                                                 18   0.01%
+    │   │       ├── gpio_stm32_port_toggle_bits                                                    14   0.01%
+    │   │       └── gpio_stm32_set_exti_source                                                     46   0.03%
+    │   ├── hwinfo                                                                                124   0.09%
+    │   │   └── hwinfo_stm32.c                                                                    124   0.09%
+    │   │       └── z_impl_hwinfo_get_device_id                                                   124   0.09%
+    │   ├── interrupt_controller                                                                  600   0.45%
+    │   │   └── intc_exti_stm32.c                                                                 600   0.45%
+    │   │       ├── __devstate_dts_ord_73                                                           2   0.00%
+    │   │       ├── __init___device_dts_ord_73                                                      8   0.01%
+    │   │       ├── exti_irq_table                                                                 32   0.02%
+    │   │       ├── stm32_exti_disable                                                             26   0.02%
+    │   │       ├── stm32_exti_enable                                                              40   0.03%
+    │   │       ├── stm32_exti_init                                                               192   0.14%
+    │   │       ├── stm32_exti_isr                                                                 76   0.06%
+    │   │       ├── stm32_exti_set_callback                                                        60   0.05%
+    │   │       ├── stm32_exti_trigger                                                            108   0.08%
+    │   │       ├── stm32_exti_unset_callback                                                      20   0.02%
+    │   │       └── stm32_fill_irq_table                                                           36   0.03%
+    │   ├── pinctrl                                                                               250   0.19%
+    │   │   ├── common.c                                                                           50   0.04%
+    │   │   │   └── pinctrl_lookup_state                                                           50   0.04%
+    │   │   └── pinctrl_stm32.c                                                                   200   0.15%
+    │   │       ├── gpio_ports                                                                     44   0.03%
+    │   │       ├── pinctrl_configure_pins                                                         92   0.07%
+    │   │       └── stm32_pin_configure                                                            64   0.05%
+    │   ├── reset                                                                                 150   0.11%
+    │   │   └── reset_stm32.c                                                                     150   0.11%
+    │   │       ├── __devstate_dts_ord_40                                                           2   0.00%
+    │   │       ├── __init___device_dts_ord_40                                                      8   0.01%
+    │   │       ├── reset_stm32_config                                                              4   0.00%
+    │   │       ├── reset_stm32_driver_api                                                         16   0.01%
+    │   │       ├── reset_stm32_init                                                                4   0.00%
+    │   │       ├── reset_stm32_line_assert                                                        30   0.02%
+    │   │       ├── reset_stm32_line_deassert                                                      32   0.02%
+    │   │       ├── reset_stm32_line_toggle                                                        22   0.02%
+    │   │       └── reset_stm32_status                                                             32   0.02%
+    │   ├── serial                                                                               1508   1.13%
+    │   │   └── uart_stm32.c                                                                     1508   1.13%
+    │   │       ├── __devstate_dts_ord_82                                                           2   0.00%
+    │   │       ├── __init___device_dts_ord_82                                                      8   0.01%
+    │   │       ├── __pinctrl_dev_config__device_dts_ord_82                                         8   0.01%
+    │   │       ├── __pinctrl_state_pins_0__device_dts_ord_82                                      16   0.01%
+    │   │       ├── __pinctrl_states__device_dts_ord_82                                             8   0.01%
+    │   │       ├── log_const_uart_stm32                                                            8   0.01%
+    │   │       ├── pclken_0                                                                        8   0.01%
+    │   │       ├── uart_stm32_cfg_0                                                               28   0.02%
+    │   │       ├── uart_stm32_config_get                                                         136   0.10%
+    │   │       ├── uart_stm32_configure                                                          460   0.35%
+    │   │       ├── uart_stm32_data_0                                                              16   0.01%
+    │   │       ├── uart_stm32_driver_api                                                          20   0.02%
+    │   │       ├── uart_stm32_err_check                                                          124   0.09%
+    │   │       ├── uart_stm32_init                                                               428   0.32%
+    │   │       ├── uart_stm32_ll2cfg_databits                                                     42   0.03%
+    │   │       ├── uart_stm32_poll_in                                                             40   0.03%
+    │   │       ├── uart_stm32_poll_out                                                            64   0.05%
+    │   │       └── uart_stm32_set_baudrate                                                        92   0.07%
+    │   └── timer                                                                                 568   0.43%
+    │       └── cortex_m_systick.c                                                                568   0.43%
+    │           ├── __init_sys_clock_driver_init                                                    8   0.01%
+    │           ├── elapsed                                                                        60   0.05%
+    │           ├── sys_clock_cycle_get_32                                                         44   0.03%
+    │           ├── sys_clock_driver_init                                                          52   0.04%
+    │           ├── sys_clock_elapsed                                                              64   0.05%
+    │           ├── sys_clock_isr                                                                  72   0.05%
+    │           └── sys_clock_set_timeout                                                         268   0.20%
+    ├── include                                                                                  4456   3.35%
+    │   └── zephyr                                                                               4456   3.35%
+    │       ├── drivers                                                                           190   0.14%
+    │       │   ├── gpio                                                                          126   0.09%
+    │       │   │   └── gpio_utils.h                                                              126   0.09%
+    │       │   │       ├── gpio_fire_callbacks                                                    64   0.05%
+    │       │   │       └── gpio_manage_callback                                                   62   0.05%
+    │       │   └── pinctrl.h                                                                      64   0.05%
+    │       │       └── pinctrl_apply_state                                                        64   0.05%
+    │       ├── kernel.h                                                                           32   0.02%
+    │       │   └── k_msleep                                                                       32   0.02%
+    │       ├── logging                                                                           270   0.20%
+    │       │   └── log_msg.h                                                                     270   0.20%
+    │       │       └── z_log_msg_runtime_create                                                  270   0.20%
+    │       ├── net                                                                              2866   2.15%
+    │       │   ├── buf.h                                                                          18   0.01%
+    │       │   │   └── net_buf_destroy                                                            18   0.01%
+    │       │   ├── ethernet.h                                                                    202   0.15%
+    │       │   │   ├── net_eth_get_hw_capabilities                                                40   0.03%
+    │       │   │   ├── net_eth_is_addr_broadcast                                                  64   0.05%
+    │       │   │   ├── net_eth_is_addr_multicast                                                  46   0.03%
+    │       │   │   └── net_eth_is_addr_unspecified                                                52   0.04%
+    │       │   ├── net_if.h                                                                      372   0.28%
+    │       │   │   ├── net_if_ipv6_set_reachable_time                                             36   0.03%
+    │       │   │   ├── net_if_is_admin_up                                                         20   0.02%
+    │       │   │   ├── net_if_is_carrier_ok                                                       20   0.02%
+    │       │   │   ├── net_if_is_dormant                                                          20   0.02%
+    │       │   │   ├── net_if_is_up                                                              230   0.17%
+    │       │   │   └── net_if_set_link_addr_unlocked                                              46   0.03%
+    │       │   ├── net_ip.h                                                                     2036   1.53%
+    │       │   │   ├── net_ipv4_is_addr_bcast                                                    224   0.17%
+    │       │   │   ├── net_ipv4_is_addr_mcast                                                    280   0.21%
+    │       │   │   ├── net_ipv4_is_ll_addr                                                        48   0.04%
+    │       │   │   ├── net_ipv4_is_my_addr                                                       160   0.12%
+    │       │   │   ├── net_ipv6_addr_copy_raw                                                    180   0.14%
+    │       │   │   ├── net_ipv6_addr_create_iid                                                  304   0.23%
+    │       │   │   ├── net_ipv6_addr_create_ll_allnodes_mcast                                     88   0.07%
+    │       │   │   ├── net_ipv6_addr_create_ll_allrouters_mcast                                   42   0.03%
+    │       │   │   ├── net_ipv6_addr_create_solicited_node                                        88   0.07%
+    │       │   │   ├── net_ipv6_is_addr_loopback                                                 240   0.18%
+    │       │   │   ├── net_ipv6_is_addr_mcast_group                                               74   0.06%
+    │       │   │   ├── net_ipv6_is_addr_mcast_link_all_nodes                                      44   0.03%
+    │       │   │   ├── net_ipv6_is_addr_solicited_node                                            50   0.04%
+    │       │   │   ├── net_ipv6_is_addr_unspecified                                              144   0.11%
+    │       │   │   └── net_ipv6_is_prefix                                                         70   0.05%
+    │       │   ├── net_linkaddr.h                                                                164   0.12%
+    │       │   │   ├── net_linkaddr_cmp                                                           50   0.04%
+    │       │   │   └── net_linkaddr_set                                                          114   0.09%
+    │       │   └── net_pkt.h                                                                      74   0.06%
+    │       │       ├── net_pkt_write_be16                                                         30   0.02%
+    │       │       └── net_pkt_write_be32                                                         44   0.03%
+    │       └── sys                                                                              1098   0.83%
+    │           ├── atomic.h                                                                      498   0.37%
+    │           │   ├── atomic_clear_bit                                                           40   0.03%
+    │           │   ├── atomic_set_bit                                                             38   0.03%
+    │           │   ├── atomic_test_and_clear_bit                                                 112   0.08%
+    │           │   ├── atomic_test_and_set_bit                                                   100   0.08%
+    │           │   └── atomic_test_bit                                                           208   0.16%
+    │           ├── cbprintf.h                                                                     16   0.01%
+    │           │   └── cbvprintf                                                                  16   0.01%
+    │           ├── fdtable.h                                                                      32   0.02%
+    │           │   └── z_fdtable_call_ioctl                                                       32   0.02%
+    │           ├── sflist.h                                                                      106   0.08%
+    │           │   ├── sys_sflist_append                                                          32   0.02%
+    │           │   └── sys_sflist_insert                                                          74   0.06%
+    │           └── slist.h                                                                       446   0.34%
+    │               ├── sys_slist_find_and_remove                                                 256   0.19%
+    │               └── sys_slist_remove                                                          190   0.14%
+    ├── kernel                                                                                  10300   7.74%
+    │   ├── banner.c                                                                               16   0.01%
+    │   │   └── boot_banner                                                                        16   0.01%
+    │   ├── condvar.c                                                                             148   0.11%
+    │   │   ├── z_impl_k_condvar_init                                                               8   0.01%
+    │   │   ├── z_impl_k_condvar_signal                                                            60   0.05%
+    │   │   └── z_impl_k_condvar_wait                                                              80   0.06%
+    │   ├── device.c                                                                              156   0.12%
+    │   │   ├── z_device_is_ready                                                                  32   0.02%
+    │   │   ├── z_device_state_init                                                                24   0.02%
+    │   │   └── z_impl_device_get_binding                                                         100   0.08%
+    │   ├── errno.c                                                                                16   0.01%
+    │   │   ├── _k_neg_eagain                                                                       4   0.00%
+    │   │   └── z_impl_z_errno                                                                     12   0.01%
+    │   ├── fatal.c                                                                               288   0.22%
+    │   │   ├── arch_system_halt                                                                   18   0.01%
+    │   │   ├── k_fatal_halt                                                                        6   0.00%
+    │   │   ├── reason_to_str                                                                      64   0.05%
+    │   │   ├── thread_name_get                                                                    32   0.02%
+    │   │   └── z_fatal_error                                                                     168   0.13%
+    │   ├── idle.c                                                                                 24   0.02%
+    │   │   └── idle                                                                               24   0.02%
+    │   ├── include                                                                                50   0.04%
+    │   │   ├── kernel_offsets.h                                                                    2   0.00%
+    │   │   │   └── _OffsetAbsSyms                                                                  2   0.00%
+    │   │   └── ksched.h                                                                           48   0.04%
+    │   │       └── z_reschedule_unlocked                                                          48   0.04%
+    │   ├── init.c                                                                                616   0.46%
+    │   │   ├── bg_thread_main                                                                     52   0.04%
+    │   │   ├── init_idle_thread                                                                   96   0.07%
+    │   │   ├── log_const_os                                                                        8   0.01%
+    │   │   ├── prepare_multithreading                                                             96   0.07%
+    │   │   ├── switch_to_main_thread                                                              20   0.02%
+    │   │   ├── z_bss_zero                                                                         44   0.03%
+    │   │   ├── z_cstart                                                                          132   0.10%
+    │   │   ├── z_early_memcpy                                                                      8   0.01%
+    │   │   ├── z_early_memset                                                                      8   0.01%
+    │   │   ├── z_init_cpu                                                                         68   0.05%
+    │   │   └── z_sys_init_run_level                                                               84   0.06%
+    │   ├── kheap.c                                                                               290   0.22%
+    │   │   ├── __init_statics_init_pre                                                             8   0.01%
+    │   │   ├── k_heap_aligned_alloc                                                              172   0.13%
+    │   │   ├── k_heap_free                                                                        58   0.04%
+    │   │   ├── k_heap_init                                                                        16   0.01%
+    │   │   └── statics_init                                                                       36   0.03%
+    │   ├── mem_slab.c                                                                            288   0.22%
+    │   │   ├── __init_init_mem_slab_module                                                         8   0.01%
+    │   │   ├── create_free_list                                                                   46   0.03%
+    │   │   ├── init_mem_slab_module                                                               36   0.03%
+    │   │   ├── k_mem_slab_alloc                                                                  104   0.08%
+    │   │   └── k_mem_slab_free                                                                    94   0.07%
+    │   ├── mempool.c                                                                             108   0.08%
+    │   │   ├── k_free                                                                             18   0.01%
+    │   │   ├── z_heap_aligned_alloc                                                               50   0.04%
+    │   │   └── z_thread_aligned_alloc                                                             40   0.03%
+    │   ├── msg_q.c                                                                               384   0.29%
+    │   │   ├── z_impl_k_msgq_get                                                                 200   0.15%
+    │   │   └── z_impl_k_msgq_put                                                                 184   0.14%
+    │   ├── mutex.c                                                                               446   0.34%
+    │   │   ├── adjust_owner_prio                                                                  22   0.02%
+    │   │   ├── new_prio_for_inheritance                                                           22   0.02%
+    │   │   ├── z_impl_k_mutex_init                                                                14   0.01%
+    │   │   ├── z_impl_k_mutex_lock                                                               264   0.20%
+    │   │   └── z_impl_k_mutex_unlock                                                             124   0.09%
+    │   ├── poll.c                                                                               1042   0.78%
+    │   │   ├── add_event                                                                         140   0.11%
+    │   │   ├── clear_event_registration                                                           46   0.03%
+    │   │   ├── clear_event_registrations                                                          54   0.04%
+    │   │   ├── is_condition_met                                                                   98   0.07%
+    │   │   ├── k_poll_event_init                                                                  48   0.04%
+    │   │   ├── poller_thread                                                                       8   0.01%
+    │   │   ├── register_event                                                                     86   0.06%
+    │   │   ├── register_events                                                                   130   0.10%
+    │   │   ├── signal_poll_event                                                                  68   0.05%
+    │   │   ├── signal_poller                                                                     104   0.08%
+    │   │   ├── signal_triggered_work                                                              42   0.03%
+    │   │   ├── z_handle_obj_poll_events                                                           30   0.02%
+    │   │   └── z_impl_k_poll                                                                     188   0.14%
+    │   ├── queue.c                                                                               494   0.37%
+    │   │   ├── k_queue_append                                                                     24   0.02%
+    │   │   ├── k_queue_prepend                                                                    22   0.02%
+    │   │   ├── k_queue_unique_append                                                              30   0.02%
+    │   │   ├── prepare_thread_to_run                                                              16   0.01%
+    │   │   ├── queue_insert                                                                      142   0.11%
+    │   │   ├── z_impl_k_queue_cancel_wait                                                         58   0.04%
+    │   │   ├── z_impl_k_queue_get                                                                124   0.09%
+    │   │   ├── z_impl_k_queue_init                                                                24   0.02%
+    │   │   ├── z_impl_k_queue_peek_head                                                           12   0.01%
+    │   │   ├── z_impl_k_queue_peek_tail                                                           12   0.01%
+    │   │   └── z_queue_node_peek                                                                  30   0.02%
+    │   ├── sched.c                                                                              2666   2.00%
+    │   │   ├── add_thread_timeout                                                                 32   0.02%
+    │   │   ├── add_to_waitq_locked                                                                86   0.06%
+    │   │   ├── end_thread                                                                        100   0.08%
+    │   │   ├── init_ready_q                                                                        8   0.01%
+    │   │   ├── k_sched_lock                                                                       52   0.04%
+    │   │   ├── k_sched_unlock                                                                     64   0.05%
+    │   │   ├── move_thread_to_end_of_prio_q                                                      140   0.11%
+    │   │   ├── pend_locked                                                                        24   0.02%
+    │   │   ├── pended_on_thread                                                                    4   0.00%
+    │   │   ├── ready_thread                                                                      120   0.09%
+    │   │   ├── slice_timeout                                                                      32   0.02%
+    │   │   ├── sliceable                                                                          76   0.06%
+    │   │   ├── thread_active_elsewhere                                                             4   0.00%
+    │   │   ├── unpend_all                                                                         42   0.03%
+    │   │   ├── unpend_thread_no_timeout                                                           28   0.02%
+    │   │   ├── unready_thread                                                                     56   0.04%
+    │   │   ├── update_cache                                                                       80   0.06%
+    │   │   ├── z_impl_k_sleep                                                                    104   0.08%
+    │   │   ├── z_impl_k_thread_suspend                                                           116   0.09%
+    │   │   ├── z_impl_k_yield                                                                    140   0.11%
+    │   │   ├── z_impl_z_current_get                                                               12   0.01%
+    │   │   ├── z_pend_curr                                                                        56   0.04%
+    │   │   ├── z_priq_dumb_best                                                                   14   0.01%
+    │   │   ├── z_priq_dumb_remove                                                                 16   0.01%
+    │   │   ├── z_ready_thread                                                                     56   0.04%
+    │   │   ├── z_reschedule                                                                       44   0.03%
+    │   │   ├── z_reschedule_irqlock                                                               28   0.02%
+    │   │   ├── z_reset_time_slice                                                                 80   0.06%
+    │   │   ├── z_sched_init                                                                       16   0.01%
+    │   │   ├── z_sched_prio_cmp                                                                   20   0.02%
+    │   │   ├── z_sched_start                                                                      60   0.05%
+    │   │   ├── z_sched_wait                                                                       40   0.03%
+    │   │   ├── z_sched_wake                                                                       92   0.07%
+    │   │   ├── z_sched_wake_thread                                                                84   0.06%
+    │   │   ├── z_set_prio                                                                        188   0.14%
+    │   │   ├── z_thread_abort                                                                    112   0.08%
+    │   │   ├── z_thread_timeout                                                                   12   0.01%
+    │   │   ├── z_tick_sleep                                                                      152   0.11%
+    │   │   ├── z_time_slice                                                                      116   0.09%
+    │   │   ├── z_unpend_all                                                                       32   0.02%
+    │   │   ├── z_unpend_first_thread                                                              68   0.05%
+    │   │   └── z_unpend_thread                                                                    60   0.05%
+    │   ├── sem.c                                                                                 280   0.21%
+    │   │   ├── z_impl_k_sem_give                                                                  80   0.06%
+    │   │   ├── z_impl_k_sem_init                                                                  48   0.04%
+    │   │   ├── z_impl_k_sem_reset                                                                 72   0.05%
+    │   │   └── z_impl_k_sem_take                                                                  80   0.06%
+    │   ├── system_work_q.c                                                                        60   0.05%
+    │   │   ├── __init_k_sys_work_q_init                                                            8   0.01%
+    │   │   └── k_sys_work_q_init                                                                  52   0.04%
+    │   ├── thread.c                                                                              622   0.47%
+    │   │   ├── k_is_in_isr                                                                        12   0.01%
+    │   │   ├── k_thread_name_get                                                                   4   0.00%
+    │   │   ├── schedule_new_thread                                                                28   0.02%
+    │   │   ├── setup_thread_stack                                                                 48   0.04%
+    │   │   ├── z_impl_k_thread_create                                                             68   0.05%
+    │   │   ├── z_impl_k_thread_name_set                                                           36   0.03%
+    │   │   ├── z_impl_k_thread_start                                                               8   0.01%
+    │   │   ├── z_init_static_threads                                                             132   0.10%
+    │   │   ├── z_init_thread_base                                                                 22   0.02%
+    │   │   ├── z_setup_new_thread                                                                200   0.15%
+    │   │   └── z_thread_monitor_exit                                                              64   0.05%
+    │   ├── timeout.c                                                                             976   0.73%
+    │   │   ├── elapsed                                                                            24   0.02%
+    │   │   ├── first                                                                              20   0.02%
+    │   │   ├── next                                                                               24   0.02%
+    │   │   ├── next_timeout                                                                       58   0.04%
+    │   │   ├── remove_timeout                                                                     46   0.03%
+    │   │   ├── sys_clock_announce                                                                200   0.15%
+    │   │   ├── sys_clock_tick_get                                                                 64   0.05%
+    │   │   ├── sys_clock_tick_get_32                                                               8   0.01%
+    │   │   ├── sys_clock_timeout_end_calc                                                         90   0.07%
+    │   │   ├── timeout_list                                                                        8   0.01%
+    │   │   ├── timeout_rem                                                                        60   0.05%
+    │   │   ├── z_abort_timeout                                                                    60   0.05%
+    │   │   ├── z_add_timeout                                                                     256   0.19%
+    │   │   ├── z_impl_k_uptime_ticks                                                               8   0.01%
+    │   │   └── z_timeout_remaining                                                                50   0.04%
+    │   ├── work.c                                                                               1254   0.94%
+    │   │   ├── cancel_async_locked                                                                42   0.03%
+    │   │   ├── cancel_delayable_async_locked                                                      16   0.01%
+    │   │   ├── finalize_cancel_locked                                                             96   0.07%
+    │   │   ├── k_work_cancel_delayable                                                            32   0.02%
+    │   │   ├── k_work_delayable_busy_get                                                          32   0.02%
+    │   │   ├── k_work_init                                                                        14   0.01%
+    │   │   ├── k_work_init_delayable                                                              24   0.02%
+    │   │   ├── k_work_queue_start                                                                124   0.09%
+    │   │   ├── k_work_reschedule                                                                  16   0.01%
+    │   │   ├── k_work_reschedule_for_queue                                                        58   0.04%
+    │   │   ├── k_work_schedule_for_queue                                                          52   0.04%
+    │   │   ├── k_work_submit                                                                      16   0.01%
+    │   │   ├── k_work_submit_to_queue                                                             20   0.02%
+    │   │   ├── notify_queue_locked                                                                20   0.02%
+    │   │   ├── queue_remove_locked                                                                26   0.02%
+    │   │   ├── queue_submit_locked                                                               132   0.10%
+    │   │   ├── schedule_for_queue_locked                                                          52   0.04%
+    │   │   ├── submit_to_queue_locked                                                             96   0.07%
+    │   │   ├── unschedule_locked                                                                  34   0.03%
+    │   │   ├── work_queue_main                                                                   240   0.18%
+    │   │   ├── work_timeout                                                                       70   0.05%
+    │   │   └── z_work_submit_to_queue                                                             42   0.03%
+    │   └── xip.c                                                                                  76   0.06%
+    │       └── z_data_copy                                                                        76   0.06%
+    ├── lib                                                                                      6654   5.00%
+    │   ├── libc                                                                                   98   0.07%
+    │   │   └── newlib                                                                             98   0.07%
+    │   │       └── libc-hooks.c                                                                   98   0.07%
+    │   │           ├── __init_malloc_prepare                                                       8   0.01%
+    │   │           ├── __stdout_hook_install                                                      12   0.01%
+    │   │           ├── _stdout_hook                                                                4   0.00%
+    │   │           ├── _stdout_hook_default                                                        6   0.00%
+    │   │           ├── _write                                                                     12   0.01%
+    │   │           ├── malloc_prepare                                                              4   0.00%
+    │   │           └── z_impl_zephyr_write_stdout                                                 52   0.04%
+    │   └── os                                                                                   6556   4.93%
+    │       ├── cbprintf_complete.c                                                              2770   2.08%
+    │       │   ├── conversion_radix                                                               42   0.03%
+    │       │   ├── encode_uint                                                                   184   0.14%
+    │       │   ├── extract_conversion                                                             68   0.05%
+    │       │   ├── extract_decimal                                                                44   0.03%
+    │       │   ├── extract_flags                                                                 196   0.15%
+    │       │   ├── extract_length                                                                206   0.15%
+    │       │   ├── extract_prec                                                                  100   0.08%
+    │       │   ├── extract_specifier                                                             290   0.22%
+    │       │   ├── extract_width                                                                  94   0.07%
+    │       │   ├── outs                                                                           52   0.04%
+    │       │   ├── store_count                                                                    62   0.05%
+    │       │   └── z_cbvprintf_impl                                                             1432   1.08%
+    │       ├── cbprintf_packaged.c                                                              1322   0.99%
+    │       │   ├── cbpprintf_external                                                             96   0.07%
+    │       │   ├── cbprintf_via_va_list                                                           14   0.01%
+    │       │   ├── cbvprintf_package                                                            1204   0.90%
+    │       │   └── log_const_cbprintf_package                                                      8   0.01%
+    │       ├── fdtable.c                                                                         448   0.34%
+    │       │   ├── _check_fd                                                                      60   0.05%
+    │       │   ├── _find_fd_entry                                                                 48   0.04%
+    │       │   ├── fdtable_lock                                                                   20   0.02%
+    │       │   ├── z_fd_ref                                                                       36   0.03%
+    │       │   ├── z_fd_unref                                                                     88   0.07%
+    │       │   ├── z_finalize_fd                                                                  56   0.04%
+    │       │   ├── z_free_fd                                                                       8   0.01%
+    │       │   ├── z_get_fd_obj_and_vtable                                                        56   0.04%
+    │       │   └── z_reserve_fd                                                                   76   0.06%
+    │       ├── heap.c                                                                           1760   1.32%
+    │       │   ├── alloc_chunk                                                                   162   0.12%
+    │       │   ├── chunk_mem                                                                      22   0.02%
+    │       │   ├── free_chunk                                                                    182   0.14%
+    │       │   ├── free_list_add                                                                  82   0.06%
+    │       │   ├── free_list_add_bidx                                                            164   0.12%
+    │       │   ├── free_list_remove                                                               82   0.06%
+    │       │   ├── free_list_remove_bidx                                                         110   0.08%
+    │       │   ├── mem_to_chunkid                                                                 22   0.02%
+    │       │   ├── merge_chunks                                                                  102   0.08%
+    │       │   ├── split_chunks                                                                  134   0.10%
+    │       │   ├── sys_heap_aligned_alloc                                                        286   0.21%
+    │       │   ├── sys_heap_alloc                                                                124   0.09%
+    │       │   ├── sys_heap_free                                                                  36   0.03%
+    │       │   └── sys_heap_init                                                                 252   0.19%
+    │       ├── heap.h                                                                             56   0.04%
+    │       │   └── set_chunk_used                                                                 56   0.04%
+    │       ├── printk.c                                                                          180   0.14%
+    │       │   ├── __printk_hook_install                                                          12   0.01%
+    │       │   ├── _char_out                                                                       4   0.00%
+    │       │   ├── arch_printk_char_out                                                            4   0.00%
+    │       │   ├── printk                                                                         28   0.02%
+    │       │   ├── snprintk                                                                       28   0.02%
+    │       │   ├── str_out                                                                        48   0.04%
+    │       │   ├── vprintk                                                                         8   0.01%
+    │       │   └── vsnprintk                                                                      48   0.04%
+    │       └── thread_entry.c                                                                     20   0.02%
+    │           └── z_thread_entry                                                                 20   0.02%
+    ├── modules                                                                                    12   0.01%
+    │   └── mbedtls                                                                                12   0.01%
+    │       └── zephyr_init.c                                                                      12   0.01%
+    │           ├── __init__mbedtls_init                                                            8   0.01%
+    │           └── _mbedtls_init                                                                   4   0.00%
+    ├── soc                                                                                       424   0.32%
+    │   └── arm                                                                                   424   0.32%
+    │       └── st_stm32                                                                          424   0.32%
+    │           ├── common                                                                         84   0.06%
+    │           │   ├── soc_config.c                                                               12   0.01%
+    │           │   │   ├── __init_st_stm32_common_config                                           8   0.01%
+    │           │   │   └── st_stm32_common_config                                                  4   0.00%
+    │           │   └── stm32cube_hal.c                                                            72   0.05%
+    │           │       └── HAL_GetTick                                                            72   0.05%
+    │           └── stm32h7                                                                       340   0.26%
+    │               ├── mpu_regions.c                                                              48   0.04%
+    │               │   └── mpu_regions                                                            48   0.04%
+    │               └── soc_m7.c                                                                  292   0.22%
+    │                   ├── __init_stm32h7_init                                                     8   0.01%
+    │                   └── stm32h7_init                                                          284   0.21%
+    └── subsys                                                                                  71759  53.92%
+        ├── debug                                                                                  61   0.05%
+        │   └── thread_info.c                                                                      61   0.05%
+        │       ├── _kernel_thread_info_num_offsets                                                 4   0.00%
+        │       ├── _kernel_thread_info_offsets                                                    56   0.04%
+        │       └── _kernel_thread_info_size_t_size                                                 1   0.00%
+        ├── logging                                                                              2522   1.90%
+        │   ├── backends                                                                          174   0.13%
+        │   │   └── log_backend_uart.c                                                            174   0.13%
+        │   │       ├── char_out                                                                   36   0.03%
+        │   │       ├── format_set                                                                 12   0.01%
+        │   │       ├── log_backend_uart                                                           16   0.01%
+        │   │       ├── log_backend_uart_api                                                       28   0.02%
+        │   │       ├── log_backend_uart_init                                                       2   0.00%
+        │   │       ├── log_const_log_uart                                                          8   0.01%
+        │   │       ├── log_output_uart                                                            16   0.01%
+        │   │       ├── panic                                                                      24   0.02%
+        │   │       └── process                                                                    32   0.02%
+        │   ├── log_core.c                                                                        822   0.62%
+        │   │   ├── __init_enable_logger                                                            8   0.01%
+        │   │   ├── activate_foreach_backend                                                      100   0.08%
+        │   │   ├── default_lf_get_timestamp                                                       72   0.05%
+        │   │   ├── dummy_timestamp                                                                 4   0.00%
+        │   │   ├── enable_logger                                                                  14   0.01%
+        │   │   ├── format_table                                                                   16   0.01%
+        │   │   ├── log_buffer                                                                     64   0.05%
+        │   │   ├── log_const_log                                                                   8   0.01%
+        │   │   ├── log_core_init                                                                  44   0.03%
+        │   │   ├── log_format_func_t_get                                                          12   0.01%
+        │   │   ├── log_msg_ptr                                                                     4   0.00%
+        │   │   ├── log_set_timestamp_func                                                         36   0.03%
+        │   │   ├── msg_commit                                                                     10   0.01%
+        │   │   ├── msg_filter_check                                                                4   0.00%
+        │   │   ├── msg_process                                                                    60   0.05%
+        │   │   ├── timestamp_func                                                                  4   0.00%
+        │   │   ├── z_impl_log_panic                                                               68   0.05%
+        │   │   ├── z_log_dropped                                                                  64   0.05%
+        │   │   ├── z_log_get_tag                                                                   4   0.00%
+        │   │   ├── z_log_init                                                                    152   0.11%
+        │   │   ├── z_log_msg_commit                                                               32   0.02%
+        │   │   ├── z_log_notify_backend_enabled                                                   12   0.01%
+        │   │   └── z_log_vprintk                                                                  30   0.02%
+        │   ├── log_mgmt.c                                                                        100   0.08%
+        │   │   ├── log_backend_enable                                                             44   0.03%
+        │   │   ├── log_const_log_mgmt                                                              8   0.01%
+        │   │   ├── log_source_name_get                                                            28   0.02%
+        │   │   └── log_src_cnt_get                                                                20   0.02%
+        │   ├── log_msg.c                                                                         208   0.16%
+        │   │   ├── z_impl_z_log_msg_runtime_vcreate                                              162   0.12%
+        │   │   └── z_log_msg_finalize                                                             46   0.03%
+        │   └── log_output.c                                                                     1218   0.92%
+        │       ├── buffer_write                                                                   26   0.02%
+        │       ├── color_postfix                                                                  12   0.01%
+        │       ├── color_prefix                                                                   12   0.01%
+        │       ├── color_print                                                                    44   0.03%
+        │       ├── colors                                                                         20   0.02%
+        │       ├── cr_out_func                                                                    30   0.02%
+        │       ├── hexdump_line_print                                                            196   0.15%
+        │       ├── ids_print                                                                     108   0.08%
+        │       ├── log_msg_hexdump                                                                54   0.04%
+        │       ├── log_output_flush                                                               26   0.02%
+        │       ├── log_output_msg_process                                                        108   0.08%
+        │       ├── log_output_process                                                            128   0.10%
+        │       ├── log_output_timestamp_freq_set                                                  44   0.03%
+        │       ├── newline_print                                                                  40   0.03%
+        │       ├── out_func                                                                       30   0.02%
+        │       ├── postfix_print                                                                  24   0.02%
+        │       ├── prefix_print                                                                  116   0.09%
+        │       ├── print_formatted                                                                40   0.03%
+        │       ├── severity                                                                       20   0.02%
+        │       └── timestamp_print                                                               140   0.11%
+        ├── net                                                                                 69042  51.88%
+        │   ├── buf.c                                                                             736   0.55%
+        │   │   ├── data_alloc                                                                     40   0.03%
+        │   │   ├── data_unref                                                                     34   0.03%
+        │   │   ├── fixed_data_alloc                                                               44   0.03%
+        │   │   ├── fixed_data_unref                                                                2   0.00%
+        │   │   ├── log_const_net_buf                                                               8   0.01%
+        │   │   ├── net_buf_alloc_fixed                                                            14   0.01%
+        │   │   ├── net_buf_alloc_len                                                             244   0.18%
+        │   │   ├── net_buf_frag_add                                                               30   0.02%
+        │   │   ├── net_buf_frag_insert                                                            22   0.02%
+        │   │   ├── net_buf_frag_last                                                              12   0.01%
+        │   │   ├── net_buf_id                                                                     28   0.02%
+        │   │   ├── net_buf_linearize                                                              94   0.07%
+        │   │   ├── net_buf_pool_get                                                               16   0.01%
+        │   │   ├── net_buf_ref                                                                     8   0.01%
+        │   │   ├── net_buf_reset                                                                  10   0.01%
+        │   │   ├── net_buf_unref                                                                  70   0.05%
+        │   │   ├── pool_get_uninit                                                                36   0.03%
+        │   │   └── pool_id                                                                        24   0.02%
+        │   ├── buf_simple.c                                                                       74   0.06%
+        │   │   ├── log_const_net_buf_simple                                                        8   0.01%
+        │   │   ├── net_buf_simple_add                                                             12   0.01%
+        │   │   ├── net_buf_simple_headroom                                                         8   0.01%
+        │   │   ├── net_buf_simple_max_len                                                         14   0.01%
+        │   │   ├── net_buf_simple_pull                                                            16   0.01%
+        │   │   └── net_buf_simple_pull_mem                                                        16   0.01%
+        │   ├── ip                                                                              55688  41.85%
+        │   │   ├── connection.c                                                                 1866   1.40%
+        │   │   │   ├── conn_addr_cmp                                                             130   0.10%
+        │   │   │   ├── conn_are_endpoints_valid                                                  112   0.08%
+        │   │   │   ├── conn_find_handler                                                         320   0.24%
+        │   │   │   ├── conn_get_unused                                                            72   0.05%
+        │   │   │   ├── conn_lock                                                                  20   0.02%
+        │   │   │   ├── conn_send_icmp_error                                                       34   0.03%
+        │   │   │   ├── conn_set_unused                                                            60   0.05%
+        │   │   │   ├── conn_set_used                                                              64   0.05%
+        │   │   │   ├── log_const_net_conn                                                          8   0.01%
+        │   │   │   ├── net_conn_init                                                              80   0.06%
+        │   │   │   ├── net_conn_input                                                            536   0.40%
+        │   │   │   ├── net_conn_register                                                         330   0.25%
+        │   │   │   └── net_conn_unregister                                                       100   0.08%
+        │   │   ├── dhcpv4.c                                                                     3274   2.46%
+        │   │   │   ├── dhcpv4_add_cookie                                                          24   0.02%
+        │   │   │   ├── dhcpv4_add_end                                                             34   0.03%
+        │   │   │   ├── dhcpv4_add_file                                                            20   0.02%
+        │   │   │   ├── dhcpv4_add_msg_type                                                        26   0.02%
+        │   │   │   ├── dhcpv4_add_option_length_value                                             70   0.05%
+        │   │   │   ├── dhcpv4_add_req_ipaddr                                                      14   0.01%
+        │   │   │   ├── dhcpv4_add_req_options                                                     20   0.02%
+        │   │   │   ├── dhcpv4_add_server_id                                                       14   0.01%
+        │   │   │   ├── dhcpv4_add_sname                                                           20   0.02%
+        │   │   │   ├── dhcpv4_create_message                                                     368   0.28%
+        │   │   │   ├── dhcpv4_enter_bound                                                         84   0.06%
+        │   │   │   ├── dhcpv4_enter_requesting                                                    24   0.02%
+        │   │   │   ├── dhcpv4_enter_selecting                                                     24   0.02%
+        │   │   │   ├── dhcpv4_get_timeleft                                                        62   0.05%
+        │   │   │   ├── dhcpv4_handle_msg_ack                                                      52   0.04%
+        │   │   │   ├── dhcpv4_handle_msg_nak                                                      60   0.05%
+        │   │   │   ├── dhcpv4_handle_reply                                                        44   0.03%
+        │   │   │   ├── dhcpv4_iface_event_handler                                                108   0.08%
+        │   │   │   ├── dhcpv4_immediate_timeout                                                  108   0.08%
+        │   │   │   ├── dhcpv4_manage_timers                                                      212   0.16%
+        │   │   │   ├── dhcpv4_parse_options                                                      604   0.45%
+        │   │   │   ├── dhcpv4_rebinding_timeleft                                                  38   0.03%
+        │   │   │   ├── dhcpv4_renewal_timeleft                                                    38   0.03%
+        │   │   │   ├── dhcpv4_request_timeleft                                                    24   0.02%
+        │   │   │   ├── dhcpv4_send_discover                                                       88   0.07%
+        │   │   │   ├── dhcpv4_send_request                                                       136   0.10%
+        │   │   │   ├── dhcpv4_set_timeout                                                        100   0.08%
+        │   │   │   ├── dhcpv4_start_internal                                                     156   0.12%
+        │   │   │   ├── dhcpv4_timeout                                                            208   0.16%
+        │   │   │   ├── dhcpv4_update_message_timeout                                              72   0.05%
+        │   │   │   ├── lock                                                                       20   0.02%
+        │   │   │   ├── log_const_net_dhcpv4                                                        8   0.01%
+        │   │   │   ├── magic_cookie                                                                4   0.00%
+        │   │   │   ├── net_dhcpv4_init                                                            96   0.07%
+        │   │   │   ├── net_dhcpv4_input                                                          284   0.21%
+        │   │   │   └── net_dhcpv4_start                                                           10   0.01%
+        │   │   ├── icmpv4.c                                                                      854   0.64%
+        │   │   │   ├── echo_request_handler                                                       12   0.01%
+        │   │   │   ├── icmpv4_create                                                              54   0.04%
+        │   │   │   ├── icmpv4_handle_echo_request                                                248   0.19%
+        │   │   │   ├── log_const_net_icmpv4                                                        8   0.01%
+        │   │   │   ├── net_icmpv4_finalize                                                        68   0.05%
+        │   │   │   ├── net_icmpv4_init                                                            16   0.01%
+        │   │   │   ├── net_icmpv4_input                                                          152   0.11%
+        │   │   │   ├── net_icmpv4_register_handler                                                24   0.02%
+        │   │   │   └── net_icmpv4_send_error                                                     272   0.20%
+        │   │   ├── icmpv6.c                                                                      952   0.72%
+        │   │   │   ├── echo_request_handler                                                       12   0.01%
+        │   │   │   ├── icmpv6_handle_echo_request                                                214   0.16%
+        │   │   │   ├── log_const_net_icmpv6                                                        8   0.01%
+        │   │   │   ├── net_icmpv6_create                                                          54   0.04%
+        │   │   │   ├── net_icmpv6_finalize                                                        68   0.05%
+        │   │   │   ├── net_icmpv6_init                                                            16   0.01%
+        │   │   │   ├── net_icmpv6_input                                                          136   0.10%
+        │   │   │   ├── net_icmpv6_register_handler                                                24   0.02%
+        │   │   │   └── net_icmpv6_send_error                                                     420   0.32%
+        │   │   ├── ipv4.c                                                                        806   0.61%
+        │   │   │   ├── log_const_net_ipv4                                                          8   0.01%
+        │   │   │   ├── net_ipv4_create                                                            40   0.03%
+        │   │   │   ├── net_ipv4_create_full                                                      148   0.11%
+        │   │   │   ├── net_ipv4_finalize                                                         164   0.12%
+        │   │   │   ├── net_ipv4_init                                                               2   0.00%
+        │   │   │   └── net_ipv4_input                                                            444   0.33%
+        │   │   ├── ipv6.c                                                                       1528   1.15%
+        │   │   │   ├── extension_to_bitmap                                                        50   0.04%
+        │   │   │   ├── ipv6_drop_on_unknown_option                                                46   0.03%
+        │   │   │   ├── ipv6_handle_ext_hdr_options                                               230   0.17%
+        │   │   │   ├── ipv6_route_packet                                                         106   0.08%
+        │   │   │   ├── log_const_net_ipv6                                                          8   0.01%
+        │   │   │   ├── net_ipv6_create                                                           132   0.10%
+        │   │   │   ├── net_ipv6_finalize                                                         192   0.14%
+        │   │   │   ├── net_ipv6_init                                                              12   0.01%
+        │   │   │   └── net_ipv6_input                                                            752   0.57%
+        │   │   ├── ipv6_mld.c                                                                   1010   0.76%
+        │   │   │   ├── handle_mld_query                                                          176   0.13%
+        │   │   │   ├── mld_create                                                                102   0.08%
+        │   │   │   ├── mld_create_packet                                                         262   0.20%
+        │   │   │   ├── mld_query_input_handler                                                    12   0.01%
+        │   │   │   ├── mld_send                                                                   42   0.03%
+        │   │   │   ├── mld_send_generic                                                           92   0.07%
+        │   │   │   ├── net_ipv6_mld_init                                                          16   0.01%
+        │   │   │   ├── net_ipv6_mld_join                                                         120   0.09%
+        │   │   │   └── send_mld_report                                                           188   0.14%
+        │   │   ├── ipv6_nbr.c                                                                   7050   5.30%
+        │   │   │   ├── add_nbr                                                                    64   0.05%
+        │   │   │   ├── check_route                                                                60   0.05%
+        │   │   │   ├── dbg_update_neighbor_lladdr                                                 44   0.03%
+        │   │   │   ├── dbg_update_neighbor_lladdr_raw                                             30   0.02%
+        │   │   │   ├── handle_na_input                                                           284   0.21%
+        │   │   │   ├── handle_na_neighbor                                                        532   0.40%
+        │   │   │   ├── handle_ns_input                                                           486   0.37%
+        │   │   │   ├── handle_prefix_autonomous                                                  174   0.13%
+        │   │   │   ├── handle_prefix_onlink                                                      114   0.09%
+        │   │   │   ├── handle_ra_input                                                           692   0.52%
+        │   │   │   ├── handle_ra_neighbor                                                         56   0.04%
+        │   │   │   ├── handle_ra_prefix                                                          172   0.13%
+        │   │   │   ├── handle_ra_rdnss                                                           140   0.11%
+        │   │   │   ├── handle_ra_route_info                                                      170   0.13%
+        │   │   │   ├── ipv6_nbr_set_state                                                        144   0.11%
+        │   │   │   ├── ipv6_nd_reachable_timeout                                                 348   0.26%
+        │   │   │   ├── ipv6_nd_remove_old_stale_nbr                                              140   0.11%
+        │   │   │   ├── ipv6_nd_restart_reachable_timer                                           256   0.19%
+        │   │   │   ├── ipv6_ns_reply_timeout                                                     256   0.19%
+        │   │   │   ├── na_input_handler                                                           12   0.01%
+        │   │   │   ├── nbr_clear_ns_pending                                                       26   0.02%
+        │   │   │   ├── nbr_free                                                                   42   0.03%
+        │   │   │   ├── nbr_init                                                                   94   0.07%
+        │   │   │   ├── nbr_lookup                                                                 76   0.06%
+        │   │   │   ├── nbr_new                                                                    48   0.04%
+        │   │   │   ├── net_ipv6_nbr_add                                                          172   0.13%
+        │   │   │   ├── net_ipv6_nbr_init                                                          84   0.06%
+        │   │   │   ├── net_ipv6_nbr_lookup                                                        20   0.02%
+        │   │   │   ├── net_ipv6_nbr_rm                                                            64   0.05%
+        │   │   │   ├── net_ipv6_nbr_set_reachable_timer                                           24   0.02%
+        │   │   │   ├── net_ipv6_prepare_for_send                                                 320   0.24%
+        │   │   │   ├── net_ipv6_send_na                                                          226   0.17%
+        │   │   │   ├── net_ipv6_send_ns                                                          508   0.38%
+        │   │   │   ├── net_ipv6_send_rs                                                          192   0.14%
+        │   │   │   ├── net_ipv6_start_dad                                                         28   0.02%
+        │   │   │   ├── net_ipv6_start_rs                                                           8   0.01%
+        │   │   │   ├── net_neighbor                                                               12   0.01%
+        │   │   │   ├── net_neighbor_data_remove                                                    2   0.00%
+        │   │   │   ├── net_neighbor_pool                                                         672   0.50%
+        │   │   │   ├── net_neighbor_table_clear                                                    2   0.00%
+        │   │   │   ├── ns_input_handler                                                           12   0.01%
+        │   │   │   ├── ra_input_handler                                                           12   0.01%
+        │   │   │   ├── read_llao                                                                  76   0.06%
+        │   │   │   ├── remaining_lifetime                                                         84   0.06%
+        │   │   │   └── set_llao                                                                   72   0.05%
+        │   │   ├── nbr.c                                                                         366   0.28%
+        │   │   │   ├── log_const_net_nbr                                                           8   0.01%
+        │   │   │   ├── net_nbr_get                                                                58   0.04%
+        │   │   │   ├── net_nbr_get_lladdr                                                         16   0.01%
+        │   │   │   ├── net_nbr_link                                                              188   0.14%
+        │   │   │   ├── net_nbr_ref                                                                 8   0.01%
+        │   │   │   ├── net_nbr_unlink                                                             68   0.05%
+        │   │   │   └── net_nbr_unref                                                              20   0.02%
+        │   │   ├── net_context.c                                                                4702   3.53%
+        │   │   │   ├── bind_default                                                              130   0.10%
+        │   │   │   ├── check_used_port                                                           128   0.10%
+        │   │   │   ├── context_alloc_pkt                                                          50   0.04%
+        │   │   │   ├── context_finalize_packet                                                    54   0.04%
+        │   │   │   ├── context_sendto                                                            538   0.40%
+        │   │   │   ├── context_setup_udp_packet                                                  112   0.08%
+        │   │   │   ├── context_write_data                                                         68   0.05%
+        │   │   │   ├── find_available_port                                                        56   0.04%
+        │   │   │   ├── find_context                                                               56   0.04%
+        │   │   │   ├── get_context_dscp_ecn                                                       18   0.01%
+        │   │   │   ├── get_context_priority                                                        6   0.00%
+        │   │   │   ├── get_context_proxy                                                           6   0.00%
+        │   │   │   ├── get_context_rcvbuf                                                          6   0.00%
+        │   │   │   ├── get_context_rcvtimeo                                                       24   0.02%
+        │   │   │   ├── get_context_sndbuf                                                          6   0.00%
+        │   │   │   ├── get_context_sndtimeo                                                       24   0.02%
+        │   │   │   ├── get_context_txtime                                                          6   0.00%
+        │   │   │   ├── log_const_net_ctx                                                           8   0.01%
+        │   │   │   ├── net_context_accept                                                        100   0.08%
+        │   │   │   ├── net_context_bind                                                          486   0.37%
+        │   │   │   ├── net_context_check                                                          92   0.07%
+        │   │   │   ├── net_context_connect                                                       438   0.33%
+        │   │   │   ├── net_context_create_ipv4_new                                               112   0.08%
+        │   │   │   ├── net_context_create_ipv6_new                                               104   0.08%
+        │   │   │   ├── net_context_get                                                           416   0.31%
+        │   │   │   ├── net_context_get_option                                                    216   0.16%
+        │   │   │   ├── net_context_init                                                           20   0.02%
+        │   │   │   ├── net_context_listen                                                         70   0.05%
+        │   │   │   ├── net_context_packet_received                                               106   0.08%
+        │   │   │   ├── net_context_put                                                            92   0.07%
+        │   │   │   ├── net_context_recv                                                          160   0.12%
+        │   │   │   ├── net_context_ref                                                            28   0.02%
+        │   │   │   ├── net_context_send                                                          130   0.10%
+        │   │   │   ├── net_context_sendmsg                                                        74   0.06%
+        │   │   │   ├── net_context_sendto                                                         84   0.06%
+        │   │   │   ├── net_context_set_option                                                    216   0.16%
+        │   │   │   ├── net_context_unref                                                          98   0.07%
+        │   │   │   ├── net_context_update_recv_wnd                                                44   0.03%
+        │   │   │   ├── recv_udp                                                                  216   0.16%
+        │   │   │   ├── set_context_dscp_ecn                                                       30   0.02%
+        │   │   │   ├── set_context_priority                                                        6   0.00%
+        │   │   │   ├── set_context_proxy                                                           6   0.00%
+        │   │   │   ├── set_context_rcvbuf                                                          6   0.00%
+        │   │   │   ├── set_context_rcvtimeo                                                       22   0.02%
+        │   │   │   ├── set_context_sndbuf                                                          6   0.00%
+        │   │   │   ├── set_context_sndtimeo                                                       22   0.02%
+        │   │   │   └── set_context_txtime                                                          6   0.00%
+        │   │   ├── net_core.c                                                                    772   0.58%
+        │   │   │   ├── __init_net_init                                                             8   0.01%
+        │   │   │   ├── check_ip_addr                                                             258   0.19%
+        │   │   │   ├── init_rx_queues                                                             16   0.01%
+        │   │   │   ├── l3_init                                                                    32   0.02%
+        │   │   │   ├── log_const_net_core                                                          8   0.01%
+        │   │   │   ├── net_init                                                                   28   0.02%
+        │   │   │   ├── net_process_rx_packet                                                      12   0.01%
+        │   │   │   ├── net_queue_rx                                                               22   0.02%
+        │   │   │   ├── net_recv_data                                                             118   0.09%
+        │   │   │   ├── net_rx                                                                     22   0.02%
+        │   │   │   ├── net_send_data                                                              88   0.07%
+        │   │   │   ├── process_data                                                              110   0.08%
+        │   │   │   ├── processing_data                                                            30   0.02%
+        │   │   │   └── services_init                                                              20   0.02%
+        │   │   ├── net_if.c                                                                    10658   8.01%
+        │   │   │   ├── address_expired                                                            36   0.03%
+        │   │   │   ├── address_lifetime_timeout                                                  212   0.16%
+        │   │   │   ├── address_start_timer                                                       136   0.10%
+        │   │   │   ├── dad_timeout                                                               280   0.21%
+        │   │   │   ├── get_diff_ipv4                                                              10   0.01%
+        │   │   │   ├── get_diff_ipv6                                                              10   0.01%
+        │   │   │   ├── get_ipaddr_diff                                                            70   0.05%
+        │   │   │   ├── if_ipv4_get_addr                                                          144   0.11%
+        │   │   │   ├── iface_ipv4_init                                                            28   0.02%
+        │   │   │   ├── iface_ipv6_dad_init                                                        32   0.02%
+        │   │   │   ├── iface_ipv6_init                                                            84   0.06%
+        │   │   │   ├── iface_ipv6_nd_init                                                         32   0.02%
+        │   │   │   ├── iface_ipv6_start                                                           36   0.03%
+        │   │   │   ├── iface_router_add                                                          424   0.32%
+        │   │   │   ├── iface_router_expired                                                      212   0.16%
+        │   │   │   ├── iface_router_find_default                                                 124   0.09%
+        │   │   │   ├── iface_router_init                                                          32   0.02%
+        │   │   │   ├── iface_router_lookup                                                       156   0.12%
+        │   │   │   ├── iface_router_notify_deletion                                               56   0.04%
+        │   │   │   ├── iface_router_rm                                                           160   0.12%
+        │   │   │   ├── iface_router_update_timer                                                 160   0.12%
+        │   │   │   ├── init_iface                                                                 52   0.04%
+        │   │   │   ├── ipv4_addr_find                                                             62   0.05%
+        │   │   │   ├── ipv4_is_broadcast_address                                                  36   0.03%
+        │   │   │   ├── ipv4_maddr_find                                                           110   0.08%
+        │   │   │   ├── ipv6_addr_find                                                             70   0.05%
+        │   │   │   ├── ipv6_prefix_find                                                           94   0.07%
+        │   │   │   ├── is_proper_ipv4_address                                                     52   0.04%
+        │   │   │   ├── join_mcast_allnodes                                                        24   0.02%
+        │   │   │   ├── join_mcast_nodes                                                           42   0.03%
+        │   │   │   ├── join_mcast_solicit_node                                                    26   0.02%
+        │   │   │   ├── l2_flags_get                                                               36   0.03%
+        │   │   │   ├── lock                                                                       20   0.02%
+        │   │   │   ├── log_const_net_if                                                            8   0.01%
+        │   │   │   ├── need_calc_checksum                                                         48   0.04%
+        │   │   │   ├── net_context_send_cb                                                        16   0.01%
+        │   │   │   ├── net_if_addr_init                                                          106   0.08%
+        │   │   │   ├── net_if_call_link_cb                                                       100   0.08%
+        │   │   │   ├── net_if_carrier_off                                                         52   0.04%
+        │   │   │   ├── net_if_carrier_on                                                          52   0.04%
+        │   │   │   ├── net_if_config_ipv4_get                                                    116   0.09%
+        │   │   │   ├── net_if_config_ipv6_get                                                    124   0.09%
+        │   │   │   ├── net_if_foreach                                                             36   0.03%
+        │   │   │   ├── net_if_get_by_iface                                                        52   0.04%
+        │   │   │   ├── net_if_get_default                                                         36   0.03%
+        │   │   │   ├── net_if_init                                                                84   0.06%
+        │   │   │   ├── net_if_ipv4_addr_add                                                      216   0.16%
+        │   │   │   ├── net_if_ipv4_addr_lookup                                                   128   0.10%
+        │   │   │   ├── net_if_ipv4_addr_mask_cmp                                                 112   0.08%
+        │   │   │   ├── net_if_ipv4_addr_rm                                                       132   0.10%
+        │   │   │   ├── net_if_ipv4_get_best_match                                                 78   0.06%
+        │   │   │   ├── net_if_ipv4_get_global_addr                                                10   0.01%
+        │   │   │   ├── net_if_ipv4_get_ll                                                         10   0.01%
+        │   │   │   ├── net_if_ipv4_get_ttl                                                        44   0.03%
+        │   │   │   ├── net_if_ipv4_is_addr_bcast                                                  80   0.06%
+        │   │   │   ├── net_if_ipv4_maddr_lookup                                                   92   0.07%
+        │   │   │   ├── net_if_ipv4_select_src_addr                                               184   0.14%
+        │   │   │   ├── net_if_ipv4_select_src_iface                                               72   0.05%
+        │   │   │   ├── net_if_ipv4_set_gw                                                         52   0.04%
+        │   │   │   ├── net_if_ipv4_set_netmask                                                    52   0.04%
+        │   │   │   ├── net_if_ipv6_addr_add                                                      236   0.18%
+        │   │   │   ├── net_if_ipv6_addr_lookup                                                   144   0.11%
+        │   │   │   ├── net_if_ipv6_addr_lookup_by_iface                                          112   0.08%
+        │   │   │   ├── net_if_ipv6_addr_onlink                                                   148   0.11%
+        │   │   │   ├── net_if_ipv6_addr_rm                                                       232   0.17%
+        │   │   │   ├── net_if_ipv6_addr_update_lifetime                                           48   0.04%
+        │   │   │   ├── net_if_ipv6_calc_reachable_time                                            60   0.05%
+        │   │   │   ├── net_if_ipv6_dad_failed                                                     88   0.07%
+        │   │   │   ├── net_if_ipv6_get_best_match                                                160   0.12%
+        │   │   │   ├── net_if_ipv6_get_hop_limit                                                  44   0.03%
+        │   │   │   ├── net_if_ipv6_get_ll                                                        128   0.10%
+        │   │   │   ├── net_if_ipv6_maddr_add                                                     204   0.15%
+        │   │   │   ├── net_if_ipv6_maddr_join                                                     40   0.03%
+        │   │   │   ├── net_if_ipv6_maddr_lookup                                                  160   0.12%
+        │   │   │   ├── net_if_ipv6_maddr_rm                                                      144   0.11%
+        │   │   │   ├── net_if_ipv6_prefix_add                                                    184   0.14%
+        │   │   │   ├── net_if_ipv6_prefix_init                                                   100   0.08%
+        │   │   │   ├── net_if_ipv6_prefix_lookup                                                 104   0.08%
+        │   │   │   ├── net_if_ipv6_prefix_rm                                                     196   0.15%
+        │   │   │   ├── net_if_ipv6_prefix_set_timer                                               16   0.01%
+        │   │   │   ├── net_if_ipv6_prefix_unset_timer                                             20   0.02%
+        │   │   │   ├── net_if_ipv6_router_add                                                     22   0.02%
+        │   │   │   ├── net_if_ipv6_router_find_default                                            12   0.01%
+        │   │   │   ├── net_if_ipv6_router_lookup                                                  12   0.01%
+        │   │   │   ├── net_if_ipv6_router_rm                                                       8   0.01%
+        │   │   │   ├── net_if_ipv6_router_update_lifetime                                         84   0.06%
+        │   │   │   ├── net_if_ipv6_select_src_addr                                               196   0.15%
+        │   │   │   ├── net_if_ipv6_select_src_iface                                               80   0.06%
+        │   │   │   ├── net_if_ipv6_start_dad                                                     172   0.13%
+        │   │   │   ├── net_if_lookup_by_dev                                                       36   0.03%
+        │   │   │   ├── net_if_mcast_monitor                                                      108   0.08%
+        │   │   │   ├── net_if_need_calc_rx_checksum                                               10   0.01%
+        │   │   │   ├── net_if_need_calc_tx_checksum                                               10   0.01%
+        │   │   │   ├── net_if_post_init                                                           52   0.04%
+        │   │   │   ├── net_if_queue_tx                                                            22   0.02%
+        │   │   │   ├── net_if_recv_data                                                           20   0.02%
+        │   │   │   ├── net_if_send_data                                                          180   0.14%
+        │   │   │   ├── net_if_set_link_addr_locked                                                60   0.05%
+        │   │   │   ├── net_if_start_dad                                                          160   0.12%
+        │   │   │   ├── net_if_start_rs                                                           180   0.14%
+        │   │   │   ├── net_if_stop_rs                                                             48   0.04%
+        │   │   │   ├── net_if_tx                                                                 176   0.13%
+        │   │   │   ├── net_if_up                                                                 124   0.09%
+        │   │   │   ├── net_ipv6_set_hop_limit                                                     40   0.03%
+        │   │   │   ├── notify_iface_down                                                          40   0.03%
+        │   │   │   ├── notify_iface_up                                                            52   0.04%
+        │   │   │   ├── prefix_lifetime_expired                                                    68   0.05%
+        │   │   │   ├── prefix_lifetime_timeout                                                   212   0.16%
+        │   │   │   ├── prefix_start_timer                                                        160   0.12%
+        │   │   │   ├── prefix_timer_remove                                                        56   0.04%
+        │   │   │   ├── remove_prefix_addresses                                                    98   0.07%
+        │   │   │   ├── rs_timeout                                                                316   0.24%
+        │   │   │   ├── update_operational_state                                                   86   0.06%
+        │   │   │   └── z_impl_net_if_get_by_index                                                 40   0.03%
+        │   │   ├── net_mgmt.c                                                                    756   0.57%
+        │   │   │   ├── event_msgq                                                                 48   0.04%
+        │   │   │   ├── log_const_net_mgmt                                                          8   0.01%
+        │   │   │   ├── mgmt_is_event_handled                                                      60   0.05%
+        │   │   │   ├── mgmt_pop_event                                                             32   0.02%
+        │   │   │   ├── mgmt_push_event                                                            64   0.05%
+        │   │   │   ├── mgmt_rebuild_global_event_mask                                             72   0.05%
+        │   │   │   ├── mgmt_run_callbacks                                                        164   0.12%
+        │   │   │   ├── mgmt_thread                                                                48   0.04%
+        │   │   │   ├── net_mgmt_add_event_callback                                                68   0.05%
+        │   │   │   ├── net_mgmt_callback_lock                                                     20   0.02%
+        │   │   │   ├── net_mgmt_del_event_callback                                                48   0.04%
+        │   │   │   ├── net_mgmt_event_init                                                        72   0.05%
+        │   │   │   ├── net_mgmt_event_lock                                                        20   0.02%
+        │   │   │   └── net_mgmt_event_notify_with_info                                            32   0.02%
+        │   │   ├── net_pkt.c                                                                    3456   2.60%
+        │   │   │   ├── clone_pkt_attributes                                                      244   0.18%
+        │   │   │   ├── clone_pkt_lladdr                                                           40   0.03%
+        │   │   │   ├── log_const_net_pkt                                                           8   0.01%
+        │   │   │   ├── net_buf_fixed_alloc_rx_bufs                                                 8   0.01%
+        │   │   │   ├── net_buf_fixed_alloc_tx_bufs                                                 8   0.01%
+        │   │   │   ├── net_buf_fixed_rx_bufs                                                       8   0.01%
+        │   │   │   ├── net_buf_fixed_tx_bufs                                                       8   0.01%
+        │   │   │   ├── net_pkt_alloc                                                              20   0.02%
+        │   │   │   ├── net_pkt_alloc_buffer                                                      212   0.16%
+        │   │   │   ├── net_pkt_alloc_with_buffer                                                  40   0.03%
+        │   │   │   ├── net_pkt_append_buffer                                                      32   0.02%
+        │   │   │   ├── net_pkt_available_buffer                                                   34   0.03%
+        │   │   │   ├── net_pkt_available_payload_buffer                                           58   0.04%
+        │   │   │   ├── net_pkt_clone                                                              10   0.01%
+        │   │   │   ├── net_pkt_clone_internal                                                    242   0.18%
+        │   │   │   ├── net_pkt_copy                                                              162   0.12%
+        │   │   │   ├── net_pkt_cursor_init                                                        18   0.01%
+        │   │   │   ├── net_pkt_cursor_operate                                                    220   0.17%
+        │   │   │   ├── net_pkt_find_offset                                                        70   0.05%
+        │   │   │   ├── net_pkt_frag_insert                                                        20   0.02%
+        │   │   │   ├── net_pkt_frag_unref                                                         12   0.01%
+        │   │   │   ├── net_pkt_get_contiguous_len                                                 60   0.05%
+        │   │   │   ├── net_pkt_get_current_offset                                                 48   0.04%
+        │   │   │   ├── net_pkt_get_data                                                           72   0.05%
+        │   │   │   ├── net_pkt_get_frag                                                           32   0.02%
+        │   │   │   ├── net_pkt_get_reserve_data                                                   40   0.03%
+        │   │   │   ├── net_pkt_get_reserve_rx_data                                                16   0.01%
+        │   │   │   ├── net_pkt_get_reserve_tx_data                                                16   0.01%
+        │   │   │   ├── net_pkt_init                                                                2   0.00%
+        │   │   │   ├── net_pkt_is_contiguous                                                      18   0.01%
+        │   │   │   ├── net_pkt_memset                                                             24   0.02%
+        │   │   │   ├── net_pkt_pull                                                              104   0.08%
+        │   │   │   ├── net_pkt_read                                                               20   0.02%
+        │   │   │   ├── net_pkt_read_be32                                                          50   0.04%
+        │   │   │   ├── net_pkt_ref                                                                66   0.05%
+        │   │   │   ├── net_pkt_remaining_data                                                     46   0.03%
+        │   │   │   ├── net_pkt_remove_tail                                                        70   0.05%
+        │   │   │   ├── net_pkt_rx_alloc                                                           20   0.02%
+        │   │   │   ├── net_pkt_rx_alloc_with_buffer                                               40   0.03%
+        │   │   │   ├── net_pkt_set_data                                                           12   0.01%
+        │   │   │   ├── net_pkt_skip                                                               24   0.02%
+        │   │   │   ├── net_pkt_trim_buffer                                                        56   0.04%
+        │   │   │   ├── net_pkt_unref                                                              86   0.06%
+        │   │   │   ├── net_pkt_update_length                                                      34   0.03%
+        │   │   │   ├── net_pkt_write                                                              54   0.04%
+        │   │   │   ├── pkt_alloc                                                                 112   0.08%
+        │   │   │   ├── pkt_alloc_buffer                                                          150   0.11%
+        │   │   │   ├── pkt_alloc_on_iface                                                         36   0.03%
+        │   │   │   ├── pkt_alloc_with_buffer                                                     142   0.11%
+        │   │   │   ├── pkt_buffer_length                                                         116   0.09%
+        │   │   │   ├── pkt_cursor_advance                                                         46   0.03%
+        │   │   │   ├── pkt_cursor_jump                                                            56   0.04%
+        │   │   │   ├── pkt_cursor_update                                                          90   0.07%
+        │   │   │   ├── pkt_estimate_headers_length                                                52   0.04%
+        │   │   │   ├── pkt_get_max_len                                                            28   0.02%
+        │   │   │   ├── rx_bufs                                                                    44   0.03%
+        │   │   │   ├── rx_pkts                                                                    28   0.02%
+        │   │   │   ├── tx_bufs                                                                    44   0.03%
+        │   │   │   └── tx_pkts                                                                    28   0.02%
+        │   │   ├── net_tc.c                                                                      240   0.18%
+        │   │   │   ├── log_const_net_tc                                                            8   0.01%
+        │   │   │   ├── net_rx_priority2tc                                                         16   0.01%
+        │   │   │   ├── net_tc_rx_init                                                            148   0.11%
+        │   │   │   ├── net_tc_submit_to_rx_queue                                                  20   0.02%
+        │   │   │   ├── net_tc_tx_init                                                              2   0.00%
+        │   │   │   ├── net_tx_priority2tc                                                          4   0.00%
+        │   │   │   ├── rx_tc2thread                                                                4   0.00%
+        │   │   │   ├── submit_to_queue                                                             8   0.01%
+        │   │   │   └── tc_rx_handler                                                              30   0.02%
+        │   │   ├── net_tc_mapping.h                                                                8   0.01%
+        │   │   │   └── priority2tc_strict_1                                                        8   0.01%
+        │   │   ├── net_timeout.c                                                                 242   0.18%
+        │   │   │   ├── net_timeout_evaluate                                                       92   0.07%
+        │   │   │   ├── net_timeout_remaining                                                      62   0.05%
+        │   │   │   └── net_timeout_set                                                            88   0.07%
+        │   │   ├── route.c                                                                      2826   2.12%
+        │   │   │   ├── get_nexthop_route                                                          60   0.05%
+        │   │   │   ├── lock                                                                       20   0.02%
+        │   │   │   ├── log_const_net_route                                                         8   0.01%
+        │   │   │   ├── nbr_new                                                                    68   0.05%
+        │   │   │   ├── nbr_nexthop_get                                                            18   0.01%
+        │   │   │   ├── nbr_nexthop_put                                                            10   0.01%
+        │   │   │   ├── net_nbr_routes                                                             12   0.01%
+        │   │   │   ├── net_route_add                                                             348   0.26%
+        │   │   │   ├── net_route_del                                                             184   0.14%
+        │   │   │   ├── net_route_del_by_nexthop                                                  120   0.09%
+        │   │   │   ├── net_route_entries_pool                                                    576   0.43%
+        │   │   │   ├── net_route_entries_table_clear                                               2   0.00%
+        │   │   │   ├── net_route_entry_remove                                                      2   0.00%
+        │   │   │   ├── net_route_get_info                                                        108   0.08%
+        │   │   │   ├── net_route_get_nbr                                                          80   0.06%
+        │   │   │   ├── net_route_get_nexthop                                                      68   0.05%
+        │   │   │   ├── net_route_init                                                             20   0.02%
+        │   │   │   ├── net_route_lookup                                                          152   0.11%
+        │   │   │   ├── net_route_nexthop_pool                                                    224   0.17%
+        │   │   │   ├── net_route_nexthop_remove                                                    2   0.00%
+        │   │   │   ├── net_route_packet                                                          192   0.14%
+        │   │   │   ├── net_route_packet_if                                                        62   0.05%
+        │   │   │   ├── net_route_update_lifetime                                                 208   0.16%
+        │   │   │   ├── release_nexthop_route                                                      10   0.01%
+        │   │   │   ├── route_expired                                                              28   0.02%
+        │   │   │   ├── route_lifetime_timeout                                                    208   0.16%
+        │   │   │   └── update_route_access                                                        36   0.03%
+        │   │   ├── tcp.c                                                                       11476   8.62%
+        │   │   │   ├── check_seq_list                                                             44   0.03%
+        │   │   │   ├── get_tcp_nodelay                                                            22   0.02%
+        │   │   │   ├── ip_header_add                                                              54   0.04%
+        │   │   │   ├── is_destination_local                                                       88   0.07%
+        │   │   │   ├── log_const_net_tcp                                                           8   0.01%
+        │   │   │   ├── net_tcp_accept                                                            232   0.17%
+        │   │   │   ├── net_tcp_conn_sem_get                                                        6   0.00%
+        │   │   │   ├── net_tcp_connect                                                           496   0.37%
+        │   │   │   ├── net_tcp_finalize                                                           68   0.05%
+        │   │   │   ├── net_tcp_get                                                                52   0.04%
+        │   │   │   ├── net_tcp_get_option                                                         64   0.05%
+        │   │   │   ├── net_tcp_get_supported_mss                                                 108   0.08%
+        │   │   │   ├── net_tcp_init                                                               96   0.07%
+        │   │   │   ├── net_tcp_input                                                              58   0.04%
+        │   │   │   ├── net_tcp_listen                                                             26   0.02%
+        │   │   │   ├── net_tcp_put                                                               212   0.16%
+        │   │   │   ├── net_tcp_queue_data                                                        304   0.23%
+        │   │   │   ├── net_tcp_recv                                                               12   0.01%
+        │   │   │   ├── net_tcp_send_data                                                          18   0.01%
+        │   │   │   ├── net_tcp_set_mss_opt                                                        82   0.06%
+        │   │   │   ├── net_tcp_set_option                                                         64   0.05%
+        │   │   │   ├── net_tcp_tx_sem_get                                                          6   0.00%
+        │   │   │   ├── net_tcp_update_recv_wnd                                                    52   0.04%
+        │   │   │   ├── seq_scale                                                                  24   0.02%
+        │   │   │   ├── set_tcp_nodelay                                                            44   0.03%
+        │   │   │   ├── tcp_check_pending_data                                                    200   0.15%
+        │   │   │   ├── tcp_cleanup_recv_queue                                                     48   0.04%
+        │   │   │   ├── tcp_conn_alloc                                                            356   0.27%
+        │   │   │   ├── tcp_conn_close                                                             62   0.05%
+        │   │   │   ├── tcp_conn_cmp                                                               44   0.03%
+        │   │   │   ├── tcp_conn_new                                                              364   0.27%
+        │   │   │   ├── tcp_conn_ref                                                               28   0.02%
+        │   │   │   ├── tcp_conn_search                                                            80   0.06%
+        │   │   │   ├── tcp_conn_unref                                                            324   0.24%
+        │   │   │   ├── tcp_conns_slab                                                             28   0.02%
+        │   │   │   ├── tcp_data_get                                                              120   0.09%
+        │   │   │   ├── tcp_data_len                                                               62   0.05%
+        │   │   │   ├── tcp_data_received                                                          84   0.06%
+        │   │   │   ├── tcp_derive_rto                                                             40   0.03%
+        │   │   │   ├── tcp_endpoint_cmp                                                           46   0.03%
+        │   │   │   ├── tcp_endpoint_len                                                           12   0.01%
+        │   │   │   ├── tcp_endpoint_set                                                          162   0.12%
+        │   │   │   ├── tcp_establish_timeout                                                      12   0.01%
+        │   │   │   ├── tcp_fin_timeout                                                            34   0.03%
+        │   │   │   ├── tcp_finalize_pkt                                                           48   0.04%
+        │   │   │   ├── tcp_get_seq                                                                 4   0.00%
+        │   │   │   ├── tcp_header_add                                                            190   0.14%
+        │   │   │   ├── tcp_in                                                                   3040   2.28%
+        │   │   │   ├── tcp_init_isn                                                               46   0.03%
+        │   │   │   ├── tcp_lock                                                                   20   0.02%
+        │   │   │   ├── tcp_options_check                                                         172   0.13%
+        │   │   │   ├── tcp_options_get                                                            90   0.07%
+        │   │   │   ├── tcp_out                                                                    14   0.01%
+        │   │   │   ├── tcp_out_ext                                                               272   0.20%
+        │   │   │   ├── tcp_out_of_order_data                                                      58   0.04%
+        │   │   │   ├── tcp_pkt_linearize                                                         178   0.13%
+        │   │   │   ├── tcp_pkt_peek                                                               56   0.04%
+        │   │   │   ├── tcp_pkt_pull                                                               70   0.05%
+        │   │   │   ├── tcp_queue_recv_data                                                       304   0.23%
+        │   │   │   ├── tcp_recv                                                                  138   0.10%
+        │   │   │   ├── tcp_resend_data                                                           272   0.20%
+        │   │   │   ├── tcp_send                                                                   60   0.05%
+        │   │   │   ├── tcp_send_ack                                                               40   0.03%
+        │   │   │   ├── tcp_send_data                                                             468   0.35%
+        │   │   │   ├── tcp_send_process                                                           54   0.04%
+        │   │   │   ├── tcp_send_process_no_lock                                                  332   0.25%
+        │   │   │   ├── tcp_send_queue_flush                                                       68   0.05%
+        │   │   │   ├── tcp_send_queued_data                                                      192   0.14%
+        │   │   │   ├── tcp_send_timer_cancel                                                     136   0.10%
+        │   │   │   ├── tcp_send_zwp                                                              152   0.11%
+        │   │   │   ├── tcp_set_seq                                                                 4   0.00%
+        │   │   │   ├── tcp_short_window                                                          150   0.11%
+        │   │   │   ├── tcp_timewait_timeout                                                       16   0.01%
+        │   │   │   ├── tcp_unsent_len                                                             42   0.03%
+        │   │   │   ├── tcp_update_recv_wnd                                                        84   0.06%
+        │   │   │   ├── tcp_validate_seq                                                           58   0.04%
+        │   │   │   ├── tcp_window_full                                                            18   0.01%
+        │   │   │   ├── tcpv4_init_isn                                                             96   0.07%
+        │   │   │   ├── tcpv6_init_isn                                                            112   0.08%
+        │   │   │   └── th_get                                                                     76   0.06%
+        │   │   ├── udp.c                                                                         326   0.24%
+        │   │   │   ├── log_const_net_udp                                                           8   0.01%
+        │   │   │   ├── net_udp_create                                                             58   0.04%
+        │   │   │   ├── net_udp_finalize                                                          112   0.08%
+        │   │   │   ├── net_udp_input                                                             104   0.08%
+        │   │   │   └── net_udp_register                                                           44   0.03%
+        │   │   └── utils.c                                                                      2520   1.89%
+        │   │       ├── calc_chksum                                                               276   0.21%
+        │   │       ├── convert_port                                                               66   0.05%
+        │   │       ├── log_const_net_utils                                                         8   0.01%
+        │   │       ├── net_byte_to_hex                                                            80   0.06%
+        │   │       ├── net_calc_chksum                                                           236   0.18%
+        │   │       ├── net_calc_chksum_ipv4                                                       48   0.04%
+        │   │       ├── net_ipaddr_parse                                                          114   0.09%
+        │   │       ├── net_ipv4_broadcast_address                                                  8   0.01%
+        │   │       ├── net_ipv4_unspecified_address                                                8   0.01%
+        │   │       ├── net_ipv6_unspecified_address                                                8   0.01%
+        │   │       ├── net_sprint_ll_addr_buf                                                    100   0.08%
+        │   │       ├── net_value_to_udec                                                          88   0.07%
+        │   │       ├── offset_based_swap8                                                         14   0.01%
+        │   │       ├── parse_ipv4                                                                212   0.16%
+        │   │       ├── parse_ipv6                                                                262   0.20%
+        │   │       ├── pkt_calc_chksum                                                            86   0.06%
+        │   │       ├── z_impl_net_addr_ntop                                                      446   0.34%
+        │   │       └── z_impl_net_addr_pton                                                      460   0.35%
+        │   ├── l2                                                                               3844   2.89%
+        │   │   └── ethernet                                                                     3844   2.89%
+        │   │       ├── arp.c                                                                    2590   1.95%
+        │   │       │   ├── arp_entry_cleanup                                                      46   0.03%
+        │   │       │   ├── arp_entry_find                                                         54   0.04%
+        │   │       │   ├── arp_entry_find_move_first                                              68   0.05%
+        │   │       │   ├── arp_entry_get_free                                                     32   0.02%
+        │   │       │   ├── arp_entry_get_last_from_table                                          24   0.02%
+        │   │       │   ├── arp_entry_get_pending                                                  64   0.05%
+        │   │       │   ├── arp_entry_register_pending                                            140   0.11%
+        │   │       │   ├── arp_gratuitous                                                         40   0.03%
+        │   │       │   ├── arp_hdr_check                                                          72   0.05%
+        │   │       │   ├── arp_prepare                                                           232   0.17%
+        │   │       │   ├── arp_prepare_reply                                                     140   0.11%
+        │   │       │   ├── arp_request_timeout                                                   268   0.20%
+        │   │       │   ├── arp_update                                                            320   0.24%
+        │   │       │   ├── if_get_addr                                                            98   0.07%
+        │   │       │   ├── log_const_net_arp                                                       8   0.01%
+        │   │       │   ├── net_arp_clear_cache                                                   252   0.19%
+        │   │       │   ├── net_arp_clear_pending                                                  36   0.03%
+        │   │       │   ├── net_arp_init                                                          140   0.11%
+        │   │       │   ├── net_arp_input                                                         340   0.26%
+        │   │       │   └── net_arp_prepare                                                       216   0.16%
+        │   │       └── ethernet.c                                                               1254   0.94%
+        │   │           ├── broadcast_eth_addr                                                      6   0.00%
+        │   │           ├── carrier_on_off                                                         54   0.04%
+        │   │           ├── ethernet_check_ipv4_bcast_addr                                         52   0.04%
+        │   │           ├── ethernet_enable                                                        54   0.04%
+        │   │           ├── ethernet_fill_header                                                  104   0.08%
+        │   │           ├── ethernet_fill_in_dst_on_ipv4_mcast                                     48   0.04%
+        │   │           ├── ethernet_fill_in_dst_on_ipv6_mcast                                     52   0.04%
+        │   │           ├── ethernet_flags                                                          8   0.01%
+        │   │           ├── ethernet_init                                                          60   0.05%
+        │   │           ├── ethernet_ipv4_dst_is_broadcast_or_mcast                                40   0.03%
+        │   │           ├── ethernet_ll_prepare_on_ipv4                                            52   0.04%
+        │   │           ├── ethernet_recv                                                         268   0.20%
+        │   │           ├── ethernet_remove_l2_header                                              20   0.02%
+        │   │           ├── ethernet_send                                                         252   0.19%
+        │   │           ├── ethernet_update_length                                                 78   0.06%
+        │   │           ├── log_const_net_ethernet                                                  8   0.01%
+        │   │           ├── multicast_eth_addr                                                      6   0.00%
+        │   │           ├── net_eth_broadcast_addr                                                  8   0.01%
+        │   │           ├── net_eth_carrier_off                                                    26   0.02%
+        │   │           ├── net_eth_carrier_on                                                     26   0.02%
+        │   │           └── net_eth_ipv4_mcast_to_mac_addr                                         32   0.02%
+        │   └── lib                                                                              8700   6.54%
+        │       ├── config                                                                        700   0.53%
+        │       │   └── init.c                                                                    700   0.53%
+        │       │       ├── __init_init_app                                                         8   0.01%
+        │       │       ├── check_interface                                                        64   0.05%
+        │       │       ├── counter                                                                24   0.02%
+        │       │       ├── iface_find_cb                                                          32   0.02%
+        │       │       ├── iface_up_handler                                                       36   0.03%
+        │       │       ├── init_app                                                               20   0.02%
+        │       │       ├── ipv4_addr_add_handler                                                  64   0.05%
+        │       │       ├── log_const_net_config                                                    8   0.01%
+        │       │       ├── net_config_init_app                                                    56   0.04%
+        │       │       ├── net_config_init_by_iface                                              280   0.21%
+        │       │       ├── services_notify_ready                                                  44   0.03%
+        │       │       ├── setup_dhcpv4                                                           40   0.03%
+        │       │       └── waiter                                                                 24   0.02%
+        │       ├── dns                                                                          1360   1.02%
+        │       │   └── resolve.c                                                                1360   1.02%
+        │       │       ├── dns_init_resolver                                                      16   0.01%
+        │       │       ├── dns_msg_pool                                                           44   0.03%
+        │       │       ├── dns_postprocess_server                                                120   0.09%
+        │       │       ├── dns_qname_pool                                                         44   0.03%
+        │       │       ├── dns_resolve_cancel_all                                                 46   0.03%
+        │       │       ├── dns_resolve_cancel_slot                                                32   0.02%
+        │       │       ├── dns_resolve_close_locked                                              112   0.08%
+        │       │       ├── dns_resolve_get_default                                                 8   0.01%
+        │       │       ├── dns_resolve_init                                                       50   0.04%
+        │       │       ├── dns_resolve_init_locked                                               388   0.29%
+        │       │       ├── dns_resolve_reconfigure                                               108   0.08%
+        │       │       ├── dns_server_exists                                                      84   0.06%
+        │       │       ├── dns_servers_exists                                                    104   0.08%
+        │       │       ├── invoke_query_callback                                                  18   0.01%
+        │       │       ├── log_const_net_dns_resolve                                               8   0.01%
+        │       │       ├── net_buf_fixed_alloc_dns_msg_pool                                        8   0.01%
+        │       │       ├── net_buf_fixed_alloc_dns_qname_pool                                      8   0.01%
+        │       │       ├── net_buf_fixed_dns_msg_pool                                              8   0.01%
+        │       │       ├── net_buf_fixed_dns_qname_pool                                            8   0.01%
+        │       │       ├── release_query                                                          22   0.02%
+        │       │       ├── server_is_llmnr                                                        62   0.05%
+        │       │       └── server_is_mdns                                                         62   0.05%
+        │       └── sockets                                                                      6640   4.99%
+        │           ├── getaddrinfo.c                                                               8   0.01%
+        │           │   └── log_const_net_sock_addr                                                 8   0.01%
+        │           └── sockets.c                                                                6632   4.98%
+        │               ├── __net_socket_register_50_af_inet46                                     16   0.01%
+        │               ├── fifo_wait_non_empty                                                    50   0.04%
+        │               ├── inet_is_supported                                                      14   0.01%
+        │               ├── log_const_net_sock                                                      8   0.01%
+        │               ├── send_check_and_wait                                                   316   0.24%
+        │               ├── sock_accept_vmeth                                                       8   0.01%
+        │               ├── sock_bind_vmeth                                                         8   0.01%
+        │               ├── sock_close_vmeth                                                        8   0.01%
+        │               ├── sock_connect_vmeth                                                      8   0.01%
+        │               ├── sock_fd_op_vtable                                                      64   0.05%
+        │               ├── sock_get_pkt_src_addr                                                 294   0.22%
+        │               ├── sock_getpeername_vmeth                                                  8   0.01%
+        │               ├── sock_getsockname_vmeth                                                  8   0.01%
+        │               ├── sock_getsockopt_vmeth                                                  22   0.02%
+        │               ├── sock_ioctl_vmeth                                                      190   0.14%
+        │               ├── sock_listen_vmeth                                                       8   0.01%
+        │               ├── sock_read_vmeth                                                        20   0.02%
+        │               ├── sock_recvfrom_vmeth                                                    30   0.02%
+        │               ├── sock_sendmsg_vmeth                                                      8   0.01%
+        │               ├── sock_sendto_vmeth                                                      30   0.02%
+        │               ├── sock_setsockopt_vmeth                                                  22   0.02%
+        │               ├── sock_shutdown_vmeth                                                     8   0.01%
+        │               ├── sock_write_vmeth                                                       20   0.02%
+        │               ├── timeout_recalc                                                         66   0.05%
+        │               ├── z_impl_zsock_accept                                                    94   0.07%
+        │               ├── z_impl_zsock_bind                                                      94   0.07%
+        │               ├── z_impl_zsock_close                                                     74   0.06%
+        │               ├── z_impl_zsock_connect                                                   94   0.07%
+        │               ├── z_impl_zsock_inet_pton                                                 16   0.01%
+        │               ├── z_impl_zsock_listen                                                    90   0.07%
+        │               ├── z_impl_zsock_recvfrom                                                 112   0.08%
+        │               ├── z_impl_zsock_sendto                                                   112   0.08%
+        │               ├── z_impl_zsock_setsockopt                                               108   0.08%
+        │               ├── z_impl_zsock_socket                                                    76   0.06%
+        │               ├── zsock_accept_ctx                                                      304   0.23%
+        │               ├── zsock_accepted_cb                                                      64   0.05%
+        │               ├── zsock_bind_ctx                                                         88   0.07%
+        │               ├── zsock_close_ctx                                                        80   0.06%
+        │               ├── zsock_connect_ctx                                                     204   0.15%
+        │               ├── zsock_connected_cb                                                     52   0.04%
+        │               ├── zsock_ctx_set_lock                                                      6   0.00%
+        │               ├── zsock_flush_queue                                                      58   0.04%
+        │               ├── zsock_getpeername_ctx                                                 220   0.17%
+        │               ├── zsock_getsockname_ctx                                                 164   0.12%
+        │               ├── zsock_getsockopt_ctx                                                  196   0.15%
+        │               ├── zsock_listen_ctx                                                       72   0.05%
+        │               ├── zsock_poll_prepare_ctx                                                204   0.15%
+        │               ├── zsock_poll_update_ctx                                                 206   0.15%
+        │               ├── zsock_received_cb                                                     130   0.10%
+        │               ├── zsock_recv_dgram                                                      368   0.28%
+        │               ├── zsock_recv_stream                                                     472   0.35%
+        │               ├── zsock_recvfrom_ctx                                                     62   0.05%
+        │               ├── zsock_sendmsg_ctx                                                     164   0.12%
+        │               ├── zsock_sendto_ctx                                                      260   0.20%
+        │               ├── zsock_setsockopt_ctx                                                  828   0.62%
+        │               ├── zsock_shutdown_ctx                                                    142   0.11%
+        │               ├── zsock_socket_internal                                                 140   0.11%
+        │               └── zsock_wait_data                                                        44   0.03%
+        └── random                                                                                134   0.10%
+            └── rand32_entropy_device.c                                                           134   0.10%
+                ├── rand_get                                                                       80   0.06%
+                ├── z_impl_sys_rand32_get                                                          44   0.03%
+                └── z_impl_sys_rand_get                                                            10   0.01%
+==============================================================================================================
+                                                                                               133076
