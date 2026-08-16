@@ -1,6 +1,6 @@
 # bw-serve-auto-sync
 
-phase:    red
+phase:    verify
 repo:     gophersys/infrastructure
 branch:   feat/bw-serve-auto-sync
 worktree: ~/code/.worktrees/infrastructure-bw-serve-auto-sync
@@ -59,7 +59,31 @@ collapses; dev-verifier still runs adversarially before the PR.
 
 ## Proven
 
-- (nothing yet)
+- RED — `bash scripts/lint-manifests.sh` with a deliberately broken
+  bw-serve-sync.yaml (`schedules:` for `schedule:`): rc=1, output named the
+  file — "CronJob bw-serve-sync is invalid: … missing property 'schedule' …
+  additional properties 'schedules' not allowed". The gate can fail on this
+  file class, for the right reason.
+- GREEN — `bash scripts/lint-manifests.sh` with the real manifest: rc=0,
+  "Summary: 128 resources found in 96 files - Valid: 90, Invalid: 0" (+2
+  resources vs the red baseline's 88 valid: the CronJob and the NetworkPolicy).
+- `bash ctl.sh validate`: rc=0 — "validate: OK" (28 shell scripts linted,
+  6 project.json parsed).
+- `bash ctl.sh verify-registry`: rc=0 — "checked=19 skipped=0 fail=0".
+- `kubectl apply --dry-run=server -f platform/core/secrets-operator/manifests/bw-serve-sync.yaml`:
+  rc=0 — "cronjob.batch/bw-serve-sync created (server dry run)",
+  "networkpolicy.networking.k8s.io/bw-serve-allow-sync created (server dry
+  run)". Live API server accepts both objects.
+- Endpoint contract — one `curl -fsS --max-time 60 -X POST /sync` through
+  `kubectl port-forward svc/bw-serve` (1 request, under the ~10 req/s vault
+  rate limit): rc=0, body
+  `{"success":true,"data":{...,"title":"Syncing complete."}}` — the job's
+  `grep -q '"success":true'` matches the real response.
+- Live prerequisites — `kubectl get app secrets-bridge -n argocd`: path
+  `platform/core/secrets-operator/manifests`, automated selfHeal (a new file
+  in the path deploys on merge). `kubectl get netpol -n external-secrets`:
+  only `bw-serve-default-deny` + `bw-serve-allow-eso` existed, confirming the
+  sync job needs its own allow.
 
 ## Blocked
 
@@ -67,5 +91,4 @@ collapses; dev-verifier still runs adversarially before the PR.
 
 ## Next
 
-Red: break-test the kubeconform gate on a deliberately invalid
-bw-serve-sync.yaml, watch it fail naming the file.
+Adversarial verify (dev-verifier), then PR. DO NOT MERGE — directive.

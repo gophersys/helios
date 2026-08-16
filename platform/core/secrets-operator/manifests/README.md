@@ -58,9 +58,13 @@ kubectl -n external-secrets create secret generic bw-cli-credentials \
 ## Files
 - `bw-serve.yaml` — the Deployment and Service of the Bitwarden CLI bridge (an
   unlocked `bw serve`)
-- `networkpolicy.yaml` — default-deny, and it allows only ESO to reach the bridge
-  on port 8087
+- `networkpolicy.yaml` — default-deny, and it allows ESO to reach the bridge on
+  port 8087
 - `clustersecretstore.yaml` — the ESO webhook store that points at the bridge
+- `bw-serve-sync.yaml` — a CronJob that sends POST /sync to the bridge every 10
+  minutes, plus the NetworkPolicy allow for it. The bridge caches the vault at
+  login and never syncs on its own; without this, a new or rotated item stays
+  invisible to ESO until the pod restarts (build ledger #89)
 
 ## Status and findings (2026-07-05)
 

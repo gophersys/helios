@@ -15,7 +15,8 @@ spec:
   policyTypes:
     - Ingress
 ---
-# Allow ONLY the ESO controllers to reach the bridge on 8087.
+# Allow the ESO controllers to reach the bridge on 8087. The only other allow
+# is bw-serve-allow-sync (bw-serve-sync.yaml), for the periodic sync CronJob.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
