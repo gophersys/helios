@@ -1,10 +1,10 @@
 # cloud-image
 
-phase:    verify
+phase:    wait
 repo:     gophersys/.devcontainer
 branch:   feat/cloud-image
 worktree: ~/code/.worktrees/.devcontainer-cloud-image
-pr:       -
+pr:       38
 attempt:  0/2
 
 ## Goal
@@ -82,4 +82,6 @@ Only things that RAN, with the command and the result:
 
 ## Next
 
-Push the branch, open the PR (DO NOT MERGE), watch checks up to 30 min.
+Watch PR #38 checks (validate + pr-review) up to 30 min; fix once if red.
+The local amd64 build runs in the background (attempt 2 after a Docker-VM
+disk exhaustion, not a Dockerfile defect); record its size here when done.
