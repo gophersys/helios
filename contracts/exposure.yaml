@@ -38,11 +38,6 @@ hosts:
     class: public-access
     cluster: homelab
     why: "workspace manager UI; Access-gated"
-  rayne:
-    class: public-open
-    cluster: homelab
-    why: "personal page for someone with no account in the IdP; carries its own
-          shared-word gate. Ungated at the edge ON PURPOSE."
 
   # ---- homelab · tailnet only ----
   argocd:   { class: tailnet, cluster: homelab, why: "GitOps controller — admin surface" }

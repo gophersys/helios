@@ -110,9 +110,10 @@ other options were 1 ARC scale set per repo, or GitHub-hosted runners and the
 loss of the same environment for dev and CI.
 
 The split with this repo: **content lives with the thing it belongs to; the
-declaration of what is deployed stays here.** `rayne.mateosegura.com` is the
-first case. Its page and manifests live in `home`, and the Argo `Application`
-that deploys them stays in `platform/services/gitops/registry/`.
+declaration of what is deployed stays here.** `rayne.mateosegura.com` was the
+first case (taken down 2026-08-16; its page stays in `home`, undeployed). The
+pattern stands for the next case: page and manifests in the owning repo, the
+Argo `Application` in `platform/services/gitops/registry/`.
 
 ## Related
 
