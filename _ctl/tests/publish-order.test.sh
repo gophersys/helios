@@ -167,6 +167,7 @@ EXPECTED_JOBS=(
   "flutter"
   "zephyr"
   "zephyr-devbox"
+  "cloud"
 )
 
 # The publishing jobs that run NO smoke step today. Every entry is a defect, not

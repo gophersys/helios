@@ -44,11 +44,14 @@ SANCTIONED="linux/amd64"
 # explanation along with the defect. The Dockerfiles are absent for the same
 # kind of reason: their TARGETPLATFORM case blocks stay, because they are how a
 # binary install resolves its architecture, and they cost nothing on a
-# single-platform build.
+# single-platform build. The `_delta/components/*.sh` install scripts are absent
+# for that same reason: they run inside a Dockerfile RUN and resolve their
+# architecture from TARGETPLATFORM, exactly as the Dockerfile case blocks do.
 BUILD_PATH_FILES=(
   "_ctl/lib.sh"
   "ctl.sh"
   "base/ctl.sh"
+  "cloud/ctl.sh"
   "flutter/ctl.sh"
   "runner/ctl.sh"
   "zephyr/ctl.sh"
@@ -61,6 +64,7 @@ BUILD_PATH_FILES=(
   ".ci/providers/github/build-and-push.yml"
   "project.json"
   "base/project.json"
+  "cloud/project.json"
   "flutter/project.json"
   "runner/project.json"
   "zephyr/project.json"

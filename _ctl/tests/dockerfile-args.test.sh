@@ -69,6 +69,7 @@ DOCKERFILES=(
   "flutter/Dockerfile"
   "zephyr/Dockerfile"
   "zephyr-devbox/Dockerfile"
+  "cloud/Dockerfile"
 )
 
 # The counter-stimulus. A detector that has only ever seen correct input has
