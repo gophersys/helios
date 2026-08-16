@@ -502,6 +502,17 @@ _doc_coverage_report() {
   log_info "  exported declarations: ${total:-0} (revive 'exported' enforces 100% doc coverage in lint)"
 }
 
+# _grep_tolerate_nomatch <grep args…> — run grep, treating a NO-MATCH result (grep exit status 1)
+# as success while still failing loudly on a real grep error (exit ≥2). A bare `grep …` that matches
+# nothing exits 1; under `set -Eeuo pipefail` that status propagates out of a command substitution /
+# pipeline and ABORTS the gate. This lets a legitimately empty scan pass WITHOUT the blanket `|| true`
+# that would also swallow a genuine grep failure (FAIL-NOT-SKIP: exit ≥2 still fails the pipeline).
+_grep_tolerate_nomatch() {
+  local rc=0
+  grep "$@" || rc=$?
+  [[ $rc -eq 0 || $rc -eq 1 ]]
+}
+
 # _cohesion_scan — flag any exported type/port name DECLARED in more than one package under the
 # lib (a duplicated contract). hnslint owns the structural module/package naming; this is the
 # "one concept, one home" duplicate-definition guard the design assigns to the maintainability
@@ -524,10 +535,15 @@ _cohesion_scan() {
   # Config/Adapter/Options construction vocabulary HNS-1 rule 11 exempts, not duplicated contract
   # types (the real contracts — Session, Event, Spec, Workspace, Provider — do not end in these).
   local cohesion_exempt='[A-Za-z]*Config|Deps|[A-Za-z]*Adapter|[A-Za-z]*Options?'
+  # A library with NO exported type (or whose only types live in the excluded <lib>test/internal
+  # packages) makes the leading grep match nothing → exit 1; without _grep_tolerate_nomatch that
+  # no-match status would abort the whole gate under `set -Eeuo pipefail` — a FALSE failure, since
+  # zero exported types trivially means zero duplicate definitions. Both greps tolerate no-match; a
+  # real grep error (exit ≥2) still fails the pipeline. Duplicate detection below is unchanged.
   dup="$(
-    grep -rnE '^type [A-Z][A-Za-z0-9]* (struct|interface)\b' "$PROJECT_ROOT" \
+    _grep_tolerate_nomatch -rnE '^type [A-Z][A-Za-z0-9]* (struct|interface)\b' "$PROJECT_ROOT" \
       --include='*.go' --exclude='*_test.go' 2>/dev/null \
-    | grep -vE "/(${EDEN_LIB_NAME}test|internal)/" \
+    | _grep_tolerate_nomatch -vE "/(${EDEN_LIB_NAME}test|internal)/" \
     | awk -v exempt="^(${cohesion_exempt})\$" -F: '{
         name=$3; sub(/^type /,"",name); sub(/ .*/,"",name);
         if (name ~ exempt) next;   # idiomatic per-component type — exempt (HNS-1 rule 11)
