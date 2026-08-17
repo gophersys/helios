@@ -182,12 +182,16 @@ done
 # install, so widening the retry set is safe there by construction.
 # ----------------------------------------------------------------------------
 
-fetch_curl="$(grep -c -- '--retry-all-errors' "$FETCH" || true)"
-if [[ "$fetch_curl" -ge 1 ]]; then
-  pass_check "fetch-verified: the fetch retries on any transient failure"
+# The INVOCATION line, never the file: the rationale comment beside the curl
+# says --retry-all-errors too, and a check that greps the file passes on the
+# comment after the code loses the flag — proven by breaking it on 2026-08-17.
+fetch_curl_total="$(grep -cE 'curl -fsSL' "$FETCH" || true)"
+fetch_curl_retrying="$(grep -E 'curl -fsSL' "$FETCH" | grep -c -- '--retry-all-errors' || true)"
+if [[ "$fetch_curl_total" -ge 1 && "$fetch_curl_total" -eq "$fetch_curl_retrying" ]]; then
+  pass_check "fetch-verified: the fetch retries on any transient failure (${fetch_curl_retrying}/${fetch_curl_total})"
 else
   fail_check "fetch-verified: the fetch retries on any transient failure" \
-    "no --retry-all-errors in ${FETCH} — one reset kills a 40-minute build again"
+    "${fetch_curl_retrying} of ${fetch_curl_total} curl invocations carry --retry-all-errors — one reset kills a 40-minute build again"
 fi
 
 # The invocation spelling, not the word: a comment or an error message that
