@@ -24,11 +24,20 @@
 #   - Non-root `dev` user (uid 1000). The ubuntu 24.04 default `ubuntu` user
 #     at uid 1000 is removed first.
 
+# The base OS at a DIGEST, never at the moving tag: the commit decides the
+# image. This ARG is declared above the FROM because a FROM can interpolate only
+# an ARG declared before it — below it the expansion is empty, the FROM becomes
+# `ubuntu:24.04@`, and the build dies in the publish job. versions.env holds the
+# same value for the cloud family, and `bash ./ctl.sh base-currency` reports the
+# night upstream moves it. It is the INDEX digest, so buildx still chooses the
+# manifest for the platform it builds.
+ARG UBUNTU_BASE_REF=sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea   # ubuntu:24.04 index digest as of 2026-08-16
+
 # No --platform here. It pinned the userland to the BUILD host's architecture
 # while buildx labelled the result with the TARGET platform, which is how the
 # published linux/arm64 image came to be an amd64 Ubuntu userland carrying
 # aarch64 Go binaries. Plain FROM makes the userland follow the target.
-FROM ubuntu:24.04
+FROM ubuntu:24.04@${UBUNTU_BASE_REF}
 
 # Buildx-injected platform var. Declared so RUN layers can branch on arch.
 ARG TARGETPLATFORM

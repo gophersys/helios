@@ -129,6 +129,13 @@ function cmd_inspect() {
   image_ctl "$name" inspect "$@"
 }
 
+# base-currency — does the registry still hold the digest UBUNTU_BASE_REF pins?
+# The body is require_base_image_current in _ctl/lib.sh, 1 time only. The nightly
+# runs this verb, so a moved ubuntu digest turns the scheduled run red.
+function cmd_base_currency() {
+  require_base_image_current "$@"
+}
+
 function cmd_list() {
   local name ref
   printf '%-13s  %s\n' "IMAGE" "REF"
@@ -364,6 +371,8 @@ Per-image commands (take <image> as first arg):
   inspect <image>                  docker image inspect ghcr.io/gophersys/<image>:latest
 
 Repo-wide commands:
+  base-currency [reference]        Assert the registry still holds the digest
+                                   UBUNTU_BASE_REF pins (default ubuntu:24.04)
   list                             Print managed image refs
   validate                         shellcheck, jq, hadolint, ARG-discipline checks
   test                             Run every _ctl/tests/*.test.sh
@@ -383,6 +392,7 @@ function main() {
     verify-published)   cmd_verify_published  "$@" ;;
     pull)               cmd_pull              "$@" ;;
     inspect)            cmd_inspect           "$@" ;;
+    base-currency)      cmd_base_currency     "$@" ;;
     list)               cmd_list              "$@" ;;
     validate)           cmd_validate          "$@" ;;
     test)               cmd_test              "$@" ;;

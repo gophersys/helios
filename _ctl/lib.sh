@@ -216,6 +216,88 @@ function require_buildx_and_platforms() {
   done
 }
 
+# -------- the base OS pin, and its currency --------
+# base/Dockerfile and cloud/Dockerfile build FROM ubuntu at a DIGEST, so the
+# commit decides the image: under the moving tag, 2 builds of 1 commit produce 2
+# different operating systems and verify-published cannot say which one it read.
+#
+# The pin freezes the base OS until a bump merges, which is why the 2 readers
+# below ship with it. A pin that nothing watches is a snapshot that looks current
+# forever, and the nightly is what reports the move.
+BASE_IMAGE_REFERENCE="ubuntu:24.04"
+BASE_IMAGE_PIN_NAME="UBUNTU_BASE_REF"
+BASE_IMAGE_PIN_HOME="versions.env"
+
+# base_image_digest [reference] — the digest the REGISTRY holds for that
+# reference now, 1 line on stdout.
+#
+# It asks the registry and never a file: a reader that answered out of
+# versions.env would agree with the pin on every night, including the ones where
+# upstream moved. A read that fails is a FAILURE and never a digest, because a
+# digest returned on a read that did not happen reports the base OS as current on
+# a night when nothing could be read at all.
+#
+# The client is the one a human runs by hand to resolve a bump, so the pin and
+# the check are read the same way.
+function base_image_digest() {
+  local reference="${1:-$BASE_IMAGE_REFERENCE}"
+  require_cmd docker
+  local digest="" read_status=0
+  digest="$(docker buildx imagetools inspect "$reference" --format '{{.Manifest.Digest}}')" || read_status=$?
+  if [[ "$read_status" -ne 0 ]]; then
+    log_error "cannot read the digest of ${reference}: the registry client exited ${read_status}"
+    return 1
+  fi
+  if [[ ! "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+    log_error "the registry client answered something that is not a digest for ${reference}: '${digest}'"
+    return 1
+  fi
+  printf '%s\n' "$digest"
+}
+
+# base_image_pin — the digest BASE_IMAGE_PIN_HOME declares, comment stripped.
+function base_image_pin() {
+  local home="${REPO_ROOT}/${BASE_IMAGE_PIN_HOME}"
+  if [[ ! -f "$home" ]]; then
+    log_error "the base OS pin home is absent: ${home}"
+    return 1
+  fi
+  awk -v name="$BASE_IMAGE_PIN_NAME" '
+    index($0, name "=") == 1 {
+      value = substr($0, length(name) + 2)
+      sub(/[[:space:]]*#.*$/, "", value)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      print value
+      exit
+    }
+  ' "$home"
+}
+
+# require_base_image_current [reference] — exit 0 while the registry still holds
+# the digest the pin names, non-zero naming BOTH digests when it moved. The
+# reader of a 03:00 failure needs both, or the next step is to run the read by
+# hand.
+function require_base_image_current() {
+  local reference="${1:-$BASE_IMAGE_REFERENCE}"
+  local pinned=""
+  pinned="$(base_image_pin)" || return 1
+  if [[ -z "$pinned" ]]; then
+    log_error "${BASE_IMAGE_PIN_HOME} declares no ${BASE_IMAGE_PIN_NAME}, so there is no pin to compare the registry with"
+    return 1
+  fi
+  local current=""
+  current="$(base_image_digest "$reference")" || return 1
+  if [[ "$current" == "$pinned" ]]; then
+    log_info "${reference} still holds the pinned digest ${pinned}"
+    return 0
+  fi
+  log_error "${reference} moved — the registry no longer holds the digest this repository pins"
+  log_error "  pinned in ${BASE_IMAGE_PIN_HOME}: ${pinned}"
+  log_error "  held by the registry now:        ${current}"
+  log_error "bump ${BASE_IMAGE_PIN_NAME} in ${BASE_IMAGE_PIN_HOME} and in the base/Dockerfile ARG block, in 1 commit"
+  return 1
+}
+
 # -------- no EXIT trap, and that is deliberate --------
 # The 8 scripts of this repository each carried the same cleanup block: a
 # BG_PIDS array, an on_exit function that killed the pids, and `trap on_exit

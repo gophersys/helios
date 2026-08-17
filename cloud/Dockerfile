@@ -35,10 +35,16 @@
 #     _delta/components/*.sh — one file per group, versions via environment,
 #     each ending in its own proof line.
 
+# The base OS at a DIGEST, never at the moving tag: the commit decides the
+# image. Value-less like every other pin of this family — the digest arrives as
+# a generated --build-arg from versions.env, the ONE home. It is declared above
+# the FROM because a FROM can interpolate only an ARG declared before it.
+ARG UBUNTU_BASE_REF
+
 # No --platform here: it pinned the userland to the BUILD host while buildx
 # labelled the result with the TARGET, which is how a mislabelled arm64 image
 # was published once. Plain FROM makes the userland follow the target.
-FROM ubuntu:24.04
+FROM ubuntu:24.04@${UBUNTU_BASE_REF}
 
 # Buildx-injected platform var. Declared so RUN layers can branch on arch.
 ARG TARGETPLATFORM
