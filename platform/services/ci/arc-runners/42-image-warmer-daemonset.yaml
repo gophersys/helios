@@ -1,30 +1,40 @@
-# ci-image-warmer — every runner-eligible node keeps the runner images hot.
+# ci-image-warmer — every runner-eligible node keeps the runner images hot,
+# with ZERO privilege.
 #
-# WHY: docs/ci-substrate.md's design makes the kubelet's per-node containerd
-# cache the thing that makes pools fast. That cache is warm only after the
-# first job on a node pays the pull, goes cold for a new tag the moment a pin
-# bumps, and old tags linger until disk-pressure eviction. This DaemonSet
-# closes all three gaps: it pulls the keep-set on start and nightly (03:30
-# UTC), so the first job after a deploy is warm; it pulls each family's
-# :latest so tomorrow's bump lands on warm layers; and it removes superseded
-# managed-family refs explicitly instead of waiting for kubelet GC.
+# WHY IT EXISTS: docs/ci-substrate.md's design makes the kubelet's per-node
+# containerd cache the thing that makes pools fast. That cache is warm only
+# after the first job on a node pays the pull, and it goes cold for a new tag
+# the moment a pin bumps. This DaemonSet closes both gaps.
 #
-# The keep-set is DERIVED live (scale-set specs + running pods, see the RBAC
-# file) — the one hand-maintained input is the :latest opt-in list in the
-# ConfigMap. Warming is read-only with respect to what CI executes: pods keep
-# pinning by sha tag, Argo specs never change, a warmer outage degrades to
-# the old cold-pull behaviour and nothing else.
+# HOW IT WARMS — the kubelet does the pulling, not us. Each image to warm is
+# an initContainer whose whole job is to exist: the kubelet pulls it with the
+# pod's imagePullSecrets and the node's own DNS, the container runs `true`,
+# and the image stays in containerd's cache. The previous design mounted the
+# node's containerd socket to do the same thing by hand, which made the warmer
+# node-root in effect; Mateo rejected the mount (2026-08-17) and this shape
+# replaces it. No hostPath, no privilege, no API access, no listener —
+# scripts/verify-warmer-pins.sh FAILS validate if a hostPath ever returns to
+# this file.
 #
-# Scheduling mirrors the arc-org pool exactly (NotIn k3s-w-4): warm precisely
+# WHAT WAS GIVEN UP, deliberately:
+#   - Explicit GC of superseded refs. Removal is the kubelet's image GC's job
+#     (disk-pressure thresholds); superseded tags linger until then. That is
+#     the platform-native mechanism, and node disks have headroom. If disk
+#     pressure ever fires on a build node, revisit — do not re-add the socket.
+#   - Live derivation of the pinned ref. The pin is written HERE, a 4th home
+#     of the digest the 3 scale-set files pin. Drift cannot go quiet:
+#     scripts/verify-warmer-pins.sh holds all 4 to one value in CI, and the
+#     failure mode of a missed bump is one cold pull, not a wrong image — pods
+#     pin their own refs and never read this file.
+#
+# REFRESH: initContainers pull at pod start. 43-image-warmer-refresh.yaml
+# rollout-restarts this DaemonSet daily at 03:30 UTC, so :latest is re-pulled
+# in time for the day's first build and a bumped pin is warm before the first
+# job needs it.
+#
+# Scheduling mirrors the runner pools exactly (NotIn k3s-w-4): warm precisely
 # the nodes a runner can land on. No tolerations — if control-plane nodes are
 # tainted away from runners they are tainted away from the warmer too.
-#
-# SECURITY: the pod mounts the node's containerd socket and the k3s binary,
-# which is node-root in effect. It runs no listener, has no Service, sits
-# behind the namespace's default-deny ingress, and its API access is the
-# read-only Role in 40-. Jobs run inside a DIFFERENT pod's dind daemon and
-# cannot address this one. Credential: the same ghcr-pull dockerconfigjson
-# the kubelet uses (debt D24 applies to it already).
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -40,6 +50,9 @@ spec:
         app: ci-image-warmer
     spec:
       serviceAccountName: ci-image-warmer
+      automountServiceAccountToken: false
+      imagePullSecrets:
+        - name: ghcr-pull
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
@@ -48,49 +61,54 @@ spec:
                   - key: kubernetes.io/hostname
                     operator: NotIn
                     values: ["k3s-w-4"]
+      initContainers:
+        # The ref every ARC pool pins — verify-warmer-pins.sh holds this line
+        # to the same digest as the 3 app-arc-runners-*.yaml files.
+        - name: warm-cloud-pinned
+          image: ghcr.io/gophersys/cloud@sha256:9a150cbff74b67f67f69cca1b25a463103cbe8885ba0b7a0f777de42e7f7f7f1
+          imagePullPolicy: IfNotPresent
+          command: ["true"]
+          securityContext: &warmctx
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault
+        # Tomorrow's bump, warm before it lands. Always-pull is the point:
+        # every daily restart refreshes what :latest means.
+        - name: warm-cloud-latest
+          image: ghcr.io/gophersys/cloud:latest
+          imagePullPolicy: Always
+          command: ["true"]
+          securityContext: *warmctx
+        # The dind sidecar every runner pod starts. Its tag moves upstream;
+        # IfNotPresent warms the first pull and the kubelet keeps it.
+        - name: warm-dind
+          image: docker.io/library/docker:dind
+          imagePullPolicy: IfNotPresent
+          command: ["true"]
+          securityContext: *warmctx
       containers:
-        - name: warmer
-          # Public library image, pinned by manifest-list digest so a tag
-          # re-point cannot change what runs node-root; the warmer must not
-          # itself depend on the private registry it exists to warm.
-          # 3.12-alpine as of 2026-08-14.
-          image: docker.io/library/python:3.12-alpine@sha256:78098ea6a3a9c6a7727a5d4674e4a44e57e01fac878ee9cb4d24a86bd93916ff
-          command: ["python3", "/config/warm.py"]
-          securityContext:
-            # Node-root by mount, not by capability: the containerd socket is
-            # root-owned, so the process runs as root; privileged is not
-            # needed and not granted.
-            runAsUser: 0
+        # A DaemonSet pod must keep running; pause is the smallest thing that
+        # does. Pinned by digest so a tag re-point cannot change what runs —
+        # 3.10 as of 2026-08-17.
+        - name: hold
+          image: registry.k8s.io/pause:3.10@sha256:ee6521f290b2168b6e0935a181d4cff9be1ac3f505666ef0e3c98fae8199917a
           resources:
             requests:
-              cpu: 50m
-              memory: 64Mi
+              cpu: 5m
+              memory: 8Mi
             limits:
-              memory: 256Mi
-          volumeMounts:
-            - name: k3s-bin
-              mountPath: /host/k3s
-              readOnly: true
-            - name: containerd-sock
-              mountPath: /run/k3s/containerd
-            - name: config
-              mountPath: /config
-              readOnly: true
-            - name: ghcr-creds
-              mountPath: /creds
-              readOnly: true
-      volumes:
-        - name: k3s-bin
-          hostPath:
-            path: /usr/local/bin/k3s
-            type: File
-        - name: containerd-sock
-          hostPath:
-            path: /run/k3s/containerd
-            type: Directory
-        - name: config
-          configMap:
-            name: ci-image-warmer
-        - name: ghcr-creds
-          secret:
-            secretName: ghcr-pull
+              memory: 32Mi
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65535
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+            seccompProfile:
+              type: RuntimeDefault

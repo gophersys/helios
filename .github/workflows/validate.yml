@@ -81,6 +81,13 @@ jobs:
       - name: arc-org receives the buildkit client certs
         run: bash scripts/verify-buildx-key.sh
 
+      # The warmer keeps runner images hot by declaring them as initContainers
+      # — the kubelet pulls, no privilege. Its pinned ref is a 4th home of the
+      # cloud digest the 3 scale-set files pin, and this holds all 4 to one
+      # value, and holds the warmer to zero hostPath. Manifest-only, CI-safe.
+      - name: warmer pins match the pools, warmer stays unprivileged
+        run: bash scripts/verify-warmer-pins.sh
+
       # Both suites below drive the REAL script against a mktemp fixture tree —
       # a fake kubectl first on PATH for one, a symlink that relocates the
       # script's ROOT for the other. Neither contacts a cluster and neither
