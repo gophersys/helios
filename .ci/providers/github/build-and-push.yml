@@ -49,6 +49,12 @@ jobs:
       packages: write
     outputs:
       short: ${{ steps.sha.outputs.short }}
+    env:
+      # The tag the build below LOADS into the local docker image store, and the
+      # ref the smoke test then runs. It carries no registry on purpose: nothing
+      # can pull it, so a load that did not happen fails the smoke step instead
+      # of quietly asserting against the last image that was published.
+      SMOKE_REF: base:smoke
     steps:
       - uses: actions/checkout@v4
       - name: Free up runner disk
@@ -80,7 +86,41 @@ jobs:
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
-      - uses: docker/build-push-action@v6
+      - name: build the image, load it locally, publish nothing yet
+        # The gate has to run before the irreversible action. A push cannot be
+        # undone and no job here rolls one back, so a smoke test placed after it
+        # reports a broken image but cannot stop one reaching a consumer.
+        # buildx loads this build into the local docker image store instead, the
+        # step after it asserts the content, and only then does the publish step
+        # ship the same build. The second build reads the cache this one writes,
+        # so publishing costs a layer copy rather than a rebuild.
+        #
+        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
+        # the image store holds a single image. That holds for as long as
+        # PLATFORMS names 1 platform — read the arm64 note at the top of
+        # _ctl/tests/publish-order.test.sh before widening it.
+        uses: docker/build-push-action@v6
+        with:
+          context: base
+          file: base/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          load: true
+          tags: ${{ env.SMOKE_REF }}
+          cache-from: type=gha,scope=base
+          cache-to: type=gha,mode=max,scope=base
+      - name: smoke test (native amd64)
+        # The Dockerfile deliberately runs no --version checks: they could not
+        # run while this image was cross-built under QEMU. This is where every
+        # pin of base/Dockerfile is compared against what the image installed,
+        # and where the gate toolchain is exercised on a real fixture.
+        run: bash .ci/smoke.sh base ${{ env.SMOKE_REF }}
+      - name: publish the image the smoke test passed
+        # The same build definition as the load step above — same context, same
+        # platform — so buildx resolves every layer from the cache that step
+        # wrote and this one only uploads. It writes no cache of its own for
+        # that reason.
+        uses: docker/build-push-action@v6
         with:
           context: base
           file: base/Dockerfile
@@ -91,7 +131,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/base:${{ steps.sha.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/base:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=base
-          cache-to: type=gha,mode=max,scope=base
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
@@ -215,6 +254,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      # The tag the build below LOADS into the local docker image store, and the
+      # ref the smoke test then runs. It carries no registry on purpose: nothing
+      # can pull it, so a load that did not happen fails the smoke step instead
+      # of quietly asserting against the last image that was published.
+      SMOKE_REF: flutter:smoke
     steps:
       - uses: actions/checkout@v4
       - name: Free up runner disk
@@ -243,7 +288,41 @@ jobs:
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
-      - uses: docker/build-push-action@v6
+      - name: build the image, load it locally, publish nothing yet
+        # The gate has to run before the irreversible action. A push cannot be
+        # undone and no job here rolls one back, so a smoke test placed after it
+        # reports a broken image but cannot stop one reaching a consumer.
+        # buildx loads this build into the local docker image store instead, the
+        # step after it asserts the content, and only then does the publish step
+        # ship the same build. The second build reads the cache this one writes,
+        # so publishing costs a layer copy rather than a rebuild.
+        #
+        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
+        # the image store holds a single image. That holds for as long as
+        # PLATFORMS names 1 platform — read the arm64 note at the top of
+        # _ctl/tests/publish-order.test.sh before widening it.
+        uses: docker/build-push-action@v6
+        with:
+          context: flutter
+          file: flutter/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          load: true
+          build-args: |
+            BASE_TAG=${{ needs.base.outputs.short }}
+          tags: ${{ env.SMOKE_REF }}
+          cache-from: type=gha,scope=flutter
+          cache-to: type=gha,mode=max,scope=flutter
+      - name: smoke test (native amd64)
+        # flutter inherits every tool of base, so the pins of base/Dockerfile are
+        # compared here too, and the flutter SDK is checked on top of them.
+        run: bash .ci/smoke.sh flutter ${{ env.SMOKE_REF }}
+      - name: publish the image the smoke test passed
+        # The same build definition as the load step above — same context, same
+        # build-args, same platform — so buildx resolves every layer from the
+        # cache that step wrote and this one only uploads. It writes no cache of
+        # its own for that reason.
+        uses: docker/build-push-action@v6
         with:
           context: flutter
           file: flutter/Dockerfile
@@ -256,7 +335,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/flutter:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=flutter
-          cache-to: type=gha,mode=max,scope=flutter
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
@@ -273,6 +351,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      # The tag the build below LOADS into the local docker image store, and the
+      # ref the smoke test then runs. It carries no registry on purpose: nothing
+      # can pull it, so a load that did not happen fails the smoke step instead
+      # of quietly asserting against the last image that was published.
+      SMOKE_REF: zephyr:smoke
     steps:
       - uses: actions/checkout@v4
       - name: Free up runner disk
@@ -301,7 +385,41 @@ jobs:
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
-      - uses: docker/build-push-action@v6
+      - name: build the image, load it locally, publish nothing yet
+        # The gate has to run before the irreversible action. A push cannot be
+        # undone and no job here rolls one back, so a smoke test placed after it
+        # reports a broken image but cannot stop one reaching a consumer.
+        # buildx loads this build into the local docker image store instead, the
+        # step after it asserts the content, and only then does the publish step
+        # ship the same build. The second build reads the cache this one writes,
+        # so publishing costs a layer copy rather than a rebuild.
+        #
+        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
+        # the image store holds a single image. That holds for as long as
+        # PLATFORMS names 1 platform — read the arm64 note at the top of
+        # _ctl/tests/publish-order.test.sh before widening it.
+        uses: docker/build-push-action@v6
+        with:
+          context: zephyr
+          file: zephyr/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          load: true
+          build-args: |
+            BASE_TAG=${{ needs.base.outputs.short }}
+          tags: ${{ env.SMOKE_REF }}
+          cache-from: type=gha,scope=zephyr
+          cache-to: type=gha,mode=max,scope=zephyr
+      - name: smoke test (native amd64)
+        # zephyr inherits every tool of base, so the pins of base/Dockerfile are
+        # compared here too, and west is checked on top of them.
+        run: bash .ci/smoke.sh zephyr ${{ env.SMOKE_REF }}
+      - name: publish the image the smoke test passed
+        # The same build definition as the load step above — same context, same
+        # build-args, same platform — so buildx resolves every layer from the
+        # cache that step wrote and this one only uploads. It writes no cache of
+        # its own for that reason.
+        uses: docker/build-push-action@v6
         with:
           context: zephyr
           file: zephyr/Dockerfile
@@ -314,7 +432,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=zephyr
-          cache-to: type=gha,mode=max,scope=zephyr
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
@@ -334,6 +451,12 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      # The tag the build below LOADS into the local docker image store, and the
+      # ref the smoke test then runs. It carries no registry on purpose: nothing
+      # can pull it, so a load that did not happen fails the smoke step instead
+      # of quietly asserting against the last image that was published.
+      SMOKE_REF: zephyr-devbox:smoke
     steps:
       - uses: actions/checkout@v4
       - name: Free up runner disk
@@ -362,7 +485,43 @@ jobs:
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
-      - uses: docker/build-push-action@v6
+      - name: build the image, load it locally, publish nothing yet
+        # The gate has to run before the irreversible action. A push cannot be
+        # undone and no job here rolls one back, so a smoke test placed after it
+        # reports a broken image but cannot stop one reaching a consumer.
+        # buildx loads this build into the local docker image store instead, the
+        # step after it asserts the content, and only then does the publish step
+        # ship the same build. The second build reads the cache this one writes,
+        # so publishing costs a layer copy rather than a rebuild.
+        #
+        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
+        # the image store holds a single image. That holds for as long as
+        # PLATFORMS names 1 platform — read the arm64 note at the top of
+        # _ctl/tests/publish-order.test.sh before widening it.
+        uses: docker/build-push-action@v6
+        with:
+          context: zephyr-devbox
+          file: zephyr-devbox/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          load: true
+          build-args: |
+            BASE_TAG=${{ needs.base.outputs.short }}
+          tags: ${{ env.SMOKE_REF }}
+          cache-from: type=gha,scope=zephyr-devbox
+          cache-to: type=gha,mode=max,scope=zephyr-devbox
+      - name: smoke test (native amd64)
+        # The devbox image defaults to root for sshd, and the smoke forces the
+        # dev user so the base checks run in the identity the other images use.
+        # The flash/debug stack, the SDK toolchains and `sshd -t` are checked on
+        # top of every pin of base/Dockerfile.
+        run: bash .ci/smoke.sh zephyr-devbox ${{ env.SMOKE_REF }}
+      - name: publish the image the smoke test passed
+        # The same build definition as the load step above — same context, same
+        # build-args, same platform — so buildx resolves every layer from the
+        # cache that step wrote and this one only uploads. It writes no cache of
+        # its own for that reason.
+        uses: docker/build-push-action@v6
         with:
           context: zephyr-devbox
           file: zephyr-devbox/Dockerfile
@@ -375,7 +534,6 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr-devbox:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=gha,scope=zephyr-devbox
-          cache-to: type=gha,mode=max,scope=zephyr-devbox
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot

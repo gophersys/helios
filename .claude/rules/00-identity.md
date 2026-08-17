@@ -18,7 +18,7 @@ Code devcontainer) and as the CI runtime in which GitHub Actions runs
 
 ## Image model
 
-The repository supplies 4 **devcontainer** images and the `+ runner` layer.
+The repository supplies 5 **devcontainer** images and the `+ runner` layer.
 Every devcontainer image sets the `GOPHERSYS_DEVCONTAINER` environment marker,
 so a script can detect the image that it runs inside. A runner variant
 inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
@@ -195,15 +195,28 @@ The CI workflow enforces the same policy. It sets up buildx, builds with
 against the SHA tag it just pushed. It sets up no QEMU: emulation is what a
 cross-platform build needed, and there is no cross-platform build.
 
-The `base-runner` job builds **twice**, and the order is the point. The first
-build sets `push: false` + `load: true`, so the image goes into the local image
-store and not to ghcr.io. The smoke test then asserts the content of that loaded
-image. Only then does the second build push, from the cache the first one wrote.
-A push cannot be undone and no job here rolls one back, so a check that runs
-after the push reports a broken image but cannot stop one from reaching a
-consumer. `_ctl/tests/publish-order.test.sh` holds that order in the pull request
-gate. `load: true` takes 1 platform, so read the arm64 note at the top of that
-test file before you widen `SANCTIONED_PLATFORMS`.
+**Every** job builds **twice**, and the order is the point. The first build sets
+`push: false` + `load: true`, so the image goes into the local image store and
+not to ghcr.io. The smoke test then asserts the content of that loaded image.
+Only then does the second build push, from the cache the first one wrote. A push
+cannot be undone and no job here rolls one back, so a check that runs after the
+push reports a broken image but cannot stop one from reaching a consumer.
+`_ctl/tests/publish-order.test.sh` holds that order in the pull request gate, and
+it fails any job that publishes without a smoke step. `load: true` takes 1
+platform, so read the arm64 note at the top of that test file before you widen
+`SANCTIONED_PLATFORMS`.
+
+The smoke test compares **versions**, and it does not only run tools. `.ci/smoke.sh`
+is the host driver: it classifies every pin of `versions.env` (cloud) or of the
+ARGs at the top of `base/Dockerfile` (the base family) as `asserted`,
+`not-a-version` or `not-in-this-image`, resolves each asserted pin, and sends
+`.ci/image-checks.sh`, the `.ci/fixtures/` and the assertion table into 1 `docker
+run`. The guest compares what each tool reports against its pin, and it then runs
+the gate-critical tools on the fixtures — a Go module through
+gofumpt/golangci-lint/hnslint/vet, a Dockerfile through hadolint, a compose file
+through the compose plugin, and delve/buf/grpcurl each on 1 real operation.
+`_ctl/tests/version-coverage.test.sh` fails when a pin carries no classification,
+so a new pin cannot stay silent.
 
 ## Dev-in-container expectation
 
