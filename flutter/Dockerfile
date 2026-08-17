@@ -17,10 +17,12 @@ ARG BUILDPLATFORM
 # -------------------------------------------------------------------------
 ARG JAVA_VERSION=21                                                    # latest LTS as of 2026-04-19
 ARG ANDROID_CMDLINE_TOOLS_VERSION=14742923                             # latest LTS as of 2026-04-19
+ARG ANDROID_CMDLINE_TOOLS_SHA256_NOARCH=04453066b540409d975c676d781da1477479dde3761310f1a7eb92a1dfb15af7  # computed-at-pin: 2026-08-17
 ARG ANDROID_PLATFORM_VERSION=36                                        # latest LTS as of 2026-04-19
 ARG ANDROID_BUILDTOOLS_VERSION=36.1.0                                  # latest LTS as of 2026-04-19
 ARG FLUTTER_VERSION=3.41.7                                             # latest LTS as of 2026-04-19
 ARG FLUTTER_CHANNEL=stable                                             # latest LTS as of 2026-04-19
+ARG FLUTTER_SHA256_AMD64=f344d5057db52abc2a63cd3a7c7370957b7685d1fca5e5fbe2ce4dfe74657a79  # upstream-published: https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json
 
 # NOTE: the non-root user is hardcoded as `dev` throughout this Dockerfile
 # (matching the base image's invariant). An ARG USERNAME is intentionally NOT
@@ -58,12 +60,14 @@ ENV ANDROID_SDK_ROOT=/opt/android-sdk \
 
 # hadolint ignore=DL4006
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64|linux/arm64) : ;; \
+      linux/amd64) : ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && mkdir -p "${ANDROID_SDK_ROOT}/cmdline-tools" \
- && curl -fsSL "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_CMDLINE_TOOLS_VERSION}_latest.zip" \
-      -o /tmp/cmdline-tools.zip \
+ && /usr/local/lib/gophersys/fetch-verified.sh \
+      "https://dl.google.com/android/repository/commandlinetools-linux-${ANDROID_CMDLINE_TOOLS_VERSION}_latest.zip" \
+      /tmp/cmdline-tools.zip \
+      "${ANDROID_CMDLINE_TOOLS_SHA256_NOARCH}" ANDROID_CMDLINE_TOOLS_SHA256_NOARCH \
  && unzip -q /tmp/cmdline-tools.zip -d "${ANDROID_SDK_ROOT}/cmdline-tools" \
  && mv "${ANDROID_SDK_ROOT}/cmdline-tools/cmdline-tools" "${ANDROID_SDK_ROOT}/cmdline-tools/latest" \
  && rm /tmp/cmdline-tools.zip \
@@ -88,9 +92,10 @@ ENV FLUTTER_HOME=/opt/flutter \
     PUB_CACHE=/home/dev/.pub-cache
 
 # hadolint ignore=DL4006
-RUN curl -fsSL \
+RUN /usr/local/lib/gophersys/fetch-verified.sh \
       "https://storage.googleapis.com/flutter_infra_release/releases/${FLUTTER_CHANNEL}/linux/flutter_linux_${FLUTTER_VERSION}-${FLUTTER_CHANNEL}.tar.xz" \
-      -o /tmp/flutter.tar.xz \
+      /tmp/flutter.tar.xz \
+      "${FLUTTER_SHA256_AMD64}" FLUTTER_SHA256_AMD64 \
  && mkdir -p /opt \
  && tar -C /opt -xJf /tmp/flutter.tar.xz \
  && rm /tmp/flutter.tar.xz \

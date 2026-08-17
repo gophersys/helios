@@ -25,6 +25,7 @@ ARG BUILDPLATFORM
 # -------------------------------------------------------------------------
 ARG ESPTOOL_VERSION=5.3.1                                              # latest stable as of 2026-07-05
 ARG CODE_SERVER_VERSION=4.132.0                                        # latest stable as of 2026-08-17
+ARG CODE_SERVER_SHA256_AMD64=18e0e69920ab23b725cb219fb42bc045a908421448cf496a3124314e1a02bcf1  # computed-at-pin: 2026-08-17
 # Extra Zephyr SDK toolchains installed on top of the parent layer's set
 # (arm-zephyr-eabi + riscv64-zephyr-elf). This is EVERY Espressif toolchain
 # sdk-ng v1.0.1 ships (names verified against the release's toolchain
@@ -183,8 +184,10 @@ RUN { \
 # authenticating reverse proxy + Cloudflare Access front it.
 # -------------------------------------------------------------------------
 RUN ARCH="$(dpkg --print-architecture)" \
- && wget -q -O /tmp/code-server.deb \
+ && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server_${CODE_SERVER_VERSION}_${ARCH}.deb" \
+      /tmp/code-server.deb \
+      "${CODE_SERVER_SHA256_AMD64}" CODE_SERVER_SHA256_AMD64 \
  && dpkg -i /tmp/code-server.deb \
  && rm /tmp/code-server.deb
 # NOTE: no in-layer version smoke, per repo convention — verified on the
