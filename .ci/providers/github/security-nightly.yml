@@ -1,0 +1,144 @@
+name: security-nightly
+
+# Scans the 6 published images for CRITICAL vulnerabilities every night, and
+# reports the night ubuntu moves under the digest this repository pins.
+#
+# Nothing here builds or publishes an image. A nightly republish would move
+# :latest with no commit behind it, so 2 different images would carry the same
+# SHA tag and verify-published could not say which one it read. This workflow
+# only MEASURES; the answer to what it finds is a pull request.
+#
+# A scheduled run has no author watching it, so the notify job below turns a red
+# into 1 labelled issue and a green into the closing of that same issue.
+# _ctl/tests/scheduled-workflows.test.sh holds that shape in the pull request
+# gate, keyed on the schedule trigger rather than on this file's name.
+
+on:
+  schedule:
+    # 09:00 UTC — 02:00 local, the quiet window for this repository.
+    # build-and-push runs on a push to main, and nobody pushes to main then, so
+    # this scan does not race a publish and read an image being replaced.
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+# The notifier opens, comments on and closes 1 issue. Without issues: write the
+# filer step fails, and a run that is already red gets a second red instead of a
+# notification.
+permissions:
+  contents: read
+  issues: write
+
+env:
+  # The scanner, pinned. The vulnerability DATABASE moves every day and that is
+  # the point of a nightly; the ENGINE moving under us is not. Bumping this is a
+  # version change like any other.
+  TRIVY_VERSION: v0.74.0 # latest stable as of 2026-08-16
+
+jobs:
+  scan:
+    # A job with no limit inherits the GitHub default of 360 minutes, and a hung
+    # scan would hold a slot for 6 hours every night.
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Read-only: this workflow publishes nothing. The grant is here because
+      # the images are read out of ghcr.io, and an anonymous pull of a private
+      # package is a 401 that says nothing about the image.
+      packages: read
+    strategy:
+      # Every image is scanned, every night. Without this the first CRITICAL
+      # cancels its 5 siblings, and the morning report names 1 image out of 6
+      # while saying nothing about the other 5.
+      fail-fast: false
+      matrix:
+        image: [base, base-runner, flutter, zephyr, zephyr-devbox, cloud]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Free up runner disk
+        # The hosted runner ships ~14 GB free and trivy unpacks the whole image
+        # to walk its layers. These images are large; without this the scan dies
+        # on "No space left on device", which is a red that says nothing about
+        # the image it was asked to judge.
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          swap-storage: true
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: install trivy at the pinned version
+        uses: aquasecurity/setup-trivy@v0.3.1
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+      - name: scan ghcr.io/gophersys/${{ matrix.image }}:latest
+        # --exit-code 1 is what makes this a GATE. With --exit-code 0 trivy
+        # prints its table, the step succeeds, the run is green, and nobody
+        # reads the log of a scheduled job.
+        #
+        # There is deliberately no --ignore-unfixed. An unfixed CRITICAL has to
+        # become an entry in .ci/trivyignore.yaml carrying a reason and an
+        # expiry, which is a visible line in a diff, and never a silent skip.
+        #
+        # --ignorefile is not optional: the YAML ignore file is experimental in
+        # trivy and is loaded ONLY when its path is given, so without this flag
+        # every waiver in that file is dead text.
+        #
+        # A failed vulnerability-database download exits non-zero here as well,
+        # so a night on which nothing could be downloaded is a red run and never
+        # a clean image.
+        run: |
+          trivy image \
+            --severity CRITICAL \
+            --exit-code 1 \
+            --ignorefile .ci/trivyignore.yaml \
+            ghcr.io/gophersys/${{ matrix.image }}:latest
+
+  base-currency:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: the registry still holds the digest UBUNTU_BASE_REF pins
+        # A digest pin freezes the base OS until a bump merges, so a pull
+        # request nobody opens means unpatched images that look current. This
+        # step is the half that reports it, and it is why the pin and the
+        # nightly ship together.
+        run: bash ./ctl.sh base-currency
+
+  notify:
+    # always(), so this job runs whatever the 2 jobs above did. A job that ran
+    # only on failure could not close the issue on a green night.
+    if: ${{ always() }}
+    needs: [scan, base-currency]
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: reduce the verdict of the jobs above to this job's own status
+        # GitHub scopes failure() in a step to the STEPS of its own job. This
+        # job runs under always(), so its own steps succeed whatever the scan
+        # did, and a notifier guarded by failure() would never fire. This step
+        # fails when a needed job failed, which is what gives the 2 steps below
+        # a status to read.
+        run: |
+          scan='${{ needs.scan.result }}'
+          currency='${{ needs.base-currency.result }}'
+          printf 'scan=%s base-currency=%s\n' "$scan" "$currency"
+          [[ "$scan" == "success" && "$currency" == "success" ]]
+      - name: file the failure
+        if: ${{ failure() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .ci/notify-failure.sh "image scan: ${{ needs.scan.result }}" "base-OS currency: ${{ needs.base-currency.result }}"
+      - name: close the issue on a green run
+        if: ${{ success() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: bash .ci/notify-failure.sh --resolve
