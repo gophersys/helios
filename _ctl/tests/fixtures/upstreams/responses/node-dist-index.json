@@ -1,0 +1,5 @@
+[
+  { "version": "v25.1.0", "date": "2026-08-10", "lts": false, "security": false },
+  { "version": "v24.15.0", "date": "2026-08-05", "lts": "Krypton", "security": false },
+  { "version": "v24.14.0", "date": "2026-07-20", "lts": "Krypton", "security": false }
+]

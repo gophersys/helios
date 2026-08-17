@@ -1,0 +1,19 @@
+# Counter-stimulus fixture for _ctl/tests/upstream-coverage.test.sh — the table
+# that covers pins.env and pins.Dockerfile EXACTLY, in both directions.
+#
+# Nothing resolves these rows. The pair is the QUIET half of the counter
+# stimulus: every detector of the coverage rule must stay silent here, and a
+# detector that reports a correct table is as useless as one that reports
+# nothing. The test then mutates copies of this file — 1 row deleted, 1 row
+# added, 1 row repeated, 1 datasource misspelled, 1 no-autobump reason reduced
+# to a placeholder — and demands a report for each.
+#
+# The grammar is the grammar of the real table, 4 fields, none empty:
+#
+#   <pin>|<datasource>|<coordinate>|<policy or reason>
+
+COVERTOOL_VERSION|github-release|coverowner/covertool|bump to the newest non-prerelease tag
+COVERPKG|apt|python3.12|the package name selects the interpreter series and the series is chosen, not resolved
+COVERREF|no-autobump|golang.org/x/perf|the module is untagged upstream, so there is no release for a resolver to compare against
+COVERSOLE_VERSION|pypi|coversole|bump to the newest sdist on the index
+COVERSOLE_CHANNEL|no-autobump|stable|a channel is not a version: moving it changes what the image tracks, which is a decision and not a bump

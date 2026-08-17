@@ -1,0 +1,114 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/curl — the stub `curl` that _ctl/tests/resolve-upstream.test.sh
+# puts first on PATH.
+#
+# It opens no socket, reads no credential and reaches no network. Every answer
+# it gives comes from a map the calling case writes, so a case states the world
+# it wants — an index that answers, an index that 404s, an asset that is gone —
+# in 1 line, and then reads what _build/resolve-upstream.sh did about it.
+#
+# ============================================================================
+# THE MAP IS MATCHED ON A SUBSTRING, ON PURPOSE
+# ============================================================================
+#
+#   STUB_CURL_MAP   a file of `<url substring>|<status>|<body path>` rows, in
+#                   order. The FIRST row whose substring is inside the requested
+#                   URL answers it, so a case lists the specific rows (an asset
+#                   file name) above the general ones (a repository coordinate).
+#                   The substring `*` matches any URL.
+#   STUB_CURL_LOG   every requested URL is appended here, 1 per line.
+#
+# A substring and not a whole URL, because the exact endpoint is the resolver's
+# choice and not this stub's business: `https://api.github.com/repos/o/r/releases/latest`
+# and `https://github.com/o/r/releases/latest` are the same question asked 2
+# ways, and a map keyed on the coordinate `o/r` answers both. What the test
+# holds is the DOCUMENT each datasource reads and the value it takes out of it.
+#
+# status 200   the body file is written to the -o destination, or to stdout
+# status 404   the message `curl` writes under -f, and exit 22 — the status a
+#              real curl returns for an HTTP error, so the caller cannot tell
+#              this apart from the real thing
+#
+# A URL no row matches exits 64 and says so. A stub that answered 0 to a request
+# it did not understand would hand the caller a cheerful success for a fetch
+# that never happened, and a stub that answered 404 to it would report an
+# unreachable upstream for a case that simply forgot a row. Both readings are
+# the green-over-nothing this directory exists to refuse.
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+# stub_fail <message...> — exit 64, loudly. Never 0.
+function stub_fail() {
+  printf 'stub curl: %s\n' "$*" >&2
+  exit 64
+}
+
+# The argv walk. The URL is the argument that carries a scheme, and the value of
+# an option that TAKES one is never read as a URL — a header, a credential or a
+# retry count is not a request.
+DESTINATION=""
+URL=""
+PREVIOUS=""
+for argument in "$@"; do
+  case "$PREVIOUS" in
+    -o|--output)
+      DESTINATION="$argument"
+      PREVIOUS=""
+      continue
+      ;;
+    -H|--header|-u|--user|-A|--user-agent|-d|--data|--retry|--max-time|--connect-timeout|--retry-delay)
+      PREVIOUS=""
+      continue
+      ;;
+  esac
+  case "$argument" in
+    *://*) URL="$argument" ;;
+  esac
+  PREVIOUS="$argument"
+done
+
+[[ -n "$URL" ]] || stub_fail "no argument carried a url scheme, so there is nothing to answer: $*"
+
+if [[ -n "${STUB_CURL_LOG:-}" ]]; then
+  printf '%s\n' "$URL" >> "$STUB_CURL_LOG"
+fi
+
+[[ -n "${STUB_CURL_MAP:-}" ]] || stub_fail "STUB_CURL_MAP is not set, so this case wrote no world"
+[[ -f "$STUB_CURL_MAP" ]]     || stub_fail "no map file at ${STUB_CURL_MAP}"
+
+MATCHED_STATUS=""
+MATCHED_BODY=""
+while IFS='|' read -r needle status body; do
+  [[ -z "${needle:-}" ]] && continue
+  case "$needle" in
+    '#'*) continue ;;
+  esac
+  if [[ "$needle" == "*" ]] || [[ "$URL" == *"$needle"* ]]; then
+    MATCHED_STATUS="$status"
+    MATCHED_BODY="$body"
+    break
+  fi
+done < "$STUB_CURL_MAP"
+
+if [[ -z "$MATCHED_STATUS" ]]; then
+  stub_fail "no row of ${STUB_CURL_MAP} matches ${URL} — the case did not model this fetch"
+fi
+
+if [[ "$MATCHED_STATUS" == "404" ]]; then
+  printf 'curl: (22) The requested URL returned error: 404\n' >&2
+  exit 22
+fi
+
+if [[ "$MATCHED_STATUS" != "200" ]]; then
+  stub_fail "the map answers ${URL} with status '${MATCHED_STATUS}', which this stub does not model"
+fi
+
+[[ -f "$MATCHED_BODY" ]] || stub_fail "the map points ${URL} at ${MATCHED_BODY}, and there is no such file"
+
+if [[ -n "$DESTINATION" ]]; then
+  cat "$MATCHED_BODY" > "$DESTINATION"
+else
+  cat "$MATCHED_BODY"
+fi

@@ -1,0 +1,30 @@
+# Fixture world for _ctl/tests/resolve-upstream.test.sh — the upstream table of
+# a miniature repository, 1 row per datasource.
+#
+# Nothing resolves these rows in anger. The test copies this tree to a temporary
+# directory, points UPSTREAM_PROJECT_ROOT at the copy and puts a stub `curl`
+# first on PATH, so each row below drives 1 datasource function of
+# _build/resolve-upstream.sh against a document this repository holds.
+#
+# The grammar is the real one, 4 fields, none empty:
+#
+#   <pin>|<datasource>|<coordinate>|<policy or reason>
+#
+# The 3 github-release rows are 3 different questions: a pin whose value carries
+# no `v`, a pin whose value carries one (gophersys/cictl pins `v0.1.0`), and a
+# pin that is already at the newest release and must therefore produce no bump.
+
+STUBGITHUB_VERSION|github-release|stubowner/stubgithub|bump to the newest non-prerelease tag
+STUBVPREFIX_VERSION|github-release|stubowner/stubvprefix|bump to the newest non-prerelease tag
+STUBCURRENT_VERSION|github-release|stubowner/stubcurrent|bump to the newest non-prerelease tag
+STUBPYPI_VERSION|pypi|stub-pypi-package|bump to the newest release on the index
+STUBNPM_VERSION|npm|stub-npm-package|bump to the dist-tag latest
+STUBAPT_VERSION|apt|stub-apt-package|bump to the newest published binary of the ubuntu series
+STUBGO_VERSION|go-dl|go|bump to the newest stable release
+STUBNODE_VERSION|node-dist|lts|bump to the newest LTS release
+STUBOCI_REF|oci-index|library/ubuntu:24.04|bump to the digest the tag holds now
+STUBK8S_VERSION|k8s-dl|stable|bump to the newest stable release
+STUBTAILSCALE_VERSION|tailscale-pkgs|stable|bump to the newest stable package
+STUBFLUTTER_VERSION|flutter-releases|stable|bump to the newest release of the stable channel
+STUBEDEN_VERSION|eden-manifest|gophersys/eden:harnesses/versions.env|mirror the value eden pins, which is the one decision point for a harness version
+STUBFROZEN_VERSION|no-autobump|none|the fixture world needs a row that resolves nothing, so the dry run can be watched leaving it alone
