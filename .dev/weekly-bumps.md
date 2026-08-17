@@ -1,6 +1,6 @@
 # weekly-bumps
 
-phase:    red
+phase:    fix
 repo:     gophersys/.devcontainer
 branch:   ci/weekly-bumps
 worktree: ~/code/.worktrees/.devcontainer-weekly-bumps
@@ -31,12 +31,30 @@ evidence_of/homes_of MOVE from download-coverage.test.sh into _ctl/lib.sh
 a green weekly must not close nightly issues).
 
 ## Proven
-(nothing yet)
+- RED (9109d07): 19 files, 475 checks, 54 intended fails; every detector
+  watched firing AND staying quiet; in-container byte-identical verdicts.
+  Spec 7 proved LIVE that the hardcoded notifier label closes the NIGHTLY
+  issue when run as the weekly.
+- GREEN (5 commits): 484 checks, 1 failed = the DESIGNED free ratchet
+  (EXPECTED_PROVIDER_FILES lacks weekly-bumps.yml — test-file, next round).
+  pin-mirroring 26/0, resolve-upstream 43/0, upstream-coverage 19/0,
+  download-coverage untouched 62/0. validate rc=0; shellcheck rc=0; yq both
+  copies rc=0; cmp pair rc=0. Hermetic --dry-run: 12 movers, porcelain
+  empty; --apply wrote the 5 fixture digests into both rows.
+- ADVERSARIAL EXTRA: all 43 resolvable REAL rows driven through the real
+  resolver with stub upstream -> 43/0; caught + fixed a real defect
+  (CODE_SERVER ${ARCH} from dpkg --print-architecture, not a case arm).
+- Implementer findings: no-autobump truth is 13 (JAVA_VERSION joins — the
+  JDK major inside a package name); the weekly's bump PR starts NO checks
+  under GITHUB_TOKEN (GitHub suppresses token-caused events) — human
+  close/reopen documented in-workflow + docs; durable fix = a PAT/App,
+  NEEDS-MATEO item 17.
 
 ## Blocked
 Nothing. The PR#48 wiring-proof build was 5/6 green at intake (devbox
 finishing); landing order unaffected.
 
 ## Next
-dev-test-author: the 7 red suites from the plan (+2 free ratchets) proven red
-for the right reasons.
+Test author: close the free ratchet (EXPECTED_PROVIDER_FILES += weekly-bumps
+.yml) + DELETE its duplicated readers from download-coverage.test.sh (the
+lib.sh move completes; suite must stay green). Then verify round, then PR.
