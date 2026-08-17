@@ -64,6 +64,26 @@ spec:
 
         template:
           spec:
+            # One DNS pod serves this cluster, and the default resolver
+            # posture multiplies every external lookup against it: ndots:5
+            # walks ~5 search-domain suffixes, twice (A + AAAA), before
+            # asking for `ghcr.io` verbatim — ~20 queries where 2 would do —
+            # and glibc's attempts:2 gives up after a single retry. A build
+            # wave plus warmer churn produced exactly that failure on
+            # 2026-08-17 (run 32062015200: `lookup ghcr.io on 10.43.0.10:53:
+            # read udp` timeout). These pods resolve EXTERNAL names only —
+            # the API server arrives as an IP in env — so ndots:1 removes
+            # the amplification outright, and attempts:4 at timeout:2 rides
+            # out a busy DNS pod instead of failing a 40-minute build on one
+            # lost UDP read.
+            dnsConfig:
+              options:
+                - name: ndots
+                  value: "1"
+                - name: timeout
+                  value: "2"
+                - name: attempts
+                  value: "4"
             # The dind sidecar owns the Docker socket and chooses its gid, so the
             # runner must hold that gid to reach it. Granting it HERE and not in
             # the image is deliberate: the image-side attempt never held, because
