@@ -1,10 +1,10 @@
 # bw-serve-auto-sync
 
-phase:    pr
+phase:    wait
 repo:     gophersys/infrastructure
 branch:   feat/bw-serve-auto-sync
 worktree: ~/code/.worktrees/infrastructure-bw-serve-auto-sync
-pr:       -
+pr:       183
 attempt:  0/2
 
 ## Goal
