@@ -19,6 +19,7 @@ ARG BUILDPLATFORM
 # -------------------------------------------------------------------------
 ARG WEST_VERSION=1.5.0                                                 # latest LTS as of 2026-04-19
 ARG ZEPHYR_SDK_VERSION=1.0.1                                           # latest LTS as of 2026-04-19
+ARG ZEPHYR_SDK_SHA256_AMD64=ca9bc0ff66fafca1dac9d592a36d953cf16d096a9d09b1c0357f021cf9f6a7eb  # upstream-published: https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v1.0.1/sha256.sum
 ARG ZSDK_TOOLCHAINS=arm-zephyr-eabi,riscv64-zephyr-elf                 # latest LTS as of 2026-04-19
 
 # NOTE: the non-root user is hardcoded as `dev` throughout this Dockerfile
@@ -89,12 +90,13 @@ ENV ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk \
 # hadolint ignore=DL4006,DL3003,SC2086
 RUN case "${TARGETPLATFORM}" in \
       linux/amd64) ARCH=x86_64 ;; \
-      linux/arm64) ARCH=aarch64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && mkdir -p "${ZEPHYR_SDK_INSTALL_DIR}" \
- && wget -q -O /tmp/zsdk.tar.xz \
+ && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZEPHYR_SDK_VERSION}/zephyr-sdk-${ZEPHYR_SDK_VERSION}_linux-${ARCH}_minimal.tar.xz" \
+      /tmp/zsdk.tar.xz \
+      "${ZEPHYR_SDK_SHA256_AMD64}" ZEPHYR_SDK_SHA256_AMD64 \
  && tar -C "${ZEPHYR_SDK_INSTALL_DIR}" --strip-components=1 -xJf /tmp/zsdk.tar.xz \
  && rm /tmp/zsdk.tar.xz \
  && ( cd "${ZEPHYR_SDK_INSTALL_DIR}" \

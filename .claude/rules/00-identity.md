@@ -30,7 +30,7 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
 | `ghcr.io/gophersys/zephyr`        | `zephyr`        | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
 | `ghcr.io/gophersys/base-runner`   | `base` + `_RUNNER=true` | Base + the GitHub Actions runner at `/home/runner`, owned by `dev`. This is a **CI image, not a devcontainer**. It has no `devcontainer.json`. The build uses `runner/Dockerfile`. |
 | `ghcr.io/gophersys/zephyr-devbox` | `zephyr-devbox` | Zephyr + sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules. It is an embedded development box for a k8s pod, and you connect to it over SSH. |
-| `ghcr.io/gophersys/cloud`         | `cloud`         | The successor image of the consolidation program (ledger #94), ADDITIVE today: the reduced base (no clang/cmake/desktop/USB-BLE/Rust/terraform/AWS/ansible, Go caches removed) + delve/buf/grpcurl + the CI fold (Actions runner, cictl, claude/omp/codex at the versions.env pins). ONE image for dev and CI: the default command is zsh, and a CI pod overrides the command to `/home/runner/run.sh`. Every pin lives in `versions.env` at the repository root; the build feeds it in as generated `--build-arg`s, and `_delta/components/*.sh` install the folded tool groups. Its smoke gates publish (build → smoke → push) and enforces the ≤ 5.75 GB size budget (raised from 5.5 GB by Mateo, 2026-08-16: the measured floor after the R4 levers with every tool kept is ~5.63–5.67 GB). |
+| `ghcr.io/gophersys/cloud`         | `cloud`         | The successor image of the consolidation program (ledger #94), ADDITIVE today: the reduced base (no clang/cmake, no desktop/Tauri libs, no USB-BLE libs, no Rust, no ansible + oci-cli, no speedtest-cli/ncat/net-tools, Go caches removed — terraform and the AWS CLI are NOT in this list, because they left `base` itself and are ready components nothing installs; db clients and the comfort TUIs are not in it either, because cloud re-adds them through `_delta/components/`) + delve/buf/grpcurl + the CI fold (Actions runner, cictl, claude/omp/codex at the versions.env pins). ONE image for dev and CI: the default command is zsh, and a CI pod overrides the command to `/home/runner/run.sh`. Every pin lives in `versions.env` at the repository root; the build feeds it in as generated `--build-arg`s, and `_delta/components/*.sh` install the folded tool groups. Its smoke gates publish (build → smoke → push) and enforces the ≤ 5.75 GB size budget (raised from 5.5 GB by Mateo, 2026-08-16: the measured floor after the R4 levers with every tool kept is ~5.63–5.67 GB). |
 
 ## Structure
 
@@ -106,6 +106,38 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
   Never invent a version.
 - **You must get approval to change a version.** A change to a version ARG goes
   through the brain-level approval gate.
+- **A digest row takes the same shape as a version row, and sits beside it.**
+  Every binary download compares its bytes against a `<TOOL>_SHA256_<ARCH>`
+  declared in the SAME home as `<TOOL>_VERSION`: an `ARG` at the top of the
+  Dockerfile for the base family, a `versions.env` row for the cloud family. A
+  tool that lives in both homes carries the digest in both, and equal versions
+  must carry equal digests. The reason is that a bump is then 2 adjacent lines:
+  2 homes apart, and the bump misses one.
+- **The vocabulary is `_SHA256_AMD64` and `_SHA256_NOARCH`, and nothing else.**
+  It names the PLATFORM and never the upstream asset spelling — compose writes
+  `x86_64` and buildx writes `amd64` for the same platform, and following the
+  asset gave 2 vocabularies for 1 arch. `_NOARCH` is for an asset that serves
+  every platform. There is no `_ARM64` row while `SANCTIONED_PLATFORMS` is
+  `linux/amd64` alone: a digest that nothing compares is a check that cannot
+  fail. Widening the platform set restores the `linux/arm64)` case arm and the
+  `_ARM64` row together, in both homes.
+- **Every digest row records where its value came from**, machine-readably:
+  `# upstream-published: <checksum file url>` when the release ships a checksum
+  file and the 2 agreed, otherwise `# computed-at-pin: <yyyy-mm-dd>` — TLS plus
+  an immutable release URL is then the whole evidence, and the row says so. A
+  number a reviewer has to take on faith is not a pin.
+- **The download itself goes through `_build/fetch-verified.sh`.** It is 1 file
+  by the same rule that puts a verb body in `_ctl/lib.sh` once. `base` and
+  `cloud` COPY `_build/` to `/usr/local/lib/gophersys/` above their first
+  download; `flutter`, `zephyr`, `zephyr-devbox` and `base-runner` inherit it
+  through their `FROM` and add no COPY. **Because base COPYs it, base's docker
+  build context is the repository root and not `base/`** — `base/ctl.sh` sets
+  `IMAGE_BUILD_CONTEXT`, and both copies of `build-and-push.yml` say
+  `context: .` for the base job. A download that can carry no digest takes 1 row
+  in `_build/download-exemptions.txt` naming a stated class and a reason.
+  `_ctl/tests/download-coverage.test.sh` reads what the files CONSUME and holds
+  both directions: an unanswered download is red, and so is a row for a
+  download that no longer exists.
 - **`ARG HADOLINT_VERSION` in `base/Dockerfile` also governs the gate.**
   hadolint's verdict depends on its version — 2.15.1 raises DL3064 and DL3066 on
   Dockerfiles that 2.14.0 passes — so `validate` lints at that exact pin. It uses

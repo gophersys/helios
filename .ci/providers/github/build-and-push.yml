@@ -101,7 +101,7 @@ jobs:
         # _ctl/tests/publish-order.test.sh before widening it.
         uses: docker/build-push-action@v6
         with:
-          context: base
+          context: .
           file: base/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: false
@@ -122,7 +122,7 @@ jobs:
         # that reason.
         uses: docker/build-push-action@v6
         with:
-          context: base
+          context: .
           file: base/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true

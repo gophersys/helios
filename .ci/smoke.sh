@@ -96,6 +96,15 @@ BASE_PIN_HOME="base/Dockerfile"
 # The extractor is empty for the ~30 tools whose first `<digits>.<digits>` token
 # IS the version. The 2 other readers are named in .ci/image-checks.sh, and each
 # use below says why it is there.
+#
+# A `*_SHA256_*` pin carries NO row in either table below. It is classified by
+# SHAPE in class_row, because 41 hand-copied rows — 22 cloud, 19 base — would be
+# 41 places to forget one, and the day a digest is added without its row the
+# smoke refuses to run at all. The shape is safe to trust HERE and only here:
+# _ctl/tests/download-coverage.test.sh owns those names end to end — it holds
+# each one to the 1 arch vocabulary, to 64 lowercase hex, to the home its
+# version lives in, and to an evidence comment. A digest is never a version, so
+# no reading of a shell command could compare it against an image.
 # ---------------------------------------------------------------------------
 
 read -r -d '' PIN_CLASSES_CLOUD <<'PIN_CLASS_TABLE' || true
@@ -131,11 +140,7 @@ BW_VERSION|asserted|bw --version|
 GH_VERSION|asserted|gh --version|
 NATS_VERSION|asserted|nats --version|
 DOCKER_COMPOSE_VERSION|asserted|docker compose version|
-DOCKER_COMPOSE_SHA256_X86_64|not-a-version||
-DOCKER_COMPOSE_SHA256_AARCH64|not-a-version||
 DOCKER_BUILDX_VERSION|asserted|docker buildx version|
-DOCKER_BUILDX_SHA256_AMD64|not-a-version||
-DOCKER_BUILDX_SHA256_ARM64|not-a-version||
 BUF_VERSION|asserted|buf --version|
 GRPCURL_VERSION|asserted|grpcurl -version|
 RUNNER_VERSION|asserted|/home/runner/bin/Runner.Listener --version|line:Version:
@@ -183,7 +188,6 @@ GH_VERSION|asserted|gh --version|
 NATS_VERSION|asserted|nats --version|
 DOCKER_COMPOSE_VERSION|asserted|docker compose version|
 DOCKER_BUILDX_VERSION|asserted|docker buildx version|
-AWS_CLI_VERSION|asserted|aws --version|
 OCI_CLI_VERSION|asserted|oci --version|
 ANSIBLE_CORE_VERSION|asserted|ansible --version|
 ANSIBLE_VERSION|asserted|/home/dev/.local/share/uv/tools/ansible-core/bin/python -c "import importlib.metadata as m; print(m.version('ansible'))"|
@@ -324,8 +328,16 @@ function expected_version() {
 }
 
 # class_row <PIN> — the classification row for a pin, empty when it has none.
+#
+# A digest is classified by its NAME and carries no table row. See the note
+# above the tables: the rule that keeps this honest is that
+# download-coverage.test.sh governs every `*_SHA256_*` name in both homes.
 function class_row() {
   local name="$1" row
+  if [[ "$name" == *_SHA256_* ]]; then
+    printf '%s|not-a-version||' "$name"
+    return 0
+  fi
   while IFS= read -r row; do
     [[ "${row%%|*}" == "$name" ]] || continue
     printf '%s' "$row"

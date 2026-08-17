@@ -25,6 +25,7 @@ ARG BASE_IMAGE=ghcr.io/gophersys/base:latest
 FROM ${BASE_IMAGE}
 
 ARG RUNNER_VERSION=2.336.0                                             # latest release as of 2026-08-10
+ARG RUNNER_SHA256_AMD64=04cf0be1aff4c3ec3554466c39124ca250e3effd8873bb7e8d68535aa9505d5d  # computed-at-pin: 2026-08-17
 ARG CLAUDE_CODE_VERSION=2.1.212                                        # MUST match eden harnesses/versions.env
 ARG CICTL_VERSION=v0.1.0                                               # gophersys/cictl, first standalone release
 ARG USERNAME=dev
@@ -59,12 +60,13 @@ RUN apt-get update \
 # toolchain installed there (Go, nvm, cargo) resolves exactly as it does in dev.
 RUN case "${TARGETPLATFORM}" in \
       linux/amd64) ARCH=x64 ;; \
-      linux/arm64) ARCH=arm64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && mkdir -p /home/runner \
- && curl -fsSL "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz" \
-      -o /tmp/runner.tar.gz \
+ && /usr/local/lib/gophersys/fetch-verified.sh \
+      "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz" \
+      /tmp/runner.tar.gz \
+      "${RUNNER_SHA256_AMD64}" RUNNER_SHA256_AMD64 \
  && tar -xzf /tmp/runner.tar.gz -C /home/runner \
  && rm -f /tmp/runner.tar.gz \
  && mkdir -p /home/runner/_work

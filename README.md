@@ -202,26 +202,52 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
    ```dockerfile
    ARG MY_TOOL_VERSION=1.2.3  # latest LTS as of YYYY-MM-DD
    ```
-3. **Use the ARG in the RUN line.** A hardcoded semver in a `RUN` line is
+3. **Add its sha256 digest row beside that version**, in the SAME home. The
+   value comes from the asset you just selected, never from a second table:
+   ```dockerfile
+   ARG MY_TOOL_VERSION=1.2.3  # latest LTS as of YYYY-MM-DD
+   ARG MY_TOOL_SHA256_AMD64=<64 lowercase hex>  # upstream-published: <checksum file url>
+   ```
+   The vocabulary is `_SHA256_AMD64`, or `_SHA256_NOARCH` when 1 asset serves
+   every platform. Write `# upstream-published: <url>` when the release ships a
+   checksum file and the 2 values agree; write `# computed-at-pin: YYYY-MM-DD`
+   when it does not. Both spellings are read by
+   `_ctl/tests/download-coverage.test.sh`, which fails a digest with neither.
+   A tool of the cloud family puts both rows in `versions.env`, adds a
+   value-less `ARG` to `cloud/Dockerfile`, and adds the name to its pin gate.
+4. **Fetch it through the verified fetcher.** A bare `curl` or `wget` is
+   forbidden, and `bash ./ctl.sh test` names it:
+   ```sh
+   /usr/local/lib/gophersys/fetch-verified.sh \
+     "https://example.com/my-tool-${MY_TOOL_VERSION}-linux-${ARCH}.tar.gz" \
+     /tmp/my-tool.tar.gz \
+     "${MY_TOOL_SHA256_AMD64}" MY_TOOL_SHA256_AMD64
+   ```
+   The digest name is passed twice on purpose: once for its value, once as the
+   name the failure message prints. `base` and `cloud` COPY the helper from
+   `_build/`; the other 4 images inherit it through their `FROM`. When a
+   download cannot carry a digest, add 1 row to `_build/download-exemptions.txt`
+   naming its class and the reason. Those are the only 2 answers.
+5. **Use the ARG in the RUN line.** A hardcoded semver in a `RUN` line is
    forbidden. The command `bash ./ctl.sh validate` searches for a semver in a
    `RUN` line and fails.
-4. **Make every binary installation read `TARGETPLATFORM`**:
+6. **Make every binary installation read `TARGETPLATFORM`**:
    ```sh
    case "$TARGETPLATFORM" in
      linux/amd64) ARCH=amd64 ;;
-     linux/arm64) ARCH=arm64 ;;
      *) echo "unsupported platform: $TARGETPLATFORM"; exit 1 ;;
    esac
    ```
-   Keep the arm64 arm even though only amd64 is published. It costs nothing on a
-   1-platform build, and it is how the install stays correct on the day
-   `SANCTIONED_PLATFORMS` widens. A `case` that resolves the architecture is also
-   what lets the `*)` arm fail loudly instead of installing the wrong binary.
-5. **Remove the temporary files in the same layer.** For apt, use
+   Write the amd64 arm only. `SANCTIONED_PLATFORMS` is `linux/amd64` alone, and
+   an arm64 arm needs an arm64 digest that no build ever compares — a check that
+   cannot fail. The `*)` arm is what makes an unsanctioned platform stop the
+   build instead of installing the wrong binary. Restore both the arm and its
+   `_SHA256_ARM64` row together, on the day `SANCTIONED_PLATFORMS` widens.
+7. **Remove the temporary files in the same layer.** For apt, use
    `rm -rf /var/lib/apt/lists/*`.
-6. **You must get approval.** A new tool and a version change go through the
+8. **You must get approval.** A new tool and a version change go through the
    brain-level approval gate. They have an effect on every consuming project.
-7. Run `bash ./ctl.sh validate` and `bash ./ctl.sh test` until both report no
+9. Run `bash ./ctl.sh validate` and `bash ./ctl.sh test` until both report no
    error. Then run `bash ./ctl.sh build base` to make sure that the chain of
    images still builds.
 

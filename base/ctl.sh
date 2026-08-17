@@ -19,6 +19,14 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 IMAGE_NAME="base"
 
+# The build context is the REPOSITORY ROOT and not base/, because the Dockerfile
+# COPYs _build/, which sits one level above this directory. cloud/ctl.sh sets the
+# same 2 lines for the same reason (_delta/ and versions.env). The 2 build steps
+# of the base job in .github/workflows/build-and-push.yml and its provider copy
+# declare `context: .` to agree with this.
+IMAGE_BUILD_CONTEXT="$(cd "$PROJECT_ROOT/.." && pwd)"
+IMAGE_DOCKERFILE="$PROJECT_ROOT/Dockerfile"
+
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../_ctl/lib.sh
 source "$PROJECT_ROOT/../_ctl/lib.sh"

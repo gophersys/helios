@@ -23,6 +23,17 @@ RUN echo "tool ${KEPT_TOOL_VERSION}"
 # as a deleted install leaves behind. The detector MUST report this name.
 ARG ABANDONED_TOOL_VERSION=4.5.6
 
+# Declared AND referenced, the digest half. The detector must NOT report this
+# one — if it did, it would report every digest pin in the repository.
+ARG KEPT_TOOL_SHA256_AMD64=2222222222222222222222222222222222222222222222222222222222222222
+RUN echo "digest ${KEPT_TOOL_SHA256_AMD64}"
+
+# ORPHAN ON PURPOSE, the digest half. A download that moved to another image,
+# or a tool that was removed, leaves its digest ARG at the top. The build still
+# succeeds, and the stale pin then reads as evidence that the image still
+# verifies a tool it no longer installs. The detector MUST report this name.
+ARG ABANDONED_TOOL_SHA256_AMD64=3333333333333333333333333333333333333333333333333333333333333333
+
 # Prose, not a declaration. A commented `# ARG` line is not an ARG, so the
 # detector must NOT treat COMMENTED_OUT_VERSION as declared-and-orphaned.
 # ARG COMMENTED_OUT_VERSION=7.8.9

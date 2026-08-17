@@ -20,6 +20,21 @@ RUN curl -fsSL "https://example.invalid/tool-v${TOOL_RELEASE_VERSION}.tar.gz" -o
 # it did, it would report every version reference in the repository.
 RUN echo "tool ${TOOL_VERSION}"
 
+# DANGLING ON PURPOSE, the digest half. A version bump that renames or drops
+# the digest ARG leaves the fetch line asking for the old name; the reference
+# expands to the empty string, and a helper handed an empty digest either
+# compares against nothing or refuses to run — the second one only because
+# _build/fetch-verified.sh is written to refuse. The name is neither a
+# substring nor a superstring of the declared digest below.
+RUN /usr/local/lib/gophersys/fetch-verified.sh \
+      "https://example.invalid/tool.tar.gz" /tmp/tool.tgz \
+      "${TOOL_RELEASE_SHA256_AMD64}" TOOL_RELEASE_SHA256_AMD64
+
+# Declared and referenced correctly, the digest half. The detector must NOT
+# report this one.
+ARG TOOL_SHA256_AMD64=1111111111111111111111111111111111111111111111111111111111111111
+RUN echo "digest ${TOOL_SHA256_AMD64}"
+
 # Prose, not an instruction. A detector that reads comments reports the
 # ${NEVER_DECLARED_VERSION} written in this sentence, and zephyr/Dockerfile
 # really does explain a zsh expansion in prose the same way.
