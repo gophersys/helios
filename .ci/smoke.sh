@@ -188,7 +188,6 @@ GH_VERSION|asserted|gh --version|
 NATS_VERSION|asserted|nats --version|
 DOCKER_COMPOSE_VERSION|asserted|docker compose version|
 DOCKER_BUILDX_VERSION|asserted|docker buildx version|
-AWS_CLI_VERSION|asserted|aws --version|
 OCI_CLI_VERSION|asserted|oci --version|
 ANSIBLE_CORE_VERSION|asserted|ansible --version|
 ANSIBLE_VERSION|asserted|/home/dev/.local/share/uv/tools/ansible-core/bin/python -c "import importlib.metadata as m; print(m.version('ansible'))"|

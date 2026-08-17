@@ -107,8 +107,6 @@ ARG K9S_SHA256_AMD64=c3752ad51a5a4015a113819c4eeb6e55a4d0e4b8e652494797532f6fc81
 ARG NATS_VERSION=0.3.2                                                 # latest LTS as of 2026-04-19
 ARG NATS_SHA256_AMD64=be942b5c3815d572b0836b1656e6c27e6306cf5633e439fbba8dd19c77288ba7  # computed-at-pin: 2026-08-17
 ARG OCI_CLI_VERSION=3.79.0                                             # latest LTS as of 2026-04-20
-ARG AWS_CLI_VERSION=2.34.32                                            # latest LTS as of 2026-04-20
-ARG AWS_CLI_SHA256_AMD64=ad983363b8286928b37bec605348255ddc39e73ba2e79a969ed1c034fe2dc8b3  # computed-at-pin: 2026-08-17
 
 # The 2 docker cli-plugins. They arrive as release binaries and not as apt
 # packages, so nothing but the digest says the bytes are the ones upstream
@@ -608,18 +606,13 @@ RUN case "${TARGETPLATFORM}" in \
  && chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
 # NOTE: no docker buildx version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
-# AWS CLI v2 — official zip bundle.
-RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=x86_64 ;; \
-      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
-    esac \
- && /usr/local/lib/gophersys/fetch-verified.sh \
-      "https://awscli.amazonaws.com/awscli-exe-linux-${ARCH}-${AWS_CLI_VERSION}.zip" /tmp/awscliv2.zip \
-      "${AWS_CLI_SHA256_AMD64}" AWS_CLI_SHA256_AMD64 \
- && unzip -q /tmp/awscliv2.zip -d /tmp \
- && /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update \
- && rm -rf /tmp/awscliv2.zip /tmp/aws
-# NOTE: no aws --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
+# The AWS CLI is NOT installed here. _delta/components/aws.sh states it was
+# dropped from every image by decision (image-architecture §2.3 — only
+# arm-builder EC2 operations touched AWS, and arm-builder is decommissioned),
+# and versions.env files AWS_CLI_VERSION under "ready components, consumed by NO
+# image today". This block was the one place that contradicted both, exactly as
+# the terraform block did. The pin stays in versions.env as the ready component;
+# the delta is 1 line away.
 
 # Python-tool installs via uv tool into the dev user's home: ansible-core
 # (engine — provides ansible/ansible-playbook/ansible-galaxy shims) bundled
