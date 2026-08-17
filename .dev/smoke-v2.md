@@ -1,6 +1,6 @@
 # smoke-v2
 
-phase:    fix
+phase:    pr
 repo:     gophersys/.devcontainer
 branch:   ci/smoke-v2
 worktree: ~/code/.worktrees/.devcontainer-smoke-v2
@@ -91,8 +91,21 @@ and finding 7 (R4 boundary untested hermetically) fold into this fix round.
 Everything else survived: 4 break-drills red correctly, comparator edges
 held, workflow gating verified job-by-job, no masked exit codes.
 
+## Fix round 1 — CLOSED green (2026-08-16)
+- RED: functional-groups.test.sh (new, 15 checks, 5 intended red with the
+  exact swallow signature) + smoke-contract +2 R4 boundary cases. 1cb0c46.
+- GREEN: 6c82f78 — FAILURES counter is the ONLY verdict; run_step never
+  returns non-zero; skip_step records a failure when nothing else failed
+  (a skip cannot stand alone in a green run); dependents-of-artifacts skip
+  by name, dependents-of-module run. 11 files, 152 checks, 0 failed.
+  validate rc=0. shellcheck rc=0. Real-image cloud smoke rc=0 (digest
+  4455cc48, 60 ok lines). 4 extra drills beyond the tests, all correct.
+- CORRECTION: no _ctl/lib.sh hunk ever existed — the SC2178 rename lives in
+  the test file's own scope; implementer proved the placement right by
+  scratch drill. lib.sh untouched on this branch.
+- Implementer extended the fix by 2 lines (devbox ssh-keygen through
+  run_step) — same finding-6 class, accepted.
+
 ## Next
-Fix round (attempt 1): dev-test-author adds RED cases — SMOKE_CHECKS group
-execution (failing step => non-zero; each group reaches its function) + R4
-boundary via STUB_IMAGE_SIZE; then dev-implementer fixes the subshell
-swallow + failure semantics (findings 1+6), turning them green. Then PR.
+PR open; phase 6 wait (checks + review rounds; merge conditions per
+standing orders).
