@@ -22,7 +22,16 @@ ARG ANDROID_BUILDTOOLS_VERSION=36.1.0                                  # latest 
 ARG FLUTTER_VERSION=3.41.7                                             # latest LTS as of 2026-04-19
 ARG FLUTTER_CHANNEL=stable                                             # latest LTS as of 2026-04-19
 
-ARG USERNAME=dev
+# NOTE: the non-root user is hardcoded as `dev` throughout this Dockerfile
+# (matching the base image's invariant). An ARG USERNAME is intentionally NOT
+# used here because the parent image's SHELL is zsh-with-pipefail, and zsh
+# unconditionally auto-sets the special parameter $USERNAME to the effective
+# logname. See zephyr/Dockerfile for the full rationale. This file DID use
+# ${USERNAME} from zsh-as-root RUN layers until 2026-08-17: both chowns below
+# resolved to `chown -R root:root`, so /opt/flutter and /opt/android-sdk shipped
+# root-owned, and `flutter --version` as `dev` exited 128 with "detected dubious
+# ownership in repository at '/opt/flutter'" on the first smoke run that ever
+# executed it.
 
 # -------------------------------------------------------------------------
 # System deps for Flutter + Android. openjdk version is driven by JAVA_VERSION.
@@ -64,10 +73,15 @@ RUN case "${TARGETPLATFORM}" in \
       "platform-tools" \
       "platforms;android-${ANDROID_PLATFORM_VERSION}" \
       "build-tools;${ANDROID_BUILDTOOLS_VERSION}" \
- && chown -R "${USERNAME}:${USERNAME}" "${ANDROID_SDK_ROOT}"
+ && chown -R dev:dev "${ANDROID_SDK_ROOT}"
 
 # -------------------------------------------------------------------------
 # Flutter SDK — official google-hosted tarball, pinned channel.
+#
+# safe.directory is --system and not --global: this RUN layer is root, so
+# --global writes /root/.gitconfig, which the `dev` runtime user cannot even
+# read. The SDK ships as a git checkout and every flutter invocation shells out
+# to git, so the exception has to reach whichever uid runs the tool.
 # -------------------------------------------------------------------------
 ENV FLUTTER_HOME=/opt/flutter \
     FLUTTER_ROOT=/opt/flutter \
@@ -80,8 +94,8 @@ RUN curl -fsSL \
  && mkdir -p /opt \
  && tar -C /opt -xJf /tmp/flutter.tar.xz \
  && rm /tmp/flutter.tar.xz \
- && git config --global --add safe.directory /opt/flutter \
- && chown -R "${USERNAME}:${USERNAME}" /opt/flutter
+ && git config --system --add safe.directory /opt/flutter \
+ && chown -R dev:dev /opt/flutter
 # NOTE: no flutter --version / flutter doctor / flutter precache smoke here —
 # Flutter SDK uses the bundled dart runtime (native arch) which fails under
 # QEMU cross-arch build; flutter config/precache/doctor run in post-build
@@ -92,6 +106,6 @@ ENV GOPHERSYS_DEVCONTAINER=flutter
 LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
 LABEL org.opencontainers.image.description="gophersys flutter layer: Flutter ${FLUTTER_VERSION} + Android SDK ${ANDROID_PLATFORM_VERSION}"
 
-USER ${USERNAME}
+USER dev
 WORKDIR /workspace
 CMD ["/usr/bin/zsh"]

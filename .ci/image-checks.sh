@@ -458,6 +458,21 @@ function checks_content_zephyr() {
   run_step "west" west --version
 }
 
+# sdk_toolchain_gcc <name> — the gcc of a Zephyr SDK toolchain, wherever this
+# SDK release puts it. It prints nothing when there is none, and the caller
+# turns that into a FAILURE.
+#
+# The path is SEARCHED and not templated. Zephyr SDK 1.0 moved the GNU
+# toolchains from ${ZEPHYR_SDK_INSTALL_DIR}/<name>/ down to
+# ${ZEPHYR_SDK_INSTALL_DIR}/gnu/<name>/, and the templated form reported all 4
+# toolchains missing from an image that carries all 5 it installs — measured on
+# ghcr.io/gophersys/zephyr-devbox:latest, SDK 1.0.1, on 2026-08-17. maxdepth 4
+# reaches both layouts (gnu/<name>/bin/<name>-gcc, <name>/bin/<name>-gcc) and
+# nothing deeper, so a stray copy in a sysroot cannot answer for the toolchain.
+function sdk_toolchain_gcc() {
+  find "${ZEPHYR_SDK_INSTALL_DIR}" -maxdepth 4 -type f -name "${1}-gcc" -print -quit
+}
+
 function checks_content_devbox() {
   say "--- zephyr-devbox content ---"
   run_step "openocd" openocd --version
@@ -479,12 +494,17 @@ function checks_content_devbox() {
   # these at runtime.
   run_step "west venv deps" /opt/west-venv/bin/python -c "import requests, jsonschema"
   run_step "west venv esptool" /opt/west-venv/bin/python -c "import esptool, serial"
-  local toolchain
+  local toolchain gcc status
   for toolchain in xtensa-espressif_esp32_zephyr-elf xtensa-espressif_esp32s2_zephyr-elf xtensa-espressif_esp32s3_zephyr-elf riscv64-zephyr-elf; do
-    if [[ -x "${ZEPHYR_SDK_INSTALL_DIR}/${toolchain}/bin/${toolchain}-gcc" ]]; then
-      say "ok   sdk toolchain ${toolchain}"
+    gcc=""
+    status=0
+    gcc="$(sdk_toolchain_gcc "$toolchain")" || status=$?
+    if [[ "$status" -ne 0 ]]; then
+      fail "sdk toolchain ${toolchain}: the search under ${ZEPHYR_SDK_INSTALL_DIR} exited ${status}"
+    elif [[ -x "$gcc" ]]; then
+      say "ok   sdk toolchain ${toolchain}: ${gcc}"
     else
-      fail "sdk toolchain ${toolchain}: no gcc at ${ZEPHYR_SDK_INSTALL_DIR}/${toolchain}/bin"
+      fail "sdk toolchain ${toolchain}: no executable ${toolchain}-gcc under ${ZEPHYR_SDK_INSTALL_DIR}"
     fi
   done
   # Throwaway host keys, so `sshd -t` validates the full effective config,
@@ -492,6 +512,13 @@ function checks_content_devbox() {
   run_step "sshd host keys" sudo mkdir -p /etc/ssh/hostkeys
   run_step "sshd host key ed25519" sudo ssh-keygen -q -N '' -t ed25519 -f /etc/ssh/hostkeys/ssh_host_ed25519_key
   run_step "sshd host key rsa" sudo ssh-keygen -q -N '' -t rsa -f /etc/ssh/hostkeys/ssh_host_rsa_key
+  # /run/sshd is a RUNTIME prerequisite that PID 1 supplies — devbox-entrypoint.sh
+  # creates it just before it execs sshd — and `sshd -t` refuses to read the
+  # config at all without it ("Missing privilege separation directory"). The
+  # smoke sends its own argv, which the entrypoint execs INSTEAD of running that
+  # preparation, so nothing here has created it. Creating it is what lets -t do
+  # the job it exists for, which is to validate the CONFIG.
+  run_step "sshd privsep dir" sudo install -d -m 0755 /run/sshd
   run_step "sshd -t" sudo /usr/sbin/sshd -t
 }
 
