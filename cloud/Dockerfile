@@ -274,6 +274,12 @@ RUN mkdir -p "/home/${USERNAME}/.local/bin" \
 # nvm + Node LTS + corepack (yarn, pnpm). The nvm installer inspects $SHELL
 # and refuses to run when it sees zsh, so we override $SHELL for this RUN
 # and invoke the whole block under bash.
+#
+# The cleanup tail is in-layer cache hygiene (size lever 1, risk R4): the
+# nvm download cache (31.2 MB) and the npm cache (30.7 MB) are write-only at
+# runtime and a removal in a later layer would save zero bytes. The corepack
+# store under ~/.cache/node STAYS: it is where the activated yarn and pnpm
+# live, not a cache.
 ENV NVM_DIR=/home/${USERNAME}/.nvm
 RUN unset ZSH_VERSION; SHELL=/bin/bash bash -c "unset ZSH_VERSION; set -euo pipefail; \
       mkdir -p \"\${NVM_DIR}\"; \
@@ -284,7 +290,10 @@ RUN unset ZSH_VERSION; SHELL=/bin/bash bash -c "unset ZSH_VERSION; set -euo pipe
       npm install -g \"npm@${NPM_VERSION}\"; \
       corepack enable; \
       corepack prepare yarn@stable --activate; \
-      corepack prepare pnpm@latest --activate"
+      corepack prepare pnpm@latest --activate; \
+      nvm cache clear; \
+      npm cache clean --force; \
+      rm -rf \"\${HOME}/.npm\" /tmp/node-compile-cache"
 
 # uv — Python package manager. Installed via the official installer to the
 # dev user's ~/.local/bin.
@@ -315,14 +324,19 @@ RUN case "${TARGETPLATFORM}" in \
 # measured 2.06 GB, of which ~1.6 GB was the module and build cache the RUN
 # never removed — the 7 binaries are ~200 MB. `go clean` handles the
 # read-only module tree; the rm afterwards mops what remains.
+#
+# -ldflags="-s -w" is size lever 3 (risk R4): it drops the symbol and DWARF
+# tables from the 7 GATE binaries, which nobody debugs — a panic still
+# prints its stack trace. dlv is deliberately NOT here and NOT stripped
+# (components/delve.sh): the debugger must remain debuggable.
 USER ${USERNAME}
-RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install mvdan.cc/gofumpt@v${GOFUMPT_VERSION} \
- && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGCI_LINT_VERSION}" \
- && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION}" \
- && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" \
- && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/go-gremlins/gremlins/cmd/gremlins@v${GREMLINS_VERSION}" \
- && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "golang.org/x/perf/cmd/benchstat@${BENCHSTAT_REF}" \
- && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/gophersys/hnslint/cmd/hnslint@v${HNSLINT_VERSION}" \
+RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" mvdan.cc/gofumpt@v${GOFUMPT_VERSION} \
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGCI_LINT_VERSION}" \
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "golang.org/x/vuln/cmd/govulncheck@v${GOVULNCHECK_VERSION}" \
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" \
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "github.com/go-gremlins/gremlins/cmd/gremlins@v${GREMLINS_VERSION}" \
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "golang.org/x/perf/cmd/benchstat@${BENCHSTAT_REF}" \
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "github.com/gophersys/hnslint/cmd/hnslint@v${HNSLINT_VERSION}" \
  && go clean -modcache \
  && go clean -cache \
  && rm -rf "${GOPATH}/pkg/mod" "/home/${USERNAME}/.cache/go-build"

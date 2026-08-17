@@ -170,7 +170,16 @@ golangci-lint --version
 govulncheck -version
 gosec --version
 gremlins --version
-benchstat -h >/dev/null 2>&1 && echo "benchstat: ok"
+# The `X && echo ok` form is BANNED here: under set -e a failure inside an
+# AND-list does not abort the script, so that form is a check that cannot
+# fail — proven by drill: a wrong binary name still ended in a green smoke.
+# Both proofs below fail loudly through an explicit if.
+if ! benchstat -h >/dev/null 2>&1; then echo "FAIL: benchstat is not in the image"; exit 1; fi
+echo "benchstat: ok"
+# hnslint ships no version verb: any argument is read as a directory. The
+# presence proof is its usage answer.
+if ! hnslint 2>&1 | grep -q "usage: hnslint"; then echo "FAIL: hnslint is not in the image or does not answer its usage line"; exit 1; fi
+echo "hnslint: ok"
 gitleaks version
 kubeconform -v
 echo "--- docker cli-plugins ---"
@@ -324,7 +333,16 @@ golangci-lint --version
 govulncheck -version
 gosec --version
 gremlins --version
-benchstat -h >/dev/null 2>&1 && echo "benchstat: ok"
+# The `X && echo ok` form is BANNED here: under set -e a failure inside an
+# AND-list does not abort the script, so that form is a check that cannot
+# fail — proven by drill: a wrong binary name still ended in a green smoke.
+# Both proofs below fail loudly through an explicit if.
+if ! benchstat -h >/dev/null 2>&1; then echo "FAIL: benchstat is not in the image"; exit 1; fi
+echo "benchstat: ok"
+# hnslint ships no version verb: any argument is read as a directory. The
+# presence proof is its usage answer.
+if ! hnslint 2>&1 | grep -q "usage: hnslint"; then echo "FAIL: hnslint is not in the image or does not answer its usage line"; exit 1; fi
+echo "hnslint: ok"
 gitleaks version
 kubeconform -v
 echo "--- the Go caches are OUT of the image (the 1.6 GB fix) ---"
@@ -539,26 +557,33 @@ else
   resolve_buildx_pin
 fi
 
-# The R4 size gate, cloud only: the acceptance budget is <= 5.5 GB (decimal,
+# The R4 size gate, cloud only: the acceptance budget is <= 5.75 GB (decimal,
 # the unit every census figure uses). It runs on the HOST against the loaded
 # or pulled image, BEFORE the container smoke, and in CI this whole script
-# runs before the push — so an oversize image never reaches a consumer. The
-# budget does not move quietly: above it, the next levers are the
-# --no-install-recommends audit, stripping the Go gate binaries, splitting
-# build-essential out — and past those, the decision goes back to a human.
+# runs before the push — so an oversize image never reaches a consumer.
+#
+# The budget did not move quietly. The first build measured 6,303,346,803
+# bytes against the original 5.5 GB budget, the R4 levers were applied and
+# measured one by one — in-layer npm/nvm cache hygiene −676.2 MB, the
+# --no-install-recommends audit −0 (every install already carried the flag),
+# stripping the 7 Go gate binaries −35.9 MB — and the measured floor with
+# every tool kept came out at ~5.63–5.67 GB. Per R4 the decision then went
+# to a human: Mateo decided on 2026-08-16 to keep every tool and set the
+# budget to 5.75 GB. Above THIS budget the remaining levers are splitting
+# build-essential out or dropping a tool — and either goes back to Mateo.
 if [[ "$IMAGE" == "cloud" ]]; then
-  CLOUD_SIZE_BUDGET_BYTES=5500000000
+  CLOUD_SIZE_BUDGET_BYTES=5750000000
   CLOUD_SIZE_BYTES=""
   if ! CLOUD_SIZE_BYTES="$(docker image inspect --format '{{.Size}}' "$REF")"; then
-    log_error "cannot read the size of ${REF}; the 5.5 GB gate cannot run, which is a FAILURE and not a skip"
+    log_error "cannot read the size of ${REF}; the 5.75 GB gate cannot run, which is a FAILURE and not a skip"
     exit 1
   fi
   if [[ "$CLOUD_SIZE_BYTES" -gt "$CLOUD_SIZE_BUDGET_BYTES" ]]; then
-    log_error "cloud size gate: ${REF} is ${CLOUD_SIZE_BYTES} bytes, over the ${CLOUD_SIZE_BUDGET_BYTES}-byte (5.5 GB) budget"
+    log_error "cloud size gate: ${REF} is ${CLOUD_SIZE_BYTES} bytes, over the ${CLOUD_SIZE_BUDGET_BYTES}-byte (5.75 GB) budget"
     log_error "the budget is acceptance metric 2 of the image program (risk R4); it does not move quietly"
     exit 1
   fi
-  log_info "cloud size gate: ${CLOUD_SIZE_BYTES} bytes <= ${CLOUD_SIZE_BUDGET_BYTES} (5.5 GB budget)"
+  log_info "cloud size gate: ${CLOUD_SIZE_BYTES} bytes <= ${CLOUD_SIZE_BUDGET_BYTES} (5.75 GB budget)"
 fi
 
 RUN_ARGS=(
