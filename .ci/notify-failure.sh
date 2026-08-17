@@ -49,7 +49,13 @@ source "$PROJECT_ROOT/../_ctl/lib.sh"
 
 # The label that makes the issue findable. It is the whole mechanism for "1
 # issue": every lookup below is a search for an OPEN issue carrying it.
-ISSUE_LABEL="ci-nightly-red"
+#
+# It is a PARAMETER because this repository has 2 scheduled runs and they report
+# 2 different things. The nightly scan keeps the default, so its workflow needed
+# no edit; the weekly bump passes ci-weekly-red. With the label hardcoded, a
+# green Monday closed the issue the nightly opened about a CRITICAL CVE, and a
+# red Monday commented on it — both of which read as the SCAN changing state.
+ISSUE_LABEL="${ISSUE_LABEL:-ci-nightly-red}"
 ISSUE_LABEL_COLOR="b60205"
 ISSUE_LABEL_DESCRIPTION="A scheduled run of this repository is failing"
 
