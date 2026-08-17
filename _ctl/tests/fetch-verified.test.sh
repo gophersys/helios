@@ -9,7 +9,7 @@
 # WHY THIS FILE DRIVES THE SCRIPT INSTEAD OF READING IT
 # ============================================================================
 #
-# _build/fetch-verified.sh is the ONE thing standing between 52 downloads and
+# _build/fetch-verified.sh is the ONE thing standing between 46 downloads and
 # whatever the far end decides to send. Every other check of this change is
 # static: download-coverage.test.sh proves each download NAMES a digest, and
 # dockerfile-args.test.sh proves the name resolves to an ARG. Not one of them

@@ -10,10 +10,10 @@
 # THE DEFECT
 # ============================================================================
 #
-# The 6 Dockerfiles and _delta/components/*.sh perform 56 URL fetches between
-# them (counted by this file's own reader on 2026-08-17), and 4 of the 56
+# The 6 Dockerfiles and _delta/components/*.sh perform 55 URL fetches between
+# them (counted by this file's own reader on 2026-08-17), and 4 of the 55
 # compare the bytes against a digest: docker-compose and docker-buildx, twice
-# each. The other 52 take whatever the far end sends. TLS says the bytes came
+# each. The other 51 take whatever the far end sends. TLS says the bytes came
 # from the host the URL names; it says nothing about WHICH bytes that host
 # served, so a compromised release asset, a re-tagged upstream release, or a
 # mirror that answers first all install silently and publish to ghcr.io under
@@ -96,6 +96,30 @@
 # command itself. That is also what the sanctioned-platform policy already
 # implies: 1 platform means 1 arm, so the `case` has nothing left to choose.
 #
+# ============================================================================
+# THE COPY THAT PUTS THE HELPER IN THE IMAGE, AND WHY IT IS ASSERTED HERE
+# ============================================================================
+#
+# Every rule above reads a fetch COMMAND. Not one of them reads whether the
+# file that command calls is in the image at the moment it runs. The verifier
+# measured the hole on 2026-08-17: delete `COPY _build/ /usr/local/lib/gophersys/`
+# from cloud/Dockerfile and all 378 checks the suite held that day stayed green,
+# while every routed download dies at build time with "not found" — the whole
+# verification programme resting on a line nothing watched.
+#
+# It is 2 conditions and not 1, because presence alone is satisfied by a COPY
+# that arrives too late. A layer runs against the filesystem the layers ABOVE
+# it left, so the COPY must sit above the FIRST call:
+#
+#   base and cloud   build FROM ubuntu with the repository root as their build
+#                    context, so each carries the COPY itself, above its first
+#                    fetch. base/ctl.sh and cloud/ctl.sh set
+#                    IMAGE_BUILD_CONTEXT for exactly this reason.
+#   the other 4      build FROM an image of this repository and inherit the
+#                    file through their FROM. The body of a verb lives 1 time,
+#                    and this is that rule applied to the fetch-and-compare
+#                    body.
+#
 # Usage: bash _ctl/tests/download-coverage.test.sh
 #
 set -Eeuo pipefail
@@ -121,6 +145,22 @@ TEST_NAME="download-coverage.test.sh"
 # that discovers the path it checks agrees with any path, a wrong one included.
 FETCH_HELPER="_build/fetch-verified.sh"
 EXEMPTIONS_FILE="_build/download-exemptions.txt"
+
+# The 2 halves of the COPY that puts that helper into an image, and the path
+# the RUN layers then call. Literals, for the reason above them: a test that
+# reads the path it checks agrees with any path, a wrong one included.
+HELPER_BUILD_DIRECTORY="_build/"
+HELPER_IMAGE_DIRECTORY="/usr/local/lib/gophersys/"
+HELPER_IMAGE_PATH="/usr/local/lib/gophersys/fetch-verified.sh"
+HELPER_COPY_TEXT="COPY ${HELPER_BUILD_DIRECTORY} ${HELPER_IMAGE_DIRECTORY}"
+
+# The 2 Dockerfiles that build FROM ubuntu with the repository root as their
+# build context, and therefore carry that COPY themselves. The other 4 build
+# FROM an image of this repository and inherit the file through their FROM.
+HELPER_COPY_DOCKERFILES=(
+  "base/Dockerfile"
+  "cloud/Dockerfile"
+)
 
 # Every file this rule governs. Named file by file rather than found by a glob,
 # for the reason platform-policy.test.sh names its list: a glob that stops
@@ -184,6 +224,9 @@ FIXTURE_EXEMPTIONS="$FIXTURE_DIR/exemptions.txt"
 FIXTURE_HOME_GOOD="$FIXTURE_DIR/home-good.Dockerfile"
 FIXTURE_HOME_BAD="$FIXTURE_DIR/home-bad.Dockerfile"
 FIXTURE_HOME_OTHER="$FIXTURE_DIR/home-other.env"
+FIXTURE_COPY_ABOVE="$FIXTURE_DIR/copy-above.Dockerfile"
+FIXTURE_COPY_BELOW="$FIXTURE_DIR/copy-below.Dockerfile"
+FIXTURE_COPY_ABSENT="$FIXTURE_DIR/copy-absent.Dockerfile"
 
 # ---------------------------------------------------------------------------
 # The readers.
@@ -690,6 +733,99 @@ function dual_home_disagreements() {
   printf '%s' "$out"
 }
 
+# ---------------------------------------------------------------------------
+# The readers and detectors of rule 3: the helper the fetches call is IN the
+# image, and it is there before the first fetch. Each detector takes an
+# explicit file list, so the fixture world and the real tree run through the
+# SAME code.
+# ---------------------------------------------------------------------------
+
+# helper_copy_lines <file> — the number of every line that COPYs the _build/
+# directory of the build context into the helper's directory in the image.
+#
+# A `COPY --from=` is not this copy: it takes bytes out of another stage rather
+# than out of the build context, so the helper would not be there.
+#
+# There is no comment filter here, unlike the reader below, and the anchor is
+# why: a Dockerfile comment begins with `#`, so `^[[:space:]]*COPY` can never
+# match one. The filter was written first and then deleted — mutation-tested
+# by removing it, and not 1 check went red. Dead code in a detector is a line
+# a reader trusts and nothing holds.
+function helper_copy_lines() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+  awk -v source="$HELPER_BUILD_DIRECTORY" -v target="$HELPER_IMAGE_DIRECTORY" '
+    { line = $0 }
+    line ~ /^[[:space:]]*COPY[[:space:]]/ {
+      if (index(line, "--from=") > 0) { next }
+      if (index(line, source) > 0 && index(line, target) > 0) { print NR }
+    }
+  ' "$file"
+}
+
+# first_helper_call_line <file> — the number of the first line that calls the
+# helper at its in-image path, or the empty string when the file never calls
+# it.
+#
+# This reader HAS a comment filter, and it is load-bearing: the match is an
+# unanchored `index`, and a Dockerfile that writes the helper's path in prose
+# above its COPY — which is exactly what copy-above.Dockerfile does, and what
+# the real files are 1 sentence away from doing — would otherwise report a
+# first call above the COPY and fail a correctly wired image.
+function first_helper_call_line() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+  awk -v helper="$HELPER_IMAGE_PATH" '
+    { line = $0 }
+    line ~ /^[[:space:]]*#/ { next }
+    index(line, helper) > 0 { print NR; exit }
+  ' "$file"
+}
+
+# dockerfiles_missing_the_helper_copy <relative...> — every named Dockerfile
+# that does not carry exactly 1 helper COPY, with what it carries instead.
+function dockerfiles_missing_the_helper_copy() {
+  local relative path lines total numbers out=""
+  for relative in "$@"; do
+    path="$REPO_ROOT/$relative"
+    if [[ ! -f "$path" ]]; then
+      out="${out:+${out}
+}${relative}: the file is absent"
+      continue
+    fi
+    lines="$(helper_copy_lines "$path")"
+    total="$(count_lines "$lines")"
+    if [[ "$total" -eq 1 ]]; then
+      continue
+    fi
+    numbers="$(tr '\n' ' ' <<< "$lines")"
+    out="${out:+${out}
+}${relative}: ${total} lines carry '${HELPER_COPY_TEXT}' (want exactly 1) [${numbers% }]"
+  done
+  printf '%s' "$out"
+}
+
+# dockerfiles_that_copy_the_helper_too_late <relative...> — every named
+# Dockerfile whose helper COPY sits below the first layer that calls the
+# helper. A file carrying no COPY at all is left to the detector above, and a
+# file that never calls the helper has no first call to sit above.
+function dockerfiles_that_copy_the_helper_too_late() {
+  local relative path lines copy_line call_line out=""
+  for relative in "$@"; do
+    path="$REPO_ROOT/$relative"
+    [[ -f "$path" ]] || continue
+    lines="$(helper_copy_lines "$path")"
+    copy_line="${lines%%$'\n'*}"
+    call_line="$(first_helper_call_line "$path")"
+    [[ -z "$copy_line" || -z "$call_line" ]] && continue
+    if [[ "$copy_line" -gt "$call_line" ]]; then
+      out="${out:+${out}
+}${relative}: the COPY is at line ${copy_line} and the first ${HELPER_IMAGE_PATH} call is at line ${call_line}"
+    fi
+  done
+  printf '%s' "$out"
+}
+
 printf '=== RUN  %s\n' "$TEST_NAME"
 
 # ===========================================================================
@@ -736,11 +872,11 @@ $(fetch_sites "download-coverage/component.sh" "$FIXTURE_COMPONENT")"
   fixture_unclassified="$(keys_absent_from "$(sites_in_state "$fixture_sites" "plain")" "$fixture_row_keys")"
   assert_contains "counter_stimulus_reports_the_download_that_nobody_answered" \
     "$fixture_unclassified" "unclassified-tool.tar.gz" \
-    "a fetch with no digest and no exemption row is the shape of ~53 real downloads"
+    "a fetch with no digest and no exemption row is the shape of the 51 downloads this change replaced"
 
   assert_contains "counter_stimulus_reports_the_unanswered_download_in_a_component_script" \
     "$fixture_unclassified" "component-tool.tar.gz" \
-    "_delta/components/*.sh fetch 7 real downloads, and a reader that only met a Dockerfile covers none of them"
+    "_delta/components/*.sh fetch 8 real downloads, and a reader that only met a Dockerfile covers none of them"
 
   # The quiet half of the same direction.
   assert_not_contains "counter_stimulus_does_not_report_the_verified_download" \
@@ -858,6 +994,46 @@ else
 fi
 
 # ===========================================================================
+# 1c. THE COUNTER-STIMULUS for rule 3 — the helper-wiring detectors.
+#
+# Both real Dockerfiles are correctly wired today, so on the real tree these
+# 2 detectors report nothing and would report nothing if they read no file at
+# all. The fixtures are the only place they are ever watched to fire.
+# ===========================================================================
+if [[ ! -f "$FIXTURE_COPY_ABOVE" || ! -f "$FIXTURE_COPY_BELOW" || ! -f "$FIXTURE_COPY_ABSENT" ]]; then
+  fail_check "counter_stimulus_copy_fixtures_exist" \
+    "the fixtures the helper-wiring rule proves itself with are absent:" \
+    "$FIXTURE_COPY_ABOVE" "$FIXTURE_COPY_BELOW" "$FIXTURE_COPY_ABSENT"
+else
+  pass_check "counter_stimulus_copy_fixtures_exist"
+
+  copy_above="_ctl/tests/fixtures/download-coverage/copy-above.Dockerfile"
+  copy_below="_ctl/tests/fixtures/download-coverage/copy-below.Dockerfile"
+  copy_absent="_ctl/tests/fixtures/download-coverage/copy-absent.Dockerfile"
+
+  assert_contains "counter_stimulus_reports_the_dockerfile_that_never_copies_the_helper" \
+    "$(dockerfiles_missing_the_helper_copy "$copy_absent")" "copy-absent.Dockerfile" \
+    "it calls ${HELPER_IMAGE_PATH} and nothing puts that file in the image," \
+    "which is what deleting 1 line from cloud/Dockerfile leaves behind"
+
+  assert_equal "counter_stimulus_leaves_the_dockerfile_that_copies_the_helper_alone" \
+    "" "$(dockerfiles_missing_the_helper_copy "$copy_above")" \
+    "copy-above.Dockerfile carries exactly 1 '${HELPER_COPY_TEXT}'," \
+    "and a detector that reports it reports base/Dockerfile and cloud/Dockerfile too"
+
+  assert_contains "counter_stimulus_reports_the_copy_that_sits_below_the_first_fetch" \
+    "$(dockerfiles_that_copy_the_helper_too_late "$copy_below")" "copy-below.Dockerfile" \
+    "the COPY is PRESENT in that file, so a presence-only rule passes it" \
+    "a layer runs against the filesystem the layers above it left, and the helper is not there yet"
+
+  assert_equal "counter_stimulus_leaves_the_copy_above_the_first_fetch_alone" \
+    "" "$(dockerfiles_that_copy_the_helper_too_late "$copy_above")" \
+    "its COPY sits above its only fetch layer, which is the shape the rule requires" \
+    "it also writes the helper's path in PROSE above that COPY, so a reader that counted" \
+    "comment lines would report this correctly wired file — the real Dockerfiles write prose there too"
+fi
+
+# ===========================================================================
 # 2. THE GOVERNED SET IS THE WHOLE SET.
 # ===========================================================================
 missing_governed=""
@@ -969,6 +1145,39 @@ else
     "so with no file every unversioned URL below reads as unanswered — which it is"
 fi
 REAL_ROW_KEYS="$(row_keys "$REAL_ROWS")"
+
+# ===========================================================================
+# 4b. THE HELPER REACHES THE IMAGE, ABOVE THE FIRST FETCH THAT CALLS IT.
+#
+# Everything above this point reads a COMMAND. This reads the 1 line that
+# makes those commands able to run at all. Measured by the verifier on
+# 2026-08-17: delete the COPY from cloud/Dockerfile and all 378 checks the
+# suite held that day stayed green, while every routed download 404s at build
+# time.
+# ===========================================================================
+copy_report="$(dockerfiles_missing_the_helper_copy "${HELPER_COPY_DOCKERFILES[@]}")"
+if [[ -z "$copy_report" ]]; then
+  pass_check "base_and_cloud_copy_the_verified_fetch_helper_into_the_image"
+else
+  fail_check "base_and_cloud_copy_the_verified_fetch_helper_into_the_image" \
+    "these Dockerfiles do not carry exactly 1 '${HELPER_COPY_TEXT}':" \
+    "$copy_report" \
+    "every verified download calls ${HELPER_IMAGE_PATH}, and without that COPY the file" \
+    "is not in the image: the build dies at its first fetch layer, after the merge" \
+    "the build context of these 2 is the repository root, which is what IMAGE_BUILD_CONTEXT" \
+    "in base/ctl.sh and cloud/ctl.sh, and 'context: .' in both copies of build-and-push.yml, are for"
+fi
+
+order_report="$(dockerfiles_that_copy_the_helper_too_late "${HELPER_COPY_DOCKERFILES[@]}")"
+if [[ -z "$order_report" ]]; then
+  pass_check "the_helper_copy_sits_above_the_first_fetch_that_calls_it"
+else
+  fail_check "the_helper_copy_sits_above_the_first_fetch_that_calls_it" \
+    "these Dockerfiles carry the COPY below a layer that already calls the helper:" \
+    "$order_report" \
+    "a layer runs against the filesystem the layers ABOVE it left, so a present COPY" \
+    "that arrives late is not a wired COPY — move it above the first fetch"
+fi
 
 # ===========================================================================
 # 5. THE RULE, ON THE REAL TREE. Both directions.

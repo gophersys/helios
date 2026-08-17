@@ -35,7 +35,7 @@ RUN /usr/local/lib/gophersys/fetch-verified.sh \
       TOOL_SHA256_AMD64
 
 # UNCLASSIFIED ON PURPOSE. A plain curl with no digest and no exemption row.
-# This is the defect: ~30 downloads of the real tree look exactly like it.
+# This is the defect: 51 downloads of the real tree looked exactly like it.
 RUN curl -fsSL "https://example.invalid/unclassified-tool.tar.gz" -o /tmp/unclassified.tgz
 
 # EXEMPT. No version lives in the URL, so no digest can be pinned to it. The
