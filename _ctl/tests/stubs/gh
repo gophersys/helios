@@ -1,0 +1,153 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/gh — the stub `gh` that _ctl/tests/notify-failure.test.sh
+# puts first on PATH.
+#
+# It contacts no API, reads no credential and opens no socket. Every answer it
+# gives comes from a JSON file the calling case writes, so a case states the
+# world it wants — 2 open issues, none, a close that returns 403 — in 1 line and
+# then reads what .ci/notify-failure.sh did about it.
+#
+# ============================================================================
+# IT RUNS THE CALLER'S OWN --jq AND --limit. THAT IS THE WHOLE POINT.
+# ============================================================================
+#
+# A stub that answered `issue list` with a canned "77\n42" would be green over
+# EVERY query expression, the broken ones included. The defect this repository
+# already shipped once is exactly there: `--limit 1` with `--jq '.[0].number //
+# empty'` reports the newest open issue and hides the rest, so a green run
+# closed 1 issue and left the other open for the life of the repository.
+#
+# So the stub does what gh does, in gh's order:
+#
+#   1. read the issue set out of $STUB_GH_ISSUES (or the label set out of
+#      $STUB_GH_LABELS) — the objects the API would return;
+#   2. TRUNCATE it to the caller's own `--limit`;
+#   3. apply the caller's own `--jq` expression to what is left.
+#
+# Both tokens therefore sit under test. Narrow the limit or narrow the
+# expression in .ci/notify-failure.sh and this stub reports fewer issues, which
+# is what makes the ratchet in the test file able to go red.
+#
+# A `--limit` that is not a number, an absent `--jq`, or a subcommand this stub
+# does not model exits 64 and says which. A stub that answered 0 to something it
+# did not understand would hand the caller a cheerful success for a call that
+# never happened — the same green-over-nothing this directory exists to refuse.
+#
+#   STUB_GH_LOG                 append every argv line to this file
+#   STUB_GH_ISSUES              JSON array `gh issue list` reads
+#   STUB_GH_LABELS              JSON array `gh label list` reads     ([])
+#   STUB_GH_BODY_LOG            append the --body of create/comment here
+#   STUB_GH_CLOSE_DRAIN         non-empty: `issue close` DRAINS its stdin
+#   STUB_GH_CLOSE_FAIL          issue number whose close answers HTTP 403
+#   STUB_GH_CREATE_STATUS       exit status of `issue create`         (0)
+#   STUB_GH_COMMENT_STATUS      exit status of `issue comment`        (0)
+#   STUB_GH_LABEL_CREATE_STATUS exit status of `label create`         (0)
+#
+# STUB_GH_CLOSE_DRAIN is the one that models a real hazard rather than a real
+# option: `gh issue close` does not read stdin today, but any child that does —
+# a future gh, a wrapper, a pager — eats whatever the caller left on fd 0. When
+# the caller feeds its issue list to the loop as a herestring, that is the rest
+# of the issue list.
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+if [[ -n "${STUB_GH_LOG:-}" ]]; then
+  # 1 invocation per line. The script under test runs with IFS=$'\n\t', so "$*"
+  # would join the argv with a newline and log 1 word per line.
+  ( IFS=' '; printf 'gh %s\n' "$*" >> "$STUB_GH_LOG" )
+fi
+
+# stub_fail <message...> — exit 64, loudly. Never 0.
+function stub_fail() {
+  printf 'stub gh: %s\n' "$*" >&2
+  exit 64
+}
+
+# stub_option <name> <argv...> — the value that follows <name> in the argv.
+# Prints nothing when the argv does not carry it.
+function stub_option() {
+  local want="$1"
+  shift
+  local previous="" argument
+  for argument in "$@"; do
+    if [[ "$previous" == "$want" ]]; then
+      printf '%s' "$argument"
+      return 0
+    fi
+    previous="$argument"
+  done
+}
+
+# stub_query <json file> <argv...> — gh's own --limit then gh's own --jq.
+function stub_query() {
+  local source_file="$1"
+  shift
+  local limit expression truncated
+  limit="$(stub_option --limit "$@")"
+  expression="$(stub_option --jq "$@")"
+
+  command -v jq > /dev/null 2>&1 || {
+    printf 'stub gh: jq is not on PATH, so the caller --jq expression cannot be run\n' >&2
+    exit 127
+  }
+  [[ -f "$source_file" ]] || stub_fail "no JSON file at ${source_file} — the case set no world"
+  [[ "$limit" =~ ^[0-9]+$ ]] || stub_fail "the caller passed --limit '${limit:-<none>}', which is not a number"
+  [[ -n "$expression" ]] || stub_fail "the caller passed no --jq expression"
+
+  truncated="$(jq -c ".[0:${limit}]" "$source_file")"
+  jq -r "$expression" <<< "$truncated"
+}
+
+case "${1:-} ${2:-}" in
+  "issue list")
+    stub_query "${STUB_GH_ISSUES:-}" "$@"
+    ;;
+
+  "label list")
+    stub_query "${STUB_GH_LABELS:-}" "$@"
+    ;;
+
+  "label create")
+    exit "${STUB_GH_LABEL_CREATE_STATUS:-0}"
+    ;;
+
+  "issue create")
+    if [[ -n "${STUB_GH_BODY_LOG:-}" ]]; then
+      stub_option --body "$@" >> "$STUB_GH_BODY_LOG"
+      printf '\n' >> "$STUB_GH_BODY_LOG"
+    fi
+    printf 'https://github.com/%s/issues/1\n' "${GITHUB_REPOSITORY:-owner/name}"
+    exit "${STUB_GH_CREATE_STATUS:-0}"
+    ;;
+
+  "issue comment")
+    if [[ -n "${STUB_GH_BODY_LOG:-}" ]]; then
+      stub_option --body "$@" >> "$STUB_GH_BODY_LOG"
+      printf '\n' >> "$STUB_GH_BODY_LOG"
+    fi
+    printf 'https://github.com/%s/issues/%s#issuecomment-1\n' \
+      "${GITHUB_REPOSITORY:-owner/name}" "${3:-0}"
+    exit "${STUB_GH_COMMENT_STATUS:-0}"
+    ;;
+
+  "issue close")
+    # The hazard, modelled. See the header.
+    if [[ -n "${STUB_GH_CLOSE_DRAIN:-}" ]]; then
+      cat > /dev/null
+    fi
+    if [[ -n "${STUB_GH_CLOSE_FAIL:-}" && "${3:-}" == "$STUB_GH_CLOSE_FAIL" ]]; then
+      printf 'HTTP 403: Resource not accessible by integration (issue #%s)\n' "${3:-}" >&2
+      exit 1
+    fi
+    printf 'https://github.com/%s/issues/%s\n' "${GITHUB_REPOSITORY:-owner/name}" "${3:-}"
+    ;;
+
+  *)
+    # IFS is $'\n\t' here, so "$*" would print 1 word per line and the message
+    # would name the subcommand across 2 lines.
+    ( IFS=' '; stub_fail "unmodelled subcommand: ${*}" )
+    exit 64
+    ;;
+esac

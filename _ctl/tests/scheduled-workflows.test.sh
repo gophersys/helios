@@ -15,8 +15,9 @@
 # ============================================================================
 #
 # A scheduled run has no author watching it. Nobody opened a pull request at
-# 03:00 and nobody refreshes the Actions tab afterwards, so a red nightly is a
-# red that reaches no human. The same is true of every clause below: a scan
+# 09:00 UTC — 02:00 MST, the hour the nightly cron names — and nobody refreshes
+# the Actions tab afterwards, so a red nightly is a red that reaches no human.
+# The same is true of every clause below: a scan
 # whose gate is `--exit-code 0` reports and passes, a waiver with no expiry
 # never comes back for review, and a digest pin that nothing watches freezes the
 # base OS at a snapshot that looks current forever.
@@ -1152,7 +1153,7 @@ while IFS= read -r relative; do
 done <<< "$scheduled"
 
 # The notifier itself. A workflow that calls a script which is not there fails
-# at 03:00 with a 127, which is a notification nobody receives.
+# at 09:00 UTC with a 127, which is a notification nobody receives.
 if [[ -f "$REPO_ROOT/$NOTIFIER" ]]; then
   pass_check "the_notifier_script_exists"
   if [[ -x "$REPO_ROOT/$NOTIFIER" ]]; then
@@ -1655,7 +1656,7 @@ elif ! grep -qF -- "$DRIFTED_DIGEST" <<< "$PROBE_OUTPUT"; then
   fail_check "the_currency_check_reports_a_move" \
     "the check exited ${PROBE_STATUS} and its message never names the digest the registry holds" \
     "output was:" "${PROBE_OUTPUT:-<none>}" \
-    "the reader of a 03:00 failure needs both digests, or the next step is to run the read by hand"
+    "the reader of a 09:00 UTC failure needs both digests, or the next step is to run the read by hand"
 else
   pass_check "the_currency_check_reports_a_move"
 fi
