@@ -1,6 +1,6 @@
 # bw-serve-auto-sync
 
-phase:    verify
+phase:    pr
 repo:     gophersys/infrastructure
 branch:   feat/bw-serve-auto-sync
 worktree: ~/code/.worktrees/infrastructure-bw-serve-auto-sync
@@ -57,6 +57,28 @@ are the tests. Red = prove the gate fails on a broken version of the new file;
 green = the real file passes. Single-file change, subagent file-class split
 collapses; dev-verifier still runs adversarially before the PR.
 
+PLAN AMENDED after the adversarial verify (recorded, with why): the verifier
+refuted 4 claims, so the change grew by exactly their remedies —
+- F1 (HIGH): "fail-loud" overstated. No observability stack exists in this
+  cluster; a Failed Job alerts nobody (D16 already records the unobserved-
+  CronJob gap). Remedy: comment + README state the honest limit; the CronJob
+  is registered inside D16.
+- F2 (HIGH): no standing gate covered the wiring. The verifier proved a
+  netpol-selector typo, a wrong port, AND a `|| true` in the job script pass
+  kubeconform + server dry-run + ctl.sh validate. Remedy:
+  scripts/verify-bw-sync-wiring.sh (11 property assertions), ctl.sh
+  `verify-bw-sync`, and a validate.yml step — precedent
+  scripts/verify-buildx-key.sh.
+- F3 (MED): a third "only ESO reaches the bridge" claim survived in the
+  security paragraph of the manifests README. Corrected.
+- F4 (MED): no dedicated ServiceAccount (rule 50 §7). Added, with
+  automountServiceAccountToken: false on both the SA and the pod.
+- F6 (LOW): docs/cluster-topology.md external-secrets section gains the
+  CronJob. F7 (INFO): the success grep is now spacing-tolerant.
+Process defect, recorded: the first break-test restore (`git checkout --`)
+discarded the then-uncommitted F1/F4/F7 manifest edits — the exact trap the
+skill names. Re-applied, then committed BEFORE the remaining break-tests.
+
 ## Proven
 
 - RED — `bash scripts/lint-manifests.sh` with a deliberately broken
@@ -84,6 +106,32 @@ collapses; dev-verifier still runs adversarially before the PR.
   in the path deploys on merge). `kubectl get netpol -n external-secrets`:
   only `bw-serve-default-deny` + `bw-serve-allow-eso` existed, confirming the
   sync job needs its own allow.
+- Adversarial verify (dev-verifier, read-only + reversible breaks): fail-loud
+  shell chain survived a 9-case matrix run byte-exact in
+  `curlimages/curl:8.11.0` (200+success rc=0; success:false rc=1; 500/401
+  rc=22; hang rc=28; DNS fail rc=6; truncated rc=18; empty rc=1); image uid
+  100/gid 101 verified by running the image; AppProject `platform` allows
+  `group:*, kind:*` in external-secrets, so CronJob is admitted.
+- verify-bw-sync-wiring break-tests, each restored after: selector typo
+  `bw-serve-synk` → rc=1 "the Job pod labels do not carry: app=bw-serve-synk";
+  netpol port 9999 → rc=1 "port mismatch: NetworkPolicy=9999 container=8087
+  Service=8087"; `|| true` appended to the job's grep → rc=1 "the job script
+  contains '|| true'". Clean run: rc=0, "pass=11 fail=0". The same three
+  sabotages had passed kubeconform + server dry-run + validate (the F2
+  refutation), so this check demonstrably closes a real hole.
+- Full CI parity after the fixes, every script from validate.yml run locally:
+  lint-manifests rc=0, test-lint-manifests rc=0, verify-registry-paths rc=0,
+  verify-structure rc=0, verify-buildx-key rc=0, test-verify-runner-queue
+  rc=0, lint-shell rc=0, test-lint-shell rc=0, verify-bw-sync-wiring rc=0,
+  kustomize x3 rc=0, qbt config-enforce + drift rc=0, verify-exposure rc=0
+  ("checked=11 fail=0"). `bash ctl.sh validate` rc=0; `bash ctl.sh
+  verify-bw-sync` rc=0. shellcheck first caught SC2015 in the new script
+  (lint-shell rc=1) — fixed to if/else, re-run rc=0.
+- `kubectl apply --dry-run=server -f bw-serve-sync.yaml` re-run after fixes:
+  rc=0 — serviceaccount, cronjob, networkpolicy all "created (server dry
+  run)".
+- Hardened grep vs the recorded live body:
+  `grep -Eq '"success"[[:space:]]*:[[:space:]]*true'` rc=0.
 
 ## Blocked
 
@@ -91,4 +139,5 @@ collapses; dev-verifier still runs adversarially before the PR.
 
 ## Next
 
-Adversarial verify (dev-verifier), then PR. DO NOT MERGE — directive.
+Open the PR, wait for checks + the pr-review verdict, address findings.
+DO NOT MERGE — directive. Mateo merges.

@@ -153,10 +153,16 @@ fi
 rp="$(cj '.spec.jobTemplate.spec.template.spec.restartPolicy')"
 cp="$(cj '.spec.concurrencyPolicy')"
 adl="$(cj '.spec.jobTemplate.spec.activeDeadlineSeconds')"
-[ "$rp" = "Never" ] && ok "restartPolicy is Never" \
-  || bad "restartPolicy is '${rp:-<none>}', expected Never — OnFailure hides the failure inside one pod"
-[ "$cp" = "Forbid" ] && ok "concurrencyPolicy is Forbid" \
-  || bad "concurrencyPolicy is '${cp:-<none>}', expected Forbid"
+if [ "$rp" = "Never" ]; then
+  ok "restartPolicy is Never"
+else
+  bad "restartPolicy is '${rp:-<none>}', expected Never — OnFailure hides the failure inside one pod"
+fi
+if [ "$cp" = "Forbid" ]; then
+  ok "concurrencyPolicy is Forbid"
+else
+  bad "concurrencyPolicy is '${cp:-<none>}', expected Forbid"
+fi
 if [ -n "$adl" ] && [ "$adl" != "null" ] && [ "$adl" -lt 600 ]; then
   ok "activeDeadlineSeconds $adl is under the 600 s schedule period"
 else
