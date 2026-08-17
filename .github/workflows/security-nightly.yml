@@ -136,7 +136,11 @@ jobs:
         if: ${{ failure() }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bash .ci/notify-failure.sh "image scan: ${{ needs.scan.result }}" "base-OS currency: ${{ needs.base-currency.result }}"
+        # QUOTED, and it has to be. Both arguments carry ': ', and a PLAIN
+        # scalar holding that is read as the start of a mapping value where a
+        # mapping cannot start: the document is rejected, GitHub refuses the
+        # whole workflow, and a workflow that never runs never fails.
+        run: 'bash .ci/notify-failure.sh "image scan: ${{ needs.scan.result }}" "base-OS currency: ${{ needs.base-currency.result }}"'
       - name: close the issue on a green run
         if: ${{ success() }}
         env:
