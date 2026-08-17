@@ -40,16 +40,47 @@
 #                  `RuntimeInformation: Ubuntu 24.04.4 LTS` before its own version —
 #                  a first-token reader asserts the wrong number and passes.
 #
-# Every failure is collected rather than fatal: 44 pins with 3 drifts should
-# report 3 drifts, not the first one. The exit status is 1 when anything failed.
+# Every failure is collected rather than fatal, at BOTH levels: a failing step
+# does not stop the remaining steps of its group, and a failing group does not
+# stop the groups after it. 44 pins with 3 drifts must report 3 drifts, and a run
+# that ends at the first one reports 1.
+#
+# That is why `run_step` never returns non-zero. This file runs under `set -e`,
+# where a bare command that returns 1 ends the guest where it stands, so a
+# verdict carried in an exit status is a verdict that stops the run. The verdict
+# is carried in FAILURES instead: `fail` counts, `failed_since` is how a step
+# asks whether the step it depends on failed, `skip_step` is how a step that
+# therefore cannot run says so by name, and the only exit is at the bottom.
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-FAILED=0
+FAILURES=0
 
 function say()  { printf '%s\n' "$*"; }
-function fail() { printf 'FAIL: %s\n' "$*"; FAILED=1; }
+
+# fail <message> — record a failure and carry on. Nothing here exits.
+function fail() { printf 'FAIL: %s\n' "$*"; FAILURES=$((FAILURES + 1)); }
+
+# failed_since <mark> — was a failure recorded after <mark>, which a caller read
+# out of FAILURES before the step it depends on? This is the only way one step
+# reports to another, and it reads the same counter the exit status is read from.
+function failed_since() { [[ "$FAILURES" -ne "$1" ]]; }
+
+# skip_step <label> <reason> — a step whose input a failed step was to produce.
+# It prints itself, so a reader never has to infer that something did not run.
+#
+# A skip is honest only once something else has already failed: the run is red
+# either way, and the reader is told which tool went unproven. In a run where
+# nothing failed, a step that neither ran nor failed is a check that cannot fail,
+# so that case is recorded AS a failure.
+function skip_step() {
+  if [[ "$FAILURES" -eq 0 ]]; then
+    fail "${1}: not run because ${2} — and nothing else failed, so this step reported neither pass nor fail"
+    return 0
+  fi
+  say "SKIP: ${1} — ${2}"
+}
 
 # -------- the comparator --------
 
@@ -181,17 +212,28 @@ function fixture() {
 }
 
 # run_step <label> <command...> — a functional step. It runs the real tool on a
-# real input, and its output is printed when it fails.
+# real input, and its output is printed when it fails. It never returns
+# non-zero: see the header — a status is a verdict that would end the guest.
 function run_step() {
-  local label="$1"
-  shift
+  run_step_in "." "$@"
+}
+
+# run_step_in <directory> <label> <command...> — the same step, run somewhere
+# else. Only the `cd` is in a subshell, and the recording stays in THIS shell: a
+# failure recorded inside a subshell dies with the subshell, which is how this
+# file once printed `FAIL: go build` and `every check passed` in the same run.
+function run_step_in() {
+  local directory="$1" label="$2"
+  shift 2
   local status=0 output=""
-  output="$("$@" 2>&1)" || status=$?
+  output="$( { cd "$directory" && "$@"; } 2>&1 )" || status=$?
   if [[ "$status" -ne 0 ]]; then
+    # `$*` joins on the FIRST character of IFS, and this file runs with
+    # IFS=$'\n\t', so the plain form printed the command 1 word per line.
     fail "${label}: exited ${status}"
-    say "      command: $*"
+    say "      command: $(IFS=' '; printf '%s' "$*")"
     say "      output:  ${output}"
-    return 1
+    return 0
   fi
   say "ok   ${label}"
   return 0
@@ -212,19 +254,28 @@ function checks_go_gate() {
   export GOCACHE="${work}/go-build" GOMODCACHE="${work}/go-mod" GOLANGCI_LINT_CACHE="${work}/golangci"
 
   say "--- the Go gate toolchain, on a real module ---"
-  ( cd "$module" && run_step "go build" go build -o "$GO_FIXTURE_BINARY" ./cmd/smoke ) || return 0
-  ( cd "$module" && run_step "go vet" go vet ./... )
+  run_step_in "$module" "go build" go build -o "$GO_FIXTURE_BINARY" ./cmd/smoke
+  # A failed build does not stop the 4 steps below. Each one proves a DIFFERENT
+  # tool runs in this image, none of them reads the binary, and a step that did
+  # not run proves nothing about its tool. The one step that really needs the
+  # binary is in the debugger group, and it is gated there, where it is used.
+  run_step_in "$module" "go vet" go vet ./...
   # gofumpt reports by PRINTING the files it would change and exiting 0, so the
-  # status says nothing and the output is the verdict.
-  local unformatted=""
-  unformatted="$(cd "$module" && gofumpt -l .)"
-  if [[ -n "$unformatted" ]]; then
+  # status says nothing about formatting and the output is that verdict. The
+  # status does say whether gofumpt RAN, and read through a bare `$(...)` a
+  # gofumpt that crashed ended the whole guest here, with no message at all.
+  local unformatted="" gofumpt_status=0
+  unformatted="$(cd "$module" && gofumpt -l .)" || gofumpt_status=$?
+  if [[ "$gofumpt_status" -ne 0 ]]; then
+    fail "gofumpt: it exited ${gofumpt_status} on the fixture module, so it did not report on the formatting at all"
+    say "      it printed: ${unformatted}"
+  elif [[ -n "$unformatted" ]]; then
     fail "gofumpt: the fixture is not gofumpt-clean, so this check cannot tell a working gofumpt from a broken one"
     say "      it listed: ${unformatted}"
   else
     say "ok   gofumpt"
   fi
-  ( cd "$module" && run_step "golangci-lint run" golangci-lint run ./... )
+  run_step_in "$module" "golangci-lint run" golangci-lint run ./...
   run_step "hnslint" hnslint "$module"
 }
 
@@ -243,8 +294,15 @@ function checks_compose() {
 }
 
 function checks_debugger() {
-  if [[ -z "$GO_FIXTURE_BINARY" || ! -x "$GO_FIXTURE_BINARY" ]]; then
+  if [[ -z "$GO_FIXTURE_BINARY" ]]; then
     fail "delve has no binary to trace: the go-gate group builds it, and it must run before this one"
+    return 0
+  fi
+  if [[ ! -x "$GO_FIXTURE_BINARY" ]]; then
+    # The go-gate group ran and its build wrote nothing, which that group has
+    # already counted. Reporting delve as broken here would name the wrong tool;
+    # saying nothing would leave delve reading as checked.
+    skip_step "dlv exec" "the go-gate build wrote no binary to trace"
     return 0
   fi
   say "--- delve, running the fixture binary under the debugger ---"
@@ -278,7 +336,15 @@ function checks_protocols() {
   local work
   work="$(mktemp -d)"
   say "--- buf and grpcurl, on a real proto ---"
-  ( cd "$fixtures" && run_step "buf build" buf build --output "${work}/echo.binpb" --as-file-descriptor-set ) || return 0
+  local mark="$FAILURES"
+  run_step_in "$fixtures" "buf build" buf build --output "${work}/echo.binpb" --as-file-descriptor-set
+  if failed_since "$mark"; then
+    # This is the one real dependency inside the group: grpcurl reads the file
+    # buf writes. Running it anyway would report grpcurl broken over a missing
+    # input, and blame the tool that works.
+    skip_step "grpcurl list" "buf build wrote no descriptor set to read"
+    return 0
+  fi
   # grpcurl reads the descriptor set buf just wrote and lists what is in it. No
   # server is dialled, so this is a real operation with no network at all.
   local listed="" status=0
@@ -424,8 +490,8 @@ function checks_content_devbox() {
   # Throwaway host keys, so `sshd -t` validates the full effective config,
   # HostKey paths included.
   run_step "sshd host keys" sudo mkdir -p /etc/ssh/hostkeys
-  sudo ssh-keygen -q -N '' -t ed25519 -f /etc/ssh/hostkeys/ssh_host_ed25519_key
-  sudo ssh-keygen -q -N '' -t rsa -f /etc/ssh/hostkeys/ssh_host_rsa_key
+  run_step "sshd host key ed25519" sudo ssh-keygen -q -N '' -t ed25519 -f /etc/ssh/hostkeys/ssh_host_ed25519_key
+  run_step "sshd host key rsa" sudo ssh-keygen -q -N '' -t rsa -f /etc/ssh/hostkeys/ssh_host_rsa_key
   run_step "sshd -t" sudo /usr/sbin/sshd -t
 }
 
@@ -475,8 +541,8 @@ SMOKE_CHECKS="$(order_groups)"
 run_comparator
 run_functional_groups
 
-if [[ "$FAILED" -ne 0 ]]; then
-  say "image-checks.sh: FAILED"
+if [[ "$FAILURES" -ne 0 ]]; then
+  say "image-checks.sh: FAILED — ${FAILURES} of its checks"
   exit 1
 fi
 say "image-checks.sh: every check passed"
