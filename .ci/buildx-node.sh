@@ -44,6 +44,45 @@
 # value as a literal instead of from the implementation.
 #
 # ============================================================================
+# THE NETWORK THE BUILDER LIVES ON, AND WHY IT IS THE POD'S OWN
+# ============================================================================
+#
+# The builder container and every RUN step share the runner pod's network
+# namespace: `network=host` on the driver, and `--oci-worker-net=host` on the
+# daemon. "host" here is the POD — the dind daemon runs inside the pod's
+# namespace, so nothing of the node is exposed.
+#
+# The default is a bridge inside dind at MTU 1500, nested inside a flannel
+# VXLAN pod interface at MTU 1450, and that 50-byte lie is a blackhole: the
+# inner container advertises an MSS the overlay cannot carry, the peer's
+# full-size packets are dropped silently, and whether a fetch survives depends
+# on the PEER's path-MTU behaviour. Proven on k3s-w-0 on 2026-08-17 with the
+# same URL at both MTUs: get.helm.sh stalled to a reset from a bridge container
+# at 1500 in 3 of 3 build attempts and timed out in a probe container, and the
+# identical fetch succeeded at a clamped MTU and from the pod's own namespace.
+# ghcr.io, docker.io and dl.k8s.io tolerated the mismatch, which is exactly why
+# it survived review: a blackhole that most peers cope with reads as one flaky
+# host.
+#
+# The pod namespace needs no clamp — flannel sizes it (1450) and the probe
+# proved it clean end to end. Sharing it is therefore the fix with no number to
+# maintain: no bridge exists on the build path to disagree with the overlay.
+#
+# ============================================================================
+# WHY THE BUILDKIT IMAGE COMES FROM OUR REGISTRY
+# ============================================================================
+#
+# The builder boots by pulling a BuildKit image, and with no image named it
+# pulls docker.io/moby/buildkit:buildx-stable-1 — an unpinned tag from a
+# registry nothing else here uses, fetched before one line of ours runs. That
+# boot died on a 502 from auth.docker.io on 2026-08-17, attempt 2 of the first
+# arc-build wave. BUILDKIT_REF in _ctl/lib.sh names the same image mirrored to
+# ghcr.io, pinned by index digest; .ci/mirror-buildkit.sh keeps the mirror
+# populated and is the ONLY file that names the docker.io source. This step
+# therefore runs after the registry login in the workflow — the mirror package
+# is private, like every other package of this repository.
+#
+# ============================================================================
 # WHY THE BUILDER IS MADE IN THE JOB
 # ============================================================================
 #
@@ -93,10 +132,13 @@ if docker buildx inspect "$BUILDER_NAME" >/dev/null 2>&1; then
   log_info "buildx builder '${BUILDER_NAME}' already exists — reusing it"
   docker buildx use "$BUILDER_NAME"
 else
-  log_info "creating buildx builder '${BUILDER_NAME}' (docker-container, ${LOCAL_PLATFORM})"
+  log_info "creating buildx builder '${BUILDER_NAME}' (docker-container, ${LOCAL_PLATFORM}, ${BUILDKIT_REF})"
   docker buildx create \
     --name "$BUILDER_NAME" \
     --driver docker-container \
+    --driver-opt "image=${BUILDKIT_REF}" \
+    --driver-opt network=host \
+    --buildkitd-flags '--oci-worker-net=host' \
     --platform "$LOCAL_PLATFORM" \
     --use >/dev/null
 fi

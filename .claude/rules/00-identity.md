@@ -590,6 +590,36 @@ of 2,000 minutes left against a $0 budget, and a warm 6-image build wave spent
   the Mac mini as a native arm64 node when `SANCTIONED_PLATFORMS` names
   `linux/arm64`. That switch READS the library, so widening the platform set
   stays 1 edit in `_ctl/lib.sh`. It is inert today (D42).
+- **No bridge exists on the build path.** The builder container and every RUN
+  step share the runner pod's own network namespace (`network=host` +
+  `--oci-worker-net=host`). The default is a bridge at MTU 1500 nested inside
+  a flannel pod interface at MTU 1450, and that mismatch is a silent
+  blackhole: whether a fetch survives depends on the PEER's path-MTU
+  behaviour. It killed the first arc-build wave 3 times — get.helm.sh reset
+  the same fetch at the same offset in every attempt while ghcr.io, docker.io
+  and dl.k8s.io tolerated the mismatch — and it was proven by a probe on
+  k3s-w-0 that timed out through the bridge and succeeded from the pod
+  namespace. The pod namespace needs no number maintained: the CNI sizes it.
+  `_ctl/tests/egress-policy.test.sh` pins both tokens.
+- **The builder boots from OUR registry.** With no image named, buildx pulls
+  `docker.io/moby/buildkit:buildx-stable-1` — an unpinned tag on a registry
+  nothing else here uses, fetched before one line of ours runs; a 502 from
+  auth.docker.io killed a build attempt in exactly that pull. `BUILDKIT_REF`
+  in `_ctl/lib.sh` names the same image mirrored to
+  `ghcr.io/gophersys/buildkit`, pinned by index digest.
+  `.ci/mirror-buildkit.sh` keeps the mirror populated — the warm path is 1
+  authenticated read of ghcr.io — and is the only file that names the
+  docker.io source. Every build job orders login → mirror → builder, because
+  the mirror package is private. Bumping BuildKit is 1 edit to the 2
+  adjacent refs in `_ctl/lib.sh`; the next build copies the new version
+  across. The mirror is deliberately OUTSIDE `versions.env` and
+  `upstreams.txt`: it is CI substrate, not image content, and nothing scans
+  or smoke-tests it — residue recorded on the ledger.
+- **Both `_build` fetch helpers retry**: 4 more attempts, 3 seconds apart, on
+  ANY failure (`--retry-all-errors` — curl's default retry set skips a
+  mid-transfer reset, the failure home egress actually produces). The digest
+  comparison in `fetch-verified.sh` judges whichever attempt lands, so a
+  retry can change WHETHER bytes arrive and never WHICH bytes install.
 - **Every timeout in those 3 workflows is a ceiling measured on the hosted
   runner.** The first run on `arc-build` measures the real numbers. Resize from
   that, never from a guess.
