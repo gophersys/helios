@@ -110,13 +110,13 @@ ARG OCI_CLI_VERSION=3.79.0                                             # latest 
 
 # The 2 docker cli-plugins. They arrive as release binaries and not as apt
 # packages, so nothing but the digest says the bytes are the ones upstream
-# published. This pair carried the only 2 verified downloads in the repository
-# before this change; the vocabulary moved from the asset spelling
-# (_X86_64/_AARCH64) to the PLATFORM spelling, value unchanged, so that 1
-# vocabulary covers all 26 digests. The _ARM64 and _AARCH64 rows went with the
-# `linux/arm64)` case arms they fed — SANCTIONED_PLATFORMS is linux/amd64 alone,
-# and a digest nothing compares is a check that cannot fail. F3 restores the arm
-# and the row together.
+# published. This pair is why the digest name states the PLATFORM and never the
+# upstream asset spelling: for the 1 platform linux/amd64 the compose asset is
+# x86_64 and the buildx asset is amd64, so the asset spelling gives 2
+# vocabularies for 1 arch. 1 vocabulary covers all 26 digests. There is no
+# _ARM64 row and no `linux/arm64)` case arm to feed it while
+# SANCTIONED_PLATFORMS is linux/amd64 alone — a digest nothing compares is a
+# check that cannot fail. F3 restores the arm and the row together.
 ARG DOCKER_COMPOSE_VERSION=5.1.3                                       # latest LTS as of 2026-04-19
 ARG DOCKER_COMPOSE_SHA256_AMD64=a0298760c9772d2c06888fc8703a487c94c3c3b0134adeef830742a2fc7647b4  # upstream-published: https://github.com/docker/compose/releases/download/v5.1.3/checksums.txt
 ARG DOCKER_BUILDX_VERSION=0.36.1                                       # latest stable as of 2026-08-13
