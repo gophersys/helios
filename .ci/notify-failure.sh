@@ -3,10 +3,11 @@
 # .ci/notify-failure.sh — the failure notification of a SCHEDULED run.
 #
 # A scheduled run has no author watching it. Nobody opened a pull request at
-# 09:00 and nobody refreshes the Actions tab afterwards, so a red nightly is a
-# red that reaches no human. This script is where that red becomes visible: it
-# opens or updates ONE labelled issue naming the run and the jobs that failed,
-# and a later green run closes that same issue.
+# 09:00 UTC — 02:00 MST, the hour the nightly cron names — and nobody refreshes
+# the Actions tab afterwards, so a red nightly is a red that reaches no human.
+# This script is where that red becomes visible: it opens or updates ONE
+# labelled issue naming the run and the jobs that failed, and a later green run
+# closes that same issue.
 #
 # ONE issue, not one per night. A filer that opened an issue per run would turn
 # a week of the same unpatched CVE into 7 issues, and 7 issues is a backlog
@@ -79,26 +80,30 @@ else
   RUN_URL="<no GITHUB_RUN_ID in the environment>"
 fi
 
-# open_issue_number — the number of the open issue carrying the label, empty
-# when there is none.
+# open_issue_numbers — the number of EVERY open issue carrying the label, 1 per
+# line, newest first. Empty when there is none.
 #
-# --limit 1 with the newest first: 2 issues can exist only if 2 runs raced past
-# the search, and the newest is the one a comment belongs on.
-function open_issue_number() {
+# Every one, and not the newest alone. 2 issues can exist whenever 2 runs raced
+# past the search, and a green run that closed only the newest would leave the
+# older one open forever: no later run can ever reach it, so the label carries a
+# red that nothing on earth retires, and the next real red is 1 more issue in a
+# pile nobody reads. The limit is 100 rather than gh's default 30 because a
+# truncated list is the same defect at a larger number.
+function open_issue_numbers() {
   gh issue list \
     --repo "$GITHUB_REPOSITORY" \
     --label "$ISSUE_LABEL" \
     --state open \
-    --limit 1 \
+    --limit 100 \
     --json number \
-    --jq '.[0].number // empty'
+    --jq '.[].number'
 }
 
 # ensure_label — create the label when the repository does not carry it yet.
 #
 # `gh issue create --label` FAILS on a label the repository does not have, and
-# that failure would arrive at 09:00 with the red it was meant to report. The
-# existence check comes first because `gh label create` on an existing label
+# that failure would arrive at 09:00 UTC with the red it was meant to report.
+# The existence check comes first because `gh label create` on an existing label
 # also fails, and `|| true` on either one would hide a real permission error.
 function ensure_label() {
   local found=""
@@ -115,8 +120,8 @@ function ensure_label() {
 }
 
 # issue_body <line>... — the body of the issue, or of the comment that updates
-# it. It names the run URL first: a reader who opens this at 09:00 needs the log
-# before anything else.
+# it. It names the run URL first: a reader who opens this at 09:00 UTC needs the
+# log before anything else.
 function issue_body() {
   printf 'Run: %s\n\n' "$RUN_URL"
   if [[ "$#" -gt 0 ]]; then
@@ -130,14 +135,17 @@ function issue_body() {
 
 function notify_failure() {
   ensure_label
-  local number=""
-  number="$(open_issue_number)"
+  local numbers=""
+  numbers="$(open_issue_numbers)"
   local body
   body="$(issue_body "$@")"
 
-  if [[ -n "$number" ]]; then
-    log_info "the scheduled run is still red — commenting on issue #${number}"
-    gh issue comment "$number" --repo "$GITHUB_REPOSITORY" --body "$body"
+  if [[ -n "$numbers" ]]; then
+    # The newest is the one a comment belongs on; the next green run closes the
+    # whole set, so a duplicate does not outlive it.
+    local newest="${numbers%%$'\n'*}"
+    log_info "the scheduled run is still red — commenting on issue #${newest}"
+    gh issue comment "$newest" --repo "$GITHUB_REPOSITORY" --body "$body"
     return 0
   fi
 
@@ -150,16 +158,20 @@ function notify_failure() {
 }
 
 function resolve_failure() {
-  local number=""
-  number="$(open_issue_number)"
-  if [[ -z "$number" ]]; then
+  local numbers=""
+  numbers="$(open_issue_numbers)"
+  if [[ -z "$numbers" ]]; then
     log_info "the scheduled run is green and no ${ISSUE_LABEL} issue is open — nothing to close"
     return 0
   fi
-  log_info "the scheduled run is green — closing issue #${number}"
-  gh issue close "$number" \
-    --repo "$GITHUB_REPOSITORY" \
-    --comment "Green again: ${RUN_URL}"
+  local number
+  while IFS= read -r number; do
+    [[ -z "$number" ]] && continue
+    log_info "the scheduled run is green — closing issue #${number}"
+    gh issue close "$number" \
+      --repo "$GITHUB_REPOSITORY" \
+      --comment "Green again: ${RUN_URL}"
+  done <<< "$numbers"
 }
 
 case "${1:-}" in

@@ -275,8 +275,8 @@ function base_image_pin() {
 
 # require_base_image_current [reference] — exit 0 while the registry still holds
 # the digest the pin names, non-zero naming BOTH digests when it moved. The
-# reader of a 03:00 failure needs both, or the next step is to run the read by
-# hand.
+# reader of a 09:00 UTC — 02:00 MST — nightly failure needs both, or the next
+# step is to run the read by hand.
 function require_base_image_current() {
   local reference="${1:-$BASE_IMAGE_REFERENCE}"
   local pinned=""

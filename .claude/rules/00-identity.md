@@ -152,8 +152,8 @@ operating systems, and `verify-published` cannot say which one it read.
 ## Scheduled security scan
 
 `.github/workflows/security-nightly.yml` scans the 6 published images at
-`:latest` every night at 09:00 UTC, and runs the base-OS currency probe above. It
-builds and publishes nothing.
+`:latest` every night at 09:00 UTC — 02:00 MST, and cron is UTC — and runs the
+base-OS currency probe above. It builds and publishes nothing.
 
 - **CRITICAL fails the run, fixed or unfixed.** The scan sets
   `--severity CRITICAL --exit-code 1` and **no `--ignore-unfixed`**. HIGH is not
@@ -172,13 +172,18 @@ builds and publishes nothing.
   `on: schedule` therefore calls `.ci/notify-failure.sh` from a step guarded by
   `if: ${{ failure() }}` and declares `issues: write`. That script opens or
   updates ONE issue labelled `ci-nightly-red` naming the run URL and the jobs
-  that failed, and a green run closes it. The rule in the test file is keyed on
-  the TRIGGER, so a scheduled workflow added tomorrow is covered the day it is
-  added.
+  that failed, and a green run closes EVERY open issue carrying that label — 2
+  can exist whenever 2 runs raced past the search, and one that a green run
+  cannot reach stays red for the life of the repository. The rule in the test
+  file is keyed on the TRIGGER, so a scheduled workflow added tomorrow is
+  covered the day it is added.
 - **`failure()` in a step means "a step of THIS job failed".** The notify job
-  runs under `if: ${{ always() }}`, so it first reduces the verdict of the jobs it
-  needs to its own status. Without that step the notifier would be skipped
-  exactly when it is needed.
+  runs under `if: ${{ !cancelled() }}`, so it first reduces the verdict of the
+  jobs it needs to its own status. Without that step the notifier would be
+  skipped exactly when it is needed. `always()` is the other accepted spelling
+  and the test takes either; `!cancelled()` is the one this repository uses,
+  because under `always()` a run a human CANCELLED reduces to a non-success
+  verdict and files an issue about itself.
 
 ## Sanctioned-platform policy
 

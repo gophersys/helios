@@ -15,9 +15,11 @@ name: security-nightly
 
 on:
   schedule:
-    # 09:00 UTC — 02:00 local, the quiet window for this repository.
-    # build-and-push runs on a push to main, and nobody pushes to main then, so
-    # this scan does not race a publish and read an image being replaced.
+    # 09:00 UTC, which is 02:00 MST — cron is UTC, and America/Phoenix keeps no
+    # DST, so that local hour is the same one every night of the year. It is the
+    # quiet window for this repository: build-and-push runs on a push to main,
+    # and nobody pushes to main then, so this scan does not race a publish and
+    # read an image being replaced.
     - cron: "0 9 * * *"
   workflow_dispatch:
 
@@ -113,9 +115,16 @@ jobs:
         run: bash ./ctl.sh base-currency
 
   notify:
-    # always(), so this job runs whatever the 2 jobs above did. A job that ran
-    # only on failure could not close the issue on a green night.
-    if: ${{ always() }}
+    # This job runs whatever the 2 jobs above did — a job that ran only on
+    # failure could not close the issue on a green night.
+    #
+    # !cancelled() and not always(), which is the stricter half of that pair. A
+    # cancelled run reduces to a non-success verdict like any other, so under
+    # always() a run a human stopped would file a red issue about itself; the
+    # label is the whole mechanism for being read at 09:00 UTC, and a label that
+    # carries noise stops being read. Nothing is lost on a real failure: a
+    # failed job is not a cancelled one.
+    if: ${{ !cancelled() }}
     needs: [scan, base-currency]
     timeout-minutes: 10
     runs-on: ubuntu-latest
