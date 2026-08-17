@@ -147,19 +147,28 @@ jobs:
         # are what every gate below reads, and what the child jobs read.
         id: filter
         run: bash .ci/affected.sh base >> "$GITHUB_OUTPUT"
-      - name: point buildx at the build nodes
-        # Replaces docker/setup-buildx-action. It makes the same
-        # docker-container builder — the default docker driver can neither read
-        # nor write a registry cache — and it owns the arm64 switch that reads
-        # SANCTIONED_PLATFORMS. Inert today: that list holds linux/amd64 alone.
-        if: ${{ steps.filter.outputs.build == 'true' }}
-        run: bash .ci/buildx-node.sh
       - uses: docker/login-action@v3
         if: ${{ steps.filter.outputs.build == 'true' }}
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: keep the BuildKit mirror populated
+        # The builder step below boots from a ghcr.io image — see the header of
+        # .ci/buildx-node.sh. This step is what makes that true on the day the
+        # pin moves; every other run is 1 authenticated read of our registry.
+        # It sits after the login because the mirror package is private.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/mirror-buildkit.sh
+      - name: point buildx at the build nodes
+        # Replaces docker/setup-buildx-action. It makes the same
+        # docker-container builder — the default docker driver can neither read
+        # nor write a registry cache — and it owns the arm64 switch that reads
+        # SANCTIONED_PLATFORMS. Inert today: that list holds linux/amd64 alone.
+        # It runs after the registry login: the builder boots by pulling the
+        # private BuildKit mirror, and an anonymous pull of it is refused.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/buildx-node.sh
       - name: build the image, load it locally, publish nothing yet
         # The gate has to run before the irreversible action. A push cannot be
         # undone and no job here rolls one back, so a smoke test placed after it
@@ -253,15 +262,22 @@ jobs:
         # building. The reverse does not hold, which is what BASE_TAG answers.
         id: filter
         run: bash .ci/affected.sh flutter >> "$GITHUB_OUTPUT"
-      - name: point buildx at the build nodes
-        if: ${{ steps.filter.outputs.build == 'true' }}
-        run: bash .ci/buildx-node.sh
       - uses: docker/login-action@v3
         if: ${{ steps.filter.outputs.build == 'true' }}
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: keep the BuildKit mirror populated
+        # The builder step below boots from a ghcr.io image — see the header of
+        # .ci/buildx-node.sh. This step is what makes that true on the day the
+        # pin moves; every other run is 1 authenticated read of our registry.
+        # It sits after the login because the mirror package is private.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/mirror-buildkit.sh
+      - name: point buildx at the build nodes
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/buildx-node.sh
       - name: build the image, load it locally, publish nothing yet
         # The gate has to run before the irreversible action. A push cannot be
         # undone and no job here rolls one back, so a smoke test placed after it
@@ -361,15 +377,22 @@ jobs:
         # building. The reverse does not hold, which is what BASE_TAG answers.
         id: filter
         run: bash .ci/affected.sh zephyr >> "$GITHUB_OUTPUT"
-      - name: point buildx at the build nodes
-        if: ${{ steps.filter.outputs.build == 'true' }}
-        run: bash .ci/buildx-node.sh
       - uses: docker/login-action@v3
         if: ${{ steps.filter.outputs.build == 'true' }}
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: keep the BuildKit mirror populated
+        # The builder step below boots from a ghcr.io image — see the header of
+        # .ci/buildx-node.sh. This step is what makes that true on the day the
+        # pin moves; every other run is 1 authenticated read of our registry.
+        # It sits after the login because the mirror package is private.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/mirror-buildkit.sh
+      - name: point buildx at the build nodes
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/buildx-node.sh
       - name: build the image, load it locally, publish nothing yet
         # The gate has to run before the irreversible action. A push cannot be
         # undone and no job here rolls one back, so a smoke test placed after it
@@ -468,15 +491,22 @@ jobs:
         # parent that builds always brings its children with it.
         id: filter
         run: bash .ci/affected.sh zephyr-devbox >> "$GITHUB_OUTPUT"
-      - name: point buildx at the build nodes
-        if: ${{ steps.filter.outputs.build == 'true' }}
-        run: bash .ci/buildx-node.sh
       - uses: docker/login-action@v3
         if: ${{ steps.filter.outputs.build == 'true' }}
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: keep the BuildKit mirror populated
+        # The builder step below boots from a ghcr.io image — see the header of
+        # .ci/buildx-node.sh. This step is what makes that true on the day the
+        # pin moves; every other run is 1 authenticated read of our registry.
+        # It sits after the login because the mirror package is private.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/mirror-buildkit.sh
+      - name: point buildx at the build nodes
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/buildx-node.sh
       - name: build the image, load it locally, publish nothing yet
         # The gate has to run before the irreversible action. A push cannot be
         # undone and no job here rolls one back, so a smoke test placed after it
@@ -580,15 +610,22 @@ jobs:
       - name: does this commit change cloud
         id: filter
         run: bash .ci/affected.sh cloud >> "$GITHUB_OUTPUT"
-      - name: point buildx at the build nodes
-        if: ${{ steps.filter.outputs.build == 'true' }}
-        run: bash .ci/buildx-node.sh
       - uses: docker/login-action@v3
         if: ${{ steps.filter.outputs.build == 'true' }}
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: keep the BuildKit mirror populated
+        # The builder step below boots from a ghcr.io image — see the header of
+        # .ci/buildx-node.sh. This step is what makes that true on the day the
+        # pin moves; every other run is 1 authenticated read of our registry.
+        # It sits after the login because the mirror package is private.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/mirror-buildkit.sh
+      - name: point buildx at the build nodes
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/buildx-node.sh
       - name: generate the build args from versions.env
         # The one-home rule reaching CI: one --build-arg per pin line, the same
         # list `cloud/ctl.sh` generates locally. The Dockerfile's pin gate fails

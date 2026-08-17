@@ -55,6 +55,30 @@ export REPO_ROOT
 # Every image of this repository is published under 1 registry namespace.
 IMAGE_REGISTRY_NAMESPACE="ghcr.io/gophersys"
 
+# The BuildKit image the docker-container builder boots, and the 1 place its
+# value lives. .ci/buildx-node.sh passes it to `docker buildx create`, and
+# .ci/mirror-buildkit.sh keeps the mirror populated.
+#
+# It names OUR registry and never docker.io. The first build wave on arc-build
+# died twice on 2 different Docker Hub failures from the home egress
+# (2026-08-17): a `Connection reset by peer` from get.helm.sh mid-fetch, and a
+# 502 from auth.docker.io while the builder booted — the second one before any
+# line of ours ran. ghcr.io is where every image of this repository already
+# lives, the pull is authenticated, and the boot path stops depending on a
+# registry we do not use for anything else.
+#
+# The digest is the INDEX digest of docker.io/moby/buildkit:v0.32.2, read with
+# `docker buildx imagetools inspect` on 2026-08-17 — the same digest the moving
+# `buildx-stable-1` tag held that day. The tag part names the release so the
+# reader knows what is running; the digest part is what docker verifies. Bump
+# it by editing this line and letting .ci/mirror-buildkit.sh copy the new
+# version on the next build.
+export BUILDKIT_REF="ghcr.io/gophersys/buildkit:v0.32.2@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8"
+# Where the mirror copies FROM when ghcr.io does not hold the digest yet: the
+# same image, upstream. Only .ci/mirror-buildkit.sh reads it, on the one cold
+# path; no build boots from it.
+export BUILDKIT_UPSTREAM_REF="docker.io/moby/buildkit:v0.32.2@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8"
+
 # The platforms a published image of this repository may carry. This list is the
 # single source of truth: the guard, the build, the push and verify-published
 # all read it, and nothing else declares a platform.

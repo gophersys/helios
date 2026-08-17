@@ -240,11 +240,17 @@ function row_field() {
 # fallback: an unreachable upstream is an answer this run does not have.
 # ---------------------------------------------------------------------------
 
+# Every read below retries: 4 more attempts, 3 seconds apart, on ANY failure
+# (--retry-all-errors — the default retry set skips a mid-transfer reset, which
+# is the failure home egress actually produces). An aggregate run makes ~170
+# reads, so at 1-in-50 transient odds a no-retry Monday fails more often than
+# it succeeds. The collect-then-fail contract is unchanged: a pin that fails
+# all 5 attempts still fails loudly, alongside the pins that resolved.
 # fetch_document <pin> <url> [header...] — the body, on stdout.
 function fetch_document() {
   local pin="$1" url="$2"
   shift 2
-  local -a request=(curl -fsSL --max-time 30)
+  local -a request=(curl -fsSL --max-time 30 --retry 4 --retry-delay 3 --retry-all-errors)
   local header
   for header in "$@"; do
     request+=(-H "$header")
@@ -265,7 +271,7 @@ function fetch_document() {
 # served. A digest has to be of bytes and not of a shell variable.
 function fetch_to_file() {
   local pin="$1" url="$2" destination="$3"
-  if ! curl -fsSL --max-time 300 "$url" -o "$destination"; then
+  if ! curl -fsSL --max-time 300 --retry 4 --retry-delay 3 --retry-all-errors "$url" -o "$destination"; then
     fail_pin "$pin" "the fetch of ${url} failed, so the version that was just resolved has no digest"
   fi
   if [[ ! -s "$destination" ]]; then
@@ -443,7 +449,7 @@ function resolve_oci_index() {
 
   local staged digest
   staged="$(mktemp)"
-  if ! curl -fsSL --max-time 60 \
+  if ! curl -fsSL --max-time 60 --retry 4 --retry-delay 3 --retry-all-errors \
     -H "Authorization: Bearer ${token}" \
     -H "Accept: application/vnd.oci.image.index.v1+json" \
     -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \

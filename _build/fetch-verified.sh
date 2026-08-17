@@ -86,7 +86,15 @@ WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 STAGED="${WORK}/asset"
 
-if ! curl -fsSL "$URL" -o "$STAGED"; then
+# --retry alone skips exactly the failures a flaky path produces — a reset
+# mid-transfer, a refused TLS handshake — so --retry-all-errors widens it to
+# every failure. Retrying a 404 four times costs ~15 seconds on a URL that is
+# genuinely dead; not retrying a transient reset cost 3 build attempts on
+# 2026-08-17 (a 502 from auth.docker.io the same day was the same class one
+# layer down). The digest comparison below judges whichever attempt finally
+# lands, so a retry can change WHETHER bytes arrive and never WHICH bytes
+# install.
+if ! curl -fsSL --retry 4 --retry-delay 3 --retry-all-errors "$URL" -o "$STAGED"; then
   fatal "${PIN}: the fetch of ${URL} failed"
 fi
 
