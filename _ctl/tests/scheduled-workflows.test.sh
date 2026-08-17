@@ -25,7 +25,7 @@
 # LOUD, and never about the presence of the mechanism.
 #
 # ============================================================================
-# THE 5 RULES
+# THE 7 RULES
 # ============================================================================
 #
 #   1. scheduled_workflow_declares_a_failure_notification
@@ -56,6 +56,21 @@
 #      non-zero when that differs from the pin. A pin nothing watches is the
 #      cost of rule 4, so the 2 halves ship together.
 #
+#   6. the_notify_job_reduces_the_verdicts_it_needs
+#      In a scheduled workflow of more than 1 job, the job that calls the
+#      notifier runs on every outcome, needs EVERY other job, and reduces their
+#      results to its own status BEFORE any step on the success path. Rule 1 is
+#      about a step and is the whole rule for a workflow of 1 job; a job under
+#      always() has no failure of its own, so without the reduction a red night
+#      CLOSES the issue that reports it.
+#
+#   7. the_scan_matrix_equals_BUILD_ORDER
+#      The image list of the scan matrix holds exactly the names BUILD_ORDER
+#      declares in ctl.sh — order-insensitive, no duplicates. A hand-written
+#      matrix is a second declaration of the published set, and narrowing it to
+#      [base] drops 5 images out of the security gate with every other check in
+#      this repository still green.
+#
 # ============================================================================
 # WHY THE FIELD NAMES IN RULE 3 ARE THESE FIELD NAMES
 # ============================================================================
@@ -84,6 +99,14 @@
 # fixture that must parse into a known shape, and a liveness clause on the real
 # files — so a shape it cannot read fails loudly instead of reporting a clean
 # file it never read.
+#
+# There IS a parser in the suite now, and it is deliberately not in this file.
+# `_ctl/tests/workflow-yaml.test.sh` runs yq over every workflow file and asks 1
+# question: does the document parse. It exists because a token reader cannot
+# see a file that does not parse — the first version of the nightly reached a
+# green gate carrying an unparseable `run:` line, and every rule in THIS file
+# passed on it, correctly, because each token really was there. The 2 files
+# answer 2 different questions, and only 1 of them needs a tool.
 #
 # Usage: bash _ctl/tests/scheduled-workflows.test.sh
 #
@@ -575,6 +598,423 @@ function workflow_files() {
       printf '%s\n' "${file#"$REPO_ROOT"/}"
     done
   done
+}
+
+# ---------------------------------------------------------------------------
+# The job readers, for the notify-job shape (rule 6).
+#
+# Rule 1 above is about a STEP: a call to the notifier under `if: failure()`.
+# That is the whole rule for a workflow of 1 job, because `failure()` in a step
+# means "a step of THIS job failed" and the scan is in the same job.
+#
+# It is not the whole rule for a workflow of several jobs, and the nightly is
+# one. There the notifier lives in its own job that runs under `always()` — it
+# must, or it could not close the issue on a green night — and a job under
+# always() has no failure of its own to react to. Its steps all succeed
+# whatever the scan did, so `failure()` is FALSE and `success()` is TRUE on the
+# reddest possible night. The job therefore has to REDUCE the results of the
+# jobs it needs to its own status first, and everything else in it reads that.
+#
+# 3 things can be deleted from that shape, and the suite this file belongs to
+# stayed green on all 3 until these readers existed:
+#
+#   the reduction step   -> a red night CLOSES the issue that reports it
+#   always()             -> the job is skipped exactly when it is needed
+#   1 name from needs:   -> that job's result never reaches the reduction, and
+#                           the notify job does not even wait for it
+#
+# The readers are awk and bash, like every other reader here. A YAML parser
+# does now run over these files — _ctl/tests/workflow-yaml.test.sh — and it
+# answers 1 question, whether the document parses. It is a sibling file so that
+# this one keeps the property its header claims: it needs no tool the gate does
+# not already have.
+# ---------------------------------------------------------------------------
+
+# job_key_lines <file> — `<line>:<job name>` for every top-level job key.
+function job_key_lines() {
+  awk '
+    BEGIN { in_jobs = 0; job_indent = -1 }
+    {
+      stripped = $0
+      sub(/^[[:space:]]+/, "", stripped)
+      if (stripped == "" || substr(stripped, 1, 1) == "#") { next }
+      match($0, /^[[:space:]]*/)
+      indent = RLENGTH
+      if (indent == 0) {
+        in_jobs = (stripped ~ /^jobs:[[:space:]]*$/) ? 1 : 0
+        job_indent = -1
+        next
+      }
+      if (!in_jobs) { next }
+      if (job_indent == -1) { job_indent = indent }
+      if (indent != job_indent) { next }
+      if (stripped ~ /^[A-Za-z0-9_.-]+:[[:space:]]*$/) {
+        key = stripped
+        sub(/:.*$/, "", key)
+        print NR ":" key
+      }
+    }
+  ' "$1"
+}
+
+# job_names <file> — every top-level job name, 1 per line, in file order.
+function job_names() {
+  local record
+  while IFS= read -r record; do
+    [[ -z "$record" ]] && continue
+    printf '%s\n' "${record#*:}"
+  done < <(job_key_lines "$1")
+}
+
+# job_span <file> <job name> — `<first line>:<last line>` of that job's block,
+# and `0:0` when the file declares no such job.
+#
+# The block ends at the next job key, at the next top-level key, or at the end
+# of the file — whichever comes first. The middle one matters: `jobs:` is the
+# last top-level key of every workflow here, and a reader that assumed it always
+# is would silently swallow whatever a future file puts after it.
+function job_span() {
+  local file="$1" want="$2"
+  local record line name start=0 end=0 found=0 boundary total
+
+  while IFS=: read -r line name; do
+    [[ -z "$line" ]] && continue
+    if [[ "$found" -eq 1 ]]; then
+      end=$((line - 1))
+      break
+    fi
+    [[ "$name" == "$want" ]] && { start="$line"; found=1; }
+  done < <(job_key_lines "$file")
+
+  if [[ "$found" -eq 0 ]]; then
+    printf '0:0'
+    return 0
+  fi
+
+  total="$(awk 'END { print NR + 0 }' "$file")"
+  boundary="$(awk -v start="$start" 'NR > start && /^[^[:space:]#]/ { print NR - 1; exit }' "$file")"
+  [[ -z "$boundary" ]] && boundary="$total"
+  [[ "$end" -eq 0 || "$end" -gt "$boundary" ]] && end="$boundary"
+  printf '%s:%s' "$start" "$end"
+}
+
+# job_property_lines <file> <first> <last> — `<line><TAB><text>` for every
+# job-level property of that block: the lines at the SHALLOWEST indent the block
+# holds. A step-level key sits deeper and is not one, which is the whole point —
+# `if:` on a step and `if:` on a job are 2 different rules.
+function job_property_lines() {
+  awk -v first="$2" -v last="$3" '
+    BEGIN { minimum = -1; count = 0 }
+    NR <= first { next }
+    NR > last { exit }
+    {
+      stripped = $0
+      sub(/^[[:space:]]+/, "", stripped)
+      if (stripped == "" || substr(stripped, 1, 1) == "#") { next }
+      match($0, /^[[:space:]]*/)
+      indent = RLENGTH
+      count++
+      number[count] = NR
+      text[count] = stripped
+      depth[count] = indent
+      if (minimum == -1 || indent < minimum) { minimum = indent }
+    }
+    END {
+      for (item = 1; item <= count; item++) {
+        if (depth[item] == minimum) { print number[item] "\t" text[item] }
+      }
+    }
+  ' "$1"
+}
+
+# job_property_record <file> <first> <last> <key> — `<line><TAB><value>` for
+# that job-level key, empty when the job declares none. The value is the text
+# after the colon, which is empty for a key that opens a block.
+function job_property_record() {
+  local file="$1" first="$2" last="$3" key="$4"
+  local line text value
+  while IFS=$'\t' read -r line text; do
+    [[ -z "$text" ]] && continue
+    case "$text" in
+      "${key}:"*)
+        value="${text#"${key}":}"
+        value="${value%%#*}"
+        value="${value#"${value%%[![:space:]]*}"}"
+        value="${value%"${value##*[![:space:]]}"}"
+        printf '%s\t%s' "$line" "$value"
+        return 0
+        ;;
+    esac
+  done < <(job_property_lines "$file" "$first" "$last")
+  printf ''
+}
+
+# job_condition <file> <first> <last> — the job-level `if:` value, empty when
+# the job carries none.
+function job_condition() {
+  local record
+  record="$(job_property_record "$1" "$2" "$3" "if")"
+  [[ -z "$record" ]] && return 0
+  printf '%s' "${record#*$'\t'}"
+}
+
+# runs_on_every_outcome <condition> — 1 when that job-level condition runs the
+# job whether the jobs it needs passed or failed.
+#
+# `always()` is the spelling this repository uses. `!cancelled()` is accepted as
+# well: it also runs on both outcomes, it is the stricter of the 2 — it stops a
+# cancelled run from filing an issue — and a rule that forbade it would forbid
+# the better version of the same shape. An empty condition is NOT one of them: a
+# job with no `if:` runs only when everything it needs succeeded, so it is
+# skipped on exactly the night it exists for.
+function runs_on_every_outcome() {
+  if grep -qE 'always\(\)|![[:space:]]*cancelled\(\)' <<< "$1"; then
+    printf '1'
+  else
+    printf '0'
+  fi
+}
+
+# job_needs <file> <first> <last> — the job names in `needs:`, 1 per line, in
+# both spellings YAML allows: `needs: [a, b]` and a block list of `- a` lines.
+# Silent when the job declares no needs.
+function job_needs() {
+  local file="$1" first="$2" last="$3"
+  local record line value
+
+  record="$(job_property_record "$file" "$first" "$last" "needs")"
+  [[ -z "$record" ]] && return 0
+  line="${record%%$'\t'*}"
+  value="${record#*$'\t'}"
+
+  if [[ -n "$value" ]]; then
+    value="${value#[}"
+    value="${value%]}"
+    awk 'BEGIN { RS = "," } { gsub(/^[[:space:]]+|[[:space:]]+$/, ""); gsub(/^["'"'"']|["'"'"']$/, ""); if ($0 != "") print }' <<< "$value"
+    return 0
+  fi
+
+  # The block form. The items sit deeper than the key that opens them.
+  awk -v start="$line" -v last="$last" '
+    NR <= start { next }
+    NR > last { exit }
+    {
+      stripped = $0
+      sub(/^[[:space:]]+/, "", stripped)
+      if (stripped == "" || substr(stripped, 1, 1) == "#") { next }
+      if (substr(stripped, 1, 2) != "- ") { exit }
+      value = substr(stripped, 3)
+      sub(/[[:space:]]*#.*$/, "", value)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^["'"'"']|["'"'"']$/, "", value)
+      if (value != "") { print value }
+    }
+  ' "$file"
+}
+
+# job_step_lines <file> <first> <last> — the line of every step dash of that
+# job, 1 per line.
+#
+# Anchored on the `steps:` key rather than on "a dash inside the job": a block
+# `needs:` list carries dashes at the same indent, and counting those as steps
+# would make the reader answer a question about a list of job names.
+function job_step_lines() {
+  local file="$1" first="$2" last="$3"
+  local record start
+  record="$(job_property_record "$file" "$first" "$last" "steps")"
+  [[ -z "$record" ]] && return 0
+  start="${record%%$'\t'*}"
+  awk -v start="$start" -v last="$last" '
+    BEGIN { dash_indent = -1 }
+    NR <= start { next }
+    NR > last { exit }
+    {
+      stripped = $0
+      sub(/^[[:space:]]+/, "", stripped)
+      if (stripped == "" || substr(stripped, 1, 1) == "#") { next }
+      if (substr(stripped, 1, 2) != "- ") { next }
+      match($0, /^[[:space:]]*/)
+      indent = RLENGTH
+      if (dash_indent == -1) { dash_indent = indent }
+      if (indent == dash_indent) { print NR }
+    }
+  ' "$file"
+}
+
+# step_condition <step slice> — the `if:` line of a step, empty when it has
+# none. awk and not grep: grep exits 1 on no match, and a step with no `if:` is
+# an ANSWER here, not a failure.
+function step_condition() {
+  awk '/^[[:space:]]*(-[[:space:]]+)?if:/ { print; exit }' <<< "$1"
+}
+
+# verdict_step_line <file> <first> <last> — the line of the first step that
+# reduces the results of the needed jobs to this job's status, and 0 when the
+# job has none.
+#
+# 3 clauses, and the step has to satisfy all 3:
+#
+#   it reads needs.<job>.result   the only place a needed job's verdict is
+#   it compares against success   a step that PRINTS the results and exits 0 is
+#                                 a log line, not a reduction
+#   it is not skippable           a step under `if: failure()` never fires in a
+#                                 job that runs under always(), so a reduction
+#                                 written there reduces nothing
+function verdict_step_line() {
+  local file="$1" first="$2" last="$3"
+  local dash slice condition
+  while IFS= read -r dash; do
+    [[ -z "$dash" ]] && continue
+    slice="$(step_slice "$file" "$dash")"
+    grep -qE 'needs\.[A-Za-z0-9_.-]+\.result' <<< "$slice" || continue
+    grep -qF -- "success" <<< "$slice" || continue
+    condition="$(step_condition "$slice")"
+    if [[ -n "$condition" ]] && [[ "$(runs_on_every_outcome "$condition")" != "1" ]]; then
+      continue
+    fi
+    printf '%s' "$dash"
+    return 0
+  done < <(job_step_lines "$file" "$first" "$last")
+  printf '0'
+}
+
+# success_path_step_line <file> <first> <last> — the line of the first step
+# guarded by `success()`, and 0 when the job has none.
+#
+# Any such step is a success path, and the closing of the issue is the one this
+# repository has. Steps run in file order, so a success() step that runs BEFORE
+# the reduction runs on a night that is not green: until the reduction has run,
+# nothing in an always() job has failed, and success() is true.
+function success_path_step_line() {
+  local file="$1" first="$2" last="$3"
+  local dash slice condition
+  while IFS= read -r dash; do
+    [[ -z "$dash" ]] && continue
+    slice="$(step_slice "$file" "$dash")"
+    condition="$(step_condition "$slice")"
+    [[ -z "$condition" ]] && continue
+    if grep -qE 'success\(\)' <<< "$condition"; then
+      printf '%s' "$dash"
+      return 0
+    fi
+  done < <(job_step_lines "$file" "$first" "$last")
+  printf '0'
+}
+
+# job_calls_the_notifier <file> <first> <last> — 1 when a non-comment line of
+# that job names the notifier.
+function job_calls_the_notifier() {
+  local file="$1" first="$2" last="$3"
+  local hit
+  hit="$(awk -v first="$first" -v last="$last" -v needle="$NOTIFIER" '
+    NR <= first { next }
+    NR > last { exit }
+    /^[[:space:]]*#/ { next }
+    index($0, needle) { found = 1 }
+    END { print found + 0 }
+  ' "$file")"
+  printf '%s' "$hit"
+}
+
+# ---------------------------------------------------------------------------
+# The scan-matrix readers (rule 7).
+#
+# The image set is declared in ctl.sh, as BUILD_ORDER. The matrix of the nightly
+# is a SECOND hand-written copy of it, in 2 files, and a copy is a thing that
+# drifts: narrow the matrix to [base] and 5 images leave the security gate with
+# every test in this repository still green. So the matrix is held to the
+# declaration instead of to a list written here — a list written here would be a
+# third copy, and the next narrowing would only have to edit 1 more file.
+# ---------------------------------------------------------------------------
+
+# matrix_images <file> — every image name under a `matrix:` -> `image:` key,
+# 1 per line, in both spellings YAML allows.
+#
+# Under a `matrix:` key and not the bare word `image:`: an action input named
+# `image:` is not a scan target, and a reader that took it would report the real
+# workflow as declaring an image it never declares.
+function matrix_images() {
+  awk '
+    BEGIN { in_matrix = 0; in_list = 0; matrix_indent = -1; image_indent = -1 }
+    {
+      stripped = $0
+      sub(/^[[:space:]]+/, "", stripped)
+      if (stripped == "" || substr(stripped, 1, 1) == "#") { next }
+      match($0, /^[[:space:]]*/)
+      indent = RLENGTH
+
+      if (in_list) {
+        if (indent > image_indent && substr(stripped, 1, 2) == "- ") {
+          emit(substr(stripped, 3))
+          next
+        }
+        in_list = 0
+      }
+      if (in_matrix && indent <= matrix_indent) { in_matrix = 0 }
+      if (stripped ~ /^matrix:[[:space:]]*$/) {
+        in_matrix = 1
+        matrix_indent = indent
+        next
+      }
+      if (!in_matrix) { next }
+      if (stripped !~ /^image:/) { next }
+
+      rest = substr(stripped, 7)
+      sub(/[[:space:]]*#.*$/, "", rest)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", rest)
+      if (rest == "") {
+        in_list = 1
+        image_indent = indent
+        next
+      }
+      sub(/^\[/, "", rest)
+      sub(/\]$/, "", rest)
+      total = split(rest, parts, ",")
+      for (item = 1; item <= total; item++) { emit(parts[item]) }
+    }
+    function emit(value) {
+      sub(/[[:space:]]*#.*$/, "", value)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      gsub(/^["'"'"']|["'"'"']$/, "", value)
+      if (value != "") { print value }
+    }
+  ' "$1"
+}
+
+# image_set_defects <declared> <expected> — 1 line per disagreement between 2
+# newline-separated sets, and silent when they hold the same names.
+#
+# Order-insensitive, because the matrix order is not the build order and never
+# has to be. Duplicates ARE a defect: a matrix that names 1 image twice scans it
+# twice and hides that it dropped another.
+function image_set_defects() {
+  local declared="$1" expected="$2"
+  local name seen="" out=""
+
+  while IFS= read -r name; do
+    [[ -z "$name" ]] && continue
+    if grep -qxF -- "$name" <<< "$seen"; then
+      out="${out:+${out}
+}named twice in the matrix: ${name}"
+    else
+      seen="${seen:+${seen}
+}${name}"
+    fi
+    if ! grep -qxF -- "$name" <<< "$expected"; then
+      out="${out:+${out}
+}in the matrix and not in BUILD_ORDER: ${name}"
+    fi
+  done <<< "$declared"
+
+  while IFS= read -r name; do
+    [[ -z "$name" ]] && continue
+    if ! grep -qxF -- "$name" <<< "$declared"; then
+      out="${out:+${out}
+}in BUILD_ORDER and NOT SCANNED: ${name}"
+    fi
+  done <<< "$expected"
+
+  printf '%s' "$out"
 }
 
 printf '=== RUN  %s\n' "$TEST_NAME"
@@ -1241,5 +1681,345 @@ else
       "a guard that fires on a match makes the nightly red every night, which teaches the reader to ignore red"
   fi
 fi
+
+# ===========================================================================
+# 7. THE NOTIFY JOB — it reduces the verdict of every job it needs
+# ===========================================================================
+NOTIFY_GOOD="$WORKFLOW_FIXTURES/notify-job-good.yml"
+NOTIFY_NO_VERDICT="$WORKFLOW_FIXTURES/notify-job-without-verdict.yml"
+NOTIFY_NO_ALWAYS="$WORKFLOW_FIXTURES/notify-job-without-always.yml"
+NOTIFY_PARTIAL_NEEDS="$WORKFLOW_FIXTURES/notify-job-partial-needs.yml"
+NOTIFY_LATE_VERDICT="$WORKFLOW_FIXTURES/notify-job-verdict-after-close.yml"
+
+# set_difference <a> <b> — the names of a that b does not hold, 1 per line.
+function set_difference() {
+  local name
+  while IFS= read -r name; do
+    [[ -z "$name" ]] && continue
+    grep -qxF -- "$name" <<< "$2" || printf '%s\n' "$name"
+  done <<< "$1"
+}
+
+missing_fixtures=""
+for fixture in "$NOTIFY_GOOD" "$NOTIFY_NO_VERDICT" "$NOTIFY_NO_ALWAYS" \
+  "$NOTIFY_PARTIAL_NEEDS" "$NOTIFY_LATE_VERDICT"; do
+  [[ -f "$fixture" ]] || missing_fixtures="${missing_fixtures:+${missing_fixtures}
+}${fixture}"
+done
+
+if [[ -n "$missing_fixtures" ]]; then
+  fail_check "counter_stimulus_notify_job_fixtures_exist" \
+    "the fixtures this test proves its job readers with are absent:" \
+    "$missing_fixtures"
+else
+  pass_check "counter_stimulus_notify_job_fixtures_exist"
+
+  # -- the block reader: it finds the jobs, and it finds their edges --
+  assert_equal "counter_stimulus_reads_the_3_jobs_of_the_fixture" \
+    "scan base-currency notify" "$(job_names "$NOTIFY_GOOD" | tr '\n' ' ' | sed -e 's/ $//')" \
+    "a reader that missed a job would report a needs: set as complete while it misses that job"
+
+  good_span="$(job_span "$NOTIFY_GOOD" "notify")"
+  good_first="${good_span%%:*}"
+  good_last="${good_span##*:}"
+  assert_equal "counter_stimulus_reports_no_span_for_a_job_that_does_not_exist" \
+    "0:0" "$(job_span "$NOTIFY_GOOD" "no-such-job")"
+
+  # -- the notifier-job detector, both directions --
+  assert_equal "counter_stimulus_finds_the_job_that_calls_the_notifier" \
+    "1" "$(job_calls_the_notifier "$NOTIFY_GOOD" "$good_first" "$good_last")"
+  scan_span="$(job_span "$NOTIFY_GOOD" "scan")"
+  assert_equal "counter_stimulus_does_not_read_the_scan_job_as_a_notify_job" \
+    "0" "$(job_calls_the_notifier "$NOTIFY_GOOD" "${scan_span%%:*}" "${scan_span##*:}")" \
+    "the span reader would otherwise be reading past the end of the job"
+
+  # -- the condition detector, both directions --
+  assert_equal "counter_stimulus_finds_the_always_condition_on_the_job" \
+    "1" "$(runs_on_every_outcome "$(job_condition "$NOTIFY_GOOD" "$good_first" "$good_last")")"
+  late_span="$(job_span "$NOTIFY_NO_ALWAYS" "notify")"
+  assert_equal "counter_stimulus_reports_the_notify_job_with_no_condition" \
+    "0" "$(runs_on_every_outcome "$(job_condition "$NOTIFY_NO_ALWAYS" "${late_span%%:*}" "${late_span##*:}")")" \
+    "a job with no if: runs only when every job it needs succeeded, so it is skipped on the red night" \
+    "and a step-level if: further down does not change that"
+  # The single quotes are the point: this is a literal line of YAML, and the
+  # ${{ }} inside it belongs to GitHub rather than to bash.
+  # shellcheck disable=SC2016
+  assert_equal "counter_stimulus_accepts_the_stricter_not_cancelled_spelling" \
+    "1" "$(runs_on_every_outcome 'if: ${{ !cancelled() }}')" \
+    "it runs on both outcomes as well, and it is the version that does not file an issue for a cancelled run"
+
+  # -- the needs reader, both directions --
+  assert_equal "counter_stimulus_reads_the_complete_needs_set" \
+    "scan base-currency" "$(job_needs "$NOTIFY_GOOD" "$good_first" "$good_last" | tr '\n' ' ' | sed -e 's/ $//')"
+  partial_span="$(job_span "$NOTIFY_PARTIAL_NEEDS" "notify")"
+  assert_equal "counter_stimulus_reports_the_job_missing_from_needs" \
+    "base-currency" \
+    "$(set_difference "$(job_names "$NOTIFY_PARTIAL_NEEDS" | grep -vxF 'notify')" \
+      "$(job_needs "$NOTIFY_PARTIAL_NEEDS" "${partial_span%%:*}" "${partial_span##*:}")")" \
+    "that fixture needs scan only, so the currency job's result never reaches the reduction"
+
+  # -- the verdict-step detector, all 3 directions --
+  good_verdict="$(verdict_step_line "$NOTIFY_GOOD" "$good_first" "$good_last")"
+  good_close="$(success_path_step_line "$NOTIFY_GOOD" "$good_first" "$good_last")"
+  if [[ "$good_verdict" -ne 0 ]]; then
+    pass_check "counter_stimulus_finds_the_verdict_reduction_step"
+  else
+    fail_check "counter_stimulus_finds_the_verdict_reduction_step" \
+      "the fixture reduces needs.scan.result and needs.base-currency.result to this job's status," \
+      "and the reader found no such step" \
+      "a reader that cannot find a reduction that IS there reports every workflow as broken"
+  fi
+  if [[ "$good_close" -ne 0 ]]; then
+    pass_check "counter_stimulus_finds_the_success_path_step"
+  else
+    fail_check "counter_stimulus_finds_the_success_path_step" \
+      "the fixture closes the issue from a step guarded by success(), and the reader found none" \
+      "the ordering clause below is vacuous while this reader answers 0"
+  fi
+  if [[ "$good_verdict" -ne 0 && "$good_close" -ne 0 && "$good_verdict" -lt "$good_close" ]]; then
+    pass_check "counter_stimulus_reads_the_verdict_step_as_the_earlier_one"
+  else
+    fail_check "counter_stimulus_reads_the_verdict_step_as_the_earlier_one" \
+      "want: the reduction at a line before the success-path step" \
+      "got:  reduction at ${good_verdict}, success path at ${good_close}"
+  fi
+
+  no_verdict_span="$(job_span "$NOTIFY_NO_VERDICT" "notify")"
+  assert_equal "counter_stimulus_reports_the_notify_job_with_no_verdict_step" \
+    "0" "$(verdict_step_line "$NOTIFY_NO_VERDICT" "${no_verdict_span%%:*}" "${no_verdict_span##*:}")" \
+    "that fixture carries the deleted step's text in a COMMENT, so a reader of prose calls it correct" \
+    "without the step a red night closes the issue that reports it"
+
+  late_verdict_span="$(job_span "$NOTIFY_LATE_VERDICT" "notify")"
+  late_verdict="$(verdict_step_line "$NOTIFY_LATE_VERDICT" "${late_verdict_span%%:*}" "${late_verdict_span##*:}")"
+  late_close="$(success_path_step_line "$NOTIFY_LATE_VERDICT" "${late_verdict_span%%:*}" "${late_verdict_span##*:}")"
+  if [[ "$late_verdict" -ne 0 && "$late_close" -ne 0 && "$late_verdict" -gt "$late_close" ]]; then
+    pass_check "counter_stimulus_reports_the_verdict_step_that_runs_after_the_close"
+  else
+    fail_check "counter_stimulus_reports_the_verdict_step_that_runs_after_the_close" \
+      "want: the reduction at a line AFTER the success-path step, which is that fixture's defect" \
+      "got:  reduction at ${late_verdict}, success path at ${late_close}" \
+      "steps run in file order, so a close guarded by success() before the reduction closes on a red night"
+  fi
+fi
+
+# THE LIVENESS CLAUSE. The ratchet below is keyed on "a scheduled workflow of
+# more than 1 job", so it covers a workflow added tomorrow — and it is vacuous
+# on a repository where the nightly lost its notify job.
+for directory in "${WORKFLOW_DIRECTORIES[@]}"; do
+  expected="${directory}/${NIGHTLY_WORKFLOW}"
+  notify_jobs=""
+  if [[ -f "$REPO_ROOT/$expected" ]]; then
+    while IFS= read -r job_name; do
+      [[ -z "$job_name" ]] && continue
+      span="$(job_span "$REPO_ROOT/$expected" "$job_name")"
+      [[ "$span" == "0:0" ]] && continue
+      if [[ "$(job_calls_the_notifier "$REPO_ROOT/$expected" "${span%%:*}" "${span##*:}")" == "1" ]]; then
+        notify_jobs="${notify_jobs:+${notify_jobs}
+}${job_name}"
+      fi
+    done <<< "$(job_names "$REPO_ROOT/$expected")"
+  fi
+  if [[ -n "$notify_jobs" ]]; then
+    pass_check "${expected}_declares_a_job_that_notifies"
+  else
+    fail_check "${expected}_declares_a_job_that_notifies" \
+      "no job of this file names ${NOTIFIER}, or the file is absent" \
+      "the jobs found were:" "$(job_names "$REPO_ROOT/$expected" 2>&1 | tr '\n' ' ')" \
+      "every clause below is keyed on that job, so with none they all pass over an empty set"
+  fi
+done
+
+# THE RATCHET.
+while IFS= read -r relative; do
+  [[ -z "$relative" ]] && continue
+  file="$REPO_ROOT/$relative"
+
+  all_jobs="$(job_names "$file")"
+  job_total="$(grep -c . <<< "$all_jobs")" || job_total=0
+
+  # A workflow of 1 job is the other correct shape: the notifier step sits in
+  # the job that does the work, guarded by if: failure(), and rule 1 above is
+  # the whole rule for it. There is no verdict to reduce, because there is no
+  # other job.
+  [[ "$job_total" -lt 2 ]] && continue
+
+  while IFS= read -r job_name; do
+    [[ -z "$job_name" ]] && continue
+    span="$(job_span "$file" "$job_name")"
+    [[ "$span" == "0:0" ]] && continue
+    first="${span%%:*}"
+    last="${span##*:}"
+    [[ "$(job_calls_the_notifier "$file" "$first" "$last")" == "1" ]] || continue
+
+    condition="$(job_condition "$file" "$first" "$last")"
+    if [[ "$(runs_on_every_outcome "$condition")" == "1" ]]; then
+      pass_check "${relative}_${job_name}_runs_on_every_outcome"
+    else
+      fail_check "${relative}_${job_name}_runs_on_every_outcome" \
+        "the job-level condition is: ${condition:-<none>}" \
+        "want: always(), or the stricter !cancelled()" \
+        "a notify job with any other condition is SKIPPED on the night it exists for," \
+        "and a skipped job files nothing and closes nothing"
+    fi
+
+    declared_needs="$(job_needs "$file" "$first" "$last")"
+    other_jobs="$(grep -vxF -- "$job_name" <<< "$all_jobs")" || other_jobs=""
+    not_needed="$(set_difference "$other_jobs" "$declared_needs")"
+    needed_ghosts="$(set_difference "$declared_needs" "$other_jobs")"
+    if [[ -z "$not_needed" && -z "$needed_ghosts" ]]; then
+      pass_check "${relative}_${job_name}_needs_every_other_job"
+    else
+      fail_check "${relative}_${job_name}_needs_every_other_job" \
+        "jobs of this workflow that the notify job does not need:" "${not_needed:-<none>}" \
+        "names in needs: that are not jobs of this workflow:" "${needed_ghosts:-<none>}" \
+        "needs: is:" "$(tr '\n' ' ' <<< "$declared_needs")" \
+        "a job it does not need cannot fail it, its result never reaches the reduction step," \
+        "and the notify job does not even wait for it to finish"
+    fi
+
+    verdict_line="$(verdict_step_line "$file" "$first" "$last")"
+    close_line="$(success_path_step_line "$file" "$first" "$last")"
+    if [[ "$verdict_line" -ne 0 ]]; then
+      pass_check "${relative}_${job_name}_reduces_the_needed_verdicts"
+    else
+      fail_check "${relative}_${job_name}_reduces_the_needed_verdicts" \
+        "no step of this job reads needs.<job>.result, compares it against success," \
+        "and can fail the job — the 3 clauses together" \
+        "the job runs under a condition that runs it on every outcome, so its own steps all" \
+        "succeed whatever the jobs above did: failure() is false and success() is TRUE on the" \
+        "reddest possible night, and the step that CLOSES the issue is the one that fires"
+    fi
+
+    if [[ "$verdict_line" -eq 0 ]]; then
+      fail_check "${relative}_${job_name}_reduces_before_the_success_path" \
+        "there is no reduction step to place, so nothing guards the success path"
+    elif [[ "$close_line" -eq 0 ]]; then
+      pass_check "${relative}_${job_name}_reduces_before_the_success_path"
+    elif [[ "$verdict_line" -lt "$close_line" ]]; then
+      pass_check "${relative}_${job_name}_reduces_before_the_success_path"
+    else
+      fail_check "${relative}_${job_name}_reduces_before_the_success_path" \
+        "the reduction is at line ${verdict_line} and a step guarded by success() is at line ${close_line}" \
+        "steps run in file order, and until the reduction has run nothing in this job has failed," \
+        "so success() is true and the issue is closed on a red night"
+    fi
+  done <<< "$all_jobs"
+done <<< "$scheduled"
+
+# ===========================================================================
+# 8. THE SCAN MATRIX — it is BUILD_ORDER, and not a 5th copy of it
+# ===========================================================================
+MATRIX_FLOW_FIXTURE="$WORKFLOW_FIXTURES/matrix-flow.yml"
+MATRIX_BLOCK_FIXTURE="$WORKFLOW_FIXTURES/matrix-block.yml"
+
+missing_fixtures=""
+for fixture in "$MATRIX_FLOW_FIXTURE" "$MATRIX_BLOCK_FIXTURE"; do
+  [[ -f "$fixture" ]] || missing_fixtures="${missing_fixtures:+${missing_fixtures}
+}${fixture}"
+done
+
+if [[ -n "$missing_fixtures" ]]; then
+  fail_check "counter_stimulus_matrix_fixtures_exist" \
+    "the fixtures this test proves its matrix reader with are absent:" \
+    "$missing_fixtures"
+else
+  pass_check "counter_stimulus_matrix_fixtures_exist"
+
+  assert_equal "counter_stimulus_reads_the_flow_form_matrix" \
+    "alpha beta gamma" "$(matrix_images "$MATRIX_FLOW_FIXTURE" | tr '\n' ' ' | sed -e 's/ $//')" \
+    "the quotes come off, the trailing comment comes off, and the image: input of the second job" \
+    "is not under a matrix: key and is not a scan target"
+  assert_equal "counter_stimulus_reads_the_block_form_matrix_and_skips_the_commented_entry" \
+    "alpha beta gamma" "$(matrix_images "$MATRIX_BLOCK_FIXTURE" | tr '\n' ' ' | sed -e 's/ $//')" \
+    "YAML spells 1 list 2 ways, and a rewrite into the other form is a change no reviewer stops" \
+    "a reader that saw 1 form would report an empty matrix on the day of that rewrite"
+
+  assert_equal "counter_stimulus_leaves_2_equal_image_sets_alone" \
+    "" "$(image_set_defects "$(printf 'beta\nalpha\n')" "$(printf 'alpha\nbeta\n')")" \
+    "the comparison is order-insensitive: the matrix order is not the build order and never has to be"
+  assert_contains "counter_stimulus_reports_the_image_that_is_not_scanned" \
+    "$(image_set_defects "$(printf 'alpha\n')" "$(printf 'alpha\nbeta\n')")" \
+    "in BUILD_ORDER and NOT SCANNED: beta" \
+    "this is the drill: narrow the matrix, and 1 image leaves the security gate"
+  assert_contains "counter_stimulus_reports_the_image_the_matrix_invents" \
+    "$(image_set_defects "$(printf 'alpha\ndelta\n')" "$(printf 'alpha\n')")" \
+    "in the matrix and not in BUILD_ORDER: delta" \
+    "an image this repository does not build cannot be scanned at :latest, so the job is red every night"
+  assert_contains "counter_stimulus_reports_the_image_named_twice" \
+    "$(image_set_defects "$(printf 'alpha\nalpha\n')" "$(printf 'alpha\nbeta\n')")" \
+    "named twice in the matrix: alpha" \
+    "a duplicate scans 1 image twice and hides that the count still looks right"
+fi
+
+# THE DECLARATION. Read out of a running shell rather than out of the text of a
+# line: the value the shell ends up holding is the value ctl.sh builds with, and
+# a line-reader agrees with a BUILD_ORDER that a later line rewrites.
+#
+# This is not a test reading its own expectation. The property is AGREEMENT
+# between 2 declarations of 1 set, and the second declaration is the matrix. A
+# literal list written here would be a THIRD copy, and the next narrowing would
+# need 1 more file edited rather than being impossible.
+build_order_errors="$(mktemp)"
+build_order_status=0
+build_order=""
+build_order="$(CTL_SCRIPT="$REPO_ROOT/ctl.sh" bash -c '
+  # No argv, so the dispatcher at the foot of ctl.sh takes its help path and
+  # returns 0 instead of exiting 1 on an unknown command.
+  set --
+  source "$CTL_SCRIPT" > /dev/null
+  printf "%s\n" "${BUILD_ORDER[@]}"
+' 2> "$build_order_errors")" || build_order_status=$?
+build_order_stderr="$(cat "$build_order_errors")"
+rm -f "$build_order_errors"
+
+if [[ "$build_order_status" -eq 0 && -n "$build_order" ]]; then
+  pass_check "the_BUILD_ORDER_declaration_is_readable"
+else
+  fail_check "the_BUILD_ORDER_declaration_is_readable" \
+    "sourcing ctl.sh and reading BUILD_ORDER exited ${build_order_status}" \
+    "it printed:" "${build_order:-<nothing>}" \
+    "stderr was:" "${build_order_stderr:-<nothing>}" \
+    "with no declaration to compare against, every clause below passes over an empty set"
+fi
+
+# THE LIVENESS CLAUSE: the 2 copies of the nightly each declare a matrix. The
+# ratchet is keyed on "a scanning workflow that declares a matrix", so a scan of
+# 1 image is not forced to grow one — and a nightly that lost its matrix would
+# otherwise leave the rule with nothing to judge.
+for directory in "${WORKFLOW_DIRECTORIES[@]}"; do
+  expected="${directory}/${NIGHTLY_WORKFLOW}"
+  declared_images=""
+  [[ -f "$REPO_ROOT/$expected" ]] && declared_images="$(matrix_images "$REPO_ROOT/$expected")"
+  if [[ -n "$declared_images" ]]; then
+    pass_check "${expected}_declares_a_scan_matrix"
+  else
+    fail_check "${expected}_declares_a_scan_matrix" \
+      "this file is absent, or it declares no matrix: -> image: list" \
+      "the whole point of the nightly is that it scans EVERY published image"
+  fi
+done
+
+# THE RATCHET.
+while IFS= read -r relative; do
+  [[ -z "$relative" ]] && continue
+  file="$REPO_ROOT/$relative"
+  declared_images="$(matrix_images "$file")"
+  [[ -z "$declared_images" ]] && continue
+  [[ -z "$build_order" ]] && continue
+
+  matrix_report="$(image_set_defects "$declared_images" "$build_order")"
+  if [[ -z "$matrix_report" ]]; then
+    pass_check "${relative}_scan_matrix_equals_BUILD_ORDER"
+  else
+    fail_check "${relative}_scan_matrix_equals_BUILD_ORDER" \
+      "$matrix_report" \
+      "the matrix is:      $(tr '\n' ' ' <<< "$declared_images")" \
+      "BUILD_ORDER is:     $(tr '\n' ' ' <<< "$build_order")" \
+      "BUILD_ORDER in ctl.sh is the 1 declaration of the published set. A matrix that says" \
+      "anything else is a second declaration, and an image dropped from it leaves the security" \
+      "gate with every other check in this repository still green"
+  fi
+done <<< "$scanning"
 
 test_summary "$TEST_NAME"

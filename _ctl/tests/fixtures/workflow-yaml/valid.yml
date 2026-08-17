@@ -1,0 +1,45 @@
+name: fixture-valid-workflow
+
+# A FIXTURE, not a workflow. It lives under _ctl/tests/fixtures/, so no CI
+# provider reads it and nothing here ever runs. Its only reader is
+# _ctl/tests/workflow-yaml.test.sh.
+#
+# This is the QUIET direction: a parser that reports this file reports every
+# file, and the rule would be noise rather than a gate. It carries the same
+# constructs the real workflows carry — an expression in a run: line, a folded
+# block scalar, a flow sequence — with the 1 difference that matters: every
+# scalar that holds a ": " is quoted.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [alpha, beta]
+    steps:
+      - uses: actions/checkout@v4
+      - name: scan the image
+        run: |
+          trivy image --severity CRITICAL --exit-code 1 \
+            ghcr.io/gophersys/${{ matrix.image }}:latest
+
+  notify:
+    if: ${{ always() }}
+    needs: [scan]
+    runs-on: ubuntu-latest
+    steps:
+      # QUOTED. The colon-space inside the argument is what breaks the plain
+      # scalar in invalid-run-scalar.yml, and a quoted scalar carries it fine.
+      - name: file the failure
+        if: ${{ failure() }}
+        run: 'bash .ci/notify-failure.sh "image scan: ${{ needs.scan.result }}"'
