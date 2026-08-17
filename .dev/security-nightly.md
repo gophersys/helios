@@ -5,7 +5,7 @@ repo:     gophersys/.devcontainer
 branch:   ci/security-nightly
 worktree: ~/code/.worktrees/.devcontainer-security-nightly
 pr:       -
-attempt:  1/2
+attempt:  2/2
 
 ## Goal
 Nightly trivy scan of the 6 published images (CRITICAL fails, fixed or unfixed;
@@ -57,6 +57,18 @@ Landing order: fix/first-run-smoke-defects (red main) lands FIRST, then this
 branch rebases if needed. #104 resolved: 4/6 bodies passed; flutter+devbox
 failures are that fix lane's subject.
 
+## Fix round — CLOSED green (2026-08-16)
+- RED (45a5fa2): workflow-yaml.test.sh 2 valid reds (both copies fail parse,
+  line 139 col 52; host/container/no-parser routes all drilled) + rules 6+7
+  as green ratchets proven by 5 reverted drills. 287 checks / 2 red.
+- GREEN (f02049f, e92c235): run scalar quoted, both copies parse (yq rc=0);
+  always() -> !cancelled() (cancelled runs file nothing; real failures still
+  loud — finding 8); notifier closes EVERY open issue (counter-stimulus drill
+  proved the old .[0] orphaned #42; 403 mid-loop rc=1); clock comments state
+  09:00 UTC = 02:00 MST. 287/0, validate rc=0, cmp both pairs rc=0.
+- Residue: 4 stale 03:00 comments live in TEST-owned files (test author's,
+  cosmetic); notifier --limit 100 bound recorded as unreachable-in-practice.
+
 ## Next
-Fix round: test author reds for findings 2+3+5, then implementer greens
-1+5+7+8+9, then re-verify (bounded), then PR.
+Verifier round 2 (bounded: the 2 fixes + ratchet liveness), then PR. Landing
+after the post-#42 proof run shows 6/6 green on main.
