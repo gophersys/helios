@@ -387,11 +387,12 @@ release was.
 - **12 datasources, and the 12th resolves nothing.** `github-release`, `pypi`,
   `npm`, `apt`, `go-dl`, `node-dist`, `oci-index`, `k8s-dl`, `tailscale-pkgs`,
   `flutter-releases` and `eden-manifest` each read 1 upstream DOCUMENT;
-  `no-autobump` states, in a sentence, why a pin is not resolved. 16 pins take
-  it today: the 3 harness pins, the 3 `ANDROID_*` rows, `PYTHON_PACKAGE`,
+  `no-autobump` states, in a sentence, why a pin is not resolved. 13 pins take
+  it today: the 3 `ANDROID_*` rows, `PYTHON_PACKAGE`,
   `JAVA_VERSION`, `RUST_CHANNEL`, `FLUTTER_CHANNEL`, `BENCHSTAT_REF`,
   `TERRAFORM_VERSION`, `AWS_CLI_VERSION`, `CICTL_VERSION`, `HNSLINT_VERSION`
-  and `BW_VERSION`. A reason under 20 characters or with no space in it is a
+  and `BW_VERSION`. The 3 harness pins left the set on 2026-08-17, when
+  `EDEN_MANIFEST_READ` was minted and their rows became `eden-manifest`. A reason under 20 characters or with no space in it is a
   placeholder and the test names it: `n/a` passes every non-empty check, and it
   is a pin nobody decided about wearing the label of a pin somebody did.
 - **A reason has to be TRUE, and no static check can tell.** 3 rows were
@@ -446,17 +447,20 @@ release was.
   **The pull request arrives with NO checks**: GitHub starts no workflow run for
   an event a `GITHUB_TOKEN` caused, so `validate.yml` does not fire on it. Close
   and reopen the pull request, or push to its branch, before merging — the
-  workflow says so in its own log. The durable fix is a PAT, and it is not
-  minted.
-- **The 3 harness pins are `no-autobump` until a credential exists.**
+  workflow says so in its own log. That paragraph is history now: the pull
+  request is created with `BUMP_PR_TOKEN`, a fine-grained PAT, so its checks
+  fire on their own and the close-reopen step is gone. What stays human is
+  the MERGE.
+- **The 3 harness pins mirror eden through `eden-manifest`.**
   `CLAUDE_CODE_VERSION`, `OMP_VERSION` and `CODEX_VERSION` MUST match eden
   `harnesses/versions.env`, and eden's `harness-upgrade-check` is the one
-  decision point for them. `gophersys/eden` is private and this repository's
-  `GITHUB_TOKEN` is repository-scoped, so the mirror needs `EDEN_MANIFEST_READ`,
-  a fine-grained PAT with `contents:read` on that repository alone — NEEDS-MATEO
-  item 16. The `eden-manifest` datasource is written and tested and waits for
-  it; with the secret absent it FAILS naming the pin and the secret, and never
-  reports the current value as current.
+  decision point for them — the weekly MIRRORS that file, it never leads it.
+  `gophersys/eden` is private and this repository's `GITHUB_TOKEN` is
+  repository-scoped, so the read uses `EDEN_MANIFEST_READ`, a fine-grained PAT
+  with `contents:read` on that one repository (minted 2026-08-17). With the
+  secret absent the resolver FAILS naming the pin and the secret, and never
+  reports the current value as current — a missing credential is a red
+  Monday, not a quiet one.
 
 ## Sanctioned-platform policy
 

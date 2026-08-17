@@ -67,6 +67,11 @@ jobs:
         env:
           # Only the rate limit of the github API reads depends on this.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The eden-manifest datasource reads gophersys/eden's harness pins
+          # with this fine-grained PAT (contents:read on that one repository).
+          # Absent, the resolver FAILS naming the pin and the secret — it never
+          # reports the current value as current.
+          EDEN_MANIFEST_READ: ${{ secrets.EDEN_MANIFEST_READ }}
         # --apply resolves every row of the table and edits every home of each
         # pin that moved. It writes no commit and calls no gh: this step ends
         # with a dirty worktree and a plan on disk, and the step below turns
@@ -83,7 +88,12 @@ jobs:
       - name: open the one pull request
         if: ${{ steps.resolve.outputs.moved == 'true' }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A PAT and not the workflow token, for one reason: GitHub starts no
+          # workflow run for an event a GITHUB_TOKEN caused, so a bot pull
+          # request used to arrive with NO checks until a human closed and
+          # reopened it. Created by this PAT, the pull request fires
+          # validate + review + build-smoke like any human's.
+          GITHUB_TOKEN: ${{ secrets.BUMP_PR_TOKEN }}
         # The identity is the machine that made the commit, because that is who
         # made it.
         #
@@ -110,14 +120,12 @@ jobs:
 
       - name: say what a human still has to do
         if: ${{ steps.resolve.outputs.moved == 'true' }}
-        # GitHub does not start a workflow run for an event a GITHUB_TOKEN
-        # caused, so the pull request this run opened shows NO checks until a
-        # human touches it. Close and reopen it, or push to its branch as
-        # yourself, and validate + review + build-smoke then run. A pull request
-        # merged before that is a bump nothing gated.
+        # The pull request was created by BUMP_PR_TOKEN, so its checks fire on
+        # their own. What remains human is the MERGE: every bump rides
+        # validate + review + build-smoke, and a person reads them and merges.
         run: |
-          printf 'the bump pull request is open and it carries no checks yet\n'
-          printf 'close and reopen it, or push to its branch, to start the gates\n'
+          printf 'the bump pull request is open and its checks are running\n'
+          printf 'read the checks and the review, then merge — nothing merges itself\n'
 
   notify:
     # A SECOND job, and the reason is a job TIMEOUT. `if: failure()` on a step
