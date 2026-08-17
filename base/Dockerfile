@@ -123,8 +123,8 @@ ARG DOCKER_BUILDX_VERSION=0.36.1                                       # latest 
 ARG DOCKER_BUILDX_SHA256_AMD64=48af8a397ebd60178778bf63611dbcebe5f5e7a9be90eb9147b24b9587455778  # upstream-published: https://github.com/docker/buildx/releases/download/v0.36.1/checksums.txt
 
 # Dev QA.
-ARG HADOLINT_VERSION=2.15.1                                            # latest LTS as of 2026-08-17
-ARG HADOLINT_SHA256_AMD64=c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507  # computed-at-pin: 2026-08-17
+ARG HADOLINT_VERSION=2.14.0                                            # latest LTS as of 2026-04-19
+ARG HADOLINT_SHA256_AMD64=6bf226944684f56c84dd014e8b979d27425c0148f61b3bd99bcc6f39e9dc5a47  # upstream-published: https://github.com/hadolint/hadolint/releases/download/v2.14.0/hadolint-linux-x86_64.sha256
 ARG KUBECONFORM_VERSION=0.8.0                                          # latest release as of 2026-08-10
 ARG KUBECONFORM_SHA256_AMD64=9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883  # upstream-published: https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS
 
