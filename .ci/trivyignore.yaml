@@ -28,11 +28,15 @@
 # instead. trivy matches `paths` with doublestar against the finding path, so a
 # path scopes the waiver to the artifact that was actually analysed.
 #
-# There is no `secrets:` section. The 3 CRITICAL secret findings base carried
-# were cached source — 2 gosec regex rules and 1 ansible docs sample — and they
-# are removed at the source by the in-layer cache cleanup, which needs no waiver
-# at all. A secret finding that reappears is a new fact and gets read, not a
-# line that was already waived.
+# A `secrets:` section exists, with exactly 1 entry. Of the 3 CRITICAL secret
+# findings base carried — 2 gosec regex rules and 1 ansible docs sample — the
+# gosec rules lived only in the Go module cache and ARE removed at the source
+# by the in-layer cache cleanup. The ansible sample has 2 copies: the uv cache
+# copy (removed by that same cleanup) and the INSTALLED venv copy under
+# home/dev/.local/share/uv/tools/ansible-core/, which survives — it is the
+# tool's own source, not cache — and is waived below, path-scoped and
+# expiring. A NEW secret finding anywhere else is a new fact and gets read,
+# never blanket-waived.
 #
 # The shape of an entry:
 #
