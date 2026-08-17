@@ -42,6 +42,11 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
 ├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time
 ├── _ctl/tests/                  # hermetic *.test.sh + harness + docker stub + fixtures
 ├── .claude/rules/00-identity.md # (this file)
+├── _build/                      # COPYed into base and cloud, above their first download
+│   ├── fetch-verified.sh        # the ONE verifier every image download goes through
+│   ├── download-exemptions.txt  # the downloads that take a stated class instead of a digest
+│   ├── upstreams.txt            # where the next value of every pin comes from
+│   └── resolve-upstream.sh      # the weekly resolver: 1 function per datasource
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── runner/        { Dockerfile, project.json, ctl.sh }   # + runner layer — no devcontainer.json
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
@@ -50,6 +55,7 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
 └── .github/workflows/
     ├── build-and-push.yml    # publish the images
     ├── security-nightly.yml  # the nightly trivy scan + the base-OS currency probe
+    ├── weekly-bumps.yml      # the weekly upstream resolution + the 1 bump pull request
     ├── validate.yml          # the pull request gate: ctl.sh validate + ctl.sh test + BUILD_ORDER
     └── pr-review.yml         # the review agent, shared from gophersys/cictl
 ```
@@ -203,12 +209,16 @@ base-OS currency probe above. It builds and publishes nothing.
 - **A scheduled run has no author watching it.** Every workflow that runs
   `on: schedule` therefore calls `.ci/notify-failure.sh` from a step guarded by
   `if: ${{ failure() }}` and declares `issues: write`. That script opens or
-  updates ONE issue labelled `ci-nightly-red` naming the run URL and the jobs
-  that failed, and a green run closes EVERY open issue carrying that label — 2
-  can exist whenever 2 runs raced past the search, and one that a green run
-  cannot reach stays red for the life of the repository. The rule in the test
-  file is keyed on the TRIGGER, so a scheduled workflow added tomorrow is
-  covered the day it is added.
+  updates ONE issue naming the run URL and the jobs that failed, and a green run
+  closes EVERY open issue carrying that label — 2 can exist whenever 2 runs
+  raced past the search, and one that a green run cannot reach stays red for the
+  life of the repository. The rule in the test file is keyed on the TRIGGER, so
+  a scheduled workflow added tomorrow is covered the day it is added.
+- **The label is a PARAMETER, and each scheduled run owns one.** `ISSUE_LABEL`
+  defaults to `ci-nightly-red`, so the scan keeps its behaviour with no edit;
+  the weekly bump passes `ci-weekly-red`. With the label hardcoded, a green
+  Monday closed the issue the nightly opened about a CRITICAL CVE and a red
+  Monday commented on it, and both read as the SCAN changing state.
 - **`failure()` in a step means "a step of THIS job failed".** The notify job
   runs under `if: ${{ !cancelled() }}`, so it first reduces the verdict of the
   jobs it needs to its own status. Without that step the notifier would be
@@ -216,6 +226,72 @@ base-OS currency probe above. It builds and publishes nothing.
   and the test takes either; `!cancelled()` is the one this repository uses,
   because under `always()` a run a human CANCELLED reduces to a non-success
   verdict and files an issue about itself.
+
+## Weekly upstream bumps
+
+`.github/workflows/weekly-bumps.yml` runs at 10:00 UTC on Monday — 03:00 MST,
+1 hour after the nightly's window so the 2 scheduled runs never race — and on
+`workflow_dispatch`. It resolves every pin, writes each one that moved into
+EVERY home of that pin, and opens ONE pull request. It merges nothing.
+
+**A pin nobody watches is a snapshot that looks maintained.** `ZSH_VERSION=5.9`
+carried `# latest LTS as of 2026-04-19` for 4 months, and that comment records
+the day somebody looked, not the day the value was current. The nightly scan
+reports a CVE in an image; it cannot report that a pin is 3 releases behind,
+because until this table no file in this repository knew what the current
+release was.
+
+- **`_build/upstreams.txt` says where the next value of every pin comes from.**
+  4 fields, the grammar of its neighbour `download-exemptions.txt`:
+  `<pin>|<datasource>|<coordinate>|<policy or reason>`. Every pin of the 6 value
+  homes carries exactly 1 row, and every row names a pin that exists —
+  `_ctl/tests/upstream-coverage.test.sh` holds both directions, reading the pins
+  out of the HOMES and never out of the table, because a rule that reads the
+  listing goes on reporting coverage after the pin it covers was renamed.
+- **12 datasources, and the 12th resolves nothing.** `github-release`, `pypi`,
+  `npm`, `apt`, `go-dl`, `node-dist`, `oci-index`, `k8s-dl`, `tailscale-pkgs`,
+  `flutter-releases` and `eden-manifest` each read 1 upstream DOCUMENT;
+  `no-autobump` states, in a sentence, why a pin is not resolved. 13 pins take
+  it today: the 3 harness pins, the 3 `ANDROID_*` builds, `PYTHON_PACKAGE`,
+  `JAVA_VERSION`, `RUST_CHANNEL`, `FLUTTER_CHANNEL`, `BENCHSTAT_REF`,
+  `TERRAFORM_VERSION` and `AWS_CLI_VERSION`. A reason under 20 characters or
+  with no space in it is a placeholder and the test names it: `n/a` passes every
+  non-empty check, and it is a pin nobody decided about wearing the label of a
+  pin somebody did.
+- **The version and the digest come from the SAME fetch.**
+  `_build/resolve-upstream.sh <PIN>` prints `<version>|<sha256>`. The digest is
+  of the bytes the GOVERNED FILE fetches for the NEW version — the URL is read
+  out of the file that performs the download and never out of the table,
+  because a second URL home lets a correct digest be computed of the wrong
+  asset — and it is then handed back to `_build/fetch-verified.sh`, which
+  fetches the asset again and compares before a line is written. A version that
+  moves while its digest stays cannot reach the branch.
+- **The version is spelled the way the pin is spelled.** A leading `v` is kept
+  when the pin carries one (`cictl` pins `v0.1.0`) and dropped when it does not;
+  `go1.26.5` and `bun-v1.3.14` lose their word prefix the same way. An apt
+  version drops the epoch and the debian revision, because `5.9` is what the
+  tool reports about itself and what the smoke test compares.
+- **`bump_pin` in `_ctl/lib.sh` is the only writer**, and it edits every home of
+  the pin: the version row, the digest row beside it and that row's evidence
+  comment, and no other line. A writer that edited `versions.env` alone would
+  re-create the 2-toolchain drift `_ctl/tests/pin-mirroring.test.sh` forbids,
+  every Monday, in a pull request that reads like a correct bump.
+- **The pull request is opened, never merged.** `--dry-run` composes it and
+  writes nothing; `--apply` writes and leaves git and gh to the workflow.
+  **The pull request arrives with NO checks**: GitHub starts no workflow run for
+  an event a `GITHUB_TOKEN` caused, so `validate.yml` does not fire on it. Close
+  and reopen the pull request, or push to its branch, before merging — the
+  workflow says so in its own log. The durable fix is a PAT, and it is not
+  minted.
+- **The 3 harness pins are `no-autobump` until a credential exists.**
+  `CLAUDE_CODE_VERSION`, `OMP_VERSION` and `CODEX_VERSION` MUST match eden
+  `harnesses/versions.env`, and eden's `harness-upgrade-check` is the one
+  decision point for them. `gophersys/eden` is private and this repository's
+  `GITHUB_TOKEN` is repository-scoped, so the mirror needs `EDEN_MANIFEST_READ`,
+  a fine-grained PAT with `contents:read` on that repository alone — NEEDS-MATEO
+  item 16. The `eden-manifest` datasource is written and tested and waits for
+  it; with the secret absent it FAILS naming the pin and the secret, and never
+  reports the current value as current.
 
 ## Sanctioned-platform policy
 

@@ -1,0 +1,128 @@
+name: weekly-bumps
+
+# Asks every upstream in _build/upstreams.txt what it publishes now, and opens
+# ONE pull request where anything moved.
+#
+# Nothing here merges and nothing here publishes an image. The run writes a
+# branch and a pull request; validate, the review agent, build-smoke and a human
+# decide whether it lands. A bump that merged itself would move the toolchain of
+# every consuming project with no reader in between.
+#
+# The version and the sha256 of each bump come from the SAME fetch, and
+# _build/resolve-upstream.sh re-proves every digest through
+# _build/fetch-verified.sh before it writes a line — so the defect this workflow
+# exists to end, a version that moves while its digest stays, cannot reach the
+# branch.
+#
+# A scheduled run has no author watching it, so the last 2 steps turn a red into
+# 1 labelled issue and a green into the closing of that same issue.
+# _ctl/tests/scheduled-workflows.test.sh holds that shape in the pull request
+# gate, keyed on the schedule trigger rather than on this file's name.
+
+on:
+  schedule:
+    # 10:00 UTC on Monday, which is 03:00 MST — cron is UTC, and
+    # America/Phoenix keeps no DST, so that local hour is the same one every
+    # week of the year. It is 1 hour after the nightly scan's window, so the 2
+    # scheduled runs of this repository never race for a runner, and a Monday
+    # red arrives as 1 issue about bumps rather than 2 about nothing.
+    - cron: "0 10 * * 1"
+  workflow_dispatch:
+
+# The notifier opens, comments on and closes 1 issue; the bump step pushes a
+# branch and opens the pull request on it.
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  # 1 job, deliberately. The work is 1 line of pipeline — resolve, write, open —
+  # and in a single job `if: failure()` means "a step of this job failed", which
+  # is exactly the question the notifier has to answer. The 2-job shape the
+  # nightly uses exists because a matrix has verdicts to reduce; there is
+  # nothing here to reduce.
+  bump:
+    # A job with no limit inherits the GitHub default of 360 minutes. This one
+    # fetches ~45 index documents and a handful of release assets.
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: resolve every upstream and write the bumps
+        id: resolve
+        env:
+          # Only the rate limit of the github API reads depends on this.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # --apply resolves every row of the table and edits every home of each
+        # pin that moved. It writes no commit and calls no gh: this step ends
+        # with a dirty worktree and a plan on disk, and the step below turns
+        # that into a pull request.
+        run: |
+          bash _build/resolve-upstream.sh --apply > "${RUNNER_TEMP}/bumps.txt"
+          cat "${RUNNER_TEMP}/bumps.txt"
+          if grep -q '^branch: ' "${RUNNER_TEMP}/bumps.txt"; then
+            printf 'moved=true\n' >> "${GITHUB_OUTPUT}"
+          else
+            printf 'moved=false\n' >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: open the one pull request
+        if: ${{ steps.resolve.outputs.moved == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # The identity is the machine that made the commit, because that is who
+        # made it.
+        #
+        # --force and not --force-with-lease: a lease compares against a
+        # remote-tracking ref, and a branch this run is creating has none, so the
+        # lease fails on the first push of every week. The branch carries the
+        # date and this workflow is its only writer, so the value a lease
+        # protects does not exist here.
+        run: |
+          branch="$(awk '/^branch: / { print substr($0, 9); exit }' "${RUNNER_TEMP}/bumps.txt")"
+          title="$(awk '/^title: / { print substr($0, 8); exit }' "${RUNNER_TEMP}/bumps.txt")"
+          awk 'body { print } /^body:$/ { body = 1 }' "${RUNNER_TEMP}/bumps.txt" > "${RUNNER_TEMP}/body.md"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch --create "$branch"
+          git commit --all --message "$title"
+          git push --force origin "$branch"
+          open_number="$(gh pr list --head "$branch" --state open --json number --jq '.[0].number // empty')"
+          if [[ -n "$open_number" ]]; then
+            gh pr edit "$open_number" --title "$title" --body-file "${RUNNER_TEMP}/body.md"
+          else
+            gh pr create --base main --head "$branch" --title "$title" --body-file "${RUNNER_TEMP}/body.md"
+          fi
+
+      - name: say what a human still has to do
+        if: ${{ steps.resolve.outputs.moved == 'true' }}
+        # GitHub does not start a workflow run for an event a GITHUB_TOKEN
+        # caused, so the pull request this run opened shows NO checks until a
+        # human touches it. Close and reopen it, or push to its branch as
+        # yourself, and validate + review + build-smoke then run. A pull request
+        # merged before that is a bump nothing gated.
+        run: |
+          printf 'the bump pull request is open and it carries no checks yet\n'
+          printf 'close and reopen it, or push to its branch, to start the gates\n'
+
+      - name: file the failure
+        if: ${{ failure() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Its OWN label. A weekly failure filed under ci-nightly-red would
+          # comment on the security scan's issue and read as the scan going red.
+          ISSUE_LABEL: ci-weekly-red
+        # QUOTED, and it has to be. The argument carries ': ', and a PLAIN
+        # scalar holding that is read as the start of a mapping value where a
+        # mapping cannot start: the document is rejected, GitHub refuses the
+        # whole workflow, and a workflow that never runs never fails.
+        run: 'bash .ci/notify-failure.sh "weekly upstream resolution: ${{ job.status }}" "the step log names the pin it stopped on"'
+
+      - name: close the issue on a green run
+        if: ${{ success() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_LABEL: ci-weekly-red
+        run: bash .ci/notify-failure.sh --resolve
