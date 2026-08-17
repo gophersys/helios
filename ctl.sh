@@ -147,17 +147,19 @@ function cmd_list() {
   done
 }
 
-# The hadolint version base/Dockerfile pins. That ARG is the single source of
-# truth for the whole repository: it is the hadolint the images ship, so it is
-# the hadolint the gate must judge with.
+# The hadolint version versions.env pins. That row is the single source of truth
+# for the whole repository: it is the hadolint the images ship, so it is the
+# hadolint the gate must judge with. It was read out of the base/Dockerfile ARG
+# until that ARG went value-less, and the read FAILED naming the pin rather than
+# linting at whatever version the host happened to hold.
 function hadolint_pin() {
   local pin
-  pin="$(grep -oE '^ARG HADOLINT_VERSION=[0-9]+\.[0-9]+\.[0-9]+' "$PROJECT_ROOT/base/Dockerfile" | head -1)"
+  pin="$(grep -oE '^HADOLINT_VERSION=[0-9]+\.[0-9]+\.[0-9]+' "$PROJECT_ROOT/versions.env" | head -1)"
   if [[ -z "$pin" ]]; then
-    log_error "no 'ARG HADOLINT_VERSION=<semver>' in base/Dockerfile — the gate has no version to lint at"
+    log_error "no 'HADOLINT_VERSION=<semver>' in versions.env — the gate has no version to lint at"
     return 1
   fi
-  printf '%s' "${pin#ARG HADOLINT_VERSION=}"
+  printf '%s' "${pin#HADOLINT_VERSION=}"
 }
 
 # hadolint_resolve <pin> — print HOW to reach that exact version, `host` or
@@ -376,7 +378,7 @@ function cmd_validate() {
   # hadolint's verdict depends on its version: 2.15.1 raises DL3064 and DL3066 on
   # Dockerfiles that 2.14.0 passes. A gate whose answer depends on what the
   # operator happened to install is not a gate, so it lints at the version
-  # base/Dockerfile pins — the version the images themselves ship.
+  # versions.env pins — the version the images themselves ship.
   # A missing tool is a FAILURE, never a skip. This once printed a warning and
   # returned OK, so `validate` reported success while linting no Dockerfile at
   # all — on a host without hadolint it checked nothing and said it passed.
@@ -386,7 +388,7 @@ function cmd_validate() {
   elif ! hadolint_mode="$(hadolint_resolve "$hadolint_version")"; then
     rc=1
   else
-    log_info "hadolint ${hadolint_version} (${hadolint_mode}), pinned by ARG HADOLINT_VERSION"
+    log_info "hadolint ${hadolint_version} (${hadolint_mode}), pinned by HADOLINT_VERSION in versions.env"
     for name in "${BUILD_ORDER[@]}"; do
       dir="$(image_dir "$name")"
       log_info "hadolint: ${name}/Dockerfile"

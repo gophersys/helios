@@ -18,9 +18,9 @@
 # WHAT THIS FILE IS, AND WHAT .ci/image-checks.sh IS
 # ============================================================================
 #
-# This file is the HOST driver. It knows where a pin LIVES (versions.env for the
-# cloud family, the ARGs at the top of base/Dockerfile for the base family), it
-# classifies every one of them, and it resolves the ones it says it asserts. The
+# This file is the HOST driver. It knows where a pin LIVES (versions.env, the
+# ONE home, for every image this repository builds), it classifies every one of
+# them, and it resolves the ones it says it asserts. The
 # checks themselves are .ci/image-checks.sh, which this file sends to the
 # container on stdin together with the fixtures the functional checks read.
 #
@@ -82,14 +82,20 @@ if [[ -z "$IMAGE" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# The 2 pin homes.
+# The pin home. One file, every image.
 #
-# They are free to move apart: the cloud family reads versions.env, the ONE home
-# of the new mechanism, and the base family reads the ARGs at the top of
-# base/Dockerfile. Each image is judged against the home that owns it.
+# It was 2: the cloud family read versions.env and the base family read the ARGs
+# at the top of base/Dockerfile, so this driver had to know which family an
+# image belonged to before it could read a version at all. base/Dockerfile
+# declares no value now — every pin of it arrives as a --build-arg generated
+# from this same file — so the question does not arise and the branch below
+# selects a CLASSIFICATION and nothing else.
+#
+# flutter, zephyr and zephyr-devbox read it too, and always did read base's
+# home: what they assert is the toolchain they INHERIT from base. Their own
+# Dockerfile pins are still inline and still unasserted, which is ledger #102.
 # ---------------------------------------------------------------------------
-CLOUD_PIN_HOME="versions.env"
-BASE_PIN_HOME="base/Dockerfile"
+PIN_HOME="versions.env"
 
 # ---------------------------------------------------------------------------
 # The classification, 1 row per pin:
@@ -108,8 +114,9 @@ BASE_PIN_HOME="base/Dockerfile"
 # use below says why it is there.
 #
 # A `*_SHA256_*` pin carries NO row in either table below. It is classified by
-# SHAPE in class_row, because 41 hand-copied rows — 22 cloud, 19 base — would be
-# 41 places to forget one, and the day a digest is added without its row the
+# SHAPE in class_row, because 44 hand-copied rows — the 22 digest rows of
+# versions.env, once per table now that both tables read that 1 home — would be
+# 44 places to forget one, and the day a digest is added without its row the
 # smoke refuses to run at all. The shape is safe to trust HERE and only here:
 # _ctl/tests/download-coverage.test.sh owns those names end to end — it holds
 # each one to the 1 arch vocabulary, to 64 lowercase hex, to the home its
@@ -135,6 +142,7 @@ GOSEC_VERSION|asserted|go version -m ${GOPATH}/bin/gosec|line:mod
 HNSLINT_VERSION|asserted|go version -m ${GOPATH}/bin/hnslint|line:mod
 GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
 BENCHSTAT_REF|not-a-version||
+RUST_CHANNEL|not-a-version||
 DELVE_VERSION|asserted|dlv version|
 YQ_VERSION|asserted|yq --version|
 HADOLINT_VERSION|asserted|hadolint --version|
@@ -173,6 +181,7 @@ NODE_VERSION|asserted|node --version|
 NPM_VERSION|asserted|npm --version|
 PNPM_VERSION|asserted|COREPACK_HOME=/home/dev/.cache/node/corepack pnpm --version|
 BUN_VERSION|asserted|bun --version|
+PYTHON_PACKAGE|asserted|python3 --version|prefix
 UV_VERSION|asserted|uv --version|
 GO_VERSION|asserted|go version|
 RUST_CHANNEL|not-a-version||
@@ -201,6 +210,16 @@ DOCKER_BUILDX_VERSION|asserted|docker buildx version|
 OCI_CLI_VERSION|asserted|oci --version|
 ANSIBLE_CORE_VERSION|asserted|ansible --version|
 ANSIBLE_VERSION|asserted|/home/dev/.local/share/uv/tools/ansible-core/bin/python -c "import importlib.metadata as m; print(m.version('ansible'))"|
+DELVE_VERSION|not-in-this-image||
+BUF_VERSION|not-in-this-image||
+GRPCURL_VERSION|not-in-this-image||
+RUNNER_VERSION|not-in-this-image||
+CICTL_VERSION|not-in-this-image||
+CLAUDE_CODE_VERSION|not-in-this-image||
+OMP_VERSION|not-in-this-image||
+CODEX_VERSION|not-in-this-image||
+TERRAFORM_VERSION|not-in-this-image||
+AWS_CLI_VERSION|not-in-this-image||
 PIN_CLASS_TABLE
 
 # The functional groups .ci/image-checks.sh runs for each image, beyond the
@@ -224,11 +243,9 @@ function image_check_groups() {
 
 case "$IMAGE" in
   cloud)
-    PIN_HOME="$CLOUD_PIN_HOME"
     PIN_CLASSES="$PIN_CLASSES_CLOUD"
     ;;
   base|flutter|zephyr|zephyr-devbox)
-    PIN_HOME="$BASE_PIN_HOME"
     PIN_CLASSES="$PIN_CLASSES_BASE"
     ;;
   *)
@@ -251,23 +268,15 @@ fi
 
 # home_pin_names <home> — every pin the home declares, 1 per line, in file order.
 #
-# versions.env declares `NAME=value`. base/Dockerfile declares `ARG NAME=value`,
-# and only the version-shaped names are pins: `*_VERSION`, `*_REF`, `*_CHANNEL`,
-# the 3 suffixes dockerfile-args.test.sh governs. TARGETPLATFORM, USERNAME and
-# USER_UID pin no tool, so no smoke test can assert them.
+# versions.env declares `NAME=value`, and every row of it is a pin — including
+# PYTHON_PACKAGE, which is an apt package name and not a semver. A second reader
+# stood here for the `ARG NAME=value` shape of base/Dockerfile, and it went with
+# the second home: a value-less ARG declares no value to read.
 function home_pin_names() {
   local home="$1"
   case "$home" in
-    "$CLOUD_PIN_HOME")
+    "$PIN_HOME")
       awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/ { print $1 }' "$REPO_ROOT/$home" | awk '!seen[$0]++'
-      ;;
-    "$BASE_PIN_HOME")
-      awk '
-        /^[[:space:]]*ARG[[:space:]]+/ {
-          split($2, parts, "=")
-          if (parts[1] ~ /(_VERSION|_REF|_CHANNEL)$/) { print parts[1] }
-        }
-      ' "$REPO_ROOT/$home" | awk '!seen[$0]++'
       ;;
     *)
       log_error "no reader for pin home '${home}'"
@@ -303,14 +312,8 @@ function resolve_pin() {
   fi
 
   case "$home" in
-    "$CLOUD_PIN_HOME")
+    "$PIN_HOME")
       line="$(grep -E "^${name}=" "$file")" || status=$?
-      ;;
-    "$BASE_PIN_HOME")
-      # Docker uses the LAST declaration of a name, so the last one is the pin.
-      # Taking the first disagrees with the built image whenever an ARG is
-      # re-declared further down.
-      line="$(grep -E "^[[:space:]]*ARG[[:space:]]+${name}=" "$file" | tail -n 1)" || status=$?
       ;;
     *)
       PIN_PROBLEM="no reader for pin home '${home}'"

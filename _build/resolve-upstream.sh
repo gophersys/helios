@@ -106,7 +106,7 @@ PROJECT_ROOT="$SCRIPT_DIRECTORY"
 REPO_ROOT="$(cd "$SCRIPT_DIRECTORY/.." && pwd)"
 
 # The pin readers and the writer live in _ctl/lib.sh, 1 time only — this file
-# and _ctl/tests/pin-mirroring.test.sh drive the same body.
+# and _ctl/tests/runner-residue-mirroring.test.sh drive the same body.
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../_ctl/lib.sh
 source "$SCRIPT_DIRECTORY/../_ctl/lib.sh"
@@ -127,6 +127,12 @@ VERIFIER="${SCRIPT_DIRECTORY}/fetch-verified.sh"
 # instead, and the difference is deliberate: there, a glob that stopped matching
 # would leave a green result that read nothing, and here it makes the pin whose
 # URL is in that component FAIL naming itself.
+#
+# This list is NOT PIN_VALUE_HOMES and it never was. A governed file is one that
+# FETCHES, and base/Dockerfile still fetches every one of its downloads — it
+# stopped declaring the VALUES, not the URLs. Dropping it here would leave the
+# resolver unable to find the asset for any pin whose only download is in base,
+# and the digest half of the bump would answer `-` for a tool that has bytes.
 GOVERNED_DOCKERFILES=(
   "base/Dockerfile"
   "runner/Dockerfile"

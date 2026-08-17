@@ -1,16 +1,22 @@
-# Fixture world for _ctl/tests/pin-mirroring.test.sh — the second home of the
-# tree the writer is driven against.
+# Fixture world for _ctl/tests/runner-residue-mirroring.test.sh — the second
+# home of the tree the writer is driven against.
 #
-# Nothing builds this file and it is not an image. It sits at base/Dockerfile
+# Nothing builds this file and it is not an image. It sits at runner/Dockerfile
 # under the fixture root because the writer finds a home by its repository
-# path, and the test copies the whole tree to a temporary directory before it
-# writes anything.
+# path, and runner/Dockerfile is the one Dockerfile of PIN_VALUE_HOMES that
+# still shares pins with versions.env. The test copies the whole tree to a
+# temporary directory before it writes anything.
+#
+# It was base/Dockerfile until 2026-08-17. base went value-less when the 2 pin
+# mechanisms collapsed onto versions.env, so it declares nothing for a writer to
+# rewrite and it left PIN_VALUE_HOMES. This file moved with the rule.
 #
 # The RUN line below is the reason the digest row exists: the bytes it fetches
 # are compared against WRITERTOOL_SHA256_AMD64, so a version that moves without
 # its digest dies at build time — which is why the writer has to move both, in
 # both homes, in one edit.
-FROM ubuntu:24.04
+ARG BASE_IMAGE=ubuntu:24.04
+FROM ${BASE_IMAGE}
 
 ARG TARGETPLATFORM
 ARG USERNAME=dev

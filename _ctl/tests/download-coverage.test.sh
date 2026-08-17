@@ -469,8 +469,8 @@ function digest_references() {
 # puts a verb body in the library 1 time (ledger #100). They were written here
 # first and moved out when a third caller appeared: _build/resolve-upstream.sh
 # reads the same pin homes to decide what a bump would write, and
-# _ctl/tests/pin-mirroring.test.sh reads them to hold the 2 homes of a pin to 1
-# value. 3 copies of "what does this file declare for that name" are 3 answers
+# _ctl/tests/runner-residue-mirroring.test.sh reads them to hold the 2 homes of
+# a pin to 1 value. 3 copies of "what does this file declare for that name" are 3 answers
 # that are free to disagree, and the one that disagrees is the one nothing runs.
 #
 # `homes_of` takes a ROOT first there — `homes_of <root> <name> [home...]` —

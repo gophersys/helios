@@ -169,6 +169,18 @@ jobs:
         # private BuildKit mirror, and an anonymous pull of it is refused.
         if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/buildx-node.sh
+      - name: generate the build args from versions.env
+        # The one-home rule reaching CI: one --build-arg per pin line, the same
+        # list `base/ctl.sh` generates locally. The Dockerfile's pin gate fails
+        # the build naming any pin this step failed to carry.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        id: versions
+        run: |
+          {
+            echo 'args<<VERSIONS_EOF'
+            sed -e 's/#.*$//' -e 's/[[:space:]]*$//' -e '/^$/d' versions.env
+            echo 'VERSIONS_EOF'
+          } >> "$GITHUB_OUTPUT"
       - name: build the image, load it locally, publish nothing yet
         # The gate has to run before the irreversible action. A push cannot be
         # undone and no job here rolls one back, so a smoke test placed after it
@@ -190,21 +202,22 @@ jobs:
           platforms: ${{ env.PLATFORMS }}
           push: false
           load: true
+          build-args: ${{ steps.versions.outputs.args }}
           tags: ${{ env.SMOKE_REF }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache,mode=max
       - name: smoke test (native amd64)
         # The Dockerfile deliberately runs no --version checks: they could not
         # run while this image was cross-built under QEMU. This is where every
-        # pin of base/Dockerfile is compared against what the image installed,
-        # and where the gate toolchain is exercised on a real fixture.
+        # pin of versions.env is compared against what the image installed, and
+        # where the gate toolchain is exercised on a real fixture.
         if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/smoke.sh base ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
-        # platform — so buildx resolves every layer from the cache that step
-        # wrote and this one only uploads. It writes no cache of its own for
-        # that reason.
+        # build-args, same platform — so buildx resolves every layer from the
+        # cache that step wrote and this one only uploads. It writes no cache of
+        # its own for that reason.
         if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
@@ -212,6 +225,7 @@ jobs:
           file: base/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true
+          build-args: ${{ steps.versions.outputs.args }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/base:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/base:${{ steps.sha.outputs.short }}
@@ -305,7 +319,7 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache,mode=max
       - name: smoke test (native amd64)
-        # flutter inherits every tool of base, so the pins of base/Dockerfile are
+        # flutter inherits every tool of base, so the pins of versions.env are
         # compared here too, and the flutter SDK is checked on top of them.
         if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/smoke.sh flutter ${{ env.SMOKE_REF }}
@@ -420,7 +434,7 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-cache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-cache,mode=max
       - name: smoke test (native amd64)
-        # zephyr inherits every tool of base, so the pins of base/Dockerfile are
+        # zephyr inherits every tool of base, so the pins of versions.env are
         # compared here too, and west is checked on top of them.
         if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/smoke.sh zephyr ${{ env.SMOKE_REF }}
@@ -537,7 +551,7 @@ jobs:
         # The devbox image defaults to root for sshd, and the smoke forces the
         # dev user so the base checks run in the identity the other images use.
         # The flash/debug stack, the SDK toolchains and `sshd -t` are checked on
-        # top of every pin of base/Dockerfile.
+        # top of every pin of versions.env.
         if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/smoke.sh zephyr-devbox ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed

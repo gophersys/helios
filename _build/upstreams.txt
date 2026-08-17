@@ -1,10 +1,16 @@
 # _build/upstreams.txt — where the next value of every pin comes from.
 #
-# Every pin of the 6 value homes carries exactly 1 row here, and every row names
-# a pin that exists. `_ctl/tests/upstream-coverage.test.sh` holds both
-# directions, reading the pins out of the HOMES and never out of this table: a
-# rule that read the listing would go on reporting coverage after the pin it
-# covers was renamed.
+# Every pin of the value homes carries exactly 1 row here, and every row names a
+# pin that exists. `_ctl/tests/upstream-coverage.test.sh` holds both directions,
+# reading the pins out of the HOMES and never out of this table: a rule that
+# read the listing would go on reporting coverage after the pin it covers was
+# renamed.
+#
+# The homes are `PIN_VALUE_HOMES` in `_ctl/lib.sh` — read that list, never a
+# count of it here. base/Dockerfile was one of them until its ARGs went
+# value-less; every pin it used to declare is a versions.env row now, and the
+# row a pin takes here did not move with it, because a row is keyed by the PIN
+# NAME and no name changed.
 #
 # The grammar is the grammar of its neighbour _build/download-exemptions.txt —
 # 1 table shape in _build/, not 2 — 4 fields, none empty:

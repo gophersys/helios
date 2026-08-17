@@ -32,7 +32,7 @@ that it runs inside.
 | `ghcr.io/gophersys/flutter`       | `flutter`       | Base + OpenJDK 21 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
 | `ghcr.io/gophersys/zephyr`        | `zephyr`        | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
 | `ghcr.io/gophersys/zephyr-devbox` | `zephyr-devbox` | Zephyr + sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules + clangd and code-server on `:8443` (browser VS Code, `EXPOSE 8443`, the clangd extension seeded into `/opt/code-server-extensions` at build time). It is an embedded development box for a k8s pod. It has 2 access paths: SSH as `dev`, and the browser at `:8443`. |
-| `ghcr.io/gophersys/cloud`         | `cloud`         | The successor image of the consolidation program (ledger #94), ADDITIVE today: the reduced base (no clang/cmake, no desktop/Tauri libs, no USB-BLE libs, no Rust, no ansible + oci-cli, no speedtest-cli/ncat/net-tools, Go caches removed — terraform and the AWS CLI are NOT in this list, because they left `base` itself and are ready components nothing installs; db clients and the comfort TUIs are not in it either, because cloud re-adds them through `_delta/components/`) + delve/buf/grpcurl + the CI fold (Actions runner, cictl, claude/omp/codex at the versions.env pins). ONE image for dev and CI: the default command is zsh, and a CI pod overrides the command to `/home/runner/run.sh`. Every pin lives in `versions.env` at the repository root; the build feeds it in as generated `--build-arg`s, and `_delta/components/*.sh` install the folded tool groups. Its smoke gates publish (build → smoke → push) and enforces the ≤ 5.75 GB size budget (raised from 5.5 GB by Mateo, 2026-08-16: the measured floor after the R4 levers with every tool kept is ~5.63–5.67 GB). |
+| `ghcr.io/gophersys/cloud`         | `cloud`         | The successor image of the consolidation program (ledger #94), ADDITIVE today: the reduced base (no clang/cmake, no desktop/Tauri libs, no USB-BLE libs, no Rust, no ansible + oci-cli, no speedtest-cli/ncat/net-tools, Go caches removed — terraform and the AWS CLI are NOT in this list, because they left `base` itself and are ready components nothing installs; db clients and the comfort TUIs are not in it either, because cloud re-adds them through `_delta/components/`) + delve/buf/grpcurl + the CI fold (Actions runner, cictl, claude/omp/codex at the versions.env pins). ONE image for dev and CI: the default command is zsh, and a CI pod overrides the command to `/home/runner/run.sh`. Every pin lives in `versions.env` at the repository root — the same 1 home `base` reads since the 2 Dockerfile mechanisms collapsed onto it; the build feeds it in as generated `--build-arg`s, and `_delta/components/*.sh` install the folded tool groups. Its smoke gates publish (build → smoke → push) and enforces the ≤ 5.75 GB size budget (raised from 5.5 GB by Mateo, 2026-08-16: the measured floor after the R4 levers with every tool kept is ~5.63–5.67 GB). |
 
 ## Structure
 
@@ -41,7 +41,7 @@ that it runs inside.
 ├── README.md
 ├── project.json                 # repo-level Nx wiring
 ├── ctl.sh                       # repo-wide control
-├── versions.env                 # the ONE pin home of the cloud family
+├── versions.env                 # the ONE pin home of base and cloud
 ├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time
 ├── _ctl/tests/                  # hermetic *.test.sh + harness + docker stub + fixtures
 ├── .claude/rules/00-identity.md # (this file)
@@ -103,7 +103,7 @@ that it runs inside.
    must agree whatever the set holds.
 
    **"Nothing builds it" is not "nothing reaches it".** `runner/Dockerfile` is
-   still 1 of the 6 `PIN_VALUE_HOMES` in `_ctl/lib.sh`, so `bump_pin` writes
+   still 1 of the 5 `PIN_VALUE_HOMES` in `_ctl/lib.sh`, so `bump_pin` writes
    into it every Monday; it is 1 of the 6 `GOVERNED_DOCKERFILES` in
    `_build/resolve-upstream.sh`; `_build/upstreams.txt` carries its
    `RUNNER_VERSION` row and `_build/download-exemptions.txt` carries its
@@ -113,11 +113,13 @@ that it runs inside.
    sweep, and that list is the real cost: the deletion edits every file above
    in 1 change, and it is not a `git rm`.
 
-   **Both of those lists call themselves "the 6" and they hold different
-   members.** `PIN_VALUE_HOMES` holds `versions.env`; `GOVERNED_DOCKERFILES`
-   holds `cloud/Dockerfile` in its place. Read each list, never the count beside
-   it — whoever does the deletion has to edit both, and 6 == 6 hides that they
-   are not the same 6.
+   **Those 2 lists hold different members, and now different lengths.** Read
+   each list, never a count beside it. `PIN_VALUE_HOMES` is 5 since
+   `base/Dockerfile` went value-less — `versions.env` plus the 4 Dockerfiles
+   that still spell their own pins. `GOVERNED_DOCKERFILES` is still 6 and holds
+   `base/Dockerfile` AND `cloud/Dockerfile`, because a governed file is one that
+   FETCHES and base still fetches every download it always did. It stopped
+   declaring the VALUES, not the URLs.
 3. **Do not add a `CLAUDE.md` file.** The conventions of this repository stay
    here, in `.claude/rules/`.
 4. **A human writes the text.** Do not put an AI or LLM attribution of any kind
@@ -170,25 +172,60 @@ green: the whole gate is a lint pass and a bash suite.
 ## ARGs-at-top + latest-LTS convention
 
 Every Dockerfile MUST declare all tool versions as `ARG`s at the top of the
-file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
+file. **In `base/Dockerfile` and `cloud/Dockerfile` those ARGs are VALUE-LESS:
+the value lives in `versions.env`, the ONE pin home, and arrives as a generated
+`--build-arg`.** Each `versions.env` row carries the
+`# latest LTS as of YYYY-MM-DD` comment — the date belongs beside the value it
+dates, not beside a declaration that holds none.
 
-- **To change a version**, edit 1 ARG line and its date comment. Change nothing
-  else.
+**There were 2 mechanisms until this collapse, and now there is 1.**
+`base/Dockerfile` carried 55 inline `ARG NAME=value` pins — measured
+2026-08-17 — and 54 of them were spelled in `versions.env` as well, at equal
+values; `_ctl/tests/pin-mirroring.test.sh` existed only to hold the 2 copies to
+1 value. The rule did not die whole: 3 pins are still dual-home
+(`versions.env` and the retired `runner/Dockerfile`), and
+`_ctl/tests/runner-residue-mirroring.test.sh` keeps the mirror for exactly
+those until runner/'s deletion wave removes the second home. The 55th was
+`RUST_CHANNEL`, which `cloud` does not install and which
+is a `versions.env` row now like the rest. Everything downstream paid for the
+split: 6 pin homes, a family branch in `.ci/smoke.sh`, an admitted over-build in
+`.ci/affected.sh`. It is 1 mechanism now, and the doubling that dual-arch would
+have done to it is a doubling of 1 file.
+
+**The 3 per-image Dockerfiles still carry inline pins, and that is the open
+half.** `flutter/`, `zephyr/` and `zephyr-devbox/` declare their own
+`ARG NAME=value` blocks and consume no build arg from `versions.env`; `runner/`
+does the same and is retired. Their 10 pins are the ones no smoke run compares,
+recorded as ledger #102's open item. Until it closes, read "the pin value is in
+`versions.env`" as true of `base` and `cloud`, and of nothing else.
+
+- **To change a version**, edit 1 `versions.env` row and its date comment.
+  Change nothing else. The Dockerfile is not a home and takes no edit.
 - **A hardcoded version in a RUN line is forbidden.** `ctl.sh validate`
   searches for `=\d+\.\d+\.\d+` in a RUN line and fails the build.
+- **A value-less ARG needs a gate, or it fails silently.** An unfed pin expands
+  to the empty string, and the failure surfaces much later as a mangled download
+  URL. Both root Dockerfiles therefore open with a `RUN : "${PIN:?not in
+  versions.env}"` chain that stops the build naming the variable — 54 entries in
+  `base`, 55 in `cloud`. `UBUNTU_BASE_REF` is deliberately outside both chains:
+  the `FROM` consumes it first and an absent value dies there.
+- **A build parameter is not a pin and keeps its value.** `USERNAME`,
+  `USER_UID`, `USER_GID` and `OH_MY_ZSH_INSTALL_URL` stay inline in both files:
+  no upstream publishes a uid, so no row in `versions.env` and no row in
+  `_build/upstreams.txt` could answer for one.
 - To add a new tool, select its **latest LTS or stable** release. Do the
   research with apt-cache, with the upstream GitHub releases, or with pypi.
   Never invent a version.
-- **You must get approval to change a version.** A change to a version ARG needs
-  Mateo's approval on the pull request. It reaches every image below this one in
-  the graph, and the ARC pools run `cloud`.
+- **You must get approval to change a version.** A change to a `versions.env`
+  row needs Mateo's approval on the pull request. It reaches every image below
+  this one in the graph, and the ARC pools run `cloud`.
 - **A digest row takes the same shape as a version row, and sits beside it.**
   Every binary download compares its bytes against a `<TOOL>_SHA256_<ARCH>`
-  declared in the SAME home as `<TOOL>_VERSION`: an `ARG` at the top of the
-  Dockerfile for the base family, a `versions.env` row for the cloud family. A
-  tool that lives in both homes carries the digest in both, and equal versions
-  must carry equal digests. The reason is that a bump is then 2 adjacent lines:
-  2 homes apart, and the bump misses one.
+  declared in the SAME home as `<TOOL>_VERSION`: a `versions.env` row for `base`
+  and `cloud`, an `ARG` at the top of the Dockerfile for the 3 per-image
+  Dockerfiles that have not moved yet. The reason is that a bump is then 2
+  adjacent lines: 2 homes apart, and the bump misses one. That failure is now
+  impossible for `base` and `cloud`, because they have 1 home between them.
 - **The vocabulary is `_SHA256_AMD64` and `_SHA256_NOARCH`, and nothing else.**
   It names the PLATFORM and never the upstream asset spelling — compose writes
   `x86_64` and buildx writes `amd64` for the same platform, and following the
@@ -196,7 +233,9 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
   every platform. There is no `_ARM64` row while `SANCTIONED_PLATFORMS` is
   `linux/amd64` alone: a digest that nothing compares is a check that cannot
   fail. Widening the platform set restores the `linux/arm64)` case arm and the
-  `_ARM64` row together, in both homes.
+  `_ARM64` row together — and the row is written ONCE now, in `versions.env`,
+  for both root images. Collapsing the mechanism before the arch axis widened is
+  why: 2 homes × 2 arches is the multiplication this repository does not pay.
 - **Every digest row records where its value came from**, machine-readably:
   `# upstream-published: <checksum file url>` when the release ships a checksum
   file and the 2 agreed, otherwise `# computed-at-pin: <yyyy-mm-dd>` — TLS plus
@@ -214,9 +253,13 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
   `_ctl/tests/download-coverage.test.sh` reads what the files CONSUME and holds
   both directions: an unanswered download is red, and so is a row for a
   download that no longer exists.
-- **`ARG HADOLINT_VERSION` in `base/Dockerfile` also governs the gate.**
+- **`HADOLINT_VERSION` in `versions.env` also governs the gate.**
   hadolint's verdict depends on its version — 2.15.1 raises DL3064 and DL3066 on
-  Dockerfiles that 2.14.0 passes — so `validate` lints at that exact pin. It uses
+  Dockerfiles that 2.14.0 passes — so `validate` lints at that exact pin.
+  `hadolint_pin` in `ctl.sh` read it out of the `base/Dockerfile` ARG until that
+  ARG went value-less; the read FAILED naming the pin rather than falling back
+  to whatever the host held, which is how a gate is supposed to lose its
+  input. It uses
   the `hadolint` on PATH when the version matches, otherwise
   `hadolint/hadolint:v<pin>` through docker, and it FAILS naming the version when
   it can reach neither. The devcontainer ships the pinned version, so a developer
@@ -233,14 +276,18 @@ The reason is the property the whole repository rests on: **the commit decides
 the image.** Under the moving tag, 2 builds of 1 commit produce 2 different
 operating systems, and `verify-published` cannot say which one it read.
 
-- **`UBUNTU_BASE_REF` has 2 pin homes and 1 value**: `versions.env` for the cloud
-  family, and the `ARG` block of `base/Dockerfile` for the base family.
-  `_ctl/tests/scheduled-workflows.test.sh` holds the 2 to the same `sha256:`,
-  and it also holds the digest to 64 hex characters — a truncated digest reads
-  as correct in a diff and dies at `docker build`, after the merge.
+- **`UBUNTU_BASE_REF` has 1 pin home and 1 value**: the `versions.env` row. It
+  had 2 — that row and the `ARG` block of `base/Dockerfile` — and a test held
+  the 2 to the same `sha256:`. Both Dockerfiles declare
+  `ARG UBUNTU_BASE_REF` value-less and take the digest as a generated
+  `--build-arg`, so the rule that needed a test is now a property of the tree.
+  Hold the row itself to 64 hex characters: a truncated digest reads as correct
+  in a diff and dies at `docker build`, after the merge.
 - **The ARG is declared ABOVE the `FROM`.** A `FROM` can interpolate only an ARG
   declared before it. Below it the expansion is the empty string, the `FROM`
-  becomes `ubuntu:24.04@`, and the build dies in the publish job.
+  becomes `ubuntu:24.04@`, and the build dies in the publish job. That is also
+  why this 1 pin is outside the pin gate: the `FROM` consumes it before the gate
+  runs, so an absent value fails there and not 50 lines later.
 - **Take the INDEX digest, never a per-platform one.** Resolve it with
   `docker buildx imagetools inspect ubuntu:24.04 --format '{{.Manifest.Digest}}'`,
   which reports the digest of the manifest LIST. buildx still has to choose the
@@ -248,7 +295,7 @@ operating systems, and `verify-published` cannot say which one it read.
   away and pins the wrong thing. The pin of 2026-08-16 was read that way and its
   `MediaType` was `application/vnd.oci.image.index.v1+json`.
 - **The bump path** is a pull request like any other: read the new digest with
-  the command above, write it into BOTH pin homes with a dated comment, and let
+  the command above, write it into the 1 pin home with a dated comment, and let
   the build → smoke → push order settle it. Never a nightly republish — that
   would move `:latest` with no commit behind it.
 - **A pin that nothing watches is a snapshot that looks current forever**, so the
@@ -332,7 +379,7 @@ release was.
 
 - **`_build/upstreams.txt` says where the next value of every pin comes from.**
   4 fields, the grammar of its neighbour `download-exemptions.txt`:
-  `<pin>|<datasource>|<coordinate>|<policy or reason>`. Every pin of the 6 value
+  `<pin>|<datasource>|<coordinate>|<policy or reason>`. Every pin of the value
   homes carries exactly 1 row, and every row names a pin that exists —
   `_ctl/tests/upstream-coverage.test.sh` holds both directions, reading the pins
   out of the HOMES and never out of the table, because a rule that reads the
@@ -384,9 +431,11 @@ release was.
   tool reports about itself and what the smoke test compares.
 - **`bump_pin` in `_ctl/lib.sh` is the only writer**, and it edits every home of
   the pin: the version row, the digest row beside it and that row's evidence
-  comment, and no other line. A writer that edited `versions.env` alone would
-  re-create the 2-toolchain drift `_ctl/tests/pin-mirroring.test.sh` forbids,
-  every Monday, in a pull request that reads like a correct bump.
+  comment, and no other line. It DISCOVERS the homes through `homes_of` rather
+  than assuming any of them, which is why dropping `base/Dockerfile` from
+  `PIN_VALUE_HOMES` changed nothing about it: a pin of `versions.env` alone now
+  has 1 home, and the writer edits the 1 it finds. The multi-home path is still
+  live for the 4 per-image Dockerfiles.
 - **The pull request is opened, never merged.** `--dry-run` composes it and
   writes nothing TO THE REPOSITORY — it still writes temporary files and
   downloads every moved asset twice; `--apply` writes and leaves git and gh to
@@ -503,20 +552,26 @@ platform, so read the arm64 note at the top of that test file before you widen
 `SANCTIONED_PLATFORMS`.
 
 The smoke test compares **versions**, and it does not only run tools. `.ci/smoke.sh`
-is the host driver: it classifies every pin of `versions.env` (cloud) or of the
-ARGs at the top of `base/Dockerfile` (the base family) as `asserted`,
-`not-a-version` or `not-in-this-image`, resolves each asserted pin, and sends
+is the host driver: it classifies every pin of `versions.env` — the 1 home, for
+every image — as `asserted`, `not-a-version` or `not-in-this-image`, resolves
+each asserted pin, and sends
 `.ci/image-checks.sh`, the `.ci/fixtures/` and the assertion table into 1 `docker
 run`. The guest compares what each tool reports against its pin, and it then runs
 the gate-critical tools on the fixtures — a Go module through
 gofumpt/golangci-lint/hnslint/vet, a Dockerfile through hadolint, a compose file
 through the compose plugin, and delve/buf/grpcurl each on 1 real operation.
-`_ctl/tests/version-coverage.test.sh` fails when a pin of those 2 homes carries
+`_ctl/tests/version-coverage.test.sh` fails when a pin of that home carries
 no classification, so a new pin there cannot stay silent.
 
-**That rule covers 2 pin homes, and the repository has 6.** `home_pin_names` in
-`.ci/smoke.sh` holds a reader for `versions.env` and for `base/Dockerfile`, and
-for no other home; `version-coverage` asserts against the same 2. So the 10 pins
+**2 classification TABLES read that 1 home**, and the branch that chooses
+between them is all that is left of the family split: `cloud` takes the table
+that asserts the CI fold, and `base`/`flutter`/`zephyr`/`zephyr-devbox` take the
+table that asserts what `base` installs. A pin one image does not carry takes
+`not-in-this-image` in that image's table, which is what the class exists for.
+`home_pin_names` in `.ci/smoke.sh` holds 1 reader now; the second reader went
+with the second home, because a value-less ARG declares no value to read.
+
+**That rule covers 1 pin home, and the repository has 5.** So the 10 pins
 of the child images are unasserted today, and that is a stated gap rather than
 an oversight: `JAVA_VERSION`, `ANDROID_CMDLINE_TOOLS_VERSION`,
 `ANDROID_PLATFORM_VERSION`, `ANDROID_BUILDTOOLS_VERSION`, `FLUTTER_VERSION` and
@@ -526,7 +581,10 @@ an oversight: `JAVA_VERSION`, `ANDROID_CMDLINE_TOOLS_VERSION`,
 the hole is live and not historical: it was pinned in the current cycle, and no
 class, no test and no smoke run compares it against the image it installs.
 Ledger #102 and #103 own the gap. Until they close it, read "a new pin cannot
-stay silent" as true of the cloud family and of `base`, and of nothing else.
+stay silent" as true of `versions.env`, and of nothing else. Those 10 pins are
+also the 10 that still carry their VALUE inline: the classification gap and the
+pin-home gap are 1 gap, and #102 closes both when those 3 Dockerfiles go
+value-less the way `base` did.
 
 ## Dev-in-container expectation
 

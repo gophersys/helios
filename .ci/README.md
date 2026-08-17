@@ -40,9 +40,10 @@ job calls the purpose-built script it needs, because a job gates each step on
 ```
 
 `smoke.sh` and `image-checks.sh` are 2 files because a pin lives on the HOST and
-a tool lives in the IMAGE. The driver reads `versions.env` (the cloud family) or
-the ARGs at the top of `base/Dockerfile` (the base family), classifies every pin
-`asserted` / `not-a-version` / `not-in-this-image`, and sends the guest file, the
+a tool lives in the IMAGE. The driver reads `versions.env` — the ONE pin
+home, for every image — classifies every pin
+`asserted` / `not-a-version` / `not-in-this-image` against the table its image's
+family carries, and sends the guest file, the
 fixtures and the assertion table into the container in 1 stdin stream. The guest
 compares what each tool REPORTS against the pin, then exercises the gate-critical
 tools on the fixtures. `image-checks.sh` also runs on a host against a stub PATH,

@@ -16,7 +16,9 @@
 # domain-specific toolchains on top.
 #
 # Conventions enforced by this Dockerfile:
-#   - Every tool version is an ARG at the top with a "latest LTS as of" comment.
+#   - ARGs at the top, VALUE-LESS: every version arrives as --build-arg
+#     generated from versions.env at the repository root — the ONE home for
+#     every pin. The pin gate below fails the build naming any missing one.
 #   - No hardcoded versions in RUN statements — always reference an ARG.
 #   - Architecture-aware: every binary install resolves ARCH from TARGETPLATFORM.
 #   - oh-my-zsh is the default shell; SHELL switches to zsh after install so
@@ -25,13 +27,14 @@
 #     at uid 1000 is removed first.
 
 # The base OS at a DIGEST, never at the moving tag: the commit decides the
-# image. This ARG is declared above the FROM because a FROM can interpolate only
-# an ARG declared before it — below it the expansion is empty, the FROM becomes
-# `ubuntu:24.04@`, and the build dies in the publish job. versions.env holds the
-# same value for the cloud family, and `bash ./ctl.sh base-currency` reports the
-# night upstream moves it. It is the INDEX digest, so buildx still chooses the
-# manifest for the platform it builds.
-ARG UBUNTU_BASE_REF=sha256:561618e2c15bf2397621dd04f96926663a3b5616c189cf7e38db7e82f5c538ea   # ubuntu:24.04 index digest as of 2026-08-16
+# image. Value-less like every other pin — the digest arrives as a generated
+# --build-arg from versions.env, its ONE home; it used to be spelled here as
+# well, and 2 homes for 1 digest is what a test had to hold together. This ARG
+# is declared above the FROM because a FROM can interpolate only an ARG declared
+# before it — below it the expansion is empty, the FROM becomes `ubuntu:24.04@`,
+# and the build dies in the publish job. versions.env carries the INDEX digest,
+# so buildx still chooses the manifest for the platform it builds.
+ARG UBUNTU_BASE_REF
 
 # No --platform here. It pinned the userland to the BUILD host's architecture
 # while buildx labelled the result with the TARGET platform, which is how the
@@ -43,13 +46,14 @@ FROM ubuntu:24.04@${UBUNTU_BASE_REF}
 ARG TARGETPLATFORM
 
 # -------------------------------------------------------------------------
-# Tool versions — all pinned ARGs. Every value below is the latest LTS or
-# latest stable release as of 2026-04-19. Bump a value by editing the ARG;
-# never hardcode a version in a RUN line.
+# Tool versions — value-less ARGs, fed from versions.env via generated
+# --build-arg (versions_env_build_args in _ctl/lib.sh; the CI job generates
+# the same list). The "latest LTS as of" comments live in versions.env, next
+# to the values they date.
 # -------------------------------------------------------------------------
 
 # Shell — zsh via apt, oh-my-zsh via the official installer URL.
-ARG ZSH_VERSION=5.9                                                    # latest LTS as of 2026-04-19
+ARG ZSH_VERSION
 ARG OH_MY_ZSH_INSTALL_URL=https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
 
 # Node toolchain — nvm installs the pinned Node LTS, corepack enables yarn and pnpm.
@@ -57,56 +61,56 @@ ARG OH_MY_ZSH_INSTALL_URL=https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/mast
 # The nvm digest covers the INSTALLER SCRIPT only. node itself is fetched by that
 # script, and node's own download is out of scope of this change. _NOARCH says the
 # 1 asset serves every platform.
-ARG NVM_VERSION=0.40.6                                                 # latest LTS as of 2026-08-17
-ARG NVM_SHA256_NOARCH=2ef7e8d4373c1ffd70daa55f919f629e98a619543ffc0a8d892d77a5247e50e4  # computed-at-pin: 2026-08-17
-ARG NODE_VERSION=24.19.0                                               # latest LTS as of 2026-08-17 (Krypton)
-ARG NPM_VERSION=12.0.2                                                 # latest LTS as of 2026-08-17
-ARG PNPM_VERSION=11.22.0                                               # what corepack pnpm@latest resolved on 2026-08-16
+ARG NVM_VERSION
+ARG NVM_SHA256_NOARCH
+ARG NODE_VERSION
+ARG NPM_VERSION
+ARG PNPM_VERSION
 
 # Bun — the JavaScript runtime the Oh My Pi (`omp`) harness requires (its CLI shebang is
 # `#!/usr/bin/env bun`, engines.bun >= 1.3.14). Baked into the base image because spawned
 # agent pods dogfood this same image family and must run `omp` without a network install.
-ARG BUN_VERSION=1.3.14                                                 # latest stable as of 2026-06-13
-ARG BUN_SHA256_AMD64=951ee2aee855f08595aeec6225226a298d3fea83a3dcd6465c09cbccdf7e848f  # upstream-published: https://github.com/oven-sh/bun/releases/download/bun-v1.3.14/SHASUMS256.txt
+ARG BUN_VERSION
+ARG BUN_SHA256_AMD64
 
 # Python — apt-provided 3.12 + uv for user-space package mgmt.
 #
 # The uv digest covers the INSTALLER SCRIPT only, for the reason the nvm row gives:
 # the uv binary is fetched by that script.
-ARG PYTHON_PACKAGE=python3.12                                          # latest LTS as of 2026-04-19
-ARG UV_VERSION=0.12.5                                                  # latest LTS as of 2026-08-17
-ARG UV_SHA256_NOARCH=504511fbbbd811aeaba6738abc79408956b6c7da0ca35437b3dcc24a41efc111  # computed-at-pin: 2026-08-17
+ARG PYTHON_PACKAGE
+ARG UV_VERSION
+ARG UV_SHA256_NOARCH
 
 # Go — official tarball. Matches the workspace `go.work` toolchain directive so the agent-pod
 # image bakes it rather than auto-downloading the toolchain on first `go` invocation per pod.
-ARG GO_VERSION=1.26.6                                                  # latest LTS as of 2026-08-17
-ARG GO_SHA256_AMD64=708effb774be8237570d0add163225abbdfaf4fca28b2611df167beba4feef89  # computed-at-pin: 2026-08-17
+ARG GO_VERSION
+ARG GO_SHA256_AMD64
 
 # Rust — rustup channel, not a pinned version.
-ARG RUST_CHANNEL=stable                                                # latest LTS as of 2026-04-19
+ARG RUST_CHANNEL
 
 # Infra CLIs.
 #
 # Every binary download here is compared against the digest declared beside its
-# version. The 2 lines move together: a version bump whose digest is not bumped
-# with it FAILS at that RUN line, naming the pin.
-ARG KUBECTL_VERSION=1.36.3                                             # latest LTS as of 2026-08-17
-ARG KUBECTL_SHA256_AMD64=ebbd080e7c2e275093b55915722043257eb24004363e20acb3c4d71919f88336  # computed-at-pin: 2026-08-17
-ARG HELM_VERSION=4.2.4                                                 # latest LTS as of 2026-08-17
-ARG HELM_SHA256_AMD64=c306b46f719b0a4da32d0f78ee21bf90ce8d602f15b22ab753f0674d1670a7f3  # computed-at-pin: 2026-08-17
-ARG ANSIBLE_VERSION=14.3.1                                             # latest LTS as of 2026-08-17
-ARG ANSIBLE_CORE_VERSION=2.21.3                                        # latest LTS as of 2026-08-17
-ARG TAILSCALE_VERSION=1.102.2                                          # latest LTS as of 2026-08-17
-ARG TAILSCALE_SHA256_AMD64=ad2cde12f8de95f7b93a1e0401e652291c603d42b9d60a33fb1741eb38ab04d8  # computed-at-pin: 2026-08-17
-ARG BW_VERSION=2026.3.0                                                # latest LTS as of 2026-04-19
-ARG BW_SHA256_AMD64=640d928bef91b2b81aa021777995230681204f5582315ef943ba72db2cbd283d  # computed-at-pin: 2026-08-17
-ARG GH_VERSION=2.97.0                                                  # latest LTS as of 2026-08-17
-ARG GH_SHA256_AMD64=a2c9b8497e1f85b1ad0dfcb78b5a622e098801b8e461e459e88e1ee12f018112  # computed-at-pin: 2026-08-17
-ARG K9S_VERSION=0.51.0                                                 # latest LTS as of 2026-08-17
-ARG K9S_SHA256_AMD64=c3752ad51a5a4015a113819c4eeb6e55a4d0e4b8e652494797532f6fc8161dd7  # upstream-published: https://github.com/derailed/k9s/releases/download/v0.51.0/checksums.sha256
-ARG NATS_VERSION=0.4.0                                                 # latest LTS as of 2026-08-17
-ARG NATS_SHA256_AMD64=8dbd437c826b953dbd7432cf890ef22ba3c33dccc3dce5e71b3e8d055427849c  # computed-at-pin: 2026-08-17
-ARG OCI_CLI_VERSION=3.90.2                                             # latest LTS as of 2026-08-17
+# version. The 2 rows move together in versions.env: a version bump whose digest
+# is not bumped with it FAILS at that RUN line, naming the pin.
+ARG KUBECTL_VERSION
+ARG KUBECTL_SHA256_AMD64
+ARG HELM_VERSION
+ARG HELM_SHA256_AMD64
+ARG ANSIBLE_VERSION
+ARG ANSIBLE_CORE_VERSION
+ARG TAILSCALE_VERSION
+ARG TAILSCALE_SHA256_AMD64
+ARG BW_VERSION
+ARG BW_SHA256_AMD64
+ARG GH_VERSION
+ARG GH_SHA256_AMD64
+ARG K9S_VERSION
+ARG K9S_SHA256_AMD64
+ARG NATS_VERSION
+ARG NATS_SHA256_AMD64
+ARG OCI_CLI_VERSION
 
 # The 2 docker cli-plugins. They arrive as release binaries and not as apt
 # packages, so nothing but the digest says the bytes are the ones upstream
@@ -117,42 +121,110 @@ ARG OCI_CLI_VERSION=3.90.2                                             # latest 
 # _ARM64 row and no `linux/arm64)` case arm to feed it while
 # SANCTIONED_PLATFORMS is linux/amd64 alone — a digest nothing compares is a
 # check that cannot fail. F3 restores the arm and the row together.
-ARG DOCKER_COMPOSE_VERSION=5.5.0                                       # latest LTS as of 2026-08-17
-ARG DOCKER_COMPOSE_SHA256_AMD64=c57ab918abd5b05ca7e7d0f275875dd1330a695074f309dc9eab1b49efafcd4b  # computed-at-pin: 2026-08-17
-ARG DOCKER_BUILDX_VERSION=0.36.1                                       # latest stable as of 2026-08-13
-ARG DOCKER_BUILDX_SHA256_AMD64=48af8a397ebd60178778bf63611dbcebe5f5e7a9be90eb9147b24b9587455778  # upstream-published: https://github.com/docker/buildx/releases/download/v0.36.1/checksums.txt
+ARG DOCKER_COMPOSE_VERSION
+ARG DOCKER_COMPOSE_SHA256_AMD64
+ARG DOCKER_BUILDX_VERSION
+ARG DOCKER_BUILDX_SHA256_AMD64
 
-# Dev QA.
-ARG HADOLINT_VERSION=2.14.0                                            # latest LTS as of 2026-04-19
-ARG HADOLINT_SHA256_AMD64=6bf226944684f56c84dd014e8b979d27425c0148f61b3bd99bcc6f39e9dc5a47  # upstream-published: https://github.com/hadolint/hadolint/releases/download/v2.14.0/hadolint-linux-x86_64.sha256
-ARG KUBECONFORM_VERSION=0.8.0                                          # latest release as of 2026-08-10
-ARG KUBECONFORM_SHA256_AMD64=9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883  # upstream-published: https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS
+# Parsing + QA. yq was declared beside its own RUN block, 240 lines below, and
+# it is here now because the pin gate can only check what is declared above it.
+ARG YQ_VERSION
+ARG YQ_SHA256_AMD64
+ARG HADOLINT_VERSION
+ARG HADOLINT_SHA256_AMD64
+ARG KUBECONFORM_VERSION
+ARG KUBECONFORM_SHA256_AMD64
 
 # Local Kubernetes substrates for the ADR-0020 host-leveraging integration/load lanes.
-ARG K3D_VERSION=5.9.0                                                  # latest LTS as of 2026-06-13
-ARG K3D_SHA256_AMD64=06d8f25bc3a971c4eb29e0ff08429b180402db0f4dec838c9eac427e296800a0  # computed-at-pin: 2026-08-17
-ARG KIND_VERSION=0.32.0                                                # latest LTS as of 2026-06-13
-ARG KIND_SHA256_AMD64=50030de23cf40a18505f20426f6a8506bedf13c6e509244bd1fa9463721b0f54  # upstream-published: https://github.com/kubernetes-sigs/kind/releases/download/v0.32.0/kind-linux-amd64.sha256sum
+ARG K3D_VERSION
+ARG K3D_SHA256_AMD64
+ARG KIND_VERSION
+ARG KIND_SHA256_AMD64
 
 # Go gate tools (ADR-0018 + ADR-0020), installed via `go install ...@vX.Y.Z`. Pinned by ARG so
 # the no-hardcoded-version-in-RUN rule holds and a bump is a one-line edit. These make every
 # gate dimension runnable inside the image, so an absent tool is impossible (FAIL-NOT-SKIP).
-ARG GOFUMPT_VERSION=0.11.0                                             # latest LTS as of 2026-08-17
-ARG GOLANGCI_LINT_VERSION=2.12.2                                       # latest LTS as of 2026-06-13
-ARG GOVULNCHECK_VERSION=1.1.4                                          # latest LTS as of 2026-06-13
-ARG GOSEC_VERSION=2.28.0                                               # latest LTS as of 2026-08-17
-ARG HNSLINT_VERSION=0.1.0                                              # latest as of 2026-08-11 — gophersys/hnslint
-ARG GREMLINS_VERSION=0.6.0                                             # latest LTS as of 2026-06-13 — needs >=0.6.0 for unleash --exclude-files (the mutate gate uses it)
+ARG GOFUMPT_VERSION
+ARG GOLANGCI_LINT_VERSION
+ARG GOVULNCHECK_VERSION
+ARG GOSEC_VERSION
+ARG HNSLINT_VERSION
+ARG GREMLINS_VERSION
 # golang.org/x/perf has no semver tags; @latest is the canonical install form (no version digits,
 # so it does not trip the no-hardcoded-version-in-RUN grep) — refreshed when the toolchain bumps.
-ARG BENCHSTAT_REF=latest                                               # x/perf is untagged; track @latest
-ARG GITLEAKS_VERSION=8.30.1                                            # latest LTS as of 2026-06-13
-ARG GITLEAKS_SHA256_AMD64=551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  # upstream-published: https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_checksums.txt
+ARG BENCHSTAT_REF
+ARG GITLEAKS_VERSION
+ARG GITLEAKS_SHA256_AMD64
 
-# Non-root dev user identity.
+# Non-root dev user identity. These 3 are build parameters and not pins: no
+# upstream publishes a uid, so they keep their values here.
 ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=1000
+
+# -------------------------------------------------------------------------
+# The pin gate. Every version above must have arrived from versions.env; an
+# absent pin would otherwise expand to the empty string and surface much
+# later as a mangled download URL. FAIL-NOT-SKIP: the build stops HERE and
+# the message names the variable.
+#
+# UBUNTU_BASE_REF is not in the list: the FROM consumes it before this line
+# runs, and an absent value fails there with `ubuntu:24.04@`.
+# -------------------------------------------------------------------------
+RUN : "${ZSH_VERSION:?not in versions.env}" \
+ && : "${NVM_VERSION:?not in versions.env}" \
+ && : "${NVM_SHA256_NOARCH:?not in versions.env}" \
+ && : "${NODE_VERSION:?not in versions.env}" \
+ && : "${NPM_VERSION:?not in versions.env}" \
+ && : "${PNPM_VERSION:?not in versions.env}" \
+ && : "${BUN_VERSION:?not in versions.env}" \
+ && : "${BUN_SHA256_AMD64:?not in versions.env}" \
+ && : "${PYTHON_PACKAGE:?not in versions.env}" \
+ && : "${UV_VERSION:?not in versions.env}" \
+ && : "${UV_SHA256_NOARCH:?not in versions.env}" \
+ && : "${GO_VERSION:?not in versions.env}" \
+ && : "${GO_SHA256_AMD64:?not in versions.env}" \
+ && : "${RUST_CHANNEL:?not in versions.env}" \
+ && : "${KUBECTL_VERSION:?not in versions.env}" \
+ && : "${KUBECTL_SHA256_AMD64:?not in versions.env}" \
+ && : "${HELM_VERSION:?not in versions.env}" \
+ && : "${HELM_SHA256_AMD64:?not in versions.env}" \
+ && : "${ANSIBLE_VERSION:?not in versions.env}" \
+ && : "${ANSIBLE_CORE_VERSION:?not in versions.env}" \
+ && : "${TAILSCALE_VERSION:?not in versions.env}" \
+ && : "${TAILSCALE_SHA256_AMD64:?not in versions.env}" \
+ && : "${BW_VERSION:?not in versions.env}" \
+ && : "${BW_SHA256_AMD64:?not in versions.env}" \
+ && : "${GH_VERSION:?not in versions.env}" \
+ && : "${GH_SHA256_AMD64:?not in versions.env}" \
+ && : "${K9S_VERSION:?not in versions.env}" \
+ && : "${K9S_SHA256_AMD64:?not in versions.env}" \
+ && : "${NATS_VERSION:?not in versions.env}" \
+ && : "${NATS_SHA256_AMD64:?not in versions.env}" \
+ && : "${OCI_CLI_VERSION:?not in versions.env}" \
+ && : "${DOCKER_COMPOSE_VERSION:?not in versions.env}" \
+ && : "${DOCKER_COMPOSE_SHA256_AMD64:?not in versions.env}" \
+ && : "${DOCKER_BUILDX_VERSION:?not in versions.env}" \
+ && : "${DOCKER_BUILDX_SHA256_AMD64:?not in versions.env}" \
+ && : "${YQ_VERSION:?not in versions.env}" \
+ && : "${YQ_SHA256_AMD64:?not in versions.env}" \
+ && : "${HADOLINT_VERSION:?not in versions.env}" \
+ && : "${HADOLINT_SHA256_AMD64:?not in versions.env}" \
+ && : "${KUBECONFORM_VERSION:?not in versions.env}" \
+ && : "${KUBECONFORM_SHA256_AMD64:?not in versions.env}" \
+ && : "${K3D_VERSION:?not in versions.env}" \
+ && : "${K3D_SHA256_AMD64:?not in versions.env}" \
+ && : "${KIND_VERSION:?not in versions.env}" \
+ && : "${KIND_SHA256_AMD64:?not in versions.env}" \
+ && : "${GOFUMPT_VERSION:?not in versions.env}" \
+ && : "${GOLANGCI_LINT_VERSION:?not in versions.env}" \
+ && : "${GOVULNCHECK_VERSION:?not in versions.env}" \
+ && : "${GOSEC_VERSION:?not in versions.env}" \
+ && : "${HNSLINT_VERSION:?not in versions.env}" \
+ && : "${GREMLINS_VERSION:?not in versions.env}" \
+ && : "${BENCHSTAT_REF:?not in versions.env}" \
+ && : "${GITLEAKS_VERSION:?not in versions.env}" \
+ && : "${GITLEAKS_SHA256_AMD64:?not in versions.env}"
 
 # -------------------------------------------------------------------------
 # Base env — set once. locale is handled alongside the apt layer below.
@@ -283,9 +355,8 @@ SHELL ["/usr/bin/zsh", "-o", "pipefail", "-c"]
 # -------------------------------------------------------------------------
 
 # yq — multi-arch binary from Mike Farah's releases. Pinned to match the jq
-# ecosystem; installed under /home/dev/.local/bin to stay out of /usr.
-ARG YQ_VERSION=4.53.3                                                  # latest LTS as of 2026-08-17
-ARG YQ_SHA256_AMD64=fa52a4e758c63d38299163fbdd1edfb4c4963247918bf9c1c5d31d84789eded4  # upstream-published: https://github.com/mikefarah/yq/releases/download/v4.53.3/checksums
+# ecosystem; installed under /home/dev/.local/bin to stay out of /usr. Its 2
+# ARGs are in the block at the top, with every other pin.
 RUN mkdir -p "/home/${USERNAME}/.local/bin" \
  && case "${TARGETPLATFORM}" in \
       linux/amd64) ARCH=amd64 ;; \

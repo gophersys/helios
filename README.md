@@ -38,7 +38,7 @@ every image has it. See "The shared ctl library" below.
 
 | Image | Intent | `GOPHERSYS_DEVCONTAINER` |
 |---|---|---|
-| `ghcr.io/gophersys/base` | The general-purpose image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. | `base` |
+| `ghcr.io/gophersys/base` | The general-purpose image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. Every pin comes from `versions.env`. | `base` |
 | `ghcr.io/gophersys/flutter` | Base + OpenJDK 21 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. The targets are Linux desktop and Android. iOS is not in the scope. | `flutter` |
 | `ghcr.io/gophersys/zephyr` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif). | `zephyr` |
 | `ghcr.io/gophersys/zephyr-devbox` | Zephyr + sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules + clangd and **code-server on `:8443`** (browser VS Code, with the clangd extension seeded at build time). It runs as a k8s pod, and it has 2 access paths: VS Code Remote-SSH, and the browser at `:8443`. It starts as root and it execs sshd. A login gets the `dev` user. code-server runs as `dev` and **needs a credential** — see "The zephyr-devbox entrypoint" below. | `zephyr-devbox` |
@@ -77,7 +77,7 @@ answers 404 for it.
 
 **The directory is still on disk, and deleting it is scheduled with the
 consolidation wave.** Nothing builds it, but 3 mechanisms still read it:
-`runner/Dockerfile` is 1 of the 6 pin homes that the Monday bump writes into, it
+`runner/Dockerfile` is 1 of the 5 pin homes that the Monday bump writes into, it
 carries a `_build/download-exemptions.txt` row, and 5 test files hold a
 `runner/` path as a literal. The deletion edits all of them in 1 change, which
 is why it is a wave of its own and not a `git rm`.
@@ -270,23 +270,33 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
 1. **Select the latest LTS or stable release.** Do the research with
    apt-cache, with the upstream GitHub releases, or with pypi. Never invent a
    version.
-2. **Add an `ARG` at the top of the Dockerfile** with a comment:
-   ```dockerfile
-   ARG MY_TOOL_VERSION=1.2.3  # latest LTS as of YYYY-MM-DD
+2. **Add its row to `versions.env`** with a comment, and a value-less `ARG` at
+   the top of the Dockerfile that installs it:
    ```
+   MY_TOOL_VERSION=1.2.3  # latest LTS as of YYYY-MM-DD
+   ```
+   ```dockerfile
+   ARG MY_TOOL_VERSION
+   ```
+   `versions.env` is the ONE pin home of `base` and `cloud`. There is no second
+   home and no `ARG NAME=value` in either file: the value arrives as a generated
+   `--build-arg`, and a name you forget to add to the Dockerfile's pin gate is
+   the 1 way to lose it silently. A tool of `flutter`, `zephyr` or
+   `zephyr-devbox` still takes an `ARG MY_TOOL_VERSION=1.2.3` in that image's
+   own Dockerfile — those 3 have not moved yet, and moving them is ledger #102.
 3. **Add its sha256 digest row beside that version**, in the SAME home. The
    value comes from the asset you just selected, never from a second table:
-   ```dockerfile
-   ARG MY_TOOL_VERSION=1.2.3  # latest LTS as of YYYY-MM-DD
-   ARG MY_TOOL_SHA256_AMD64=<64 lowercase hex>  # upstream-published: <checksum file url>
+   ```
+   MY_TOOL_VERSION=1.2.3  # latest LTS as of YYYY-MM-DD
+   MY_TOOL_SHA256_AMD64=<64 lowercase hex>  # upstream-published: <checksum file url>
    ```
    The vocabulary is `_SHA256_AMD64`, or `_SHA256_NOARCH` when 1 asset serves
    every platform. Write `# upstream-published: <url>` when the release ships a
    checksum file and the 2 values agree; write `# computed-at-pin: YYYY-MM-DD`
    when it does not. Both spellings are read by
    `_ctl/tests/download-coverage.test.sh`, which fails a digest with neither.
-   A tool of the cloud family puts both rows in `versions.env`, adds a
-   value-less `ARG` to `cloud/Dockerfile`, and adds the name to its pin gate.
+   The digest takes a value-less `ARG` and a pin-gate entry of its own, exactly
+   like the version: an empty digest is what an unverified download looks like.
 4. **Fetch it through the verified fetcher.** A bare `curl` or `wget` is
    forbidden, and `bash ./ctl.sh test` names it:
    ```sh
@@ -310,9 +320,13 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
    `no-autobump` datasource and its 4th field states WHY, in a sentence. Those
    are the only 2 answers: a pin nobody watches is a snapshot that looks
    current forever.
-6. **Use the ARG in the RUN line.** A hardcoded semver in a `RUN` line is
-   forbidden. The command `bash ./ctl.sh validate` searches for a semver in a
-   `RUN` line and fails.
+6. **Use the ARG in the RUN line, and name it in the pin gate.** A hardcoded
+   semver in a `RUN` line is forbidden: the command `bash ./ctl.sh validate`
+   searches for a semver in a `RUN` line and fails. In `base/Dockerfile` and
+   `cloud/Dockerfile` add the name to the `RUN : "${PIN:?not in versions.env}"`
+   chain at the top as well — a value-less ARG that nothing feeds expands to the
+   empty string, and the build would otherwise reach a download URL with no
+   version in it.
 7. **Make every binary installation read `TARGETPLATFORM`**:
    ```sh
    case "$TARGETPLATFORM" in
@@ -341,7 +355,7 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
 ├── README.md
 ├── project.json                 # repo-level Nx wiring (list, validate, test)
 ├── ctl.sh                       # repo-wide control script
-├── versions.env                 # the ONE pin home of the cloud family
+├── versions.env                 # the ONE pin home of base and cloud
 ├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time only
 ├── _ctl/tests/                  # hermetic *.test.sh + harness + docker stub + fixtures
 ├── _build/                      # COPYed into base and cloud, above their first download
@@ -395,8 +409,8 @@ so those may be set after:
 | `PROJECT_ROOT` | The directory that holds the script. Required. |
 | `IMAGE_NAME` | The image slug, for example `flutter`. Required for the image verbs. |
 | `IMAGE_PLATFORMS` | The platforms this image builds. The default is `SANCTIONED_PLATFORMS`. Narrower is allowed with a measurement; wider is refused. |
-| `IMAGE_BUILD_ARGS` | An array of extra arguments for `docker build`. `cloud/ctl.sh` fills it from `versions.env` through `versions_env_build_args`. |
-| `IMAGE_BUILD_CONTEXT` | The `docker build` context. The default is `PROJECT_ROOT`. `base/ctl.sh` and `cloud/ctl.sh` both set the repository root, because they COPY `_build/`, `versions.env` and `_delta/`, which sit 1 level above their directory. |
+| `IMAGE_BUILD_ARGS` | An array of extra arguments for `docker build`. `base/ctl.sh` and `cloud/ctl.sh` each fill it from `versions.env` through `versions_env_build_args` — the same 1 line, because there is 1 pin mechanism. |
+| `IMAGE_BUILD_CONTEXT` | The `docker build` context. The default is `PROJECT_ROOT`. `base/ctl.sh` and `cloud/ctl.sh` both set the repository root, because they COPY `_build/` and read `versions.env` (and cloud `_delta/`), which sit 1 level above their directory. |
 | `IMAGE_DOCKERFILE` | An explicit `--file`. The default is empty, which keeps docker's own `<context>/Dockerfile`. Set it whenever `IMAGE_BUILD_CONTEXT` is not the image directory. |
 | `IMAGE_USAGE_HEADER` | Extra lines below the `Image:` header of the help text. |
 | `IMAGE_USAGE_COMMANDS` | Extra lines below the command list of the help text. |
@@ -425,8 +439,8 @@ extension is not skipped. `-x` follows the source line, so each script is checke
 together with the library, and a new script is linted wherever you put it. It
 refuses to report OK when it finds no script at all.
 
-`validate` lints Dockerfiles at the hadolint version `base/Dockerfile` pins in
-`ARG HADOLINT_VERSION`: the `hadolint` on PATH when its version matches,
+`validate` lints Dockerfiles at the hadolint version `versions.env` pins in
+`HADOLINT_VERSION`: the `hadolint` on PATH when its version matches,
 otherwise `hadolint/hadolint:v<pin>` through docker. A gate whose verdict depends
 on which hadolint the operator happened to install is not a gate.
 
