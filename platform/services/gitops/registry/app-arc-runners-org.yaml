@@ -2,13 +2,16 @@
 # hardware. linux/amd64, dind, so jobs can build images AND run k3d/kind (Eden's
 # gates). runs-on: arc-org
 #
-# The runner container image IS the `base` dev image plus the runner binary
-# (`base-runner`), so a job gets the same toolchain an interactive session gets.
-# The interface — pools carry physical capability, images carry software
-# capability — is docs/ci-substrate.md. Onboarding, consumers, sizing rationale
-# and the public-repo policy: docs/ci-runners.md
+# The runner container image IS the `cloud` dev image — ONE image for dev and CI,
+# with the Actions runner folded in — so a job gets the same toolchain an
+# interactive session gets. It replaced `base-runner` on every pool in one
+# change; `arc-build`, `arc-org` and `arc-review` now share the ref, and
+# base-runner has no consumer left. The interface — pools carry physical
+# capability, images carry software capability — is docs/ci-substrate.md.
+# Onboarding, consumers, sizing rationale and the public-repo policy:
+# docs/ci-runners.md
 #
-# THE LABEL STAYS `arc-org` EVEN THOUGH THE POOL IS "base"
+# THE LABEL STAYS `arc-org` EVEN THOUGH THE POOL IS THE GENERAL ONE
 # `runnerScaleSetName` IS the runs-on label, and a scale set has exactly one, so
 # there is no aliasing. 17 workflow references across 5 repos point at arc-org,
 # and a label that no pool answers makes a job queue forever with no error. The
@@ -102,7 +105,7 @@ spec:
               # bundled Node. A mismatched pair silently ships the wrong Node to
               # every JavaScript action.
               - name: init-dind-externals
-                image: ghcr.io/gophersys/base-runner:e0c6bc5
+                image: ghcr.io/gophersys/cloud@sha256:9a150cbff74b67f67f69cca1b25a463103cbe8885ba0b7a0f777de42e7f7f7f1
                 command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
                 volumeMounts:
                   - name: dind-externals
@@ -154,20 +157,36 @@ spec:
 
             containers:
               - name: runner
-                # Pin by tag, never `latest`: a rebuild must not change CI silently.
+                # Pin by DIGEST, never `latest` and no longer by tag: a rebuild
+                # must not change CI silently, and only a digest makes the ref
+                # immutable. `.devcontainer` states the property the whole
+                # toolchain rests on — the commit decides the image — and a tag
+                # can be moved onto other bytes with no commit behind it. Read
+                # the INDEX digest, never a per-platform one:
+                #   docker buildx imagetools inspect ghcr.io/gophersys/cloud:latest \
+                #     --format '{{.Manifest.Digest}}'
                 #
-                # Three preconditions before changing this tag, all learned the hard
+                # Three preconditions before changing this ref, all learned the hard
                 # way on 2026-08-10. Pinning a tag that did not exist yet put every
                 # pod into Init:ImagePullBackOff and took org-wide CI down; the
                 # build before this one also shipped a root-owned /home/runner,
                 # which would have failed every runner at registration.
-                #   1. docker manifest inspect ghcr.io/gophersys/base-runner:<sha>
-                #   2. the base-runner smoke job passed for that sha
-                #   3. bash ctl.sh verify-runner-image <sha> passed — it runs the
-                #      image in THIS pod shape, with the dind sidecar, and is the
-                #      only check that can see a broken Docker socket
-                image: ghcr.io/gophersys/base-runner:e0c6bc5
+                #   1. docker manifest inspect ghcr.io/gophersys/cloud@<digest>
+                #   2. the cloud smoke job passed for that build
+                #   3. bash ctl.sh verify-runner-image cloud <sha> passed — it runs
+                #      the image in THIS pod shape, with the dind sidecar, and is
+                #      the only check that can see a broken Docker socket
+                image: ghcr.io/gophersys/cloud@sha256:9a150cbff74b67f67f69cca1b25a463103cbe8885ba0b7a0f777de42e7f7f7f1
                 command: ["/home/runner/run.sh"]
+                # DECLARED, not inherited from the image. `cloud` ends `USER dev`
+                # (uid 1000) where `base-runner` ended as root, and the mounted
+                # buildkit key below is a root-owned 0400 file: uid 1000 cannot
+                # open it, and nothing would fail until the first arm64 build.
+                # The image also ships RUNNER_ALLOW_RUNASROOT=1, without which
+                # run.sh refuses to start as root. scripts/verify-buildx-key.sh
+                # asserts this line against the mount's mode.
+                securityContext:
+                  runAsUser: 0
                 env:
                   - name: DOCKER_HOST
                     value: unix:///var/run/docker.sock
@@ -215,9 +234,11 @@ spec:
                   # `400` it would be decimal 400, which renders 0620 — group
                   # writable. key.pem is the client's mTLS key, so keep it
                   # owner-only.
-                  # The runner container runs as root (see .devcontainer/runner),
-                  # and a secret volume is owned by root, so owner-only is
-                  # readable here.
+                  # A secret volume is owned by uid 0, so owner-only is readable
+                  # by uid 0 alone. The runner container DECLARES runAsUser: 0
+                  # above. It used to rely on the IMAGE ending as root, which
+                  # `cloud` does not — that premise was a comment, and it is a
+                  # check now (scripts/verify-buildx-key.sh).
                   defaultMode: 0400
                   # ESO materialises this Secret asynchronously, and Argo may sync
                   # this pool before the Secret exists. `optional: true` lets a
