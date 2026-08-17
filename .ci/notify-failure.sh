@@ -164,14 +164,27 @@ function resolve_failure() {
     log_info "the scheduled run is green and no ${ISSUE_LABEL} issue is open — nothing to close"
     return 0
   fi
+  # The list is collected into an array FIRST, and the closes run outside the
+  # loop that reads it. Closing from inside `while read ... done <<< "$numbers"`
+  # hands the unread numbers to each child as fd 0, so a `gh` that reads stdin
+  # eats the rest of the list, the loop sees EOF, and it exits 0 having closed 1
+  # issue of 3 — the orphaned issue restored, silently. `gh issue close` does not
+  # read stdin today, and that is the hazard: the correctness of the loop would
+  # be a property of a tool this repository neither owns nor pins. The close is
+  # given < /dev/null as well, so neither half alone carries the rule.
   local number
+  local pending=()
   while IFS= read -r number; do
     [[ -z "$number" ]] && continue
+    pending+=("$number")
+  done <<< "$numbers"
+
+  for number in "${pending[@]}"; do
     log_info "the scheduled run is green — closing issue #${number}"
     gh issue close "$number" \
       --repo "$GITHUB_REPOSITORY" \
-      --comment "Green again: ${RUN_URL}"
-  done <<< "$numbers"
+      --comment "Green again: ${RUN_URL}" < /dev/null
+  done
 }
 
 case "${1:-}" in

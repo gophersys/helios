@@ -132,10 +132,10 @@ jobs:
       - uses: actions/checkout@v4
       - name: reduce the verdict of the jobs above to this job's own status
         # GitHub scopes failure() in a step to the STEPS of its own job. This
-        # job runs under always(), so its own steps succeed whatever the scan
-        # did, and a notifier guarded by failure() would never fire. This step
-        # fails when a needed job failed, which is what gives the 2 steps below
-        # a status to read.
+        # job runs under !cancelled(), so its own steps succeed whatever the
+        # scan did, and a notifier guarded by failure() would never fire. This
+        # step fails when a needed job failed, which is what gives the 2 steps
+        # below a status to read.
         run: |
           scan='${{ needs.scan.result }}'
           currency='${{ needs.base-currency.result }}'
