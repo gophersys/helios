@@ -183,7 +183,6 @@ GH_VERSION|asserted|gh --version|
 NATS_VERSION|asserted|nats --version|
 DOCKER_COMPOSE_VERSION|asserted|docker compose version|
 DOCKER_BUILDX_VERSION|asserted|docker buildx version|
-TERRAFORM_VERSION|asserted|terraform version|
 AWS_CLI_VERSION|asserted|aws --version|
 OCI_CLI_VERSION|asserted|oci --version|
 ANSIBLE_CORE_VERSION|asserted|ansible --version|

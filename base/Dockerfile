@@ -10,7 +10,7 @@
 # base — Ubuntu 24.04 LTS IDP base image.
 #
 # Single "pick up and work" image for the brain ecosystem: shells, languages
-# (Node, Python, Go, Rust), infra CLIs (kubectl/helm/terraform/tailscale/gh),
+# (Node, Python, Go, Rust), infra CLIs (kubectl/helm/tailscale/gh),
 # desktop/Tauri system libs, USB/BLE system libs, and the data/parsing tools
 # every consuming project reaches for. Child images (flutter, zephyr) add
 # domain-specific toolchains on top.
@@ -55,7 +55,7 @@ ARG OH_MY_ZSH_INSTALL_URL=https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/mast
 # Node toolchain — nvm installs the pinned Node LTS, corepack enables yarn and pnpm.
 ARG NVM_VERSION=0.40.4                                                 # latest LTS as of 2026-04-19
 ARG NODE_VERSION=24.15.0                                               # latest LTS as of 2026-04-19 (Krypton)
-ARG NPM_VERSION=11.3.0                                                 # latest LTS as of 2026-04-19
+ARG NPM_VERSION=11.19.0                                                # latest LTS as of 2026-08-17
 ARG PNPM_VERSION=11.22.0                                               # what corepack pnpm@latest resolved on 2026-08-16
 
 # Bun — the JavaScript runtime the Oh My Pi (`omp`) harness requires (its CLI shebang is
@@ -75,7 +75,6 @@ ARG GO_VERSION=1.26.5                                                  # latest 
 ARG RUST_CHANNEL=stable                                                # latest LTS as of 2026-04-19
 
 # Infra CLIs.
-ARG TERRAFORM_VERSION=1.14.8                                           # latest LTS as of 2026-04-19
 ARG KUBECTL_VERSION=1.35.4                                             # latest LTS as of 2026-04-19
 ARG HELM_VERSION=4.1.4                                                 # latest LTS as of 2026-04-19
 ARG ANSIBLE_VERSION=13.5.0                                             # latest LTS as of 2026-04-19
@@ -83,7 +82,7 @@ ARG ANSIBLE_CORE_VERSION=2.20.4                                        # latest 
 ARG TAILSCALE_VERSION=1.96.4                                           # latest LTS as of 2026-04-19
 ARG BW_VERSION=2026.3.0                                                # latest LTS as of 2026-04-19
 ARG GH_VERSION=2.90.0                                                  # latest LTS as of 2026-04-19
-ARG K9S_VERSION=0.50.18                                                # latest LTS as of 2026-04-19
+ARG K9S_VERSION=0.51.0                                                 # latest LTS as of 2026-08-17
 ARG DOCKER_COMPOSE_VERSION=5.1.3                                       # latest LTS as of 2026-04-19
 ARG DOCKER_BUILDX_VERSION=0.36.1                                       # latest stable as of 2026-08-13
 ARG NATS_VERSION=0.3.2                                                 # latest LTS as of 2026-04-19
@@ -115,7 +114,7 @@ ARG KIND_VERSION=0.32.0                                                # latest 
 ARG GOFUMPT_VERSION=0.10.0                                             # latest LTS as of 2026-06-13
 ARG GOLANGCI_LINT_VERSION=2.12.2                                       # latest LTS as of 2026-06-13
 ARG GOVULNCHECK_VERSION=1.1.4                                          # latest LTS as of 2026-06-13
-ARG GOSEC_VERSION=2.22.5                                               # latest LTS as of 2026-06-13
+ARG GOSEC_VERSION=2.28.0                                               # latest LTS as of 2026-08-17
 ARG HNSLINT_VERSION=0.1.0                                              # latest as of 2026-08-11 — gophersys/hnslint
 ARG GREMLINS_VERSION=0.6.0                                             # latest LTS as of 2026-06-13 — needs >=0.6.0 for unleash --exclude-files (the mutate gate uses it)
 # golang.org/x/perf has no semver tags; @latest is the canonical install form (no version digits,
@@ -244,7 +243,7 @@ SHELL ["/usr/bin/zsh", "-o", "pipefail", "-c"]
 
 # yq — multi-arch binary from Mike Farah's releases. Pinned to match the jq
 # ecosystem; installed under /home/dev/.local/bin to stay out of /usr.
-ARG YQ_VERSION=4.44.3                                                  # latest LTS as of 2026-04-19
+ARG YQ_VERSION=4.53.3                                                  # latest LTS as of 2026-08-17
 RUN mkdir -p "/home/${USERNAME}/.local/bin" \
  && case "${TARGETPLATFORM}" in \
       linux/amd64) ARCH=amd64 ;; \
@@ -302,6 +301,14 @@ RUN case "${TARGETPLATFORM}" in \
 # CGO_ENABLED=0 is INLINE (not a persistent ENV — the gate's `go test -race` needs CGO): these
 # tools are all pure-Go, and disabling cgo skips the gcc/assembler path that fails on the arm64
 # QEMU cross-build (`gcc_arm64.S: no such instruction: blr`).
+#
+# THE CACHE CLEANUP IS PART OF THIS LAYER, and it has to be: a later RUN that
+# removed the cache would leave every byte of it in this layer's diff. cloud
+# measured the same layer at 2.06 GB, of which ~1.6 GB was the module and build
+# cache — the 7 binaries are ~200 MB. `go clean` handles the read-only module
+# tree; the rm afterwards mops what remains. The cache also carried the vendored
+# gosec rule sources that the nightly scan reads as CRITICAL secret findings
+# (rules/hardcoded_credentials.go is a regex, not a credential).
 USER ${USERNAME}
 RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install mvdan.cc/gofumpt@v${GOFUMPT_VERSION} \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGCI_LINT_VERSION}" \
@@ -309,7 +316,10 @@ RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install m
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/go-gremlins/gremlins/cmd/gremlins@v${GREMLINS_VERSION}" \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "golang.org/x/perf/cmd/benchstat@${BENCHSTAT_REF}" \
- && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/gophersys/hnslint/cmd/hnslint@v${HNSLINT_VERSION}"
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/gophersys/hnslint/cmd/hnslint@v${HNSLINT_VERSION}" \
+ && go clean -modcache \
+ && go clean -cache \
+ && rm -rf "${GOPATH}/pkg/mod" "/home/${USERNAME}/.cache/go-build"
 # NOTE: no --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 USER root
 
@@ -328,16 +338,11 @@ RUN curl -fsSL https://sh.rustup.rs -o /tmp/rustup-init.sh \
 # /home/dev/.local/bin; the dev user already owns it.
 # -------------------------------------------------------------------------
 USER root
-RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
-      linux/arm64) ARCH=arm64 ;; \
-      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
-    esac \
- && curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${ARCH}.zip" -o /tmp/tf.zip \
- && unzip -q /tmp/tf.zip -d /usr/local/bin \
- && rm /tmp/tf.zip
-# NOTE: no terraform version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
-
+# terraform is NOT installed here. _delta/components/terraform.sh states it was
+# dropped from every image by decision (image-architecture §2.3), and this block
+# was the one place that contradicted it — so base, flutter, zephyr,
+# zephyr-devbox and base-runner all shipped it and all inherited its CVE. The
+# pin stays in versions.env as the ready component; the delta is 1 line away.
 RUN case "${TARGETPLATFORM}" in \
       linux/amd64) ARCH=amd64 ;; \
       linux/arm64) ARCH=arm64 ;; \
@@ -558,12 +563,20 @@ RUN case "${TARGETPLATFORM}" in \
 # Python). The ansible-core-as-primary pattern is required because the
 # `ansible` metapackage only ships an `ansible-community` info script; the
 # real engine entry points come from ansible-core.
+#
+# The uv cache is emptied IN THIS LAYER, for the reason the Go gate layer gives:
+# a later rm leaves every byte of it in this diff. The tools are already
+# unpacked into their venvs, so the cache is a second copy of what stays — and
+# the copy the nightly scan reads as a CRITICAL secret finding, in an ansible
+# collections docs sample (community/aws sts_session_token.py).
 USER ${USERNAME}
 # hadolint ignore=DL3013
 RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" \
       --with "ansible==${ANSIBLE_VERSION}" \
       "ansible-core==${ANSIBLE_CORE_VERSION}" \
- && "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" "oci-cli==${OCI_CLI_VERSION}"
+ && "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" "oci-cli==${OCI_CLI_VERSION}" \
+ && "/home/${USERNAME}/.local/bin/uv" cache clean \
+ && rm -rf "/home/${USERNAME}/.cache/uv"
 # NOTE: no ansible/oci --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 # Convenience: path shims for zsh so interactive logins see all of the
