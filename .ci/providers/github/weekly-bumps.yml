@@ -20,6 +20,10 @@ name: weekly-bumps
 # 1 labelled issue and a green into the closing of that same issue.
 # _ctl/tests/scheduled-workflows.test.sh holds that shape in the pull request
 # gate, keyed on the schedule trigger rather than on this file's name.
+#
+# It runs on arc-build, the homelab pool this repository's builds moved to. The
+# resolution downloads every asset that moved, twice, and a hosted runner
+# charged the account for the wait; the pool does not.
 
 on:
   schedule:
@@ -49,8 +53,12 @@ jobs:
     # flutter_linux_<version>-stable.tar.xz alone was 1 572 146 400 bytes on
     # 2026-08-17 — ~3.1 GB for that pin. Each asset is deleted as soon as its
     # digest is read, so the peak on disk is 1 asset and not their sum.
+    #
+    # That sizing is a CEILING measured on a hosted runner. arc-build reaches
+    # the same upstreams over the homelab's link, and the first Monday on the
+    # pool is what measures the real runtime.
     timeout-minutes: 45
-    runs-on: ubuntu-latest
+    runs-on: arc-build
     steps:
       - uses: actions/checkout@v4
 
@@ -124,7 +132,7 @@ jobs:
     if: ${{ !cancelled() }}
     needs: [bump]
     timeout-minutes: 10
-    runs-on: ubuntu-latest
+    runs-on: arc-build
     steps:
       - uses: actions/checkout@v4
       - name: reduce the verdict of the job above to this job's own status

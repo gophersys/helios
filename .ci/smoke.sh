@@ -37,7 +37,7 @@
 #   - a pin classified `asserted` with no command to read a version with.
 #
 # Usage: bash .ci/smoke.sh <image> [ref]
-# where <image> ∈ {base, flutter, zephyr, zephyr-devbox, base-runner, cloud}
+# where <image> ∈ {base, flutter, zephyr, zephyr-devbox, cloud}
 # and [ref] is the exact image reference to test. The default is the :latest tag
 # that build-and-push.yml has just built, which is what CI runs. Naming a ref is
 # how an operator audits the SHA tag a cluster is actually running — and how a
@@ -196,10 +196,14 @@ PIN_CLASS_TABLE
 # The functional groups .ci/image-checks.sh runs for each image, beyond the
 # version comparison. An image with no list is refused: a smoke that ran the
 # comparator alone would assert every version and exercise nothing.
+#
+# `base-runner` had a row here and is RETIRED — the ARC pools run `cloud` now,
+# so nothing builds it. The `content-runner` group did NOT go with it: `cloud`
+# carries the runner layer, so the checks that read /home/runner, its ownership
+# and the docker group still run, on the image that ships them today.
 function image_check_groups() {
   case "$1" in
     base)          printf 'content-base go-gate dockerfile-lint compose' ;;
-    base-runner)   printf 'content-base content-runner go-gate dockerfile-lint compose' ;;
     flutter)       printf 'content-base content-flutter go-gate dockerfile-lint compose' ;;
     zephyr)        printf 'content-base content-zephyr go-gate dockerfile-lint compose' ;;
     zephyr-devbox) printf 'content-base content-zephyr content-devbox go-gate dockerfile-lint compose' ;;
@@ -213,13 +217,13 @@ case "$IMAGE" in
     PIN_HOME="$CLOUD_PIN_HOME"
     PIN_CLASSES="$PIN_CLASSES_CLOUD"
     ;;
-  base|base-runner|flutter|zephyr|zephyr-devbox)
+  base|flutter|zephyr|zephyr-devbox)
     PIN_HOME="$BASE_PIN_HOME"
     PIN_CLASSES="$PIN_CLASSES_BASE"
     ;;
   *)
     log_error "unknown image: '$IMAGE'"
-    log_error "valid images: base, base-runner, flutter, zephyr, zephyr-devbox, cloud"
+    log_error "valid images: base, flutter, zephyr, zephyr-devbox, cloud"
     exit 2
     ;;
 esac

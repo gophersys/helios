@@ -13,14 +13,20 @@ them. It is the only entrypoint that should appear in a CI pipeline YAML.
 ├── ctl.sh              bash orchestration (validate/build/push/smoke across all images)
 ├── smoke.sh            the HOST driver — classifies every pin, resolves it, drives 1 docker run
 ├── image-checks.sh     the GUEST checks — the comparator + the functional groups
+├── affected.sh         which images a commit changes — the input table, 1 home
+├── buildx-node.sh      the builder every image build uses; owns the arm64 switch
+├── notify-failure.sh   the 1 labelled issue a scheduled run opens, comments on and closes
 ├── fixtures/           what the functional checks read: a Go module, a Dockerfile,
 │                       a compose file, a proto and its buf module
+├── trivyignore.yaml    the CVE waivers, each with a statement and an expiry
 ├── project.json        Nx wrappers around each ctl.sh verb (ci-.devcontainer-*)
 ├── README.md           this file
 └── providers/          CI-system shim YAMLs — source of truth for each provider
     ├── README.md
-    └── github/
-        └── build-and-push.yml   ← a copy of .github/workflows/build-and-push.yml
+    └── github/         ← each file is copied to .github/workflows/, byte for byte
+        ├── build-and-push.yml
+        ├── security-nightly.yml
+        └── weekly-bumps.yml
 ```
 
 `smoke.sh` and `image-checks.sh` are 2 files because a pin lives on the HOST and
@@ -56,8 +62,8 @@ bash .ci/ctl.sh <verb>
 
 ## Which images CI smokes
 
-**All 6.** Every job of `.github/workflows/build-and-push.yml` has the same
-shape, and the order is the property:
+**All 5 that it builds.** Every job of `.github/workflows/build-and-push.yml`
+has the same shape, and the order is the property:
 
 ```
 build with push: false + load: true   →   bash .ci/smoke.sh <image> <image>:smoke   →   push from the cache
@@ -68,6 +74,15 @@ anything reaches ghcr.io. A push cannot be undone and no job here rolls one back
 which is why a check that runs after it reports a broken image but cannot stop
 one from reaching a consumer. `_ctl/tests/publish-order.test.sh` holds that order
 in the pull request gate, for both copies of the workflow.
+
+A job builds only when `bash .ci/affected.sh <image>` says the commit changes
+that image's inputs, and the smoke is inside that gate with the build and the
+push. Nothing publishes unsmoked: the 3 move together, and an image that did not
+build did not ship.
+
+`base-runner` was the 6th, and it is retired — the ARC pools run `cloud`, so
+nothing builds it. Its `content-runner` check group stayed: `cloud` carries the
+runner layer, so those checks run against the image that ships it today.
 
 `smoke-test-all` runs `smoke.sh` against every image in 1 command, for a local
 loop. No workflow calls it: each job smokes the image it just built.

@@ -1,7 +1,14 @@
 name: security-nightly
 
-# Scans the 6 published images for CRITICAL vulnerabilities every night, and
+# Scans the 5 published images for CRITICAL vulnerabilities every night, and
 # reports the night ubuntu moves under the digest this repository pins.
+#
+# It runs on arc-build, the homelab pool this repository's builds moved to. A
+# nightly on a GitHub-hosted runner cost ~50 minutes of a 2,000-minute account
+# every night, and the account had 195 left. The scan job carried a
+# `jlumbroso/free-disk-space` step and no longer does, for the reason
+# build-and-push states: that action empties a throwaway hosted VM, and on this
+# pool the same deletion strips the NODE.
 #
 # Nothing here builds or publishes an image. A nightly republish would move
 # :latest with no commit behind it, so 2 different images would carry the same
@@ -39,9 +46,10 @@ env:
 jobs:
   scan:
     # A job with no limit inherits the GitHub default of 360 minutes, and a hung
-    # scan would hold a slot for 6 hours every night.
+    # scan would hold a slot for 6 hours every night. 30 is a CEILING measured on
+    # the hosted runner; the first nightly on arc-build measures the real one.
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: arc-build
     permissions:
       contents: read
       # Read-only: this workflow publishes nothing. The grant is here because
@@ -50,26 +58,17 @@ jobs:
       packages: read
     strategy:
       # Every image is scanned, every night. Without this the first CRITICAL
-      # cancels its 5 siblings, and the morning report names 1 image out of 6
-      # while saying nothing about the other 5.
+      # cancels its 4 siblings, and the morning report names 1 image out of 5
+      # while saying nothing about the other 4.
       fail-fast: false
+      # arc-build has 6 slots and every repository's builds share them. 5 trivy
+      # jobs at once would take the whole pool for the length of the scan, and
+      # the scan is not urgent — it runs at 02:00 MST with nobody waiting.
+      max-parallel: 3
       matrix:
-        image: [base, base-runner, flutter, zephyr, zephyr-devbox, cloud]
+        image: [base, flutter, zephyr, zephyr-devbox, cloud]
     steps:
       - uses: actions/checkout@v4
-      - name: Free up runner disk
-        # The hosted runner ships ~14 GB free and trivy unpacks the whole image
-        # to walk its layers. These images are large; without this the scan dies
-        # on "No space left on device", which is a red that says nothing about
-        # the image it was asked to judge.
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -95,6 +94,16 @@ jobs:
         # A failed vulnerability-database download exits non-zero here as well,
         # so a night on which nothing could be downloaded is a red run and never
         # a clean image.
+        env:
+          # Trivy unpacks every layer of a multi-GB image. RUNNER_TEMP is on the
+          # `work` volume the scale set sizes; the default $HOME/.cache/trivy is
+          # on the container file system, which the kubelet caps with the pod's
+          # ephemeral-storage limit and evicts the pod for exceeding.
+          #
+          # It is a STEP env and not a job env: the `runner` context is not
+          # available in `jobs.<id>.env`, and a workflow that names it there is
+          # rejected whole — an "Unrecognized named-value" that never runs.
+          TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy
         run: |
           trivy image \
             --severity CRITICAL \
@@ -104,7 +113,7 @@ jobs:
 
   base-currency:
     timeout-minutes: 10
-    runs-on: ubuntu-latest
+    runs-on: arc-build
     steps:
       - uses: actions/checkout@v4
       - name: the registry still holds the digest UBUNTU_BASE_REF pins
@@ -127,7 +136,7 @@ jobs:
     if: ${{ !cancelled() }}
     needs: [scan, base-currency]
     timeout-minutes: 10
-    runs-on: ubuntu-latest
+    runs-on: arc-build
     steps:
       - uses: actions/checkout@v4
       - name: reduce the verdict of the jobs above to this job's own status

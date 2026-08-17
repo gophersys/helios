@@ -1,9 +1,8 @@
 name: build-and-push
 
-# Publishes the IDP image set (base + base-runner + flutter + zephyr + zephyr-devbox
-# + cloud)
-# to the GitHub Container Registry. Every image is built for linux/amd64 on every
-# push to main. On semver tag pushes (v*) we also publish a :v<semver> tag.
+# Publishes the IDP image set (base + flutter + zephyr + zephyr-devbox + cloud)
+# to the GitHub Container Registry. Every image is built for linux/amd64. On
+# semver tag pushes (v*) we also publish a :v<semver> tag.
 # Flutter and zephyr consume base — and zephyr-devbox consumes zephyr — via
 # BASE_TAG build-arg set to the commit short SHA so the child layer FROMs the
 # freshly pushed parent.
@@ -11,6 +10,75 @@ name: build-and-push
 # Every job reads back the manifest it just pushed, at the SHA tag it pushed
 # rather than at :latest, so a concurrent run cannot make the assertion describe
 # somebody else's image.
+#
+# ============================================================================
+# THE RUNNER IS OURS
+# ============================================================================
+#
+# Every job here runs on the `arc-build` pool: the homelab ARC scale set of that
+# name, 6 slots on the three 14Gi pve-00 workers, running this repository's own
+# `cloud` image (gophersys/infrastructure docs/ci-substrate.md). It costs no
+# GitHub Actions minutes, and this repository moved because the account had 195
+# of 2,000 minutes left against a $0 budget.
+#
+# Every job carried a `jlumbroso/free-disk-space` step and none does now. That
+# action reclaims ~25-30 GB by deleting the preinstalled SDKs of a GitHub-hosted
+# runner, which is a throwaway VM. On this pool the same deletion would strip
+# the NODE, and the blast radius is every pod on it. A build pod gets its
+# headroom from the `work` volume the scale set sizes instead. Do not add one
+# back: _ctl/tests/workflow-yaml.test.sh reads `uses:` through yq, so this
+# sentence is safe to write and the step is not.
+#
+# ============================================================================
+# ONLY WHAT CHANGED IS BUILT
+# ============================================================================
+#
+# A warm rebuild of the whole set measured ~35 minutes on every push to main,
+# and most pushes to main touch 1 image or none of them. Each job asks
+# `.ci/affected.sh <image>` whether this commit changes that image's inputs, and
+# gates its build, its smoke, its push and its manifest read on the answer. The
+# path table lives in that file, once — read it for what counts as an input, and
+# for why a child declares its parent's paths.
+#
+# Everything builds on workflow_dispatch, on a tag, and whenever a workflow or
+# anything under .ci/ changes.
+#
+# AN UNBUILT IMAGE KEEPS THE :latest IT ALREADY HAS, and publishes no :<sha> tag
+# for this commit. A :<sha> tag is therefore not a promise that every image
+# carries that sha. That is the point of the mechanism and not a defect of it.
+#
+# WHAT IS A DEFECT, AND IS KNOWN: the comparison is against `github.event.before`
+# — the previous head of main — and NOT against the commit the published image
+# was actually built from. Those differ whenever a run does not finish:
+#
+#   - push A changes base/ and its run is CANCELLED by push B (the concurrency
+#     group above cancels in progress). B's range is B-only, so base never
+#     builds for A's change.
+#   - push A's base job FAILS. The next push's range starts at A, so nothing
+#     retries it.
+#
+# In both cases the answer today is to re-run the job, or to dispatch the
+# workflow, which builds everything. The durable fix is to diff against the
+# revision the registry holds — label each published image with
+# org.opencontainers.image.revision and read it back — so the range starts at
+# the last SUCCESSFUL build rather than at the last push. That is a separate
+# change and it is not made here.
+#
+# ============================================================================
+# THE LAYER CACHE IS IN THE REGISTRY
+# ============================================================================
+#
+# type=gha is the Actions cache service, 10 GB per repository across all scopes,
+# which 5 images at mode=max cannot fit — the measured hit rate was not worth
+# the quota. type=registry puts each image's cache in its own ghcr package,
+# ghcr.io/gophersys/<image>-cache, which the pool can read and write with the
+# same GITHUB_TOKEN it already pushes with. Those packages do not exist until
+# the first run creates them, so the first build logs a cache-from miss and that
+# is expected exactly once per image.
+#
+# base-runner is retired. All 3 ARC pools run `cloud` now, so nothing pulls the
+# image and no job builds it. `runner/Dockerfile` stays on disk for one more
+# change — its deletion goes with the docs sweep.
 
 on:
   push:
@@ -39,16 +107,22 @@ env:
 
 jobs:
   base:
-    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
-    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
-    # every other repository waits behind it. Sized from the measured runtime.
+    # A job with no limit inherits the GitHub default of 360 minutes. arc-build
+    # has 6 slots and one build wave takes all of them, so a hung job holds a
+    # slot for 6 hours. Every timeout in this file is a CEILING sized on the
+    # HOSTED runner; the first run on arc-build is what measures the real
+    # runtime, and a resize comes from that measurement rather than from a guess.
     timeout-minutes: 90
-    runs-on: ubuntu-latest
+    runs-on: arc-build
     permissions:
       contents: read
       packages: write
     outputs:
       short: ${{ steps.sha.outputs.short }}
+      # Whether this job really built. The child jobs read it: when base did not
+      # build, no base:<sha> exists for this commit and a child that FROMs that
+      # tag fails on a tag that was never pushed.
+      built: ${{ steps.filter.outputs.build }}
     env:
       # The tag the build below LOADS into the local docker image store, and the
       # ref the smoke test then runs. It carries no registry on purpose: nothing
@@ -57,24 +131,6 @@ jobs:
       SMOKE_REF: base:smoke
     steps:
       - uses: actions/checkout@v4
-      - name: Free up runner disk
-        # The hosted runner ships ~14 GB free; a build of these large images exhausts it
-        # ("No space left on device") on 1 platform as well as on 2. Reclaim ~25-30 GB of
-        # preinstalled SDKs we never use, keeping docker/buildx intact.
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: short-sha
         id: sha
         run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
@@ -86,6 +142,24 @@ jobs:
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
+      - name: does this commit change base
+        # This step is NOT gated, and neither are the 2 above it: their outputs
+        # are what every gate below reads, and what the child jobs read.
+        id: filter
+        run: bash .ci/affected.sh base >> "$GITHUB_OUTPUT"
+      - name: point buildx at the build nodes
+        # Replaces docker/setup-buildx-action. It makes the same
+        # docker-container builder — the default docker driver can neither read
+        # nor write a registry cache — and it owns the arm64 switch that reads
+        # SANCTIONED_PLATFORMS. Inert today: that list holds linux/amd64 alone.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/buildx-node.sh
+      - uses: docker/login-action@v3
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: build the image, load it locally, publish nothing yet
         # The gate has to run before the irreversible action. A push cannot be
         # undone and no job here rolls one back, so a smoke test placed after it
@@ -99,6 +173,7 @@ jobs:
         # the image store holds a single image. That holds for as long as
         # PLATFORMS names 1 platform — read the arm64 note at the top of
         # _ctl/tests/publish-order.test.sh before widening it.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -107,19 +182,21 @@ jobs:
           push: false
           load: true
           tags: ${{ env.SMOKE_REF }}
-          cache-from: type=gha,scope=base
-          cache-to: type=gha,mode=max,scope=base
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache,mode=max
       - name: smoke test (native amd64)
         # The Dockerfile deliberately runs no --version checks: they could not
         # run while this image was cross-built under QEMU. This is where every
         # pin of base/Dockerfile is compared against what the image installed,
         # and where the gate toolchain is exercised on a real fixture.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/smoke.sh base ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
         # platform — so buildx resolves every layer from the cache that step
         # wrote and this one only uploads. It writes no cache of its own for
         # that reason.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -130,127 +207,24 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/base:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/base:${{ steps.sha.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/base:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
-          cache-from: type=gha,scope=base
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
-        # make this describe somebody else's image.
+        # make this describe somebody else's image. It runs only when this job
+        # published, because an unbuilt image has no SHA tag for this commit.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash ./ctl.sh verify-published base ${{ steps.sha.outputs.short }}
 
-  # The `+ runner` layer: base plus the GitHub Actions runner and nothing else.
-  # It is the image the ARC pools run as their runner container, so the kubelet
-  # pulls and caches it per node. See gophersys/infrastructure docs/ci-substrate.md.
-  #
-  # One Dockerfile (runner/) serves every parent. Adding `zephyr-runner` means
-  # copying this job with BASE_IMAGE pointed at zephyr — never a new Dockerfile.
-  base-runner:
-    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
-    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
-    # every other repository waits behind it. Sized from the measured runtime.
-    timeout-minutes: 90
-    needs: [base]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    env:
-      # The tag the build below LOADS into the local docker image store, and the
-      # ref the smoke test then runs. It carries no registry on purpose: nothing
-      # can pull it, so a load that did not happen fails the smoke step instead
-      # of quietly asserting against the last image that was published.
-      SMOKE_REF: base-runner:smoke
-    steps:
-      - uses: actions/checkout@v4
-      - name: Free up runner disk
-        # buildx materializes the parent image before layering, so this job needs
-        # the same headroom the parent build does.
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: extract semver tag
-        id: semver
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
-          else
-            echo "tag=" >> "$GITHUB_OUTPUT"
-          fi
-      - name: build the image, load it locally, publish nothing yet
-        # The gate has to run before the irreversible action. A push cannot be
-        # undone and no job here rolls one back, so a smoke test placed after it
-        # reports a broken image but cannot stop one reaching a consumer.
-        # buildx loads this build into the local docker image store instead, the
-        # step after it asserts the content, and only then does the publish step
-        # ship the same build. The second build reads the cache this one writes,
-        # so publishing costs a layer copy rather than a rebuild.
-        #
-        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
-        # the image store holds a single image. That holds for as long as
-        # PLATFORMS names 1 platform — read the arm64 note at the top of
-        # _ctl/tests/publish-order.test.sh before widening it.
-        uses: docker/build-push-action@v6
-        with:
-          context: runner
-          file: runner/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
-          push: false
-          load: true
-          build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.OWNER }}/base:${{ needs.base.outputs.short }}
-          tags: ${{ env.SMOKE_REF }}
-          cache-from: type=gha,scope=base-runner
-          cache-to: type=gha,mode=max,scope=base-runner
-      - name: smoke test (native amd64)
-        # The Dockerfile deliberately runs no --version checks: they could not run
-        # while this image was cross-built under QEMU, and removing them is not
-        # this feature's call. This is where kubeconform and the runner binary
-        # are actually proven.
-        #
-        # It runs the LOADED image, which is the exact build the publish step
-        # below then copies to ghcr.io.
-        run: bash .ci/smoke.sh base-runner ${{ env.SMOKE_REF }}
-      - name: publish the image the smoke test passed
-        # The same build definition as the load step above — same context, same
-        # build-args, same platform — so buildx resolves every layer from the
-        # cache that step wrote and this one only uploads. It writes no cache of
-        # its own for that reason.
-        uses: docker/build-push-action@v6
-        with:
-          context: runner
-          file: runner/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
-          push: true
-          build-args: |
-            BASE_IMAGE=${{ env.REGISTRY }}/${{ env.OWNER }}/base:${{ needs.base.outputs.short }}
-          tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/base-runner:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/base-runner:${{ needs.base.outputs.short }}
-            ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/base-runner:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
-          cache-from: type=gha,scope=base-runner
-      - name: verify the published manifest
-        # A push DECLARES a platform; this reads what the registry actually
-        # holds. At the SHA tag, never at :latest, so a concurrent run cannot
-        # make this describe somebody else's image.
-        run: bash ./ctl.sh verify-published base-runner ${{ needs.base.outputs.short }}
-
   flutter:
-    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
-    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
-    # every other repository waits behind it. Sized from the measured runtime.
+    # A job with no limit inherits the GitHub default of 360 minutes. arc-build
+    # has 6 slots and one build wave takes all of them, so a hung job holds a
+    # slot for 6 hours. Every timeout in this file is a CEILING sized on the
+    # HOSTED runner; the first run on arc-build is what measures the real
+    # runtime, and a resize comes from that measurement rather than from a guess.
     timeout-minutes: 90
     needs: [base]
-    runs-on: ubuntu-latest
+    runs-on: arc-build
     permissions:
       contents: read
       packages: write
@@ -260,26 +234,12 @@ jobs:
       # can pull it, so a load that did not happen fails the smoke step instead
       # of quietly asserting against the last image that was published.
       SMOKE_REF: flutter:smoke
+      # The parent this layer FROMs. base publishes a :<sha> tag only on a
+      # commit that changed it, so when base did not build there is no such tag
+      # and the only correct parent is the :latest that is still current.
+      BASE_TAG: ${{ needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Free up runner disk
-        # The hosted runner ships ~14 GB free; a build of these large images exhausts it
-        # ("No space left on device") on 1 platform as well as on 2. Reclaim ~25-30 GB of
-        # preinstalled SDKs we never use, keeping docker/buildx intact.
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: extract semver tag
         id: semver
         run: |
@@ -288,6 +248,20 @@ jobs:
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
+      - name: does this commit change flutter
+        # flutter's input set contains base's, so base building implies this job
+        # building. The reverse does not hold, which is what BASE_TAG answers.
+        id: filter
+        run: bash .ci/affected.sh flutter >> "$GITHUB_OUTPUT"
+      - name: point buildx at the build nodes
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/buildx-node.sh
+      - uses: docker/login-action@v3
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: build the image, load it locally, publish nothing yet
         # The gate has to run before the irreversible action. A push cannot be
         # undone and no job here rolls one back, so a smoke test placed after it
@@ -301,6 +275,7 @@ jobs:
         # the image store holds a single image. That holds for as long as
         # PLATFORMS names 1 platform — read the arm64 note at the top of
         # _ctl/tests/publish-order.test.sh before widening it.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: flutter
@@ -309,19 +284,21 @@ jobs:
           push: false
           load: true
           build-args: |
-            BASE_TAG=${{ needs.base.outputs.short }}
+            BASE_TAG=${{ env.BASE_TAG }}
           tags: ${{ env.SMOKE_REF }}
-          cache-from: type=gha,scope=flutter
-          cache-to: type=gha,mode=max,scope=flutter
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache,mode=max
       - name: smoke test (native amd64)
         # flutter inherits every tool of base, so the pins of base/Dockerfile are
         # compared here too, and the flutter SDK is checked on top of them.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/smoke.sh flutter ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
         # build-args, same platform — so buildx resolves every layer from the
         # cache that step wrote and this one only uploads. It writes no cache of
         # its own for that reason.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: flutter
@@ -329,54 +306,48 @@ jobs:
           platforms: ${{ env.PLATFORMS }}
           push: true
           build-args: |
-            BASE_TAG=${{ needs.base.outputs.short }}
+            BASE_TAG=${{ env.BASE_TAG }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/flutter:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
-          cache-from: type=gha,scope=flutter
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
-        # make this describe somebody else's image.
+        # make this describe somebody else's image. It runs only when this job
+        # published, because an unbuilt image has no SHA tag for this commit.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash ./ctl.sh verify-published flutter ${{ needs.base.outputs.short }}
 
   zephyr:
-    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
-    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
-    # every other repository waits behind it. Sized from the measured runtime.
+    # A job with no limit inherits the GitHub default of 360 minutes. arc-build
+    # has 6 slots and one build wave takes all of them, so a hung job holds a
+    # slot for 6 hours. Every timeout in this file is a CEILING sized on the
+    # HOSTED runner; the first run on arc-build is what measures the real
+    # runtime, and a resize comes from that measurement rather than from a guess.
     timeout-minutes: 90
     needs: [base]
-    runs-on: ubuntu-latest
+    runs-on: arc-build
     permissions:
       contents: read
       packages: write
+    outputs:
+      # zephyr-devbox FROMs zephyr, and reads this for the same reason the
+      # children of base read base's: a job that did not build pushed no :<sha>.
+      built: ${{ steps.filter.outputs.build }}
     env:
       # The tag the build below LOADS into the local docker image store, and the
       # ref the smoke test then runs. It carries no registry on purpose: nothing
       # can pull it, so a load that did not happen fails the smoke step instead
       # of quietly asserting against the last image that was published.
       SMOKE_REF: zephyr:smoke
+      # The parent this layer FROMs. base publishes a :<sha> tag only on a
+      # commit that changed it, so when base did not build there is no such tag
+      # and the only correct parent is the :latest that is still current.
+      BASE_TAG: ${{ needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Free up runner disk
-        # The hosted runner ships ~14 GB free; a build of these large images exhausts it
-        # ("No space left on device") on 1 platform as well as on 2. Reclaim ~25-30 GB of
-        # preinstalled SDKs we never use, keeping docker/buildx intact.
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: extract semver tag
         id: semver
         run: |
@@ -385,6 +356,20 @@ jobs:
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
+      - name: does this commit change zephyr
+        # zephyr's input set contains base's, so base building implies this job
+        # building. The reverse does not hold, which is what BASE_TAG answers.
+        id: filter
+        run: bash .ci/affected.sh zephyr >> "$GITHUB_OUTPUT"
+      - name: point buildx at the build nodes
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/buildx-node.sh
+      - uses: docker/login-action@v3
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: build the image, load it locally, publish nothing yet
         # The gate has to run before the irreversible action. A push cannot be
         # undone and no job here rolls one back, so a smoke test placed after it
@@ -398,6 +383,7 @@ jobs:
         # the image store holds a single image. That holds for as long as
         # PLATFORMS names 1 platform — read the arm64 note at the top of
         # _ctl/tests/publish-order.test.sh before widening it.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: zephyr
@@ -406,19 +392,21 @@ jobs:
           push: false
           load: true
           build-args: |
-            BASE_TAG=${{ needs.base.outputs.short }}
+            BASE_TAG=${{ env.BASE_TAG }}
           tags: ${{ env.SMOKE_REF }}
-          cache-from: type=gha,scope=zephyr
-          cache-to: type=gha,mode=max,scope=zephyr
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-cache,mode=max
       - name: smoke test (native amd64)
         # zephyr inherits every tool of base, so the pins of base/Dockerfile are
         # compared here too, and west is checked on top of them.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/smoke.sh zephyr ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
         # build-args, same platform — so buildx resolves every layer from the
         # cache that step wrote and this one only uploads. It writes no cache of
         # its own for that reason.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: zephyr
@@ -426,28 +414,32 @@ jobs:
           platforms: ${{ env.PLATFORMS }}
           push: true
           build-args: |
-            BASE_TAG=${{ needs.base.outputs.short }}
+            BASE_TAG=${{ env.BASE_TAG }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
-          cache-from: type=gha,scope=zephyr
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
-        # make this describe somebody else's image.
+        # make this describe somebody else's image. It runs only when this job
+        # published, because an unbuilt image has no SHA tag for this commit.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash ./ctl.sh verify-published zephyr ${{ needs.base.outputs.short }}
 
   zephyr-devbox:
-    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
-    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
-    # every other repository waits behind it. Sized from the measured runtime.
+    # A job with no limit inherits the GitHub default of 360 minutes. arc-build
+    # has 6 slots and one build wave takes all of them, so a hung job holds a
+    # slot for 6 hours. Every timeout in this file is a CEILING sized on the
+    # HOSTED runner; the first run on arc-build is what measures the real
+    # runtime, and a resize comes from that measurement rather than from a guess.
     timeout-minutes: 90
-    # Layers on zephyr the same way zephyr layers on base: BASE_TAG is the
-    # commit short SHA (base's output), which is also the tag the zephyr job
-    # just pushed — so the devbox FROMs the freshly pushed zephyr.
+    # Layers on zephyr the same way zephyr layers on base, so it FROMs the
+    # zephyr this run just pushed. It needs base as well, for the one short SHA
+    # every job of the run tags with.
     needs: [base, zephyr]
-    runs-on: ubuntu-latest
+    runs-on: arc-build
     permissions:
       contents: read
       packages: write
@@ -457,26 +449,12 @@ jobs:
       # can pull it, so a load that did not happen fails the smoke step instead
       # of quietly asserting against the last image that was published.
       SMOKE_REF: zephyr-devbox:smoke
+      # The parent is zephyr, so it is ZEPHYR's verdict that decides whether a
+      # :<sha> tag exists to FROM. base's short sha is still the tag zephyr
+      # pushed under, because every job of a run shares one commit.
+      BASE_TAG: ${{ needs.zephyr.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
     steps:
       - uses: actions/checkout@v4
-      - name: Free up runner disk
-        # The hosted runner ships ~14 GB free; a build of these large images exhausts it
-        # ("No space left on device") on 1 platform as well as on 2. Reclaim ~25-30 GB of
-        # preinstalled SDKs we never use, keeping docker/buildx intact.
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: extract semver tag
         id: semver
         run: |
@@ -485,6 +463,20 @@ jobs:
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
+      - name: does this commit change zephyr-devbox
+        # This image's input set contains zephyr's, which contains base's, so a
+        # parent that builds always brings its children with it.
+        id: filter
+        run: bash .ci/affected.sh zephyr-devbox >> "$GITHUB_OUTPUT"
+      - name: point buildx at the build nodes
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/buildx-node.sh
+      - uses: docker/login-action@v3
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: build the image, load it locally, publish nothing yet
         # The gate has to run before the irreversible action. A push cannot be
         # undone and no job here rolls one back, so a smoke test placed after it
@@ -498,6 +490,7 @@ jobs:
         # the image store holds a single image. That holds for as long as
         # PLATFORMS names 1 platform — read the arm64 note at the top of
         # _ctl/tests/publish-order.test.sh before widening it.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: zephyr-devbox
@@ -506,21 +499,23 @@ jobs:
           push: false
           load: true
           build-args: |
-            BASE_TAG=${{ needs.base.outputs.short }}
+            BASE_TAG=${{ env.BASE_TAG }}
           tags: ${{ env.SMOKE_REF }}
-          cache-from: type=gha,scope=zephyr-devbox
-          cache-to: type=gha,mode=max,scope=zephyr-devbox
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox-cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox-cache,mode=max
       - name: smoke test (native amd64)
         # The devbox image defaults to root for sshd, and the smoke forces the
         # dev user so the base checks run in the identity the other images use.
         # The flash/debug stack, the SDK toolchains and `sshd -t` are checked on
         # top of every pin of base/Dockerfile.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/smoke.sh zephyr-devbox ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
         # build-args, same platform — so buildx resolves every layer from the
         # cache that step wrote and this one only uploads. It writes no cache of
         # its own for that reason.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: zephyr-devbox
@@ -528,16 +523,18 @@ jobs:
           platforms: ${{ env.PLATFORMS }}
           push: true
           build-args: |
-            BASE_TAG=${{ needs.base.outputs.short }}
+            BASE_TAG=${{ env.BASE_TAG }}
           tags: |
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr-devbox:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
-          cache-from: type=gha,scope=zephyr-devbox
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
-        # make this describe somebody else's image.
+        # make this describe somebody else's image. It runs only when this job
+        # published, because an unbuilt image has no SHA tag for this commit.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash ./ctl.sh verify-published zephyr-devbox ${{ needs.base.outputs.short }}
 
   # The cloud image: the reduced base + the CI fold (image-architecture, ledger
@@ -547,12 +544,17 @@ jobs:
   # then push. The build context is the REPOSITORY ROOT because versions.env
   # and _delta/ sit beside the image directories, and every version pin arrives
   # as a build-arg generated from versions.env — the one home for every pin.
+  #
+  # It is also the image every ARC pool runs, this workflow's own runner
+  # included, so a bad cloud build is felt by the next job of every repository.
   cloud:
-    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
-    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
-    # every other repository waits behind it. Sized from the measured runtime.
+    # A job with no limit inherits the GitHub default of 360 minutes. arc-build
+    # has 6 slots and one build wave takes all of them, so a hung job holds a
+    # slot for 6 hours. Every timeout in this file is a CEILING sized on the
+    # HOSTED runner; the first run on arc-build is what measures the real
+    # runtime, and a resize comes from that measurement rather than from a guess.
     timeout-minutes: 90
-    runs-on: ubuntu-latest
+    runs-on: arc-build
     permissions:
       contents: read
       packages: write
@@ -564,24 +566,6 @@ jobs:
       SMOKE_REF: cloud:smoke
     steps:
       - uses: actions/checkout@v4
-      - name: Free up runner disk
-        # The hosted runner ships ~14 GB free; a build of these large images exhausts it
-        # ("No space left on device") on 1 platform as well as on 2. Reclaim ~25-30 GB of
-        # preinstalled SDKs we never use, keeping docker/buildx intact.
-        uses: jlumbroso/free-disk-space@v1.3.1
-        with:
-          tool-cache: true
-          android: true
-          dotnet: true
-          haskell: true
-          large-packages: true
-          swap-storage: true
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
       - name: short-sha
         id: sha
         run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
@@ -593,10 +577,23 @@ jobs:
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
+      - name: does this commit change cloud
+        id: filter
+        run: bash .ci/affected.sh cloud >> "$GITHUB_OUTPUT"
+      - name: point buildx at the build nodes
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/buildx-node.sh
+      - uses: docker/login-action@v3
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
       - name: generate the build args from versions.env
         # The one-home rule reaching CI: one --build-arg per pin line, the same
         # list `cloud/ctl.sh` generates locally. The Dockerfile's pin gate fails
         # the build naming any pin this step failed to carry.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         id: versions
         run: |
           {
@@ -617,6 +614,7 @@ jobs:
         # the image store holds a single image. That holds for as long as
         # PLATFORMS names 1 platform — read the arm64 note at the top of
         # _ctl/tests/publish-order.test.sh before widening it.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -626,19 +624,21 @@ jobs:
           load: true
           build-args: ${{ steps.versions.outputs.args }}
           tags: ${{ env.SMOKE_REF }}
-          cache-from: type=gha,scope=cloud
-          cache-to: type=gha,mode=max,scope=cloud
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/cloud-cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/cloud-cache,mode=max
       - name: smoke test (native amd64)
         # Content checks for every kept tool group, the CI fold, the harness
         # bake, the absent-Go-cache assertion, and the 5.75 GB size gate (R4).
         # It runs the LOADED image, which is the exact build the publish step
         # below then copies to ghcr.io.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/smoke.sh cloud ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
         # build-args, same platform — so buildx resolves every layer from the
         # cache that step wrote and this one only uploads. It writes no cache of
         # its own for that reason.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -650,9 +650,11 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/cloud:latest
             ${{ env.REGISTRY }}/${{ env.OWNER }}/cloud:${{ steps.sha.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/cloud:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
-          cache-from: type=gha,scope=cloud
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/cloud-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
-        # make this describe somebody else's image.
+        # make this describe somebody else's image. It runs only when this job
+        # published, because an unbuilt image has no SHA tag for this commit.
+        if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash ./ctl.sh verify-published cloud ${{ steps.sha.outputs.short }}
