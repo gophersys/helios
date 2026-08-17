@@ -124,75 +124,83 @@ HELPER_OUTPUT=""
 HELPER_STATUS=0
 
 # ---------------------------------------------------------------------------
-# The PATH every case runs with.
+# THE 2 WORLDS EVERY CASE RUNS IN, AND WHY THEY ARE BUILT AND NOT FILTERED
+# ---------------------------------------------------------------------------
 #
 # The developer's own PATH is left out on purpose: a tool that happens to be
 # installed on this laptop and not on the runner would make the same case mean
-# 2 things. What goes in is the directory holding curl, the directory holding
-# sha256sum, and the 2 standard directories.
+# 2 things. So each world is a directory this file builds, holding a symlink to
+# each program the helper reaches for and NOTHING else, and PATH is that 1
+# directory.
+#
+# The 2 worlds differ by exactly 1 name. That is the whole design: the
+# absent-sha256sum case then proves the helper refuses BECAUSE it cannot
+# verify, and not because the world it ran in was too poor to download at all.
+# The check below measures the difference rather than trusting it.
+#
+# The earlier version of this block FILTERED instead: it mirrored the directory
+# holding sha256sum, left that 1 name out, and kept /usr/bin and /bin behind
+# it. On this mac sha256sum comes from homebrew, so the farm was the only
+# source and the deprived world really was deprived. On Ubuntu — every runner,
+# and every image of this repository — sha256sum is /usr/bin/sha256sum and /bin
+# IS /usr/bin, so the name came straight back through the second entry:
+#
+#   PATH=/tmp/tmp.q8POw5drMJ/no-sha256sum:/bin
+#   still resolves sha256sum at: /bin/sha256sum
+#
+# (gophersys/.devcontainer run 32019606572, pull request #48.) The sentinel
+# caught it and 3 checks went red, which is the design working — but the file
+# had been green on the mac for a world that only the mac had. A world you
+# assume is a world you have not built.
 #
 # A missing tool here is a FAILURE and never a skip. Without sha256sum every
 # case below would fail for a reason that says nothing about the helper, and
 # "sha256sum not installed — skipping" is a green result that checked nothing.
 # ---------------------------------------------------------------------------
+
+# Every program _build/fetch-verified.sh reaches for, by name, in the order it
+# reaches for them: bash for its own `#!/usr/bin/env bash`, then mktemp and
+# curl to stage the asset, awk to report a mismatch, and mkdir/dirname/mv to
+# install it — with rm for the EXIT trap. `command -v` and `printf` are bash
+# builtins and need no entry.
+HELPER_TOOLS=("bash" "mktemp" "curl" "awk" "mkdir" "dirname" "mv" "rm")
+
+# The 1 name that separates the 2 worlds.
+VERIFYING_TOOL="sha256sum"
+
 MISSING_TOOLS=""
-CURL_DIRECTORY=""
-SHA256SUM_DIRECTORY=""
+for tool in "${HELPER_TOOLS[@]}" "$VERIFYING_TOOL"; do
+  if ! command -v "$tool" > /dev/null 2>&1; then
+    MISSING_TOOLS="${MISSING_TOOLS:+${MISSING_TOOLS}
+}${tool}"
+  fi
+done
 
-if command -v curl > /dev/null 2>&1; then
-  CURL_DIRECTORY="$(cd "$(dirname "$(command -v curl)")" && pwd)"
-else
-  MISSING_TOOLS="${MISSING_TOOLS:+${MISSING_TOOLS}
-}curl"
-fi
-
-if command -v sha256sum > /dev/null 2>&1; then
-  SHA256SUM_DIRECTORY="$(cd "$(dirname "$(command -v sha256sum)")" && pwd)"
-else
-  MISSING_TOOLS="${MISSING_TOOLS:+${MISSING_TOOLS}
-}sha256sum"
-fi
-
-# directory_list <directory...> — the given directories, in order, with the
-# empty ones and the repeats dropped.
-function directory_list() {
-  local directory seen="" out=""
-  for directory in "$@"; do
-    [[ -z "$directory" ]] && continue
-    if grep -qxF -- "$directory" <<< "$seen"; then
-      continue
-    fi
-    seen="${seen:+${seen}
-}${directory}"
-    out="${out:+${out}:}${directory}"
+# tool_farm <directory> <program...> — a directory holding a symlink to each
+# named program and nothing else. The link target is the absolute path this
+# test's own PATH resolves, so the farm cannot reach a name through a directory
+# nobody listed.
+function tool_farm() {
+  local directory="$1"
+  shift
+  local tool resolved
+  mkdir -p "$directory"
+  for tool in "$@"; do
+    resolved="$(command -v "$tool")" || return 1
+    ln -sf "$resolved" "${directory}/${tool}"
   done
-  printf '%s' "$out"
 }
 
-HELPER_PATH="$(directory_list "$CURL_DIRECTORY" "$SHA256SUM_DIRECTORY" "/usr/bin" "/bin")"
-
-# The same world with sha256sum taken out of it.
-#
-# Dropping the directory is not enough: on a Linux runner sha256sum lives in
-# /usr/bin, which also holds curl, env and everything else the helper needs. So
-# the directory is mirrored into a farm of symlinks with exactly 1 name left
-# out, and the farm replaces it in PATH.
-SHA256SUM_FARM="$WORK/no-sha256sum"
-mkdir -p "$SHA256SUM_FARM"
-if [[ -n "$SHA256SUM_DIRECTORY" ]]; then
-  while IFS= read -r entry; do
-    [[ -z "$entry" ]] && continue
-    [[ "$(basename "$entry")" == "sha256sum" ]] && continue
-    ln -sf "$entry" "$SHA256SUM_FARM/$(basename "$entry")"
-  done < <(find "$SHA256SUM_DIRECTORY" -maxdepth 1 -mindepth 1)
+VERIFYING_FARM="$WORK/with-sha256sum"
+DEPRIVED_FARM="$WORK/without-sha256sum"
+mkdir -p "$VERIFYING_FARM" "$DEPRIVED_FARM"
+if [[ -z "$MISSING_TOOLS" ]]; then
+  tool_farm "$VERIFYING_FARM" "${HELPER_TOOLS[@]}" "$VERIFYING_TOOL"
+  tool_farm "$DEPRIVED_FARM" "${HELPER_TOOLS[@]}"
 fi
 
-NO_SHA256SUM_PATH="${SHA256SUM_FARM}"
-while IFS= read -r directory; do
-  [[ -z "$directory" ]] && continue
-  [[ "$directory" == "$SHA256SUM_DIRECTORY" ]] && continue
-  NO_SHA256SUM_PATH="${NO_SHA256SUM_PATH}:${directory}"
-done < <(tr ':' '\n' <<< "$HELPER_PATH")
+HELPER_PATH="$VERIFYING_FARM"
+NO_SHA256SUM_PATH="$DEPRIVED_FARM"
 
 # run_helper <path> <argv...> — run the REAL file, directly, so its shebang and
 # its executable bit are part of what is under test. stdin is /dev/null: a
@@ -322,6 +330,23 @@ else
   fi
 fi
 
+# The 2 worlds are what this file says they are, measured on the directories
+# themselves. A world nobody read is a world nobody built: this check is what
+# would have named the /bin -> /usr/bin defect on the mac, where the sentinel
+# below could not see it.
+if [[ -n "$MISSING_TOOLS" ]]; then
+  fail_check "the_2_worlds_differ_by_exactly_sha256sum" \
+    "neither world was built, because these programs are absent:" "$MISSING_TOOLS"
+else
+  verifying_world="$(sort <<< "$(directory_entries "$VERIFYING_FARM")")"
+  deprived_world="$(sort <<< "$(directory_entries "$DEPRIVED_FARM")")"
+  assert_equal "the_2_worlds_differ_by_exactly_sha256sum" \
+    "$(sort <<< "$(printf '%s\n' "${HELPER_TOOLS[@]}" "$VERIFYING_TOOL")")|$(sort <<< "$(printf '%s\n' "${HELPER_TOOLS[@]}")")" \
+    "${verifying_world}|${deprived_world}" \
+    "the working world is every program the helper reaches for; the deprived world is" \
+    "that same list minus ${VERIFYING_TOOL}, so the absent-tool case differs in 1 name and nothing else"
+fi
+
 # The premise of the absent-tool case, verified rather than assumed. A probe
 # that runs in a shell which already holds what it claims to have removed
 # reports a pass it never earned — this repository has shipped that defect.
@@ -335,6 +360,24 @@ if [[ "$probe_status" -eq 0 ]]; then
     "the absent-tool case below would then run against a world that has the tool"
 else
   pass_check "the_no_sha256sum_world_really_has_no_sha256sum"
+fi
+
+# The other half of that sentinel. An empty PATH also resolves no sha256sum, so
+# the probe above passes just as happily against a world with nothing in it —
+# and then the absent-tool case proves the helper refuses an empty world rather
+# than an unverifiable download. This one fails if the working world cannot
+# verify either.
+control_output=""
+control_status=0
+control_output="$(env PATH="$HELPER_PATH" bash -c 'command -v sha256sum')" || control_status=$?
+if [[ "$control_status" -eq 0 ]]; then
+  pass_check "the_working_world_really_has_sha256sum"
+else
+  fail_check "the_working_world_really_has_sha256sum" \
+    "PATH=${HELPER_PATH}" \
+    "resolves no sha256sum, and bash -c exited ${control_status}: ${control_output:-<no output>}" \
+    "every passing case above would then be a helper refusing a poor world," \
+    "and the absent-tool case below would prove nothing about the absent tool"
 fi
 
 # -------- 1. the helper is there, and it is a standalone bash program --------
