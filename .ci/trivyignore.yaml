@@ -105,7 +105,12 @@ vulnerabilities:
 # It is an example key in upstream docs, not a credential.
 secrets:
   - id: aws-access-key-id
+    # Secret findings report ABSOLUTE container paths (leading slash), unlike
+    # vulnerability findings, which report unslashed layer paths — measured on
+    # run 32010926390, where the unslashed form failed to match. Both forms
+    # stay, each scoped to the one file.
     paths:
+      - "/home/dev/.local/share/uv/tools/ansible-core/**/sts_session_token.py"
       - "home/dev/.local/share/uv/tools/ansible-core/**/sts_session_token.py"
     statement: >-
       A documentation example AWS key id inside ansible's community.aws
