@@ -26,7 +26,7 @@ jobs:
     timeout-minutes: 10
     runs-on: arc-org          # self-hosted (ARC)
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # shellcheck -x -S style over EVERY *.sh in the repository, hadolint over
       # every Dockerfile, jq over every project.json, and the ARG-discipline
