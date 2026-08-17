@@ -22,7 +22,15 @@ data:
   latest-images: |
     # one image per line; '#' comments allowed. These are pulled fresh every
     # pass so the NEXT pin bump finds its layers already on the node.
-    ghcr.io/gophersys/base-runner:latest
+    #
+    # base-runner:latest left this list when arc-org, arc-review and arc-build
+    # all moved to `cloud`. It has no consumer now, so warming it would hold
+    # multi-GB of layers for nothing. Note the second effect, because it is not
+    # obvious: the GC only ever removes refs whose repository is IN the keep-set,
+    # so dropping the row also makes every cached base-runner ref invisible to
+    # the warmer. Those layers stay on the nodes until the .devcontainer
+    # retirement PR lands and they are removed once, by hand.
+    ghcr.io/gophersys/cloud:latest
 
   warm.py: |
     """ci-image-warmer — keep runner images hot on this node's containerd.

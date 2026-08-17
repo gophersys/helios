@@ -8,7 +8,7 @@
 # key. This replaced an SSH key that reached the Docker Engine API (root on the
 # mini's VM, task #66); that key and its vault item are deleted.
 #
-# Four ways this silently does not work, all asserted below:
+# Five ways this silently does not work, all asserted below:
 #
 #   1. THE SECRET NEVER MATERIALISES, OR IS INCOMPLETE. One ExternalSecret must
 #      name the THREE vault items and point at ClusterSecretStore/vaultwarden in
@@ -26,6 +26,11 @@
 #      `--driver remote` step reads cacert/cert/key from fixed paths. A cert
 #      mounted at any other path is delivered to a path nothing reads — the
 #      CONFIG-DEAD-STATE class.
+#   5. THE OWNER IS NOT THE READER. Owner-only says nothing about which uid the
+#      container runs as, and a projected secret is owned by uid 0. That premise
+#      was a property of the image, stated in a comment; `cloud` ends `USER dev`,
+#      so the repoint keeps every check above green and makes key.pem
+#      unreadable. The pool must DECLARE the uid.
 #
 # This pins PROPERTIES, not paths. The ExternalSecret's file name, the Secret's
 # own name and the volume name are the implementer's choice. What must hold is:
@@ -271,7 +276,37 @@ EOF
   fi
 fi
 
-# ---- 11. the mount path matches where --driver-opt reads the certs ----------
+# ---- 11. owner-only names an owner — WHICH uid does the runner run as? ------
+# The mode is half of a readability argument. A projected secret file is owned by
+# uid 0 (group 0 unless fsGroup is set), so 0400 is readable by uid 0 and by
+# nobody else. Which uid the container runs as was a property of the IMAGE,
+# asserted by a COMMENT in the pool manifest — and the image is a ref that
+# changes. `ghcr.io/gophersys/cloud` ends `USER dev`, so a repoint leaves every
+# check above green while key.pem becomes unreadable to the buildx client that
+# must open it, and the first arm64 build fails at mTLS with no line in any
+# manifest to point at. 0440 is not the escape hatch: check 10 refuses every
+# group bit because tls refuses a group-readable private key, and without
+# fsGroup the group is root anyway. That leaves one admissible combination —
+# owner-only AND uid 0 — and it has to be DECLARED, on the container that mounts
+# the certs or on the pod that holds it.
+if [ -n "$mounted_in" ]; then
+  ctr_uid="$(podq '[.template.spec.containers[]?, .template.spec.initContainers[]?]
+    | .[] | select(.name == "'"$mounted_in"'") | .securityContext.runAsUser // ""' | head -1)"
+  pod_uid="$(podq '.template.spec.securityContext.runAsUser // ""' | head -1)"
+  # A container securityContext overrides the pod one, so read it first.
+  run_uid="$ctr_uid"
+  [ -n "$run_uid" ] || run_uid="$pod_uid"
+
+  if [ -z "$run_uid" ]; then
+    bad "container '$mounted_in' declares no runAsUser, on itself or on the pod — an owner-only key is readable by uid 0 alone, and nothing here says this container is uid 0"
+  elif [ "$run_uid" = "0" ]; then
+    ok "container '$mounted_in' declares runAsUser: 0, so it can read the owner-only key"
+  else
+    bad "container '$mounted_in' declares runAsUser: $run_uid — uid $run_uid cannot read a root-owned owner-only key.pem"
+  fi
+fi
+
+# ---- 12. the mount path matches where --driver-opt reads the certs ----------
 # CONFIG-DEAD-STATE guard: docs/ci-substrate.md's `--driver remote` step reads
 # cacert/cert/key from fixed paths. A cert mounted anywhere else is delivered to
 # a path nothing reads, and the build fails at mTLS with no hint why.
@@ -307,7 +342,7 @@ EOF
   fi
 fi
 
-# ---- 12. never an environment variable --------------------------------------
+# ---- 13. never an environment variable --------------------------------------
 if [ -n "$secret_name" ]; then
   env_hit="$(podq '[.template.spec.containers[]?, .template.spec.initContainers[]?]
     | .[] | (.env[]?.valueFrom.secretKeyRef.name, .envFrom[]?.secretRef.name)

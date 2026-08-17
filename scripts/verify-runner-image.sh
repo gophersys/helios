@@ -1,7 +1,15 @@
 #!/usr/bin/env bash
 # Assert a runner image works in the POD SHAPE that ARC actually uses.
 #
-# Usage: bash scripts/verify-runner-image.sh <tag>        e.g. 3d05c74
+# Usage: bash scripts/verify-runner-image.sh <repository> <tag>
+#   e.g. bash scripts/verify-runner-image.sh cloud 3d05c74
+#        bash scripts/verify-runner-image.sh base-runner e0c6bc5
+#
+# BOTH arguments are required and neither has a default. The repository was a
+# constant until arc-build pinned `cloud`, and with a constant the call
+# `verify-runner-image cloud <sha>` read `cloud` as the TAG: it probed
+# base-runner:cloud and then reported PASS or FAIL about an image nobody asked
+# about, in the same words it would have used for the right one.
 #
 # WHY THIS EXISTS
 # The image build asserts what it can, and `.ci/smoke.sh` runs the image under
@@ -12,19 +20,22 @@
 # — and both were only found when a real job failed hours later.
 #
 # This runs the image as a Kubernetes Job with the same shape the scale set uses:
-# the dind sidecar, the same DOCKER_GROUP_GID, the same volumes, the same user.
-# If this passes, the image can serve jobs.
+# the dind sidecar, the same DOCKER_GROUP_GID, the same volumes, the same
+# declared uid. If this passes, the image can serve jobs. Keep that list equal to
+# app-arc-runners-{org,build,review}.yaml — a harness that drifts from the pool
+# it gates reports a defect of its own as a defect of the image.
 #
 # It is READ-ONLY with respect to the pool. It creates one Job in a scratch
 # namespace and removes it. It never touches the AutoscalingRunnerSet.
 #
-# Run it BEFORE pinning a new tag in
-# platform/services/gitops/registry/app-arc-runners-org.yaml.
+# Run it BEFORE pinning a new image in
+# platform/services/gitops/registry/app-arc-runners-{org,review,build}.yaml.
 set -uo pipefail
 
-TAG="${1:-}"
+REPO="${1:-}"
+TAG="${2:-}"
 NS="${VERIFY_NS:-arc-runners}"
-IMAGE_REPO="ghcr.io/gophersys/base-runner"
+REGISTRY="ghcr.io/gophersys"
 JOB="verify-runner-image"
 # Must match DOCKER_GROUP_GID in the scale set values and in
 # .devcontainer/runner/Dockerfile. All three are the same number on purpose.
@@ -33,13 +44,16 @@ DOCKER_GID=123
 red() { printf '\033[0;31m%s\033[0m' "$1"; }
 grn() { printf '\033[0;32m%s\033[0m' "$1"; }
 
-if [ -z "$TAG" ]; then
-  echo "usage: bash scripts/verify-runner-image.sh <tag>" >&2
+# Refuse BEFORE the first kubectl call. An incomplete call is ambiguous, and the
+# guess is the defect above; a Job applied while the question is ambiguous also
+# deletes the previous run's evidence on its way in.
+if [ -z "$REPO" ] || [ -z "$TAG" ]; then
+  echo "usage: bash scripts/verify-runner-image.sh <repository> <tag>" >&2
   exit 2
 fi
 command -v kubectl >/dev/null 2>&1 || { echo "missing required tool: kubectl" >&2; exit 127; }
 
-IMAGE="${IMAGE_REPO}:${TAG}"
+IMAGE="${REGISTRY}/${REPO}:${TAG}"
 echo "verifying ${IMAGE} in the ARC pod shape (namespace ${NS})"
 
 # Remove a previous run before starting, but do NOT remove this one on exit when
@@ -57,10 +71,15 @@ fail=0
 ok()   { printf '  PASS  %s\n' "$1"; }
 bad()  { printf '  FAIL  %s\n' "$1"; fail=1; }
 
-# The runner image runs as ROOT on purpose: it sits beside a privileged dind
-# sidecar, so an unprivileged runner was never a boundary, and running as dev
-# produced 3 classes of permission defect in 1 day. The dev images keep the dev
-# user, because a developer bind-mounts a repository into those.
+# The runner runs as ROOT on purpose: it sits beside a privileged dind sidecar,
+# so an unprivileged runner was never a boundary, running as dev produced 3
+# classes of permission defect in 1 day, and the buildkit key is projected as a
+# root-owned 0400 file. Like gid 123 below, this is a property of the POD and no
+# longer of the image: the scale sets DECLARE runAsUser: 0 and so does the Job
+# spec at the bottom of this script. `cloud` ends `USER dev`, so with the
+# declaration absent this check reported a defect that was the harness's own
+# shape. The dev images keep the dev user; a developer bind-mounts a repository
+# into those.
 [ "$(id -u)" = "0" ] && ok "runs as root" || bad "runs as $(id -un) uid=$(id -u), expected root"
 
 # What matters is whether THIS PROCESS holds gid 123, because that is what the
@@ -165,6 +184,18 @@ spec:
       containers:
         - name: runner
           image: ${IMAGE}
+          # MIRRORS the scale sets, which all declare runAsUser: 0. Inheriting
+          # the image's user instead made this harness stop reproducing the shape
+          # it claims to reproduce the moment a pool declared one: the cloud
+          # image ends with USER dev, so the Job ran as uid 1000, the "runs as
+          # root" assertion failed, and the defect was the harness's rather than
+          # the image's. Measured 2026-08-17 on cloud:997bb6b, where that run's
+          # other 20 checks all passed.
+          # NOTE: this heredoc is UNQUOTED, so it interpolates. No backticks and
+          # no bare $ in here — shellcheck reads them as command substitution
+          # because that is exactly what the shell does with them.
+          securityContext:
+            runAsUser: 0
           # The check script crosses into YAML as base64, so no quoting or
           # indentation rule can corrupt it. Escaping a shell script into a YAML
           # scalar is a well-known way to ship a broken test that still exits 0.

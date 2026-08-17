@@ -81,6 +81,17 @@ jobs:
       - name: arc-org receives the buildkit client certs
         run: bash scripts/verify-buildx-key.sh
 
+      # Both suites below drive the REAL script against a mktemp fixture tree —
+      # a fake kubectl first on PATH for one, a symlink that relocates the
+      # script's ROOT for the other. Neither contacts a cluster and neither
+      # writes into the tree. They are here for the reason the queue step is: a
+      # suite that nothing runs is a check that never runs.
+      - name: buildkit-key rule — fixture tests
+        run: bash scripts/test-verify-buildx-key.sh
+
+      - name: runner-image rule — fixture tests
+        run: bash scripts/test-verify-runner-image.sh
+
       # The queue rule reads its own fixtures, so it needs no network and no
       # token. It ran nowhere before this step existed, and a suite that nothing
       # runs is a check that never runs. gh and jq are both on the runner image;

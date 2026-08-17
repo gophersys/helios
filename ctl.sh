@@ -170,9 +170,11 @@ Commands:
   verify-registry   Assert every in-repo Argo Application path resolves
   verify-structure  Assert contract front-matter/sections + chart READMEs
   verify-vault-refs Assert every named vault item resolves to EXACTLY one item
-  verify-buildx-key Assert the arc-org pool mounts the buildkit client mTLS certs
+  verify-buildx-key Assert the arc-org pool mounts the buildkit client mTLS certs,
+                    and that the uid it runs as can read them
   verify-bw-sync    Assert the bw-serve-sync CronJob is wired to the bridge
-  verify-runner-image <tag>  Assert a runner image works in the ARC pod shape
+  verify-runner-image <repository> <tag>
+                    Assert a runner image works in the ARC pod shape
   verify-image-arch <ref>    Assert every manifest variant IS the arch it declares
   verify-runner-queue [repo] [workflow] [runs]
                     Assert no job waited far past the measured dispatch floor
@@ -206,9 +208,11 @@ function cmd_verify_image_arch() {
 
 function cmd_verify_runner_image() {
   # Assert a runner image works in the pod shape ARC uses, WITH the dind sidecar.
-  # Run this before pinning a new tag: neither the image build nor `docker run`
+  # Run this before pinning a new image: neither the image build nor `docker run`
   # can see a broken Docker socket, and two defects reached a published image
-  # that way.
+  # that way. BOTH arguments are required — the repository was a constant, and
+  # `verify-runner-image cloud <sha>` then reported a confident verdict about
+  # base-runner:cloud.
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-runner-image.sh" "$@"
 }
 
@@ -249,9 +253,10 @@ function cmd_verify_vault_refs() {
 function cmd_verify_buildx_key() {
   # Assert the arc-org pool really receives the buildkit client mTLS certs:
   # vault-backed, mounted read-only as a DIRECTORY of ca.pem/cert.pem/key.pem,
-  # owner-only, at the path the documented `--driver remote` step reads. Certs
-  # left at the kubelet default 0644 make the private key group-readable, and
-  # only the first build notices.
+  # owner-only, at the path the documented `--driver remote` step reads, and
+  # read by a container that DECLARES uid 0. Certs left at the kubelet default
+  # 0644 make the private key group-readable; owner-only certs under a non-root
+  # runner are unreadable instead. Only the first build notices either one.
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-buildx-key.sh" "$@"
 }
 
