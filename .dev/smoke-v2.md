@@ -1,11 +1,11 @@
 # smoke-v2
 
-phase:    verify
+phase:    fix
 repo:     gophersys/.devcontainer
 branch:   ci/smoke-v2
 worktree: ~/code/.worktrees/.devcontainer-smoke-v2
 pr:       -
-attempt:  0/2
+attempt:  1/2
 
 ## Goal
 Every pin in versions.env and the base-family ARGs is version-asserted in the
@@ -78,5 +78,21 @@ main run.
   (hnslint module-name rule); PNPM_VERSION=11.22.0 read from the built cloud
   image; guest file whole in commit 1.
 
+## Verifier round 1 (2026-08-16) — 2 REAL-BLOCKING
+1. image-checks.sh:215,:281 — `( ... run_step ... ) || return 0`: fail() sets
+   FAILED=1 inside the subshell, parent never sees it; prints FAIL, exits 0.
+   The banned check-that-cannot-fail class, reintroduced. Reproduced by drill.
+2. No hermetic test runs any functional group (guest-checks never sets
+   SMOKE_CHECKS): deleting check_benchstat leaves 135/135 green.
+Non-blocking -> ledger #102 (per-image pin home), #103 (not-installed
+negative checks), #104 (watch first main run of the 4 new smoke bodies).
+Finding 6 (comment claims collected-failures; functional groups are fatal)
+and finding 7 (R4 boundary untested hermetically) fold into this fix round.
+Everything else survived: 4 break-drills red correctly, comparator edges
+held, workflow gating verified job-by-job, no masked exit codes.
+
 ## Next
-dev-verifier refutation pass; then PR.
+Fix round (attempt 1): dev-test-author adds RED cases — SMOKE_CHECKS group
+execution (failing step => non-zero; each group reaches its function) + R4
+boundary via STUB_IMAGE_SIZE; then dev-implementer fixes the subshell
+swallow + failure semantics (findings 1+6), turning them green. Then PR.
