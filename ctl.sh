@@ -214,6 +214,75 @@ function shell_scripts() {
   done < <(find "$PROJECT_ROOT" -type f -not -path '*/.git/*' | sort)
 }
 
+# Every devcontainer.json of an image directory, 1 per line. Found by the glob
+# and not by BUILD_ORDER: `runner/` is out of BUILD_ORDER and would take a
+# devcontainer.json with no check at all on the day somebody added one.
+function devcontainer_files() {
+  local file
+  for file in "$PROJECT_ROOT"/*/devcontainer.json; do
+    [[ -f "$file" ]] && printf '%s\n' "$file"
+  done
+}
+
+# Hold every devcontainer.json to the 4 properties a consumer depends on. Until
+# this pass these files were read by nothing in the repository: no verb, no test
+# and no workflow opened one, so a typo in the image ref reached a developer's
+# "Reopen in Container" and nowhere earlier.
+#
+# The 4 are the contract .claude/rules/00-identity.md states — the published ref,
+# the `dev` user (uid 1000, sudo-nopasswd), and /workspace, which is Eden's
+# bind-mount convention. postCreateCommand is deliberately NOT a 5th: exactly 1
+# of the 5 files declares it and the other 4 must not, so agreement is the wrong
+# property here. That document's dev-in-container section gives the reason per
+# image.
+function check_devcontainer_json() {
+  local rc=0 file rel value
+  local -a files=()
+  while IFS= read -r file; do
+    files+=("$file")
+  done < <(devcontainer_files)
+
+  # Zero matching files is a FAILURE. A glob that stopped matching leaves rc
+  # untouched, and this pass would then report OK having opened no file.
+  if [[ ${#files[@]} -eq 0 ]]; then
+    log_error "no */devcontainer.json found under ${PROJECT_ROOT} — nothing was checked, so nothing is proven"
+    return 1
+  fi
+
+  for file in "${files[@]}"; do
+    rel="${file#"$PROJECT_ROOT"/}"
+    log_info "devcontainer: ${rel}"
+
+    if ! jq empty "$file"; then
+      log_error "${rel}: not parseable JSON"
+      rc=1
+      continue
+    fi
+
+    # -r prints a bare string and `// empty` prints nothing for a null, so an
+    # absent property and a wrong one take the same branch and name themselves.
+    value="$(jq -r '.image // empty' "$file")"
+    if [[ ! "$value" =~ ^ghcr\.io/gophersys/[a-z-]+:latest$ ]]; then
+      log_error "${rel}: .image is '${value:-<absent>}' — must match ghcr.io/gophersys/<name>:latest"
+      rc=1
+    fi
+
+    value="$(jq -r '.remoteUser // empty' "$file")"
+    if [[ "$value" != "dev" ]]; then
+      log_error "${rel}: .remoteUser is '${value:-<absent>}' — must be 'dev'"
+      rc=1
+    fi
+
+    value="$(jq -r '.workspaceFolder // empty' "$file")"
+    if [[ "$value" != "/workspace" ]]; then
+      log_error "${rel}: .workspaceFolder is '${value:-<absent>}' — must be '/workspace'"
+      rc=1
+    fi
+  done
+
+  return "$rc"
+}
+
 # Test: run every hermetic test file under _ctl/tests/. A suite that finds no
 # test file is a FAILURE and not a pass — a glob that matched nothing is the
 # exact way a green result can mean nothing was checked.
@@ -242,9 +311,10 @@ function cmd_test() {
   return "$rc"
 }
 
-# Validate: shellcheck every shell script, jq every project.json, hadolint every
-# Dockerfile, and refuse Dockerfiles that hardcode a semver-shaped version inside
-# a RUN line instead of threading an ARG.
+# Validate: shellcheck every shell script, jq every project.json, hold every
+# devcontainer.json to its 4 contract properties, hadolint every Dockerfile, and
+# refuse Dockerfiles that hardcode a semver-shaped version inside a RUN line
+# instead of threading an ARG.
 function cmd_validate() {
   require_cmd shellcheck jq
   local rc=0
@@ -300,6 +370,8 @@ function cmd_validate() {
 
   log_info "jq parse: project.json"
   jq empty "$PROJECT_ROOT/project.json" || rc=1
+
+  check_devcontainer_json || rc=1
 
   # hadolint's verdict depends on its version: 2.15.1 raises DL3064 and DL3066 on
   # Dockerfiles that 2.14.0 passes. A gate whose answer depends on what the
@@ -360,7 +432,8 @@ Repo-wide commands:
   base-currency [reference]        Assert the registry still holds the digest
                                    UBUNTU_BASE_REF pins (default ubuntu:24.04)
   list                             Print managed image refs
-  validate                         shellcheck, jq, hadolint, ARG-discipline checks
+  validate                         shellcheck, jq, devcontainer.json contract,
+                                   hadolint, ARG-discipline checks
   test                             Run every _ctl/tests/*.test.sh
   help                             Show this message
 EOF

@@ -123,6 +123,50 @@ that it runs inside.
 4. **A human writes the text.** Do not put an AI or LLM attribution of any kind
    in a commit, in a comment or in a document.
 
+## Nx caching
+
+**No target of this repository caches, and `"cache": false` is the invariant.**
+The `"//"` key on each target carries the same statement where the reader who is
+tempted to flip it back will be standing. A `//` line comment is not available:
+`ctl.sh validate` runs `jq empty` over the root `project.json`, and `jq` rejects
+a comment that Nx's own parser would accept. `"//"` is legal JSON, and Nx's
+project schema sets no `additionalProperties: false` at either level, so the key
+survives both readers.
+
+**`.ci/project.json` is jq-parsed by nothing.** `validate` reads
+`*/project.json` for each name in `BUILD_ORDER` plus the root file, and `.ci/`
+is in neither set — so that file is held to the `"//"` convention by hand and
+not by the gate. Widening the jq pass to reach it is open work.
+
+The reason is a property of the verbs, not a preference. `validate` and `test`
+DISCOVER their file set at runtime: `shell_scripts()` in `ctl.sh` walks the whole
+tree with `find` and takes a file by its `*.sh` name **or** by a shell shebang on
+its first line, and `cmd_test` globs `_ctl/tests/*.test.sh` and lets each file
+read whatever it judges. No static `inputs` list can be TRUE by construction
+against a rule of that shape — "every file whose first line is a shebang" is not
+a glob.
+
+It was not true in fact either. The list that stood on the root `validate` target
+named 8 globs and missed **32 tracked files the verb reads**, measured on
+2026-08-17 against the 70 files `validate` shellchecks: all 12
+`_delta/components/*.sh`, both `_build/*.sh`, `zephyr-devbox/devbox-entrypoint.sh`,
+and the 17 extensionless shebang stubs under `_ctl/tests/stubs/`.
+`.ci/project.json` repeated the fault with 9 globs of its own, and that target
+only delegates to the root verb, so it inherits the discovery it cannot enumerate.
+Every `*/devcontainer.json` joined the missed set the day `validate` started
+reading them.
+
+**A cache key that under-counts its inputs replays a green that checked nothing.**
+Edit a component script, and Nx would have served the previous result: the gate
+reports OK having read no changed file. That is the FAIL-NOT-SKIP failure one
+layer up — a check that is believed and did not run.
+
+Restoring `"cache": true` on a target needs the inputs list PROVEN complete
+against what the verb reads, and the proof has to survive the next file somebody
+adds. For these 2 verbs it cannot, because the verb answers "what is a shell
+script" itself. Nothing here is slow enough for the cache to be worth a false
+green: the whole gate is a lint pass and a bash suite.
+
 ## ARGs-at-top + latest-LTS convention
 
 Every Dockerfile MUST declare all tool versions as `ARG`s at the top of the
@@ -502,13 +546,40 @@ as configurations that you can select — 5 files, 1 for each image. Each
 configuration bind-mounts the project to `/workspace` and runs as the `dev`
 user.
 
-**`cloud/devcontainer.json` declares no `postCreateCommand`, and `base` does.**
-The difference is where the harnesses come from. `cloud` bakes claude, omp and
-codex into the image through `_delta/components/agents.sh`, at the `versions.env`
-pins, so an agent pod does zero network installs at start. `base` carries no
-harness, so `base/ctl.sh post-create` installs them at create time. An image
-that already holds the tool needs no post-create step, and adding one would
-install over the bake on every container create.
+**`ctl.sh validate` holds every `*/devcontainer.json` to 4 properties**, and
+until that pass was written these 5 files were read by NOTHING in this
+repository — no verb, no test, no workflow opened one, so a typo in an image ref
+reached a developer's "Reopen in Container" and nowhere earlier. The 4 are
+`jq .` parses, `.image` matches `ghcr.io/gophersys/<name>:latest`,
+`.remoteUser` is `dev`, `.workspaceFolder` is `/workspace` — the contract this
+section states. The pass FAILS naming the file and the property, and it fails
+when the glob matches zero files, because a check that opened no file is not a
+check that passed. It finds the files by glob and not by `BUILD_ORDER`: `runner/`
+is out of `BUILD_ORDER` and would otherwise take an unchecked `devcontainer.json`
+the day somebody added one.
+
+**`postCreateCommand` is deliberately NOT the 5th property. 1 of the 5 files
+declares it, and the other 4 must not.** The property is not symmetry; it is
+whether an image needs an install at create time.
+
+- **`base` declares it**, and it is the only image whose `ctl.sh` answers a
+  `post-create` verb. `base` carries no harness, so
+  `base/ctl.sh post-create` installs claude, omp and codex at create time,
+  pinned from the consuming repository's `harnesses/versions.env` when that file
+  is mounted.
+- **`cloud` must not.** It bakes the same 3 harnesses into the image through
+  `_delta/components/agents.sh` at the `versions.env` pins, so an agent pod does
+  zero network installs at start. Adding a post-create step would install over
+  the bake on every container create.
+- **`flutter`, `zephyr` and `zephyr-devbox` must not either**, and for a
+  different reason: each one is a thin dispatcher that sends every verb to
+  `image_main`, and `_ctl/lib.sh` has no `post-create`. A `postCreateCommand`
+  in one of those 3 files would name a verb that nothing answers — the dead-path
+  class this document opens with. Their toolchains are baked, which is what an
+  image is for.
+
+Adding a `postCreateCommand` to an image is therefore 2 edits and not 1: the
+`devcontainer.json` line, and the verb that answers it.
 
 You can also deploy `zephyr-devbox` as a k8s pod, connect to it over VS Code
 Remote-SSH, or open it in a browser at `:8443`. Read
@@ -568,7 +639,7 @@ operator can find.
 | `inspect <image>` | Delegate to per-image `ctl.sh inspect` |
 | `base-currency [reference]` | Assert the registry still holds the digest `UBUNTU_BASE_REF` pins |
 | `list` | Print the managed image refs |
-| `validate` | shellcheck every shell script, jq, hadolint at the pinned version, ARG-discipline checks |
+| `validate` | shellcheck every shell script, jq, the `devcontainer.json` contract, hadolint at the pinned version, ARG-discipline checks |
 | `test` | Run every `_ctl/tests/*.test.sh`; fail if it finds none |
 | `help` | Usage |
 

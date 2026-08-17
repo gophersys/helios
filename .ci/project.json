@@ -5,44 +5,10 @@
   "tags": ["scope:shared", "type:ci-orchestration"],
   "targets": {
     "ci-.devcontainer-validate": {
+      "//": "This verb delegates to the repository-root ctl.sh, so it inherits that verb's runtime file discovery and can carry no complete inputs list either. The list that stood here repeated the root's fault. See .claude/rules/00-identity.md, 'Nx caching'.",
       "executor": "nx:run-commands",
       "options": {
         "command": "bash ./ctl.sh validate",
-        "cwd": "{projectRoot}"
-      },
-      "cache": true,
-      "inputs": [
-        "{projectRoot}/ctl.sh",
-        "{projectRoot}/smoke.sh",
-        "{projectRoot}/project.json",
-        "{projectRoot}/../ctl.sh",
-        "{projectRoot}/../_ctl/lib.sh",
-        "{projectRoot}/../project.json",
-        "{projectRoot}/../*/ctl.sh",
-        "{projectRoot}/../*/Dockerfile",
-        "{projectRoot}/../*/project.json"
-      ]
-    },
-    "ci-.devcontainer-build-all": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "bash ./ctl.sh build-all",
-        "cwd": "{projectRoot}"
-      },
-      "cache": false
-    },
-    "ci-.devcontainer-push-all": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "bash ./ctl.sh push-all",
-        "cwd": "{projectRoot}"
-      },
-      "cache": false
-    },
-    "ci-.devcontainer-smoke-test-all": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "bash ./ctl.sh smoke-test-all",
         "cwd": "{projectRoot}"
       },
       "cache": false
