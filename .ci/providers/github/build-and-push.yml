@@ -385,7 +385,7 @@ jobs:
   # The cloud image: the reduced base + the CI fold (image-architecture, ledger
   # #94). ADDITIVE and independent — FROM ubuntu directly, no needs. Its gate
   # order is the one the publish-order test demands: build to the local store,
-  # smoke the loaded image (content checks + the 5.5 GB size gate), and only
+  # smoke the loaded image (content checks + the 5.75 GB size gate), and only
   # then push. The build context is the REPOSITORY ROOT because versions.env
   # and _delta/ sit beside the image directories, and every version pin arrives
   # as a build-arg generated from versions.env — the one home for every pin.
@@ -472,7 +472,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=cloud
       - name: smoke test (native amd64)
         # Content checks for every kept tool group, the CI fold, the harness
-        # bake, the absent-Go-cache assertion, and the 5.5 GB size gate (R4).
+        # bake, the absent-Go-cache assertion, and the 5.75 GB size gate (R4).
         # It runs the LOADED image, which is the exact build the publish step
         # below then copies to ghcr.io.
         run: bash .ci/smoke.sh cloud ${{ env.SMOKE_REF }}

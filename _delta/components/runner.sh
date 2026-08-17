@@ -64,7 +64,6 @@ curl -fsSL "https://github.com/actions/runner/releases/download/v${RUNNER_VERSIO
 tar -xzf /tmp/runner.tar.gz -C /home/runner
 rm -f /tmp/runner.tar.gz
 mkdir -p /home/runner/_work
-chown -R dev:dev /home/runner
 
 # cictl — the CI contract tool, public precisely so this needs no credential.
 # GOMODCACHE/GOCACHE are pinned under /root EXPLICITLY: the image-wide ENV
@@ -77,8 +76,20 @@ CGO_ENABLED=0 GOTOOLCHAIN=local GOBIN=/usr/local/bin \
 chmod 0755 /usr/local/bin/cictl
 rm -rf /root/go /root/.cache/go-build
 
-# Proof.
+# Proof. It runs BEFORE the chown below, and that order is the fix for a
+# defect the first cloud build shipped: Runner.Listener creates
+# /home/runner/_diag for its own trace log on EVERY invocation, this proof
+# runs as root, and with the chown already done the proof re-rooted _diag
+# inside the dev-owned tree. A pod running as the image default user then
+# died writing its first trace line — invisible in that build's CI run only
+# because its smoke failed at the size gate before the container checks ran.
 test -x /home/runner/run.sh
 /home/runner/bin/Runner.Listener --version
 cictl help >/dev/null
+
+# The proof's own trace log does not ship; the chown then owns EVERYTHING
+# under /home/runner to dev, so nothing root-owned can hide in the tree a
+# dev-running pod must write into.
+rm -rf /home/runner/_diag
+chown -R dev:dev /home/runner
 echo "runner + cictl: ok"
