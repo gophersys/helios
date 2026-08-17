@@ -26,7 +26,7 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
 | Image | `GOPHERSYS_DEVCONTAINER` | Intent |
 |---|---|---|
 | `ghcr.io/gophersys/base`          | `base`          | Everything that most projects need: shells (zsh+oh-my-zsh), git/gh, languages (Node LTS, Python 3.12, Go, Rust), infra CLIs (kubectl/helm/k9s/tailscale/docker-cli/docker-compose/bw/nats), desktop libs (Tauri/GTK/webkit), USB/BLE libs (libusb, libudev, libbluetooth, bluez), data clients (psql, sqlite3, redis-cli), parsing (jq, yq, httpie, rg, fd, bat), QA (shellcheck, hadolint). |
-| `ghcr.io/gophersys/flutter`       | `flutter`       | Base + OpenJDK 17 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
+| `ghcr.io/gophersys/flutter`       | `flutter`       | Base + OpenJDK 21 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
 | `ghcr.io/gophersys/zephyr`        | `zephyr`        | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
 | `ghcr.io/gophersys/base-runner`   | `base` + `_RUNNER=true` | Base + the GitHub Actions runner at `/home/runner`, owned by `dev`. This is a **CI image, not a devcontainer**. It has no `devcontainer.json`. The build uses `runner/Dockerfile`. |
 | `ghcr.io/gophersys/zephyr-devbox` | `zephyr-devbox` | Zephyr + sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules. It is an embedded development box for a k8s pod, and you connect to it over SSH. |
@@ -251,21 +251,43 @@ release was.
 - **12 datasources, and the 12th resolves nothing.** `github-release`, `pypi`,
   `npm`, `apt`, `go-dl`, `node-dist`, `oci-index`, `k8s-dl`, `tailscale-pkgs`,
   `flutter-releases` and `eden-manifest` each read 1 upstream DOCUMENT;
-  `no-autobump` states, in a sentence, why a pin is not resolved. 13 pins take
-  it today: the 3 harness pins, the 3 `ANDROID_*` builds, `PYTHON_PACKAGE`,
+  `no-autobump` states, in a sentence, why a pin is not resolved. 16 pins take
+  it today: the 3 harness pins, the 3 `ANDROID_*` rows, `PYTHON_PACKAGE`,
   `JAVA_VERSION`, `RUST_CHANNEL`, `FLUTTER_CHANNEL`, `BENCHSTAT_REF`,
-  `TERRAFORM_VERSION` and `AWS_CLI_VERSION`. A reason under 20 characters or
-  with no space in it is a placeholder and the test names it: `n/a` passes every
-  non-empty check, and it is a pin nobody decided about wearing the label of a
-  pin somebody did.
-- **The version and the digest come from the SAME fetch.**
-  `_build/resolve-upstream.sh <PIN>` prints `<version>|<sha256>`. The digest is
-  of the bytes the GOVERNED FILE fetches for the NEW version — the URL is read
-  out of the file that performs the download and never out of the table,
-  because a second URL home lets a correct digest be computed of the wrong
-  asset — and it is then handed back to `_build/fetch-verified.sh`, which
-  fetches the asset again and compares before a line is written. A version that
-  moves while its digest stays cannot reach the branch.
+  `TERRAFORM_VERSION`, `AWS_CLI_VERSION`, `CICTL_VERSION`, `HNSLINT_VERSION`
+  and `BW_VERSION`. A reason under 20 characters or with no space in it is a
+  placeholder and the test names it: `n/a` passes every non-empty check, and it
+  is a pin nobody decided about wearing the label of a pin somebody did.
+- **A reason has to be TRUE, and no static check can tell.** 3 rows were
+  corrected after their coordinates were measured against the real upstreams,
+  and the suite was green on all 3 before and after — a stub upstream answers
+  any coordinate. `cictl` and `hnslint` are ours and publish TAGS and no GitHub
+  Releases, so `releases/latest` was a 404 forever while the pin sat 4 releases
+  behind; `bitwarden/clients` ships browser, desktop, web and cli under one
+  release stream, so the newest release of the repository is not the newest
+  release of the CLI and the asset URL 404s; and the android index this file
+  claimed did not exist is `repository2-3.xml`, 408907 bytes of it. All 3 are
+  `no-autobump` with the true reason. **Measure a coordinate against the real
+  API before you write its row.**
+- **The digest is of the asset for the version this run resolved.** There are 3
+  HTTP reads per digested pin — the index, the digest, the re-proof — so the
+  property is not "one fetch". `_build/resolve-upstream.sh <PIN>` prints
+  `<version>|<sha256>`, where the URL is read out of the file that performs the
+  download and never out of the table (a second URL home lets a correct digest
+  be computed of the wrong asset), and the value is then handed back to
+  `_build/fetch-verified.sh`, which fetches that same URL again and compares
+  before a line is written. A version that moves while its digest stays cannot
+  reach the branch.
+- **An aggregate run COLLECTS, then fails.** `--dry-run` and `--apply` resolve
+  every row, report every mover AND every failing pin, write nothing, and exit
+  non-zero if anything failed. Abort-at-the-first-failure would let 1 dead
+  coordinate hide the bumps behind it, and a run that reports nothing reads like
+  a quiet week. The mechanism is `capture` in the resolver, which reads the
+  status of each command substitution itself: bash UNSETS errexit inside `$( )`
+  before 4.4, and `set -Eeuo pipefail` alone let a failed fetch return an empty
+  string that was then reported as `bump: PIN 2.3.0 -> ` at exit 0.
+  `shopt -s inherit_errexit` is also set where the shell has it, but nothing
+  depends on it — the mac's bash 3.2 runs the same gate.
 - **The version is spelled the way the pin is spelled.** A leading `v` is kept
   when the pin carries one (`cictl` pins `v0.1.0`) and dropped when it does not;
   `go1.26.5` and `bun-v1.3.14` lose their word prefix the same way. An apt
@@ -277,7 +299,12 @@ release was.
   re-create the 2-toolchain drift `_ctl/tests/pin-mirroring.test.sh` forbids,
   every Monday, in a pull request that reads like a correct bump.
 - **The pull request is opened, never merged.** `--dry-run` composes it and
-  writes nothing; `--apply` writes and leaves git and gh to the workflow.
+  writes nothing TO THE REPOSITORY — it still writes temporary files and
+  downloads every moved asset twice; `--apply` writes and leaves git and gh to
+  the workflow. The workflow is 2 jobs, the nightly's shape: a job TIMEOUT
+  cancels the job, `if: failure()` steps inside it never run, and the notify job
+  under `!cancelled()` is what reports the one failure a download budget makes
+  likely.
   **The pull request arrives with NO checks**: GitHub starts no workflow run for
   an event a `GITHUB_TOKEN` caused, so `validate.yml` does not fire on it. Close
   and reopen the pull request, or push to its branch, before merging — the

@@ -36,7 +36,7 @@ every image has it. See "The shared ctl library" below.
 | Image | Intent | `GOPHERSYS_DEVCONTAINER` |
 |---|---|---|
 | `ghcr.io/gophersys/base` | The general-purpose image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. | `base` |
-| `ghcr.io/gophersys/flutter` | Base + OpenJDK 17 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. The targets are Linux desktop and Android. iOS is not in the scope. | `flutter` |
+| `ghcr.io/gophersys/flutter` | Base + OpenJDK 21 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. The targets are Linux desktop and Android. iOS is not in the scope. | `flutter` |
 | `ghcr.io/gophersys/zephyr` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif). | `zephyr` |
 | `ghcr.io/gophersys/base-runner` | Base + the GitHub Actions runner at `/home/runner`, owned by `dev`. **This is not a devcontainer.** It has no `devcontainer.json`. An ARC pool runs this image as its runner container, so the kubelet keeps the image in the cache on each node and a job does not wait for a cold pull. The build uses `runner/Dockerfile`. That Dockerfile takes `BASE_IMAGE`, so it serves every parent image. | `base` (inherited) |
 | `ghcr.io/gophersys/zephyr-devbox` | Zephyr + sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules. It runs as a k8s pod. You connect to it with VS Code Remote-SSH. It starts as root and it execs sshd. A login gets the `dev` user. | `zephyr-devbox` |
@@ -407,9 +407,19 @@ the digest `UBUNTU_BASE_REF` pins. It builds and publishes nothing.
 The workflow `.github/workflows/weekly-bumps.yml` runs every Monday. It asks the
 upstream named in each row of `_build/upstreams.txt` what it publishes now, and
 where anything moved it writes the new version and the new sha256 into every home
-of that pin and opens ONE pull request. The 2 values come from the same fetch and
-the digest is re-proven through `_build/fetch-verified.sh` before a line is
-written, so a bump cannot carry a stale digest. It merges nothing.
+of that pin and opens ONE pull request. Every sha256 is the digest of the asset
+for the version the same run resolved, and it is re-proven through
+`_build/fetch-verified.sh` before a line is written, so a bump cannot carry a
+stale digest. It merges nothing.
+
+**One unreadable upstream fails the whole run.** It resolves every row first,
+reports every pin that moved AND every pin it could not read, writes nothing and
+exits non-zero. A run that bumped the pins it happened to reach would let the
+absence of the others read as "nothing moved", and a run that stopped at the
+first bad row would hide the real bumps behind it. A pin that resolves nothing on
+purpose takes a `no-autobump` row with a stated reason instead — 16 do today, and
+each reason has to be TRUE: 3 of them were rewritten after their coordinates were
+measured against the real API, with the whole suite green before and after.
 
 **A bump pull request arrives with no checks on it.** GitHub starts no workflow
 run for an event a `GITHUB_TOKEN` caused, so `validate.yml` does not fire on the
