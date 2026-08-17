@@ -227,8 +227,19 @@ function require_buildx_and_platforms() {
     log_error "no active buildx builder — run: docker buildx create --use --name gophersys"
     exit 1
   fi
-  local platforms
-  platforms="$(docker buildx inspect --bootstrap 2>/dev/null | awk -F': ' '/^Platforms/ {print $2}' | head -1)"
+  # An explicit status read, stderr kept. The one-line pipeline this replaces
+  # died SILENTLY on a failed bootstrap: under pipefail the whole pipeline
+  # goes non-zero, errexit kills the shell before the error branch runs, and
+  # the 2>/dev/null had already discarded buildx's reason. Proven with a stub
+  # docker: zero output, rc=1. The branch below it was unreachable — a guard
+  # whose failure message cannot print is the FAIL-NOT-SKIP class.
+  local inspect_output="" bootstrap_status=0 platforms
+  inspect_output="$(docker buildx inspect --bootstrap)" || bootstrap_status=$?
+  if [[ "$bootstrap_status" -ne 0 ]]; then
+    log_error "the buildx builder did not bootstrap (exit ${bootstrap_status}) — its own error is above"
+    exit 1
+  fi
+  platforms="$(printf '%s\n' "$inspect_output" | awk -F': ' '/^Platforms/ {print $2}' | head -1)"
   if [[ -z "$platforms" ]]; then
     log_error "buildx builder reports no platforms; cannot enforce a platform"
     exit 1
