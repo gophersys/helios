@@ -566,9 +566,11 @@ RUN case "${TARGETPLATFORM}" in \
 #
 # The uv cache is emptied IN THIS LAYER, for the reason the Go gate layer gives:
 # a later rm leaves every byte of it in this diff. The tools are already
-# unpacked into their venvs, so the cache is a second copy of what stays — and
-# the copy the nightly scan reads as a CRITICAL secret finding, in an ansible
-# collections docs sample (community/aws sts_session_token.py).
+# unpacked into their venvs, so the cache is a second copy of what stays. The
+# nightly scan's secret finding lives in the INSTALLED venv copy of an ansible
+# docs sample (community/aws sts_session_token.py) — waived, path-scoped and
+# expiring, in .ci/trivyignore.yaml. This cleanup removes only the cached
+# duplicate of that same file.
 USER ${USERNAME}
 # hadolint ignore=DL3013
 RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" \

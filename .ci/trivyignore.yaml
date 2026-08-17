@@ -28,11 +28,15 @@
 # instead. trivy matches `paths` with doublestar against the finding path, so a
 # path scopes the waiver to the artifact that was actually analysed.
 #
-# There is no `secrets:` section. The 3 CRITICAL secret findings base carried
-# were cached source — 2 gosec regex rules and 1 ansible docs sample — and they
-# are removed at the source by the in-layer cache cleanup, which needs no waiver
-# at all. A secret finding that reappears is a new fact and gets read, not a
-# line that was already waived.
+# A `secrets:` section exists, with exactly 1 entry. Of the 3 CRITICAL secret
+# findings base carried — 2 gosec regex rules and 1 ansible docs sample — the
+# gosec rules lived only in the Go module cache and ARE removed at the source
+# by the in-layer cache cleanup. The ansible sample has 2 copies: the uv cache
+# copy (removed by that same cleanup) and the INSTALLED venv copy under
+# home/dev/.local/share/uv/tools/ansible-core/, which survives — it is the
+# tool's own source, not cache — and is waived below, path-scoped and
+# expiring. A NEW secret finding anywhere else is a new fact and gets read,
+# never blanket-waived.
 #
 # The shape of an entry:
 #
@@ -93,4 +97,18 @@ vulnerabilities:
     paths:
       - "opt/android-sdk/**/bcprov-jdk18on-1.79.jar"
     statement: "The newest Android cmdline-tools Google publishes (channel 22.0, build 15859902) still ships bcprov-jdk18on 1.79, verified by extracting that archive. No pin bump can clear this finding."
+    expired_at: 2026-11-30
+
+# The secret scanner's one finding: a documentation example inside the ansible
+# community.aws collection, installed as source by `uv tool install`. The
+# in-layer cache cleanup removed the CACHED copy; this is the live venv copy.
+# It is an example key in upstream docs, not a credential.
+secrets:
+  - id: aws-access-key-id
+    paths:
+      - "home/dev/.local/share/uv/tools/ansible-core/**/sts_session_token.py"
+    statement: >-
+      A documentation example AWS key id inside ansible's community.aws
+      collection source (module docstring). Upstream ships it in every
+      release; it is not a credential. Re-check at expiry.
     expired_at: 2026-11-30
