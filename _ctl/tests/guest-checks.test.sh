@@ -109,7 +109,7 @@ function assert_failed_naming() {
   shift
   local needle missing_names=""
   for needle in "$@"; do
-    if ! printf '%s' "$GUEST_OUTPUT" | grep -qF -- "$needle"; then
+    if ! grep -qF -- "$needle" <<< "$GUEST_OUTPUT"; then
       missing_names="${missing_names:+${missing_names}
 }${needle}"
     fi

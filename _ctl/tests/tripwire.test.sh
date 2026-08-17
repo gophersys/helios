@@ -82,11 +82,11 @@ function assert_tripwire_fired() {
     fail_check "$name" "want: a non-zero exit status" \
       "got:  0 — the library loaded with the retired variable set" "$@" \
       "output was:" "$RUN_OUTPUT"
-  elif ! printf '%s' "$RUN_OUTPUT" | grep -qF -- "$RETIRED_NAME"; then
+  elif ! grep -qF -- "$RETIRED_NAME" <<< "$RUN_OUTPUT"; then
     fail_check "$name" \
       "the run exited ${RUN_STATUS} but never names ${RETIRED_NAME}" "$@" \
       "output was:" "$RUN_OUTPUT"
-  elif ! printf '%s' "$RUN_OUTPUT" | grep -qF -- "$CURRENT_NAME"; then
+  elif ! grep -qF -- "$CURRENT_NAME" <<< "$RUN_OUTPUT"; then
     fail_check "$name" \
       "the run named ${RETIRED_NAME} but not ${CURRENT_NAME}, so it never says what to rename it to" \
       "$@" "output was:" "$RUN_OUTPUT"

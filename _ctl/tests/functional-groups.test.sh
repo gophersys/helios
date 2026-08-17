@@ -146,7 +146,7 @@ function assert_group_failed() {
   shift
   local needle missing_names=""
   for needle in "$@"; do
-    if ! printf '%s' "$GUEST_OUTPUT" | grep -qF -- "$needle"; then
+    if ! grep -qF -- "$needle" <<< "$GUEST_OUTPUT"; then
       missing_names="${missing_names:+${missing_names}
 }${needle}"
     fi
@@ -162,7 +162,7 @@ function assert_group_failed() {
       "$missing_names" \
       "a run that fails without naming the step sends the reader to read every group" \
       "output was:" "$GUEST_OUTPUT"
-  elif printf '%s' "$GUEST_OUTPUT" | grep -qF -- "$SUCCESS_BANNER"; then
+  elif grep -qF -- "$SUCCESS_BANNER" <<< "$GUEST_OUTPUT"; then
     fail_check "$name" \
       "the guest exited ${GUEST_STATUS} and named the step, and it ALSO printed:" \
       "$SUCCESS_BANNER" \
@@ -181,7 +181,7 @@ function assert_group_passed() {
   shift
   local needle missing_names=""
   for needle in "$@"; do
-    if ! printf '%s' "$GUEST_OUTPUT" | grep -qF -- "$needle"; then
+    if ! grep -qF -- "$needle" <<< "$GUEST_OUTPUT"; then
       missing_names="${missing_names:+${missing_names}
 }${needle}"
     fi

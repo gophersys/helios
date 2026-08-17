@@ -67,7 +67,7 @@ function run_verify() {
   RUN_OUTPUT="$(env PATH="${STUB_BIN}:${PATH}" "$@" bash "$BASE_CTL" verify-published 2>&1)" || RUN_STATUS=$?
   # Carried into every failure below, so no reader has to infer the cause from
   # an exit status that a missing verb and a real verdict both produce.
-  if printf '%s' "$RUN_OUTPUT" | grep -qF -- "$UNKNOWN_VERB_REPLY"; then
+  if grep -qF -- "$UNKNOWN_VERB_REPLY" <<< "$RUN_OUTPUT"; then
     VERB_MISSING=1
     VERB_NOTE="cause: base/ctl.sh answered \"${UNKNOWN_VERB_REPLY}\" — the verb does not exist yet"
   else
@@ -122,7 +122,7 @@ function assert_verify_refused_naming() {
     fail_check "$name" "want: a non-zero exit status, with a message naming ${needle}" \
       "got:  0 — the published set was accepted" \
       "$@" "$VERB_NOTE" "output was:" "$RUN_OUTPUT"
-  elif ! printf '%s' "$RUN_OUTPUT" | grep -qF -- "$needle"; then
+  elif ! grep -qF -- "$needle" <<< "$RUN_OUTPUT"; then
     fail_check "$name" \
       "the verb exited ${RUN_STATUS}, but the message never names ${needle}" \
       "$@" "$VERB_NOTE" "output was:" "$RUN_OUTPUT"
@@ -190,12 +190,12 @@ elif [[ "$RUN_STATUS" -eq 0 ]]; then
   fail_check "a_failed_manifest_read_carries_the_real_error" \
     "want: a non-zero exit status — the registry client failed, so there is no verdict to give" \
     "got:  0" "$VERB_NOTE" "output was:" "$RUN_OUTPUT"
-elif ! printf '%s' "$RUN_OUTPUT" | grep -qF -- "manifest unknown"; then
+elif ! grep -qF -- "manifest unknown" <<< "$RUN_OUTPUT"; then
   fail_check "a_failed_manifest_read_carries_the_real_error" \
     "the run exited ${RUN_STATUS} but dropped the client's own error text" \
     "want the output to carry: ghcr.io/gophersys/base:latest: manifest unknown" \
     "$VERB_NOTE" "output was:" "$RUN_OUTPUT"
-elif printf '%s' "$RUN_OUTPUT" | grep -qF -- "no variants"; then
+elif grep -qF -- "no variants" <<< "$RUN_OUTPUT"; then
   fail_check "a_failed_manifest_read_carries_the_real_error" \
     "the output claims it saw no variants, but nothing was ever read" \
     "$VERB_NOTE" "output was:" "$RUN_OUTPUT"

@@ -147,7 +147,7 @@ function names_absent_from() {
   local name out=""
   while IFS= read -r name; do
     [[ -z "$name" ]] && continue
-    if ! printf '%s\n' "$reference" | grep -qx -- "$name"; then
+    if ! grep -qx -- "$name" <<< "$reference"; then
       out="${out:+${out}
 }${name}"
     fi

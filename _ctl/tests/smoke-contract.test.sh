@@ -198,7 +198,7 @@ function assert_refused_without_running() {
       "got:  0 — the smoke was accepted" "$@" \
       "docker was called with:" "${RUN_ARGV:-<no docker invocation>}" \
       "output was:" "$RUN_OUTPUT"
-  elif ! printf '%s' "$RUN_OUTPUT" | grep -qF -- "$needle"; then
+  elif ! grep -qF -- "$needle" <<< "$RUN_OUTPUT"; then
     fail_check "$name" \
       "the smoke exited ${RUN_STATUS}, and the message never names ${needle}" "$@" \
       "docker was called with:" "${RUN_ARGV:-<no docker invocation>}" \
@@ -257,7 +257,7 @@ missing_rows=""
 while IFS= read -r pin; do
   [[ -z "$pin" ]] && continue
   pin_total=$((pin_total + 1))
-  if ! printf '%s\n' "$RUN_PAYLOAD" | grep -qE "^${pin}\|"; then
+  if ! grep -qE "^${pin}\|" <<< "$RUN_PAYLOAD"; then
     missing_rows="${missing_rows:+${missing_rows}
 }${pin}"
   fi

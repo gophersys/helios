@@ -119,7 +119,7 @@ function dangling_references() {
 
     while IFS= read -r name; do
       [[ -z "$name" ]] && continue
-      if ! printf '%s\n' "$declared" | grep -qx -- "$name"; then
+      if ! grep -qx -- "$name" <<< "$declared"; then
         hits="${hits:+${hits}
 }${line_number}:${name}"
       fi
@@ -153,7 +153,7 @@ function orphan_args() {
   while IFS= read -r name; do
     [[ -z "$name" ]] && continue
     [[ "$name" =~ (_VERSION|_REF|_CHANNEL)$ ]] || continue
-    if ! printf '%s\n' "$referenced" | grep -qx -- "$name"; then
+    if ! grep -qx -- "$name" <<< "$referenced"; then
       orphans="${orphans:+${orphans}
 }${name}"
     fi

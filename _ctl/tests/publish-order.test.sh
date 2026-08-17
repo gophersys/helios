@@ -212,7 +212,9 @@ FIXTURE="$TESTS_DIR/fixtures/publish-order/build-and-push.yml"
 # naming .ci/smoke.sh so this is watched rather than assumed.
 function step_flag() {
   local slice="$1" pattern="$2"
-  if printf '%s\n' "$slice" | sed -e '/^[[:space:]]*#/d' | grep -qE -- "$pattern"; then
+  local uncommented=""
+  uncommented="$(sed -e '/^[[:space:]]*#/d' <<< "$slice")"
+  if grep -qE -- "$pattern" <<< "$uncommented"; then
     printf '1'
   else
     printf '0'

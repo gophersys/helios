@@ -67,11 +67,43 @@ function assert_status_nonzero() {
   fi
 }
 
+# ============================================================================
+# NEVER PIPE A HAYSTACK INTO grep -q. USE A HERESTRING.
+# ============================================================================
+#
+# `printf '%s' "$haystack" | grep -qF -- "$needle"` is WRONG, and it was the
+# shape used here until 2026-08-17. grep -q exits at its FIRST match and closes
+# the read end of the pipe. printf still has the rest of the haystack to write,
+# that write gets EPIPE, and printf then returns non-zero. Every test file in
+# this directory sets `set -o pipefail`, so the pipeline reports FAILURE for a
+# needle that IS present — a green assertion turned red by the reader finding
+# what it was looking for, sooner.
+#
+# It is a race between printf's next write and grep's exit, so it needs a
+# haystack big enough to take more than 1 write and a match early enough that
+# grep leaves first. A ~29 KB payload with the needle at byte 2984 does it. The
+# race resolves the safe way on this mac and the unsafe way on a native amd64
+# runner, so the suite passed locally and failed in CI:
+#
+#   .../smoke-contract.test.sh: line 260: printf: write error: Broken pipe
+#   .../harness.sh: line 74: printf: write error: Broken pipe
+#   --- FAIL: every_asserted_pin_reaches_the_guest
+#   --- FAIL: the_payload_asserts_the_pnpm_pin
+#
+# (gophersys/.devcontainer run 31991914353, pull request #41.) Both assertions
+# were TRUE. That is the worst class of defect this directory can hold: not a
+# check that cannot fail, but a check that fails at random, which teaches a
+# reader to re-run the suite until it is green.
+#
+# A herestring hands grep a temporary FILE. There is no writer process, so
+# there is nothing for an early exit to kill. The match semantics are the same:
+# `<<<` appends the trailing newline printf '%s\n' already wrote.
+#
 # assert_contains <name> <haystack> <needle> [extra evidence line...]
 function assert_contains() {
   local name="$1" haystack="$2" needle="$3"
   shift 3
-  if printf '%s' "$haystack" | grep -qF -- "$needle"; then
+  if grep -qF -- "$needle" <<< "$haystack"; then
     pass_check "$name"
   else
     fail_check "$name" "the output does not name: ${needle}" "output was:" "$haystack" "$@"
@@ -82,7 +114,7 @@ function assert_contains() {
 function assert_not_contains() {
   local name="$1" haystack="$2" needle="$3"
   shift 3
-  if printf '%s' "$haystack" | grep -qF -- "$needle"; then
+  if grep -qF -- "$needle" <<< "$haystack"; then
     fail_check "$name" "the output must NOT name: ${needle}" "output was:" "$haystack" "$@"
   else
     pass_check "$name"
