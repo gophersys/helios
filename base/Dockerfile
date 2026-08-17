@@ -80,7 +80,7 @@ ARG UV_SHA256_NOARCH=efed99618cb5c31e4e36a700ab7c3698e83c0ae0f3c336714043d0f932c
 # Go — official tarball. Matches the workspace `go.work` toolchain directive so the agent-pod
 # image bakes it rather than auto-downloading the toolchain on first `go` invocation per pod.
 ARG GO_VERSION=1.26.5                                                  # latest LTS as of 2026-08-12
-ARG GO_SHA256_AMD64=5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053  # upstream-published: https://go.dev/dl/?mode=json
+ARG GO_SHA256_AMD64=5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053  # upstream-published: https://go.dev/dl/?mode=json&include=all
 
 # Rust — rustup channel, not a pinned version.
 ARG RUST_CHANNEL=stable                                                # latest LTS as of 2026-04-19
@@ -113,7 +113,7 @@ ARG OCI_CLI_VERSION=3.79.0                                             # latest 
 # published. This pair carried the only 2 verified downloads in the repository
 # before this change; the vocabulary moved from the asset spelling
 # (_X86_64/_AARCH64) to the PLATFORM spelling, value unchanged, so that 1
-# vocabulary covers all 27 digests. The _ARM64 and _AARCH64 rows went with the
+# vocabulary covers all 26 digests. The _ARM64 and _AARCH64 rows went with the
 # `linux/arm64)` case arms they fed — SANCTIONED_PLATFORMS is linux/amd64 alone,
 # and a digest nothing compares is a check that cannot fail. F3 restores the arm
 # and the row together.

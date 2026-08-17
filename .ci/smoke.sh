@@ -98,7 +98,7 @@ BASE_PIN_HOME="base/Dockerfile"
 # use below says why it is there.
 #
 # A `*_SHA256_*` pin carries NO row in either table below. It is classified by
-# SHAPE in class_row, because 23 hand-copied `not-a-version` rows would be 23
+# SHAPE in class_row, because 22 hand-copied `not-a-version` rows would be 22
 # places to forget one, and the day a digest is added without its row the smoke
 # refuses to run at all. The shape is safe to trust HERE and only here:
 # _ctl/tests/download-coverage.test.sh owns those names end to end — it holds
