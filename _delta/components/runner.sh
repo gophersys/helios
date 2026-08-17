@@ -39,6 +39,7 @@ set -Eeuo pipefail
 IFS=$'\n\t'
 
 : "${RUNNER_VERSION:?RUNNER_VERSION is not in versions.env}"
+: "${RUNNER_SHA256_AMD64:?RUNNER_SHA256_AMD64 is not in versions.env}"
 : "${CICTL_VERSION:?CICTL_VERSION is not in versions.env}"
 : "${TARGETPLATFORM:?TARGETPLATFORM is not set (docker buildx injects it)}"
 
@@ -54,13 +55,13 @@ rm -rf /var/lib/apt/lists/*
 
 case "${TARGETPLATFORM}" in
   linux/amd64) ARCH=x64 ;;
-  linux/arm64) ARCH=arm64 ;;
   *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;;
 esac
 
 mkdir -p /home/runner
-curl -fsSL "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz" \
-  -o /tmp/runner.tar.gz
+/usr/local/lib/gophersys/fetch-verified.sh \
+  "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz" \
+  /tmp/runner.tar.gz "${RUNNER_SHA256_AMD64}" RUNNER_SHA256_AMD64
 tar -xzf /tmp/runner.tar.gz -C /home/runner
 rm -f /tmp/runner.tar.gz
 mkdir -p /home/runner/_work
