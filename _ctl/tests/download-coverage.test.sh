@@ -463,34 +463,20 @@ function digest_references() {
   ' "$file"
 }
 
-# declaration_line <file> <name> — the line that declares <name> WITH a value,
-# in either home shape: `ARG NAME=value` in a Dockerfile, `NAME=value` in
-# versions.env. Prints nothing when the file does not declare it, or declares
-# it value-less as cloud/Dockerfile does.
-function declaration_line() {
-  local file="$1" name="$2"
-  [[ -f "$file" ]] || return 0
-  awk -v name="$name" '
-    $0 ~ ("^[[:space:]]*ARG[[:space:]]+" name "=") { print; next }
-    $0 ~ ("^" name "=") { print }
-  ' "$file"
-}
-
-# declaration_value <line> — the value a declaration line carries: everything
-# after the first `=`, up to the first whitespace. The trailing comment and the
-# alignment spaces before it are not part of the value.
-function declaration_value() {
-  local line="$1"
-  awk '
-    {
-      position = index($0, "=")
-      if (position == 0) { print ""; next }
-      rest = substr($0, position + 1)
-      split(rest, parts, /[[:space:]]/)
-      print parts[1]
-    }
-  ' <<< "$line"
-}
+# declaration_line, declaration_value, homes_of and evidence_of are NOT here.
+#
+# They live in _ctl/lib.sh, which this file already sources, by the rule that
+# puts a verb body in the library 1 time (ledger #100). They were written here
+# first and moved out when a third caller appeared: _build/resolve-upstream.sh
+# reads the same pin homes to decide what a bump would write, and
+# _ctl/tests/pin-mirroring.test.sh reads them to hold the 2 homes of a pin to 1
+# value. 3 copies of "what does this file declare for that name" are 3 answers
+# that are free to disagree, and the one that disagrees is the one nothing runs.
+#
+# `homes_of` takes a ROOT first there — `homes_of <root> <name> [home...]` —
+# because the resolver runs against a fixture tree as readily as against this
+# repository. Every call below passes "$REPO_ROOT" and its own home list, so the
+# library never falls back to its default set.
 
 # declared_digest_names <file> — every <TOOL>_SHA256_<ARCH> the file declares
 # WITH a value, 1 per line.
@@ -557,20 +543,6 @@ function tool_of() {
   printf '%s' "${name%%_SHA256_*}"
 }
 
-# homes_of <name> <home...> — every home file that declares <name> with a value.
-function homes_of() {
-  local name="$1"
-  shift
-  local home out=""
-  for home in "$@"; do
-    if [[ -n "$(declaration_line "$REPO_ROOT/$home" "$name")" ]]; then
-      out="${out:+${out}
-}${home}"
-    fi
-  done
-  printf '%s' "$out"
-}
-
 # version_pin_of <tool> <home...> — the version-shaped pin name that <tool>
 # carries, and the homes it lives in, as `<NAME>|<home>,<home>`. Prints nothing
 # when no home names the tool at all.
@@ -580,26 +552,13 @@ function version_pin_of() {
   local suffix candidate found=""
   for suffix in "_VERSION" "_REF" "_CHANNEL"; do
     candidate="${tool}${suffix}"
-    found="$(homes_of "$candidate" "$@")"
+    found="$(homes_of "$REPO_ROOT" "$candidate" "$@")"
     if [[ -n "$found" ]]; then
       printf '%s|%s' "$candidate" "$(tr '\n' ',' <<< "$found")"
       return 0
     fi
   done
   return 0
-}
-
-# evidence_of <line> — `upstream-published`, `computed-at-pin` or the empty
-# string. The 2 spellings are the whole vocabulary: either upstream published a
-# checksum file and the 2 agreed, or the value was computed when the pin was
-# taken and the row says on what day.
-function evidence_of() {
-  local line="$1"
-  if [[ "$line" =~ \#[[:space:]]*upstream-published:[[:space:]]*https?://[^[:space:]]+ ]]; then
-    printf 'upstream-published'
-  elif [[ "$line" =~ \#[[:space:]]*computed-at-pin:[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2} ]]; then
-    printf 'computed-at-pin'
-  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -643,7 +602,7 @@ function home_mismatches() {
     pin_name="${pin%%|*}"
     pin_homes="${pin#*|}"
     pin_homes="${pin_homes%,}"
-    digest_homes="$(tr '\n' ',' <<< "$(homes_of "$name" "$@")")"
+    digest_homes="$(tr '\n' ',' <<< "$(homes_of "$REPO_ROOT" "$name" "$@")")"
     digest_homes="${digest_homes%,}"
     if [[ "$digest_homes" != "$pin_homes" ]]; then
       out="${out:+${out}
