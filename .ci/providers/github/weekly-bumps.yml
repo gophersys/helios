@@ -8,11 +8,13 @@ name: weekly-bumps
 # decide whether it lands. A bump that merged itself would move the toolchain of
 # every consuming project with no reader in between.
 #
-# The version and the sha256 of each bump come from the SAME fetch, and
-# _build/resolve-upstream.sh re-proves every digest through
+# Every sha256 it writes is the digest of the asset for the version the same run
+# resolved, and _build/resolve-upstream.sh re-proves it through
 # _build/fetch-verified.sh before it writes a line — so the defect this workflow
 # exists to end, a version that moves while its digest stays, cannot reach the
-# branch.
+# branch. A run that could not read even one upstream reports every mover AND
+# every failure, writes nothing and exits non-zero, so a dead coordinate is
+# never a quiet week.
 #
 # A scheduled run has no author watching it, so the last 2 steps turn a red into
 # 1 labelled issue and a green into the closing of that same issue.
@@ -37,15 +39,17 @@ permissions:
   pull-requests: write
 
 jobs:
-  # 1 job, deliberately. The work is 1 line of pipeline — resolve, write, open —
-  # and in a single job `if: failure()` means "a step of this job failed", which
-  # is exactly the question the notifier has to answer. The 2-job shape the
-  # nightly uses exists because a matrix has verdicts to reduce; there is
-  # nothing here to reduce.
   bump:
-    # A job with no limit inherits the GitHub default of 360 minutes. This one
-    # fetches ~45 index documents and a handful of release assets.
-    timeout-minutes: 30
+    # A job with no limit inherits the GitHub default of 360 minutes, and a hung
+    # resolution would hold a slot for 6 hours.
+    #
+    # 45 minutes is sized on what the run actually downloads, which is not "a
+    # handful of assets": every pin that MOVED is fetched twice, once to compute
+    # the digest and once for the re-proof through fetch-verified.sh, and
+    # flutter_linux_<version>-stable.tar.xz alone was 1 572 146 400 bytes on
+    # 2026-08-17 — ~3.1 GB for that pin. Each asset is deleted as soon as its
+    # digest is read, so the peak on disk is 1 asset and not their sum.
+    timeout-minutes: 45
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -107,6 +111,33 @@ jobs:
           printf 'the bump pull request is open and it carries no checks yet\n'
           printf 'close and reopen it, or push to its branch, to start the gates\n'
 
+  notify:
+    # A SECOND job, and the reason is a job TIMEOUT. `if: failure()` on a step
+    # of the bump job cannot fire when that job is cancelled for exceeding its
+    # limit, so the shape this workflow had — 1 job, notifier steps inside it —
+    # reported nothing on the one failure a 45-minute budget makes likely. This
+    # is the nightly's shape, for the nightly's reason.
+    #
+    # !cancelled() and not always(), which is the stricter half of that pair: a
+    # run a human stopped reduces to a non-success verdict like any other, and
+    # under always() this job would file a red issue about that.
+    if: ${{ !cancelled() }}
+    needs: [bump]
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: reduce the verdict of the job above to this job's own status
+        # GitHub scopes failure() in a step to the STEPS of its own job. This
+        # job runs under !cancelled(), so its own steps succeed whatever the
+        # bump job did, and a notifier guarded by failure() would never fire.
+        # This step fails when the bump job did not succeed — a timeout and a
+        # cancellation of that job included — which is what gives the 2 steps
+        # below a status to read.
+        run: |
+          bump='${{ needs.bump.result }}'
+          printf 'bump=%s\n' "$bump"
+          [[ "$bump" == "success" ]]
       - name: file the failure
         if: ${{ failure() }}
         env:
@@ -118,8 +149,7 @@ jobs:
         # scalar holding that is read as the start of a mapping value where a
         # mapping cannot start: the document is rejected, GitHub refuses the
         # whole workflow, and a workflow that never runs never fails.
-        run: 'bash .ci/notify-failure.sh "weekly upstream resolution: ${{ job.status }}" "the step log names the pin it stopped on"'
-
+        run: 'bash .ci/notify-failure.sh "weekly upstream resolution: ${{ needs.bump.result }}" "the bump job log names every pin it could not read"'
       - name: close the issue on a green run
         if: ${{ success() }}
         env:
