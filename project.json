@@ -37,22 +37,6 @@
         "cwd": "{projectRoot}"
       },
       "cache": false
-    },
-    "propagate": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "bash ./ctl.sh propagate",
-        "cwd": "{projectRoot}"
-      },
-      "cache": false
-    },
-    "release": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "bash ./ctl.sh release",
-        "cwd": "{projectRoot}"
-      },
-      "cache": false
     }
   }
 }

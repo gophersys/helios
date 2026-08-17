@@ -3,8 +3,17 @@
 This directory owns **every operation that acts on more than 1 image** in the
 gophersys/.devcontainer repository. Each image has its own directory `<name>/`
 with its own `ctl.sh` + `project.json` + `Dockerfile`. The repository-level
-`ctl.sh` delegates to those per-image scripts. This layer is 1 level above
-them. It is the only entrypoint that should appear in a CI pipeline YAML.
+`ctl.sh` delegates to those per-image scripts. This layer is 1 level above them.
+
+**`.ci/ctl.sh` is the LOCAL aggregate, and no workflow calls it.** This sentence
+used to read "it is the only entrypoint that should appear in a CI pipeline
+YAML", and the grep says otherwise: `.github/workflows/` executes
+`.ci/affected.sh`, `.ci/mirror-buildkit.sh`, `.ci/buildx-node.sh`,
+`.ci/smoke.sh` and `.ci/notify-failure.sh` directly, plus the repository-root
+`./ctl.sh verify-published`. The only mention of `.ci/ctl.sh` in a workflow is
+`validate.yml`, which `grep`s the file for `BUILD_ORDER` and never runs it. Each
+job calls the purpose-built script it needs, because a job gates each step on
+`.ci/affected.sh` and an aggregate verb cannot be gated per image.
 
 ## Layout
 
@@ -15,6 +24,7 @@ them. It is the only entrypoint that should appear in a CI pipeline YAML.
 ├── image-checks.sh     the GUEST checks — the comparator + the functional groups
 ├── affected.sh         which images a commit changes — the input table, 1 home
 ├── buildx-node.sh      the builder every image build uses; owns the arm64 switch
+├── mirror-buildkit.sh  keeps ghcr.io holding the pinned BuildKit index the builder boots from
 ├── notify-failure.sh   the 1 labelled issue a scheduled run opens, comments on and closes
 ├── fixtures/           what the functional checks read: a Go module, a Dockerfile,
 │                       a compose file, a proto and its buf module
@@ -55,10 +65,20 @@ bash .ci/ctl.sh <verb>
 | Verb                    | What it does                                                |
 |-------------------------|-------------------------------------------------------------|
 | `validate`              | shellcheck + hadolint + jq across the whole tree            |
-| `build-all`             | Build every image, parent first (base → flutter → zephyr)   |
-| `push-all`              | GUARDED push of every image to ghcr.io                      |
+| `build-all`             | Build every image, parent first, in `BUILD_ORDER`           |
+| `push-all`              | GUARDED push of every image to ghcr.io. **Local only** — see below |
 | `smoke-test-all`        | Run `smoke.sh` against each image after a local build       |
 | `help`                  | Show the inline verb index                                  |
+
+`build-all` and `push-all` walk `BUILD_ORDER` in `.ci/ctl.sh`, which holds all 5
+images. Do not restate that chain here: this table used to say
+"(base → flutter → zephyr)" while the same file said "All 5 that it builds" 30
+lines lower, so the file disagreed with itself.
+
+**`push-all` is a local verb and no workflow runs it.** It loops `BUILD_ORDER`
+unconditionally, so it would push all 5 images whatever `.ci/affected.sh` says,
+which is the opposite of the affected-only rule the publishing workflow obeys.
+Each job of `build-and-push.yml` pushes the 1 image it just built and smoked.
 
 ## Which images CI smokes
 
@@ -109,5 +129,11 @@ delegated to them. That structure works for an operation on 1 image
 `.ci/ctl.sh` supplies that place. It knows the dependency order. It knows that
 `push-all` does `buildx --push` on every image and fails if 1 image fails. It
 knows that the smoke test after the build is not the same as the build of 1
-image. It is the contract that a CI pipeline uses. It is also the contract that
-a local developer uses to get the same behavior as CI on a personal computer.
+image. It is the contract a local developer uses to get CI's behaviour on a
+personal computer, in 1 command.
+
+**A CI pipeline does not use it, and the reason is the affected-only rule.** A
+workflow job gates its build, its smoke and its push on
+`bash .ci/affected.sh <image>`, so the unit CI works in is 1 image and not the
+set. The aggregate verbs stay for the local loop; the workflow calls the
+individual scripts of this directory.

@@ -7,9 +7,19 @@
 # this file existed, the 5 per-image scripts each carried the same 140 lines,
 # and 6 scripts each carried a copy of the push guard.
 #
-# The repo-root ctl.sh and .ci/ctl.sh source this file for the logging, the
-# tool gate and the guard. Their own verbs act on the whole set of images, so
-# they keep those verbs themselves.
+# 8 non-image scripts source this file, and not for the same contract. This
+# header named 2 of them and 1 contract:
+#
+#   logging + tool gate + guard      ctl.sh, .ci/ctl.sh, .ci/smoke.sh,
+#                                    .ci/affected.sh, .ci/notify-failure.sh
+#   SANCTIONED_PLATFORMS, BUILDKIT_REF, BUILDKIT_UPSTREAM_REF
+#                                    .ci/buildx-node.sh, .ci/mirror-buildkit.sh
+#   the pin readers and the writer   _build/resolve-upstream.sh
+#     (pin_value, homes_of, digest_row_of, fetch_urls, bump_pin)
+#
+# Their own verbs act on the whole set of images, so they keep those verbs
+# themselves. Adding an export here adds it to all 8: read the consumer list
+# before you rename anything below.
 #
 # The pattern is the same one that gophersys/libs uses in go/_ctl/lib.sh. The
 # directory name starts with an underscore, so Nx and Go ignore it. It is not

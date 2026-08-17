@@ -4,8 +4,11 @@
 #
 # One home for the answer. Every job of build-and-push.yml asks it about its own
 # image, and gates its build, its smoke, its push and its manifest read on the
-# reply. A warm all-6 rebuild measured ~35 minutes on every push to main, and
-# most pushes to main touch 1 image or none of them.
+# reply. A warm rebuild of the whole set measured ~35 minutes on every push to
+# main, and most pushes to main touch 1 image or none of them. (That was
+# measured when the set held 6; BUILD_ORDER holds 5 now, since base-runner was
+# retired. The count is left out on purpose — this file's own image_own_paths()
+# is the list, and a number restated in prose goes stale on its own.)
 #
 #   bash .ci/affected.sh <image>
 #       1 record on stdout, in the GITHUB_OUTPUT grammar:

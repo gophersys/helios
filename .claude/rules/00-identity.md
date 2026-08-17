@@ -1,20 +1,24 @@
 # .devcontainer — identity and conventions
 
-Every project monorepo in the brain ecosystem uses this repository
-(`gophersys/.devcontainer`) as a shared submodule. Its role is to supply the
-container images. The projects use the images for local development (the VS
-Code devcontainer) and as the CI runtime in which GitHub Actions runs
-`nx affected`.
+`gophersys/eden` uses this repository (`gophersys/.devcontainer`) as a shared
+submodule at `.devcontainer/`. Its role is to supply the container images. Eden
+uses the images for local development (the VS Code devcontainer) and as the CI
+runtime the ARC pools run.
+
+**The consumer is Eden, and `brain` is a name that no longer resolves.** This
+document named a `brain` parent in 7 places, and 2 verbs of `ctl.sh` shelled out
+to `$(superproject)/.claude/scripts/`. That directory does not exist in Eden, so
+both verbs failed at every invocation. The verbs are deleted and the name is
+corrected in the same change, because a dead path and a dead name are 1 defect:
+text that describes a layout nobody checked.
 
 ## Purpose
 
-- It is the single source of truth for the canonical container images that the
-  brain ecosystem uses.
+- It is the single source of truth for the canonical container images.
 - It keeps the local development environment and the CI environment identical,
   byte for byte.
 - It gives you 1 place to change a toolchain version. You make the change
-  exactly once, and the change then goes to every project through
-  shared-change propagation.
+  exactly once. Eden takes the change when it moves its submodule pointer.
 
 ## Image model
 
@@ -27,7 +31,7 @@ that it runs inside.
 | `ghcr.io/gophersys/base`          | `base`          | Everything that most projects need: shells (zsh+oh-my-zsh), git/gh, languages (Node LTS, Python 3.12, Go, Rust), infra CLIs (kubectl/helm/k9s/tailscale/docker-cli/docker-compose/bw/nats), desktop libs (Tauri/GTK/webkit), USB/BLE libs (libusb, libudev, libbluetooth, bluez), data clients (psql, sqlite3, redis-cli), parsing (jq, yq, httpie, rg, fd, bat), QA (shellcheck, hadolint). |
 | `ghcr.io/gophersys/flutter`       | `flutter`       | Base + OpenJDK 21 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
 | `ghcr.io/gophersys/zephyr`        | `zephyr`        | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
-| `ghcr.io/gophersys/zephyr-devbox` | `zephyr-devbox` | Zephyr + sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules. It is an embedded development box for a k8s pod, and you connect to it over SSH. |
+| `ghcr.io/gophersys/zephyr-devbox` | `zephyr-devbox` | Zephyr + sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules + clangd and code-server on `:8443` (browser VS Code, `EXPOSE 8443`, the clangd extension seeded into `/opt/code-server-extensions` at build time). It is an embedded development box for a k8s pod. It has 2 access paths: SSH as `dev`, and the browser at `:8443`. |
 | `ghcr.io/gophersys/cloud`         | `cloud`         | The successor image of the consolidation program (ledger #94), ADDITIVE today: the reduced base (no clang/cmake, no desktop/Tauri libs, no USB-BLE libs, no Rust, no ansible + oci-cli, no speedtest-cli/ncat/net-tools, Go caches removed — terraform and the AWS CLI are NOT in this list, because they left `base` itself and are ready components nothing installs; db clients and the comfort TUIs are not in it either, because cloud re-adds them through `_delta/components/`) + delve/buf/grpcurl + the CI fold (Actions runner, cictl, claude/omp/codex at the versions.env pins). ONE image for dev and CI: the default command is zsh, and a CI pod overrides the command to `/home/runner/run.sh`. Every pin lives in `versions.env` at the repository root; the build feeds it in as generated `--build-arg`s, and `_delta/components/*.sh` install the folded tool groups. Its smoke gates publish (build → smoke → push) and enforces the ≤ 5.75 GB size budget (raised from 5.5 GB by Mateo, 2026-08-16: the measured floor after the R4 levers with every tool kept is ~5.63–5.67 GB). |
 
 ## Structure
@@ -37,17 +41,23 @@ that it runs inside.
 ├── README.md
 ├── project.json                 # repo-level Nx wiring
 ├── ctl.sh                       # repo-wide control
+├── versions.env                 # the ONE pin home of the cloud family
 ├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time
 ├── _ctl/tests/                  # hermetic *.test.sh + harness + docker stub + fixtures
 ├── .claude/rules/00-identity.md # (this file)
+├── docs/                        # PROPOSALS for images that do not exist yet — see docs/README.md
 ├── _build/                      # COPYed into base and cloud, above their first download
 │   ├── fetch-verified.sh        # the ONE verifier every image download goes through
 │   ├── download-exemptions.txt  # the downloads that take a stated class instead of a digest
 │   ├── upstreams.txt            # where the next value of every pin comes from
 │   └── resolve-upstream.sh      # the weekly resolver: 1 function per datasource
-├── .ci/affected.sh              # which images this commit changes — 1 home for the answer
-├── .ci/buildx-node.sh           # the builder every image build uses; owns the arm64 switch
+├── _delta/components/           # 1 file per folded tool group; cloud COPYs them and runs them
+├── .ci/                         # the CI layer — .ci/README.md lists every file
+│   ├── affected.sh              # which images this commit changes — 1 home for the answer
+│   ├── buildx-node.sh           # the builder every image build uses; owns the arm64 switch
+│   └── mirror-buildkit.sh       # keeps ghcr.io holding the BuildKit index the builder boots from
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
+├── cloud/         { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── runner/        { Dockerfile, project.json, ctl.sh }   # RETIRED — nothing builds it, deletion pending
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
@@ -65,7 +75,7 @@ that it runs inside.
 1. **This repository has no Nx workspace of its own.** You must be able to run
    every operation as plain `bash ./ctl.sh <cmd>` from within this repository.
 2. **Per-image file rule.** Each devcontainer image directory at the repository
-   root (`base/`, `flutter/`, `zephyr/`, `zephyr-devbox/`) contains
+   root (`base/`, `cloud/`, `flutter/`, `zephyr/`, `zephyr-devbox/`) contains
    `devcontainer.json` + `Dockerfile` + `project.json` + `ctl.sh`. It also
    contains each script that the image COPYs in, for example an entrypoint.
    `validate` runs `shellcheck -x -S style` on every shell script in the
@@ -90,8 +100,24 @@ that it runs inside.
    it: it left `BUILD_ORDER`, so no loop of `ctl.sh` — `validate`'s hadolint
    pass included — reaches its Dockerfile any more. `image_dir()` still maps
    `*-runner` to `runner/` in both control scripts, because those 2 functions
-   must agree whatever the set holds. Deleting the directory is the next
-   change, and it goes with the docs sweep.
+   must agree whatever the set holds.
+
+   **"Nothing builds it" is not "nothing reaches it".** `runner/Dockerfile` is
+   still 1 of the 6 `PIN_VALUE_HOMES` in `_ctl/lib.sh`, so `bump_pin` writes
+   into it every Monday; it is 1 of the 6 `GOVERNED_DOCKERFILES` in
+   `_build/resolve-upstream.sh`; `_build/upstreams.txt` carries its
+   `RUNNER_VERSION` row and `_build/download-exemptions.txt` carries its
+   claude-installer row; and 5 test files hold `runner/Dockerfile`,
+   `runner/ctl.sh` or `runner/project.json` as a literal. Deleting the
+   directory is scheduled with the consolidation wave and not with this docs
+   sweep, and that list is the real cost: the deletion edits every file above
+   in 1 change, and it is not a `git rm`.
+
+   **Both of those lists call themselves "the 6" and they hold different
+   members.** `PIN_VALUE_HOMES` holds `versions.env`; `GOVERNED_DOCKERFILES`
+   holds `cloud/Dockerfile` in its place. Read each list, never the count beside
+   it — whoever does the deletion has to edit both, and 6 == 6 hides that they
+   are not the same 6.
 3. **Do not add a `CLAUDE.md` file.** The conventions of this repository stay
    here, in `.claude/rules/`.
 4. **A human writes the text.** Do not put an AI or LLM attribution of any kind
@@ -109,8 +135,9 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
 - To add a new tool, select its **latest LTS or stable** release. Do the
   research with apt-cache, with the upstream GitHub releases, or with pypi.
   Never invent a version.
-- **You must get approval to change a version.** A change to a version ARG goes
-  through the brain-level approval gate.
+- **You must get approval to change a version.** A change to a version ARG needs
+  Mateo's approval on the pull request. It reaches every image below this one in
+  the graph, and the ARC pools run `cloud`.
 - **A digest row takes the same shape as a version row, and sits beside it.**
   Every binary download compares its bytes against a `<TOOL>_SHA256_<ARCH>`
   declared in the SAME home as `<TOOL>_VERSION`: an `ARG` at the top of the
@@ -205,13 +232,25 @@ base-OS currency probe above. It builds and publishes nothing.
   morning teaches the reader to ignore red. The measurement is 1
   `workflow_dispatch` run at `HIGH,CRITICAL`.
 - **An unfixed CRITICAL becomes a waiver, never a skip.** Waivers live in
-  `.ci/trivyignore.yaml`, and each entry carries trivy's own 3 fields: `id`,
-  `statement` (WHY it is accepted) and `expired_at` (`yyyy-mm-dd`). Trivy
-  enforces the expiry itself, so a dated waiver reopens on its own. The file is
-  EMPTY at merge, and `_ctl/tests/scheduled-workflows.test.sh` fails an entry
-  missing 1 of the 3. The scan must NAME the file with `--ignorefile`: trivy's
-  YAML ignore file is experimental and is loaded only when its path is given, so
-  an unnamed waiver file is dead text.
+  `.ci/trivyignore.yaml`. Each entry carries 4 fields: trivy's own `id`,
+  `statement` (WHY it is accepted) and `expired_at` (`yyyy-mm-dd`), and `paths`.
+  Trivy enforces the expiry itself, so a dated waiver reopens on its own.
+  `_ctl/tests/scheduled-workflows.test.sh` fails an entry missing 1 of the first
+  3. **`paths` is the 4th field and no test holds it**, so it is a rule the
+  waiver file states and a reader must obey by hand: a bare id waives the
+  finding in every file of every image, and `CVE-2025-68121` alone would have
+  covered gitleaks AND yq AND k9s AND any binary added tomorrow. The scan must
+  NAME the file with `--ignorefile`: trivy's YAML ignore file is experimental
+  and is loaded only when its path is given, so an unnamed waiver file is dead
+  text.
+- **Read the file, never a count in this document.** An earlier version of this
+  sentence said the file "is EMPTY at merge". It has not been empty for some
+  time, and a maintainer taking that sentence at its word would believe the scan
+  accepts zero CVEs. The file holds 6 `vulnerabilities:` entries and 1
+  `secrets:` entry today, every one expiring 2026-11-30 — so all 7 reopen in 1
+  night rather than in a stagger, which the November review must plan for. The
+  standing rule is the invariant, not the length: an entry is a visible diff
+  line, it carries all 4 fields, and its expiry is a date.
 - **A scheduled run has no author watching it.** Every workflow that runs
   `on: schedule` therefore calls `.ci/notify-failure.sh` from a step guarded by
   `if: ${{ failure() }}` and declares `issues: write`. That script opens or
@@ -428,16 +467,29 @@ run`. The guest compares what each tool reports against its pin, and it then run
 the gate-critical tools on the fixtures — a Go module through
 gofumpt/golangci-lint/hnslint/vet, a Dockerfile through hadolint, a compose file
 through the compose plugin, and delve/buf/grpcurl each on 1 real operation.
-`_ctl/tests/version-coverage.test.sh` fails when a pin carries no classification,
-so a new pin cannot stay silent.
+`_ctl/tests/version-coverage.test.sh` fails when a pin of those 2 homes carries
+no classification, so a new pin there cannot stay silent.
+
+**That rule covers 2 pin homes, and the repository has 6.** `home_pin_names` in
+`.ci/smoke.sh` holds a reader for `versions.env` and for `base/Dockerfile`, and
+for no other home; `version-coverage` asserts against the same 2. So the 10 pins
+of the child images are unasserted today, and that is a stated gap rather than
+an oversight: `JAVA_VERSION`, `ANDROID_CMDLINE_TOOLS_VERSION`,
+`ANDROID_PLATFORM_VERSION`, `ANDROID_BUILDTOOLS_VERSION`, `FLUTTER_VERSION` and
+`FLUTTER_CHANNEL` in `flutter/Dockerfile`; `WEST_VERSION` and
+`ZEPHYR_SDK_VERSION` in `zephyr/Dockerfile`; `ESPTOOL_VERSION` and
+`CODE_SERVER_VERSION` in `zephyr-devbox/Dockerfile`. `CODE_SERVER_VERSION` shows
+the hole is live and not historical: it was pinned in the current cycle, and no
+class, no test and no smoke run compares it against the image it installs.
+Ledger #102 and #103 own the gap. Until they close it, read "a new pin cannot
+stay silent" as true of the cloud family and of `base`, and of nothing else.
 
 ## Dev-in-container expectation
 
 Use these images for **development from inside the container**. They are not
 only a CI runtime. The default `CMD` is zsh. oh-my-zsh is already installed for
 the `dev` user (uid 1000, sudo-nopasswd). The working directory is
-`/workspace`. This agrees with the bind-mount convention of the brain-ecosystem
-projects.
+`/workspace`. This agrees with Eden's bind-mount convention.
 
 Every image exports `GOPHERSYS_DEVCONTAINER=<image-name>`, so a development
 script and a project CI job can detect the image that they run inside.
@@ -445,13 +497,54 @@ script and a project CI job can detect the image that they run inside.
 Each image directory contains a `devcontainer.json` that pins its published
 image. A consuming project mounts the file at
 `.devcontainer/<image>/devcontainer.json`. The VS Code command "Reopen in
-Container" then lists `base`, `flutter`, `zephyr` and `zephyr-devbox` as
-configurations that you can select. Each configuration bind-mounts the project
-to `/workspace` and runs as the `dev` user.
+Container" then lists `base`, `cloud`, `flutter`, `zephyr` and `zephyr-devbox`
+as configurations that you can select — 5 files, 1 for each image. Each
+configuration bind-mounts the project to `/workspace` and runs as the `dev`
+user.
 
-You can also deploy `zephyr-devbox` as a k8s pod and connect to it over VS Code
-Remote-SSH. Its default entrypoint runs sshd as root. The entrypoint execs any
-argv that you supply, so local devcontainer use behaves like the other layers.
+**`cloud/devcontainer.json` declares no `postCreateCommand`, and `base` does.**
+The difference is where the harnesses come from. `cloud` bakes claude, omp and
+codex into the image through `_delta/components/agents.sh`, at the `versions.env`
+pins, so an agent pod does zero network installs at start. `base` carries no
+harness, so `base/ctl.sh post-create` installs them at create time. An image
+that already holds the tool needs no post-create step, and adding one would
+install over the bake on every container create.
+
+You can also deploy `zephyr-devbox` as a k8s pod, connect to it over VS Code
+Remote-SSH, or open it in a browser at `:8443`. Read
+`zephyr-devbox/devbox-entrypoint.sh` for its full contract; sshd is the last
+thing it does, and 5 operator-facing steps come first:
+
+1. It execs any argv you supply and does nothing else. Local devcontainer use
+   therefore behaves like the other layers.
+2. It generates persistent ed25519 and rsa host keys into `/etc/ssh/hostkeys`,
+   so the box keeps its SSH identity across pod restarts.
+3. It takes `authorized_keys` from `DEVBOX_AUTHORIZED_KEYS` (a pod env, usually
+   a Secret), otherwise from a mounted `/etc/devbox/authorized_keys`, otherwise
+   it leaves the persistent home's file alone. With none of the 3 it reports a
+   DEGRADED error: sshd boots and refuses every login.
+4. It chowns and chmods the `/home/dev` and `/workspace` mountpoints, and
+   deliberately NOT recursively. It then recreates `/dev/mcu-slot-1..6` from
+   `/dev/serial/by-path`, because a symlink at the node's `/dev` root does not
+   propagate into the pod. Slot N is guest USB port N is physical hub slot N.
+5. It starts code-server as `dev` on `0.0.0.0:8443`, under a supervisor loop
+   that logs and restarts every exit. **Auth is required by default.** Set
+   `DEVBOX_CODE_SERVER_HASHED_PASSWORD` (code-server's own argon2
+   `HASHED_PASSWORD` contract), or state
+   `DEVBOX_CODE_SERVER_AUTH=none-behind-proxy` to declare that an
+   authenticating proxy owns the port. With neither set, code-server does NOT
+   start and the refusal names both knobs. The reason is measured, not
+   theoretical: the account code-server runs as holds passwordless sudo, so a
+   reachable unauthenticated `:8443` is root on the pod for any peer the network
+   admits — and the network boundary is a NetworkPolicy in another repository,
+   which this file cannot see and must not trust as the only wall.
+
+**Every refusal above writes `/run/devbox-degraded` and logs ERROR, not
+WARNING.** sshd still runs, because code-server is supplementary and a missing
+credential must not take the primary service down. But a pod that reports
+Running while a declared service is absent is the failure mode this entrypoint
+used to have, so the marker file is machine-readable state a probe or an
+operator can find.
 
 ## Per-image verb catalog
 
@@ -477,9 +570,15 @@ argv that you supply, so local devcontainer use behaves like the other layers.
 | `list` | Print the managed image refs |
 | `validate` | shellcheck every shell script, jq, hadolint at the pinned version, ARG-discipline checks |
 | `test` | Run every `_ctl/tests/*.test.sh`; fail if it finds none |
-| `propagate` | Fan out submodule pointer bumps (delegates to brain) |
-| `release` | Cut a release (delegates to brain) |
 | `help` | Usage |
+
+`propagate` and `release` were 2 more rows here, and both are deleted. Each one
+shelled out to `$(git rev-parse --show-superproject-working-tree)/.claude/scripts/`,
+a layout that belonged to the pre-Eden `brain` parent. Eden has no
+`.claude/scripts/`, so both verbs took their own error path at every invocation
+and told the caller to run them "from within brain". A verb that cannot succeed
+is worse than an absent verb: it reads as a capability in the catalog, and the
+verb catalog is what a reader trusts.
 
 ## Dependency graph
 
@@ -496,25 +595,36 @@ asserts that BUILD_ORDER agrees between `ctl.sh` and `.ci/ctl.sh`. `.ci/ctl.sh
 validate` delegates to the root `ctl.sh`: it used to be a second copy and the 2
 diverged, so it reported OK on a Dockerfile that the root script rejected.
 
-The graph is declared in 5 places. All 5 MUST stay the same:
+The graph is declared in **6** files. All 6 MUST stay the same. Count the list,
+never the sentence — this heading said 5 while carrying 6 bullets, and its 4th
+bullet called itself "the 5th home" by counting `BUILD_ORDER`'s 2 files as 2:
 
-- `BUILD_ORDER` in `./ctl.sh` **and** in `.ci/ctl.sh`.
-- `dependsOn` in each image's `project.json`.
-- `needs:` in `.github/workflows/build-and-push.yml`.
-- `image_parent()` in `.ci/affected.sh`. This is the 5th home, and it arrived
-  with affected-only builds. It is the graph again because a child's input set
-  has to CONTAIN its parent's: that inclusion is what makes "the parent built,
-  so the child builds" true by construction, and a missing edge there publishes
-  a layer on a parent that moved under it. The workflow's `needs:` and this map
-  answer 2 different questions — order, and inputs — and both are the same graph.
-- `.ci/providers/github/build-and-push.yml`. This file is the source of truth
-  for the provider, and it must match the workflow byte for byte. Once it
-  became an old copy that listed only 3 images, and nobody saw the difference.
-  Then it drifted again in commit `d9089b2`, which added 5 `timeout-minutes: 90`
-  blocks to the workflow and to neither copy of this file, while this rule went
-  on calling them identical. A rule that nothing checks is a rule that drifts:
-  `_ctl/tests/platform-policy.test.sh` compares the 2 files with `cmp` now, and
-  `bash ./ctl.sh test` runs it in the pull request gate.
+1. `BUILD_ORDER` in `./ctl.sh`.
+2. `BUILD_ORDER` in `.ci/ctl.sh`.
+3. `dependsOn` in each image's `project.json`.
+4. `needs:` in `.github/workflows/build-and-push.yml`.
+5. `image_parent()` in `.ci/affected.sh`. It arrived with affected-only builds.
+   It is the graph again because a child's input set has to CONTAIN its
+   parent's: that inclusion is what makes "the parent built, so the child
+   builds" true by construction, and a missing edge there publishes a layer on a
+   parent that moved under it. The workflow's `needs:` and this map answer 2
+   different questions — order, and inputs — and both are the same graph.
+6. `.ci/providers/github/build-and-push.yml`. This file is the source of truth
+   for the provider, and it must match home 4 byte for byte. It is a home in its
+   own right, because a reader who edits 1 of the pair has already drifted the
+   graph. Once it became an old copy that listed only 3 images, and nobody saw
+   the difference. Then it drifted again in commit `d9089b2`, which added 5
+   `timeout-minutes: 90` blocks to the workflow and to neither copy of this
+   file, while this rule went on calling them identical. A rule that nothing
+   checks is a rule that drifts: `_ctl/tests/platform-policy.test.sh` compares
+   the 2 files with `cmp` now, and `bash ./ctl.sh test` runs it in the pull
+   request gate.
+
+**2 files still say 4**, and they are the files the reader meets on a red gate:
+the step comment at `.github/workflows/validate.yml:49`, and the `fail_check`
+evidence string in `_ctl/tests/publish-order.test.sh`. That number was correct
+before `image_parent()` and before the `cmp`. Both belong to the wave that owns
+workflows and tests; this document is the count they must take.
 
 That `cmp` covers **every** file of `.ci/providers/github/`, found by a glob, and
 not `build-and-push.yml` alone. The narrow version had the same hole 1 level up:
@@ -550,12 +660,22 @@ out of both copies of the publishing workflow, out of the nightly scan matrix,
 and out of `.ci/smoke.sh`. Its `content-runner` check group did NOT go with it —
 `cloud` carries the runner layer, and that group runs against `cloud`.
 
-2 things are deliberately left:
+1 thing is deliberately left. The second thing this section listed as left is
+already gone, and the entry stays so the next reader does not go looking:
 
-- **`runner/` is still on disk.** Nothing builds it and no loop reaches it. Its
-  deletion is the next change, with the docs sweep.
-- **`ghcr.io/gophersys/base-runner` is still published.** The tags that exist
-  stay reachable until the package is archived, which happens after this merges.
+- **`runner/` is still on disk.** Nothing builds it: no loop of either control
+  script reaches its Dockerfile, because every loop walks `BUILD_ORDER`. That is
+  not the same as inert — it is still a pin home, an exemptions row and a
+  literal in 5 test files, all listed under convention 2 above. Its deletion is
+  scheduled with the consolidation wave, and it edits every one of those files
+  in the same change.
+- **`ghcr.io/gophersys/base-runner` is GONE from the registry.** This document
+  said the package "is still published" and that it would be archived "after
+  this merges". Read on 2026-08-17, the org holds no `base-runner` and no
+  `base-runner-cache` package, and
+  `/orgs/gophersys/packages/container/base-runner` answers 404. So no tag of it
+  is reachable, and a consumer that still pins one gets a pull failure and not
+  an old image.
 
 The full interface is in `gophersys/infrastructure` `docs/ci-substrate.md`. It
 states which capabilities are pools and which capabilities are images.
@@ -565,8 +685,10 @@ states which capabilities are pools and which capabilities are images.
 `build-and-push.yml`, `security-nightly.yml` and `weekly-bumps.yml` run on
 `arc-build`. `validate.yml` and `pr-review.yml` keep `arc-org` and `arc-review`.
 Nothing in this repository runs on a GitHub-hosted runner: the account had 195
-of 2,000 minutes left against a $0 budget, and a warm 6-image build wave spent
-~35 of them per push.
+of 2,000 minutes left against a $0 budget, and a warm rebuild of the whole set
+spent ~35 of them per push. The measurement was taken when the set held 6
+images; it holds 5 now, and the number is kept because the budget argument does
+not depend on the count.
 
 - **No job may install a free-disk action.** That action reclaims space by
   deleting the preinstalled SDKs of a throwaway hosted VM. On `arc-build` the
@@ -626,11 +748,21 @@ of 2,000 minutes left against a $0 budget, and a warm 6-image build wave spent
 
 ## Shared-change propagation
 
-Every project monorepo uses this repository as a submodule at
-`<project>/.devcontainer/`. A project does not see a change here until the
-project changes its submodule pointer. Run `bash ./ctl.sh propagate` from
-within brain to send the change to every project. This operation needs
-approval.
+`gophersys/eden` uses this repository as a submodule at `.devcontainer/`. Eden
+does not see a change here until Eden moves that pointer:
+
+```sh
+# from the eden checkout
+git -C .devcontainer fetch origin && git -C .devcontainer checkout <sha>
+git add .devcontainer && git commit
+```
+
+**There is no propagate verb, and there is no fan-out.** `bash ./ctl.sh
+propagate` used to stand here. It called
+`$(superproject)/.claude/scripts/propagate.sh`, a path of the pre-Eden `brain`
+parent that Eden does not have, so every invocation took the error branch. The
+pointer bump is 1 commit in 1 consumer, which needs no automation and needs
+Mateo's approval like any other merge.
 
 ## Git hygiene
 
