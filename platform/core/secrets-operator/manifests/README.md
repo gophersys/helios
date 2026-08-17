@@ -36,8 +36,8 @@ kubectl -n external-secrets create secret generic bw-cli-credentials \
 ```
 
 > Security: this secret holds the master password of the vault. The enforced
-> default-deny NetworkPolicy protects it, so only the ESO pod can reach the
-> bridge. We verified that kube-router in k3s enforces the NetworkPolicy. The
+> default-deny NetworkPolicy protects it, so only the ESO pods and the
+> `bw-serve-sync` CronJob pods can reach the bridge. We verified that kube-router in k3s enforces the NetworkPolicy. The
 > secret lives only in etcd, never in git. Consider a dedicated Vaultwarden user
 > or organization key with the least privilege at a later date.
 
@@ -58,9 +58,15 @@ kubectl -n external-secrets create secret generic bw-cli-credentials \
 ## Files
 - `bw-serve.yaml` — the Deployment and Service of the Bitwarden CLI bridge (an
   unlocked `bw serve`)
-- `networkpolicy.yaml` — default-deny, and it allows only ESO to reach the bridge
-  on port 8087
+- `networkpolicy.yaml` — default-deny, and it allows ESO to reach the bridge on
+  port 8087
 - `clustersecretstore.yaml` — the ESO webhook store that points at the bridge
+- `bw-serve-sync.yaml` — a CronJob that sends POST /sync to the bridge every 10
+  minutes, plus the NetworkPolicy allow and ServiceAccount for it. The bridge
+  caches the vault at login and never syncs on its own; without this, a new or
+  rotated item stays invisible to ESO until the pod restarts (build ledger
+  #89). A failed sync is a Failed Job object only — nothing alerts on it (D16);
+  `scripts/verify-bw-sync-wiring.sh` guards the wiring in CI
 
 ## Status and findings (2026-07-05)
 

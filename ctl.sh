@@ -171,6 +171,7 @@ Commands:
   verify-structure  Assert contract front-matter/sections + chart READMEs
   verify-vault-refs Assert every named vault item resolves to EXACTLY one item
   verify-buildx-key Assert the arc-org pool mounts the buildkit client mTLS certs
+  verify-bw-sync    Assert the bw-serve-sync CronJob is wired to the bridge
   verify-runner-image <tag>  Assert a runner image works in the ARC pod shape
   verify-image-arch <ref>    Assert every manifest variant IS the arch it declares
   verify-runner-queue [repo] [workflow] [runs]
@@ -254,6 +255,15 @@ function cmd_verify_buildx_key() {
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-buildx-key.sh" "$@"
 }
 
+function cmd_verify_bw_sync() {
+  # Assert the bw-serve-sync CronJob is actually wired to the bridge: the
+  # NetworkPolicy admits its pods on the right port, the URL dials the Service
+  # that exists, and the shell keeps its failure chain. kubeconform cannot see
+  # any of that, and the failure mode is a Job that fails every 10 minutes in
+  # a namespace nobody watches (D16).
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-bw-sync-wiring.sh" "$@"
+}
+
 function cmd_verify_exposure() {
   # Assert every hostname is exposed the way contracts/exposure.yaml declares.
   # Read-only: DNS resolution + one HTTP probe per host. Changes nothing.
@@ -273,6 +283,7 @@ function main() {
     verify-structure) cmd_verify_structure "$@" ;;
     verify-vault-refs) cmd_verify_vault_refs "$@" ;;
     verify-buildx-key) cmd_verify_buildx_key "$@" ;;
+    verify-bw-sync)  cmd_verify_bw_sync  "$@" ;;
     verify-image-arch)   cmd_verify_image_arch   "$@" ;;
     verify-runner-image) cmd_verify_runner_image "$@" ;;
     verify-runner-queue) cmd_verify_runner_queue "$@" ;;

@@ -60,7 +60,9 @@ The External Secrets Operator (controller, webhook, cert-controller) plus
 **`bw-serve`**, a bridge to the cloud Vaultwarden. The ClusterSecretStore
 `vaultwarden` resolves items by name and returns their `notes` field.
 Single-value credentials are created imperatively instead (see
-`docs/runtime-secrets.md`).
+`docs/runtime-secrets.md`). The CronJob **`bw-serve-sync`** POSTs `/sync` to
+the bridge every 10 minutes, because the bridge caches the vault at login and
+never syncs on its own (build ledger #89).
 
 ### `metallb-system` — LoadBalancer on bare metal
 The controller plus the speaker DaemonSet, in L2 mode, with the pool
