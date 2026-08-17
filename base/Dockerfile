@@ -57,10 +57,10 @@ ARG OH_MY_ZSH_INSTALL_URL=https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/mast
 # The nvm digest covers the INSTALLER SCRIPT only. node itself is fetched by that
 # script, and node's own download is out of scope of this change. _NOARCH says the
 # 1 asset serves every platform.
-ARG NVM_VERSION=0.40.4                                                 # latest LTS as of 2026-04-19
-ARG NVM_SHA256_NOARCH=4b7412c49960c7d31e8df72da90c1fb5b8cccb419ac99537b737028d497aba4f  # computed-at-pin: 2026-08-17
-ARG NODE_VERSION=24.15.0                                               # latest LTS as of 2026-04-19 (Krypton)
-ARG NPM_VERSION=11.19.0                                                # latest LTS as of 2026-08-17
+ARG NVM_VERSION=0.40.6                                                 # latest LTS as of 2026-08-17
+ARG NVM_SHA256_NOARCH=2ef7e8d4373c1ffd70daa55f919f629e98a619543ffc0a8d892d77a5247e50e4  # computed-at-pin: 2026-08-17
+ARG NODE_VERSION=24.19.0                                               # latest LTS as of 2026-08-17 (Krypton)
+ARG NPM_VERSION=12.0.2                                                 # latest LTS as of 2026-08-17
 ARG PNPM_VERSION=11.22.0                                               # what corepack pnpm@latest resolved on 2026-08-16
 
 # Bun — the JavaScript runtime the Oh My Pi (`omp`) harness requires (its CLI shebang is
@@ -74,13 +74,13 @@ ARG BUN_SHA256_AMD64=951ee2aee855f08595aeec6225226a298d3fea83a3dcd6465c09cbccdf7
 # The uv digest covers the INSTALLER SCRIPT only, for the reason the nvm row gives:
 # the uv binary is fetched by that script.
 ARG PYTHON_PACKAGE=python3.12                                          # latest LTS as of 2026-04-19
-ARG UV_VERSION=0.11.7                                                  # latest LTS as of 2026-04-19
-ARG UV_SHA256_NOARCH=efed99618cb5c31e4e36a700ab7c3698e83c0ae0f3c336714043d0f932c8d32c  # computed-at-pin: 2026-08-17
+ARG UV_VERSION=0.12.5                                                  # latest LTS as of 2026-08-17
+ARG UV_SHA256_NOARCH=504511fbbbd811aeaba6738abc79408956b6c7da0ca35437b3dcc24a41efc111  # computed-at-pin: 2026-08-17
 
 # Go — official tarball. Matches the workspace `go.work` toolchain directive so the agent-pod
 # image bakes it rather than auto-downloading the toolchain on first `go` invocation per pod.
-ARG GO_VERSION=1.26.5                                                  # latest LTS as of 2026-08-12
-ARG GO_SHA256_AMD64=5c2c3b16caefa1d968a94c1daca04a7ca301a496d9b086e17ad77bb81393f053  # upstream-published: https://go.dev/dl/?mode=json&include=all
+ARG GO_VERSION=1.26.6                                                  # latest LTS as of 2026-08-17
+ARG GO_SHA256_AMD64=708effb774be8237570d0add163225abbdfaf4fca28b2611df167beba4feef89  # computed-at-pin: 2026-08-17
 
 # Rust — rustup channel, not a pinned version.
 ARG RUST_CHANNEL=stable                                                # latest LTS as of 2026-04-19
@@ -90,23 +90,23 @@ ARG RUST_CHANNEL=stable                                                # latest 
 # Every binary download here is compared against the digest declared beside its
 # version. The 2 lines move together: a version bump whose digest is not bumped
 # with it FAILS at that RUN line, naming the pin.
-ARG KUBECTL_VERSION=1.35.4                                             # latest LTS as of 2026-04-19
-ARG KUBECTL_SHA256_AMD64=b529430df69a688fd61b64ad2299edb5fd71cb58be2a4779dba624c7d3510efd  # upstream-published: https://dl.k8s.io/release/v1.35.4/bin/linux/amd64/kubectl.sha256
-ARG HELM_VERSION=4.1.4                                                 # latest LTS as of 2026-04-19
-ARG HELM_SHA256_AMD64=70b2c30a19da4db264dfd68c8a3664e05093a361cefd89572ffb36f8abfa3d09  # upstream-published: https://get.helm.sh/helm-v4.1.4-linux-amd64.tar.gz.sha256sum
-ARG ANSIBLE_VERSION=13.5.0                                             # latest LTS as of 2026-04-19
-ARG ANSIBLE_CORE_VERSION=2.20.4                                        # latest LTS as of 2026-04-20
-ARG TAILSCALE_VERSION=1.96.4                                           # latest LTS as of 2026-04-19
-ARG TAILSCALE_SHA256_AMD64=a1cba18826b1f91cb25ef7f5b8259b5258339b42db7867af9269e21829ea78cc  # upstream-published: https://pkgs.tailscale.com/stable/tailscale_1.96.4_amd64.tgz.sha256
+ARG KUBECTL_VERSION=1.36.3                                             # latest LTS as of 2026-08-17
+ARG KUBECTL_SHA256_AMD64=ebbd080e7c2e275093b55915722043257eb24004363e20acb3c4d71919f88336  # computed-at-pin: 2026-08-17
+ARG HELM_VERSION=4.2.4                                                 # latest LTS as of 2026-08-17
+ARG HELM_SHA256_AMD64=c306b46f719b0a4da32d0f78ee21bf90ce8d602f15b22ab753f0674d1670a7f3  # computed-at-pin: 2026-08-17
+ARG ANSIBLE_VERSION=14.3.1                                             # latest LTS as of 2026-08-17
+ARG ANSIBLE_CORE_VERSION=2.21.3                                        # latest LTS as of 2026-08-17
+ARG TAILSCALE_VERSION=1.102.2                                          # latest LTS as of 2026-08-17
+ARG TAILSCALE_SHA256_AMD64=ad2cde12f8de95f7b93a1e0401e652291c603d42b9d60a33fb1741eb38ab04d8  # computed-at-pin: 2026-08-17
 ARG BW_VERSION=2026.3.0                                                # latest LTS as of 2026-04-19
 ARG BW_SHA256_AMD64=640d928bef91b2b81aa021777995230681204f5582315ef943ba72db2cbd283d  # computed-at-pin: 2026-08-17
-ARG GH_VERSION=2.90.0                                                  # latest LTS as of 2026-04-19
-ARG GH_SHA256_AMD64=b2aef7b23ec6899bf27f37a32c57a7935d0a178568ac33dc9bb03842f724195a  # upstream-published: https://github.com/cli/cli/releases/download/v2.90.0/gh_2.90.0_checksums.txt
+ARG GH_VERSION=2.97.0                                                  # latest LTS as of 2026-08-17
+ARG GH_SHA256_AMD64=a2c9b8497e1f85b1ad0dfcb78b5a622e098801b8e461e459e88e1ee12f018112  # computed-at-pin: 2026-08-17
 ARG K9S_VERSION=0.51.0                                                 # latest LTS as of 2026-08-17
 ARG K9S_SHA256_AMD64=c3752ad51a5a4015a113819c4eeb6e55a4d0e4b8e652494797532f6fc8161dd7  # upstream-published: https://github.com/derailed/k9s/releases/download/v0.51.0/checksums.sha256
-ARG NATS_VERSION=0.3.2                                                 # latest LTS as of 2026-04-19
-ARG NATS_SHA256_AMD64=be942b5c3815d572b0836b1656e6c27e6306cf5633e439fbba8dd19c77288ba7  # computed-at-pin: 2026-08-17
-ARG OCI_CLI_VERSION=3.79.0                                             # latest LTS as of 2026-04-20
+ARG NATS_VERSION=0.4.0                                                 # latest LTS as of 2026-08-17
+ARG NATS_SHA256_AMD64=8dbd437c826b953dbd7432cf890ef22ba3c33dccc3dce5e71b3e8d055427849c  # computed-at-pin: 2026-08-17
+ARG OCI_CLI_VERSION=3.90.2                                             # latest LTS as of 2026-08-17
 
 # The 2 docker cli-plugins. They arrive as release binaries and not as apt
 # packages, so nothing but the digest says the bytes are the ones upstream
@@ -117,14 +117,14 @@ ARG OCI_CLI_VERSION=3.79.0                                             # latest 
 # _ARM64 row and no `linux/arm64)` case arm to feed it while
 # SANCTIONED_PLATFORMS is linux/amd64 alone — a digest nothing compares is a
 # check that cannot fail. F3 restores the arm and the row together.
-ARG DOCKER_COMPOSE_VERSION=5.1.3                                       # latest LTS as of 2026-04-19
-ARG DOCKER_COMPOSE_SHA256_AMD64=a0298760c9772d2c06888fc8703a487c94c3c3b0134adeef830742a2fc7647b4  # upstream-published: https://github.com/docker/compose/releases/download/v5.1.3/checksums.txt
+ARG DOCKER_COMPOSE_VERSION=5.5.0                                       # latest LTS as of 2026-08-17
+ARG DOCKER_COMPOSE_SHA256_AMD64=c57ab918abd5b05ca7e7d0f275875dd1330a695074f309dc9eab1b49efafcd4b  # computed-at-pin: 2026-08-17
 ARG DOCKER_BUILDX_VERSION=0.36.1                                       # latest stable as of 2026-08-13
 ARG DOCKER_BUILDX_SHA256_AMD64=48af8a397ebd60178778bf63611dbcebe5f5e7a9be90eb9147b24b9587455778  # upstream-published: https://github.com/docker/buildx/releases/download/v0.36.1/checksums.txt
 
 # Dev QA.
-ARG HADOLINT_VERSION=2.14.0                                            # latest LTS as of 2026-04-19
-ARG HADOLINT_SHA256_AMD64=6bf226944684f56c84dd014e8b979d27425c0148f61b3bd99bcc6f39e9dc5a47  # upstream-published: https://github.com/hadolint/hadolint/releases/download/v2.14.0/hadolint-linux-x86_64.sha256
+ARG HADOLINT_VERSION=2.15.1                                            # latest LTS as of 2026-08-17
+ARG HADOLINT_SHA256_AMD64=c7187db94eeeeca956519a6af171adc31453941a1e777961f6e680f697c8c507  # computed-at-pin: 2026-08-17
 ARG KUBECONFORM_VERSION=0.8.0                                          # latest release as of 2026-08-10
 ARG KUBECONFORM_SHA256_AMD64=9bc2bffbf71f261128533edaf912153948b7ff238f9a531ae6d34466ec287883  # upstream-published: https://github.com/yannh/kubeconform/releases/download/v0.8.0/CHECKSUMS
 
@@ -137,7 +137,7 @@ ARG KIND_SHA256_AMD64=50030de23cf40a18505f20426f6a8506bedf13c6e509244bd1fa946372
 # Go gate tools (ADR-0018 + ADR-0020), installed via `go install ...@vX.Y.Z`. Pinned by ARG so
 # the no-hardcoded-version-in-RUN rule holds and a bump is a one-line edit. These make every
 # gate dimension runnable inside the image, so an absent tool is impossible (FAIL-NOT-SKIP).
-ARG GOFUMPT_VERSION=0.10.0                                             # latest LTS as of 2026-06-13
+ARG GOFUMPT_VERSION=0.11.0                                             # latest LTS as of 2026-08-17
 ARG GOLANGCI_LINT_VERSION=2.12.2                                       # latest LTS as of 2026-06-13
 ARG GOVULNCHECK_VERSION=1.1.4                                          # latest LTS as of 2026-06-13
 ARG GOSEC_VERSION=2.28.0                                               # latest LTS as of 2026-08-17
