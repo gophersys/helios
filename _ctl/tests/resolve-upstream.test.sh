@@ -283,6 +283,33 @@ ALL_404_MAP="$WORK/map-all-404.txt"
 printf '*|404|-\n' > "$ALL_404_MAP"
 
 # ---------------------------------------------------------------------------
+# The 2 MIXED worlds: 1 index is gone and every other row still answers. The
+# maps above are all-or-nothing, and an aggregate run over an all-or-nothing map
+# cannot show what a failure does to the pins BESIDE it — which is the whole
+# question section 5 asks.
+#
+# Each is the base map with 1 row rewritten, so the 12 rows that answer stay the
+# 12 rows every case above already proved. Where the failing row sits in
+# _build/upstreams.txt decides what the case can see:
+#
+#   EARLY  the FIRST row of the table fails, so every mover comes after it —
+#          the run has to reach them, and report them.
+#   LATE   the 12th row of 14 fails, so 11 movers were resolved before it — the
+#          ordering that makes a partial write possible at all.
+# ---------------------------------------------------------------------------
+EARLY_FAILURE_MAP="$WORK/map-early-failure.txt"
+awk -F'|' -v OFS='|' '
+  $1 == "stubowner/stubgithub" && $2 == "200" { print $1, "404", "-"; next }
+  { print }
+' "$BASE_MAP" > "$EARLY_FAILURE_MAP"
+
+LATE_FAILURE_MAP="$WORK/map-late-failure.txt"
+awk -F'|' -v OFS='|' '
+  $1 == "releases_linux.json" && $2 == "200" { print $1, "404", "-"; next }
+  { print }
+' "$BASE_MAP" > "$LATE_FAILURE_MAP"
+
+# ---------------------------------------------------------------------------
 # The drivers.
 # ---------------------------------------------------------------------------
 
@@ -404,6 +431,37 @@ function fixture_world() {
   mkdir -p "$world"
   cp -R "$FIXTURE_WORLD/." "$world/"
   printf '%s' "$world"
+}
+
+# committed_fixture_world <name> — a fixture world under git, every file
+# committed, so `git status --porcelain` is empty until the run under test
+# writes something. That emptiness is the only evidence a case has that a run
+# which failed left the tree alone.
+function committed_fixture_world() {
+  local name="$1" world
+  world="$(fixture_world "$name")"
+  git -C "$world" -c init.defaultBranch=main init --quiet
+  git -C "$world" add --all
+  git -C "$world" -c user.email="test@example.invalid" -c user.name="test" \
+    -c commit.gpgsign=false commit --quiet --message "the fixture world, before the run"
+  printf '%s' "$world"
+}
+
+# empty_version_bump_lines <text> — every reported bump whose NEW value is
+# empty: a line carrying `->` with nothing after the last arrow.
+#
+# This is the smoking gun of a swallowed failure. A pin that could not be
+# resolved has no new version, so a run that reports one anyway is reporting the
+# nothing it got back from a subshell that died, and `bump: PIN 2.3.0 -> ` is
+# what that looks like in a pull request body a human is asked to approve.
+function empty_version_bump_lines() {
+  awk '
+    index($0, "->") > 0 {
+      after = $0
+      sub(/^.*->[[:space:]]*/, "", after)
+      if (after == "") { print }
+    }
+  ' <<< "$1"
 }
 
 # line_holding <text> <needle> — the first line of the text that holds the
@@ -576,6 +634,34 @@ else
     "got:  exit ${stub_status}, output:" "${stub_output:-<none>}"
 fi
 
+# The 2 derived maps are the base map with 1 row rewritten. An awk needle that
+# stopped matching — a renamed fixture response, a reordered row — would leave a
+# map identical to the base one, and section 5 would then drive 3 cases over a
+# world where NOTHING fails and read their green as a resolver that stops. So
+# each derived map is held to the same row COUNT and to exactly 1 more 404 than
+# the base map has.
+derived_map_faults=""
+base_map_rows="$(awk 'NF && $0 !~ /^#/ { total++ } END { print total + 0 }' "$BASE_MAP")"
+base_map_404s="$(awk -F'|' '$2 == "404" { total++ } END { print total + 0 }' "$BASE_MAP")"
+for derived in "EARLY_FAILURE_MAP|$EARLY_FAILURE_MAP" "LATE_FAILURE_MAP|$LATE_FAILURE_MAP"; do
+  derived_name="${derived%%|*}"
+  derived_map="${derived#*|}"
+  derived_rows="$(awk 'NF && $0 !~ /^#/ { total++ } END { print total + 0 }' "$derived_map")"
+  derived_404s="$(awk -F'|' '$2 == "404" { total++ } END { print total + 0 }' "$derived_map")"
+  if [[ "$derived_rows" -ne "$base_map_rows" || "$derived_404s" -ne $((base_map_404s + 1)) ]]; then
+    derived_map_faults="${derived_map_faults:+${derived_map_faults}
+}${derived_name}: ${derived_rows} rows and ${derived_404s} 404 row(s); the base map has ${base_map_rows} rows and ${base_map_404s}"
+  fi
+done
+if [[ -z "$derived_map_faults" ]]; then
+  pass_check "each_derived_map_turns_exactly_one_row_of_the_base_map_into_a_404"
+else
+  fail_check "each_derived_map_turns_exactly_one_row_of_the_base_map_into_a_404" \
+    "$derived_map_faults" \
+    "a needle that matches nothing leaves the base map unchanged, and the aggregate" \
+    "failure cases below would then be green over a world in which nothing failed"
+fi
+
 # The 5 fixture assets are the bytes the 5 digest literals name. Without this
 # guard an edit to a fixture makes 5 resolution checks red and none of them says
 # why.
@@ -742,11 +828,7 @@ done
 # ===========================================================================
 # 4. THE DRY RUN COMPOSES A PULL REQUEST AND WRITES NOTHING
 # ===========================================================================
-DRY_RUN_WORLD="$(fixture_world "dry-run")"
-git -C "$DRY_RUN_WORLD" init --quiet
-git -C "$DRY_RUN_WORLD" add --all
-git -C "$DRY_RUN_WORLD" -c user.email="test@example.invalid" -c user.name="test" \
-  -c commit.gpgsign=false commit --quiet --message "the fixture world, before the dry run"
+DRY_RUN_WORLD="$(committed_fixture_world "dry-run")"
 
 run_resolver "$BASE_MAP" "$DRY_RUN_WORLD" -- "--dry-run"
 porcelain="$(git -C "$DRY_RUN_WORLD" status --porcelain)"
@@ -822,7 +904,156 @@ assert_contains "the_dry_run_body_names_the_pin_that_moved" \
   "the whole output was:" "${RESOLVER_STDOUT:-<none>}"
 
 # ===========================================================================
-# 5. A GREEN WEEKLY DOES NOT CLOSE THE NIGHTLY ISSUE
+# 5. ONE FAILING ROW FAILS THE WHOLE AGGREGATE RUN, AND WRITES NOTHING
+# ===========================================================================
+#
+# Section 3 hands the resolver 1 PIN and reads the refusal. That is the shape
+# every failure case of this file had until now, and it is the shape that cannot
+# see the defect: with 1 pin on the argv, `fail_pin`'s `exit 1` runs at the top
+# level of the script and the status reaches the caller. The weekly workflow
+# never invokes the resolver that way. It invokes `--dry-run` and `--apply`, and
+# on that path every resolution happens inside a command substitution:
+#
+#     collect_bumps:  record="$(resolve_pin "$pin")"
+#     dry_run:        bumps="$(collect_bumps)"
+#
+# bash does not carry errexit into `$( )` unless `shopt -s inherit_errexit` is
+# set, and `set -Eeuo pipefail` alone does not set it. So `exit 1` kills the
+# subshell, the caller reads an empty string, and the run continues. Measured on
+# this repository at 8e705f1, base image, linux/amd64: 1 dead index makes the
+# resolver print 3 cascading `[error]` lines, then
+#
+#     bump: STUBGITHUB_VERSION 2.3.0 ->
+#
+# with an EMPTY new version, then a whole pull request body listing it, and then
+# exit 0. `--apply` additionally leaves a PARTIAL WRITE: the movers ahead of the
+# failing row are already on disk when the writer finally refuses the empty
+# version. That is precisely what the header of _build/resolve-upstream.sh says
+# is impossible — "a resolver that swallowed a failed fetch would open a pull
+# request bumping the pins it happened to reach".
+#
+# ---------------------------------------------------------------------------
+# THE CONTRACT THESE 3 CASES CHOOSE: COLLECT, THEN FAIL
+# ---------------------------------------------------------------------------
+#
+# 2 designs answer "what does an aggregate run do with 1 unreachable upstream":
+#
+#   ABORT AT THE FIRST FAILURE   stop the moment a row fails. Simple, and it
+#                                costs the reader everything the run had already
+#                                learned: 1 dead coordinate hides the 13 real
+#                                bumps behind it, every Monday, and the log
+#                                names 1 pin when 1 pin is the only thing that
+#                                is wrong.
+#   COLLECT, THEN FAIL           resolve every row, report every mover AND every
+#                                failure, write nothing, exit non-zero.
+#
+# These cases specify COLLECT-THEN-FAIL, for the 2 reasons this repository has
+# already written down. FAIL-NOT-SKIP says a red run must be red AND must say
+# what it found; and the nightly beside it already works this way — its notify
+# job reduces the verdict of the jobs it needs rather than dying at the first
+# one, so 1 scan failure never hides the other 5 images. A weekly that aborts at
+# row 1 turns a 1-row problem into a run that reports nothing, and the reader of
+# a 09:00 Monday with no author watching cannot tell that apart from a quiet
+# week.
+#
+# The 3 clauses that follow from it, and every case below holds them together:
+#
+#   1. the run exits NON-ZERO — a failure is never reported as a bump;
+#   2. the report NAMES the failing pin and still names the movers;
+#   3. NOTHING is written — not the movers, not a partial file. A weekly that
+#      wrote 11 of 12 rows and died would leave a branch that reads like a
+#      correct bump and is 1 pin short of the change it claims.
+
+AGGREGATE_FAILURE_WORLD="$(committed_fixture_world "aggregate-failure")"
+run_resolver "$INDEX_404_MAP" "$AGGREGATE_FAILURE_WORLD" -- "--dry-run"
+aggregate_failure_output="${RESOLVER_STDOUT}
+${RESOLVER_STDERR}"
+aggregate_empty_bumps="$(empty_version_bump_lines "$RESOLVER_STDOUT")"
+
+# 3 conditions, 1 check, on purpose. The status alone would pass against a
+# resolver that died for a reason nobody wrote down; the name alone is already
+# printed today, by a run that then exits 0; and "no empty-version bump line" is
+# true of a run that printed nothing at all. Together they are the defect:
+# exit non-zero, say which pin, and never report a bump to a version that was
+# never resolved.
+if [[ "$RESOLVER_STATUS" -ne 0 ]] \
+  && grep -qF -- "STUBGITHUB_VERSION" <<< "$aggregate_failure_output" \
+  && [[ -z "$aggregate_empty_bumps" ]]; then
+  pass_check "an_aggregate_dry_run_with_one_failing_row_fails_naming_the_pin"
+else
+  fail_check "an_aggregate_dry_run_with_one_failing_row_fails_naming_the_pin" \
+    "want: a non-zero exit, a message naming STUBGITHUB_VERSION, and no bump line" \
+    "      whose new version is empty" \
+    "got:  exit ${RESOLVER_STATUS}, and these lines report a bump to nothing:" \
+    "${aggregate_empty_bumps:-<none>}" \
+    "stdout was:" "${RESOLVER_STDOUT:-<none>}" \
+    "stderr was:" "${RESOLVER_STDERR:-<none>}" \
+    "the index of stubowner/stubgithub is a 404 and its asset is still served, so this" \
+    "run cannot pass by failing at the download; a resolver that reports 'PIN 2.3.0 -> '" \
+    "has read a version out of a subshell that died and is asking a human to approve it"
+fi
+
+# --apply, with the failing row placed AFTER 11 movers. The write loop reaches
+# the good rows first, so this is the ordering in which a swallowed failure
+# leaves half a bump on disk — and the only ordering in which the porcelain can
+# tell the 2 designs apart.
+APPLY_FAILURE_WORLD="$(committed_fixture_world "apply-failure")"
+run_resolver "$LATE_FAILURE_MAP" "$APPLY_FAILURE_WORLD" -- "--apply"
+apply_failure_porcelain="$(git -C "$APPLY_FAILURE_WORLD" status --porcelain)"
+apply_failure_diff="$(git -C "$APPLY_FAILURE_WORLD" diff)"
+
+if [[ "$RESOLVER_STATUS" -ne 0 && -z "$apply_failure_porcelain" ]]; then
+  pass_check "an_aggregate_apply_with_one_failing_row_writes_nothing"
+else
+  fail_check "an_aggregate_apply_with_one_failing_row_writes_nothing" \
+    "want: a non-zero exit and an empty git status --porcelain" \
+    "got:  exit ${RESOLVER_STATUS}, porcelain:" "${apply_failure_porcelain:-<empty>}" \
+    "the diff it left behind:" "${apply_failure_diff:-<none>}" \
+    "stdout was:" "${RESOLVER_STDOUT:-<none>}" \
+    "stderr was:" "${RESOLVER_STDERR:-<none>}" \
+    "the flutter index is the 12th row of 14 and the 11 rows ahead of it resolve, so a" \
+    "writer that runs before the run's verdict is known rewrites them and then dies;" \
+    "the branch that leaves behind reads like a correct bump and is 1 pin short of it"
+fi
+
+# The other direction of the same contract, and the reason it is COLLECT and not
+# ABORT: the row that failed is the FIRST of the table, and the run still has to
+# report the movers behind it. STUBVPREFIX is the row immediately after the
+# failure and STUBEDEN is the last resolvable row of the table, so naming both
+# proves the run went all the way through rather than stopping at row 1.
+COLLECT_WORLD="$(committed_fixture_world "collect-then-fail")"
+run_resolver "$EARLY_FAILURE_MAP" "$COLLECT_WORLD" -- "--dry-run"
+collect_output="${RESOLVER_STDOUT}
+${RESOLVER_STDERR}"
+collect_porcelain="$(git -C "$COLLECT_WORLD" status --porcelain)"
+collect_missing=""
+for expected in \
+  "bump: STUBVPREFIX_VERSION v0.1.0 -> v0.2.0" \
+  "bump: STUBEDEN_VERSION 2.1.200 -> 2.1.212" \
+  "STUBGITHUB_VERSION"; do
+  if ! grep -qF -- "$expected" <<< "$collect_output"; then
+    collect_missing="${collect_missing:+${collect_missing}
+}${expected}"
+  fi
+done
+
+if [[ "$RESOLVER_STATUS" -ne 0 && -z "$collect_missing" && -z "$collect_porcelain" ]]; then
+  pass_check "a_failing_row_does_not_hide_the_report_of_later_movers"
+else
+  fail_check "a_failing_row_does_not_hide_the_report_of_later_movers" \
+    "want: a non-zero exit, an empty porcelain, and a report naming the failing pin" \
+    "      AND every mover behind it" \
+    "got:  exit ${RESOLVER_STATUS}, and the report never names:" "${collect_missing:-<nothing>}" \
+    "porcelain:" "${collect_porcelain:-<empty>}" \
+    "stdout was:" "${RESOLVER_STDOUT:-<none>}" \
+    "stderr was:" "${RESOLVER_STDERR:-<none>}" \
+    "the contract is collect-then-fail: resolve every row, report every mover and every" \
+    "failure, write nothing, exit non-zero. 1 dead coordinate must not hide the 13 real" \
+    "bumps behind it, and a run that reports nothing reads like a quiet week"
+fi
+
+# ===========================================================================
+# 6. A GREEN WEEKLY DOES NOT CLOSE THE NIGHTLY ISSUE
 # ===========================================================================
 #
 # The notifier files under 1 label, and until this change that label is a
