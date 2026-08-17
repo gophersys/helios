@@ -43,10 +43,11 @@ ARG TARGETPLATFORM
 ARG ZSH_VERSION=5.9                                                    # latest LTS as of 2026-04-19
 ARG OH_MY_ZSH_INSTALL_URL=https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh
 
-# Node toolchain — nvm installs the pinned Node LTS, corepack enables yarn.
+# Node toolchain — nvm installs the pinned Node LTS, corepack enables yarn and pnpm.
 ARG NVM_VERSION=0.40.4                                                 # latest LTS as of 2026-04-19
 ARG NODE_VERSION=24.15.0                                               # latest LTS as of 2026-04-19 (Krypton)
 ARG NPM_VERSION=11.3.0                                                 # latest LTS as of 2026-04-19
+ARG PNPM_VERSION=11.22.0                                               # what corepack pnpm@latest resolved on 2026-08-16
 
 # Bun — the JavaScript runtime the Oh My Pi (`omp`) harness requires (its CLI shebang is
 # `#!/usr/bin/env bun`, engines.bun >= 1.3.14). Baked into the base image because spawned
@@ -249,6 +250,9 @@ RUN mkdir -p "/home/${USERNAME}/.local/bin" \
 # nvm + Node LTS + corepack (yarn, pnpm). The nvm installer inspects $SHELL
 # and refuses to run when it sees zsh, so we override $SHELL for this RUN
 # and invoke the whole block under bash.
+#
+# pnpm takes the PIN and not `@latest`: `@latest` made the image content change
+# with no diff at all — two builds a day apart baked 11.21.0 and 11.22.0.
 ENV NVM_DIR=/home/${USERNAME}/.nvm
 RUN unset ZSH_VERSION; SHELL=/bin/bash bash -c "unset ZSH_VERSION; set -euo pipefail; \
       mkdir -p \"\${NVM_DIR}\"; \
@@ -259,7 +263,7 @@ RUN unset ZSH_VERSION; SHELL=/bin/bash bash -c "unset ZSH_VERSION; set -euo pipe
       npm install -g \"npm@${NPM_VERSION}\"; \
       corepack enable; \
       corepack prepare yarn@stable --activate; \
-      corepack prepare pnpm@latest --activate"
+      corepack prepare pnpm@${PNPM_VERSION} --activate"
 
 # uv — Python package manager. Installed via the official installer to the
 # dev user's ~/.local/bin.

@@ -14,12 +14,40 @@
 # the only way to check the published image from that host at all, and it is
 # slower rather than impossible.
 #
+# ============================================================================
+# WHAT THIS FILE IS, AND WHAT .ci/image-checks.sh IS
+# ============================================================================
+#
+# This file is the HOST driver. It knows where a pin LIVES (versions.env for the
+# cloud family, the ARGs at the top of base/Dockerfile for the base family), it
+# classifies every one of them, and it resolves the ones it says it asserts. The
+# checks themselves are .ci/image-checks.sh, which this file sends to the
+# container on stdin together with the fixtures the functional checks read.
+#
+# The split is the point. `<tool> --version` inside a container proves that the
+# binary RUNS; it says nothing about WHICH version runs, so `gh --version` is
+# green on gh 2.40 while versions.env pins 2.90. Only a COMPARISON sees that, and
+# the comparison needs the pin, which exists on the host and not in the image.
+#
+# 3 things fail this script BEFORE a container is started, because each one would
+# otherwise report an image as smoked while checking nothing:
+#
+#   - a pin of the home that carries no classification;
+#   - a pin classified `asserted` that resolves to the empty string;
+#   - a pin classified `asserted` with no command to read a version with.
+#
 # Usage: bash .ci/smoke.sh <image> [ref]
 # where <image> ∈ {base, flutter, zephyr, zephyr-devbox, base-runner, cloud}
 # and [ref] is the exact image reference to test. The default is the :latest tag
 # that build-and-push.yml has just built, which is what CI runs. Naming a ref is
 # how an operator audits the SHA tag a cluster is actually running — and how a
 # developer proves a check against an image that is not the local :latest.
+#
+#   SMOKE_LIST_PINS=1 bash .ci/smoke.sh <image>
+#
+# prints `<PIN>|<class>` for every pin of that image's home and exits 0, with no
+# docker command at all: a classification is a property of the FILES, so it is
+# readable in the pull request gate, where a container is not.
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -43,399 +71,396 @@ if [[ -z "$IMAGE" ]]; then
   exit 2
 fi
 
-# The buildx version base/Dockerfile pins. Read the way ctl.sh reads the hadolint
-# pin: the ARG is the single source of truth, and a version the image reports
-# back that differs from it is drift.
+# ---------------------------------------------------------------------------
+# The 2 pin homes.
 #
-# The ARG NAME is matched by pattern rather than spelled out. Every version ARG
-# in this repository is <TOOL>_VERSION, and this asserts against whichever of
-# those names carries buildx, so the check does not fail over a spelling.
+# They are free to move apart: the cloud family reads versions.env, the ONE home
+# of the new mechanism, and the base family reads the ARGs at the top of
+# base/Dockerfile. Each image is judged against the home that owns it.
+# ---------------------------------------------------------------------------
+CLOUD_PIN_HOME="versions.env"
+BASE_PIN_HOME="base/Dockerfile"
+
+# ---------------------------------------------------------------------------
+# The classification, 1 row per pin:
 #
-# 2 globals come out, never a printed value: BUILDX_PIN, and BUILDX_PIN_PROBLEM
-# when there is no pin to use. Both are passed into the image, so the reason is
-# printed next to the version it could not be compared against — an absent pin
-# and an absent plugin are 2 different defects and a reader has to be able to
-# tell which one fired.
+#   <PIN>|<class>|<command that prints a version>|<extractor>
 #
-# Every unreadable case ends with an empty BUILDX_PIN, so every one of them is a
-# FAILURE inside the image. What this function owes the reader is an accurate
-# SENTENCE. It used to answer "declares no ARG" whenever its single regex missed,
-# which is a lie when the file plainly declares one — an indented ARG, a value
-# written `v0.36.1`, or 2 candidate names each produced that same wrong sentence.
-# The cloud image pins buildx in versions.env, the one home of the new
-# mechanism, so its expected version is read THERE and never out of
-# base/Dockerfile — the two families must be free to move apart.
-function resolve_cloud_buildx_pin() {
-  local file="$REPO_ROOT/versions.env"
-  BUILDX_PIN=""
-  BUILDX_PIN_PROBLEM=""
-  local line="" status=0
-  line="$(grep -E '^DOCKER_BUILDX_VERSION=' "$file")" || status=$?
-  if [[ "$status" -ne 0 || -z "$line" ]]; then
-    BUILDX_PIN_PROBLEM="versions.env declares no DOCKER_BUILDX_VERSION pin"
-    return 0
-  fi
-  line="${line%%#*}"
-  line="${line%"${line##*[![:space:]]}"}"
-  BUILDX_PIN="${line#DOCKER_BUILDX_VERSION=}"
-  BUILDX_PIN="${BUILDX_PIN#v}"
-  if ! [[ "$BUILDX_PIN" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    BUILDX_PIN_PROBLEM="versions.env holds DOCKER_BUILDX_VERSION='${BUILDX_PIN}', which this check cannot read as <semver>"
-    BUILDX_PIN=""
-  fi
+# The 3 classes are the whole taxonomy, and every pin of a home carries exactly
+# 1 of them (_ctl/tests/version-coverage.test.sh holds that):
+#
+#   asserted           the smoke runs the command and compares what it reports
+#   not-a-version      the pin is a digest, a channel or an untagged ref
+#   not-in-this-image  the image does not install the tool
+#
+# The extractor is empty for the ~30 tools whose first `<digits>.<digits>` token
+# IS the version. The 2 other readers are named in .ci/image-checks.sh, and each
+# use below says why it is there.
+# ---------------------------------------------------------------------------
+
+read -r -d '' PIN_CLASSES_CLOUD <<'PIN_CLASS_TABLE' || true
+ZSH_VERSION|asserted|zsh --version|prefix
+NVM_VERSION|asserted|zsh -c "nvm --version"|
+NODE_VERSION|asserted|node --version|
+NPM_VERSION|asserted|npm --version|
+PNPM_VERSION|asserted|COREPACK_HOME=/home/dev/.cache/node/corepack pnpm --version|
+BUN_VERSION|asserted|bun --version|
+PYTHON_PACKAGE|asserted|python3 --version|prefix
+UV_VERSION|asserted|uv --version|
+GO_VERSION|asserted|go version|
+GOFUMPT_VERSION|asserted|gofumpt --version|
+GOLANGCI_LINT_VERSION|asserted|golangci-lint --version|
+GOVULNCHECK_VERSION|asserted|govulncheck -version|line:govulncheck
+GOSEC_VERSION|asserted|go version -m ${GOPATH}/bin/gosec|line:mod
+HNSLINT_VERSION|asserted|go version -m ${GOPATH}/bin/hnslint|line:mod
+GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
+BENCHSTAT_REF|not-a-version||
+DELVE_VERSION|asserted|dlv version|
+YQ_VERSION|asserted|yq --version|
+HADOLINT_VERSION|asserted|hadolint --version|
+KUBECONFORM_VERSION|asserted|kubeconform -v|
+GITLEAKS_VERSION|asserted|gitleaks version|
+KUBECTL_VERSION|asserted|kubectl version --client|
+HELM_VERSION|asserted|helm version --short|
+K9S_VERSION|asserted|k9s version --short|
+K3D_VERSION|asserted|k3d version|
+KIND_VERSION|asserted|kind version|
+TAILSCALE_VERSION|asserted|tailscale version|
+BW_VERSION|asserted|bw --version|
+GH_VERSION|asserted|gh --version|
+NATS_VERSION|asserted|nats --version|
+DOCKER_COMPOSE_VERSION|asserted|docker compose version|
+DOCKER_COMPOSE_SHA256_X86_64|not-a-version||
+DOCKER_COMPOSE_SHA256_AARCH64|not-a-version||
+DOCKER_BUILDX_VERSION|asserted|docker buildx version|
+DOCKER_BUILDX_SHA256_AMD64|not-a-version||
+DOCKER_BUILDX_SHA256_ARM64|not-a-version||
+BUF_VERSION|asserted|buf --version|
+GRPCURL_VERSION|asserted|grpcurl -version|
+RUNNER_VERSION|asserted|/home/runner/bin/Runner.Listener --version|line:Version:
+CICTL_VERSION|asserted|go version -m /usr/local/bin/cictl|line:mod
+CLAUDE_CODE_VERSION|asserted|claude --version|
+OMP_VERSION|asserted|omp --version|
+CODEX_VERSION|asserted|codex --version|
+TERRAFORM_VERSION|not-in-this-image||
+AWS_CLI_VERSION|not-in-this-image||
+OCI_CLI_VERSION|not-in-this-image||
+ANSIBLE_VERSION|not-in-this-image||
+ANSIBLE_CORE_VERSION|not-in-this-image||
+PIN_CLASS_TABLE
+
+read -r -d '' PIN_CLASSES_BASE <<'PIN_CLASS_TABLE' || true
+ZSH_VERSION|asserted|zsh --version|prefix
+NVM_VERSION|asserted|zsh -c "nvm --version"|
+NODE_VERSION|asserted|node --version|
+NPM_VERSION|asserted|npm --version|
+PNPM_VERSION|asserted|COREPACK_HOME=/home/dev/.cache/node/corepack pnpm --version|
+BUN_VERSION|asserted|bun --version|
+UV_VERSION|asserted|uv --version|
+GO_VERSION|asserted|go version|
+RUST_CHANNEL|not-a-version||
+GOFUMPT_VERSION|asserted|gofumpt --version|
+GOLANGCI_LINT_VERSION|asserted|golangci-lint --version|
+GOVULNCHECK_VERSION|asserted|govulncheck -version|line:govulncheck
+GOSEC_VERSION|asserted|go version -m ${GOPATH}/bin/gosec|line:mod
+HNSLINT_VERSION|asserted|go version -m ${GOPATH}/bin/hnslint|line:mod
+GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
+BENCHSTAT_REF|not-a-version||
+YQ_VERSION|asserted|yq --version|
+HADOLINT_VERSION|asserted|hadolint --version|
+KUBECONFORM_VERSION|asserted|kubeconform -v|
+GITLEAKS_VERSION|asserted|gitleaks version|
+KUBECTL_VERSION|asserted|kubectl version --client|
+HELM_VERSION|asserted|helm version --short|
+K9S_VERSION|asserted|k9s version --short|
+K3D_VERSION|asserted|k3d version|
+KIND_VERSION|asserted|kind version|
+TAILSCALE_VERSION|asserted|tailscale version|
+BW_VERSION|asserted|bw --version|
+GH_VERSION|asserted|gh --version|
+NATS_VERSION|asserted|nats --version|
+DOCKER_COMPOSE_VERSION|asserted|docker compose version|
+DOCKER_BUILDX_VERSION|asserted|docker buildx version|
+TERRAFORM_VERSION|asserted|terraform version|
+AWS_CLI_VERSION|asserted|aws --version|
+OCI_CLI_VERSION|asserted|oci --version|
+ANSIBLE_CORE_VERSION|asserted|ansible --version|
+ANSIBLE_VERSION|asserted|/home/dev/.local/share/uv/tools/ansible-core/bin/python -c "import importlib.metadata as m; print(m.version('ansible'))"|
+PIN_CLASS_TABLE
+
+# The functional groups .ci/image-checks.sh runs for each image, beyond the
+# version comparison. An image with no list is refused: a smoke that ran the
+# comparator alone would assert every version and exercise nothing.
+function image_check_groups() {
+  case "$1" in
+    base)          printf 'content-base go-gate dockerfile-lint compose' ;;
+    base-runner)   printf 'content-base content-runner go-gate dockerfile-lint compose' ;;
+    flutter)       printf 'content-base content-flutter go-gate dockerfile-lint compose' ;;
+    zephyr)        printf 'content-base content-zephyr go-gate dockerfile-lint compose' ;;
+    zephyr-devbox) printf 'content-base content-zephyr content-devbox go-gate dockerfile-lint compose' ;;
+    cloud)         printf 'content-cloud content-runner go-gate dockerfile-lint compose debugger protocols' ;;
+    *)             printf '' ;;
+  esac
 }
-
-BUILDX_PIN=""
-BUILDX_PIN_PROBLEM=""
-function resolve_buildx_pin() {
-  local file="$REPO_ROOT/base/Dockerfile"
-  BUILDX_PIN=""
-  BUILDX_PIN_PROBLEM=""
-
-  # Leading whitespace is allowed, and so is a `v` on the value: both are shapes
-  # a human writes, and neither is a reason to report the ARG as absent.
-  local strict='^[[:space:]]*ARG[[:space:]]+[A-Za-z0-9_]*BUILDX[A-Za-z0-9_]*=v?[0-9]+\.[0-9]+\.[0-9]+'
-  local loose='^[[:space:]]*ARG[[:space:]].*BUILDX'
-
-  local matches="" status=0
-  matches="$(grep -nE "$strict" "$file")" || status=$?
-  if [[ "$status" -ne 0 || -z "$matches" ]]; then
-    local loose_hits="" loose_status=0
-    loose_hits="$(grep -nE "$loose" "$file")" || loose_status=$?
-    if [[ "$loose_status" -eq 0 && -n "$loose_hits" ]]; then
-      BUILDX_PIN_PROBLEM="base/Dockerfile DOES declare a buildx ARG, in a shape this check cannot read as <NAME>=<semver>: ${loose_hits//$'\n'/ ; }"
-    else
-      BUILDX_PIN_PROBLEM="base/Dockerfile declares no ARG whose name carries BUILDX"
-    fi
-    return 0
-  fi
-
-  # More than 1 candidate NAME is an ambiguity, not a pin. Taking the first match
-  # silently answered with a decoy ARG that Docker never threads into the install.
-  local -a candidate_names=()
-  local name
-  while IFS= read -r name; do
-    [[ -z "$name" ]] && continue
-    candidate_names+=("$name")
-  done < <(printf '%s\n' "$matches" | sed -E 's/^[0-9]+:[[:space:]]*ARG[[:space:]]+([A-Za-z0-9_]+)=.*/\1/' | sort -u)
-
-  if [[ "${#candidate_names[@]}" -ne 1 ]]; then
-    # Joined by hand: "${array[*]}" uses only the FIRST character of IFS, so
-    # IFS=', ' would run the names together with no space after the comma.
-    local joined="" candidate
-    for candidate in "${candidate_names[@]}"; do
-      joined="${joined:+${joined}, }${candidate}"
-    done
-    BUILDX_PIN_PROBLEM="base/Dockerfile declares ${#candidate_names[@]} ARGs that could each be the buildx pin (${joined}); this check will not choose between them"
-    return 0
-  fi
-
-  # Docker uses the LAST declaration of a name, so the last one is the pin. The
-  # first one was what this read before, which disagrees with the built image
-  # whenever an ARG is re-declared further down.
-  local last
-  last="$(printf '%s\n' "$matches" | tail -n 1)"
-  BUILDX_PIN="$(printf '%s' "$last" | sed -E 's/.*=v?([0-9]+\.[0-9]+\.[0-9]+).*/\1/')"
-}
-
-# Common smoke-test body applied to every image. Checks both native binaries
-# (bw, gh, tailscale, kubectl, helm, terraform, k9s, go, rustc, nats) and
-# interpreter-based tooling (node, python3, uv). Any failure aborts the
-# zsh subshell inside the container via `set -e`.
-read -r -d '' SMOKE_BASE <<'EOF' || true
-set -e
-echo "--- base smoke ---"
-uname -m
-bw --version
-gh --version
-tailscale version
-kubectl version --client
-helm version --short
-terraform version
-k9s version --short
-go version
-node --version
-bun --version
-python3 --version
-uv --version
-rustc --version
-cargo --version
-nats --version
-yq --version
-echo "--- ADR-0020 gate toolchain (Kubernetes substrates + Go gate tools) ---"
-k3d version
-kind version
-gofumpt --version
-golangci-lint --version
-govulncheck -version
-gosec --version
-gremlins --version
-# The `X && echo ok` form is BANNED here: under set -e a failure inside an
-# AND-list does not abort the script, so that form is a check that cannot
-# fail — proven by drill: a wrong binary name still ended in a green smoke.
-# Both proofs below fail loudly through an explicit if.
-if ! benchstat -h >/dev/null 2>&1; then echo "FAIL: benchstat is not in the image"; exit 1; fi
-echo "benchstat: ok"
-# hnslint ships no version verb: any argument is read as a directory. The
-# presence proof is its usage answer.
-if ! hnslint 2>&1 | grep -q "usage: hnslint"; then echo "FAIL: hnslint is not in the image or does not answer its usage line"; exit 1; fi
-echo "hnslint: ok"
-gitleaks version
-kubeconform -v
-echo "--- docker cli-plugins ---"
-# The runner image is the CLIENT of the arm64 builder: gophersys/infrastructure
-# dials the Mac mini over SSH and drives `docker buildx build` from inside the
-# job. The image shipped the compose plugin alone, so that documented step could
-# not run at all, and nothing here said so.
-#
-# `docker buildx version` reaches no daemon, so this is a pure image-content
-# check and it is meaningful in a plain `docker run` with no dind sidecar.
-if ! BUILDX_OUTPUT="$(docker buildx version 2>&1)"; then
-  echo "FAIL: docker buildx does not run in this image"
-  echo "      docker said: ${BUILDX_OUTPUT}"
-  echo "      /usr/local/lib/docker/cli-plugins holds:"
-  ls -1 /usr/local/lib/docker/cli-plugins || echo "      (there is no cli-plugins directory)"
-  exit 1
-fi
-echo "${BUILDX_OUTPUT}"
-# Drift guard. The version that RUNS must be the version base/Dockerfile pins.
-# EXPECTED_BUILDX_VERSION is read out of that ARG by .ci/smoke.sh on the host and
-# passed in here. An image that passes its own assertion while shipping a version
-# nobody declared is the defect this repository has already published once, so an
-# absent pin FAILS rather than skipping.
-BUILDX_INSTALLED=""
-if BUILDX_TOKENS="$(printf '%s' "${BUILDX_OUTPUT}" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')"; then
-  BUILDX_INSTALLED="$(printf '%s' "${BUILDX_TOKENS}" | head -n 1)"
-fi
-if [ -z "${BUILDX_INSTALLED}" ]; then
-  echo "FAIL: docker buildx runs but reports no version this check can read"
-  echo "      it printed: ${BUILDX_OUTPUT}"
-  exit 1
-fi
-if [ -z "${EXPECTED_BUILDX_VERSION}" ]; then
-  echo "FAIL: no buildx pin could be read, so the ${BUILDX_INSTALLED} in this image is checked against nothing"
-  echo "      ${BUILDX_PIN_PROBLEM}"
-  exit 1
-fi
-if [ "${BUILDX_INSTALLED}" != "v${EXPECTED_BUILDX_VERSION}" ]; then
-  echo "FAIL: buildx version drift: the image runs ${BUILDX_INSTALLED}, base/Dockerfile pins v${EXPECTED_BUILDX_VERSION}"
-  exit 1
-fi
-echo "docker buildx: ${BUILDX_INSTALLED} matches the pin in base/Dockerfile"
-EOF
-
-# Flutter adds flutter + adb checks on top of the base smoke.
-read -r -d '' SMOKE_FLUTTER <<'EOF' || true
-echo "--- flutter smoke ---"
-flutter --version
-adb --version
-java -version
-EOF
-
-# Zephyr adds west on top of the base smoke.
-read -r -d '' SMOKE_ZEPHYR <<'EOF' || true
-echo "--- zephyr smoke ---"
-west --version
-EOF
-
-# zephyr-devbox adds the SSH + flash/debug stack on top of the zephyr smoke.
-# Runs as the dev user (the image itself defaults to root for sshd); root
-# steps go through the dev user's passwordless sudo. Throwaway host keys are
-# generated so `sshd -t` can validate the full effective config, HostKey
-# paths included.
-read -r -d '' SMOKE_DEVBOX <<'EOF' || true
-echo "--- zephyr-devbox smoke ---"
-openocd --version
-st-info --version
-esptool version
-picocom --help >/dev/null && echo "picocom: ok"
-gdb-multiarch --version | head -n 1
-clangd --version
-code-server --version
-# Baked-in extension seed (the entrypoint copies it onto a fresh PVC home).
-code-server --extensions-dir "${CODE_SERVER_SEED_EXTENSIONS}" --list-extensions \
-  | grep llvm-vs-code-extensions.vscode-clangd \
-  && echo "code-server clangd extension: ok"
-# west extension commands + blob fetchers import these at runtime.
-/opt/west-venv/bin/python -c "import requests, jsonschema" && echo "west venv deps: ok"
-# `west espressif monitor` imports esptool + pyserial inside the west venv.
-/opt/west-venv/bin/python -c "import esptool, serial" && echo "west venv esptool: ok"
-for t in xtensa-espressif_esp32_zephyr-elf xtensa-espressif_esp32s2_zephyr-elf xtensa-espressif_esp32s3_zephyr-elf riscv64-zephyr-elf; do
-  test -x "${ZEPHYR_SDK_INSTALL_DIR}/${t}/bin/${t}-gcc" && echo "sdk toolchain ${t}: ok"
-done
-sudo mkdir -p /etc/ssh/hostkeys
-sudo ssh-keygen -q -N '' -t ed25519 -f /etc/ssh/hostkeys/ssh_host_ed25519_key
-sudo ssh-keygen -q -N '' -t rsa -f /etc/ssh/hostkeys/ssh_host_rsa_key
-sudo /usr/sbin/sshd -t
-echo "sshd config: ok"
-EOF
-
-# The `+ runner` layer adds only the GitHub Actions runner, so its smoke test is
-# the parent's plus proof that the runner unpacked and is executable by `dev`.
-read -r -d '' SMOKE_RUNNER <<'EOF' || true
-echo "--- runner smoke ---"
-test -x /home/runner/run.sh
-# The runner writes .runner and .credentials into /home/runner at registration.
-# Root ownership here makes every pod fail to start, and it is invisible until a
-# job is queued. The first build of this layer shipped exactly that.
-# This image runs as root, so ownership is not a question. What matters is that
-# the runner directory is writable by the process that will use it.
-test -w /home/runner || { echo "FAIL: /home/runner is not writable"; exit 1; }
-test -d /home/runner/externals
-test -w /home/runner/_work
-/home/runner/bin/Runner.Listener --version
-# Deliberately NOT asserted here: membership of the docker group. The pod grants
-# it with securityContext.supplementalGroups, because the dind sidecar chooses the
-# socket's gid. A `docker run` has no dind sidecar, so this script cannot test it
-# at all. gophersys/infrastructure `ctl.sh verify-runner-image` tests it in the
-# real pod shape, which is the only place the answer is meaningful.
-# node must resolve in a NON-login shell: CI jobs run bash, not an interactive zsh.
-command -v node >/dev/null || { echo "FAIL: node is not on PATH"; exit 1; }
-# The runner refuses to start as root without this. The image runs as root, so a
-# missing value means every pod exits 1 in under a second and no job ever runs.
-[ "${RUNNER_ALLOW_RUNASROOT:-}" = "1" ] || { echo "FAIL: RUNNER_ALLOW_RUNASROOT is not 1; run.sh will refuse to start as root"; exit 1; }
-# The review agent needs the Claude CLI. Its absence was found only when a review
-# job failed with "missing required tool: claude".
-command -v claude >/dev/null || { echo "FAIL: claude is not on PATH"; exit 1; }
-echo "--- CI tooling ---"
-cictl help >/dev/null
-command -v cictl
-EOF
-
-# The cloud image: the reduced base + the CI fold, one image for dev and CI.
-# Self-contained on purpose — cloud DROPS tools the base smoke asserts
-# (terraform, rustc, cargo), so appending to SMOKE_BASE would assert content
-# the image is defined not to have. Runs as the image default user (dev),
-# which is the user a devcontainer and an ARC pod that keeps the default get.
-read -r -d '' SMOKE_CLOUD <<'EOF' || true
-set -e
-echo "--- cloud smoke ---"
-uname -m
-test "${GOPHERSYS_DEVCONTAINER}" = "cloud"
-bw --version
-gh --version
-tailscale version
-kubectl version --client
-helm version --short
-k9s version --short
-go version
-node --version
-bun --version
-python3 --version
-uv --version
-nats --version
-yq --version
-echo "--- ADR-0020 gate toolchain (Kubernetes substrates + Go gate tools) ---"
-k3d version
-kind version
-gofumpt --version
-golangci-lint --version
-govulncheck -version
-gosec --version
-gremlins --version
-# The `X && echo ok` form is BANNED here: under set -e a failure inside an
-# AND-list does not abort the script, so that form is a check that cannot
-# fail — proven by drill: a wrong binary name still ended in a green smoke.
-# Both proofs below fail loudly through an explicit if.
-if ! benchstat -h >/dev/null 2>&1; then echo "FAIL: benchstat is not in the image"; exit 1; fi
-echo "benchstat: ok"
-# hnslint ships no version verb: any argument is read as a directory. The
-# presence proof is its usage answer.
-if ! hnslint 2>&1 | grep -q "usage: hnslint"; then echo "FAIL: hnslint is not in the image or does not answer its usage line"; exit 1; fi
-echo "hnslint: ok"
-gitleaks version
-kubeconform -v
-echo "--- the Go caches are OUT of the image (the 1.6 GB fix) ---"
-# The gate-tools layer measured 2.06 GB in base because the RUN never removed
-# the module and build caches. The cleanup is MANDATORY in cloud, and a green
-# smoke on an image that silently kept them would bless the exact regression.
-if [ -d "${GOPATH}/pkg/mod" ]; then echo "FAIL: ${GOPATH}/pkg/mod is still in the image"; exit 1; fi
-if [ -d "${HOME}/.cache/go-build" ]; then echo "FAIL: ${HOME}/.cache/go-build is still in the image"; exit 1; fi
-echo "go caches: absent, as built"
-echo "--- docker cli-plugins ---"
-# `docker buildx version` reaches no daemon, so this is a pure image-content
-# check. The CI pod is the CLIENT of the remote arm64 builder, and base-runner
-# measurably shipped without the plugin once.
-if ! BUILDX_OUTPUT="$(docker buildx version 2>&1)"; then
-  echo "FAIL: docker buildx does not run in this image"
-  echo "      docker said: ${BUILDX_OUTPUT}"
-  echo "      /usr/local/lib/docker/cli-plugins holds:"
-  ls -1 /usr/local/lib/docker/cli-plugins || echo "      (there is no cli-plugins directory)"
-  exit 1
-fi
-echo "${BUILDX_OUTPUT}"
-# Drift guard. The version that RUNS must be the version versions.env pins.
-# EXPECTED_BUILDX_VERSION is read out of versions.env by .ci/smoke.sh on the
-# host and passed in here; an absent pin FAILS rather than skipping.
-BUILDX_INSTALLED=""
-if BUILDX_TOKENS="$(printf '%s' "${BUILDX_OUTPUT}" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+')"; then
-  BUILDX_INSTALLED="$(printf '%s' "${BUILDX_TOKENS}" | head -n 1)"
-fi
-if [ -z "${BUILDX_INSTALLED}" ]; then
-  echo "FAIL: docker buildx runs but reports no version this check can read"
-  echo "      it printed: ${BUILDX_OUTPUT}"
-  exit 1
-fi
-if [ -z "${EXPECTED_BUILDX_VERSION}" ]; then
-  echo "FAIL: no buildx pin could be read, so the ${BUILDX_INSTALLED} in this image is checked against nothing"
-  echo "      ${BUILDX_PIN_PROBLEM}"
-  exit 1
-fi
-if [ "${BUILDX_INSTALLED}" != "v${EXPECTED_BUILDX_VERSION}" ]; then
-  echo "FAIL: buildx version drift: the image runs ${BUILDX_INSTALLED}, versions.env pins v${EXPECTED_BUILDX_VERSION}"
-  exit 1
-fi
-echo "docker buildx: ${BUILDX_INSTALLED} matches the pin in versions.env"
-echo "--- cloud components: debug, protocols, data clients, comforts ---"
-dlv version
-buf --version
-grpcurl -version
-psql --version
-sqlite3 --version
-redis-cli --version
-bat --version
-htop --version
-btop --version
-http --version
-echo "--- the CI fold: runner + agents (inert files in a devcontainer) ---"
-test -x /home/runner/run.sh
-# The runner writes .runner and .credentials into /home/runner at
-# registration. An unwritable directory means every pod fails to start, and
-# it is invisible until a job is queued. The first runner build shipped that.
-test -w /home/runner || { echo "FAIL: /home/runner is not writable"; exit 1; }
-test -d /home/runner/externals
-test -w /home/runner/_work
-/home/runner/bin/Runner.Listener --version
-# A pod that runs as root needs this or run.sh exits 1 in under a second.
-[ "${RUNNER_ALLOW_RUNASROOT:-}" = "1" ] || { echo "FAIL: RUNNER_ALLOW_RUNASROOT is not 1; run.sh will refuse to start as root"; exit 1; }
-# node must resolve in a NON-login shell: CI jobs run bash, not an interactive zsh.
-command -v node >/dev/null || { echo "FAIL: node is not on PATH"; exit 1; }
-echo "--- CI tooling + the harness bake (ADR-0021 pins) ---"
-cictl help >/dev/null
-command -v cictl
-claude --version
-omp --version
-codex --version
-EOF
 
 case "$IMAGE" in
-  base)    SCRIPT="$SMOKE_BASE" ;;
-  cloud)   SCRIPT="$SMOKE_CLOUD" ;;
-  base-runner) SCRIPT="${SMOKE_BASE}
-${SMOKE_RUNNER}" ;;
-  flutter) SCRIPT="${SMOKE_BASE}
-${SMOKE_FLUTTER}" ;;
-  zephyr)  SCRIPT="${SMOKE_BASE}
-${SMOKE_ZEPHYR}" ;;
-  zephyr-devbox) SCRIPT="${SMOKE_BASE}
-${SMOKE_ZEPHYR}
-${SMOKE_DEVBOX}" ;;
+  cloud)
+    PIN_HOME="$CLOUD_PIN_HOME"
+    PIN_CLASSES="$PIN_CLASSES_CLOUD"
+    ;;
+  base|base-runner|flutter|zephyr|zephyr-devbox)
+    PIN_HOME="$BASE_PIN_HOME"
+    PIN_CLASSES="$PIN_CLASSES_BASE"
+    ;;
   *)
     log_error "unknown image: '$IMAGE'"
     log_error "valid images: base, base-runner, flutter, zephyr, zephyr-devbox, cloud"
     exit 2
     ;;
 esac
+
+CHECK_GROUPS="$(image_check_groups "$IMAGE")"
+if [[ -z "$CHECK_GROUPS" ]]; then
+  log_error "no functional check group is declared for '${IMAGE}'"
+  log_error "a smoke that compares versions and exercises nothing is not a smoke"
+  exit 2
+fi
+
+# ---------------------------------------------------------------------------
+# The readers.
+# ---------------------------------------------------------------------------
+
+# home_pin_names <home> — every pin the home declares, 1 per line, in file order.
+#
+# versions.env declares `NAME=value`. base/Dockerfile declares `ARG NAME=value`,
+# and only the version-shaped names are pins: `*_VERSION`, `*_REF`, `*_CHANNEL`,
+# the 3 suffixes dockerfile-args.test.sh governs. TARGETPLATFORM, USERNAME and
+# USER_UID pin no tool, so no smoke test can assert them.
+function home_pin_names() {
+  local home="$1"
+  case "$home" in
+    "$CLOUD_PIN_HOME")
+      awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/ { print $1 }' "$REPO_ROOT/$home" | awk '!seen[$0]++'
+      ;;
+    "$BASE_PIN_HOME")
+      awk '
+        /^[[:space:]]*ARG[[:space:]]+/ {
+          split($2, parts, "=")
+          if (parts[1] ~ /(_VERSION|_REF|_CHANNEL)$/) { print parts[1] }
+        }
+      ' "$REPO_ROOT/$home" | awk '!seen[$0]++'
+      ;;
+    *)
+      log_error "no reader for pin home '${home}'"
+      exit 1
+      ;;
+  esac
+}
+
+# resolve_pin <NAME> <home> — the value that home declares for that pin.
+#
+# 2 globals come out, never a printed value: PIN_VALUE, and PIN_PROBLEM when
+# there is nothing to use. Every unreadable case ends with an EMPTY PIN_VALUE,
+# and an empty value for an asserted pin stops this script before it starts a
+# container — an image compared against an empty string is an image nobody
+# checked, which is the result this repository has already published once.
+#
+# This 1 function replaced 2 that could each read only the buildx pin. They
+# answered "declares no ARG" whenever their single regex missed, which is a lie
+# when the file plainly declares one, so the shapes a human writes are read here:
+# leading whitespace, a trailing `# comment`, and a `v` on the value.
+PIN_VALUE=""
+PIN_PROBLEM=""
+function resolve_pin() {
+  local name="$1" home="$2"
+  local file="$REPO_ROOT/$home"
+  local line="" status=0
+  PIN_VALUE=""
+  PIN_PROBLEM=""
+
+  if [[ ! -f "$file" ]]; then
+    PIN_PROBLEM="the pin home ${home} is not a file: ${file}"
+    return 0
+  fi
+
+  case "$home" in
+    "$CLOUD_PIN_HOME")
+      line="$(grep -E "^${name}=" "$file")" || status=$?
+      ;;
+    "$BASE_PIN_HOME")
+      # Docker uses the LAST declaration of a name, so the last one is the pin.
+      # Taking the first disagrees with the built image whenever an ARG is
+      # re-declared further down.
+      line="$(grep -E "^[[:space:]]*ARG[[:space:]]+${name}=" "$file" | tail -n 1)" || status=$?
+      ;;
+    *)
+      PIN_PROBLEM="no reader for pin home '${home}'"
+      return 0
+      ;;
+  esac
+
+  if [[ "$status" -ne 0 || -z "$line" ]]; then
+    PIN_PROBLEM="${home} declares no ${name}"
+    return 0
+  fi
+
+  line="${line%%#*}"
+  line="${line%"${line##*[![:space:]]}"}"
+  local assignment="${name}="
+  PIN_VALUE="${line#*"$assignment"}"
+  if [[ -z "$PIN_VALUE" ]]; then
+    PIN_PROBLEM="${home} declares ${name} with an empty value"
+  fi
+}
+
+# expected_version <raw pin value> — the version INSIDE the pin. Everything
+# before the first digit goes: CICTL_VERSION is written `v0.1.0`, and
+# PYTHON_PACKAGE is written `python3.12` because apt names a package rather than
+# a version. Empty when the value holds no digit at all, which the caller reports.
+function expected_version() {
+  local raw="$1"
+  printf '%s' "${raw#"${raw%%[0-9]*}"}"
+}
+
+# class_row <PIN> — the classification row for a pin, empty when it has none.
+function class_row() {
+  local name="$1" row
+  while IFS= read -r row; do
+    [[ "${row%%|*}" == "$name" ]] || continue
+    printf '%s' "$row"
+    return 0
+  done <<< "$PIN_CLASSES"
+  printf ''
+}
+
+# ---------------------------------------------------------------------------
+# The listing. A classification is a property of the files, so this runs with no
+# daemon at all and it is the seam the pull request gate reads.
+# ---------------------------------------------------------------------------
+if [[ "${SMOKE_LIST_PINS:-}" == "1" ]]; then
+  while IFS= read -r pin; do
+    [[ -z "$pin" ]] && continue
+    row="$(class_row "$pin")"
+    [[ -z "$row" ]] && continue
+    row="${row#*|}"
+    printf '%s|%s\n' "$pin" "${row%%|*}"
+  done <<< "$(home_pin_names "$PIN_HOME")"
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# The assertion table, built BEFORE anything touches docker.
+# ---------------------------------------------------------------------------
+PIN_TABLE=""
+UNCLASSIFIED=""
+while IFS= read -r pin; do
+  [[ -z "$pin" ]] && continue
+  if [[ -z "$(class_row "$pin")" ]]; then
+    UNCLASSIFIED="${UNCLASSIFIED:+${UNCLASSIFIED} }${pin}"
+  fi
+done <<< "$(home_pin_names "$PIN_HOME")"
+if [[ -n "$UNCLASSIFIED" ]]; then
+  log_error "these pins of ${PIN_HOME} carry no classification: ${UNCLASSIFIED}"
+  log_error "assert each one in .ci/smoke.sh, or classify it not-a-version or not-in-this-image"
+  log_error "a pin nothing compares against the image is a number in a file"
+  exit 1
+fi
+
+while IFS='|' read -r pin class probe extractor; do
+  [[ -z "$pin" ]] && continue
+  [[ "$class" == "asserted" ]] || continue
+  if [[ -z "$probe" ]]; then
+    log_error "${pin} is classified asserted and names no command to read a version with"
+    log_error "give it a command in the ${PIN_HOME} table of .ci/smoke.sh, or classify it not-a-version"
+    exit 1
+  fi
+  resolve_pin "$pin" "$PIN_HOME"
+  if [[ -z "$PIN_VALUE" ]]; then
+    log_error "${pin} is classified asserted and resolves to the empty string: ${PIN_PROBLEM}"
+    log_error "an empty expected version compares against nothing, so NOTHING was asserted about ${IMAGE}"
+    exit 1
+  fi
+  expected="$(expected_version "$PIN_VALUE")"
+  if [[ -z "$expected" ]]; then
+    log_error "${pin} is classified asserted and its value '${PIN_VALUE}' holds no version to compare"
+    exit 1
+  fi
+  PIN_TABLE="${PIN_TABLE:+${PIN_TABLE}
+}${pin}|${expected}|${probe}|${extractor:-}"
+done <<< "$PIN_CLASSES"
+
+if [[ -z "$PIN_TABLE" ]]; then
+  log_error "no pin of ${PIN_HOME} is classified asserted, so the guest would compare nothing"
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# The payload: the fixtures, the table, and .ci/image-checks.sh, in 1 stream.
+#
+# It travels on stdin and not in the argv because the guest also receives FILES,
+# and an argv is not a place to put a file. The guest script is written out and
+# exec'd rather than piped into bash, so a check that reads stdin cannot eat the
+# rest of the script.
+# ---------------------------------------------------------------------------
+FIXTURES_DIR="$PROJECT_ROOT/fixtures"
+PAYLOAD_EOF="GOPHERSYS_SMOKE_PAYLOAD_EOF"
+
+FIXTURE_FILES=()
+while IFS= read -r file; do
+  [[ -z "$file" ]] && continue
+  FIXTURE_FILES+=("${file#"$FIXTURES_DIR/"}")
+done < <(find "$FIXTURES_DIR" -type f | sort)
+
+if [[ "${#FIXTURE_FILES[@]}" -eq 0 ]]; then
+  log_error "no fixture found under ${FIXTURES_DIR} — the functional checks would have nothing to run on"
+  exit 1
+fi
+
+# A file that carried the delimiter would end its own heredoc, and the rest of it
+# would be read as shell. The check names the file, because that is the edit
+# somebody has to make.
+EMBEDDED_FILES=("$PROJECT_ROOT/image-checks.sh")
+for relative in "${FIXTURE_FILES[@]}"; do
+  EMBEDDED_FILES+=("$FIXTURES_DIR/$relative")
+done
+for file in "${EMBEDDED_FILES[@]}"; do
+  if grep -qF -- "$PAYLOAD_EOF" "$file"; then
+    log_error "the embedded file ${file} carries the heredoc delimiter ${PAYLOAD_EOF}"
+    log_error "the payload would end there and the rest of the file would run as shell"
+    exit 1
+  fi
+done
+
+# payload_text — the stream the container reads on stdin.
+#
+# Every `$` below belongs to the GUEST shell and must reach it unexpanded, so
+# the single quotes are the point rather than an oversight.
+# shellcheck disable=SC2016
+function payload_text() {
+  local relative
+  printf 'SMOKE_FIXTURE_DIR="$(mktemp -d)"\n'
+  printf 'export SMOKE_FIXTURE_DIR\n'
+  for relative in "${FIXTURE_FILES[@]}"; do
+    printf 'mkdir -p "${SMOKE_FIXTURE_DIR}/%s"\n' "$(dirname "$relative")"
+    printf 'cat > "${SMOKE_FIXTURE_DIR}/%s" <<'\''%s'\''\n' "$relative" "$PAYLOAD_EOF"
+    cat "$FIXTURES_DIR/$relative"
+    printf '%s\n' "$PAYLOAD_EOF"
+  done
+  # The table travels IN the payload and is exported from there, so no pin name
+  # ever becomes an environment variable of the container: zsh sets ZSH_VERSION
+  # itself, and a pin that collided with it would be compared against the shell.
+  printf 'PIN_TABLE="$(cat <<'\''%s'\''\n' "$PAYLOAD_EOF"
+  printf '%s\n' "$PIN_TABLE"
+  printf '%s\n)"\n' "$PAYLOAD_EOF"
+  printf 'export PIN_TABLE\n'
+  printf 'SMOKE_CHECKS=%q\n' "$CHECK_GROUPS"
+  printf 'export SMOKE_CHECKS\n'
+  printf 'SMOKE_GUEST="$(mktemp)"\n'
+  printf 'cat > "$SMOKE_GUEST" <<'\''%s'\''\n' "$PAYLOAD_EOF"
+  cat "$PROJECT_ROOT/image-checks.sh"
+  printf '%s\n' "$PAYLOAD_EOF"
+  printf 'exec bash "$SMOKE_GUEST" < /dev/null\n'
+}
 
 REF="${REF_ARG:-ghcr.io/gophersys/${IMAGE}:latest}"
 
@@ -546,17 +571,6 @@ if [[ "$STORED_PLATFORM" != "$SMOKE_PLATFORM_RESOLVED" ]]; then
   fi
 fi
 
-# The pin the drift guard inside the image compares against, and the reason when
-# there is none. Both travel into the image, so an unreadable pin is reported
-# next to the version it could not be compared against. The cloud image reads
-# its pin from versions.env — the one home of the new mechanism; every other
-# image reads base/Dockerfile's ARG.
-if [[ "$IMAGE" == "cloud" ]]; then
-  resolve_cloud_buildx_pin
-else
-  resolve_buildx_pin
-fi
-
 # The R4 size gate, cloud only: the acceptance budget is <= 5.75 GB (decimal,
 # the unit every census figure uses). It runs on the HOST against the loaded
 # or pulled image, BEFORE the container smoke, and in CI this whole script
@@ -588,9 +602,8 @@ fi
 
 RUN_ARGS=(
   --rm
+  --interactive
   --platform "$SMOKE_PLATFORM_RESOLVED"
-  -e "EXPECTED_BUILDX_VERSION=${BUILDX_PIN}"
-  -e "BUILDX_PIN_PROBLEM=${BUILDX_PIN_PROBLEM}"
 )
 if [[ "$IMAGE" == "zephyr-devbox" ]]; then
   # The devbox image defaults to USER root (sshd entrypoint) and its
@@ -600,5 +613,6 @@ if [[ "$IMAGE" == "zephyr-devbox" ]]; then
 fi
 
 log_info "running smoke test in ${REF} (${SMOKE_PLATFORM_RESOLVED})"
-docker run "${RUN_ARGS[@]}" "${REF}" /usr/bin/zsh -c "${SCRIPT}"
+log_info "asserting $(printf '%s\n' "$PIN_TABLE" | wc -l | tr -d ' ') pins of ${PIN_HOME}; check groups: ${CHECK_GROUPS}"
+docker run "${RUN_ARGS[@]}" "${REF}" bash -s <<< "$(payload_text)"
 log_info "smoke test passed for ${IMAGE}"

@@ -58,6 +58,7 @@ ARG OH_MY_ZSH_INSTALL_URL=https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/mast
 ARG NVM_VERSION
 ARG NODE_VERSION
 ARG NPM_VERSION
+ARG PNPM_VERSION
 ARG BUN_VERSION
 
 # Python.
@@ -126,6 +127,7 @@ RUN : "${ZSH_VERSION:?not in versions.env}" \
  && : "${NVM_VERSION:?not in versions.env}" \
  && : "${NODE_VERSION:?not in versions.env}" \
  && : "${NPM_VERSION:?not in versions.env}" \
+ && : "${PNPM_VERSION:?not in versions.env}" \
  && : "${BUN_VERSION:?not in versions.env}" \
  && : "${PYTHON_PACKAGE:?not in versions.env}" \
  && : "${UV_VERSION:?not in versions.env}" \
@@ -279,7 +281,10 @@ RUN mkdir -p "/home/${USERNAME}/.local/bin" \
 # nvm download cache (31.2 MB) and the npm cache (30.7 MB) are write-only at
 # runtime and a removal in a later layer would save zero bytes. The corepack
 # store under ~/.cache/node STAYS: it is where the activated yarn and pnpm
-# live, not a cache.
+# live, not a cache — and it is what the smoke reads to compare PNPM_VERSION.
+#
+# pnpm takes the PIN and not `@latest`: `@latest` made the image content change
+# with no diff at all — two builds a day apart baked 11.21.0 and 11.22.0.
 ENV NVM_DIR=/home/${USERNAME}/.nvm
 RUN unset ZSH_VERSION; SHELL=/bin/bash bash -c "unset ZSH_VERSION; set -euo pipefail; \
       mkdir -p \"\${NVM_DIR}\"; \
@@ -290,7 +295,7 @@ RUN unset ZSH_VERSION; SHELL=/bin/bash bash -c "unset ZSH_VERSION; set -euo pipe
       npm install -g \"npm@${NPM_VERSION}\"; \
       corepack enable; \
       corepack prepare yarn@stable --activate; \
-      corepack prepare pnpm@latest --activate; \
+      corepack prepare pnpm@${PNPM_VERSION} --activate; \
       nvm cache clear; \
       npm cache clean --force; \
       rm -rf \"\${HOME}/.npm\" /tmp/node-compile-cache"
