@@ -671,10 +671,21 @@ function reprove_digest() {
 # Resolution.
 # ---------------------------------------------------------------------------
 
-# resolve_pin <pin> — `<version>|<sha256>` on stdout. Nothing else prints
-# there: a caller reads this record, and a log line inside it would be read as
-# a version.
-function resolve_pin() {
+# The 2 halves of a resolution, and they are separate because they cost
+# different amounts.
+#
+#   resolve_version   1 index read. Cheap, and every row needs it.
+#   resolve_digest    2 asset downloads — the digest and its re-proof — and the
+#                     asset is the whole tarball.
+#
+# An aggregate run therefore asks the cheap question of every row and the
+# expensive one only of the rows that MOVED. Before this split it digested every
+# asset-bearing pin whether or not the version had changed, so a week in which
+# nothing moved still pulled flutter's ~1.5 GB archive twice, and the timeout
+# comment in weekly-bumps.yml claimed a budget the code did not spend.
+
+# resolve_version <pin> — the version its upstream publishes now, on stdout.
+function resolve_version() {
   local pin="$1"
   local row=""
   capture row table_row "$pin"
@@ -717,7 +728,18 @@ function resolve_pin() {
   if [[ -z "$version" ]]; then
     fail_pin "$pin" "the ${datasource} datasource answered with an empty version"
   fi
+  printf '%s' "$version"
+}
 
+# resolve_digest <pin> <version> — the sha256 of the asset THAT version names,
+# or `-` when the pin has no digest row anywhere.
+#
+# The URL comes out of the file that performs the download, with this version
+# substituted in, and the value is then re-proven through the one verifier every
+# image download goes through. Both fetches are of the same URL, and that is the
+# point: the digest is of the bytes the build will fetch.
+function resolve_digest() {
+  local pin="$1" version="$2"
   local digest="$NO_DIGEST"
   local record="" url=""
   capture record asset_record "$pin"
@@ -728,7 +750,20 @@ function resolve_pin() {
     capture digest digest_of "$pin" "$url"
     reprove_digest "$pin" "$url" "$digest"
   fi
+  printf '%s' "$digest"
+}
 
+# resolve_pin <pin> — `<version>|<sha256>` on stdout, the record the CLI prints.
+# Nothing else prints there: a caller reads this record, and a log line inside it
+# would be read as a version.
+#
+# 1 pin on the argv means the caller asked about that pin, so both halves run
+# whether or not it moved. The aggregate path below is the one that has 45 rows
+# to be careful with.
+function resolve_pin() {
+  local pin="$1" version="" digest=""
+  capture version resolve_version "$pin"
+  capture digest resolve_digest "$pin" "$version"
   printf '%s|%s\n' "$version" "$digest"
 }
 
@@ -749,31 +784,42 @@ function resolve_pin() {
 # bump. A row that resolves nothing is skipped BEFORE the resolver is called, so
 # the reason its no-autobump row states is honoured rather than being a comment.
 #
-# The status of each resolution is CAPTURED. `record="$(resolve_pin "$pin")"`
+# The status of each resolution is CAPTURED. `version="$(resolve_version "$pin")"`
 # under `set -e` + `inherit_errexit` would end this loop at the first bad row,
 # which is the abort-at-row-1 design this file rejects at the top.
+#
+# THE ORDER IS THE COST. The version is read first and compared against the
+# value the homes hold; the digest is computed only when they differ. A pin that
+# is already current costs 1 index read here, and it used to cost 2 downloads of
+# its whole asset as well — every week, for every asset-bearing pin, whether
+# anything had moved or not.
 function collect_bumps() {
   local movers_file="$1" failures_file="$2"
   : > "$movers_file"
   : > "$failures_file"
-  local row pin datasource current record version digest status
+  local row pin datasource current version digest status
   while IFS= read -r row; do
     [[ -z "$row" ]] && continue
     pin="${row%%|*}"
     datasource="$(row_field "$row" 2)"
     [[ "$datasource" == "no-autobump" ]] && continue
     current="$(pin_value "$UPSTREAM_ROOT" "$pin")"
+
     status=0
-    record="$(resolve_pin "$pin")" || status=$?
+    version="$(resolve_version "$pin")" || status=$?
     if [[ "$status" -ne 0 ]]; then
       printf '%s\n' "$pin" >> "$failures_file"
       continue
     fi
-    version="${record%%|*}"
-    digest="${record#*|}"
-    if [[ "$version" != "$current" ]]; then
-      printf '%s|%s|%s|%s\n' "$pin" "$current" "$version" "$digest" >> "$movers_file"
+    # Nothing moved: no asset is fetched, and no line is written.
+    [[ "$version" == "$current" ]] && continue
+
+    digest="$(resolve_digest "$pin" "$version")" || status=$?
+    if [[ "$status" -ne 0 ]]; then
+      printf '%s\n' "$pin" >> "$failures_file"
+      continue
     fi
+    printf '%s|%s|%s|%s\n' "$pin" "$current" "$version" "$digest" >> "$movers_file"
   done <<< "$(table_rows)"
   [[ ! -s "$failures_file" ]]
 }
