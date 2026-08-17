@@ -1,5 +1,5 @@
-# Counter-stimulus fixture for _ctl/tests/pin-mirroring.test.sh — the QUIET
-# half of the mirroring rule, in the Dockerfile shape.
+# Counter-stimulus fixture for _ctl/tests/runner-residue-mirroring.test.sh —
+# the QUIET half of the mirroring rule, in the Dockerfile shape.
 #
 # Nothing builds this file and it is not an image. It declares the same 2 pins
 # agreeing.env declares, at the same 2 values, so the rule must be silent over

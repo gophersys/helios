@@ -35,10 +35,28 @@
 #
 # The test never says WHICH class a pin must carry. That choice belongs to
 # .ci/smoke.sh, and a test that made it would have to move with every pin. What
-# the test enforces is that a pin cannot be SILENT: a new row in versions.env,
-# or a new ARG in base/Dockerfile, has no class, so this file fails and names
-# it. The author then chooses — assert it, or write down why it is not asserted.
-# Both answers are a visible line in a diff. Saying nothing is not an answer.
+# the test enforces is that a pin cannot be SILENT: a new row in versions.env
+# has no class in one of the 2 tables, so this file fails and names it. The
+# author then chooses — assert it, or write down why it is not asserted. Both
+# answers are a visible line in a diff. Saying nothing is not an answer.
+#
+# ============================================================================
+# 1 HOME, 2 TABLES
+# ============================================================================
+#
+# There were 2 homes: the cloud family read versions.env and the base family
+# read the version ARGs at the top of base/Dockerfile. base/Dockerfile went
+# value-less on 2026-08-17 — every pin of it arrives as a generated
+# --build-arg out of versions.env — so it declares no value for any reader to
+# find, and this file read it for 19 pins that are not there any more.
+#
+# The TABLES are still 2, and that is deliberate: `cloud` asserts the CI fold
+# and the base family asserts what `base` installs, so a pin one of them does
+# not carry takes `not-in-this-image` in that table. So the rule below runs
+# TWICE over the SAME home, once per table. Both directions still bite. A row
+# added to versions.env is unclassified in whichever table forgot it, and a
+# table row whose pin was deleted is a classification of a file that no longer
+# holds it — the difference is only that both answers now come out of 1 file.
 #
 # "not-a-version" and "not-in-this-image" are not exceptions that weaken the
 # rule. They are the 2 honest answers to "why is this pin not compared", and
@@ -78,11 +96,12 @@ TEST_NAME="version-coverage.test.sh"
 
 STUB_BIN="$TESTS_DIR/stubs"
 
-# The 2 homes a pin lives in, and the image that owns each one. Named pair by
-# pair rather than found by a glob, for the reason platform-policy.test.sh names
-# its list: a glob that stops matching leaves a green result that read nothing.
-CLOUD_PIN_HOME="versions.env"
-BASE_PIN_HOME="base/Dockerfile"
+# The 1 home every image's pins live in, named rather than found by a glob, for
+# the reason platform-policy.test.sh names its list: a glob that stops matching
+# leaves a green result that read nothing. .ci/smoke.sh calls it PIN_HOME and
+# spells the same path, because a second spelling here would let this test
+# report coverage of a file the driver does not read.
+PIN_HOME="versions.env"
 
 # The counter-stimulus. A detector that has only ever seen correct input has
 # never been observed to fire.
@@ -113,26 +132,48 @@ function env_pin_names() {
   awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/ { print $1 }' "$1" | sort -u
 }
 
-# dockerfile_pin_names <file> — every version-shaped ARG name the Dockerfile
-# declares, 1 per line, sorted.
-#
-# Version-shaped is `*_VERSION`, `*_REF` or `*_CHANNEL`, the same 3 suffixes
-# dockerfile-args.test.sh governs. The other ARGs (TARGETPLATFORM, USERNAME,
-# USER_UID) pin no tool, so no smoke test can assert them.
-function dockerfile_pin_names() {
-  awk '
-    /^[[:space:]]*ARG[[:space:]]+/ {
-      split($2, parts, "=")
-      if (parts[1] ~ /(_VERSION|_REF|_CHANNEL)$/) { print parts[1] }
-    }
-  ' "$1" | sort -u
-}
+# A `dockerfile_pin_names` reader stood here, for the `ARG NAME=value` shape of
+# base/Dockerfile. It went with the second home, exactly as its twin in
+# .ci/smoke.sh did: a value-less ARG declares no value to read, and a reader
+# kept alive over a file that no longer answers is how a rule goes on
+# reporting coverage of nothing. The 3 per-image Dockerfiles still declare
+# their pins inline and NO reader here covers them — that is ledger #102 and a
+# stated gap, not an oversight this reader would close.
 
 # classification_records <text> — the `<NAME>|<class>` records inside a listing,
 # 1 per line. Every other line is dropped, so the log lines .ci/smoke.sh prints
 # around the records cannot be read as data.
 function classification_records() {
   printf '%s\n' "$1" | awk -F'|' '/^[A-Za-z_][A-Za-z0-9_]*\|/ { print $1 "|" $2 }'
+}
+
+# class_table_records <table variable name> — the `<NAME>|<class>` rows of 1
+# classification table, read out of the TEXT of .ci/smoke.sh.
+#
+# This is a second reader of a file that already offers a seam, which needs the
+# reason stated. The seam prints the LISTING, and a listing is built by walking
+# versions.env: it therefore cannot carry a row for a pin that versions.env no
+# longer holds, and it prints 1 record for a pin the table answers twice. Those
+# 2 defects are properties of the TABLE, so they are only visible in the table.
+# Widening the seam to emit them is a change to .ci/smoke.sh and is open work;
+# until then this reader is how the 2 directions stay able to fail, and
+# `_class_table_agrees_with_the_listing` holds it against the seam so the 2
+# cannot drift apart quietly.
+#
+# The heredoc delimiter is matched on its own line, exactly as .ci/smoke.sh
+# writes it, so the reader stops where the table stops.
+function class_table_records() {
+  awk -v want="$1" '
+    $0 ~ ("^read -r -d .. " want " <<") { inside = 1; next }
+    /^PIN_CLASS_TABLE$/ { inside = 0; next }
+    inside && /^[A-Za-z_][A-Za-z0-9_]*\|/ {
+      position = index($0, "|")
+      rest = substr($0, position + 1)
+      second = index(rest, "|")
+      if (second == 0) { print substr($0, 1, position - 1) "|" rest; next }
+      print substr($0, 1, position - 1) "|" substr(rest, 1, second - 1)
+    }
+  ' "$REPO_ROOT/.ci/smoke.sh"
 }
 
 # record_names <records> — the NAME column, 1 per line, in the order given.
@@ -233,18 +274,43 @@ function assert_listing_is_static() {
   fi
 }
 
-# assert_home_is_covered <check name> <pin names> <records> <home>
+# assert_home_is_covered <check name> <pin names> <listing records>
+#                        <table records> <home>
 #
 # The rule, applied to 1 pin home. Each direction is reported separately,
 # because each one asks the author for a different edit.
+#
+# ============================================================================
+# WHY 2 RECORD SETS, AND WHICH DIRECTION READS WHICH
+# ============================================================================
+#
+# The LISTING cannot express a stale classification, and it could until the pin
+# homes collapsed to 1. .ci/smoke.sh builds it by walking versions.env and
+# printing the class it finds for each row, so every name it emits IS a row of
+# versions.env by construction, and it emits nothing for a table entry whose
+# pin was deleted. While the base family read base/Dockerfile and the table read
+# versions.env, that mismatch is what surfaced a ghost; with 1 home the ghost
+# direction over the listing became a check that CANNOT FAIL. Measured on
+# 2026-08-17 by deleting GREMLINS_VERSION from versions.env: the suite stayed
+# green, and the 2 classifications of the deleted pin were never reported.
+#
+# So the 2 directions ABOUT TABLE ENTRIES — a stale entry, and an entry written
+# twice — read the table itself, and the 2 directions ABOUT PINS read the
+# listing, which is the seam and applies the shape rule for `*_SHA256_*` names
+# that no table row covers. `${name}_class_table_agrees_with_the_listing` ties
+# the 2 readers together, so a table reader that drifted is reported rather
+# than believed: a parser that returned nothing would make both table
+# directions vacuous in exactly the way this note exists to prevent.
 function assert_home_is_covered() {
-  local name="$1" pins="$2" records="$3" home="$4"
-  local names unclassified ghosts repeats unknown
+  local name="$1" pins="$2" records="$3" table_records="$4" home="$5"
+  local names table_names unclassified ghosts repeats unknown untabled
   names="$(record_names "$records")"
+  table_names="$(record_names "$table_records")"
   unclassified="$(names_absent_from "$pins" "$names")"
-  ghosts="$(names_absent_from "$names" "$pins")"
-  repeats="$(repeated_names "$names")"
-  unknown="$(unknown_class_records "$records")"
+  ghosts="$(names_absent_from "$table_names" "$pins")"
+  repeats="$(repeated_names "$table_names")"
+  unknown="$(unknown_class_records "$table_records")"
+  untabled="$(names_absent_from "$(printf '%s\n' "$names" | grep -v '_SHA256_' || true)" "$table_names")"
 
   if [[ -n "$unclassified" ]]; then
     fail_check "${name}_classifies_every_pin" \
@@ -258,9 +324,10 @@ function assert_home_is_covered() {
 
   if [[ -n "$repeats" ]]; then
     fail_check "${name}_classifies_each_pin_exactly_once" \
-      "these pins carry more than 1 classification:" \
+      "these pins carry more than 1 row in the classification table:" \
       "$repeats" \
-      "2 answers for 1 pin means the reader of the smoke test cannot tell which one holds"
+      "2 answers for 1 pin means the reader of the smoke test cannot tell which one holds," \
+      "and the listing hides it: class_row returns the FIRST match and the second row is dead text"
   else
     pass_check "${name}_classifies_each_pin_exactly_once"
   fi
@@ -277,11 +344,21 @@ function assert_home_is_covered() {
 
   if [[ -n "$unknown" ]]; then
     fail_check "${name}_uses_only_the_3_classes" \
-      "these records carry a class outside the taxonomy:" \
+      "these table rows carry a class outside the taxonomy:" \
       "$unknown" \
       "the 3 classes are: ${VALID_CLASSES_TEXT}"
   else
     pass_check "${name}_uses_only_the_3_classes"
+  fi
+
+  if [[ -n "$untabled" ]]; then
+    fail_check "${name}_class_table_agrees_with_the_listing" \
+      "the listing classifies these pins and this file's table reader found no row for them:" \
+      "$untabled" \
+      "the 2 readers disagree, so the 2 directions above judge a table nobody is sure was read" \
+      "— fix the reader in this file, never the answer it is compared against"
+  else
+    pass_check "${name}_class_table_agrees_with_the_listing"
   fi
 }
 
@@ -376,18 +453,29 @@ else
     "either the seam is absent, or this test stopped reading its records"
 fi
 
-# -------- 3. THE RULE, on both real pin homes --------
-# cloud reads versions.env, the 1 home of the new mechanism. The base family
-# reads the ARGs at the top of base/Dockerfile. The 2 homes must be free to move
-# apart, so each is judged against the image that owns it.
-assert_home_is_covered "cloud_versions_env" \
-  "$(env_pin_names "$REPO_ROOT/$CLOUD_PIN_HOME")" \
-  "$cloud_records" \
-  "$CLOUD_PIN_HOME"
+# -------- 3. THE RULE, on the 1 pin home, once per classification table -----
+# Both tables read versions.env now. They are still 2 tables, because the CI
+# fold is asserted in cloud and `not-in-this-image` in base and vice versa, so
+# each one is judged against the SAME home separately: a pin classified in the
+# cloud table and forgotten in the base table is a silent pin for 4 of the 5
+# images, and 1 combined check would report it as covered.
+#
+# The pin names are read out of the home and never out of a table. A rule that
+# read the listing would go on reporting coverage after the pin it covers was
+# renamed — the listing and the reference would move together and agree about
+# a file neither of them opened.
+pin_names="$(env_pin_names "$REPO_ROOT/$PIN_HOME")"
 
-assert_home_is_covered "base_dockerfile_args" \
-  "$(dockerfile_pin_names "$REPO_ROOT/$BASE_PIN_HOME")" \
+assert_home_is_covered "cloud_versions_env" \
+  "$pin_names" \
+  "$cloud_records" \
+  "$(class_table_records "PIN_CLASSES_CLOUD")" \
+  "$PIN_HOME"
+
+assert_home_is_covered "base_family_versions_env" \
+  "$pin_names" \
   "$base_records" \
-  "$BASE_PIN_HOME"
+  "$(class_table_records "PIN_CLASSES_BASE")" \
+  "$PIN_HOME"
 
 test_summary "$TEST_NAME"

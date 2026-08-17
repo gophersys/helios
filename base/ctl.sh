@@ -20,10 +20,11 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 IMAGE_NAME="base"
 
 # The build context is the REPOSITORY ROOT and not base/, because the Dockerfile
-# COPYs _build/, which sits one level above this directory. cloud/ctl.sh sets the
-# same 2 lines for the same reason (_delta/ and versions.env). The 2 build steps
-# of the base job in .github/workflows/build-and-push.yml and its provider copy
-# declare `context: .` to agree with this.
+# COPYs _build/ and takes every pin from versions.env, both of which sit one
+# level above this directory. cloud/ctl.sh sets the same 2 lines for the same
+# reason. The 2 build steps of the base job in
+# .github/workflows/build-and-push.yml and its provider copy declare
+# `context: .` to agree with this.
 IMAGE_BUILD_CONTEXT="$(cd "$PROJECT_ROOT/.." && pwd)"
 IMAGE_DOCKERFILE="$PROJECT_ROOT/Dockerfile"
 
@@ -31,12 +32,21 @@ IMAGE_DOCKERFILE="$PROJECT_ROOT/Dockerfile"
 # shellcheck source=../_ctl/lib.sh
 source "$PROJECT_ROOT/../_ctl/lib.sh"
 
+# Appends one --build-arg per line of versions.env to IMAGE_BUILD_ARGS. The
+# Dockerfile's ARGs are value-less and its pin gate fails the build naming any
+# missing one — the same 1 line cloud/ctl.sh carries, because there is 1
+# mechanism.
+versions_env_build_args "$IMAGE_BUILD_CONTEXT/versions.env"
+
 # Long-lived devcontainer that the `up`/`exec`/`shell`/`down` verbs use. You can
 # override the name, so a host can run several containers at the same time. The
 # workspace at /workspace is the *consuming* repository (the superproject that
 # vendors this .devcontainer submodule), not the submodule itself. Thus
 # /workspace/libs and /workspace/harnesses resolve. It falls back to REPO_ROOT
 # when this repository is standalone.
+IMAGE_USAGE_HEADER="
+Versions: every pin comes from versions.env at the repository root"
+
 CONTAINER_NAME="${DEVCONTAINER_NAME:-${IMAGE_NAME}-devcontainer}"
 WORKSPACE_HOST="$(git -C "$PROJECT_ROOT" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
 [[ -z "$WORKSPACE_HOST" ]] && WORKSPACE_HOST="$REPO_ROOT"

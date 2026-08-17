@@ -95,10 +95,11 @@ function image_parent() {
 # The paths of the image ITSELF, without its parent's. A trailing `/` is a
 # prefix; anything else is an exact path.
 #
-# versions.env is an input of base as well as of cloud. Only the cloud family
-# reads it at build time, so a cloud-only pin rebuilds base for nothing — but
-# _ctl/tests/pin-mirroring.test.sh holds the shared pins to one value in both
-# homes, and over-building is the direction that cannot ship a stale image.
+# versions.env is an input of base as well as of cloud, and both of them now
+# READ it at build time: every pin of either image arrives as a --build-arg
+# generated from that file. This row used to admit an over-build — base took the
+# input while only cloud consumed it — and the collapse to 1 pin home is what
+# made the mapping true rather than merely safe.
 function image_own_paths() {
   case "$1" in
     base)          printf '%s\n' 'base/' '_build/' 'versions.env' ;;

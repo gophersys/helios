@@ -48,9 +48,12 @@
 #
 #   4. both_dockerfiles_build_from_the_pinned_digest
 #      base/Dockerfile and cloud/Dockerfile FROM the digest in UBUNTU_BASE_REF,
-#      and the 2 pin homes hold the same sha256. A floating ubuntu:24.04 means
-#      2 builds of 1 commit can produce 2 different images, and this repository
-#      rests on the opposite property: the commit decides the image.
+#      each declaring that ARG above its FROM and VALUE-LESS, and versions.env —
+#      the 1 home — holds a full sha256. A floating ubuntu:24.04 means 2 builds
+#      of 1 commit can produce 2 different images, and this repository rests on
+#      the opposite property: the commit decides the image. This rule held the
+#      2 homes to 1 value until base/Dockerfile went value-less; it now holds
+#      the second home shut instead.
 #
 #   5. base_image_digest_reports_a_move
 #      The currency reader answers what the REGISTRY holds, and the check exits
@@ -586,9 +589,10 @@ function env_pin_value() {
 }
 
 # dockerfile_arg_value <file> <name> — the DEFAULT value of `ARG NAME=value`.
-# Empty when the ARG is absent or value-less. Value-less is correct in
-# cloud/Dockerfile, where every pin arrives from versions.env as a generated
-# --build-arg, and it is a defect in base/Dockerfile, which is a pin home.
+# Empty when the ARG is absent or value-less. Value-less is what BOTH root
+# Dockerfiles must be: every pin of base and cloud arrives from versions.env as
+# a generated --build-arg, so a value here is a SECOND home for a pin that has
+# 1, and this reader is how rule 5 below sees one appear.
 function dockerfile_arg_value() {
   awk -v name="$2" '
     /^[[:space:]]*ARG[[:space:]]+/ {
@@ -1496,7 +1500,7 @@ else
 fi
 
 # ===========================================================================
-# 5. THE BASE-OS PIN — both Dockerfiles build from the digest
+# 5. THE BASE-OS PIN — 1 home, and both Dockerfiles read it
 # ===========================================================================
 # The 2 Dockerfiles that FROM the base OS. The other 4 FROM an image of this
 # repository, so they inherit the pin instead of repeating it.
@@ -1505,11 +1509,14 @@ PINNED_DOCKERFILES=(
   "cloud/Dockerfile"
 )
 
-# The 2 pin homes. cloud/Dockerfile is deliberately NOT one: every pin of the
-# cloud family arrives from versions.env as a generated --build-arg, and its
-# ARGs are value-less on purpose.
+# The ONE pin home. It was 2 — this row and the `ARG UBUNTU_BASE_REF=<digest>`
+# block of base/Dockerfile — and a check here held the 2 to the same `sha256:`.
+# base/Dockerfile went value-less with every other pin of the collapse, so the
+# drift that check existed for is no longer expressible, and the rule that
+# replaces it is the one that KEEPS it inexpressible: neither Dockerfile may
+# declare a value for this pin. `${relative}_declares_the_pin_ARG_value_less`
+# below is that rule, and it runs over BOTH of them.
 ENV_PIN_HOME="versions.env"
-DOCKERFILE_PIN_HOME="base/Dockerfile"
 PIN_NAME="UBUNTU_BASE_REF"
 
 # -------- the counter-stimulus: the digest shape detector, both ways --------
@@ -1551,6 +1558,11 @@ assert_equal "counter_stimulus_finds_the_pin_reference_on_the_FROM_line" \
 assert_equal "counter_stimulus_finds_the_ARG_above_the_FROM" \
   "1" "$(arg_declaration_line "$stimulus_pinned" "$PIN_NAME")" \
   "an ARG below its FROM expands to the empty string and the build dies at 'ubuntu:24.04@'"
+# This stimulus is what keeps `${relative}_declares_the_pin_ARG_value_less`
+# from passing vacuously below. That check passes on an EMPTY read, so a
+# dockerfile_arg_value that had quietly stopped parsing would report every
+# Dockerfile as value-less and never fire. Here the same reader is handed an
+# ARG that DOES carry a default, and it has to come back with it.
 assert_equal "counter_stimulus_reads_the_ARG_default_as_the_pin_value" \
   "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" \
   "$(dockerfile_arg_value "$stimulus_pinned" "$PIN_NAME")"
@@ -1599,39 +1611,44 @@ for relative in "${PINNED_DOCKERFILES[@]}"; do
   else
     pass_check "${relative}_declares_the_pin_ARG_above_its_FROM"
   fi
+
+  # The ARG is declared, and it declares NO VALUE. That pair of properties is
+  # what makes the interpolation work off 1 home: the declaration above the
+  # FROM is what lets `${UBUNTU_BASE_REF}` expand at all, and the absence of a
+  # default is what keeps the expanded value the generated --build-arg out of
+  # versions.env rather than a second digest spelled here.
+  #
+  # A default is not a harmless fallback, which is why this is a failure and
+  # not a note. An `ARG UBUNTU_BASE_REF=sha256:...` re-added here builds
+  # SUCCESSFULLY off its own value the moment the build arg is not passed — so
+  # the base family and the cloud family would go on building, on 2 different
+  # operating systems, with 1 number in versions.env saying otherwise and no
+  # error anywhere. That drift had a test of its own until the collapse; this
+  # is the check that makes the drift unreachable instead of watched.
+  declared_value="$(dockerfile_arg_value "$file" "$PIN_NAME")"
+  if [[ "$argument_line" != "0" && -z "$declared_value" ]]; then
+    pass_check "${relative}_declares_the_pin_ARG_value_less"
+  else
+    fail_check "${relative}_declares_the_pin_ARG_value_less" \
+      "want: 'ARG ${PIN_NAME}' with no '=' — the value arrives as a generated --build-arg" \
+      "got:  '${declared_value:-<no ARG at all>}'" \
+      "${ENV_PIN_HOME} is the ONE home of this digest. A default here is a second home that" \
+      "the build silently prefers whenever the --build-arg is not passed, and a build that" \
+      "succeeds on the wrong operating system reports nothing"
+  fi
 done
 
-# -------- THE RULE, on both pin homes --------
+# -------- THE RULE, on the 1 pin home --------
 env_pin="$(env_pin_value "$REPO_ROOT/$ENV_PIN_HOME" "$PIN_NAME")"
-dockerfile_pin="$(dockerfile_arg_value "$REPO_ROOT/$DOCKERFILE_PIN_HOME" "$PIN_NAME")"
 
 if [[ "$(digest_is_well_formed "$env_pin")" == "1" ]]; then
   pass_check "${ENV_PIN_HOME}_pins_a_full_sha256_digest"
 else
   fail_check "${ENV_PIN_HOME}_pins_a_full_sha256_digest" \
     "want: ${PIN_NAME} matching ^sha256:[0-9a-f]{64}\$" \
-    "got:  '${env_pin:-<no such pin>}'"
-fi
-
-if [[ "$(digest_is_well_formed "$dockerfile_pin")" == "1" ]]; then
-  pass_check "${DOCKERFILE_PIN_HOME}_pins_a_full_sha256_digest"
-else
-  fail_check "${DOCKERFILE_PIN_HOME}_pins_a_full_sha256_digest" \
-    "want: ARG ${PIN_NAME}=<digest> matching ^sha256:[0-9a-f]{64}\$" \
-    "got:  '${dockerfile_pin:-<no such ARG, or a value-less one>}'"
-fi
-
-# The 2 homes hold 1 value. This is the clause that a copy-paste bump breaks:
-# each home is well formed, and the base family and the cloud family then build
-# on 2 different operating systems.
-if [[ -n "$env_pin" && "$env_pin" == "$dockerfile_pin" ]]; then
-  pass_check "both_pin_homes_hold_the_same_digest"
-else
-  fail_check "both_pin_homes_hold_the_same_digest" \
-    "${ENV_PIN_HOME}:      '${env_pin:-<no such pin>}'" \
-    "${DOCKERFILE_PIN_HOME}: '${dockerfile_pin:-<no such ARG>}'" \
-    "2 homes holding 2 values means the base family and the cloud family build on 2 different" \
-    "operating systems while 1 number in a file says otherwise"
+    "got:  '${env_pin:-<no such pin>}'" \
+    "a truncated digest reads as correct in a diff and dies at docker build, after the merge" \
+    "— and this is the only home left, so nothing else holds the value up against it"
 fi
 
 # ===========================================================================

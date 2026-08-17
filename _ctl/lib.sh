@@ -328,23 +328,30 @@ function require_base_image_current() {
   log_error "${reference} moved — the registry no longer holds the digest this repository pins"
   log_error "  pinned in ${BASE_IMAGE_PIN_HOME}: ${pinned}"
   log_error "  held by the registry now:        ${current}"
-  log_error "bump ${BASE_IMAGE_PIN_NAME} in ${BASE_IMAGE_PIN_HOME} and in the base/Dockerfile ARG block, in 1 commit"
+  log_error "bump ${BASE_IMAGE_PIN_NAME} in ${BASE_IMAGE_PIN_HOME} — it is the only home, and both Dockerfiles read it from there"
   return 1
 }
 
 # -------- the pin homes: the readers, and the writer --------
-# A pin is declared in 1 or 2 of the 6 value homes: a `NAME=value` row in
-# versions.env for the cloud family, and an `ARG NAME=value` at the top of a
-# Dockerfile for the base family. 3 callers read that shape — the coverage
-# tests, the mirroring test and _build/resolve-upstream.sh — so the readers live
-# here once, by the rule that puts a verb body in this file 1 time (ledger #100).
+# A pin is declared in exactly 1 of the 5 value homes: a `NAME=value` row in
+# versions.env, or an `ARG NAME=value` at the top of a per-image Dockerfile that
+# has not moved to versions.env yet. 3 callers read those 2 shapes — the
+# coverage tests, the mirroring test and _build/resolve-upstream.sh — so the
+# readers live here once, by the rule that puts a verb body in this file 1 time
+# (ledger #100).
 #
-# Every one of them takes an explicit ROOT. The resolver runs against a fixture
-# tree as readily as against this repository, and a reader that assumed
-# REPO_ROOT would answer about the wrong files.
+# base/Dockerfile LEFT this list. Its ARGs are value-less now and every one of
+# its pins arrives as a --build-arg generated from versions.env, so it declares
+# no value for any reader here to find. That is the whole point of the collapse:
+# 54 of its 55 pins were spelled in versions.env as well, and a test held the 2
+# copies to 1 value. The 4 that remain are the per-image Dockerfiles, and
+# closing them is ledger #102.
+#
+# Every reader takes an explicit ROOT. The resolver runs against a fixture tree
+# as readily as against this repository, and a reader that assumed REPO_ROOT
+# would answer about the wrong files.
 PIN_VALUE_HOMES=(
   "versions.env"
-  "base/Dockerfile"
   "runner/Dockerfile"
   "flutter/Dockerfile"
   "zephyr/Dockerfile"
@@ -381,7 +388,7 @@ function declaration_value() {
 
 # homes_of <root> <name> [home...] — every home that declares <name> with a
 # value, 1 relative path per line, in the order the home list gives. With no
-# home named the 6 value homes are read.
+# home named, PIN_VALUE_HOMES is read — the list, never a count of it.
 function homes_of() {
   local root="$1" name="$2"
   shift 2
@@ -598,7 +605,7 @@ function bump_pin() {
   homes="$(homes_of "$root" "$pin")"
   if [[ -z "$homes" ]]; then
     log_error "bump_pin: no value home under ${root} declares ${pin}"
-    log_error "the 6 homes are: ${PIN_VALUE_HOMES[*]}"
+    log_error "the ${#PIN_VALUE_HOMES[@]} homes are: ${PIN_VALUE_HOMES[*]}"
     return 1
   fi
   local digest_row=""
