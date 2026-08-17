@@ -1,6 +1,6 @@
 # security-nightly
 
-phase:    fix
+phase:    pr
 repo:     gophersys/.devcontainer
 branch:   ci/security-nightly
 worktree: ~/code/.worktrees/.devcontainer-security-nightly
@@ -69,6 +69,21 @@ failures are that fix lane's subject.
 - Residue: 4 stale 03:00 comments live in TEST-owned files (test author's,
   cosmetic); notifier --limit 100 bound recorded as unreachable-in-practice.
 
+## Verify round 2 + final round — CLOSED (2026-08-16)
+- Round 2: NO-GO on F1 (notify-failure.sh executed by ZERO checks — the
+  close-all fix could revert green) + F2 (comment contradicts !cancelled()) +
+  F3 (latent stdin drain). F4 REFUTED (!cancelled() correct in all 5
+  outcomes, traced). F5 named honestly (one YAML parser).
+- Final round: notify-failure.test.sh (17 checks: stdin-drain RED then green,
+  close-all ratchet, 10 mutation-proven guards incl. the swallow drill —
+  mutated script printed HTTP 403 and exited 0, caught). Implementer: array
+  + </dev/null stdin isolation, comment corrected both copies.
+- FINAL: 14 files, 304 checks, 0 failed. validate rc=0. Rebased onto
+  post-#42 main clean (12 commits); gates re-run green post-rebase.
+- Proof context: main is 6/6 green (post-#42 run 31997133540) — flutter
+  end-to-end ownership fix proven, all smoke bodies executed.
+
 ## Next
-Verifier round 2 (bounded: the 2 fixes + ratchet liveness), then PR. Landing
-after the post-#42 proof run shows 6/6 green on main.
+PR; phase 6 wait; merge under standing-order conditions. First live nightly
+(or workflow_dispatch) = the CVE measurement; first-run-measured items are
+named in the PR body.
