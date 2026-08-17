@@ -19,6 +19,11 @@
 #     line 162   smoke test (native amd64)
 #     line 167   run: bash .ci/smoke.sh base-runner
 #
+# (base-runner has since been retired — the pools that consumed it now run the
+# `cloud` image — so do not go looking for that job. The measurement is kept as
+# written because it is the evidence this file exists for, and the shape it
+# describes is the shape every job of the workflow had.)
+#
 # The gate runs AFTER the irreversible action. When the smoke test fails, the
 # broken image is already published under :latest and under its SHA tag, and
 # every consumer can already pull it. Nothing in this repository rolls that
@@ -155,18 +160,64 @@ WORKFLOWS=(
   ".ci/providers/github/build-and-push.yml"
 )
 
-# The jobs the publishing workflow declares, written as a literal for the reason
-# platform-policy.test.sh writes the sanctioned platform as a literal: a test
+# ---------------------------------------------------------------------------
+# THE JOB SET IS BUILD_ORDER, AND NOT A 5TH COPY OF IT
+# ---------------------------------------------------------------------------
+#
+# This was a literal list of 6 names until 2026-08-17, justified the way
+# platform-policy.test.sh justifies writing `linux/amd64` as a literal: a test
 # that reads its expectation out of the file it is checking agrees with whatever
-# that file happens to say, a wrong thing included. This list is also what makes
-# a parser that has stopped matching fail loudly instead of reporting a clean
-# file it never read.
-EXPECTED_JOBS=(
+# that file happens to say. That justification does not survive contact with
+# this particular set, for 2 reasons.
+#
+#   1. The expectation is NOT read out of the file being checked. The file being
+#      checked is build-and-push.yml; the expectation comes from BUILD_ORDER in
+#      ctl.sh, which is a different declaration made for a different purpose.
+#      The property is AGREEMENT between 2 declarations of 1 set — exactly what
+#      rule 7 of scheduled-workflows.test.sh already holds the scan matrix to,
+#      and for the same stated reason: a literal written here is a THIRD copy,
+#      and the next change to the image set only has to edit 1 more file.
+#
+#   2. .claude/rules/00-identity.md already states this as an invariant: "The
+#      graph is declared in 4 places. All 4 MUST stay the same" — BUILD_ORDER in
+#      ctl.sh and .ci/ctl.sh, dependsOn in each project.json, and `needs:` in
+#      both copies of build-and-push.yml. A literal here does not check that
+#      invariant; it checks a snapshot of it, taken by hand, on some past day.
+#
+# Retiring an image is the measurement. base-runner leaves BUILD_ORDER in the
+# change this comment is written for: the ARC pools repointed at `cloud`, so
+# nothing consumes it any more. With the literal in place that retirement needs
+# this test file edited, by an agent who owns no implementation, to describe a
+# change made in files it does not own. A test that must be hand-edited to agree
+# with a correct change is a test that gets hand-edited to agree with a wrong
+# one.
+#
+# What the literal really bought was LIVENESS, and that half is kept below as
+# REQUIRED_IMAGES: an anchor that makes the set non-empty, not an expectation.
+# ---------------------------------------------------------------------------
+
+# The 2 homes of BUILD_ORDER. ctl.sh is the declaration this file compares the
+# workflow against; .ci/ctl.sh is the provider's copy of it, and the 2 are held
+# to each other below.
+#
+# Both are read, and not just the one used. Until now nothing in `ctl.sh test`
+# read the second copy at all: the agreement between them is asserted by a step
+# of validate.yml, so it holds in CI and not in the local gate that this branch
+# is being merged on. A test whose declaration has an unwatched twin is a test
+# that agrees with half a change.
+BUILD_ORDER_HOMES=(
+  "ctl.sh"
+  ".ci/ctl.sh"
+)
+
+# The liveness anchor, and NOT the expectation. Everything below is derived from
+# BUILD_ORDER, so an emptied or truncated BUILD_ORDER would agree with a
+# workflow that had lost the same jobs, and both would be green. These 2 names
+# are the roots of the dependency graph — `base` is the parent of the base
+# family and `cloud` FROMs ubuntu directly — so the set cannot be empty and
+# cannot have lost a whole family without a visible line in this diff.
+REQUIRED_IMAGES=(
   "base"
-  "base-runner"
-  "flutter"
-  "zephyr"
-  "zephyr-devbox"
   "cloud"
 )
 
@@ -189,6 +240,11 @@ UNSMOKED_TODAY=()
 # The counter-stimulus. A detector that has only ever seen correct input has
 # never been observed to fire.
 FIXTURE="$TESTS_DIR/fixtures/publish-order/build-and-push.yml"
+AFFECTED_FIXTURE="$TESTS_DIR/fixtures/publish-order/affected-filters.yml"
+
+# The 1 home of the affected-only decision. Every job asks it, and the input
+# paths of every image are declared in it — see section 3.
+AFFECTED_SCRIPT=".ci/affected.sh"
 
 # ---------------------------------------------------------------------------
 # The reader.
@@ -221,6 +277,68 @@ function step_flag() {
   fi
 }
 
+# step_affected_image <slice> — the image `.ci/affected.sh` is asked about in
+# this step, empty when the step does not call it.
+#
+# The comment strip is the same rule step_flag applies, and it is watched:
+# no-filter-at-all in the fixture names the script inside a comment.
+#
+# No `| head -1`. grep writing into a reader that exits early gets EPIPE, and
+# under `set -o pipefail` the pipeline then reports failure for a needle that IS
+# present — the defect harness.sh records at length. The first line is taken in
+# bash instead, where there is no second process to kill.
+function step_affected_image() {
+  local slice="$1" uncommented hit=""
+  uncommented="$(sed -e '/^[[:space:]]*#/d' <<< "$slice")"
+  hit="$(grep -oE -- '\.ci/affected\.sh[[:space:]]+[A-Za-z0-9_.-]+' <<< "$uncommented")" || hit=""
+  hit="${hit%%$'\n'*}"
+  [[ -z "$hit" ]] && return 0
+  printf '%s' "${hit##*[[:space:]]}"
+}
+
+# step_identifier <slice> — the step's `id:`, empty when it declares none. Only
+# a step with an id can be read by an `if:` further down the job.
+function step_identifier() {
+  awk '
+    {
+      line = $0
+      sub(/^[[:space:]]+/, "", line)
+      sub(/^-[[:space:]]+/, "", line)
+      if (line ~ /^#/) { next }
+      if (line !~ /^id:/) { next }
+      sub(/^id:[[:space:]]*/, "", line)
+      sub(/[[:space:]]*#.*$/, "", line)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", line)
+      if (line != "") { print line }
+      exit
+    }
+  ' <<< "$1"
+}
+
+# step_gate_reference <slice> — the `steps.<id>.outputs.<key>` that an `if:` on
+# this step reads, empty when the step carries no `if:` or its condition reads
+# no step output.
+#
+# The search is confined to the `if:` line. `${{ steps.sha.outputs.short }}`
+# appears in the `tags:` of every publish step in this repository, and a reader
+# that looked at the whole step would read that as a guard and report every
+# ungated push as gated.
+function step_gate_reference() {
+  local slice="$1" conditions hit=""
+  conditions="$(awk '
+    {
+      line = $0
+      sub(/^[[:space:]]+/, "", line)
+      sub(/^-[[:space:]]+/, "", line)
+      if (line ~ /^#/) { next }
+      if (line ~ /^if:/) { print line }
+    }
+  ' <<< "$slice")"
+  [[ -z "$conditions" ]] && return 0
+  hit="$(grep -oE -- 'steps\.[A-Za-z0-9_-]+\.outputs\.[A-Za-z0-9_-]+' <<< "$conditions")" || hit=""
+  printf '%s' "${hit%%$'\n'*}"
+}
+
 # step_label <slice> — how a reader of the failure will find the step: its
 # `name:` when it has one, otherwise its `uses:`.
 function step_label() {
@@ -245,11 +363,18 @@ function step_label() {
 
 # step_table <file> — 1 record per step of every job, in file order:
 #
-#   job|index|line|publish|smoke|verify|label
+#   job|index|line|publish|smoke|verify|affected|id|gate|label
 #
 # where index is the 1-based position of the step within its job and line is the
 # line the step starts on. Position is the whole point of this file, so it is
 # carried explicitly rather than inferred from the order of the records.
+#
+# `label` stays LAST because a step name is the one field that can hold
+# anything, `|` included, and `IFS='|' read` puts every leftover field in the
+# variable it fills last. `gate` is a `steps.<id>.outputs.<key>` token and
+# `affected` is an image name, so neither can carry the separator; the raw `if:`
+# condition is deliberately NOT a column, because `failure() || success()` would
+# split a record in half.
 #
 # The walk is a small indentation state machine over the real workflow's shape:
 # `jobs:` at column 0, a job name at 2, a job key at 4, a step dash at 6. No
@@ -264,7 +389,7 @@ function step_table() {
   local line_number in_jobs=0 in_steps=0
   local job="" index=0
   local open=0 open_job="" open_index=0 open_start=0
-  local slice publish smoke verify label slice_line
+  local slice publish smoke verify label slice_line affected identifier gate
   local lines=()
   local out=""
 
@@ -310,9 +435,12 @@ function step_table() {
       publish="$(step_flag "$slice" '^[[:space:]]+push:[[:space:]]*true[[:space:]]*$')"
       smoke="$(step_flag "$slice" '\.ci/smoke\.sh')"
       verify="$(step_flag "$slice" 'ctl\.sh[[:space:]]+verify-published')"
+      affected="$(step_affected_image "$slice")"
+      identifier="$(step_identifier "$slice")"
+      gate="$(step_gate_reference "$slice")"
       label="$(step_label "$slice")"
       out="${out:+${out}
-}${open_job}|${open_index}|${open_start}|${publish}|${smoke}|${verify}|${label}"
+}${open_job}|${open_index}|${open_start}|${publish}|${smoke}|${verify}|${affected}|${identifier}|${gate}|${label}"
       open=0
     fi
 
@@ -362,8 +490,8 @@ function table_jobs() {
 # step of that job carrying the kind, in file order. Silent when there are none.
 function marked_steps() {
   local table="$1" want_job="$2" kind="$3"
-  local job index line publish smoke verify label flag
-  while IFS='|' read -r job index line publish smoke verify label; do
+  local job index line publish smoke verify affected identifier gate label flag
+  while IFS='|' read -r job index line publish smoke verify affected identifier gate label; do
     [[ -z "$job" ]] && continue
     [[ "$job" == "$want_job" ]] || continue
     case "$kind" in
@@ -476,12 +604,262 @@ function early_verify_report() {
   printf '%s' "$out"
 }
 
+# ---------------------------------------------------------------------------
+# The affected-filter readers.
+#
+# A warm rebuild of the whole image set measured ~35 minutes on every push to
+# main, and most pushes to main touch 1 image or none. So each job now asks
+# `.ci/affected.sh <image>` whether this commit changes that image's inputs and
+# gates its work on the answer.
+#
+# That optimisation reaches straight into the property this file exists for. A
+# job whose SMOKE is gated and whose PUSH is not publishes, on every unaffected
+# commit, an image this run never built and never checked — the same defect the
+# ordering rule catches, arriving through a new door. And a job that asks about
+# the WRONG image is silent in the other direction: the run is green and that
+# image simply stops being rebuilt on the commits that change it.
+# ---------------------------------------------------------------------------
+
+# job_filter_steps <table> <job> — `<index>:<line>:<image>:<id>` for every step
+# of that job that calls .ci/affected.sh. Silent when the job calls it nowhere.
+function job_filter_steps() {
+  local table="$1" want_job="$2"
+  local job index line publish smoke verify affected identifier gate label
+  while IFS='|' read -r job index line publish smoke verify affected identifier gate label; do
+    [[ -z "$job" ]] && continue
+    [[ "$job" == "$want_job" ]] || continue
+    [[ -n "$affected" ]] || continue
+    printf '%s:%s:%s:%s\n' "$index" "$line" "$affected" "${identifier:-<no id>}"
+  done <<< "$table"
+  return 0
+}
+
+# ungated_acting_steps <table> <job> <gate reference> — `<index>:<line>:<label>
+# (<what it does>)` for every step of that job that smokes, publishes or reads
+# back a manifest without being guarded by that exact reference.
+#
+# The 3 kinds are the ones that must not happen for an image this run did not
+# build: the smoke asserts against a local ref that was never loaded, the push
+# ships an unchecked image, and the manifest read looks for a `:<sha>` tag that
+# was never created. The `push: false` load step is deliberately NOT one of
+# them — an ungated load wastes minutes and cannot ship anything.
+function ungated_acting_steps() {
+  local table="$1" want_job="$2" want_gate="$3"
+  local job index line publish smoke verify affected identifier gate label kind
+  while IFS='|' read -r job index line publish smoke verify affected identifier gate label; do
+    [[ -z "$job" ]] && continue
+    [[ "$job" == "$want_job" ]] || continue
+    kind=""
+    if [[ "$publish" == "1" ]]; then kind="publishes"; fi
+    if [[ "$smoke" == "1" ]]; then kind="${kind:+${kind}+}smokes"; fi
+    if [[ "$verify" == "1" ]]; then kind="${kind:+${kind}+}reads the manifest"; fi
+    [[ -n "$kind" ]] || continue
+    [[ "$gate" == "$want_gate" ]] && continue
+    printf '%s:%s:%s (%s, guarded by %s)\n' \
+      "$index" "$line" "$label" "$kind" "${gate:-no if: at all}"
+  done <<< "$table"
+  return 0
+}
+
+# affected_defects <table> <file label> — 1 block per job whose filter is
+# missing, doubled, unreadable, asked about the wrong image, or not the guard on
+# every step that acts. Silent when every job is correct.
+function affected_defects() {
+  local table="$1" file_label="$2"
+  local job filters filter_total record index line image identifier
+  local ungated out=""
+
+  while IFS= read -r job; do
+    [[ -z "$job" ]] && continue
+    filters="$(job_filter_steps "$table" "$job")"
+    filter_total="$(grep -c . <<< "$filters")" || filter_total=0
+
+    if [[ "$filter_total" -eq 0 ]]; then
+      out="${out:+${out}
+}${job}: no step asks .ci/affected.sh whether this commit changes ${job}"
+      continue
+    fi
+    if [[ "$filter_total" -gt 1 ]]; then
+      out="${out:+${out}
+}${job}: ${filter_total} steps call .ci/affected.sh, so which answer guards the job is undecided
+${filters}"
+      continue
+    fi
+
+    record="${filters%%$'\n'*}"
+    IFS=':' read -r index line image identifier <<< "$record"
+
+    if [[ "$image" != "$job" ]]; then
+      out="${out:+${out}
+}${job}: the filter at ${file_label}:${line} asks about '${image}', not about '${job}'
+  a job that asks about another image stops being rebuilt on the commits that change IT,
+  and the run stays green while it happens"
+      continue
+    fi
+
+    if [[ "$identifier" == "<no id>" ]]; then
+      out="${out:+${out}
+}${job}: the filter step at ${file_label}:${line} declares no 'id:', so no other step can read its answer"
+      continue
+    fi
+
+    ungated="$(ungated_acting_steps "$table" "$job" "steps.${identifier}.outputs.build")"
+    [[ -z "$ungated" ]] && continue
+    out="${out:+${out}
+}${job}: these steps act without reading the filter's answer:
+${ungated}
+  want on each: if: \${{ steps.${identifier}.outputs.build == 'true' }}"
+  done <<< "$(table_jobs "$table")"
+
+  printf '%s' "$out"
+}
+
+# affected_calls_total <table> — how many steps of the whole file call
+# .ci/affected.sh. The liveness reader: every clause above is keyed on finding
+# that call, and a detector that stopped matching would report a workflow with
+# no filters at all as a workflow whose filters are all correct.
+function affected_calls_total() {
+  local table="$1" total=0
+  local job index line publish smoke verify affected identifier gate label
+  while IFS='|' read -r job index line publish smoke verify affected identifier gate label; do
+    [[ -n "$affected" ]] || continue
+    total=$((total + 1))
+  done <<< "$table"
+  printf '%s' "$total"
+}
+
+# case_arm_labels <script> <function name> — the names the case arms of that
+# shell function are keyed on, 1 per line, `*` excluded.
+#
+# This is the only textual reader in the file, and it is here because the
+# direction it answers cannot be probed: running a script proves a row EXISTS
+# for an image, and no argument proves a row exists for NO OTHER image. A row
+# for an image nobody builds is dead weight that reads as coverage, and the
+# #107 lesson is that a coverage table needs both directions or it goes stale in
+# the direction nobody checks.
+#
+# 2 tables are read with it, and both are keyed on the image name:
+#   .ci/affected.sh  image_own_paths     the input paths that decide a rebuild
+#   .ci/smoke.sh     image_check_groups  the functional groups the guest runs
+function case_arm_labels() {
+  awk -v want="$2" '
+    $0 == "function " want "() {" { inside = 1; next }
+    inside && /^}/ { exit }
+    inside {
+      line = $0
+      sub(/^[[:space:]]+/, "", line)
+      if (line ~ /^#/) { next }
+      if (line !~ /\)/) { next }
+      label = line
+      sub(/\).*$/, "", label)
+      if (label == "*") { next }
+      # An arm label is a name or a `|` alternation of names. Anything else is a
+      # line this reader does not understand, and the liveness clause below is
+      # what turns "understood nothing" into a failure.
+      if (label ~ /[^A-Za-z0-9_.|-]/) { next }
+      total = split(label, parts, "|")
+      for (item = 1; item <= total; item++) {
+        if (parts[item] != "") { print parts[item] }
+      }
+    }
+  ' "$1"
+}
+
 # joined <array element...> — 1 element per line, sorted, for a set comparison.
 function joined() {
   printf '%s\n' "$@" | sort
 }
 
+# ---------------------------------------------------------------------------
+# The declaration reader.
+# ---------------------------------------------------------------------------
+
+# BUILD_ORDER_OUTPUT / BUILD_ORDER_STATUS / BUILD_ORDER_STDERR — set by the
+# reader below, the way run_library_probe in scheduled-workflows.test.sh
+# publishes its 3 results.
+BUILD_ORDER_OUTPUT=""
+BUILD_ORDER_STATUS=0
+BUILD_ORDER_STDERR=""
+
+# read_build_order <relative ctl script> — print the BUILD_ORDER that script
+# declares, 1 image per line.
+#
+# Read out of a RUNNING shell and not out of the text of a line: the value the
+# shell ends up holding is the value the script builds with, and a line-reader
+# agrees with a BUILD_ORDER that a later line rewrites. The `set --` clears the
+# argv so the dispatcher at the foot of each script takes its help path and
+# returns 0, instead of exiting 1 on an unknown command.
+function read_build_order() {
+  local relative="$1"
+  local errors
+  errors="$(mktemp)"
+  BUILD_ORDER_STATUS=0
+  BUILD_ORDER_OUTPUT="$(CTL_SCRIPT="$REPO_ROOT/$relative" bash -c '
+    set --
+    source "$CTL_SCRIPT" > /dev/null
+    printf "%s\n" "${BUILD_ORDER[@]}"
+  ' 2> "$errors")" || BUILD_ORDER_STATUS=$?
+  BUILD_ORDER_STDERR="$(cat "$errors")"
+  rm -f "$errors"
+  printf '%s' "$BUILD_ORDER_OUTPUT"
+}
+
 printf '=== RUN  %s\n' "$TEST_NAME"
+
+# -------- 0. the declaration: it is readable, it is alive, it is 1 value ------
+# Every clause below compares the workflow against this set, so a set that could
+# not be read would leave them all passing over nothing.
+build_order=""
+build_order="$(read_build_order "${BUILD_ORDER_HOMES[0]}")"
+if [[ "$BUILD_ORDER_STATUS" -eq 0 && -n "$build_order" ]]; then
+  pass_check "the_BUILD_ORDER_declaration_is_readable"
+else
+  fail_check "the_BUILD_ORDER_declaration_is_readable" \
+    "sourcing ${BUILD_ORDER_HOMES[0]} and reading BUILD_ORDER exited ${BUILD_ORDER_STATUS}" \
+    "it printed:" "${build_order:-<nothing>}" \
+    "stderr was:" "${BUILD_ORDER_STDERR:-<nothing>}" \
+    "with no declaration to compare against, every job clause below passes over an empty set"
+fi
+
+# THE LIVENESS CLAUSE. See REQUIRED_IMAGES above: an anchor, not an expectation.
+missing_required=""
+for required in "${REQUIRED_IMAGES[@]}"; do
+  grep -qxF -- "$required" <<< "$build_order" || missing_required="${missing_required:+${missing_required}
+}${required}"
+done
+if [[ -z "$missing_required" ]]; then
+  pass_check "BUILD_ORDER_holds_the_roots_of_the_dependency_graph"
+else
+  fail_check "BUILD_ORDER_holds_the_roots_of_the_dependency_graph" \
+    "these images are absent from BUILD_ORDER:" "$missing_required" \
+    "BUILD_ORDER is:" "$(tr '\n' ' ' <<< "$build_order")" \
+    "base is the parent of the base family and cloud FROMs ubuntu directly, so a set without" \
+    "one of them is not a narrowed image set — it is a declaration that stopped being read," \
+    "and every job clause below would then agree with a workflow that lost the same jobs"
+fi
+
+# The 2 homes hold 1 value. This is the clause a half-done retirement breaks:
+# drop an image from ctl.sh alone and every other check in this file still
+# passes, because every other check reads ctl.sh.
+provider_build_order=""
+provider_build_order="$(read_build_order "${BUILD_ORDER_HOMES[1]}")"
+provider_status="$BUILD_ORDER_STATUS"
+provider_stderr="$BUILD_ORDER_STDERR"
+if [[ "$provider_status" -ne 0 || -z "$provider_build_order" ]]; then
+  fail_check "both_BUILD_ORDER_homes_declare_the_same_set" \
+    "sourcing ${BUILD_ORDER_HOMES[1]} and reading BUILD_ORDER exited ${provider_status}" \
+    "it printed:" "${provider_build_order:-<nothing>}" \
+    "stderr was:" "${provider_stderr:-<nothing>}"
+elif [[ "$build_order" == "$provider_build_order" ]]; then
+  pass_check "both_BUILD_ORDER_homes_declare_the_same_set"
+else
+  fail_check "both_BUILD_ORDER_homes_declare_the_same_set" \
+    "${BUILD_ORDER_HOMES[0]}:  $(tr '\n' ' ' <<< "$build_order")" \
+    "${BUILD_ORDER_HOMES[1]}: $(tr '\n' ' ' <<< "$provider_build_order")" \
+    ".claude/rules/00-identity.md: the graph is declared in 4 places and all 4 must stay the same" \
+    "the ORDER matters as well as the set: it is a build order, and base has to precede its children" \
+    "until now only a step of validate.yml compared these 2, so a local gate could not see the drift"
+fi
 
 # -------- 1. the counter-stimulus: all 3 detectors FIRE, and stay quiet --------
 # This runs before the real files on purpose. A verdict on the real workflow
@@ -540,6 +918,57 @@ else
     "verify-published cannot run before the push, so this direction must stay legal"
 fi
 
+# -------- 1b. the counter-stimulus for the affected filter, all 4 ways --------
+if [[ ! -f "$AFFECTED_FIXTURE" ]]; then
+  fail_check "counter_stimulus_affected_fixture_exists" \
+    "the fixture this rule proves itself with is absent: ${AFFECTED_FIXTURE}"
+else
+  pass_check "counter_stimulus_affected_fixture_exists"
+
+  affected_table="$(step_table "$AFFECTED_FIXTURE")"
+  assert_equal "counter_stimulus_parses_the_affected_fixture_into_its_4_jobs" \
+    "$(joined "gated-correctly" "ungated-publish" "asks-about-another-image" "no-filter-at-all")" \
+    "$(printf '%s\n' "$(table_jobs "$affected_table")" | sort)" \
+    "the reader did not find the shape it claims to read, so every verdict below is worthless"
+
+  # The 3 new columns, read off the job that is correct. Each one is what a
+  # separate defect below is recognised by, so each is watched on its own.
+  assert_equal "counter_stimulus_reads_the_image_the_filter_asks_about" \
+    "2:33:gated-correctly:filter" \
+    "$(job_filter_steps "$affected_table" "gated-correctly")" \
+    "the filter is step 2 of that job, it asks about gated-correctly, and it is called filter"
+  assert_equal "counter_stimulus_does_not_read_a_commented_affected_call_as_a_call" \
+    "" "$(job_filter_steps "$affected_table" "no-filter-at-all")" \
+    "that job names .ci/affected.sh in a comment, and a comment runs nothing"
+
+  affected_report="$(affected_defects "$affected_table" "fixture")"
+
+  assert_not_contains "counter_stimulus_leaves_the_correctly_gated_job_alone" \
+    "$affected_report" "gated-correctly:" \
+    "every acting step of that job reads steps.filter.outputs.build" \
+    "a detector that reports it forbids the only correct shape there is"
+  assert_contains "counter_stimulus_reports_the_publish_that_reads_no_filter" \
+    "$affected_report" "ungated-publish:" \
+    "that job skips its smoke on an unaffected commit and pushes anyway, which is this file's" \
+    "own defect arriving through the new door"
+  assert_contains "counter_stimulus_reports_the_job_that_asks_about_another_image" \
+    "$affected_report" "asks-about-another-image:" \
+    "the copy-paste defect: the run is green and that image stops being rebuilt when it changes"
+  assert_contains "counter_stimulus_reports_the_job_with_no_filter_at_all" \
+    "$affected_report" "no-filter-at-all:" \
+    "an unfiltered job rebuilds every image on every push, which is the ~35 minutes this exists to end"
+
+  # The liveness reader, both directions. A count of 0 over a file that DOES
+  # carry filters would make every clause above vacuous on the real workflow.
+  assert_equal "counter_stimulus_counts_the_filter_calls_of_the_fixture" \
+    "3" "$(affected_calls_total "$affected_table")" \
+    "3 of the 4 jobs call it; the fourth names it only in a comment"
+  assert_equal "counter_stimulus_counts_no_filter_call_in_the_ordering_fixture" \
+    "0" "$(affected_calls_total "$(step_table "$FIXTURE")")" \
+    "that fixture predates the filter and calls it nowhere, so a reader that found one there" \
+    "would be matching something other than the call"
+fi
+
 # -------- 2. the real workflow, and the provider copy of it --------
 for relative in "${WORKFLOWS[@]}"; do
   file="$REPO_ROOT/$relative"
@@ -554,12 +983,16 @@ for relative in "${WORKFLOWS[@]}"; do
   table="$(step_table "$file")"
   jobs="$(table_jobs "$table")"
 
-  # 2a. the reader found the shape it claims to read.
-  assert_equal "${relative}_declares_the_expected_jobs" \
-    "$(joined "${EXPECTED_JOBS[@]}")" \
+  # 2a. the reader found the shape it claims to read, and the workflow declares
+  # 1 job per image BUILD_ORDER declares — no more, and no fewer.
+  assert_equal "${relative}_declares_one_job_per_BUILD_ORDER_image" \
+    "$(printf '%s\n' "$build_order" | sort)" \
     "$(printf '%s\n' "$jobs" | sort)" \
-    "either the workflow gained or lost a job, or the reader in this test stopped matching" \
-    "a rule that reads no job passes every file, including a broken one"
+    "want: the images BUILD_ORDER declares in ${BUILD_ORDER_HOMES[0]}" \
+    "got:  the jobs this workflow declares" \
+    "either the 2 declarations of the image set disagree — retire an image in 1 of them and this" \
+    "is the check that says so — or the reader in this test stopped matching," \
+    "and a rule that reads no job passes every file, including a broken one"
 
   # 2b. every job the reader found really publishes. A job in the PUBLISHING
   # workflow that publishes nothing is either a real change to the workflow or a
@@ -590,7 +1023,7 @@ for relative in "${WORKFLOWS[@]}"; do
   # matching, its rule below becomes vacuous and reports a clean file.
   smoke_total=0
   verify_total=0
-  while IFS='|' read -r _job _index _line _publish record_smoke record_verify _label; do
+  while IFS='|' read -r _job _index _line _publish record_smoke record_verify _affected _id _gate _label; do
     if [[ "$record_smoke" == "1" ]]; then
       smoke_total=$((smoke_total + 1))
     fi
@@ -688,6 +1121,180 @@ for relative in "${WORKFLOWS[@]}"; do
       "$early" \
       "verify-published reads the manifest the registry holds, so before the push there is nothing to read" \
       "moving every step above the push satisfies the smoke rule by breaking this one"
+  fi
+
+  # 2g. THE AFFECTED FILTER. Its liveness clause first: every clause of the
+  # rule is keyed on finding a call to the filter, and over a file with none
+  # they are all green — including a file where the optimisation was reverted
+  # and the gates were left behind.
+  filter_total="$(affected_calls_total "$table")"
+  if [[ "$filter_total" -ge 1 ]]; then
+    pass_check "${relative}_carries_at_least_one_affected_filter_step"
+  else
+    fail_check "${relative}_carries_at_least_one_affected_filter_step" \
+      "no step of this workflow runs ${AFFECTED_SCRIPT}" \
+      "either every job builds unconditionally again — a warm all-image rebuild measured" \
+      "~35 minutes on every push to main — or the filter detector in this test stopped matching," \
+      "which would make the rule below pass on any file"
+  fi
+
+  affected="$(affected_defects "$table" "$relative")"
+  if [[ -z "$affected" ]]; then
+    pass_check "${relative}_every_job_gates_on_its_own_affected_answer"
+  else
+    fail_check "${relative}_every_job_gates_on_its_own_affected_answer" \
+      "$affected" \
+      "the rule is 1 sentence: a job asks ${AFFECTED_SCRIPT} about ITS OWN image, exactly once," \
+      "from a step with an id, and every step that smokes, publishes or reads back a manifest" \
+      "reads that answer" \
+      "an ungated push on an unaffected commit ships an image this run never built and never" \
+      "smoked, which is the defect at the top of this file wearing a new hat"
+  fi
+done
+
+# ===========================================================================
+# 3. THE FILTER ANSWERS FOR EVERY IMAGE, AND REFUSES THE ONES IT CANNOT
+# ===========================================================================
+# The workflow half above proves each job ASKS about itself. This half proves
+# the thing being asked can answer, by RUNNING it: the filter is a script, and
+# an assertion about a script that never ran it is an assertion about its text.
+#
+# Section 4 below reads the same table statically, for the direction no argument
+# can probe — a row for an image nobody builds.
+if [[ ! -f "$REPO_ROOT/$AFFECTED_SCRIPT" ]]; then
+  fail_check "the_affected_filter_script_exists" \
+    "absent: ${AFFECTED_SCRIPT}" \
+    "every job of the publishing workflow calls it, so without it every job fails at 127"
+  fail_check "every_BUILD_ORDER_image_has_an_input_path_row" \
+    "absent: ${AFFECTED_SCRIPT}"
+  fail_check "the_filter_refuses_an_image_it_declares_no_paths_for" \
+    "absent: ${AFFECTED_SCRIPT}"
+else
+  pass_check "the_affected_filter_script_exists"
+
+  # -- direction 1, behavioural: it answers for every image that is built --
+  # workflow_dispatch is the manual all-images build, so the script answers
+  # `build=true` and returns before it touches git. The input table is read
+  # BEFORE that branch, which is what makes this probe a test of the table and
+  # not of the trigger.
+  unanswered=""
+  while IFS= read -r image; do
+    [[ -z "$image" ]] && continue
+    probe_status=0
+    probe_output=""
+    probe_output="$(GITHUB_EVENT_NAME=workflow_dispatch GITHUB_REF="refs/heads/main" \
+      bash "$REPO_ROOT/$AFFECTED_SCRIPT" "$image" 2>&1)" || probe_status=$?
+    if [[ "$probe_status" -ne 0 ]]; then
+      unanswered="${unanswered:+${unanswered}
+}${image}: exited ${probe_status} — ${probe_output}"
+    fi
+  done <<< "$build_order"
+  if [[ -z "$unanswered" ]]; then
+    pass_check "every_BUILD_ORDER_image_has_an_input_path_row"
+  else
+    fail_check "every_BUILD_ORDER_image_has_an_input_path_row" \
+      "$unanswered" \
+      "BUILD_ORDER is:" "$(tr '\n' ' ' <<< "$build_order")" \
+      "the job of an image with no row exits 2 at publish time, on main, after the merge" \
+      "fix: add the image's own input paths to image_own_paths in ${AFFECTED_SCRIPT}"
+  fi
+
+  # -- the fallback fails CLOSED --
+  # A `*)` arm that answered `build=true` would be worse than no table: every
+  # image would build, and the row that was deleted would never be missed.
+  refusal_status=0
+  refusal_output=""
+  refusal_output="$(GITHUB_EVENT_NAME=workflow_dispatch \
+    bash "$REPO_ROOT/$AFFECTED_SCRIPT" "no-such-image" 2>&1)" || refusal_status=$?
+  if [[ "$refusal_status" -eq 0 ]]; then
+    fail_check "the_filter_refuses_an_image_it_declares_no_paths_for" \
+      "want: a non-zero exit status for an image with no row" \
+      "got:  0, with output:" "${refusal_output:-<nothing>}" \
+      "a filter that answers for an image it knows nothing about answers for a deleted row too," \
+      "and the probe above would then pass over a table with no rows in it at all"
+  elif ! grep -qF -- "no-such-image" <<< "$refusal_output"; then
+    fail_check "the_filter_refuses_an_image_it_declares_no_paths_for" \
+      "it exited ${refusal_status} and its message never names the image it refused" \
+      "output was:" "${refusal_output:-<nothing>}"
+  else
+    pass_check "the_filter_refuses_an_image_it_declares_no_paths_for"
+  fi
+
+fi
+
+# ===========================================================================
+# 4. EVERY PER-IMAGE TABLE IS BUILD_ORDER
+# ===========================================================================
+# 2 shell files keep a table keyed on the image name, and each is a declaration
+# of the published set made for a different purpose:
+#
+#   .ci/affected.sh  image_own_paths     what a rebuild of that image depends on
+#   .ci/smoke.sh     image_check_groups  what the guest runs inside that image
+#
+# Both must equal BUILD_ORDER, and both directions matter. A missing row is
+# loud but LATE: the job exits 2 in the publish workflow, on main, after the
+# merge. An extra row is silent forever — a table that looks complete while one
+# of its rows describes an image nobody builds. Retiring an image is what leaves
+# one, and the retirement of base-runner is what this section was written for.
+#
+# The 2 arms are read with 1 reader, so a third table added tomorrow costs a row
+# here and no new code.
+IMAGE_TABLES=(
+  ".ci/affected.sh|image_own_paths|the input paths that decide a rebuild"
+  ".ci/smoke.sh|image_check_groups|the functional groups the guest runs"
+)
+
+for table_record in "${IMAGE_TABLES[@]}"; do
+  table_script="${table_record%%|*}"
+  table_rest="${table_record#*|}"
+  table_function="${table_rest%%|*}"
+  table_purpose="${table_rest#*|}"
+  check_stem="${table_function}"
+
+  if [[ ! -f "$REPO_ROOT/$table_script" ]]; then
+    fail_check "the_${check_stem}_table_is_readable" \
+      "absent: ${table_script}"
+    fail_check "${check_stem}_holds_exactly_the_BUILD_ORDER_images" \
+      "absent: ${table_script}"
+    continue
+  fi
+
+  declared_images="$(case_arm_labels "$REPO_ROOT/$table_script" "$table_function")"
+  declared_total="$(grep -c . <<< "$declared_images")" || declared_total=0
+  if [[ "$declared_total" -ge 2 ]]; then
+    pass_check "the_${check_stem}_table_is_readable"
+  else
+    fail_check "the_${check_stem}_table_is_readable" \
+      "the reader found ${declared_total} row(s) in ${table_function} of ${table_script}" \
+      "it read:" "${declared_images:-<nothing>}" \
+      "either the table moved out of that function — and case_arm_labels in this test is what" \
+      "you edit — or it stopped matching, and the clause below would report every image as dead"
+  fi
+
+  table_defects=""
+  while IFS= read -r image; do
+    [[ -z "$image" ]] && continue
+    grep -qxF -- "$image" <<< "$build_order" && continue
+    table_defects="${table_defects:+${table_defects}
+}a row for '${image}', which BUILD_ORDER does not declare"
+  done <<< "$declared_images"
+  while IFS= read -r image; do
+    [[ -z "$image" ]] && continue
+    grep -qxF -- "$image" <<< "$declared_images" && continue
+    table_defects="${table_defects:+${table_defects}
+}NO row for '${image}', which BUILD_ORDER does declare"
+  done <<< "$build_order"
+
+  if [[ -z "$table_defects" ]]; then
+    pass_check "${check_stem}_holds_exactly_the_BUILD_ORDER_images"
+  else
+    fail_check "${check_stem}_holds_exactly_the_BUILD_ORDER_images" \
+      "${table_script} — ${table_purpose}:" \
+      "$table_defects" \
+      "the table is:   $(tr '\n' ' ' <<< "$declared_images")" \
+      "BUILD_ORDER is: $(tr '\n' ' ' <<< "$build_order")" \
+      "an extra row is a declaration nothing reads, which is what a half-finished image" \
+      "retirement leaves behind; a missing row fails the job at publish time, after the merge"
   fi
 done
 
