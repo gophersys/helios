@@ -252,7 +252,10 @@ GATE_COREUTILS=(dirname basename mktemp cat tail head rm cp mkdir touch chmod ln
 # fixture library whose ctl.sh sources lib.sh exactly as a real per-lib ctl.sh does) and mono/
 # (the monorepo root the git stub reports, where the frozen contract lives).
 make_gate_sandbox() {
-  local sb tool utility path
+  # $1 (optional, default 1): 1 = the fixture exports a type (Fixture); 0 = the fixture exports NO
+  # type at all (bug #47's case — `_cohesion_scan`'s `^type [A-Z]` grep then matches nothing). Every
+  # existing caller passes nothing and gets the exporting fixture, so their sandbox is unchanged.
+  local want_exported_type="${1:-1}" sb tool utility path
   sb="$(mktemp -d "$WORK/gate.XXXXXX")"
   mkdir -p "$sb/bin" "$sb/gopath/bin" "$sb/proj/.benchbaseline" "$sb/mono/docs/architecture/contracts"
   ln -s "$(command -v bash)" "$sb/bin/bash"
@@ -313,15 +316,28 @@ make_gate_sandbox() {
   # The fixture library. `go` is stubbed, so this file is never compiled; it exists because
   # lib.sh's maintainability scans read Go source, and a lib holding none makes their greps
   # exit non-zero for the FIXTURE rather than for the code under test.
-  printf '%s\n' \
-    '// Package gatefixture is the library the phase-gate sandbox drives.' \
-    'package gatefixture' \
-    '' \
-    '// Fixture is the one exported type of the sandbox library.' \
-    'type Fixture struct{}' \
-    '' \
-    '// Value returns the fixture value.' \
-    'func (Fixture) Value() int { return 1 }' > "$sb/proj/fixture.go"
+  if [[ "$want_exported_type" -eq 1 ]]; then
+    printf '%s\n' \
+      '// Package gatefixture is the library the phase-gate sandbox drives.' \
+      'package gatefixture' \
+      '' \
+      '// Fixture is the one exported type of the sandbox library.' \
+      'type Fixture struct{}' \
+      '' \
+      '// Value returns the fixture value.' \
+      'func (Fixture) Value() int { return 1 }' > "$sb/proj/fixture.go"
+  else
+    # NO exported type: one exported FUNC (so the library is not empty) and one UNexported type, so
+    # `_cohesion_scan`'s `^type [A-Z]` grep matches nothing — the zero-exported-type library of #47.
+    printf '%s\n' \
+      '// Package gatefixture is the library the phase-gate sandbox drives.' \
+      'package gatefixture' \
+      '' \
+      '// Value returns the fixture value; this library exports NO type at all.' \
+      'func Value() int { return 1 }' \
+      '' \
+      'type fixture struct{}' > "$sb/proj/fixture.go"
+  fi
   # The artifacts the gate asserts on: a frozen contract (phase 1), the recorded exported
   # surface (phases 1, 2 and 4 — empty, matching the empty `go list`), a bench baseline (phase 3).
   printf '%s\n' '# gatefixture' '' '> Status: Frozen (the sandbox contract)' \
@@ -372,7 +388,9 @@ run_phase_gate() {
 run_verb() {
   local verb="$1" sb
   [[ -n "$verb" ]] || die "run_verb needs a verb"
-  sb="$(make_gate_sandbox)"
+  # $2 (optional) forwards to make_gate_sandbox as want_exported_type (default 1), so a caller can
+  # drive a verb against a no-exported-type fixture without a second sandbox builder.
+  sb="$(make_gate_sandbox "${2:-1}")"
   # env -i means EDEN_SUBSTRATE_TIMEOUT is genuinely ABSENT unless this run sets it, so the
   # default-budget test measures the state every non-cluster library is in.
   local -a env_extra=()
@@ -651,6 +669,25 @@ mutant_lib() {
       ' "$LIB_SOURCE" > "$dst" || rc=$?
       [[ "$rc" -eq 0 ]] ||
         die "the '$spec' mutant changed nothing: no exit/return sits within 8 lines of an EDEN_SUBSTRATE_TIMEOUT mention in $LIB_SOURCE, so there is no guard to disarm"
+      ;;
+    # THE COUNTER FOR "a library with no exported type passes the cohesion scan": revert the two
+    # `_cohesion_scan` greps from the no-match-tolerant helper back to a bare `grep`. A bare grep
+    # that matches nothing exits 1; under `set -Eeuo pipefail` that no-match status propagates out of
+    # the `dup="$(…)"` substitution and ABORTS the gate instead of passing — bug #47, reintroduced.
+    # Anchored on the INVOCATION (the helper name followed by a grep flag), never a log line or the
+    # helper's own `_grep_tolerate_nomatch() {` definition, so it survives any spelling of the fix;
+    # before the fix lands there is no such invocation and the mutant honestly reports it changed
+    # nothing (which is the true statement "lib.sh has no no-match tolerance to revert yet").
+    cohesion-bare-grep)
+      awk "$common"'
+        /_grep_tolerate_nomatch[[:space:]]+-/ && !is_log($0) {
+          if (sub(/_grep_tolerate_nomatch[[:space:]]/, "grep ")) changed++
+        }
+        { print }
+        END { if (!changed) exit 3 }
+      ' "$LIB_SOURCE" > "$dst" || rc=$?
+      [[ "$rc" -eq 0 ]] ||
+        die "the '$spec' mutant changed nothing: no non-log line in $LIB_SOURCE invokes _grep_tolerate_nomatch with a grep flag, so the cohesion no-match tolerance is not present to revert"
       ;;
     *) die "unknown lib.sh mutant: $spec" ;;
   esac
@@ -1299,6 +1336,26 @@ t_phase_gate_all_is_green_when_every_tool_passes() {
     fail "phase-gate all did not report GREEN although every tool exited 0: $OUT"
 }
 
+# BUG #47 — the cohesion scan aborts a library that exports NO type. `_cohesion_scan` greps for
+# `^type [A-Z]... (struct|interface)`; a library with zero exported types makes that grep match
+# nothing and exit 1, and under `set -Eeuo pipefail` that no-match status propagated out of the
+# `dup="$(…)"` command substitution and ABORTED the whole maintainability gate — a FALSE failure,
+# since zero exported types trivially means zero duplicate definitions (the worst kind: latent, and
+# armed by the errexit discipline). The fixture here exports no type, so the verb must REACH the
+# scan's verdict and the gate's success, not die at the substitution. Three complementary
+# assertions: the gate did not abort (RC 0), the scan printed its verdict (it DECIDED, rather than
+# RC happening to be 0 for some other reason), and the whole verb completed. The
+# `mutant:cohesion-bare-grep` counter reverts the no-match tolerance and every one goes red.
+t_a_library_with_no_exported_type_passes_cohesion() {
+  run_verb maintainability 0
+  [[ "$RC" -eq 0 ]] ||
+    fail "maintainability exited $RC on a library that exports NO type: the cohesion scan aborted the gate on an empty scan instead of passing: $OUT"
+  grep -q 'cohesion: no duplicate type definitions' <<< "$OUT" ||
+    fail "the cohesion scan never reached its verdict on a zero-exported-type library, so it aborted before deciding rather than passing cleanly: $OUT"
+  grep -q 'maintainability: OK' <<< "$OUT" ||
+    fail "the maintainability verb did not complete on a zero-exported-type library: $OUT"
+}
+
 # THE SUBSTRATE-BUDGET DEFECT. The integration lane runs `go test -tags integration ./...
 # -count=1` with no -timeout, so Go's silent 10m/package is the budget nobody chose. The
 # recorded ARGV — not the sentence lib.sh prints — is what says the lane actually carries it.
@@ -1802,6 +1859,7 @@ TESTS=(
   t_the_shared_config_is_schema_valid
   t_phase_gate_all_never_records_pass_for_a_failing_verb
   t_phase_gate_all_is_green_when_every_tool_passes
+  t_a_library_with_no_exported_type_passes_cohesion
   t_the_substrate_lane_states_its_budget
   t_an_unbounded_budget_is_refused
   t_a_hang_is_reported_in_seconds
@@ -1830,6 +1888,9 @@ stimulus_for() {
     t_the_shared_config_is_schema_valid)            printf 'real\n'   ;;
     t_phase_gate_all_never_records_pass_for_a_failing_verb) printf 'gobuild:1\n' ;;
     t_phase_gate_all_is_green_when_every_tool_passes)       printf 'gobuild:0\n' ;;
+    # No special stimulus: the zero-exported-type fixture is chosen INSIDE the test (run_verb's 2nd
+    # arg), not via a resettable global, so the counter alone reproduces the abort in phase 2.
+    t_a_library_with_no_exported_type_passes_cohesion)      printf 'real\n' ;;
     t_the_substrate_lane_states_its_budget)                 printf 'substrate:7m\n' ;;
     t_an_unbounded_budget_is_refused)                       printf 'refuse:unbounded\n' ;;
     # The budget is supplied by the test itself (HANG_BUDGET), because the fixture's sleep and
@@ -1876,6 +1937,8 @@ counter_for() {
     # exits 127 through require_cmd's explicit `exit`, which survives the errexit suppression
     # that defeats every other verb — and it lands AFTER `go build`, so the argv floor still holds.
     t_phase_gate_all_is_green_when_every_tool_passes)       printf 'absent:hnslint\n' ;;
+    # Revert the no-match tolerance and the scan aborts on the empty (zero-exported-type) scan again.
+    t_a_library_with_no_exported_type_passes_cohesion)      printf 'mutant:cohesion-bare-grep\n' ;;
     # TWO counters, because there are two ways to half-fix this: not passing the budget at all,
     # and passing a hard-coded one while the log line still reads the knob. A test that read
     # only the log line survives the second; a test that read only "some -timeout is present"
