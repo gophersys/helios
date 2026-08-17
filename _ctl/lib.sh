@@ -298,6 +298,343 @@ function require_base_image_current() {
   return 1
 }
 
+# -------- the pin homes: the readers, and the writer --------
+# A pin is declared in 1 or 2 of the 6 value homes: a `NAME=value` row in
+# versions.env for the cloud family, and an `ARG NAME=value` at the top of a
+# Dockerfile for the base family. 3 callers read that shape — the coverage
+# tests, the mirroring test and _build/resolve-upstream.sh — so the readers live
+# here once, by the rule that puts a verb body in this file 1 time (ledger #100).
+#
+# Every one of them takes an explicit ROOT. The resolver runs against a fixture
+# tree as readily as against this repository, and a reader that assumed
+# REPO_ROOT would answer about the wrong files.
+PIN_VALUE_HOMES=(
+  "versions.env"
+  "base/Dockerfile"
+  "runner/Dockerfile"
+  "flutter/Dockerfile"
+  "zephyr/Dockerfile"
+  "zephyr-devbox/Dockerfile"
+)
+
+# declaration_line <file> <name> — the line that declares <name> WITH a value,
+# in either home shape. Prints nothing when the file does not declare it, or
+# declares it value-less as cloud/Dockerfile does.
+function declaration_line() {
+  local file="$1" name="$2"
+  [[ -f "$file" ]] || return 0
+  awk -v name="$name" '
+    $0 ~ ("^[[:space:]]*ARG[[:space:]]+" name "=") { print; next }
+    $0 ~ ("^" name "=") { print }
+  ' "$file"
+}
+
+# declaration_value <line> — the value a declaration line carries: everything
+# after the first `=`, up to the first whitespace. The trailing comment and the
+# alignment spaces before it are not part of the value.
+function declaration_value() {
+  local line="$1"
+  awk '
+    {
+      position = index($0, "=")
+      if (position == 0) { print ""; next }
+      rest = substr($0, position + 1)
+      split(rest, parts, /[[:space:]]/)
+      print parts[1]
+    }
+  ' <<< "$line"
+}
+
+# homes_of <root> <name> [home...] — every home that declares <name> with a
+# value, 1 relative path per line, in the order the home list gives. With no
+# home named the 6 value homes are read.
+function homes_of() {
+  local root="$1" name="$2"
+  shift 2
+  local -a homes=("$@")
+  if [[ "${#homes[@]}" -eq 0 ]]; then
+    homes=("${PIN_VALUE_HOMES[@]}")
+  fi
+  local home out=""
+  for home in "${homes[@]}"; do
+    if [[ -n "$(declaration_line "${root}/${home}" "$name")" ]]; then
+      out="${out:+${out}
+}${home}"
+    fi
+  done
+  printf '%s' "$out"
+}
+
+# pin_value <root> <name> — the value the first home holding <name> declares.
+function pin_value() {
+  local root="$1" name="$2"
+  local home
+  for home in "${PIN_VALUE_HOMES[@]}"; do
+    local line
+    line="$(declaration_line "${root}/${home}" "$name")"
+    if [[ -n "$line" ]]; then
+      declaration_value "$line"
+      return 0
+    fi
+  done
+}
+
+# digest_row_of <root> <name> — the `<tool>_SHA256_<ARCH>` row that sits beside
+# the pin, or nothing when the pin has no bytes to answer for. YQ_VERSION ->
+# YQ_SHA256_AMD64; about 30 of the 56 pins (go install, corepack, pipx) have no
+# such row at all.
+function digest_row_of() {
+  local root="$1" name="$2"
+  local tool="$name" home found
+  tool="${tool%_VERSION}"
+  tool="${tool%_REF}"
+  tool="${tool%_CHANNEL}"
+  for home in "${PIN_VALUE_HOMES[@]}"; do
+    [[ -f "${root}/${home}" ]] || continue
+    found="$(awk -v tool="$tool" '
+      /^[[:space:]]*#/ { next }
+      {
+        line = $0
+        sub(/^[[:space:]]*ARG[[:space:]]+/, "", line)
+        position = index(line, "=")
+        if (position == 0) { next }
+        candidate = substr(line, 1, position - 1)
+        if (candidate !~ ("^" tool "_SHA256_[A-Z0-9_]+$")) { next }
+        print candidate
+        exit
+      }
+    ' "${root}/${home}")"
+    if [[ -n "$found" ]]; then
+      printf '%s' "$found"
+      return 0
+    fi
+  done
+}
+
+# evidence_of <line> — `upstream-published`, `computed-at-pin` or the empty
+# string. The 2 spellings are the whole vocabulary: either upstream published a
+# checksum file and the 2 agreed, or the value was computed when the pin was
+# taken and the row says on what day.
+function evidence_of() {
+  local line="$1"
+  if [[ "$line" =~ \#[[:space:]]*upstream-published:[[:space:]]*https?://[^[:space:]]+ ]]; then
+    printf 'upstream-published'
+  elif [[ "$line" =~ \#[[:space:]]*computed-at-pin:[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2} ]]; then
+    printf 'computed-at-pin'
+  fi
+}
+
+# fetch_urls <file> — 1 record per VERIFIED download the file performs:
+#
+#   <digest pin name>|<url exactly as the file writes it>|<var>=<value> ...
+#
+# The URL of a download lives in the file that FETCHES it and nowhere else, so
+# this is how the resolver learns which bytes a digest answers for. A second
+# copy of the URL in a table would let it compute a correct digest of the wrong
+# asset.
+#
+# The 3rd field is the `linux/amd64)` case arm in scope at that fetch. `${ARCH}`
+# is not a pin and not a table field: it is a shell variable the RUN block sets
+# from the 1 sanctioned platform, and the same file spells it amd64, x64 and
+# x86_64 in different arms — so the arm is read per RUN and not per file. A
+# Dockerfile RUN resets the set; a component script has 1 arm for the whole
+# file and accumulates.
+#
+# `ARCH="$(dpkg --print-architecture)"` is the SECOND shape of that same
+# question, and zephyr-devbox asks it that way. It is read only while
+# SANCTIONED_PLATFORMS holds 1 platform, because that is the only condition
+# under which the answer is known without running dpkg — and a guessed
+# architecture would compute a correct digest of the wrong asset.
+#
+# Continuation lines are joined first, because a Dockerfile writes 1 command
+# across 4 lines and a line-at-a-time reader sees a fetch with no URL and a URL
+# with no fetch.
+function fetch_urls() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+  local sanctioned_arch=""
+  if [[ "$SANCTIONED_PLATFORMS" != *,* ]]; then
+    sanctioned_arch="${SANCTIONED_PLATFORMS##*/}"
+  fi
+  awk -v sanctioned_arch="$sanctioned_arch" '
+    function reset_scope(   key) { for (key in scope) { delete scope[key] } }
+
+    function collect_scope(text,   rest, position, terminator, arm, count, index_of_word, words, name, value) {
+      rest = text
+      while ((position = index(rest, "linux/amd64)")) > 0) {
+        rest = substr(rest, position + 12)
+        terminator = index(rest, ";;")
+        if (terminator > 0) {
+          arm = substr(rest, 1, terminator - 1)
+          rest = substr(rest, terminator + 2)
+        } else {
+          arm = rest
+          rest = ""
+        }
+        count = split(arm, words, /[;[:space:]]+/)
+        for (index_of_word = 1; index_of_word <= count; index_of_word++) {
+          if (words[index_of_word] !~ /^[A-Za-z_][A-Za-z0-9_]*=/) { continue }
+          name = words[index_of_word]
+          sub(/=.*$/, "", name)
+          value = substr(words[index_of_word], length(name) + 2)
+          gsub(/^["'"'"']|["'"'"']$/, "", value)
+          scope[name] = value
+        }
+      }
+      if (sanctioned_arch == "") { return }
+      rest = text
+      while (match(rest, /[A-Za-z_][A-Za-z0-9_]*="?\$\(dpkg --print-architecture\)"?/)) {
+        arm = substr(rest, RSTART, RLENGTH)
+        rest = substr(rest, RSTART + RLENGTH)
+        name = arm
+        sub(/=.*$/, "", name)
+        scope[name] = sanctioned_arch
+      }
+    }
+
+    function scope_text(   key, out) {
+      out = ""
+      for (key in scope) { out = out (out == "" ? "" : " ") key "=" scope[key] }
+      return out
+    }
+
+    function emit(text,   count, index_of_part, parts, part, digest, url) {
+      count = split(text, parts, /&&/)
+      for (index_of_part = 1; index_of_part <= count; index_of_part++) {
+        part = parts[index_of_part]
+        if (part !~ /fetch-verified\.sh/) { continue }
+        if (!match(part, /\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}/)) { continue }
+        digest = substr(part, RSTART + 2, RLENGTH - 3)
+        if (!match(part, /https?:\/\/[^"'"'"'[:space:]\\]+/)) { continue }
+        url = substr(part, RSTART, RLENGTH)
+        printf "%s|%s|%s\n", digest, url, scope_text()
+      }
+    }
+
+    {
+      line = $0
+      if (line ~ /^[[:space:]]*#/) { next }
+      sub(/[[:space:]]+$/, "", line)
+      if (line ~ /\\$/) {
+        sub(/\\$/, "", line)
+        if (buffer == "" && line ~ /^[[:space:]]*RUN[[:space:]]/) { reset_scope() }
+        buffer = buffer line " "
+        next
+      }
+      if (buffer == "" && line ~ /^[[:space:]]*RUN[[:space:]]/) { reset_scope() }
+      collect_scope(buffer line)
+      emit(buffer line)
+      buffer = ""
+    }
+    END { if (buffer != "") { collect_scope(buffer); emit(buffer) } }
+  ' "$file"
+}
+
+# bump_pin <root> <pin> <version> <digest> <evidence> — write 1 bump into EVERY
+# home of the pin, and into no other line.
+#
+#   <digest>    64 lowercase hex, or `-` when the pin carries no digest row —
+#               the marker _build/resolve-upstream.sh prints for such a pin.
+#   <evidence>  the comment the digest row carries: `upstream-published: <url>`
+#               or `computed-at-pin: <yyyy-mm-dd>`, and `-` beside a `-` digest.
+#
+# A pin no home declares is a FAILURE that names it. The weekly run reads its
+# pins out of _build/upstreams.txt, and a row whose pin was renamed in the homes
+# would otherwise write nothing and report a green Monday.
+function bump_pin() {
+  local root="$1" pin="$2" version="$3" digest="$4" evidence="$5"
+  if [[ -z "$version" ]]; then
+    log_error "bump_pin: ${pin}: the version argument is empty"
+    return 1
+  fi
+  if [[ "$digest" != "-" && ! "$digest" =~ ^[0-9a-f]{64}$ ]]; then
+    log_error "bump_pin: ${pin}: the digest '${digest}' is neither 64 lowercase hex nor '-'"
+    return 1
+  fi
+  local homes
+  homes="$(homes_of "$root" "$pin")"
+  if [[ -z "$homes" ]]; then
+    log_error "bump_pin: no value home under ${root} declares ${pin}"
+    log_error "the 6 homes are: ${PIN_VALUE_HOMES[*]}"
+    return 1
+  fi
+  local digest_row=""
+  if [[ "$digest" != "-" ]]; then
+    digest_row="$(digest_row_of "$root" "$pin")"
+    if [[ -z "$digest_row" ]]; then
+      log_error "bump_pin: ${pin}: a digest was given and no home declares a <tool>_SHA256_<ARCH> row beside the pin"
+      return 1
+    fi
+  fi
+  local today home
+  today="$(date +%Y-%m-%d)"
+  while IFS= read -r home; do
+    [[ -z "$home" ]] && continue
+    rewrite_declaration "${root}/${home}" "$pin" "$version" "version" "$today" || return 1
+    if [[ -n "$digest_row" && -n "$(declaration_line "${root}/${home}" "$digest_row")" ]]; then
+      rewrite_declaration "${root}/${home}" "$digest_row" "$digest" "digest" "$evidence" || return 1
+    fi
+  done <<< "$homes"
+  return 0
+}
+
+# rewrite_declaration <file> <name> <value> <mode> <extra> — replace the value
+# of 1 declaration, in place, and leave every other line of the file alone.
+#
+#   mode version   <extra> is today's date, and it replaces the yyyy-mm-dd the
+#                  trailing comment claims. The convention is that a version row
+#                  and its date comment move together: the date records the day
+#                  somebody looked, and a stale one reads as current forever.
+#   mode digest    <extra> is the evidence, and it becomes the whole comment.
+#                  A digest with no evidence is a number a reviewer takes on
+#                  faith.
+#
+# The comment keeps the column it had, so a bump stays a 1-token diff in a file
+# whose comments are aligned.
+function rewrite_declaration() {
+  local file="$1" name="$2" value="$3" mode="$4" extra="$5"
+  if [[ ! -f "$file" ]]; then
+    log_error "rewrite_declaration: no such file: ${file}"
+    return 1
+  fi
+  local staged
+  staged="$(mktemp)"
+  if ! awk -v name="$name" -v value="$value" -v mode="$mode" -v extra="$extra" '
+    function is_declaration(line) {
+      return (line ~ ("^[[:space:]]*ARG[[:space:]]+" name "=")) || (line ~ ("^" name "="))
+    }
+    {
+      if (!is_declaration($0)) { print; next }
+      position = index($0, name "=")
+      head = substr($0, 1, position + length(name))
+      rest = substr($0, position + length(name) + 1)
+      match(rest, /^[^ \t]*/)
+      old = substr(rest, RSTART, RLENGTH)
+      tail = substr(rest, RSTART + RLENGTH)
+      comment = tail
+      sub(/^[ \t]+/, "", comment)
+      spacing = length(tail) - length(comment)
+      if (mode == "digest") {
+        comment = "# " extra
+      } else if (comment != "") {
+        gsub(/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]/, extra, comment)
+      }
+      if (comment == "") { print head value; next }
+      padding = length(old) + spacing - length(value)
+      if (padding < 2) { padding = 2 }
+      printf "%s%s%*s%s\n", head, value, padding, "", comment
+    }
+  ' "$file" > "$staged"; then
+    rm -f "$staged"
+    log_error "rewrite_declaration: could not rewrite ${name} in ${file}"
+    return 1
+  fi
+  # Written back through the existing file rather than moved over it: a mv from
+  # the temporary directory would carry mktemp's 0600 mode onto a tracked file.
+  cat "$staged" > "$file"
+  rm -f "$staged"
+}
+
 # -------- no EXIT trap, and that is deliberate --------
 # The 8 scripts of this repository each carried the same cleanup block: a
 # BG_PIDS array, an on_exit function that killed the pids, and `trap on_exit
