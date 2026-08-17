@@ -170,7 +170,16 @@ golangci-lint --version
 govulncheck -version
 gosec --version
 gremlins --version
-benchstat -h >/dev/null 2>&1 && echo "benchstat: ok"
+# The `X && echo ok` form is BANNED here: under set -e a failure inside an
+# AND-list does not abort the script, so that form is a check that cannot
+# fail — proven by drill: a wrong binary name still ended in a green smoke.
+# Both proofs below fail loudly through an explicit if.
+if ! benchstat -h >/dev/null 2>&1; then echo "FAIL: benchstat is not in the image"; exit 1; fi
+echo "benchstat: ok"
+# hnslint ships no version verb: any argument is read as a directory. The
+# presence proof is its usage answer.
+if ! hnslint 2>&1 | grep -q "usage: hnslint"; then echo "FAIL: hnslint is not in the image or does not answer its usage line"; exit 1; fi
+echo "hnslint: ok"
 gitleaks version
 kubeconform -v
 echo "--- docker cli-plugins ---"
@@ -324,7 +333,16 @@ golangci-lint --version
 govulncheck -version
 gosec --version
 gremlins --version
-benchstat -h >/dev/null 2>&1 && echo "benchstat: ok"
+# The `X && echo ok` form is BANNED here: under set -e a failure inside an
+# AND-list does not abort the script, so that form is a check that cannot
+# fail — proven by drill: a wrong binary name still ended in a green smoke.
+# Both proofs below fail loudly through an explicit if.
+if ! benchstat -h >/dev/null 2>&1; then echo "FAIL: benchstat is not in the image"; exit 1; fi
+echo "benchstat: ok"
+# hnslint ships no version verb: any argument is read as a directory. The
+# presence proof is its usage answer.
+if ! hnslint 2>&1 | grep -q "usage: hnslint"; then echo "FAIL: hnslint is not in the image or does not answer its usage line"; exit 1; fi
+echo "hnslint: ok"
 gitleaks version
 kubeconform -v
 echo "--- the Go caches are OUT of the image (the 1.6 GB fix) ---"
