@@ -6,13 +6,28 @@
 # one day: the vault item existed, but the cache was 4 days stale. This CronJob
 # sends POST /sync to the bridge every 10 minutes, so the cache is at most 10
 # minutes old. The job is fail-loud: a non-200 response, or a 200 response
-# without "success":true in the body, makes the Job fail and stay visible
-# (failedJobsHistoryLimit keeps the last 3 failures). No retry loop hides an
-# outage: restartPolicy Never, backoffLimit 1.
+# without "success":true in the body, makes the Job fail. No retry loop hides
+# an outage: restartPolicy Never, backoffLimit 1.
+#
+# HONEST LIMIT: "fail" means a Failed Job object (the last 3 are kept), not an
+# alert. Nothing in this cluster alerts on a CronJob that stops working
+# (debt-register D16). Check with: kubectl get jobs -n external-secrets.
+# scripts/verify-bw-sync-wiring.sh guards this file's wiring in CI, so the
+# known silent-failure paths (selector typo, wrong port, a swallowed exit
+# code) cannot land unnoticed.
 #
 # Image: rule 50 §7 allows "the official upstreams". curl.se publishes
 # curlimages/curl as the curl project's official image, and this exact image
 # and tag already runs on main (apps/music/qbittorrent, port-sync sidecar).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bw-serve-sync
+  namespace: external-secrets
+  labels:
+    app: bw-serve-sync
+automountServiceAccountToken: false
+---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -38,20 +53,27 @@ spec:
             app: bw-serve-sync
         spec:
           restartPolicy: Never
+          # The pod needs no Kubernetes API access. Rule 50 §7: a dedicated
+          # ServiceAccount per app, and no token mounted 144 times a day into
+          # the namespace that holds the unlocked vault bridge.
+          serviceAccountName: bw-serve-sync
+          automountServiceAccountToken: false
           containers:
             - name: sync
               image: curlimages/curl:8.11.0
               command: ["/bin/sh", "-ec"]
               # -e aborts on the first failure. `curl -f` fails on any HTTP
               # error status. The grep fails on a 200 body without
-              # "success":true. The body is echoed first, so the log always
-              # shows what the bridge answered. No `|| true` anywhere.
+              # "success": true (spacing-tolerant, so a bridge upgrade that
+              # reformats its JSON does not start a failure loop). The body is
+              # echoed first, so the log always shows what the bridge
+              # answered. No `|| true` anywhere.
               args:
                 - |
                   out="$(curl -fsS --max-time 60 -X POST \
                     http://bw-serve.external-secrets.svc.cluster.local:8087/sync)"
                   echo "$out"
-                  printf '%s' "$out" | grep -q '"success":true'
+                  printf '%s' "$out" | grep -Eq '"success"[[:space:]]*:[[:space:]]*true'
               securityContext:
                 # uid/gid of curl_user in the image, set numerically so the
                 # kubelet can verify runAsNonRoot.

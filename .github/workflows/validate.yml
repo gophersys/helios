@@ -50,6 +50,15 @@ jobs:
       - name: Argo registry paths resolve
         run: bash scripts/verify-registry-paths.sh
 
+      # kubeconform proves shape only. This pins the PROPERTIES the vault-cache
+      # sync depends on — the NetworkPolicy admits the Job pods, one port
+      # everywhere, the URL dials the real Service, the shell keeps its failure
+      # chain — because a selector typo or a wrong port passes kubeconform AND
+      # server dry-run, and then the Job fails every 10 minutes in a namespace
+      # nothing alerts on (debt-register D16).
+      - name: bw-serve-sync wiring
+        run: bash scripts/verify-bw-sync-wiring.sh
+
       # Took over the only 2 checks worth keeping from the deleted .ci/ layer:
       # contract front-matter + required sections, and chart READMEs. The rest of
       # .ci/ was unreferenced, and its validate-platform verb failed with 9

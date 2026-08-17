@@ -243,7 +243,12 @@ the Oracle account. Wanted: a pull leg outside Oracle (the homelab or the
 workstation fetches from `eden-backups/vault/` on a schedule). Separately, a
 CronJob that stops working does not look different from one that works, and
 nothing raises an alert today. The PAR also expires **2027-08-10**, and the
-renewal is currently a calendar event, not an automated action.
+renewal is currently a calendar event, not an automated action. The
+`bw-serve-sync` CronJob (external-secrets, added for build ledger #89) sits in
+the same gap: a failed sync is a Failed Job object and nothing more, so the
+vault cache can go stale again with only `kubectl get jobs -n external-secrets`
+to show it. Its wiring — though not its runtime health — is CI-guarded by
+`scripts/verify-bw-sync-wiring.sh`.
 
 **Deferred deliberately on 2026-08-09**, and recorded so that nobody finds it
 again as a surprise. The restore itself is tested; see D14.
