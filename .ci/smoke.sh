@@ -99,6 +99,7 @@ BASE_PIN_HOME="base/Dockerfile"
 # ---------------------------------------------------------------------------
 
 read -r -d '' PIN_CLASSES_CLOUD <<'PIN_CLASS_TABLE' || true
+UBUNTU_BASE_REF|not-a-version||
 ZSH_VERSION|asserted|zsh --version|prefix
 NVM_VERSION|asserted|zsh -c "nvm --version"|
 NODE_VERSION|asserted|node --version|
@@ -150,6 +151,7 @@ ANSIBLE_CORE_VERSION|not-in-this-image||
 PIN_CLASS_TABLE
 
 read -r -d '' PIN_CLASSES_BASE <<'PIN_CLASS_TABLE' || true
+UBUNTU_BASE_REF|not-a-version||
 ZSH_VERSION|asserted|zsh --version|prefix
 NVM_VERSION|asserted|zsh -c "nvm --version"|
 NODE_VERSION|asserted|node --version|

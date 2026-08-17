@@ -1,0 +1,15 @@
+# A FIXTURE, not a waiver file. See good.yaml.
+#
+# The defect: a waiver with no statement says WHAT is ignored and never WHY.
+# The next reader cannot tell an analysed acceptance apart from a line somebody
+# added to make a red build green, so the only safe action is to keep it — which
+# is how a waiver file grows and never shrinks.
+#
+# The first entry is complete on purpose, for the reason no-expiry.yaml gives.
+
+vulnerabilities:
+  - id: CVE-2026-00005
+    statement: fixture only — complete, and must not be reported
+    expired_at: 2026-11-30
+  - id: CVE-2026-00006
+    expired_at: 2026-11-30

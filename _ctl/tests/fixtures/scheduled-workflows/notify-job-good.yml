@@ -1,0 +1,57 @@
+name: fixture-notify-job-good
+
+# A FIXTURE, not a workflow. See good-nightly.yml.
+#
+# The multi-job notification shape, correct in all 3 of its parts. Every
+# notify-job detector must stay QUIET on this file:
+#
+#   if: ${{ always() }}   the job runs whatever the jobs above did, so it can
+#                         close the issue on a green night as well as open one
+#   needs: [every job]    a job it does not need cannot fail it, and its result
+#                         would not reach the reduction step at all
+#   the reduction step    FIRST, before the step that closes the issue
+#
+# good-nightly.yml is the other correct shape: 1 job, with the notifier step
+# guarded by if: failure() inside it. The rule below is scoped to a workflow of
+# more than 1 job, so that file is not judged by it.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: scan the image
+        run: trivy image --severity CRITICAL --exit-code 1 --ignorefile .ci/trivyignore.yaml ghcr.io/gophersys/base:latest
+
+  base-currency:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: the registry still holds the pinned digest
+        run: bash ./ctl.sh base-currency
+
+  notify:
+    if: ${{ always() }}
+    needs: [scan, base-currency]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: reduce the verdict of the jobs above to this job's own status
+        run: |
+          scan='${{ needs.scan.result }}'
+          currency='${{ needs.base-currency.result }}'
+          [[ "$scan" == "success" && "$currency" == "success" ]]
+      - name: file the failure
+        if: ${{ failure() }}
+        run: 'bash .ci/notify-failure.sh "the nightly went red"'
+      - name: close the issue on a green run
+        if: ${{ success() }}
+        run: bash .ci/notify-failure.sh --resolve

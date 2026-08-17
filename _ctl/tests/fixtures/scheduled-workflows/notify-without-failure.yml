@@ -1,0 +1,35 @@
+name: fixture-notify-without-failure
+
+# A FIXTURE, not a workflow. See good-nightly.yml.
+#
+# The subtle defect: the notifier IS wired in, and it never runs on a failure.
+# The step carries no `if:` at all, so GitHub skips it the moment an earlier
+# step fails — which is the only moment it exists for. A rule that checked
+# "the workflow names .ci/notify-failure.sh somewhere" reads this file as
+# correct, which is why the rule is about the CONDITION on the step and not
+# about the presence of the string.
+#
+# The comment below names the guard that was deleted. A detector that reads
+# prose calls this file clean, so it is here to be ignored.
+
+on:
+  schedule:
+    - cron: "30 2 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan the published image
+        run: |
+          trivy image --severity CRITICAL --exit-code 1 \
+            --ignorefile .ci/trivyignore.yaml \
+            ghcr.io/gophersys/base:latest
+      # if: ${{ failure() }}   <- deleted, and nothing said so
+      - name: File the failure
+        run: bash .ci/notify-failure.sh "the nightly scan failed"

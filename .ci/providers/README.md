@@ -29,9 +29,20 @@ add a new workflow, write the file under `.ci/providers/github/`, then copy it t
 
 `_ctl/tests/platform-policy.test.sh` compares the 2 with `cmp`, and
 `bash ./ctl.sh test` runs it in the pull request gate, so a pair that moves apart
-fails there. They have drifted twice. **That check names `build-and-push.yml`
-alone**, which is every file in this directory today. A second provider file
-added here gets no such check until you add 1 for it.
+fails there. They have drifted twice. **The check now covers EVERY file in this
+directory**, found by a glob, so a file added tomorrow is compared on the day it
+is added. It used to name `build-and-push.yml` alone, and that narrow rule had
+the same hole 1 level up: a second provider file got no check at all until
+somebody added 1 for it.
+
+A glob that matched nothing would be a green result that read no file, so that
+test also holds a literal list of what this directory contains. **Adding or
+renaming a file here means editing `EXPECTED_PROVIDER_FILES` in
+`_ctl/tests/platform-policy.test.sh` in the same change.**
+
+The direction of the rule is provider → workflow. `.github/workflows/` may hold
+a file this directory does not: `validate.yml` and `pr-review.yml` are
+provider-native and have no source-of-truth copy.
 
 ## Current providers
 

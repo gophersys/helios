@@ -1,0 +1,31 @@
+# .ci/trivyignore.yaml — the waiver file the nightly security scan reads.
+#
+# EMPTY at merge: the section key below, and no entry under it. The scan gates
+# CRITICAL and sets no --ignore-unfixed, so an unfixed CRITICAL has to become an
+# entry HERE — a visible line in a diff — and never a silent skip.
+#
+# Trivy loads this file only because .ci/providers/github/security-nightly.yml
+# names it with --ignorefile. The YAML ignore file is experimental, and without
+# that flag every entry here is dead text.
+#
+# Each entry carries 3 fields, which are trivy's own:
+#
+#   id           the finding, for example CVE-2026-00001. Trivy requires it.
+#   statement    WHY the finding is accepted. A waiver with no reason says what
+#                is ignored and never why.
+#   expired_at   yyyy-mm-dd, the date it comes back for review. Trivy enforces
+#                the date itself, so a dated waiver reopens on its own. A waiver
+#                with no expiry is a permanent exception written as a temporary
+#                one.
+#
+# _ctl/tests/scheduled-workflows.test.sh fails a waiver that is missing 1 of the
+# 3, in the pull request gate.
+#
+# The shape of an entry:
+#
+#   vulnerabilities:
+#     - id: CVE-2026-00001
+#       statement: no fix upstream; the package is not reachable from any entrypoint
+#       expired_at: 2026-09-30
+#
+vulnerabilities:
