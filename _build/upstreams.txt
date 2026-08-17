@@ -1,0 +1,139 @@
+# _build/upstreams.txt — where the next value of every pin comes from.
+#
+# Every pin of the 6 value homes carries exactly 1 row here, and every row names
+# a pin that exists. `_ctl/tests/upstream-coverage.test.sh` holds both
+# directions, reading the pins out of the HOMES and never out of this table: a
+# rule that read the listing would go on reporting coverage after the pin it
+# covers was renamed.
+#
+# The grammar is the grammar of its neighbour _build/download-exemptions.txt —
+# 1 table shape in _build/, not 2 — 4 fields, none empty:
+#
+#   <pin>|<datasource>|<coordinate>|<policy or reason>
+#
+# The 12 datasources. 11 of them resolve a version from an upstream and are
+# driven, 1 stub pin each, by `_ctl/tests/resolve-upstream.test.sh`:
+#
+#   github-release    the newest release github marks latest, of <owner>/<repo>
+#   pypi              info.version of <package> on the index
+#   npm               dist-tags.latest of <package> on the registry
+#   apt               the newest published binary of <package>@<ubuntu series>
+#   go-dl             the newest stable release of the go download index
+#   node-dist         the newest LTS release of the node distribution index
+#   oci-index         the INDEX digest <repository>:<tag> holds now
+#   k8s-dl            the <channel>.txt release channel of dl.k8s.io
+#   tailscale-pkgs    the <channel> package index of pkgs.tailscale.com
+#   flutter-releases  the <channel> channel of the flutter linux release index
+#   eden-manifest     the value gophersys/eden pins in <repo>:<path>
+#
+# The 12th is `no-autobump`, which resolves nothing. Its 4th field is the REASON,
+# and it has to be a sentence: `n/a`, `todo` and `-` all pass a non-empty test,
+# and each one is a pin nobody decided about wearing the label of a pin somebody
+# did. 13 pins take it today.
+#
+# The download URL is deliberately NOT here. The resolver reads it out of the
+# file that performs the download, because the digest must be of the bytes the
+# BUILD fetches; a second URL home lets a correct digest be computed of the
+# wrong asset. The `# upstream-published: <url>` comment beside each digest row
+# already names the checksum file, and it gets no second home either.
+#
+# A github-release row rests on the release github marks `latest` being the
+# release of the tool this pin names. For a repository that publishes several
+# products under one release stream that is not true, and the weekly run then
+# FAILS naming the pin when the asset URL 404s. The answer is a corrected row or
+# a no-autobump row, decided by a human — never a silent skip.
+
+# -------- github-release --------
+BUF_VERSION|github-release|bufbuild/buf|bump to the newest release github marks latest
+BUN_VERSION|github-release|oven-sh/bun|bump to the newest release github marks latest
+BW_VERSION|github-release|bitwarden/clients|bump to the newest release github marks latest
+CICTL_VERSION|github-release|gophersys/cictl|bump to the newest release github marks latest
+CODE_SERVER_VERSION|github-release|coder/code-server|bump to the newest release github marks latest
+DELVE_VERSION|github-release|go-delve/delve|bump to the newest release github marks latest
+DOCKER_BUILDX_VERSION|github-release|docker/buildx|bump to the newest release github marks latest
+DOCKER_COMPOSE_VERSION|github-release|docker/compose|bump to the newest release github marks latest
+GH_VERSION|github-release|cli/cli|bump to the newest release github marks latest
+GITLEAKS_VERSION|github-release|gitleaks/gitleaks|bump to the newest release github marks latest
+GOFUMPT_VERSION|github-release|mvdan/gofumpt|bump to the newest release github marks latest
+GOLANGCI_LINT_VERSION|github-release|golangci/golangci-lint|bump to the newest release github marks latest
+GOSEC_VERSION|github-release|securego/gosec|bump to the newest release github marks latest
+GOVULNCHECK_VERSION|github-release|golang/vuln|bump to the newest release github marks latest
+GREMLINS_VERSION|github-release|go-gremlins/gremlins|bump to the newest release github marks latest
+GRPCURL_VERSION|github-release|fullstorydev/grpcurl|bump to the newest release github marks latest
+HADOLINT_VERSION|github-release|hadolint/hadolint|bump to the newest release github marks latest, and the gate then lints at the new version
+HELM_VERSION|github-release|helm/helm|bump to the newest release github marks latest
+HNSLINT_VERSION|github-release|gophersys/hnslint|bump to the newest release github marks latest
+K3D_VERSION|github-release|k3d-io/k3d|bump to the newest release github marks latest
+K9S_VERSION|github-release|derailed/k9s|bump to the newest release github marks latest
+KIND_VERSION|github-release|kubernetes-sigs/kind|bump to the newest release github marks latest
+KUBECONFORM_VERSION|github-release|yannh/kubeconform|bump to the newest release github marks latest
+NATS_VERSION|github-release|nats-io/natscli|bump to the newest release github marks latest
+NVM_VERSION|github-release|nvm-sh/nvm|bump to the newest release github marks latest
+RUNNER_VERSION|github-release|actions/runner|bump to the newest release github marks latest
+UV_VERSION|github-release|astral-sh/uv|bump to the newest release github marks latest
+YQ_VERSION|github-release|mikefarah/yq|bump to the newest release github marks latest
+ZEPHYR_SDK_VERSION|github-release|zephyrproject-rtos/sdk-ng|bump to the newest release github marks latest
+
+# -------- pypi --------
+ANSIBLE_VERSION|pypi|ansible|bump to the newest release on the index
+ANSIBLE_CORE_VERSION|pypi|ansible-core|bump to the newest release on the index
+ESPTOOL_VERSION|pypi|esptool|bump to the newest release on the index
+OCI_CLI_VERSION|pypi|oci-cli|bump to the newest release on the index
+WEST_VERSION|pypi|west|bump to the newest release on the index
+
+# -------- npm --------
+NPM_VERSION|npm|npm|bump to the dist-tag latest
+PNPM_VERSION|npm|pnpm|bump to the dist-tag latest
+
+# -------- apt --------
+# The series is in the coordinate and not in the resolver: the archive publishes
+# a different version of zsh for every ubuntu series, and the one this image
+# installs is the series its base OS is.
+ZSH_VERSION|apt|zsh@noble|bump to the newest binary the ubuntu noble archive publishes
+
+# -------- the single-upstream datasources --------
+GO_VERSION|go-dl|go|bump to the newest stable release
+NODE_VERSION|node-dist|lts|bump to the newest LTS release
+KUBECTL_VERSION|k8s-dl|stable|bump to the newest release of the stable channel
+TAILSCALE_VERSION|tailscale-pkgs|stable|bump to the newest package of the stable channel
+FLUTTER_VERSION|flutter-releases|stable|bump to the newest release of the stable channel
+UBUNTU_BASE_REF|oci-index|library/ubuntu:24.04|bump to the index digest the tag holds now, never a per-platform one
+
+# -------- no-autobump: the harness pins --------
+# The 3 harness versions MUST match gophersys/eden harnesses/versions.env, and
+# eden's harness-upgrade-check is the one decision point for them. The
+# eden-manifest datasource that mirrors that file needs a read of a PRIVATE
+# repository, and this repository's GITHUB_TOKEN is repository-scoped: the read
+# needs EDEN_MANIFEST_READ, a fine-grained PAT only Mateo can mint. Until it
+# exists these 3 rows say so, and the day it is minted each one becomes
+# `eden-manifest|gophersys/eden:harnesses/versions.env`.
+CLAUDE_CODE_VERSION|no-autobump|gophersys/eden:harnesses/versions.env|eden is the one decision point for a harness version, and the cross-repository read needs the EDEN_MANIFEST_READ secret, which does not exist yet (NEEDS-MATEO item 16)
+OMP_VERSION|no-autobump|gophersys/eden:harnesses/versions.env|eden is the one decision point for a harness version, and the cross-repository read needs the EDEN_MANIFEST_READ secret, which does not exist yet (NEEDS-MATEO item 16)
+CODEX_VERSION|no-autobump|gophersys/eden:harnesses/versions.env|eden is the one decision point for a harness version, and the cross-repository read needs the EDEN_MANIFEST_READ secret, which does not exist yet (NEEDS-MATEO item 16)
+
+# -------- no-autobump: the pins that are not a version --------
+# Each of these selects a MAJOR line or a channel inside a name, so the value an
+# upstream would report is not the value the pin spells: python3.13 is a
+# different package, openjdk-22-jdk-headless is a different package, and
+# resolving stable to a number would freeze the channel this pin exists to
+# follow.
+PYTHON_PACKAGE|no-autobump|python3.12|the pin is an apt PACKAGE NAME carrying the major line, so the archive version of that package is not what this row holds
+JAVA_VERSION|no-autobump|openjdk-21-jdk-headless|the pin is the jdk major line inside an apt package name, so the point release the archive publishes is not what this row holds
+RUST_CHANNEL|no-autobump|stable|rustup takes a channel and not a version, and resolving it to a number would freeze the channel this pin exists to follow
+FLUTTER_CHANNEL|no-autobump|stable|the flutter download url takes a channel and not a version, and FLUTTER_VERSION is the row that moves
+BENCHSTAT_REF|no-autobump|golang.org/x/perf|the module is untagged upstream, so `go install @latest` is the canonical install form and there is no release to compare against
+
+# -------- no-autobump: the android toolchain --------
+# The android sdk is published through sdkmanager and dl.google.com, and neither
+# offers a machine-readable index of the current build. Giving these 3 an index
+# is a later change; today the honest answer is that nothing watches them.
+ANDROID_CMDLINE_TOOLS_VERSION|no-autobump|dl.google.com/android/repository|google publishes the cmdline-tools build number in no machine-readable index, so nothing here can read the current one
+ANDROID_PLATFORM_VERSION|no-autobump|sdkmanager platforms;android-N|the pin is an android api level chosen by the app target, and sdkmanager publishes no index a resolver can read
+ANDROID_BUILDTOOLS_VERSION|no-autobump|sdkmanager build-tools;N|the build-tools version is chosen with the api level above, and sdkmanager publishes no index a resolver can read
+
+# -------- no-autobump: the ready components --------
+# 2 pins whose component no image calls (ledger #103). A bump of a tool nothing
+# installs is a pull request that changes an unused number, and the digest it
+# would carry pins bytes no build ever fetches.
+TERRAFORM_VERSION|no-autobump|hashicorp/terraform|no image installs terraform today, so a bump here would move a number nothing builds with (ledger #103)
+AWS_CLI_VERSION|no-autobump|aws/aws-cli|no image installs the aws cli today, so a bump here would move a number nothing builds with (ledger #103)
