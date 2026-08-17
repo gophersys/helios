@@ -24,8 +24,8 @@ ARG BUILDPLATFORM
 # Tool versions — latest LTS / stable as of 2026-07-05.
 # -------------------------------------------------------------------------
 ARG ESPTOOL_VERSION=5.3.1                                              # latest stable as of 2026-07-05
-ARG CODE_SERVER_VERSION=4.132.0                                        # latest stable as of 2026-08-17
-ARG CODE_SERVER_SHA256_AMD64=18e0e69920ab23b725cb219fb42bc045a908421448cf496a3124314e1a02bcf1  # computed-at-pin: 2026-08-17
+ARG CODE_SERVER_VERSION=4.133.0                                        # latest stable as of 2026-08-17
+ARG CODE_SERVER_SHA256_AMD64=241feb9fcbd96b1e2caa2e16ecafa67a70d6f7f60659058ddc9a8ba51d366d7e  # computed-at-pin: 2026-08-17
 # Extra Zephyr SDK toolchains installed on top of the parent layer's set
 # (arm-zephyr-eabi + riscv64-zephyr-elf). This is EVERY Espressif toolchain
 # sdk-ng v1.0.1 ships (names verified against the release's toolchain
