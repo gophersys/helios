@@ -5,7 +5,7 @@ repo:     gophersys/.devcontainer
 branch:   ci/weekly-bumps
 worktree: ~/code/.worktrees/.devcontainer-weekly-bumps
 pr:       -
-attempt:  1/2
+attempt:  2/2
 
 ## Goal
 A weekly workflow resolves every pin's upstream (one table _build/upstreams.txt,
@@ -70,9 +70,27 @@ shape) + assets fetched twice (~3.1GB flutter alone) vs "a handful"
 comment; N4 three doc untruths incl. OpenJDK 17-vs-21; N5 this file was
 stale again (fixed here). 24 attack lines REFUTED incl. 4 clean drills.
 
+## Fix round 1 — CLOSED green (2026-08-17)
+- RED (fa138b4): 3 aggregate-path checks, 488/3, in-container; the smoking
+  gun quoted (a full PR body of 13 empty-version bumps at rc=0; --apply
+  left 11 pins rewritten). Contract chosen: COLLECT-THEN-FAIL. Drill A
+  proved inherit_errexit alone fails case 3; drill B proved the contract
+  implementable.
+- GREEN (b88df94..3422317): 496 checks 0 failed BOTH bashes (host 3.2.57 +
+  container 5.2.21 — bare inherit_errexit is FATAL on bash 3.2, so capture
+  reads every substitution status itself, version-guarded shopt); B1
+  reproduction re-run: rc=1, zero empty bumps, porcelain empty, and the
+  refusal message states the design reason; mixed run proves collect (11
+  movers + the failure named, rc=1, nothing written). B2: cictl/hnslint
+  no-autobump (ours to release), BW no-autobump with the stream + the
+  #cli-v fix recorded in-table (untested grammar for one row rejected).
+  N1 reasons rewritten from re-measurement (15859902 current); N2 media-
+  type asserted + drilled; N3 two-job !cancelled() shape (scheduled-
+  workflows 124->132 judging it) + honest 45-min budget; N4 all doc truths.
+  Real-table sweep: 40/40 resolvable rows, 0 failed.
+
 ## Next
-Fix round (attempt 1): test author RED spec — aggregate --dry-run with one
-failing row must exit non-zero naming the pin, no bump line with an empty
-version (red against current code = proves B1). Then implementer:
-inherit_errexit (+ substitution status checks), the 3 rows corrected with
-true classes, N1-N4. Then bounded re-verify, then PR.
+Bounded verify round 2 (the fixes + no-regressions), then PR. PR body must
+name: 40 coordinates unproven until the first live dispatch (no test can see
+coordinate reality — recorded), the close/reopen no-checks path, NEEDS-MATEO
+items 16+17.
