@@ -106,6 +106,38 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
   Never invent a version.
 - **You must get approval to change a version.** A change to a version ARG goes
   through the brain-level approval gate.
+- **A digest row takes the same shape as a version row, and sits beside it.**
+  Every binary download compares its bytes against a `<TOOL>_SHA256_<ARCH>`
+  declared in the SAME home as `<TOOL>_VERSION`: an `ARG` at the top of the
+  Dockerfile for the base family, a `versions.env` row for the cloud family. A
+  tool that lives in both homes carries the digest in both, and equal versions
+  must carry equal digests. The reason is that a bump is then 2 adjacent lines:
+  2 homes apart, and the bump misses one.
+- **The vocabulary is `_SHA256_AMD64` and `_SHA256_NOARCH`, and nothing else.**
+  It names the PLATFORM and never the upstream asset spelling — compose writes
+  `x86_64` and buildx writes `amd64` for the same platform, and following the
+  asset gave 2 vocabularies for 1 arch. `_NOARCH` is for an asset that serves
+  every platform. There is no `_ARM64` row while `SANCTIONED_PLATFORMS` is
+  `linux/amd64` alone: a digest that nothing compares is a check that cannot
+  fail. Widening the platform set restores the `linux/arm64)` case arm and the
+  `_ARM64` row together, in both homes.
+- **Every digest row records where its value came from**, machine-readably:
+  `# upstream-published: <checksum file url>` when the release ships a checksum
+  file and the 2 agreed, otherwise `# computed-at-pin: <yyyy-mm-dd>` — TLS plus
+  an immutable release URL is then the whole evidence, and the row says so. A
+  number a reviewer has to take on faith is not a pin.
+- **The download itself goes through `_build/fetch-verified.sh`.** It is 1 file
+  by the same rule that puts a verb body in `_ctl/lib.sh` once. `base` and
+  `cloud` COPY `_build/` to `/usr/local/lib/gophersys/` above their first
+  download; `flutter`, `zephyr`, `zephyr-devbox` and `base-runner` inherit it
+  through their `FROM` and add no COPY. **Because base COPYs it, base's docker
+  build context is the repository root and not `base/`** — `base/ctl.sh` sets
+  `IMAGE_BUILD_CONTEXT`, and both copies of `build-and-push.yml` say
+  `context: .` for the base job. A download that can carry no digest takes 1 row
+  in `_build/download-exemptions.txt` naming a stated class and a reason.
+  `_ctl/tests/download-coverage.test.sh` reads what the files CONSUME and holds
+  both directions: an unanswered download is red, and so is a row for a
+  download that no longer exists.
 - **`ARG HADOLINT_VERSION` in `base/Dockerfile` also governs the gate.**
   hadolint's verdict depends on its version — 2.15.1 raises DL3064 and DL3066 on
   Dockerfiles that 2.14.0 passes — so `validate` lints at that exact pin. It uses
