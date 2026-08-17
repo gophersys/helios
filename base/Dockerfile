@@ -10,7 +10,7 @@
 # base — Ubuntu 24.04 LTS IDP base image.
 #
 # Single "pick up and work" image for the brain ecosystem: shells, languages
-# (Node, Python, Go, Rust), infra CLIs (kubectl/helm/terraform/tailscale/gh),
+# (Node, Python, Go, Rust), infra CLIs (kubectl/helm/tailscale/gh),
 # desktop/Tauri system libs, USB/BLE system libs, and the data/parsing tools
 # every consuming project reaches for. Child images (flutter, zephyr) add
 # domain-specific toolchains on top.
@@ -75,7 +75,6 @@ ARG GO_VERSION=1.26.5                                                  # latest 
 ARG RUST_CHANNEL=stable                                                # latest LTS as of 2026-04-19
 
 # Infra CLIs.
-ARG TERRAFORM_VERSION=1.14.8                                           # latest LTS as of 2026-04-19
 ARG KUBECTL_VERSION=1.35.4                                             # latest LTS as of 2026-04-19
 ARG HELM_VERSION=4.1.4                                                 # latest LTS as of 2026-04-19
 ARG ANSIBLE_VERSION=13.5.0                                             # latest LTS as of 2026-04-19
@@ -328,16 +327,11 @@ RUN curl -fsSL https://sh.rustup.rs -o /tmp/rustup-init.sh \
 # /home/dev/.local/bin; the dev user already owns it.
 # -------------------------------------------------------------------------
 USER root
-RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
-      linux/arm64) ARCH=arm64 ;; \
-      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
-    esac \
- && curl -fsSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${ARCH}.zip" -o /tmp/tf.zip \
- && unzip -q /tmp/tf.zip -d /usr/local/bin \
- && rm /tmp/tf.zip
-# NOTE: no terraform version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
-
+# terraform is NOT installed here. _delta/components/terraform.sh states it was
+# dropped from every image by decision (image-architecture §2.3), and this block
+# was the one place that contradicted it — so base, flutter, zephyr,
+# zephyr-devbox and base-runner all shipped it and all inherited its CVE. The
+# pin stays in versions.env as the ready component; the delta is 1 line away.
 RUN case "${TARGETPLATFORM}" in \
       linux/amd64) ARCH=amd64 ;; \
       linux/arm64) ARCH=arm64 ;; \
