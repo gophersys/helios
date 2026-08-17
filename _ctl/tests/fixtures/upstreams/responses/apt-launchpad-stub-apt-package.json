@@ -1,0 +1,12 @@
+{
+  "total_size": 1,
+  "entries": [
+    {
+      "binary_package_name": "stub-apt-package",
+      "binary_package_version": "1:5.9-6ubuntu2",
+      "distro_arch_series_link": "https://api.launchpad.net/devel/ubuntu/noble/amd64",
+      "pocket": "Release",
+      "status": "Published"
+    }
+  ]
+}

@@ -36,6 +36,10 @@
 #
 #   STUB_GH_LOG                 append every argv line to this file
 #   STUB_GH_ISSUES              JSON array `gh issue list` reads
+#   STUB_GH_ISSUES_BY_LABEL     directory of `<label>.json` arrays; when it is
+#                               set, `issue list` answers the caller's own
+#                               --label out of it and an absent file means that
+#                               label carries no open issue
 #   STUB_GH_LABELS              JSON array `gh label list` reads     ([])
 #   STUB_GH_BODY_LOG            append the --body of create/comment here
 #   STUB_GH_CLOSE_DRAIN         non-empty: `issue close` DRAINS its stdin
@@ -102,7 +106,29 @@ function stub_query() {
 
 case "${1:-} ${2:-}" in
   "issue list")
-    stub_query "${STUB_GH_ISSUES:-}" "$@"
+    # The label-keyed world. A caller that files under 2 labels — the nightly
+    # scan under ci-nightly-red and the weekly bump under ci-weekly-red — asks
+    # 2 different questions, and a stub with 1 issue file answers both with the
+    # same set. That stub cannot tell a notifier that honours its label
+    # parameter apart from one that ignores it, which is the whole thing
+    # _ctl/tests/resolve-upstream.test.sh has to measure.
+    if [[ -n "${STUB_GH_ISSUES_BY_LABEL:-}" ]]; then
+      [[ -d "$STUB_GH_ISSUES_BY_LABEL" ]] \
+        || stub_fail "STUB_GH_ISSUES_BY_LABEL is ${STUB_GH_ISSUES_BY_LABEL}, and there is no such directory"
+      LABEL_ASKED_FOR="$(stub_option --label "$@")"
+      [[ -n "$LABEL_ASKED_FOR" ]] \
+        || stub_fail "the world is keyed by label and the caller passed no --label"
+      LABEL_WORLD="${STUB_GH_ISSUES_BY_LABEL}/${LABEL_ASKED_FOR}.json"
+      if [[ ! -f "$LABEL_WORLD" ]]; then
+        # No file for this label means no open issue carries it. That is a real
+        # world and the commonest one: the weekly run is green and has never
+        # filed anything.
+        exit 0
+      fi
+      stub_query "$LABEL_WORLD" "$@"
+    else
+      stub_query "${STUB_GH_ISSUES:-}" "$@"
+    fi
     ;;
 
   "label list")

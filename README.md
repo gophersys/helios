@@ -36,7 +36,7 @@ every image has it. See "The shared ctl library" below.
 | Image | Intent | `GOPHERSYS_DEVCONTAINER` |
 |---|---|---|
 | `ghcr.io/gophersys/base` | The general-purpose image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. | `base` |
-| `ghcr.io/gophersys/flutter` | Base + OpenJDK 17 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. The targets are Linux desktop and Android. iOS is not in the scope. | `flutter` |
+| `ghcr.io/gophersys/flutter` | Base + OpenJDK 21 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. The targets are Linux desktop and Android. iOS is not in the scope. | `flutter` |
 | `ghcr.io/gophersys/zephyr` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif). | `zephyr` |
 | `ghcr.io/gophersys/base-runner` | Base + the GitHub Actions runner at `/home/runner`, owned by `dev`. **This is not a devcontainer.** It has no `devcontainer.json`. An ARC pool runs this image as its runner container, so the kubelet keeps the image in the cache on each node and a job does not wait for a cold pull. The build uses `runner/Dockerfile`. That Dockerfile takes `BASE_IMAGE`, so it serves every parent image. | `base` (inherited) |
 | `ghcr.io/gophersys/zephyr-devbox` | Zephyr + sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules. It runs as a k8s pod. You connect to it with VS Code Remote-SSH. It starts as root and it execs sshd. A login gets the `dev` user. | `zephyr-devbox` |
@@ -228,10 +228,20 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
    `_build/`; the other 4 images inherit it through their `FROM`. When a
    download cannot carry a digest, add 1 row to `_build/download-exemptions.txt`
    naming its class and the reason. Those are the only 2 answers.
-5. **Use the ARG in the RUN line.** A hardcoded semver in a `RUN` line is
+5. **Say where its next version comes from.** Add 1 row to
+   `_build/upstreams.txt`, `<pin>|<datasource>|<coordinate>|<policy>`:
+   ```
+   MY_TOOL_VERSION|github-release|myowner/mytool|bump to the newest release github marks latest
+   ```
+   A pin with no row fails `bash ./ctl.sh test`, and a row for a pin that is
+   gone fails it too. When no upstream can answer, the row takes the
+   `no-autobump` datasource and its 4th field states WHY, in a sentence. Those
+   are the only 2 answers: a pin nobody watches is a snapshot that looks
+   current forever.
+6. **Use the ARG in the RUN line.** A hardcoded semver in a `RUN` line is
    forbidden. The command `bash ./ctl.sh validate` searches for a semver in a
    `RUN` line and fails.
-6. **Make every binary installation read `TARGETPLATFORM`**:
+7. **Make every binary installation read `TARGETPLATFORM`**:
    ```sh
    case "$TARGETPLATFORM" in
      linux/amd64) ARCH=amd64 ;;
@@ -243,11 +253,11 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
    cannot fail. The `*)` arm is what makes an unsanctioned platform stop the
    build instead of installing the wrong binary. Restore both the arm and its
    `_SHA256_ARM64` row together, on the day `SANCTIONED_PLATFORMS` widens.
-7. **Remove the temporary files in the same layer.** For apt, use
+8. **Remove the temporary files in the same layer.** For apt, use
    `rm -rf /var/lib/apt/lists/*`.
-8. **You must get approval.** A new tool and a version change go through the
+9. **You must get approval.** A new tool and a version change go through the
    brain-level approval gate. They have an effect on every consuming project.
-9. Run `bash ./ctl.sh validate` and `bash ./ctl.sh test` until both report no
+10. Run `bash ./ctl.sh validate` and `bash ./ctl.sh test` until both report no
    error. Then run `bash ./ctl.sh build base` to make sure that the chain of
    images still builds.
 
@@ -260,6 +270,11 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
 ├── ctl.sh                       # repo-wide control script
 ├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time only
 ├── _ctl/tests/                  # hermetic *.test.sh + harness + docker stub + fixtures
+├── _build/                      # COPYed into base and cloud, above their first download
+│   ├── fetch-verified.sh        # the ONE verifier every image download goes through
+│   ├── download-exemptions.txt  # the downloads that take a stated class instead of a digest
+│   ├── upstreams.txt            # where the next value of every pin comes from
+│   └── resolve-upstream.sh      # the weekly resolver — 1 function per datasource
 ├── .claude/rules/               # identity + conventions
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── runner/        { Dockerfile, project.json, ctl.sh }   # + runner layer, no devcontainer.json
@@ -384,6 +399,38 @@ permission. The permission is set in the workflow.
 The workflow `.github/workflows/validate.yml` is the pull request gate. It runs
 `bash ./ctl.sh validate`, `bash ./ctl.sh test`, and the BUILD_ORDER agreement
 check.
+
+The workflow `.github/workflows/security-nightly.yml` scans the published images
+for CRITICAL vulnerabilities every night and reports the night ubuntu moves under
+the digest `UBUNTU_BASE_REF` pins. It builds and publishes nothing.
+
+The workflow `.github/workflows/weekly-bumps.yml` runs every Monday. It asks the
+upstream named in each row of `_build/upstreams.txt` what it publishes now, and
+where anything moved it writes the new version and the new sha256 into every home
+of that pin and opens ONE pull request. Every sha256 is the digest of the asset
+for the version the same run resolved, and it is re-proven through
+`_build/fetch-verified.sh` before a line is written, so a bump cannot carry a
+stale digest. It merges nothing.
+
+**One unreadable upstream fails the whole run.** It resolves every row first,
+reports every pin that moved AND every pin it could not read, writes nothing and
+exits non-zero. A run that bumped the pins it happened to reach would let the
+absence of the others read as "nothing moved", and a run that stopped at the
+first bad row would hide the real bumps behind it. A pin that resolves nothing on
+purpose takes a `no-autobump` row with a stated reason instead — 16 do today, and
+each reason has to be TRUE: 3 of them were rewritten after their coordinates were
+measured against the real API, with the whole suite green before and after.
+
+**A bump pull request arrives with no checks on it.** GitHub starts no workflow
+run for an event a `GITHUB_TOKEN` caused, so `validate.yml` does not fire on the
+branch this workflow pushes. Close and reopen the pull request, or push to its
+branch, to start the gates — and never merge it before they are green.
+
+Both scheduled workflows report a failure through `.ci/notify-failure.sh`, which
+opens or updates ONE labelled issue and closes it on the next green run. The
+label is a parameter: the nightly scan uses the default `ci-nightly-red` and the
+weekly bump passes `ci-weekly-red`, so a green Monday cannot retire the scan's
+open issue about a CVE.
 
 ## Shared-change propagation
 

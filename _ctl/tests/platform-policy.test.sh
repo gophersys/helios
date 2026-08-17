@@ -103,6 +103,7 @@ WORKFLOW_DIRECTORY=".github/workflows"
 EXPECTED_PROVIDER_FILES=(
   "build-and-push.yml"
   "security-nightly.yml"
+  "weekly-bumps.yml"
 )
 
 printf '=== RUN  %s\n' "$TEST_NAME"
