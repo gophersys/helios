@@ -39,6 +39,16 @@ sudo ln -sfn "${HOME}/.local/bin/claude" /usr/local/bin/claude
 npm install -g "@oh-my-pi/pi-coding-agent@${OMP_VERSION}"
 npm install -g "@openai/codex@${CODEX_VERSION}"
 
+# In-layer cache hygiene (size lever 1, risk R4). The 2 installs above wrote
+# 608.6 MB of npm cache into ~/.npm/_cacache — measured in the first cloud
+# build, where this layer came out at 3,140 MB against a ~420 MB estimate.
+# The cache serves nothing at runtime (npm recreates it on demand), and a
+# cleanup in a LATER layer would save zero bytes: only a removal in the same
+# RUN keeps the bytes out of the layer. /tmp/node-compile-cache is the node
+# compile cache the installs leave behind; same rule.
+npm cache clean --force
+rm -rf "${HOME}/.npm" /tmp/node-compile-cache
+
 # Proof.
 claude --version
 omp --version
