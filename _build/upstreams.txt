@@ -113,12 +113,13 @@ UBUNTU_BASE_REF|oci-index|library/ubuntu:24.04|bump to the index digest the tag 
 # eden's harness-upgrade-check is the one decision point for them. The
 # eden-manifest datasource that mirrors that file needs a read of a PRIVATE
 # repository, and this repository's GITHUB_TOKEN is repository-scoped: the read
-# needs EDEN_MANIFEST_READ, a fine-grained PAT only Mateo can mint. Until it
-# exists these 3 rows say so, and the day it is minted each one becomes
-# `eden-manifest|gophersys/eden:harnesses/versions.env`.
-CLAUDE_CODE_VERSION|no-autobump|gophersys/eden:harnesses/versions.env|eden is the one decision point for a harness version, and the cross-repository read needs the EDEN_MANIFEST_READ secret, which does not exist yet (NEEDS-MATEO item 16)
-OMP_VERSION|no-autobump|gophersys/eden:harnesses/versions.env|eden is the one decision point for a harness version, and the cross-repository read needs the EDEN_MANIFEST_READ secret, which does not exist yet (NEEDS-MATEO item 16)
-CODEX_VERSION|no-autobump|gophersys/eden:harnesses/versions.env|eden is the one decision point for a harness version, and the cross-repository read needs the EDEN_MANIFEST_READ secret, which does not exist yet (NEEDS-MATEO item 16)
+# uses EDEN_MANIFEST_READ, a fine-grained PAT with contents:read on that one
+# repository (minted 2026-08-17). eden's harness-upgrade-check remains the ONE
+# decision point: these rows MIRROR eden's harnesses/versions.env, they never
+# lead it.
+CLAUDE_CODE_VERSION|eden-manifest|gophersys/eden:harnesses/versions.env|mirror the value eden's manifest pins
+OMP_VERSION|eden-manifest|gophersys/eden:harnesses/versions.env|mirror the value eden's manifest pins
+CODEX_VERSION|eden-manifest|gophersys/eden:harnesses/versions.env|mirror the value eden's manifest pins
 
 # -------- no-autobump: the pins that are not a version --------
 # Each of these selects a MAJOR line or a channel inside a name, so the value an
