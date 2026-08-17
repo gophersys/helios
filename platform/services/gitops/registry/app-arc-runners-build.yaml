@@ -112,6 +112,19 @@ spec:
                   - dockerd
                   - --host=unix:///var/run/docker.sock
                   - --group=$(DOCKER_GROUP_GID)
+                  # The bridge this daemon makes lives INSIDE a flannel pod
+                  # interface of MTU 1450, and dockerd's default is 1500. A
+                  # container on that bridge advertises an MSS the overlay
+                  # cannot carry, and whether a transfer survives depends on
+                  # the peer's path-MTU behaviour: get.helm.sh reset the same
+                  # fetch 3 of 3 times in run 32050747682 while ghcr.io and
+                  # docker.io tolerated it. 1400 is the value the probe on
+                  # k3s-w-0 PROVED (2026-08-17): the same URL timed out at
+                  # 1500 and succeeded at 1400. The image builds themselves no
+                  # longer ride this bridge (.devcontainer buildx-node.sh puts
+                  # them in the pod namespace); this covers everything else a
+                  # job runs with `docker run` — smoke containers, k3d, probes.
+                  - --mtu=1400
                 env:
                   # The gid dockerd gives the socket. The runner process must hold
                   # it or every job that touches docker fails with "permission

@@ -119,6 +119,13 @@ spec:
                   - dockerd
                   - --host=unix:///var/run/docker.sock
                   - --group=$(DOCKER_GROUP_GID)
+                  # Same rule and same proven value as arc-runners-build: the
+                  # bridge sits inside a 1450 pod interface and defaults to
+                  # 1500, a silent path-MTU blackhole for peers that do not
+                  # tolerate the mismatch. This pool runs the libs integration
+                  # lanes — k3d inside dind, pulling images from inside the
+                  # nested bridge — which is the same exposure one repo over.
+                  - --mtu=1400
                 env:
                   # The gid dockerd gives the socket. The RUNNER IMAGE must put its
                   # user in this group or every job that touches docker fails with
