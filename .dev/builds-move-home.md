@@ -1,6 +1,6 @@
 # builds-move-home
 
-phase:    red+green (speed mode, parallel authoring)
+phase:    submit
 repo:     gophersys/.devcontainer
 branch:   ci/builds-move-home
 worktree: ~/code/.worktrees/.devcontainer-builds-home
@@ -23,8 +23,26 @@ The migration plan (tasks/a878064c01c0a3994.output §.devcontainer half)
 + #78's three levers + the base-runner retirement unlocked by infra #184.
 
 ## Proven
-- Prereq: infra #184 merged; pools pinned to cloud digest 9a150cbf...;
-  verify-runner-image cloud 997bb6b 21/21 live.
+- Prereq: infra #184 merged; pools live on cloud digest (kubectl verified).
+- RED reproduced on pre-impl tree: 21 feature reds (+3 git-archive artifacts).
+- GREEN: 19 files, 560 checks, 0 failed; yq ×8; cmp ×3 pairs byte-identical;
+  BUILD_ORDER agreement by hand.
+- affected.sh EXECUTED on 9 controlled commits — all answers correct (docs
+  → nothing; base → base+3 children; _delta → cloud; versions.env → all;
+  dispatch/tag/no-payload/zero-sha → build-all; unknown image rc 2).
+- buildx-node.sh drilled on 6 worlds incl. the exact mTLS remote-driver
+  line of ci-substrate.md:390; arm64-inert proven.
+- Context-availability audit caught the implementer's own job-level
+  runner.temp (GitHub would reject the workflow) — moved to step env.
+- 64 ratchet checks (test author 32fdd41): no billed runner ever, bounded
+  scheduled matrices, declaration-driven retirement, filter coherence,
+  8 mutation drills.
+- KNOWN HOLE, documented in the workflow header: event.before diffs the
+  previous PUSH not the last successful BUILD (cancelled/failed runs can
+  skip a change); escape hatch = re-run/dispatch; durable fix recorded
+  (diff from the registry's image revision label).
+- MERGED ON LOCAL GATES per the session directive; the first arc-build run
+  is the live proof.
 
 ## Blocked
 (nothing)
