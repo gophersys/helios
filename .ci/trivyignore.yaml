@@ -94,3 +94,17 @@ vulnerabilities:
       - "opt/android-sdk/**/bcprov-jdk18on-1.79.jar"
     statement: "The newest Android cmdline-tools Google publishes (channel 22.0, build 15859902) still ships bcprov-jdk18on 1.79, verified by extracting that archive. No pin bump can clear this finding."
     expired_at: 2026-11-30
+
+# The secret scanner's one finding: a documentation example inside the ansible
+# community.aws collection, installed as source by `uv tool install`. The
+# in-layer cache cleanup removed the CACHED copy; this is the live venv copy.
+# It is an example key in upstream docs, not a credential.
+secrets:
+  - id: aws-access-key-id
+    paths:
+      - "home/dev/.local/share/uv/tools/ansible-core/**/sts_session_token.py"
+    statement: >-
+      A documentation example AWS key id inside ansible's community.aws
+      collection source (module docstring). Upstream ships it in every
+      release; it is not a credential. Re-check at expiry.
+    expired_at: 2026-11-30
