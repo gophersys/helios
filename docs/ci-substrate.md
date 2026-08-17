@@ -41,7 +41,16 @@ the diagram says public.
 flutter  zephyr ──── firmware
    │        │
  Android  zephyr-devbox (public)
+
+      cloud ──── EVERY ARC POOL: the reduced base + the CI fold
+                 (Actions runner, cictl, buildx, the harnesses).
+                 Built from ubuntu directly, not FROM base.
 ```
+
+`cloud` is what the 3 live pools run. It is not a child of `base`: it builds from
+the pinned Ubuntu digest and re-adds a chosen subset, so it is a reduction rather
+than a layer. `base-runner` — `base` plus the runner binary — is what it
+replaced, and nothing pulls that image now.
 
 Gaps against the 5 target domains:
 
@@ -108,7 +117,9 @@ Actions.
 
 | Pool | Runner image | Physical capability | State |
 | --- | --- | --- | --- |
-| `arc-org` | `base-runner` | linux/amd64, general build | **live** |
+| `arc-org` | `cloud` | linux/amd64, general build | **live** |
+| `arc-build` | `cloud` | linux/amd64, **the three 14Gi pve-00 workers** — image builds | **live** |
+| `arc-review` | `cloud` | linux/amd64, **no dind** — the review agent alone | **live** |
 | `arc-zephyr` | `zephyr` + runner | linux/amd64 | planned |
 | `arc-kicad` | `kicad` + runner | linux/amd64 | planned |
 | `arc-flutter` | `flutter` + runner | linux/amd64, Android emulator needs KVM | planned |
@@ -117,12 +128,28 @@ Actions.
 | `macos-mini` | native, no container | **macOS kernel; 2 phones on USB** | planned — the host `macos-ci-runner` is enrolled, the runner is not registered |
 | `windows` | native, no container | **Windows kernel** | planned — VM on `pve-03` |
 
-6 of the 8 pools differ only by image. They would become 1 pool if images were
+6 of the 10 pools differ only by image. They would become 1 pool if images were
 cheap to swap. They do not become 1 pool, because the kubelet cache is what makes
 them fast, and the kubelet caches the image of the **pod**.
 
 `arc-usb` and `arc-arm64` are the 2 pools that are truly physical. You cannot
 install a USB device or a CPU architecture.
+
+**`arc-build` and `arc-review` are the honest exceptions to the one rule**, and
+naming them is better than pretending. They run the same image as `arc-org` and
+differ only in what they are ALLOWED to do:
+
+- `arc-build` is a **capacity partition with a node set**. Its ceiling of 6 is
+  bounded by one thin pool on pve-00, which the three nodes it runs on share and
+  no guest can see; and it is separate from `arc-org` so a build wave cannot
+  starve an unrelated repository's gate. The node subset is physical — 14Gi of
+  RAM against `k3s-w-3`'s 9Gi — and the ceiling is a property of a disk, so this
+  is closer to the rule than it first reads.
+- `arc-review` is a **credential boundary**. An environment variable on a pool is
+  readable by every job on that pool.
+
+Neither is a new software capability, and neither should be copied for one. A new
+language or SDK still needs an image, not a pool.
 
 **The name `arc-org`.** The name states ownership, not capability. By the rule in
 this document the name should be `arc-base`. The pool keeps the name `arc-org`.
@@ -200,8 +227,16 @@ Each step is useful on its own and can be verified on its own.
    `.devcontainer`, one Dockerfile per parent through `BASE_IMAGE`.
 3. ~~**Add the `imagePullSecret`**~~ Done — `ghcr-pull`, ESO from
    `shared/github/pat-godmode` (debt D24).
-4. ~~**Point the pool at `base-runner`**~~ Done — `arc-org` runs
-   `ghcr.io/gophersys/base-runner`, and `validate.yml` has no tool-install step.
+4. ~~**Point the pool at `base-runner`**~~ Done, and superseded 2026-08-17: all
+   3 live pools now run `ghcr.io/gophersys/cloud`, pinned by digest.
+   `validate.yml` has no tool-install step.
+   **`base-runner` has no consumer left.** Retiring the image — the `runner/`
+   Dockerfile, its `BUILD_ORDER` entry and its publish job — is a
+   `gophersys/.devcontainer` change, and it is the handoff from this one. Until
+   it lands the image is still published and still scanned; it is simply not
+   pulled. It also left the image warmer's opt-in list, so the layers already
+   cached on the nodes are now invisible to the warmer's GC and have to be
+   removed once, by hand.
 5. **Move `hardware-ci` into `.devcontainer/kicad`**, then add `arc-kicad`.
 6. **Add `arc-zephyr` and `arc-usb`** (pin `arc-usb` to `k3s-w-4`).
 7. **Mac mini** — macOS, iOS and Android over USB. Blocked: the phones are not
@@ -244,18 +279,27 @@ That is 3.44 times faster. Measured on 2026-08-14, a native arm64 build sent
 through the mini's buildkitd over mTLS took 9.3s end to end. The build context
 transfers at approximately 100 MB/s, so a real context costs 1 to 2 seconds.
 
-**The mini is a buildx NODE, not a pool.** A job keeps `runs-on: arc-org`. Only
-the arm64 part of the image build leaves the pod. This is why the `arc-arm64` row
-in the table above stays "planned": you do not need a second scale set to build
-arm64 natively.
+**The mini is a buildx NODE, not a pool.** A job keeps its own `runs-on`, and an
+image build takes `arc-build`. Only the arm64 part of the build leaves the pod.
+This is why the `arc-arm64` row in the table above stays "planned": you do not
+need a second scale set to build arm64 natively.
 
 ### The credential
 
-The pool mounts three PEM files at `/etc/buildkit-certs/` — `ca.pem`, `cert.pem`
-and `key.pem` — mode 0400. The manifests are
-`40-buildkit-client-certs-externalsecret.yaml` (the vault link) and
-`app-arc-runners-org.yaml` (the volume). Read the comments in both before you
-change either one.
+`arc-org` and `arc-build` each mount three PEM files at `/etc/buildkit-certs/` —
+`ca.pem`, `cert.pem` and `key.pem` — mode 0400. `arc-review` does not: it builds
+nothing. The manifests are `40-buildkit-client-certs-externalsecret.yaml` (the
+vault link) and `app-arc-runners-{org,build}.yaml` (the volume). Read the
+comments in both before you change either one.
+
+**Owner-only names an owner.** A projected secret file is owned by uid 0, so 0400
+is readable by uid 0 and by nobody else, and the runner container must therefore
+declare `runAsUser: 0`. That used to be true by accident — `base-runner` ended as
+root — and the manifest said so in a comment. `cloud` ends `USER dev`, measured
+on the pinned digest as `uid=1000(dev)`, so the accident is gone and the
+declaration is explicit. `bash ctl.sh verify-buildx-key` asserts the mode and the
+uid together, and 0440 is not an escape hatch: tls refuses a group-readable
+private key, and without `fsGroup` the group is root anyway.
 
 **The security model — the BUILD API only, over mTLS.** The mini runs a
 standalone `buildkitd` container that listens on `tcp://10.168.0.92:1234`. It
@@ -279,13 +323,17 @@ revoked.
 shared `arc-org` pool, but it grants only a build. The pool already stays closed
 to public repositories (see `docs/ci-runners.md`), so a fork pull request cannot
 reach the mini. The final pool placement stays Mateo's call, because every
-repository on the pool then shares one builder on the mini.
+repository on the pool then shares one builder on the mini. `arc-build` narrows
+that exposure rather than widening it — it answers 3 workflows in 1 repository —
+and the natural end state is the cert on `arc-build` alone.
 
 **The admin key `~/.ssh/macos-ci-runner` is separate.** It stays unrestricted,
 `verify-access` uses it, and it never enters the cluster.
 
 `bash ctl.sh verify-buildx-key` asserts that the credential reaches the pod as a
-file. It reads manifests only, so CI runs it on every pull request.
+file, and that the uid which mounts it can read it. It reads manifests only, so
+CI runs it on every pull request. It reads `arc-org` today; `arc-build` carries
+the identical mount and is not yet covered by that verb.
 
 ### The mini must serve builds after a reboot
 
@@ -303,25 +351,36 @@ all three, Docker answers 41 seconds after a reboot. The detail is in
 
 ### How a workflow uses the node
 
-**The runner image still needs buildx.** Measured on 2026-08-13 against the
-pinned image `ghcr.io/gophersys/base-runner:e0c6bc5`: `docker buildx version`
-exits 1 with `unknown command: docker buildx`. `base` installs `docker-ce-cli`
-and adds only the compose plugin to `/usr/local/lib/docker/cli-plugins`. buildx
-comes in the separate package `docker-buildx-plugin`, and nothing installs it.
-The `--driver remote` step below needs that plugin, so this dependency stays
-open.
+**The runner image carries buildx. This dependency is CLOSED.** It was open
+until 2026-08-16, and the paragraph that said "nothing installs it" outlived the
+fix by a day — so the measurement is repeated here rather than asserted.
+Measured on 2026-08-17 by running the pinned digest the pools use,
+`ghcr.io/gophersys/cloud@sha256:9a150cbf…`, at `--user 0`, which is the shape the
+pod runs in:
 
-**The fix is one line, and it is in another repository.** Add
-`docker-buildx-plugin` beside `docker-ce-cli` in the `apt-get install` of
-`base/Dockerfile` in `gophersys/.devcontainer`, then publish and pin the new tag
-with the 3 preconditions in `app-arc-runners-org.yaml`.
+```
+docker buildx version  ->  github.com/docker/buildx v0.36.1 1d8dde89b8ab…
+```
+
+The plugin arrives as a digest-pinned release binary, not as an apt package:
+`DOCKER_BUILDX_VERSION` plus `DOCKER_BUILDX_SHA256_AMD64` in
+`gophersys/.devcontainer`, installed by `_build/fetch-verified.sh` from
+`base/Dockerfile` for the base family and from `_delta/components/buildx.sh` for
+`cloud`. The earlier reading was correct at the time and about a different
+image: `base-runner:e0c6bc5` really did exit 1 with `unknown command: docker
+buildx`, because `base` then added only the compose plugin to
+`/usr/local/lib/docker/cli-plugins`.
 
 **Do not install buildx inside the job.** The rule at the top of this document
 puts software capability in the image, and `validate.yml` has no tool-install
 step for that reason. A download in the build path adds a network dependency and
 an unpinned version to every job.
 
-### The step to add, once the image carries buildx
+### The step to add
+
+The image carries buildx, so this step is ready to use. What is still closed is
+D42 — `SANCTIONED_PLATFORMS` is `linux/amd64` alone, so no workflow asks for an
+arm64 build yet.
 
 ```yaml
 - name: Point buildx at the native arm64 node
@@ -366,12 +425,20 @@ change that adds this builder. Prove the builder in CI first.
 
 1. Add a CI job in `.devcontainer/.github/workflows/build-and-push.yml`. The job
    builds `runner/Dockerfile` with `BASE_IMAGE` set to the new parent. Also add
-   the image to `BUILD_ORDER` in both `ctl.sh` files.
+   the image to `BUILD_ORDER` in both `ctl.sh` files. **Skip this step for a pool
+   that needs no new software** — `arc-build` runs the same `cloud` image as
+   `arc-org`, so it added no image and no CI job.
 2. Copy `platform/services/gitops/registry/app-arc-runners-org.yaml`. Change
-   `runnerScaleSetName`, the 2 image references, and any node affinity that the
-   physical capability needs.
+   `runnerScaleSetName`, the **3** image references (`init-dind-externals`, the
+   runner, and the `podAntiAffinity` label is a 4th value that must follow the
+   name), and any node affinity that the physical capability needs.
 3. Name the pool for the capability, never for the owner.
-4. Prove the pool with a real job before you point a repository's default at it.
+4. Run `bash ctl.sh verify-runner-image <repository> <sha>` before you pin the
+   image, and the `helm template … | kubectl apply --server-side
+   --dry-run=server` procedure in `ci-runners.md` before you merge the manifest.
+   The dry run is the one that catches a duplicate container name, which is the
+   specific way this chart fails.
+5. Prove the pool with a real job before you point a repository's default at it.
 
 ## What this replaces
 
