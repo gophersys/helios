@@ -6,8 +6,8 @@
 # Every pin of this repository carries a row in _build/upstreams.txt saying
 # where its next value comes from. This file is the other half: it reads that
 # row, asks the upstream, and answers with the version AND the sha256 of the
-# asset the build will fetch for it — from the SAME fetch, so the pair cannot
-# disagree.
+# asset THAT version names — so the digest can never be of the release the pin
+# is being bumped away from.
 #
 #   bash _build/resolve-upstream.sh <PIN>
 #       1 record on stdout:  <version>|<sha256>
@@ -22,8 +22,9 @@
 #                  do not.
 #
 #   bash _build/resolve-upstream.sh --dry-run
-#       resolve every row and print the pull request it WOULD open. Writes
-#       nothing, anywhere.
+#       resolve every row and print the pull request it WOULD open. It writes
+#       nothing to the repository. It does write temporary files and it does
+#       download every asset that moved, twice — see the re-proof below.
 #
 #   bash _build/resolve-upstream.sh --apply
 #       the same resolution, and then the write: bump_pin edits EVERY home of
@@ -49,24 +50,52 @@
 # bumping.
 #
 # So the digest is of bytes this run fetched, at the URL the GOVERNED FILE
-# writes with the new version substituted in — never a URL out of the table,
+# writes with the NEW version substituted in — never a URL out of the table,
 # because a second URL home lets a correct digest be computed of the wrong
 # asset. The value is then handed back to _build/fetch-verified.sh, the ONE
-# verifier every image download goes through, which fetches the asset again and
-# compares. Nothing is written until that agreed.
+# verifier every image download goes through, which fetches that same URL a
+# second time and compares. There are 3 HTTP reads per digested pin — the index,
+# the digest, the re-proof — and the property is not that they are 1 fetch: it
+# is that the digest is of the asset of the version this run just resolved, and
+# that the verifier agreed before anything was written.
 #
 # ============================================================================
-# EVERY FAILURE NAMES THE PIN
+# EVERY FAILURE NAMES THE PIN, AND AN AGGREGATE RUN COLLECTS BEFORE IT FAILS
 # ============================================================================
 #
 # The reader of this output is a 09:00 Monday run with no author watching it.
 # `exit 1` tells them nothing, so every refusal here names the pin, and an
 # absent credential names the secret as well. There is no `|| true` and no
-# `2>/dev/null` in this file: a resolver that swallowed a failed fetch would
-# open a pull request bumping the pins it happened to reach, and the reader
-# would take the absence of the others as "nothing moved".
+# `2>/dev/null` in this file.
+#
+# Every resolution happens inside a command substitution, and bash UNSETS
+# errexit in that subshell unless `inherit_errexit` is on. So `exit 1` killed
+# only the subshell, the caller read an empty string, and the run continued.
+# Measured on this repository at 8e705f1 — 1 dead index produced
+# `bump: STUBGITHUB_VERSION 2.3.0 -> ` with an empty new version, a full pull
+# request body listing it, and exit 0. That is the exact defect the paragraph
+# above claims is impossible.
+#
+# `capture` below is the fix, and it does not depend on the shell option:
+# `inherit_errexit` arrived in bash 4.4, this repository's scripts also run
+# under the bash 3.2 of a mac developer host, and `shopt -s` on an option that
+# version does not know is a FATAL error there. The option is set where it
+# exists — belt — and every substitution whose failure matters goes through
+# `capture`, which reads the status itself — braces. A rule that held only on
+# the runner would be a rule the pull request gate could not see.
+#
+# The aggregate path is COLLECT-THEN-FAIL and not abort-at-the-first-failure:
+# every row is resolved, every mover AND every failure is reported, nothing is
+# written, and the run exits non-zero. FAIL-NOT-SKIP says a red run must be red
+# and must say what it found; the nightly beside it already reduces the verdict
+# of the jobs it needs rather than dying at the first one. A weekly that aborted
+# at row 1 would let 1 dead coordinate hide the 13 real bumps behind it, and a
+# run that reports nothing reads like a quiet week.
 #
 set -Eeuo pipefail
+if [[ "${BASH_VERSINFO[0]}" -gt 4 || ( "${BASH_VERSINFO[0]}" -eq 4 && "${BASH_VERSINFO[1]}" -ge 4 ) ]]; then
+  shopt -s inherit_errexit
+fi
 IFS=$'\n\t'
 
 SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -129,6 +158,32 @@ function fail_pin() {
   exit 1
 }
 
+# capture <variable> <command...> — run the command, keep its stdout in
+# <variable>, and STOP with its status when it failed.
+#
+# This is the load-bearing line of the whole file. `x="$(f)"` where f exits 1
+# leaves x empty and carries on, because bash unsets errexit inside a command
+# substitution on every version before 4.4 and inside every subshell this file's
+# resolution runs in. `capture` reads the status instead of trusting the shell
+# option, so a dead upstream stops the pin it belongs to on the runner's bash
+# 5.2 AND on a mac's bash 3.2 — and the message fail_pin already printed to
+# stderr is the last word either way.
+#
+# `capture` is a function, not a subshell, so its `exit` ends the shell that
+# called it: the top-level shell for a single-pin run, and the resolve_pin
+# substitution for an aggregate one, where collect_bumps reads the status and
+# records the pin. Never capture into a variable named target, output or status.
+function capture() {
+  local target="$1"
+  shift
+  local output="" status=0
+  output="$("$@")" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    exit "$status"
+  fi
+  printf -v "$target" '%s' "$output"
+}
+
 function usage() {
   cat <<EOF
 Usage: bash _build/resolve-upstream.sh <PIN>
@@ -157,6 +212,12 @@ function table_rows() {
 }
 
 # table_row <pin> — the row that names the pin, or nothing.
+#
+# The explicit `return 0` at the foot of this function and of the 4 below is not
+# tidiness. A `while` or a `for` whose last body statement was a false test
+# returns 1, and under `shopt -s inherit_errexit` that status leaves the
+# substitution and aborts the caller with no message at all. "I found nothing"
+# is an ANSWER here, and the caller decides what it means.
 function table_row() {
   local pin="$1" row
   while IFS= read -r row; do
@@ -166,6 +227,7 @@ function table_row() {
       return 0
     fi
   done <<< "$(table_rows)"
+  return 0
 }
 
 # row_field <row> <index> — 1 field of a row.
@@ -233,6 +295,7 @@ function github_headers() {
   if [[ -n "$token" ]]; then
     printf 'Authorization: Bearer %s\n' "$token"
   fi
+  return 0
 }
 
 # ---------------------------------------------------------------------------
@@ -274,12 +337,16 @@ function resolve_github_release() {
     headers+=("$header")
   done <<< "$(github_headers)"
 
-  local document tag draft prerelease
-  document="$(fetch_document "$pin" "https://api.github.com/repos/${coordinate}/releases/latest" "${headers[@]}")"
-  tag="$(json_value "$pin" "$document" '.tag_name // empty')"
-  draft="$(jq -r '.draft // false' <<< "$document")"
-  prerelease="$(jq -r '.prerelease // false' <<< "$document")"
-  if [[ "$draft" == "true" || "$prerelease" == "true" ]]; then
+  local document tag shipped
+  capture document fetch_document "$pin" \
+    "https://api.github.com/repos/${coordinate}/releases/latest" "${headers[@]}"
+  capture tag json_value "$pin" "$document" '.tag_name // empty'
+  # 1 read for both flags, so there is no bare jq here whose status nothing
+  # examines. `releases/latest` already excludes a draft and a prerelease; this
+  # is the assertion that it did.
+  capture shipped json_value "$pin" "$document" \
+    'if (.draft // false) or (.prerelease // false) then "refused" else "shipped" end'
+  if [[ "$shipped" != "shipped" ]]; then
     fail_pin "$pin" "the release ${coordinate} marks latest is a draft or a prerelease (${tag}), and a pin never takes one"
   fi
   respell "$tag" "$current"
@@ -288,16 +355,16 @@ function resolve_github_release() {
 function resolve_pypi() {
   local pin="$1" coordinate="$2" current="$3"
   local document version
-  document="$(fetch_document "$pin" "https://pypi.org/pypi/${coordinate}/json")"
-  version="$(json_value "$pin" "$document" '.info.version // empty')"
+  capture document fetch_document "$pin" "https://pypi.org/pypi/${coordinate}/json"
+  capture version json_value "$pin" "$document" '.info.version // empty'
   respell "$version" "$current"
 }
 
 function resolve_npm() {
   local pin="$1" coordinate="$2" current="$3"
   local document version
-  document="$(fetch_document "$pin" "https://registry.npmjs.org/${coordinate}")"
-  version="$(json_value "$pin" "$document" '.["dist-tags"].latest // empty')"
+  capture document fetch_document "$pin" "https://registry.npmjs.org/${coordinate}"
+  capture version json_value "$pin" "$document" '.["dist-tags"].latest // empty'
   respell "$version" "$current"
 }
 
@@ -315,8 +382,8 @@ function resolve_apt() {
   url="https://api.launchpad.net/devel/ubuntu/+archive/primary?ws.op=getPublishedBinaries"
   url="${url}&binary_name=${package}&exact_match=true&status=Published&order_by_date=true"
   url="${url}&distro_arch_series=https%3A%2F%2Fapi.launchpad.net%2Fdevel%2Fubuntu%2F${series}%2Famd64"
-  document="$(fetch_document "$pin" "$url")"
-  published="$(json_value "$pin" "$document" '.entries[0].binary_package_version // empty')"
+  capture document fetch_document "$pin" "$url"
+  capture published json_value "$pin" "$document" '.entries[0].binary_package_version // empty'
   upstream="${published#*:}"
   upstream="${upstream%-*}"
   respell "$upstream" "$current"
@@ -325,8 +392,8 @@ function resolve_apt() {
 function resolve_go_dl() {
   local pin="$1" coordinate="$2" current="$3"
   local document version
-  document="$(fetch_document "$pin" "https://${coordinate}.dev/dl/?mode=json")"
-  version="$(json_value "$pin" "$document" '[.[] | select(.stable == true)][0].version // empty')"
+  capture document fetch_document "$pin" "https://${coordinate}.dev/dl/?mode=json"
+  capture version json_value "$pin" "$document" '[.[] | select(.stable == true)][0].version // empty'
   respell "$version" "$current"
 }
 
@@ -341,8 +408,8 @@ function resolve_node_dist() {
     current) filter='.[0].version // empty' ;;
     *) fail_pin "$pin" "the node-dist coordinate is '${coordinate}', and the 2 this resolver reads are lts and current" ;;
   esac
-  document="$(fetch_document "$pin" "https://nodejs.org/dist/index.json")"
-  version="$(json_value "$pin" "$document" "$filter")"
+  capture document fetch_document "$pin" "https://nodejs.org/dist/index.json"
+  capture version json_value "$pin" "$document" "$filter"
   respell "$version" "$current"
 }
 
@@ -350,6 +417,17 @@ function resolve_node_dist() {
 # datasource returns what it fetched rather than a value out of the document.
 # A per-platform digest would take away the choice buildx has to make for the
 # platform it builds, and pin the wrong thing.
+#
+# Which is why the media type of what came back is ASSERTED and not assumed. The
+# `Accept` headers below ask for an index; a registry that ignores content
+# negotiation answers with the manifest of 1 platform, and hashing that produces
+# a perfectly well-formed digest of exactly the wrong thing — silently, with
+# every check in this repository still green.
+OCI_INDEX_MEDIA_TYPES=(
+  "application/vnd.oci.image.index.v1+json"
+  "application/vnd.docker.distribution.manifest.list.v2+json"
+)
+
 function resolve_oci_index() {
   local pin="$1" coordinate="$2"
   local repository="${coordinate%:*}"
@@ -359,9 +437,9 @@ function resolve_oci_index() {
   fi
 
   local token_document token
-  token_document="$(fetch_document "$pin" \
-    "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${repository}:pull")"
-  token="$(json_value "$pin" "$token_document" '.token // .access_token // empty')"
+  capture token_document fetch_document "$pin" \
+    "https://auth.docker.io/token?service=registry.docker.io&scope=repository:${repository}:pull"
+  capture token json_value "$pin" "$token_document" '.token // .access_token // empty'
 
   local staged digest
   staged="$(mktemp)"
@@ -373,6 +451,28 @@ function resolve_oci_index() {
     rm -f "$staged"
     fail_pin "$pin" "the registry would not serve the manifest of ${coordinate}"
   fi
+
+  local media_type="" known=0 accepted read_status=0
+  media_type="$(jq -r '.mediaType // empty' < "$staged")" || read_status=$?
+  if [[ "$read_status" -ne 0 ]]; then
+    rm -f "$staged"
+    fail_pin "$pin" "${coordinate} answered with something that is not JSON, so its media type cannot be read"
+  fi
+  for accepted in "${OCI_INDEX_MEDIA_TYPES[@]}"; do
+    if [[ "$media_type" == "$accepted" ]]; then
+      known=1
+    fi
+  done
+  if [[ "$known" -ne 1 ]]; then
+    rm -f "$staged"
+    log_error "${pin}: ${coordinate} answered with mediaType '${media_type:-<none>}', which is not a manifest list"
+    # IFS is $'\n\t' in this file, so [*] would join the 2 names with a newline
+    # and the message would read as 2 unrelated log lines.
+    log_error "the 2 index media types are: $(IFS=','; printf '%s' "${OCI_INDEX_MEDIA_TYPES[*]}")"
+    log_error "hashing a per-platform manifest pins the digest of 1 architecture and takes the choice away from buildx"
+    exit 1
+  fi
+
   digest="$(sha256sum "$staged" | awk '{ print $1 }')"
   rm -f "$staged"
   printf 'sha256:%s' "$digest"
@@ -381,15 +481,15 @@ function resolve_oci_index() {
 function resolve_k8s_dl() {
   local pin="$1" coordinate="$2" current="$3"
   local document
-  document="$(fetch_document "$pin" "https://dl.k8s.io/release/${coordinate}.txt")"
+  capture document fetch_document "$pin" "https://dl.k8s.io/release/${coordinate}.txt"
   respell "${document//[[:space:]]/}" "$current"
 }
 
 function resolve_tailscale_pkgs() {
   local pin="$1" coordinate="$2" current="$3"
   local document version
-  document="$(fetch_document "$pin" "https://pkgs.tailscale.com/${coordinate}/?mode=json")"
-  version="$(json_value "$pin" "$document" '.Version // empty')"
+  capture document fetch_document "$pin" "https://pkgs.tailscale.com/${coordinate}/?mode=json"
+  capture version json_value "$pin" "$document" '.Version // empty'
   respell "$version" "$current"
 }
 
@@ -401,9 +501,9 @@ function resolve_flutter_releases() {
   local document version filter
   filter=".current_release[\"${coordinate}\"] as \$hash"
   filter="${filter} | [.releases[] | select(.channel == \"${coordinate}\" and .hash == \$hash)][0].version // empty"
-  document="$(fetch_document "$pin" \
-    "https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json")"
-  version="$(json_value "$pin" "$document" "$filter")"
+  capture document fetch_document "$pin" \
+    "https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json"
+  capture version json_value "$pin" "$document" "$filter"
   respell "$version" "$current"
 }
 
@@ -415,6 +515,12 @@ function resolve_flutter_releases() {
 # repository-scoped, so the read needs a credential of its own. Its absence is a
 # FAILURE that names it and never a skip: a resolver that quietly reported the
 # current value would report every harness pin as current forever.
+# eden_manifest_row <pin> <document> — the `NAME=value` row that manifest holds
+# for the pin, or nothing.
+function eden_manifest_row() {
+  awk -v name="$1" '$0 ~ ("^" name "=") { print; exit }' <<< "$2"
+}
+
 function resolve_eden_manifest() {
   local pin="$1" coordinate="$2" current="$3"
   if [[ -z "${EDEN_MANIFEST_READ:-}" ]]; then
@@ -429,11 +535,12 @@ function resolve_eden_manifest() {
     fail_pin "$pin" "the eden-manifest coordinate is '${coordinate}', and the shape it reads is <owner/repo>:<path>"
   fi
 
-  local document value
-  document="$(fetch_document "$pin" "https://api.github.com/repos/${repository}/contents/${path}" \
+  local document row value
+  capture document fetch_document "$pin" "https://api.github.com/repos/${repository}/contents/${path}" \
     "Accept: application/vnd.github.raw" \
-    "Authorization: Bearer ${EDEN_MANIFEST_READ}")"
-  value="$(declaration_value "$(awk -v name="$pin" '$0 ~ ("^" name "=") { print; exit }' <<< "$document")")"
+    "Authorization: Bearer ${EDEN_MANIFEST_READ}"
+  capture row eden_manifest_row "$pin" "$document"
+  capture value declaration_value "$row"
   if [[ -z "$value" ]]; then
     fail_pin "$pin" "${coordinate} declares no ${pin}, so there is nothing to mirror"
   fi
@@ -457,6 +564,7 @@ function governed_files() {
       printf '%s\n' "$component"
     fi
   done
+  return 0
 }
 
 # asset_record <pin> — `<digest pin>|<url>|<case arm>` for the download whose
@@ -476,6 +584,7 @@ function asset_record() {
       fi
     done <<< "$(fetch_urls "$file")"
   done <<< "$(governed_files)"
+  return 0
 }
 
 # scope_value <case arm> <name> — the value the `linux/amd64)` arm gives a
@@ -567,34 +676,37 @@ function reprove_digest() {
 # a version.
 function resolve_pin() {
   local pin="$1"
-  local row
-  row="$(table_row "$pin")"
+  local row=""
+  capture row table_row "$pin"
   if [[ -z "$row" ]]; then
     fail_pin "$pin" "no row of ${UPSTREAM_TABLE_RELATIVE} names it, so nothing says where its next value comes from"
   fi
 
-  local datasource coordinate reason current
-  datasource="$(row_field "$row" 2)"
-  coordinate="$(row_field "$row" 3)"
-  reason="$(row_field "$row" 4)"
-  current="$(pin_value "$UPSTREAM_ROOT" "$pin")"
+  local datasource="" coordinate="" reason="" current=""
+  capture datasource row_field "$row" 2
+  capture coordinate row_field "$row" 3
+  capture reason row_field "$row" 4
+  capture current pin_value "$UPSTREAM_ROOT" "$pin"
   if [[ -z "$current" ]]; then
     fail_pin "$pin" "no value home under ${UPSTREAM_ROOT} declares it, so there is no value to replace"
   fi
 
-  local version
+  # Every arm goes through `capture`: the datasource runs in a subshell, and a
+  # subshell that died has to end this pin rather than hand back an empty
+  # version that reads like a resolution.
+  local version=""
   case "$datasource" in
-    github-release)   version="$(resolve_github_release   "$pin" "$coordinate" "$current")" ;;
-    pypi)             version="$(resolve_pypi             "$pin" "$coordinate" "$current")" ;;
-    npm)              version="$(resolve_npm              "$pin" "$coordinate" "$current")" ;;
-    apt)              version="$(resolve_apt              "$pin" "$coordinate" "$current")" ;;
-    go-dl)            version="$(resolve_go_dl            "$pin" "$coordinate" "$current")" ;;
-    node-dist)        version="$(resolve_node_dist        "$pin" "$coordinate" "$current")" ;;
-    oci-index)        version="$(resolve_oci_index        "$pin" "$coordinate")" ;;
-    k8s-dl)           version="$(resolve_k8s_dl           "$pin" "$coordinate" "$current")" ;;
-    tailscale-pkgs)   version="$(resolve_tailscale_pkgs   "$pin" "$coordinate" "$current")" ;;
-    flutter-releases) version="$(resolve_flutter_releases "$pin" "$coordinate" "$current")" ;;
-    eden-manifest)    version="$(resolve_eden_manifest    "$pin" "$coordinate" "$current")" ;;
+    github-release)   capture version resolve_github_release   "$pin" "$coordinate" "$current" ;;
+    pypi)             capture version resolve_pypi             "$pin" "$coordinate" "$current" ;;
+    npm)              capture version resolve_npm              "$pin" "$coordinate" "$current" ;;
+    apt)              capture version resolve_apt              "$pin" "$coordinate" "$current" ;;
+    go-dl)            capture version resolve_go_dl            "$pin" "$coordinate" "$current" ;;
+    node-dist)        capture version resolve_node_dist        "$pin" "$coordinate" "$current" ;;
+    oci-index)        capture version resolve_oci_index        "$pin" "$coordinate" ;;
+    k8s-dl)           capture version resolve_k8s_dl           "$pin" "$coordinate" "$current" ;;
+    tailscale-pkgs)   capture version resolve_tailscale_pkgs   "$pin" "$coordinate" "$current" ;;
+    flutter-releases) capture version resolve_flutter_releases "$pin" "$coordinate" "$current" ;;
+    eden-manifest)    capture version resolve_eden_manifest    "$pin" "$coordinate" "$current" ;;
     no-autobump)
       fail_pin "$pin" "its row resolves nothing, and states why: ${reason}"
       ;;
@@ -607,53 +719,100 @@ function resolve_pin() {
   fi
 
   local digest="$NO_DIGEST"
-  local record url
-  record="$(asset_record "$pin")"
+  local record="" url=""
+  capture record asset_record "$pin"
   if [[ -n "$record" ]]; then
     url="${record#*|}"
     url="${url%%|*}"
-    url="$(expand_url "$pin" "$version" "$url" "${record##*|}")"
-    digest="$(digest_of "$pin" "$url")"
+    capture url expand_url "$pin" "$version" "$url" "${record##*|}"
+    capture digest digest_of "$pin" "$url"
     reprove_digest "$pin" "$url" "$digest"
   fi
 
   printf '%s|%s\n' "$version" "$digest"
 }
 
-# collect_bumps — `<pin>|<old>|<new>|<digest>` for every pin that moved, 1 per
-# line. A row that resolves nothing is skipped BEFORE the resolver is called, so
-# the reason its row states is honoured rather than being a comment.
+# collect_bumps <movers file> <failures file> — resolve EVERY row, and separate
+# what moved from what could not be read.
+#
+#   <movers file>    `<pin>|<old>|<new>|<digest>`, 1 line per pin that moved
+#   <failures file>  the name of every pin whose upstream this run could not
+#                    read. Its message is already on stderr, printed at the
+#                    moment it happened.
+#
+#   exit 0        every row resolved
+#   exit non-zero at least 1 did, and the failures file names them
+#
+# 2 files and a status, rather than 1 stream: a caller that read movers and
+# failures out of the same stdout would have to tell them apart by shape, and
+# the whole point of this function is that a failure can never be read as a
+# bump. A row that resolves nothing is skipped BEFORE the resolver is called, so
+# the reason its no-autobump row states is honoured rather than being a comment.
+#
+# The status of each resolution is CAPTURED. `record="$(resolve_pin "$pin")"`
+# under `set -e` + `inherit_errexit` would end this loop at the first bad row,
+# which is the abort-at-row-1 design this file rejects at the top.
 function collect_bumps() {
-  local row pin datasource current record version digest
+  local movers_file="$1" failures_file="$2"
+  : > "$movers_file"
+  : > "$failures_file"
+  local row pin datasource current record version digest status
   while IFS= read -r row; do
     [[ -z "$row" ]] && continue
     pin="${row%%|*}"
     datasource="$(row_field "$row" 2)"
     [[ "$datasource" == "no-autobump" ]] && continue
     current="$(pin_value "$UPSTREAM_ROOT" "$pin")"
-    record="$(resolve_pin "$pin")"
+    status=0
+    record="$(resolve_pin "$pin")" || status=$?
+    if [[ "$status" -ne 0 ]]; then
+      printf '%s\n' "$pin" >> "$failures_file"
+      continue
+    fi
     version="${record%%|*}"
     digest="${record#*|}"
     if [[ "$version" != "$current" ]]; then
-      printf '%s|%s|%s|%s\n' "$pin" "$current" "$version" "$digest"
+      printf '%s|%s|%s|%s\n' "$pin" "$current" "$version" "$digest" >> "$movers_file"
     fi
   done <<< "$(table_rows)"
+  [[ ! -s "$failures_file" ]]
+}
+
+# bump_lines <bumps> — the mover report, 1 line per pin. It is printed on the
+# failure path too: 1 dead coordinate must not hide the bumps behind it.
+function bump_lines() {
+  local bump
+  while IFS= read -r bump; do
+    [[ -z "$bump" ]] && continue
+    printf 'bump: %s %s -> %s\n' \
+      "$(row_field "$bump" 1)" "$(row_field "$bump" 2)" "$(row_field "$bump" 3)"
+  done <<< "$1"
+  return 0
+}
+
+# report_failures <failures file> — name every pin this run could not read, and
+# say what was NOT done about it.
+function report_failures() {
+  local failures_file="$1" total pin
+  total="$(awk 'NF { total++ } END { print total + 0 }' "$failures_file")"
+  log_error "the weekly resolution could not read ${total} upstream(s):"
+  while IFS= read -r pin; do
+    [[ -z "$pin" ]] && continue
+    log_error "  ${pin}"
+  done < "$failures_file"
+  log_error "nothing was written and no pull request is composed: a run that bumped the pins"
+  log_error "it happened to reach would let the absence of the others read as 'nothing moved'"
+  log_error "each message above names the pin it belongs to; fix the row or the upstream"
 }
 
 # pull_request <bumps> — the pull request the caller would open, on stdout.
 function pull_request() {
   local bumps="$1"
-  local today total bump pin old new
+  local today total bump
   today="$(date +%Y-%m-%d)"
   total="$(awk 'NF { total++ } END { print total + 0 }' <<< "$bumps")"
 
-  while IFS= read -r bump; do
-    [[ -z "$bump" ]] && continue
-    pin="$(row_field "$bump" 1)"
-    old="$(row_field "$bump" 2)"
-    new="$(row_field "$bump" 3)"
-    printf 'bump: %s %s -> %s\n' "$pin" "$old" "$new"
-  done <<< "$bumps"
+  bump_lines "$bumps"
 
   printf 'branch: ci/weekly-bumps-%s\n' "$today"
   if [[ "$total" -eq 1 ]]; then
@@ -668,17 +827,43 @@ function pull_request() {
     printf -- '- %s: %s -> %s\n' "$(row_field "$bump" 1)" "$(row_field "$bump" 2)" "$(row_field "$bump" 3)"
   done <<< "$bumps"
   printf '\n'
-  printf 'Each version and the sha256 beside it were read from the same fetch, and every\n'
-  printf 'digest was re-proven through _build/fetch-verified.sh before this branch was\n'
-  printf 'written. Every home of each pin was edited, so the cloud family and the base\n'
-  printf 'family move together.\n\n'
+  printf 'Every sha256 above is the digest of the asset for the version beside it, read\n'
+  printf 'from that release and re-proven through _build/fetch-verified.sh before this\n'
+  printf 'branch was written. Every home of each pin was edited, so the cloud family and\n'
+  printf 'the base family move together. Every row of the table resolved: a run with one\n'
+  printf 'unreadable upstream writes nothing and opens nothing.\n\n'
   printf 'This pull request merges the way every other one does: validate, review,\n'
   printf 'build-smoke, and a human.\n'
 }
 
+# collected_bumps <movers file> <failures file> — resolve everything, report
+# every failure, and return the run's verdict. Both callers below start here, so
+# the verdict is known BEFORE either of them writes or composes anything.
+function collected_bumps() {
+  local movers_file="$1" failures_file="$2"
+  local status=0
+  collect_bumps "$movers_file" "$failures_file" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    # The movers first: the reader of a red Monday still needs to know what WOULD
+    # have moved, or 1 dead coordinate reads like a quiet week.
+    bump_lines "$(cat "$movers_file")"
+    report_failures "$failures_file"
+  fi
+  return "$status"
+}
+
 function dry_run() {
+  local movers failures status=0
+  movers="$(mktemp)"
+  failures="$(mktemp)"
+  collected_bumps "$movers" "$failures" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    rm -f "$movers" "$failures"
+    return "$status"
+  fi
   local bumps
-  bumps="$(collect_bumps)"
+  bumps="$(cat "$movers")"
+  rm -f "$movers" "$failures"
   if [[ -z "$bumps" ]]; then
     printf 'no pin moved\n'
     return 0
@@ -687,8 +872,19 @@ function dry_run() {
 }
 
 function apply_bumps() {
-  local bumps bump pin new digest evidence today
-  bumps="$(collect_bumps)"
+  local movers failures status=0
+  movers="$(mktemp)"
+  failures="$(mktemp)"
+  collected_bumps "$movers" "$failures" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    rm -f "$movers" "$failures"
+    return "$status"
+  fi
+  local bumps
+  bumps="$(cat "$movers")"
+  rm -f "$movers" "$failures"
+
+  local bump pin new digest evidence today
   if [[ -z "$bumps" ]]; then
     printf 'no pin moved\n'
     return 0

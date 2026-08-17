@@ -366,6 +366,13 @@ function homes_of() {
 }
 
 # pin_value <root> <name> — the value the first home holding <name> declares.
+#
+# The explicit `return 0` at the foot of this function and of digest_row_of is
+# load-bearing for _build/resolve-upstream.sh, which runs under
+# `shopt -s inherit_errexit`: a `for` loop whose last statement was a false test
+# returns 1, that status leaves the command substitution, and the caller dies
+# with no message. "No home declares it" is an ANSWER, and the caller decides
+# what it means.
 function pin_value() {
   local root="$1" name="$2"
   local home
@@ -377,6 +384,7 @@ function pin_value() {
       return 0
     fi
   done
+  return 0
 }
 
 # digest_row_of <root> <name> — the `<tool>_SHA256_<ARCH>` row that sits beside
@@ -409,6 +417,7 @@ function digest_row_of() {
       return 0
     fi
   done
+  return 0
 }
 
 # evidence_of <line> — `upstream-published`, `computed-at-pin` or the empty
