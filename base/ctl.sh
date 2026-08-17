@@ -182,8 +182,20 @@ function cmd_up() {
       --user dev \
       "$IMAGE_REF" sleep infinity >/dev/null
   fi
-  # The mounted host socket is usually root-owned 0660 inside the container; let dev use it.
-  docker exec -u root "$CONTAINER_NAME" sh -c 'chmod 666 /var/run/docker.sock 2>/dev/null || true'
+  # The mounted host socket is usually root-owned 0660 inside the container.
+  # Grant dev the socket's GROUP instead of chmodding it: a chmod through the
+  # bind mount rewrites the HOST inode, and 0666 there is docker for every
+  # local user — a host-wide security change made silently by a dev-loop verb,
+  # which is how it shipped the first time. The grant is loud on failure:
+  # a dev container without docker is FAIL-NOT-SKIP, never a quiet degrade.
+  if ! docker exec -u root "$CONTAINER_NAME" sh -c '
+        gid="$(stat -c %g /var/run/docker.sock)" || exit 1
+        getent group "$gid" >/dev/null || groupadd -g "$gid" -o docker-host || exit 1
+        usermod -aG "$gid" dev'; then
+    log_error "could not grant dev the docker socket group inside '${CONTAINER_NAME}'"
+    log_error "docker from inside the container would fail on permission — fix this, do not chmod the socket"
+    exit 1
+  fi
   # host uid != container uid trips git's dubious-ownership guard on the bind mount.
   docker exec -u root "$CONTAINER_NAME" git config --system --add safe.directory '*' >/dev/null 2>&1 || true
   log_info "running post-create inside '${CONTAINER_NAME}'"
