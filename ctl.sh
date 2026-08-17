@@ -172,6 +172,8 @@ Commands:
   verify-vault-refs Assert every named vault item resolves to EXACTLY one item
   verify-buildx-key Assert the arc-org pool mounts the buildkit client mTLS certs,
                     and that the uid it runs as can read them
+  verify-warmer-pins Assert the image warmer warms the digest the pools pin,
+                    and stays unprivileged
   verify-bw-sync    Assert the bw-serve-sync CronJob is wired to the bridge
   verify-runner-image <repository> <tag>
                     Assert a runner image works in the ARC pod shape
@@ -260,6 +262,13 @@ function cmd_verify_buildx_key() {
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-buildx-key.sh" "$@"
 }
 
+function cmd_verify_warmer_pins() {
+  # Assert the ci-image-warmer's pinned initContainer ref equals the digest
+  # the 3 scale-set files pin (the warmer is a 4th pin home by necessity), and
+  # that no hostPath or privileged flag has returned to the warmer manifests.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-warmer-pins.sh" "$@"
+}
+
 function cmd_verify_bw_sync() {
   # Assert the bw-serve-sync CronJob is actually wired to the bridge: the
   # NetworkPolicy admits its pods on the right port, the URL dials the Service
@@ -289,6 +298,7 @@ function main() {
     verify-vault-refs) cmd_verify_vault_refs "$@" ;;
     verify-buildx-key) cmd_verify_buildx_key "$@" ;;
     verify-bw-sync)  cmd_verify_bw_sync  "$@" ;;
+    verify-warmer-pins) cmd_verify_warmer_pins "$@" ;;
     verify-image-arch)   cmd_verify_image_arch   "$@" ;;
     verify-runner-image) cmd_verify_runner_image "$@" ;;
     verify-runner-queue) cmd_verify_runner_queue "$@" ;;

@@ -1,0 +1,78 @@
+# ci-image-warmer-refresh — the daily rollout restart that makes the warmer
+# re-pull.
+#
+# initContainers pull when a pod STARTS, so without this the warmer would pull
+# once per node boot and :latest would silently age. One restart per UTC day
+# at 03:30 — the old warmer's hour, after the nightly scan window and before
+# the working day — makes every warmer pod re-run its initContainers: the
+# pinned ref is a no-op read, :latest is re-resolved, and a freshly bumped pin
+# is warm before the first job of the day.
+#
+# The pod runs the cloud image the warmer itself keeps hot on these nodes, so
+# the restart costs no pull; the node affinity is what makes that true.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: ci-image-warmer-refresh
+  namespace: arc-runners
+spec:
+  schedule: "30 3 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 2
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: 300
+      backoffLimit: 2
+      template:
+        spec:
+          serviceAccountName: ci-image-warmer-refresher
+          restartPolicy: Never
+          imagePullSecrets:
+            - name: ghcr-pull
+          affinity:
+            nodeAffinity:
+              requiredDuringSchedulingIgnoredDuringExecution:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: NotIn
+                        values: ["k3s-w-4"]
+          volumes:
+            # kubectl writes its discovery cache under $HOME; the root
+            # filesystem is read-only, so HOME points here instead.
+            - name: home
+              emptyDir:
+                sizeLimit: 64Mi
+          containers:
+            - name: restart
+              image: ghcr.io/gophersys/cloud@sha256:9a150cbff74b67f67f69cca1b25a463103cbe8885ba0b7a0f777de42e7f7f7f1
+              imagePullPolicy: IfNotPresent
+              env:
+                - name: HOME
+                  value: /tmp/home
+              volumeMounts:
+                - name: home
+                  mountPath: /tmp/home
+              command:
+                - kubectl
+                - -n
+                - arc-runners
+                - rollout
+                - restart
+                - daemonset/ci-image-warmer
+              securityContext:
+                runAsNonRoot: true
+                runAsUser: 1000
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  memory: 128Mi
