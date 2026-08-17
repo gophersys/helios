@@ -1,6 +1,6 @@
 # arc-build-pool
 
-phase:    red
+phase:    submit
 repo:     gophersys/infrastructure
 branch:   feat/arc-build-pool
 worktree: ~/code/.worktrees/infra-arc-build
@@ -38,9 +38,20 @@ changes, SANCTIONED widening.
 ## Blocked
 (nothing)
 
+## Proven (full round)
+- RED (bd0408c): 3+6 fixture cases, 18 assertion-failures for the right
+  reasons (incl. a 1-arg call DELETING+APPLYING a cluster Job before
+  refusing). GREEN (6 commits to acc1268): 0 failures both suites; all
+  local gates rc=0; validate.yml runs both suites.
+- Cloud digest 9a150cbf... pinned (index) in all 3 pools; verified live:
+  ctl.sh verify-runner-image cloud 997bb6b -> 21/21 in the real pod shape;
+  docker probe proved uid=1000 default (runAsUser:0 = requirement); helm
+  server-side dry-runs clean ×3 (field-manager lesson recorded).
+- test-lint-shell caught the implementer's own live backtick-in-heredoc
+  bug mid-work — the suite fired in anger before ever merging.
+- MERGED ON LOCAL GATES per Mateo's session directive (remote validate
+  confirms post-merge, free on arc-org).
+
 ## Next
-dev-test-author: fixture reds — test-verify-runner-image.sh (the verifier
-reports the repository it was asked about; red while IMAGE_REPO is the
-hardcoded base-runner constant) + the verify-buildx-key mode-vs-user case
-(a runner container without runAsUser:0 + a 0400 root-owned secret = FAIL;
-red while the assertion is absent).
+Argo syncs on merge -> pools restart on cloud. Watch one validate run
+prove the repointed arc-org live. Then PR 2 (.devcontainer).
