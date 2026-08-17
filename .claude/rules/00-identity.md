@@ -49,6 +49,7 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
 └── .github/workflows/
     ├── build-and-push.yml    # publish the images
+    ├── security-nightly.yml  # the nightly trivy scan + the base-OS currency probe
     ├── validate.yml          # the pull request gate: ctl.sh validate + ctl.sh test + BUILD_ORDER
     └── pr-review.yml         # the review agent, shared from gophersys/cictl
 ```
@@ -113,6 +114,71 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
   it can reach neither. The devcontainer ships the pinned version, so a developer
   and CI get the same verdict. Raising the pin is a version change like any
   other, and it may turn new findings red.
+
+## The base OS is pinned by digest
+
+`base/Dockerfile` and `cloud/Dockerfile` build `FROM ubuntu:24.04@${UBUNTU_BASE_REF}`.
+The other 4 Dockerfiles build from an image of this repository, so they inherit
+the pin instead of repeating it.
+
+The reason is the property the whole repository rests on: **the commit decides
+the image.** Under the moving tag, 2 builds of 1 commit produce 2 different
+operating systems, and `verify-published` cannot say which one it read.
+
+- **`UBUNTU_BASE_REF` has 2 pin homes and 1 value**: `versions.env` for the cloud
+  family, and the `ARG` block of `base/Dockerfile` for the base family.
+  `_ctl/tests/scheduled-workflows.test.sh` holds the 2 to the same `sha256:`,
+  and it also holds the digest to 64 hex characters — a truncated digest reads
+  as correct in a diff and dies at `docker build`, after the merge.
+- **The ARG is declared ABOVE the `FROM`.** A `FROM` can interpolate only an ARG
+  declared before it. Below it the expansion is the empty string, the `FROM`
+  becomes `ubuntu:24.04@`, and the build dies in the publish job.
+- **Take the INDEX digest, never a per-platform one.** Resolve it with
+  `docker buildx imagetools inspect ubuntu:24.04 --format '{{.Manifest.Digest}}'`,
+  which reports the digest of the manifest LIST. buildx still has to choose the
+  manifest for the platform it builds; a per-platform digest takes that choice
+  away and pins the wrong thing. The pin of 2026-08-16 was read that way and its
+  `MediaType` was `application/vnd.oci.image.index.v1+json`.
+- **The bump path** is a pull request like any other: read the new digest with
+  the command above, write it into BOTH pin homes with a dated comment, and let
+  the build → smoke → push order settle it. Never a nightly republish — that
+  would move `:latest` with no commit behind it.
+- **A pin that nothing watches is a snapshot that looks current forever**, so the
+  currency reader ships with it. `bash ./ctl.sh base-currency` asks the registry
+  what the tag holds NOW and fails naming BOTH digests when it differs. The body
+  is `require_base_image_current` in `_ctl/lib.sh`, and the nightly runs it every
+  night, so a moved ubuntu digest arrives as an issue rather than as silence.
+
+## Scheduled security scan
+
+`.github/workflows/security-nightly.yml` scans the 6 published images at
+`:latest` every night at 09:00 UTC, and runs the base-OS currency probe above. It
+builds and publishes nothing.
+
+- **CRITICAL fails the run, fixed or unfixed.** The scan sets
+  `--severity CRITICAL --exit-code 1` and **no `--ignore-unfixed`**. HIGH is not
+  gated: its count on these images is unmeasured, and a gate that is red every
+  morning teaches the reader to ignore red. The measurement is 1
+  `workflow_dispatch` run at `HIGH,CRITICAL`.
+- **An unfixed CRITICAL becomes a waiver, never a skip.** Waivers live in
+  `.ci/trivyignore.yaml`, and each entry carries trivy's own 3 fields: `id`,
+  `statement` (WHY it is accepted) and `expired_at` (`yyyy-mm-dd`). Trivy
+  enforces the expiry itself, so a dated waiver reopens on its own. The file is
+  EMPTY at merge, and `_ctl/tests/scheduled-workflows.test.sh` fails an entry
+  missing 1 of the 3. The scan must NAME the file with `--ignorefile`: trivy's
+  YAML ignore file is experimental and is loaded only when its path is given, so
+  an unnamed waiver file is dead text.
+- **A scheduled run has no author watching it.** Every workflow that runs
+  `on: schedule` therefore calls `.ci/notify-failure.sh` from a step guarded by
+  `if: ${{ failure() }}` and declares `issues: write`. That script opens or
+  updates ONE issue labelled `ci-nightly-red` naming the run URL and the jobs
+  that failed, and a green run closes it. The rule in the test file is keyed on
+  the TRIGGER, so a scheduled workflow added tomorrow is covered the day it is
+  added.
+- **`failure()` in a step means "a step of THIS job failed".** The notify job
+  runs under `if: ${{ always() }}`, so it first reduces the verdict of the jobs it
+  needs to its own status. Without that step the notifier would be skipped
+  exactly when it is needed.
 
 ## Sanctioned-platform policy
 
@@ -260,6 +326,7 @@ argv that you supply, so local devcontainer use behaves like the other layers.
 | `verify-published <image> [tag]` | Delegate to per-image `ctl.sh verify-published` |
 | `pull <image>` | Delegate to per-image `ctl.sh pull` |
 | `inspect <image>` | Delegate to per-image `ctl.sh inspect` |
+| `base-currency [reference]` | Assert the registry still holds the digest `UBUNTU_BASE_REF` pins |
 | `list` | Print the managed image refs |
 | `validate` | shellcheck every shell script, jq, hadolint at the pinned version, ARG-discipline checks |
 | `test` | Run every `_ctl/tests/*.test.sh`; fail if it finds none |
@@ -295,6 +362,16 @@ The graph is declared in 4 places. All 4 MUST stay the same:
   on calling them identical. A rule that nothing checks is a rule that drifts:
   `_ctl/tests/platform-policy.test.sh` compares the 2 files with `cmp` now, and
   `bash ./ctl.sh test` runs it in the pull request gate.
+
+That `cmp` covers **every** file of `.ci/providers/github/`, found by a glob, and
+not `build-and-push.yml` alone. The narrow version had the same hole 1 level up:
+a second provider file got no check at all on the day it was added, and
+`security-nightly.yml` is that second file. A glob that stopped matching would be
+a green result that read nothing, so the same test holds a literal list of the
+directory — **add or rename a provider file and you edit
+`EXPECTED_PROVIDER_FILES` in `_ctl/tests/platform-policy.test.sh` in the same
+change.** The direction is provider → workflow: `validate.yml` and `pr-review.yml`
+are provider-native and have no source-of-truth copy.
 
 ## Why the `+ runner` layer exists
 
