@@ -173,12 +173,18 @@ EXPECTED_JOBS=(
 # The publishing jobs that run NO smoke step today. Every entry is a defect, not
 # an exception — see .ci/README.md, "Which images CI smokes". Delete an entry
 # the moment its job gains a smoke step; the ratchet below fails if you do not.
-UNSMOKED_TODAY=(
-  "base"
-  "flutter"
-  "zephyr"
-  "zephyr-devbox"
-)
+#
+# The list is EMPTY, and the 4 names that were here are the work of smoke-v2:
+# base, flutter, zephyr and zephyr-devbox. Each one publishes with 1 `push: true`
+# step and asserts nothing about the image it ships. The list is emptied FIRST,
+# so check 2d reports those 4 jobs in both copies of the workflow until each job
+# builds with `push: false` + `load: true`, smokes the loaded image, and then
+# publishes from the cache — the shape base-runner and cloud already use.
+#
+# The array stays declared while it is empty. It is the ratchet, and check 2e
+# reads it in the other direction: a name that returns here has to be a visible
+# line in a diff.
+UNSMOKED_TODAY=()
 
 # The counter-stimulus. A detector that has only ever seen correct input has
 # never been observed to fire.
@@ -206,7 +212,9 @@ FIXTURE="$TESTS_DIR/fixtures/publish-order/build-and-push.yml"
 # naming .ci/smoke.sh so this is watched rather than assumed.
 function step_flag() {
   local slice="$1" pattern="$2"
-  if printf '%s\n' "$slice" | sed -e '/^[[:space:]]*#/d' | grep -qE -- "$pattern"; then
+  local uncommented=""
+  uncommented="$(sed -e '/^[[:space:]]*#/d' <<< "$slice")"
+  if grep -qE -- "$pattern" <<< "$uncommented"; then
     printf '1'
   else
     printf '0'
@@ -625,7 +633,9 @@ for relative in "${WORKFLOWS[@]}"; do
   while IFS= read -r job; do
     [[ -z "$job" ]] && continue
     known=0
-    for debt in "${UNSMOKED_TODAY[@]}"; do
+    # `${a[@]+"${a[@]}"}` and not `"${a[@]}"`: bash 3.2 reads an EMPTY array as an
+    # unbound variable under `set -u`, and the file runs on the mac host too.
+    for debt in ${UNSMOKED_TODAY[@]+"${UNSMOKED_TODAY[@]}"}; do
       if [[ "$debt" == "$job" ]]; then
         known=1
       fi
@@ -647,7 +657,7 @@ for relative in "${WORKFLOWS[@]}"; do
 
   # 2e. the ratchet. The debt list must shrink, and it must never be stale.
   stale=""
-  for debt in "${UNSMOKED_TODAY[@]}"; do
+  for debt in ${UNSMOKED_TODAY[@]+"${UNSMOKED_TODAY[@]}"}; do
     still_owed=0
     while IFS= read -r job; do
       if [[ "$job" == "$debt" ]]; then

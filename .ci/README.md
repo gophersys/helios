@@ -11,7 +11,10 @@ them. It is the only entrypoint that should appear in a CI pipeline YAML.
 ```
 .ci/
 ├── ctl.sh              bash orchestration (validate/build/push/smoke across all images)
-├── smoke.sh            post-build smoke test — image arg + optional ref; 1 sanctioned platform, native when it can
+├── smoke.sh            the HOST driver — classifies every pin, resolves it, drives 1 docker run
+├── image-checks.sh     the GUEST checks — the comparator + the functional groups
+├── fixtures/           what the functional checks read: a Go module, a Dockerfile,
+│                       a compose file, a proto and its buf module
 ├── project.json        Nx wrappers around each ctl.sh verb (ci-.devcontainer-*)
 ├── README.md           this file
 └── providers/          CI-system shim YAMLs — source of truth for each provider
@@ -19,6 +22,16 @@ them. It is the only entrypoint that should appear in a CI pipeline YAML.
     └── github/
         └── build-and-push.yml   ← a copy of .github/workflows/build-and-push.yml
 ```
+
+`smoke.sh` and `image-checks.sh` are 2 files because a pin lives on the HOST and
+a tool lives in the IMAGE. The driver reads `versions.env` (the cloud family) or
+the ARGs at the top of `base/Dockerfile` (the base family), classifies every pin
+`asserted` / `not-a-version` / `not-in-this-image`, and sends the guest file, the
+fixtures and the assertion table into the container in 1 stdin stream. The guest
+compares what each tool REPORTS against the pin, then exercises the gate-critical
+tools on the fixtures. `image-checks.sh` also runs on a host against a stub PATH,
+which is how `_ctl/tests/guest-checks.test.sh` tests the comparator at pull
+request time.
 
 The provider file is a **copy**, not a symlink, and the 2 must stay byte-for-byte
 identical. They have drifted twice. `_ctl/tests/platform-policy.test.sh` compares
@@ -43,23 +56,21 @@ bash .ci/ctl.sh <verb>
 
 ## Which images CI smokes
 
-`smoke-test-all` runs `smoke.sh` against every image. **No workflow calls it.**
-`.github/workflows/build-and-push.yml` runs `smoke.sh` in exactly 1 job, and it
-is the `base-runner` job:
+**All 6.** Every job of `.github/workflows/build-and-push.yml` has the same
+shape, and the order is the property:
 
 ```
-bash .ci/smoke.sh base-runner base-runner:smoke
+build with push: false + load: true   →   bash .ci/smoke.sh <image> <image>:smoke   →   push from the cache
 ```
 
-That job builds the image with `push: false` + `load: true` first, so the ref
-above is the LOADED local image and the check runs **before** anything reaches
-ghcr.io. The publish step comes after it, from the same cache.
+The ref the smoke runs is the LOADED local image, so the check happens **before**
+anything reaches ghcr.io. A push cannot be undone and no job here rolls one back,
+which is why a check that runs after it reports a broken image but cannot stop
+one from reaching a consumer. `_ctl/tests/publish-order.test.sh` holds that order
+in the pull request gate, for both copies of the workflow.
 
-So `base`, `flutter`, `zephyr` and `zephyr-devbox` publish with nothing that
-asserts their content. Each of them inherits its tools from `base`, and the
-`SMOKE_BASE` block does apply the same checks to them, but no job runs that
-block for them. Read a green publish of those 4 images as "the image built",
-never as "the image was checked".
+`smoke-test-all` runs `smoke.sh` against every image in 1 command, for a local
+loop. No workflow calls it: each job smokes the image it just built.
 
 ## Nx integration
 

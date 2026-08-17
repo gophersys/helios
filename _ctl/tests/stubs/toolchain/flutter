@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/toolchain/flutter — the stub SDK for the content-flutter
+# group, which is the content group these tests drive.
+#
+#   STUB_FAIL_FLUTTER   exit 1 instead of answering   (unset)
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+if [[ "${STUB_FAIL_FLUTTER:-}" == "1" ]]; then
+  printf 'stub flutter: this run was told to fail (STUB_FAIL_FLUTTER)\n' >&2
+  exit 1
+fi
+
+printf 'Flutter 3.35.0 • channel stable\n'
+exit 0

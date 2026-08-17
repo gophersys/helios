@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/toolchain/grpcurl — the stub gRPC client for the protocols
+# group.
+#
+# The group reads the LIST and not only the status: it demands the service the
+# fixture proto declares. So the passing answer names it.
+#
+#   STUB_FAIL_GRPCURL   exit 1 instead of listing   (unset)
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+if [[ "${STUB_FAIL_GRPCURL:-}" == "1" ]]; then
+  printf 'stub grpcurl: this read was told to fail (STUB_FAIL_GRPCURL)\n' >&2
+  exit 1
+fi
+
+printf 'smoke.v1.EchoService\n'
+exit 0

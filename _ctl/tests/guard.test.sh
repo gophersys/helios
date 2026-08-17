@@ -84,7 +84,7 @@ function assert_refused_naming() {
     fail_check "$name" \
       "want: a non-zero exit status, with a message naming ${needle}" \
       "got:  0 — the push was accepted" "$@" "output was:" "$RUN_OUTPUT"
-  elif ! printf '%s' "$RUN_OUTPUT" | grep -qF -- "$needle"; then
+  elif ! grep -qF -- "$needle" <<< "$RUN_OUTPUT"; then
     fail_check "$name" \
       "the push was refused with status ${RUN_STATUS}, but the message never names ${needle}" \
       "$@" "output was:" "$RUN_OUTPUT"

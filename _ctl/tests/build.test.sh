@@ -81,12 +81,12 @@ function assert_refused_without_building() {
       "got:  0 — the build was accepted" "$@" \
       "docker was called with:" "${RUN_ARGV:-<no docker invocation>}" \
       "output was:" "$RUN_OUTPUT"
-  elif ! printf '%s' "$RUN_OUTPUT" | grep -qF -- "$needle"; then
+  elif ! grep -qF -- "$needle" <<< "$RUN_OUTPUT"; then
     fail_check "$name" \
       "the build exited ${RUN_STATUS}, but the message never names ${needle}" "$@" \
       "docker was called with:" "${RUN_ARGV:-<no docker invocation>}" \
       "output was:" "$RUN_OUTPUT"
-  elif printf '%s' "$RUN_ARGV" | grep -q '^docker build'; then
+  elif grep -q '^docker build' <<< "$RUN_ARGV"; then
     fail_check "$name" \
       "the build exited ${RUN_STATUS} and said the right thing, but it had ALREADY built:" \
       "$RUN_ARGV" "$@" \

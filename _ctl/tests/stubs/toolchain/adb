@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/toolchain/adb — the stub Android bridge for the
+# content-flutter group.
+#
+#   STUB_FAIL_ADB   exit 1 instead of answering   (unset)
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+if [[ "${STUB_FAIL_ADB:-}" == "1" ]]; then
+  printf 'stub adb: this run was told to fail (STUB_FAIL_ADB)\n' >&2
+  exit 1
+fi
+
+printf 'Android Debug Bridge version 1.0.41\n'
+exit 0

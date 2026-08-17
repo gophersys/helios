@@ -22,6 +22,22 @@
 #   STUB_MANIFEST_ERROR         stderr text when that status is non-zero
 #   STUB_MANIFEST_JSON          file whose contents the manifest readers print
 #
+# The smoke path, which drives a container instead of a builder:
+#
+#   STUB_VERSION_STATUS         exit status of `docker version`          (0)
+#   STUB_DAEMON_PLATFORM        what `docker version --format` answers   (linux/amd64)
+#   STUB_IMAGE_INSPECT_STATUS   exit status of `docker image inspect`    (0)
+#   STUB_IMAGE_PLATFORM         the Os/Architecture of the stored image  (linux/amd64)
+#   STUB_IMAGE_SIZE             the Size of the stored image, in bytes   (4000000000)
+#   STUB_PULL_STATUS            exit status of `docker pull`             (0)
+#   STUB_RUN_STATUS             exit status of `docker run`              (0)
+#   STUB_DOCKER_STDIN           write the stdin of `docker run` to this file
+#
+# STUB_DOCKER_STDIN is the one that matters for the smoke contract. The host
+# driver feeds the guest script to the container on stdin, so the payload is
+# invisible in the argv, and a test that read the argv alone would assert
+# nothing about what the container was told to check.
+#
 set -Eeuo pipefail
 IFS=$'\n\t'
 
@@ -30,6 +46,22 @@ if [[ -n "${STUB_DOCKER_LOG:-}" ]]; then
   # would join the argv with a newline and log 1 word per line.
   ( IFS=' '; printf 'docker %s\n' "$*" >> "$STUB_DOCKER_LOG" )
 fi
+
+# stub_format <argv...> — the value of the `--format` argument, empty when the
+# argv carries none. The answer of `inspect` depends on the template it is
+# given, so the stub has to read the template rather than guess.
+function stub_format() {
+  local previous=""
+  local argument
+  for argument in "$@"; do
+    if [[ "$previous" == "--format" ]]; then
+      printf '%s' "$argument"
+      return 0
+    fi
+    previous="$argument"
+  done
+  printf ''
+}
 
 # The 2 ways a script can read a published manifest. Both are modelled, so a
 # test asserts the BEHAVIOUR of a verb and not the client command it picked.
@@ -96,6 +128,51 @@ case "${1:-}" in
     fi
     printf 'stub docker: unhandled manifest subcommand: %s\n' "${2:-}" >&2
     exit 64
+    ;;
+  version)
+    if [[ "${STUB_VERSION_STATUS:-0}" -ne 0 ]]; then
+      printf 'stub: the daemon did not answer\n' >&2
+      exit "${STUB_VERSION_STATUS}"
+    fi
+    printf '%s\n' "${STUB_DAEMON_PLATFORM:-linux/amd64}"
+    exit 0
+    ;;
+  image)
+    if [[ "${2:-}" == "inspect" ]]; then
+      if [[ "${STUB_IMAGE_INSPECT_STATUS:-0}" -ne 0 ]]; then
+        printf 'Error: No such image\n' >&2
+        exit "${STUB_IMAGE_INSPECT_STATUS}"
+      fi
+      STUB_TEMPLATE="$(stub_format "$@")"
+      case "$STUB_TEMPLATE" in
+        *Size*)         printf '%s\n' "${STUB_IMAGE_SIZE:-4000000000}" ;;
+        *Architecture*) printf '%s\n' "${STUB_IMAGE_PLATFORM:-linux/amd64}" ;;
+        *)
+          printf 'stub docker: unhandled image inspect format: %s\n' "${STUB_TEMPLATE}" >&2
+          exit 64
+          ;;
+      esac
+      exit 0
+    fi
+    printf 'stub docker: unhandled image subcommand: %s\n' "${2:-}" >&2
+    exit 64
+    ;;
+  pull)
+    if [[ "${STUB_PULL_STATUS:-0}" -ne 0 ]]; then
+      printf 'stub: the pull failed\n' >&2
+      exit "${STUB_PULL_STATUS}"
+    fi
+    printf 'stub: docker pull — no registry was contacted\n'
+    exit 0
+    ;;
+  run)
+    # The payload the host driver sends to the guest. It is kept whole, because
+    # a test asserts on the TEXT the container would run.
+    if [[ -n "${STUB_DOCKER_STDIN:-}" ]]; then
+      cat > "$STUB_DOCKER_STDIN"
+    fi
+    printf 'stub: docker run — no container was started\n'
+    exit "${STUB_RUN_STATUS:-0}"
     ;;
   *)
     printf 'stub docker: unhandled subcommand: %s\n' "${1:-}" >&2

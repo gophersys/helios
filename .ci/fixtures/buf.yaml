@@ -1,0 +1,5 @@
+# The module buf builds. echo.proto sits beside this file, so the module is
+# the fixture directory itself.
+version: v2
+modules:
+  - path: .
