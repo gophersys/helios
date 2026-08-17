@@ -22,6 +22,24 @@
 #   STUB_MANIFEST_ERROR         stderr text when that status is non-zero
 #   STUB_MANIFEST_JSON          file whose contents the manifest readers print
 #
+# The currency path, which asks "what digest does this tag hold NOW":
+#
+#   STUB_REGISTRY_DIGEST        the digest the stub registry holds for the tag
+#   STUB_REGISTRY_REFERENCE     the tag it holds it for      (ubuntu:24.04)
+#
+# 3 clients can answer that question and the stub models all 3, so a reader is
+# judged on the digest it PRINTS and not on the command it picked:
+#
+#   docker buildx imagetools inspect <ref> --format '{{.Manifest.Digest}}'
+#   docker buildx imagetools inspect <ref>          (the Digest: line of the block)
+#   docker manifest inspect -v <ref>                (.Descriptor.digest)
+#   docker pull <ref> && docker image inspect --format '{{index .RepoDigests 0}}'
+#
+# Every one of them stays inside STUB_MANIFEST_STATUS, so a registry read that
+# FAILS is as testable as one that succeeds. A reader that answers a digest on a
+# failed read is the defect worth catching: it would report the base OS as
+# current on a night when nothing could be read at all.
+#
 # The smoke path, which drives a container instead of a builder:
 #
 #   STUB_VERSION_STATUS         exit status of `docker version`          (0)
@@ -63,20 +81,62 @@ function stub_format() {
   printf ''
 }
 
-# The 2 ways a script can read a published manifest. Both are modelled, so a
-# test asserts the BEHAVIOUR of a verb and not the client command it picked.
-function stub_manifest() {
+# stub_registry_read_failed — the 1 gate every registry reader passes through.
+# Called before any of them answers, so no client shape can report a digest on a
+# read that did not happen.
+function stub_registry_read_failed() {
   local status="${STUB_MANIFEST_STATUS:-0}"
   if [[ "$status" -ne 0 ]]; then
     printf '%s\n' "${STUB_MANIFEST_ERROR:-stub: the manifest read failed}" >&2
     exit "$status"
   fi
-  if [[ -z "${STUB_MANIFEST_JSON:-}" ]]; then
-    printf 'stub docker: STUB_MANIFEST_JSON is not set\n' >&2
-    exit 64
+}
+
+# `docker buildx imagetools inspect`. --raw hands back the manifest document,
+# which is what verify-published reads; a --format naming a digest, or no
+# argument at all, is the currency read.
+function stub_imagetools_inspect() {
+  stub_registry_read_failed
+  local template
+  template="$(stub_format "$@")"
+  case "$template" in
+    *Digest*|*digest*)
+      if [[ -z "${STUB_REGISTRY_DIGEST:-}" ]]; then
+        printf 'stub docker: a digest was asked for and STUB_REGISTRY_DIGEST is not set\n' >&2
+        exit 64
+      fi
+      printf '%s\n' "$STUB_REGISTRY_DIGEST"
+      exit 0
+      ;;
+  esac
+  if [[ -n "${STUB_MANIFEST_JSON:-}" ]]; then
+    cat "$STUB_MANIFEST_JSON"
+    exit 0
   fi
-  cat "$STUB_MANIFEST_JSON"
-  exit 0
+  if [[ -n "${STUB_REGISTRY_DIGEST:-}" ]]; then
+    printf 'Name:      docker.io/library/%s\n' "${STUB_REGISTRY_REFERENCE:-ubuntu:24.04}"
+    printf 'MediaType: application/vnd.oci.image.index.v1+json\n'
+    printf 'Digest:    %s\n' "$STUB_REGISTRY_DIGEST"
+    exit 0
+  fi
+  printf 'stub docker: neither STUB_MANIFEST_JSON nor STUB_REGISTRY_DIGEST is set\n' >&2
+  exit 64
+}
+
+# `docker manifest inspect`. -v carries the descriptor, so the digest reader
+# gets a document jq can walk; without a document to print, the stub says so.
+function stub_manifest() {
+  stub_registry_read_failed
+  if [[ -n "${STUB_MANIFEST_JSON:-}" ]]; then
+    cat "$STUB_MANIFEST_JSON"
+    exit 0
+  fi
+  if [[ -n "${STUB_REGISTRY_DIGEST:-}" ]]; then
+    printf '{"Descriptor":{"digest":"%s"}}\n' "$STUB_REGISTRY_DIGEST"
+    exit 0
+  fi
+  printf 'stub docker: STUB_MANIFEST_JSON is not set\n' >&2
+  exit 64
 }
 
 case "${1:-}" in
@@ -107,7 +167,7 @@ case "${1:-}" in
         ;;
       imagetools)
         if [[ "${3:-}" == "inspect" ]]; then
-          stub_manifest
+          stub_imagetools_inspect "$@"
         fi
         printf 'stub docker: unhandled buildx imagetools subcommand: %s\n' "${3:-}" >&2
         exit 64
@@ -124,7 +184,7 @@ case "${1:-}" in
     ;;
   manifest)
     if [[ "${2:-}" == "inspect" ]]; then
-      stub_manifest
+      stub_manifest "$@"
     fi
     printf 'stub docker: unhandled manifest subcommand: %s\n' "${2:-}" >&2
     exit 64
@@ -147,6 +207,13 @@ case "${1:-}" in
       case "$STUB_TEMPLATE" in
         *Size*)         printf '%s\n' "${STUB_IMAGE_SIZE:-4000000000}" ;;
         *Architecture*) printf '%s\n' "${STUB_IMAGE_PLATFORM:-linux/amd64}" ;;
+        *RepoDigests*)
+          if [[ -z "${STUB_REGISTRY_DIGEST:-}" ]]; then
+            printf 'stub docker: a digest was asked for and STUB_REGISTRY_DIGEST is not set\n' >&2
+            exit 64
+          fi
+          printf '%s@%s\n' "${STUB_REGISTRY_REFERENCE:-ubuntu:24.04}" "$STUB_REGISTRY_DIGEST"
+          ;;
         *)
           printf 'stub docker: unhandled image inspect format: %s\n' "${STUB_TEMPLATE}" >&2
           exit 64

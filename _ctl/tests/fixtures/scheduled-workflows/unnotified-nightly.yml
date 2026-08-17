@@ -1,0 +1,26 @@
+name: fixture-unnotified-nightly
+
+# A FIXTURE, not a workflow. See good-nightly.yml.
+#
+# The defect this shape carries: a workflow that runs on a schedule, fails at
+# 03:00, and tells nobody. Nobody is watching a scheduled run, so its red is a
+# red nobody reads. It also declares no `issues: write`, so even a notifier that
+# was added later could not file anything.
+
+on:
+  schedule:
+    - cron: "0 4 * * *"
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan the published image
+        run: |
+          trivy image --severity CRITICAL --exit-code 1 \
+            --ignorefile .ci/trivyignore.yaml \
+            ghcr.io/gophersys/base:latest

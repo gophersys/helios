@@ -81,7 +81,29 @@ FORBIDDEN_TOKENS=(
 )
 
 WORKFLOW="$REPO_ROOT/.github/workflows/build-and-push.yml"
-PROVIDER="$REPO_ROOT/.ci/providers/github/build-and-push.yml"
+
+# The provider directory is the SOURCE OF TRUTH for the GitHub provider, and
+# .github/workflows/ holds a copy of each of its files (.ci/providers/README.md).
+# Every file here is compared with its twin, and not build-and-push.yml alone:
+# that narrow rule left a second provider file with no check at all the day one
+# was added, which is how the first copy became an old copy listing 3 images.
+#
+# The direction is provider -> workflow. .github/workflows/ may hold a file that
+# the provider directory does not — validate.yml and pr-review.yml are both
+# provider-native and have no source-of-truth copy — so the reverse direction is
+# not a rule here.
+PROVIDER_DIRECTORY=".ci/providers/github"
+WORKFLOW_DIRECTORY=".github/workflows"
+
+# What that directory holds, as a literal. The comparison below is discovered by
+# a glob, so a file added tomorrow is compared with no edit here — and a glob
+# that matched nothing would leave a green result that read no file at all. This
+# list is what makes the set non-empty, and it is the 1 line to edit when a
+# provider file is added or renamed.
+EXPECTED_PROVIDER_FILES=(
+  "build-and-push.yml"
+  "security-nightly.yml"
+)
 
 printf '=== RUN  %s\n' "$TEST_NAME"
 
@@ -129,26 +151,74 @@ else
   done <<< "$platform_lines"
 fi
 
-# -------- 3. the provider copy is byte-identical to the workflow --------
-# This clause is red today for a reason this feature did not cause. The 2 files
-# drifted in commit d9089b2, which added 5 `timeout-minutes: 90` blocks to the
-# workflow and to neither copy of the provider file, while
-# .claude/rules/00-identity.md calls them identical byte for byte. Nothing
-# checked it, so nothing said so. This is the check.
-cmp_status=0
-cmp_message=""
-cmp_message="$(cmp "$PROVIDER" "$WORKFLOW" 2>&1)" || cmp_status=$?
-if [[ "$cmp_status" -eq 0 ]]; then
-  pass_check "provider_copy_is_byte_identical_to_the_workflow"
+# -------- 3. EVERY provider copy is byte-identical to its workflow --------
+# The 2 build-and-push.yml files drifted in commit d9089b2, which added 5
+# `timeout-minutes: 90` blocks to the workflow and to neither copy of the
+# provider file, while .claude/rules/00-identity.md called them identical byte
+# for byte. Nothing checked it, so nothing said so.
+#
+# The rule now covers every file of the provider directory rather than that 1
+# pair. The narrow version had the same hole one level up: a second provider
+# file got no check on the day it was added, and .ci/providers/README.md said so
+# in prose — "a second provider file added here gets no such check until you add
+# 1 for it". A rule that has to be extended by hand for each new file is a rule
+# that will not be.
+provider_files=""
+for path in "$REPO_ROOT/$PROVIDER_DIRECTORY"/*; do
+  [[ -f "$path" ]] || continue
+  provider_files="${provider_files:+${provider_files}
+}$(basename "$path")"
+done
+
+# joined <element...> — 1 element per line, sorted, for a set comparison.
+function joined() {
+  printf '%s\n' "$@" | sort
+}
+
+assert_equal "the_provider_directory_holds_the_expected_files" \
+  "$(joined "${EXPECTED_PROVIDER_FILES[@]}")" \
+  "$(printf '%s\n' "$provider_files" | sort)" \
+  "either a provider file was added, renamed or deleted — and this list is what you edit —" \
+  "or the glob in this test stopped matching, which would make the comparison below" \
+  "pass over an empty set of files"
+
+if [[ -z "$provider_files" ]]; then
+  fail_check "the_provider_directory_holds_at_least_one_file" \
+    "no file under ${PROVIDER_DIRECTORY}" \
+    "the comparison below reads that set, so an empty one checks nothing"
 else
-  diff_status=0
-  diff_text=""
-  diff_text="$(diff -u "$PROVIDER" "$WORKFLOW")" || diff_status=$?
-  fail_check "provider_copy_is_byte_identical_to_the_workflow" \
-    "cmp exited ${cmp_status}: ${cmp_message}" \
-    "diff exited ${diff_status}; the drift is:" \
-    "$diff_text"
+  pass_check "the_provider_directory_holds_at_least_one_file"
 fi
+
+while IFS= read -r name; do
+  [[ -z "$name" ]] && continue
+  provider_path="$REPO_ROOT/$PROVIDER_DIRECTORY/$name"
+  workflow_path="$REPO_ROOT/$WORKFLOW_DIRECTORY/$name"
+  check_name="provider_copy_of_${name}_is_byte_identical_to_the_workflow"
+
+  if [[ ! -f "$workflow_path" ]]; then
+    fail_check "$check_name" \
+      "${PROVIDER_DIRECTORY}/${name} has no twin at ${WORKFLOW_DIRECTORY}/${name}" \
+      "the provider directory is the source of truth and the provider reads the other path," \
+      "so a file that exists only here is a workflow that never runs"
+    continue
+  fi
+
+  cmp_status=0
+  cmp_message=""
+  cmp_message="$(cmp "$provider_path" "$workflow_path" 2>&1)" || cmp_status=$?
+  if [[ "$cmp_status" -eq 0 ]]; then
+    pass_check "$check_name"
+  else
+    diff_status=0
+    diff_text=""
+    diff_text="$(diff -u "$provider_path" "$workflow_path")" || diff_status=$?
+    fail_check "$check_name" \
+      "cmp exited ${cmp_status}: ${cmp_message}" \
+      "diff exited ${diff_status}; the drift is:" \
+      "$diff_text"
+  fi
+done <<< "$provider_files"
 
 # -------- 4. no forbidden token on the named build path --------
 missing_files=""
