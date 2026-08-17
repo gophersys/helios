@@ -143,9 +143,14 @@ fi
 
 for wf in "$WORKFLOW" "$PROVIDER_WORKFLOW"; do
   wf_name="$(basename "$(dirname "$wf")")/$(basename "$wf")"
-  login_lines="$(grep -n 'uses: docker/login-action@v3' "$wf" | cut -d: -f1)"
-  mirror_lines="$(grep -n 'run: bash .ci/mirror-buildkit.sh' "$wf" | cut -d: -f1)"
-  buildx_lines="$(grep -n 'run: bash .ci/buildx-node.sh' "$wf" | cut -d: -f1)"
+  # `|| true` on every read: under pipefail a no-match grep kills this file
+  # BEFORE its summary — proven live when the actions moved to sha pins and
+  # this very check's literal stopped matching. The pattern matches the
+  # ACTION at any ref, because the pin rule in workflow-yaml.test.sh owns
+  # which refs are legal; this file owns only the ORDER.
+  login_lines="$(grep -n 'uses: docker/login-action@' "$wf" | cut -d: -f1 || true)"
+  mirror_lines="$(grep -n 'run: bash .ci/mirror-buildkit.sh' "$wf" | cut -d: -f1 || true)"
+  buildx_lines="$(grep -n 'run: bash .ci/buildx-node.sh' "$wf" | cut -d: -f1 || true)"
   n_login="$(printf '%s\n' "$login_lines" | grep -c . || true)"
   n_mirror="$(printf '%s\n' "$mirror_lines" | grep -c . || true)"
   n_buildx="$(printf '%s\n' "$buildx_lines" | grep -c . || true)"

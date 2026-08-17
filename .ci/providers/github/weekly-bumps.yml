@@ -60,7 +60,7 @@ jobs:
     timeout-minutes: 45
     runs-on: arc-build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: resolve every upstream and write the bumps
         id: resolve
@@ -142,7 +142,7 @@ jobs:
     timeout-minutes: 10
     runs-on: arc-build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: reduce the verdict of the job above to this job's own status
         # GitHub scopes failure() in a step to the STEPS of its own job. This
         # job runs under !cancelled(), so its own steps succeed whatever the

@@ -130,7 +130,7 @@ jobs:
       # of quietly asserting against the last image that was published.
       SMOKE_REF: base:smoke
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: short-sha
         id: sha
         run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
@@ -147,7 +147,7 @@ jobs:
         # are what every gate below reads, and what the child jobs read.
         id: filter
         run: bash .ci/affected.sh base >> "$GITHUB_OUTPUT"
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         if: ${{ steps.filter.outputs.build == 'true' }}
         with:
           registry: ${{ env.REGISTRY }}
@@ -195,7 +195,7 @@ jobs:
         # PLATFORMS names 1 platform — read the arm64 note at the top of
         # _ctl/tests/publish-order.test.sh before widening it.
         if: ${{ steps.filter.outputs.build == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: base/Dockerfile
@@ -219,7 +219,7 @@ jobs:
         # cache that step wrote and this one only uploads. It writes no cache of
         # its own for that reason.
         if: ${{ steps.filter.outputs.build == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: base/Dockerfile
@@ -262,7 +262,7 @@ jobs:
       # and the only correct parent is the :latest that is still current.
       BASE_TAG: ${{ needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: extract semver tag
         id: semver
         run: |
@@ -276,7 +276,7 @@ jobs:
         # building. The reverse does not hold, which is what BASE_TAG answers.
         id: filter
         run: bash .ci/affected.sh flutter >> "$GITHUB_OUTPUT"
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         if: ${{ steps.filter.outputs.build == 'true' }}
         with:
           registry: ${{ env.REGISTRY }}
@@ -306,7 +306,7 @@ jobs:
         # PLATFORMS names 1 platform — read the arm64 note at the top of
         # _ctl/tests/publish-order.test.sh before widening it.
         if: ${{ steps.filter.outputs.build == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: flutter
           file: flutter/Dockerfile
@@ -329,7 +329,7 @@ jobs:
         # cache that step wrote and this one only uploads. It writes no cache of
         # its own for that reason.
         if: ${{ steps.filter.outputs.build == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: flutter
           file: flutter/Dockerfile
@@ -377,7 +377,7 @@ jobs:
       # and the only correct parent is the :latest that is still current.
       BASE_TAG: ${{ needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: extract semver tag
         id: semver
         run: |
@@ -391,7 +391,7 @@ jobs:
         # building. The reverse does not hold, which is what BASE_TAG answers.
         id: filter
         run: bash .ci/affected.sh zephyr >> "$GITHUB_OUTPUT"
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         if: ${{ steps.filter.outputs.build == 'true' }}
         with:
           registry: ${{ env.REGISTRY }}
@@ -421,7 +421,7 @@ jobs:
         # PLATFORMS names 1 platform — read the arm64 note at the top of
         # _ctl/tests/publish-order.test.sh before widening it.
         if: ${{ steps.filter.outputs.build == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: zephyr
           file: zephyr/Dockerfile
@@ -444,7 +444,7 @@ jobs:
         # cache that step wrote and this one only uploads. It writes no cache of
         # its own for that reason.
         if: ${{ steps.filter.outputs.build == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: zephyr
           file: zephyr/Dockerfile
@@ -491,7 +491,7 @@ jobs:
       # pushed under, because every job of a run shares one commit.
       BASE_TAG: ${{ needs.zephyr.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: extract semver tag
         id: semver
         run: |
@@ -505,7 +505,7 @@ jobs:
         # parent that builds always brings its children with it.
         id: filter
         run: bash .ci/affected.sh zephyr-devbox >> "$GITHUB_OUTPUT"
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         if: ${{ steps.filter.outputs.build == 'true' }}
         with:
           registry: ${{ env.REGISTRY }}
@@ -535,7 +535,7 @@ jobs:
         # PLATFORMS names 1 platform — read the arm64 note at the top of
         # _ctl/tests/publish-order.test.sh before widening it.
         if: ${{ steps.filter.outputs.build == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: zephyr-devbox
           file: zephyr-devbox/Dockerfile
@@ -560,7 +560,7 @@ jobs:
         # cache that step wrote and this one only uploads. It writes no cache of
         # its own for that reason.
         if: ${{ steps.filter.outputs.build == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: zephyr-devbox
           file: zephyr-devbox/Dockerfile
@@ -609,7 +609,7 @@ jobs:
       # of quietly asserting against the last image that was published.
       SMOKE_REF: cloud:smoke
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: short-sha
         id: sha
         run: echo "short=$(echo ${{ github.sha }} | cut -c1-7)" >> "$GITHUB_OUTPUT"
@@ -624,7 +624,7 @@ jobs:
       - name: does this commit change cloud
         id: filter
         run: bash .ci/affected.sh cloud >> "$GITHUB_OUTPUT"
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         if: ${{ steps.filter.outputs.build == 'true' }}
         with:
           registry: ${{ env.REGISTRY }}
@@ -666,7 +666,7 @@ jobs:
         # PLATFORMS names 1 platform — read the arm64 note at the top of
         # _ctl/tests/publish-order.test.sh before widening it.
         if: ${{ steps.filter.outputs.build == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: cloud/Dockerfile
@@ -690,7 +690,7 @@ jobs:
         # cache that step wrote and this one only uploads. It writes no cache of
         # its own for that reason.
         if: ${{ steps.filter.outputs.build == 'true' }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: cloud/Dockerfile

@@ -44,7 +44,7 @@ jobs:
     runs-on: arc-review
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # The reviewer reads history to judge a change against what came
           # before, so a shallow clone is not enough.
@@ -92,7 +92,7 @@ jobs:
       # diagnose it is to pay for another run.
       - name: Keep the run
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: review-stream-${{ github.event.pull_request.number }}-${{ github.run_attempt }}
           path: ${{ runner.temp }}/review-stream.jsonl

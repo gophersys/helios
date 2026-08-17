@@ -341,6 +341,37 @@ function billed_runner_report() {
   printf '%s' "$out"
 }
 
+# unpinned_action_report <records> — 1 evidence line per `<job>|<uses>` record
+# whose action is third-party and not pinned to a 40-hex commit SHA. A tag is a
+# POINTER the action's owner can move after review: the workflows hold
+# packages:write on ghcr.io/gophersys/*, so an action re-tagged upstream runs
+# with that grant on the next push, and nothing here would have changed. The
+# SHA is the only ref the owner cannot move.
+#
+# Two exemptions, both deliberate: a `./` local path is this repository's own
+# code and travels with the commit under review, and a `gophersys/` reusable
+# workflow carries its own pin-guard (job_workflow_sha, cictl #91) — a second
+# rule here would judge the same property with a weaker reader.
+function unpinned_action_report() {
+  local records="$1"
+  local job uses coordinate ref out=""
+  while IFS='|' read -r job uses; do
+    [[ -z "$job" ]] && continue
+    case "$uses" in
+      ./*) continue ;;
+      gophersys/*) continue ;;
+    esac
+    coordinate="${uses%%@*}"
+    ref="${uses#*@}"
+    ref="${ref%% *}"
+    if [[ ! "$ref" =~ ^[0-9a-f]{40}$ ]]; then
+      out="${out:+${out}
+}job ${job}: uses ${uses}"
+    fi
+  done <<< "$records"
+  printf '%s' "$out"
+}
+
 # hosted_only_report <records> — 1 evidence line per `<job>|<uses>` record that
 # names a hosted-only action. The comparison is on the half before the `@`, so
 # the rule survives a version bump of the action it forbids.
@@ -582,6 +613,27 @@ else
 
   # A version bump of the forbidden action must not walk around the rule. The
   # input is 1 string, so it is written here rather than kept as a third fixture.
+  assert_contains "counter_stimulus_reports_the_tag_pinned_action" \
+    "$(unpinned_action_report "build|actions/checkout@v4")" \
+    "job build: uses actions/checkout@v4" \
+    "a tag is a pointer its owner can move; only a 40-hex sha is immutable"
+
+  assert_equal "counter_stimulus_accepts_the_sha_pinned_action" \
+    "" "$(unpinned_action_report "build|actions/checkout@11d5960a326750d5838078e36cf38b85af677262")" \
+    "a 40-hex sha is the pin this rule wants — reporting it would forbid the fix"
+
+  assert_equal "counter_stimulus_exempts_local_and_gophersys_refs" \
+    "" "$(unpinned_action_report "a|./.github/actions/local
+b|gophersys/cictl/.github/workflows/pr-review.yml@v0.5.1")" \
+    "a local path travels with the commit under review, and a gophersys reusable" \
+    "workflow carries its own job_workflow_sha pin-guard"
+
+  assert_contains "counter_stimulus_reports_a_short_or_uppercase_sha" \
+    "$(unpinned_action_report "c|docker/login-action@C94CE9FB
+d|docker/login-action@c94ce9f")" \
+    "docker/login-action@" \
+    "39 hex characters, or uppercase, reads as pinned in a diff and is not"
+
   assert_contains "counter_stimulus_reports_the_hosted_only_action_at_any_version" \
     "$(hosted_only_report "build|jlumbroso/free-disk-space@v9.9.9")" \
     "jlumbroso/free-disk-space@v9.9.9" \
@@ -651,6 +703,18 @@ while IFS= read -r relative; do
       "jlumbroso/free-disk-space deletes ~25-30 GB of preinstalled SDKs. A runner pod shares its" \
       "node's filesystem with every other pod, so on a homelab node it deletes the node" \
       "fix: delete the step — the reason it existed left with the hosted runner"
+  fi
+
+  pin_report="$(unpinned_action_report "$(step_actions "$mode" "$pin" "$file")")"
+  if [[ -z "$pin_report" ]]; then
+    pass_check "${relative}_pins_every_third_party_action_by_sha"
+  else
+    fail_check "${relative}_pins_every_third_party_action_by_sha" \
+      "$pin_report" \
+      "want: every third-party uses pinned @<40-hex sha> with the tag as a trailing comment" \
+      "a tag is a pointer its owner can move after review, and these workflows hold" \
+      "packages:write on ghcr.io/gophersys/* — resolve the tag with" \
+      "gh api repos/<owner>/<repo>/git/ref/tags/<tag> and pin the commit it dereferences to"
   fi
 done <<< "$parsed_files"
 
