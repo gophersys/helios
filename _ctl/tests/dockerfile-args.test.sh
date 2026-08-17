@@ -32,13 +32,34 @@
 # rename ARG DOCKER_BUILDX_VERSION so line 511 dangles, and
 # `bash ./ctl.sh validate` still exits 0.
 #
-# Scope, deliberately narrow: only VERSION-SHAPED names are checked
-# (*_VERSION, *_REF, *_CHANNEL). Those are the names the convention governs, and
-# they are never shell locals or inherited ENV, so the rule holds with ZERO
-# exceptions across all 5 Dockerfiles — 48 references, no allowlist. A wider
-# rule needs one: ${VERSION_CODENAME} comes from `. /etc/os-release`, ${WEST_VENV}
+# Scope, deliberately narrow: only PIN-SHAPED names are checked (*_VERSION,
+# *_REF, *_CHANNEL and *_SHA256_<ARCH>). Those are the names the convention
+# governs, and they are never shell locals or inherited ENV, so the rule holds
+# with ZERO exceptions across all 6 Dockerfiles — no allowlist. A wider rule
+# needs one: ${VERSION_CODENAME} comes from `. /etc/os-release`, ${WEST_VENV}
 # from the parent image's ENV, ${USERNAME} from zsh itself. An allowlist is a
 # place for a real defect to hide, so this test does not open one.
+#
+# *_SHA256_<ARCH> joined the governed shape with the download-checksums change,
+# and it belongs here for exactly the reason a version does. A digest ARG is a
+# pin at the top threaded into a RUN line, so both failure directions are the
+# same failures:
+#
+#   DANGLING — a bump renames or drops the digest ARG and the fetch line keeps
+#   asking for the old name. ${GONE_SHA256_AMD64} expands to the empty string,
+#   and a download is then compared against nothing at all. That is worse than
+#   the version case: a wrong URL 404s loudly, while an empty digest is exactly
+#   what an unverified download looks like.
+#
+#   ORPHAN — the download moved to another image and its digest ARG stayed at
+#   the top. The stale pin then reads, to any reviewer and to any coverage
+#   count, as evidence that this image still verifies a tool it no longer
+#   installs.
+#
+# The arch part is [A-Z0-9_]+ and not [A-Z0-9]+, because the underscore is in
+# the 2 spellings the change removes — DOCKER_COMPOSE_SHA256_X86_64 and
+# _AARCH64. A pattern without it governs neither, which would leave the exact
+# pins the migration has to move outside the only rule watching them.
 #
 # Usage: bash _ctl/tests/dockerfile-args.test.sh
 #
@@ -80,7 +101,10 @@ FIXTURE="$TESTS_DIR/fixtures/dangling-arg/Dockerfile"
 ORPHAN_FIXTURE="$TESTS_DIR/fixtures/orphan-arg/Dockerfile"
 
 # The shape of a name this test governs.
-VERSION_REFERENCE='\$\{[A-Za-z_][A-Za-z0-9_]*(_VERSION|_REF|_CHANNEL)\}'
+VERSION_REFERENCE='\$\{[A-Za-z_][A-Za-z0-9_]*(_VERSION|_REF|_CHANNEL|_SHA256_[A-Z0-9_]+)\}'
+
+# The same shape as a bash-anchored pattern, for the declaration side.
+GOVERNED_SUFFIX='(_VERSION|_REF|_CHANNEL|_SHA256_[A-Z0-9_]+)$'
 
 # version_references <file> — every version-shaped ${NAME} the file REFERENCES,
 # 1 per line, comments excluded.
@@ -152,7 +176,7 @@ function orphan_args() {
 
   while IFS= read -r name; do
     [[ -z "$name" ]] && continue
-    [[ "$name" =~ (_VERSION|_REF|_CHANNEL)$ ]] || continue
+    [[ "$name" =~ $GOVERNED_SUFFIX ]] || continue
     if ! grep -qx -- "$name" <<< "$referenced"; then
       orphans="${orphans:+${orphans}
 }${name}"
@@ -213,6 +237,20 @@ else
   assert_not_contains "counter_stimulus_does_not_read_comments" \
     "$fixture_hits" "NEVER_DECLARED_VERSION" \
     "that name appears only inside a comment in the fixture"
+
+  # The digest half of the same direction. A dangling digest reference is the
+  # worse of the 2: a wrong URL 404s loudly, and an empty digest is exactly
+  # what an unverified download looks like.
+  assert_contains "counter_stimulus_names_the_undeclared_digest_ARG" \
+    "$fixture_hits" "TOOL_RELEASE_SHA256_AMD64" \
+    "no ARG declares it, so the fetch line hands the helper the empty string"
+
+  # The needle is `:NAME` and not `NAME:`, because a hit is reported as
+  # `<line>:<name>`. Matching on the name FOLLOWED by a colon can never fire on
+  # a real hit, so it would pass on a detector that reports everything.
+  assert_not_contains "counter_stimulus_does_not_report_the_declared_digest_ARG" \
+    "$fixture_hits" ":TOOL_SHA256_AMD64" \
+    "TOOL_SHA256_AMD64 is declared by an ARG in the fixture and must not be reported"
 fi
 
 # -------- 2b. the orphan counter-stimulus: the detector FIRES --------
@@ -249,6 +287,16 @@ else
   assert_not_contains "counter_stimulus_orphan_ignores_commented_ARG" \
     "$orphan_hits" "COMMENTED_OUT_VERSION" \
     "that name appears only inside a commented '# ARG' line, which is not a declaration"
+
+  # The digest half of the mirror direction. A stale digest ARG reads as
+  # evidence that the image still verifies a tool it no longer installs.
+  assert_contains "counter_stimulus_names_the_orphan_digest_ARG" \
+    "$orphan_hits" "ABANDONED_TOOL_SHA256_AMD64" \
+    "no RUN line references it, so it pins the bytes of a download this image no longer performs"
+
+  assert_not_contains "counter_stimulus_does_not_report_a_referenced_digest_ARG" \
+    "$orphan_hits" "KEPT_TOOL_SHA256_AMD64" \
+    "KEPT_TOOL_SHA256_AMD64 is declared AND referenced in the fixture and must not be reported"
 fi
 
 # -------- 3. every reference in every Dockerfile resolves --------
