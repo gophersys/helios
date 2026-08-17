@@ -301,6 +301,14 @@ RUN case "${TARGETPLATFORM}" in \
 # CGO_ENABLED=0 is INLINE (not a persistent ENV — the gate's `go test -race` needs CGO): these
 # tools are all pure-Go, and disabling cgo skips the gcc/assembler path that fails on the arm64
 # QEMU cross-build (`gcc_arm64.S: no such instruction: blr`).
+#
+# THE CACHE CLEANUP IS PART OF THIS LAYER, and it has to be: a later RUN that
+# removed the cache would leave every byte of it in this layer's diff. cloud
+# measured the same layer at 2.06 GB, of which ~1.6 GB was the module and build
+# cache — the 7 binaries are ~200 MB. `go clean` handles the read-only module
+# tree; the rm afterwards mops what remains. The cache also carried the vendored
+# gosec rule sources that the nightly scan reads as CRITICAL secret findings
+# (rules/hardcoded_credentials.go is a regex, not a credential).
 USER ${USERNAME}
 RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install mvdan.cc/gofumpt@v${GOFUMPT_VERSION} \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGCI_LINT_VERSION}" \
@@ -308,7 +316,10 @@ RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install m
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/securego/gosec/v2/cmd/gosec@v${GOSEC_VERSION}" \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/go-gremlins/gremlins/cmd/gremlins@v${GREMLINS_VERSION}" \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "golang.org/x/perf/cmd/benchstat@${BENCHSTAT_REF}" \
- && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/gophersys/hnslint/cmd/hnslint@v${HNSLINT_VERSION}"
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/gophersys/hnslint/cmd/hnslint@v${HNSLINT_VERSION}" \
+ && go clean -modcache \
+ && go clean -cache \
+ && rm -rf "${GOPATH}/pkg/mod" "/home/${USERNAME}/.cache/go-build"
 # NOTE: no --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 USER root
 
@@ -552,12 +563,20 @@ RUN case "${TARGETPLATFORM}" in \
 # Python). The ansible-core-as-primary pattern is required because the
 # `ansible` metapackage only ships an `ansible-community` info script; the
 # real engine entry points come from ansible-core.
+#
+# The uv cache is emptied IN THIS LAYER, for the reason the Go gate layer gives:
+# a later rm leaves every byte of it in this diff. The tools are already
+# unpacked into their venvs, so the cache is a second copy of what stays — and
+# the copy the nightly scan reads as a CRITICAL secret finding, in an ansible
+# collections docs sample (community/aws sts_session_token.py).
 USER ${USERNAME}
 # hadolint ignore=DL3013
 RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" \
       --with "ansible==${ANSIBLE_VERSION}" \
       "ansible-core==${ANSIBLE_CORE_VERSION}" \
- && "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" "oci-cli==${OCI_CLI_VERSION}"
+ && "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" "oci-cli==${OCI_CLI_VERSION}" \
+ && "/home/${USERNAME}/.local/bin/uv" cache clean \
+ && rm -rf "/home/${USERNAME}/.cache/uv"
 # NOTE: no ansible/oci --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 # Convenience: path shims for zsh so interactive logins see all of the
