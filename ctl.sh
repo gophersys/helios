@@ -32,16 +32,17 @@ source "$PROJECT_ROOT/_ctl/lib.sh"
 # family; `flutter` and `zephyr` both layer on top of `base`, and
 # `zephyr-devbox` layers on top of `zephyr`.
 #
-# `base-runner` is the `+ runner` layer (directory `runner/`) applied to `base`.
-# It is a CI image, not a devcontainer, so it has no devcontainer.json. One
-# Dockerfile serves every parent — RUNNER_PARENT selects which — so adding
-# `zephyr-runner` is a matrix entry, never a new directory.
-#
 # `cloud` is the successor image of the consolidation program (ledger #94):
-# the reduced base + the CI fold, built FROM ubuntu directly. It is ADDITIVE
-# today — no existing image depends on it and it depends on none — and the
-# category images will layer on it in later steps of the migration.
-BUILD_ORDER=(base base-runner flutter zephyr zephyr-devbox cloud)
+# the reduced base + the CI fold, built FROM ubuntu directly. It is what all 3
+# ARC pools run.
+#
+# `base-runner` was here and is RETIRED. The `+ runner` layer existed to make an
+# ARC pool image out of `base`; the pools run `cloud` now (gophersys/
+# infrastructure #184, all 3 pinned to the cloud digest), so the image has no
+# consumer and nothing builds it. `runner/` still holds the Dockerfile for one
+# more change — deleting the directory goes with the docs sweep — and no verb of
+# this repository reaches it any more, because every loop here walks BUILD_ORDER.
+BUILD_ORDER=(base flutter zephyr zephyr-devbox cloud)
 
 # -------- helpers --------
 # Image name -> source directory. These are 1:1 except for the `+ runner`

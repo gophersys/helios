@@ -18,17 +18,15 @@ Code devcontainer) and as the CI runtime in which GitHub Actions runs
 
 ## Image model
 
-The repository supplies 5 **devcontainer** images and the `+ runner` layer.
-Every devcontainer image sets the `GOPHERSYS_DEVCONTAINER` environment marker,
-so a script can detect the image that it runs inside. A runner variant
-inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
+The repository supplies 5 **devcontainer** images. Every one of them sets the
+`GOPHERSYS_DEVCONTAINER` environment marker, so a script can detect the image
+that it runs inside.
 
 | Image | `GOPHERSYS_DEVCONTAINER` | Intent |
 |---|---|---|
 | `ghcr.io/gophersys/base`          | `base`          | Everything that most projects need: shells (zsh+oh-my-zsh), git/gh, languages (Node LTS, Python 3.12, Go, Rust), infra CLIs (kubectl/helm/k9s/tailscale/docker-cli/docker-compose/bw/nats), desktop libs (Tauri/GTK/webkit), USB/BLE libs (libusb, libudev, libbluetooth, bluez), data clients (psql, sqlite3, redis-cli), parsing (jq, yq, httpie, rg, fd, bat), QA (shellcheck, hadolint). |
 | `ghcr.io/gophersys/flutter`       | `flutter`       | Base + OpenJDK 21 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
 | `ghcr.io/gophersys/zephyr`        | `zephyr`        | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
-| `ghcr.io/gophersys/base-runner`   | `base` + `_RUNNER=true` | Base + the GitHub Actions runner at `/home/runner`, owned by `dev`. This is a **CI image, not a devcontainer**. It has no `devcontainer.json`. The build uses `runner/Dockerfile`. |
 | `ghcr.io/gophersys/zephyr-devbox` | `zephyr-devbox` | Zephyr + sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules. It is an embedded development box for a k8s pod, and you connect to it over SSH. |
 | `ghcr.io/gophersys/cloud`         | `cloud`         | The successor image of the consolidation program (ledger #94), ADDITIVE today: the reduced base (no clang/cmake, no desktop/Tauri libs, no USB-BLE libs, no Rust, no ansible + oci-cli, no speedtest-cli/ncat/net-tools, Go caches removed — terraform and the AWS CLI are NOT in this list, because they left `base` itself and are ready components nothing installs; db clients and the comfort TUIs are not in it either, because cloud re-adds them through `_delta/components/`) + delve/buf/grpcurl + the CI fold (Actions runner, cictl, claude/omp/codex at the versions.env pins). ONE image for dev and CI: the default command is zsh, and a CI pod overrides the command to `/home/runner/run.sh`. Every pin lives in `versions.env` at the repository root; the build feeds it in as generated `--build-arg`s, and `_delta/components/*.sh` install the folded tool groups. Its smoke gates publish (build → smoke → push) and enforces the ≤ 5.75 GB size budget (raised from 5.5 GB by Mateo, 2026-08-16: the measured floor after the R4 levers with every tool kept is ~5.63–5.67 GB). |
 
@@ -47,8 +45,10 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
 │   ├── download-exemptions.txt  # the downloads that take a stated class instead of a digest
 │   ├── upstreams.txt            # where the next value of every pin comes from
 │   └── resolve-upstream.sh      # the weekly resolver: 1 function per datasource
+├── .ci/affected.sh              # which images this commit changes — 1 home for the answer
+├── .ci/buildx-node.sh           # the builder every image build uses; owns the arm64 switch
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
-├── runner/        { Dockerfile, project.json, ctl.sh }   # + runner layer — no devcontainer.json
+├── runner/        { Dockerfile, project.json, ctl.sh }   # RETIRED — nothing builds it, deletion pending
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
@@ -85,14 +85,13 @@ inherits the marker of its parent and adds `GOPHERSYS_DEVCONTAINER_RUNNER=true`.
    every other verb to `image_main`. `base/ctl.sh` does this for the
    devcontainer lifecycle verbs.
 
-   **`runner/` is the 1 exception, and this is intentional.** It is a CI image
-   and nobody opens it in an editor, so it contains no `devcontainer.json`. It
-   is also the only directory whose name is not its image name. 1 Dockerfile
-   builds `<parent>-runner` for every parent, and `BASE_IMAGE` or the
-   `RUNNER_PARENT` environment variable selects the parent. The function
-   `image_dir()` in **both** `./ctl.sh` and `.ci/ctl.sh` maps `*-runner` back
-   to `runner/`. The 2 functions must agree. To add `zephyr-runner`, add a
-   `BUILD_ORDER` entry and a CI job. Never write a second Dockerfile.
+   **`runner/` was the 1 exception, and it is RETIRED.** See "The `+ runner`
+   layer is retired" below. The directory is still on disk and nothing builds
+   it: it left `BUILD_ORDER`, so no loop of `ctl.sh` — `validate`'s hadolint
+   pass included — reaches its Dockerfile any more. `image_dir()` still maps
+   `*-runner` to `runner/` in both control scripts, because those 2 functions
+   must agree whatever the set holds. Deleting the directory is the next
+   change, and it goes with the docs sweep.
 3. **Do not add a `CLAUDE.md` file.** The conventions of this repository stay
    here, in `.claude/rules/`.
 4. **A human writes the text.** Do not put an AI or LLM attribution of any kind
@@ -135,7 +134,7 @@ file. Each ARG line carries a `# latest LTS as of YYYY-MM-DD` comment.
 - **The download itself goes through `_build/fetch-verified.sh`.** It is 1 file
   by the same rule that puts a verb body in `_ctl/lib.sh` once. `base` and
   `cloud` COPY `_build/` to `/usr/local/lib/gophersys/` above their first
-  download; `flutter`, `zephyr`, `zephyr-devbox` and `base-runner` inherit it
+  download; `flutter`, `zephyr` and `zephyr-devbox` inherit it
   through their `FROM` and add no COPY. **Because base COPYs it, base's docker
   build context is the repository root and not `base/`** — `base/ctl.sh` sets
   `IMAGE_BUILD_CONTEXT`, and both copies of `build-and-push.yml` say
@@ -189,9 +188,16 @@ operating systems, and `verify-published` cannot say which one it read.
 
 ## Scheduled security scan
 
-`.github/workflows/security-nightly.yml` scans the 6 published images at
+`.github/workflows/security-nightly.yml` scans the 5 published images at
 `:latest` every night at 09:00 UTC — 02:00 MST, and cron is UTC — and runs the
 base-OS currency probe above. It builds and publishes nothing.
+
+- **The matrix is BOUNDED.** It runs on `arc-build`, which has 6 slots that
+  every repository's builds share, so `max-parallel: 3` keeps a nightly from
+  taking the whole pool. Nobody is waiting for it at 02:00 MST.
+  `_ctl/tests/scheduled-workflows.test.sh` holds the rule on the TRIGGER: a
+  scheduled workflow with a matrix declares `max-parallel`, so tomorrow's is
+  covered the day it is added.
 
 - **CRITICAL fails the run, fixed or unfixed.** The scan sets
   `--severity CRITICAL --exit-code 1` and **no `--ignore-unfixed`**. HIGH is not
@@ -330,9 +336,10 @@ itself.
 **An image builds only the arch it deploys to.** Each narrowing was measured, not
 assumed:
 
-- `base-runner` runs only as an ARC pod, and every node in that cluster is amd64.
+- `base-runner` ran only as an ARC pod, and every node in that cluster is amd64.
   Its arm64 half compiled Go under QEMU for an architecture that no node runs,
-  and it took ~13 minutes on a thin layer.
+  and it took ~13 minutes on a thin layer. The image is retired; the measurement
+  is kept because it is half of why the set narrowed.
 - `zephyr-devbox` runs only as a kubernetes pod (commit `c7e8e94`). Its 3 running
   pods sat on `k3s-w-1`, `k3s-w-3` and `k3s-w-4`, and all 3 are amd64. Nobody
   opens it locally; `zephyr` is the image for that.
@@ -477,11 +484,11 @@ argv that you supply, so local devcontainer use behaves like the other layers.
 ## Dependency graph
 
 ```
-           base
-    ┌────┬──┴──┐
-base-   flutter  zephyr
-runner              │
-              zephyr-devbox
+        base            cloud
+     ┌───┴───┐        (FROM ubuntu)
+ flutter   zephyr
+              │
+        zephyr-devbox
 ```
 
 `validate.yml` runs `bash ./ctl.sh validate`, then `bash ./ctl.sh test`, then
@@ -489,11 +496,17 @@ asserts that BUILD_ORDER agrees between `ctl.sh` and `.ci/ctl.sh`. `.ci/ctl.sh
 validate` delegates to the root `ctl.sh`: it used to be a second copy and the 2
 diverged, so it reported OK on a Dockerfile that the root script rejected.
 
-The graph is declared in 4 places. All 4 MUST stay the same:
+The graph is declared in 5 places. All 5 MUST stay the same:
 
 - `BUILD_ORDER` in `./ctl.sh` **and** in `.ci/ctl.sh`.
 - `dependsOn` in each image's `project.json`.
 - `needs:` in `.github/workflows/build-and-push.yml`.
+- `image_parent()` in `.ci/affected.sh`. This is the 5th home, and it arrived
+  with affected-only builds. It is the graph again because a child's input set
+  has to CONTAIN its parent's: that inclusion is what makes "the parent built,
+  so the child builds" true by construction, and a missing edge there publishes
+  a layer on a parent that moved under it. The workflow's `needs:` and this map
+  answer 2 different questions — order, and inputs — and both are the same graph.
 - `.ci/providers/github/build-and-push.yml`. This file is the source of truth
   for the provider, and it must match the workflow byte for byte. Once it
   became an old copy that listed only 3 images, and nobody saw the difference.
@@ -513,24 +526,73 @@ directory — **add or rename a provider file and you edit
 change.** The direction is provider → workflow: `validate.yml` and `pr-review.yml`
 are provider-native and have no source-of-truth copy.
 
-## Why the `+ runner` layer exists
+## The `+ runner` layer is retired
 
-CI runs **these images**. There is no second set of CI images. The runner layer
-makes this possible. The runner layer is a pod image and not a workflow
-`container:` image. There are 2 measured reasons:
+CI runs **these images**. There is no second set of CI images, and 2 measured
+constraints say the toolchain has to be the image of the POD rather than a
+workflow `container:` image:
 
 1. The dind daemon in the runner pod pulls a `container:` image, and the image
    is lost when the pod stops. At this image size the cost is 5m17s per job.
 2. To pull a private package with `GITHUB_TOKEN` you need a grant for each
    (package, repository) pair. GitHub gives that grant only in its user
-   interface.
+   interface. A kubelet pull has neither problem: 1 in-cluster
+   `imagePullSecret` covers every image and every repository.
 
-The runner layer is the image of the pod itself. Thus the kubelet pulls it,
-keeps it in the cache on each node, and 1 in-cluster `imagePullSecret` covers
-every image and every repository.
+Both still hold. What changed is WHICH image answers them. `base-runner` —
+`base` plus the runner binary, built from `runner/Dockerfile` — was that image
+until all 3 ARC pools moved to `cloud`, pinned by digest (gophersys/
+infrastructure #184). `cloud` folds the runner in itself, so the extra layer has
+no consumer.
+
+So `base-runner` is retired here: out of `BUILD_ORDER` in both control scripts,
+out of both copies of the publishing workflow, out of the nightly scan matrix,
+and out of `.ci/smoke.sh`. Its `content-runner` check group did NOT go with it —
+`cloud` carries the runner layer, and that group runs against `cloud`.
+
+2 things are deliberately left:
+
+- **`runner/` is still on disk.** Nothing builds it and no loop reaches it. Its
+  deletion is the next change, with the docs sweep.
+- **`ghcr.io/gophersys/base-runner` is still published.** The tags that exist
+  stay reachable until the package is archived, which happens after this merges.
 
 The full interface is in `gophersys/infrastructure` `docs/ci-substrate.md`. It
 states which capabilities are pools and which capabilities are images.
+
+## The builds run at home
+
+`build-and-push.yml`, `security-nightly.yml` and `weekly-bumps.yml` run on
+`arc-build`. `validate.yml` and `pr-review.yml` keep `arc-org` and `arc-review`.
+Nothing in this repository runs on a GitHub-hosted runner: the account had 195
+of 2,000 minutes left against a $0 budget, and a warm 6-image build wave spent
+~35 of them per push.
+
+- **No job may install a free-disk action.** That action reclaims space by
+  deleting the preinstalled SDKs of a throwaway hosted VM. On `arc-build` the
+  same deletion strips the NODE, and the blast radius is every pod on it. A
+  build pod takes its headroom from the `work` volume the scale set sizes.
+  `_ctl/tests/workflow-yaml.test.sh` holds both halves — every `runs-on:` in
+  both workflow directories, and the absent action.
+- **Only what changed is built.** Each job of `build-and-push.yml` asks
+  `.ci/affected.sh <image>` whether the commit touches that image's inputs and
+  gates its build, smoke, push and manifest read on the answer. The path table
+  lives in that 1 file. Everything builds on `workflow_dispatch`, on a tag, and
+  on any change to a workflow or to `.ci/`. **An unbuilt image keeps its
+  `:latest` and publishes no `:<sha>` for that commit** — a SHA tag is not a
+  promise that every image carries it.
+- **The layer cache is in the registry**, `ghcr.io/gophersys/<image>-cache`, one
+  package per image, `mode=max` on the write. `type=gha` is 10 GB per repository
+  across every scope, which 5 images at `mode=max` do not fit.
+- **The builder is `.ci/buildx-node.sh`, not `docker/setup-buildx-action`.** It
+  makes the same `docker-container` builder — the default `docker` driver can
+  neither read nor write a registry cache — and it owns the switch that appends
+  the Mac mini as a native arm64 node when `SANCTIONED_PLATFORMS` names
+  `linux/arm64`. That switch READS the library, so widening the platform set
+  stays 1 edit in `_ctl/lib.sh`. It is inert today (D42).
+- **Every timeout in those 3 workflows is a ceiling measured on the hosted
+  runner.** The first run on `arc-build` measures the real numbers. Resize from
+  that, never from a guess.
 
 ## Shared-change propagation
 

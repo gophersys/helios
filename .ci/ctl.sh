@@ -4,8 +4,8 @@
 #
 # Sits one level above the repo-level ctl.sh and the per-image ctl.sh scripts.
 # Every verb here acts on the WHOLE set of managed images (base + flutter +
-# zephyr + zephyr-devbox) in dependency order, and delegates per-image work
-# to the repo-level ctl.sh.
+# zephyr + zephyr-devbox + cloud) in dependency order, and delegates per-image
+# work to the repo-level ctl.sh.
 #
 # Verbs:
 #   validate              shellcheck + hadolint + jq across the repo
@@ -29,8 +29,11 @@ REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 source "$REPO_ROOT/_ctl/lib.sh"
 
 # Dependency order — parents first. `cloud` stands alone (FROM ubuntu): the
-# additive successor image of the consolidation program (ledger #94).
-BUILD_ORDER=(base base-runner flutter zephyr zephyr-devbox cloud)
+# successor image of the consolidation program (ledger #94), and what all 3 ARC
+# pools run. `base-runner` was here and is RETIRED — see the note beside the
+# other BUILD_ORDER, in the repository-root ctl.sh. The 2 must agree, and
+# validate.yml asserts that they do.
+BUILD_ORDER=(base flutter zephyr zephyr-devbox cloud)
 
 # Image name -> source directory. 1:1 except the `+ runner` variants: one
 # directory (`runner/`) builds `<parent>-runner` for every parent. Mirrors the
