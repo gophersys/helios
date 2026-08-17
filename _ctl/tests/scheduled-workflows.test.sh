@@ -72,6 +72,23 @@
 #      [base] drops 5 images out of the security gate with every other check in
 #      this repository still green.
 #
+#   8. scheduled_matrix_is_bounded
+#      A job of a scheduled workflow that fans out over a `strategy.matrix`
+#      declares `max-parallel`. This is a RATCHET on the same key as rule 1 —
+#      the TRIGGER — so a scheduled workflow added tomorrow is covered the day
+#      it is added, and a job with no matrix is never asked for a bound it has
+#      no use for.
+#
+#      The reason it is a rule now: these runs left the GitHub-hosted pool. On
+#      a hosted runner an unbounded fan-out is somebody else's capacity, and
+#      the only cost is money. On the homelab pool it is N pods placed on a
+#      handful of nodes, each unpacking a multi-GB image onto the node's own
+#      filesystem, and the node runs out of disk. The run then fails with "No
+#      space left on device" — a red that says nothing about the images it was
+#      asked to judge — and it takes every other pod on that node with it,
+#      including the `validate` job of an unrelated repository. The blast
+#      radius of a missing integer is the cluster.
+#
 # ============================================================================
 # WHY THE FIELD NAMES IN RULE 3 ARE THESE FIELD NAMES
 # ============================================================================
@@ -980,6 +997,108 @@ function matrix_images() {
       if (value != "") { print value }
     }
   ' "$1"
+}
+
+# ---------------------------------------------------------------------------
+# The strategy readers (rule 8).
+#
+# `strategy:` is a job-level key, so job_property_record above finds it. What is
+# needed beyond that is which keys sit INSIDE it, and only at its immediate
+# child depth: `matrix:` and `max-parallel:` are siblings there, while an image
+# name under `matrix:` sits deeper and is not a strategy key.
+# ---------------------------------------------------------------------------
+
+# strategy_keys <file> <first> <last> — `<line><TAB><key>` for every key at the
+# immediate child indent of that job's `strategy:` block. Silent when the job
+# declares no strategy at all, which is the common case and not a defect.
+function strategy_keys() {
+  local file="$1" first="$2" last="$3"
+  local record start
+  record="$(job_property_record "$file" "$first" "$last" "strategy")"
+  [[ -z "$record" ]] && return 0
+  start="${record%%$'\t'*}"
+  awk -v start="$start" -v last="$last" '
+    BEGIN { child_indent = -1 }
+    NR < start { next }
+    NR == start {
+      match($0, /^[[:space:]]*/)
+      strategy_indent = RLENGTH
+      next
+    }
+    NR > last { exit }
+    {
+      stripped = $0
+      sub(/^[[:space:]]+/, "", stripped)
+      if (stripped == "" || substr(stripped, 1, 1) == "#") { next }
+      match($0, /^[[:space:]]*/)
+      indent = RLENGTH
+      # The block ends at the first line back out at the strategy key depth or
+      # shallower. Without this the walk would read the next job key as a
+      # strategy key and report `runs-on` as a bound.
+      if (indent <= strategy_indent) { exit }
+      if (child_indent == -1) { child_indent = indent }
+      if (indent != child_indent) { next }
+      key = stripped
+      sub(/:.*$/, "", key)
+      print NR "\t" key
+    }
+  ' "$file"
+}
+
+# strategy_declares <file> <first> <last> <key> — 1 when that job's strategy
+# block holds the key, else 0.
+#
+# A COMMENTED key is not one: the awk above drops a comment line before it reads
+# anything else, and matrix-unbounded.yml carries `# max-parallel: 3` for
+# exactly that reason. A reader keyed on the text calls that job bounded, and
+# the rule then passes on the one file it exists for.
+function strategy_declares() {
+  local file="$1" first="$2" last="$3" want="$4"
+  local line key
+  while IFS=$'\t' read -r line key; do
+    [[ -z "$key" ]] && continue
+    if [[ "$key" == "$want" ]]; then
+      printf '1'
+      return 0
+    fi
+  done < <(strategy_keys "$file" "$first" "$last")
+  printf '0'
+}
+
+# unbounded_matrix_jobs <file> — 1 line per job that fans out over a matrix and
+# declares no ceiling on the fan. Silent when every matrix job is bounded, and
+# silent on a workflow with no matrix at all.
+function unbounded_matrix_jobs() {
+  local file="$1"
+  local job_name span first last out=""
+  while IFS= read -r job_name; do
+    [[ -z "$job_name" ]] && continue
+    span="$(job_span "$file" "$job_name")"
+    [[ "$span" == "0:0" ]] && continue
+    first="${span%%:*}"
+    last="${span##*:}"
+    [[ "$(strategy_declares "$file" "$first" "$last" "matrix")" == "1" ]] || continue
+    [[ "$(strategy_declares "$file" "$first" "$last" "max-parallel")" == "0" ]] || continue
+    out="${out:+${out}
+}${job_name}: strategy.matrix with no max-parallel"
+  done <<< "$(job_names "$file")"
+  printf '%s' "$out"
+}
+
+# matrix_jobs <file> — the name of every job that declares a strategy.matrix,
+# 1 per line. The liveness reader for rule 8: the ratchet is keyed on this set,
+# and over an empty one it is green on every repository.
+function matrix_jobs() {
+  local file="$1"
+  local job_name span
+  while IFS= read -r job_name; do
+    [[ -z "$job_name" ]] && continue
+    span="$(job_span "$file" "$job_name")"
+    [[ "$span" == "0:0" ]] && continue
+    if [[ "$(strategy_declares "$file" "${span%%:*}" "${span##*:}" "matrix")" == "1" ]]; then
+      printf '%s\n' "$job_name"
+    fi
+  done <<< "$(job_names "$file")"
 }
 
 # image_set_defects <declared> <expected> — 1 line per disagreement between 2
@@ -2022,5 +2141,94 @@ while IFS= read -r relative; do
       "gate with every other check in this repository still green"
   fi
 done <<< "$scanning"
+
+# ===========================================================================
+# 9. THE MATRIX FAN-OUT — a scheduled matrix declares its ceiling
+# ===========================================================================
+BOUNDED_FIXTURE="$WORKFLOW_FIXTURES/matrix-bounded.yml"
+UNBOUNDED_FIXTURE="$WORKFLOW_FIXTURES/matrix-unbounded.yml"
+
+missing_fixtures=""
+for fixture in "$BOUNDED_FIXTURE" "$UNBOUNDED_FIXTURE"; do
+  [[ -f "$fixture" ]] || missing_fixtures="${missing_fixtures:+${missing_fixtures}
+}${fixture}"
+done
+
+if [[ -n "$missing_fixtures" ]]; then
+  fail_check "counter_stimulus_bounded_matrix_fixtures_exist" \
+    "the fixtures this test proves its strategy reader with are absent:" \
+    "$missing_fixtures"
+else
+  pass_check "counter_stimulus_bounded_matrix_fixtures_exist"
+
+  # -- the reader finds the shape it claims to read --
+  bounded_span="$(job_span "$BOUNDED_FIXTURE" "scan")"
+  assert_equal "counter_stimulus_reads_the_3_strategy_keys_and_not_the_matrix_entries" \
+    "fail-fast max-parallel matrix" \
+    "$(strategy_keys "$BOUNDED_FIXTURE" "${bounded_span%%:*}" "${bounded_span##*:}" | cut -f2 | tr '\n' ' ' | sed -e 's/ $//')" \
+    "the image list under matrix: sits deeper and is not a strategy key" \
+    "a reader that returned it would report 'image' as a bound and pass every file"
+
+  notify_span="$(job_span "$BOUNDED_FIXTURE" "notify")"
+  assert_equal "counter_stimulus_reads_no_strategy_key_for_a_job_that_has_none" \
+    "" "$(strategy_keys "$BOUNDED_FIXTURE" "${notify_span%%:*}" "${notify_span##*:}")" \
+    "the walk must stop at the end of the job it was given, not run on into the next one"
+
+  # -- the matrix detector, both directions --
+  assert_equal "counter_stimulus_finds_the_job_that_fans_out" \
+    "scan" "$(matrix_jobs "$BOUNDED_FIXTURE" | tr '\n' ' ' | sed -e 's/ $//')" \
+    "the notify job declares no matrix, and the rule must never demand a bound of it"
+
+  # -- THE RULE's detector, both directions --
+  assert_equal "counter_stimulus_leaves_the_bounded_matrix_alone" \
+    "" "$(unbounded_matrix_jobs "$BOUNDED_FIXTURE")" \
+    "that job declares max-parallel; a detector that reports it forbids its own fix"
+
+  unbounded_report="$(unbounded_matrix_jobs "$UNBOUNDED_FIXTURE")"
+  assert_contains "counter_stimulus_reports_the_matrix_with_no_ceiling" \
+    "$unbounded_report" "scan: strategy.matrix with no max-parallel" \
+    "that fixture carries the deleted bound in a COMMENT, so a reader of prose calls it bounded"
+  assert_not_contains "counter_stimulus_does_not_report_the_bounded_job_beside_it" \
+    "$unbounded_report" "bounded-sibling" \
+    "that job has the same matrix WITH its ceiling; a detector that reports both names neither"
+fi
+
+# THE LIVENESS CLAUSE. The ratchet below is keyed on "a scheduled job that fans
+# out over a matrix", so it covers a scheduled workflow added tomorrow — and it
+# is vacuous on a repository where the nightly lost its matrix. That set is
+# non-empty because both copies of the nightly scan every published image.
+for directory in "${WORKFLOW_DIRECTORIES[@]}"; do
+  expected="${directory}/${NIGHTLY_WORKFLOW}"
+  fanning_jobs=""
+  [[ -f "$REPO_ROOT/$expected" ]] && fanning_jobs="$(matrix_jobs "$REPO_ROOT/$expected")"
+  if [[ -n "$fanning_jobs" ]]; then
+    pass_check "${expected}_declares_a_job_that_fans_out_over_a_matrix"
+  else
+    fail_check "${expected}_declares_a_job_that_fans_out_over_a_matrix" \
+      "this file is absent, or no job of it declares a strategy.matrix" \
+      "the jobs found were:" "$(job_names "$REPO_ROOT/$expected" 2>&1 | tr '\n' ' ')" \
+      "the rule below is keyed on that set, so with none it passes over nothing"
+  fi
+done
+
+# THE RATCHET. Keyed on the schedule trigger, like rule 1.
+while IFS= read -r relative; do
+  [[ -z "$relative" ]] && continue
+  file="$REPO_ROOT/$relative"
+
+  unbounded="$(unbounded_matrix_jobs "$file")"
+  if [[ -z "$unbounded" ]]; then
+    pass_check "${relative}_every_scheduled_matrix_is_bounded"
+  else
+    fail_check "${relative}_every_scheduled_matrix_is_bounded" \
+      "$unbounded" \
+      "these runs are on the homelab pool now, and a matrix with no ceiling starts every leg at once" \
+      "each leg unpacks a multi-GB image onto the node's own filesystem, so the fan-out ends in" \
+      "'No space left on device' — a red that says nothing about the image it was asked to judge —" \
+      "and it takes every other pod on that node with it, including another repository's validate" \
+      "fix: declare 'max-parallel: <n>' beside 'matrix:' under this job's strategy" \
+      "a scheduled run has no author watching it, so nobody is there to cancel the fan-out"
+  fi
+done <<< "$scheduled"
 
 test_summary "$TEST_NAME"
