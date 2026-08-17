@@ -1,0 +1,299 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/smoke-contract.test.sh — what the host driver tells the guest.
+#
+# Hermetic: a stub `docker` first on PATH, and every argv it receives is
+# recorded. The stub also keeps the STDIN of `docker run`, which is where the
+# guest script travels, so this file asserts the PAYLOAD and not only the argv.
+# No daemon, no network, no image.
+#
+# ============================================================================
+# THE DEFECT
+# ============================================================================
+#
+# .ci/smoke.sh runs ~40 `<tool> --version` lines inside the image and reads the
+# exit status of each. An exit status of 0 says the binary RUNS. It says nothing
+# about WHICH version runs, so `gh --version` is green on gh 2.40 while
+# versions.env pins 2.90. 1 tool is compared against its pin today — buildx —
+# and the other 43 pins are numbers in a file.
+#
+# 7 tools are named in the checks below because each one is a hole the gate can
+# feel, and none of them is asserted today:
+#
+#   hnslint          the HNS-1 naming gate. Absent, the eden gate cannot run.
+#   hadolint         .claude/rules/00-identity.md says the PIN governs the
+#                    verdict: 2.15.1 raises DL3064 on a file 2.14.0 passes. A
+#                    drifted hadolint makes `ctl.sh validate` disagree with CI.
+#   docker compose   the cli-plugin. base-runner measurably shipped without the
+#                    buildx plugin once, and nothing said so.
+#   npm, nvm, node   npm and nvm are installed through nvm, so a drifted nvm
+#                    silently changes the node the image runs.
+#   zsh              the default shell of every image, and the shell the smoke
+#                    itself runs in.
+#   pnpm             corepack takes `pnpm@latest` today, so the image installs
+#                    whatever the day gives it. That is not a pin at all.
+#
+# ============================================================================
+# THE CONTRACT THIS FILE ENCODES
+# ============================================================================
+#
+#   1. the host driver feeds the guest script (.ci/image-checks.sh) to the
+#      container on STDIN. It travels there and not in the argv because the
+#      guest also receives embedded fixtures, and an argv is not a place to put
+#      a file.
+#   2. the payload carries 1 comparator row per pin the driver classifies
+#      `asserted`, in the `<PIN>|<expected>|<command>` shape .ci/image-checks.sh
+#      reads. A pin classified `asserted` and absent from the payload is a
+#      classification that lies.
+#   3. a pin that resolves to the EMPTY string fails the run, names the pin, and
+#      starts NO container. An empty expected version compares against nothing,
+#      so a container that ran anyway would report a green image that was never
+#      checked — the exact result this repository has already published once.
+#
+# Rule 3 is asserted with the `refused without building` shape of
+# build.test.sh:75, and for the same reason: a non-zero status alone also comes
+# out of an unrelated abort, and only "no container was started" cannot be faked.
+#
+# Usage: bash _ctl/tests/smoke-contract.test.sh
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$TESTS_DIR/../.." && pwd)"
+PROJECT_ROOT="$REPO_ROOT"
+
+# The logging lives in _ctl/lib.sh, 1 time only — the same source line every
+# other script in this repository uses.
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=../lib.sh
+source "$REPO_ROOT/_ctl/lib.sh"
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=harness.sh
+source "$TESTS_DIR/harness.sh"
+
+TEST_NAME="smoke-contract.test.sh"
+
+STUB_BIN="$TESTS_DIR/stubs"
+SMOKE="$REPO_ROOT/.ci/smoke.sh"
+GUEST_SCRIPT="image-checks.sh"
+
+# The image and the local ref the CI job smokes before it publishes. Written as
+# literals: they are the shape build-and-push.yml uses, and a test that read
+# them out of the workflow would agree with a wrong workflow.
+IMAGE="cloud"
+SMOKE_REF="cloud:smoke"
+
+# The tools the payload must name. Each one is a gate-critical hole today.
+# `docker compose` carries a space on purpose — the plugin is invoked that way,
+# and `docker-compose` is the retired v1 binary.
+NAMED_TOOLS=(
+  "hnslint"
+  "hadolint"
+  "docker compose"
+  "npm"
+  "nvm"
+  "zsh"
+  "pnpm"
+)
+
+# The pin that the empty-resolution case removes. It is gate-critical, so a
+# reader of the failure sees a real consequence and not a synthetic one.
+EMPTY_PIN="HNSLINT_VERSION"
+
+RUN_OUTPUT=""
+RUN_STATUS=0
+RUN_ARGV=""
+RUN_PAYLOAD=""
+
+# run_smoke <smoke.sh> <image> <ref> — a real smoke run against the stub docker.
+#
+# RUN_ARGV holds every docker invocation, 1 per line, which is how a check tells
+# "it refused" apart from "it ran the container quietly". RUN_PAYLOAD holds the
+# stdin of `docker run`, which is the guest script.
+#
+# The run reads /dev/null on stdin. Without that, `docker run` inherits the
+# stdin of this test file, and the stub would sit and wait on a terminal.
+function run_smoke() {
+  local smoke="$1" image="$2" reference="$3"
+  local log payload
+  log="$(mktemp)"
+  payload="$(mktemp)"
+  RUN_STATUS=0
+  RUN_OUTPUT="$(env PATH="${STUB_BIN}:${PATH}" STUB_DOCKER_LOG="$log" STUB_DOCKER_STDIN="$payload" \
+    bash "$smoke" "$image" "$reference" < /dev/null 2>&1)" || RUN_STATUS=$?
+  RUN_ARGV="$(cat "$log")"
+  RUN_PAYLOAD="$(cat "$payload")"
+  rm -f "$log" "$payload"
+}
+
+# stage_repository_without_pin <pin name> — a repository root whose versions.env
+# lost 1 row, built out of symlinks to the real tree.
+#
+# No seam is added to .ci/smoke.sh for this. The script already reads its
+# repository root out of its own location, so a copy of the file tree with a
+# mutated versions.env is all a test needs to state the world it wants.
+function stage_repository_without_pin() {
+  local pin="$1"
+  local root
+  root="$(mktemp -d)"
+  ln -s "$REPO_ROOT/_ctl" "${root}/_ctl"
+  ln -s "$REPO_ROOT/base" "${root}/base"
+  ln -s "$REPO_ROOT/.ci" "${root}/.ci"
+  grep -v "^${pin}=" "$REPO_ROOT/versions.env" > "${root}/versions.env"
+  printf '%s' "$root"
+}
+
+# asserted_pins — the pins .ci/smoke.sh says it compares for this image.
+#
+# Read from the same SMOKE_LIST_PINS seam version-coverage.test.sh checks. The
+# 2 files then cannot disagree: 1 says every pin carries a class, this one says
+# every pin classified `asserted` really reaches the guest.
+# stderr is kept and not sent to /dev/null: an error nobody reads is how a
+# listing that failed becomes an empty list that looks like an answer. The awk
+# filter accepts only `<NAME>|asserted` lines, so the log noise around the
+# records cannot be read as data, and an empty result is reported below.
+function asserted_pins() {
+  local text status=0
+  text="$(env PATH="${STUB_BIN}:${PATH}" SMOKE_LIST_PINS=1 \
+    bash "$SMOKE" "$IMAGE" < /dev/null 2>&1)" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    printf ''
+    return 0
+  fi
+  printf '%s\n' "$text" | awk -F'|' '/^[A-Za-z_][A-Za-z0-9_]*\|asserted/ { print $1 }'
+}
+
+# docker_run_lines <argv log> — how many `docker run` invocations a log holds.
+# The payload the driver sends can hold the word "run" itself, so the match is
+# anchored at the start of a logged line.
+#
+# awk and not `grep -c`: grep exits 1 when it counts 0, and `grep -c ... || true`
+# would throw a status away to keep the function quiet. This file never writes
+# `|| true`.
+function docker_run_lines() {
+  printf '%s\n' "$1" | awk '/^docker run / { total++ } END { print total + 0 }'
+}
+
+# assert_refused_without_running <check name> <needle> [evidence...]
+#
+# 3 conditions, 1 check, on purpose — the shape build.test.sh:75 uses. A
+# non-zero status and a named pin each pass on runs that have nothing to do with
+# the rule; only "no container was started" cannot be faked, because a container
+# that ran has already reported an image as smoked.
+function assert_refused_without_running() {
+  local name="$1" needle="$2"
+  shift 2
+  local runs
+  runs="$(docker_run_lines "$RUN_ARGV")"
+  if [[ "$RUN_STATUS" -eq 0 ]]; then
+    fail_check "$name" \
+      "want: a non-zero exit status, with a message naming ${needle}" \
+      "got:  0 — the smoke was accepted" "$@" \
+      "docker was called with:" "${RUN_ARGV:-<no docker invocation>}" \
+      "output was:" "$RUN_OUTPUT"
+  elif ! printf '%s' "$RUN_OUTPUT" | grep -qF -- "$needle"; then
+    fail_check "$name" \
+      "the smoke exited ${RUN_STATUS}, and the message never names ${needle}" "$@" \
+      "docker was called with:" "${RUN_ARGV:-<no docker invocation>}" \
+      "output was:" "$RUN_OUTPUT"
+  elif [[ "$runs" -ne 0 ]]; then
+    fail_check "$name" \
+      "the smoke exited ${RUN_STATUS} and said the right thing, and it had ALREADY started a container:" \
+      "$RUN_ARGV" "$@" \
+      "a run that starts the container first has reported an image as smoked against an empty pin"
+  else
+    pass_check "$name"
+  fi
+}
+
+printf '=== RUN  %s\n' "$TEST_NAME"
+
+if [[ -x "$STUB_BIN/docker" ]]; then
+  pass_check "the_docker_stub_is_executable"
+else
+  fail_check "the_docker_stub_is_executable" \
+    "not executable: ${STUB_BIN}/docker" \
+    "without it the real docker answers, and nothing below is hermetic"
+fi
+
+# -------- 1. the driver runs 1 container, and it is the ref it was given ------
+run_smoke "$SMOKE" "$IMAGE" "$SMOKE_REF"
+assert_equal "the_smoke_starts_exactly_one_container" \
+  "1" "$(docker_run_lines "$RUN_ARGV")" \
+  "docker was called with:" "${RUN_ARGV:-<no docker invocation>}" \
+  "output was:" "$RUN_OUTPUT"
+assert_contains "the_smoke_runs_the_ref_it_was_given" \
+  "$RUN_ARGV" "$SMOKE_REF" \
+  "the CI job builds a local ref with push:false + load:true and smokes THAT ref" \
+  "a run against another ref would assert about an image nobody built here"
+
+# -------- 2. the guest script travels on stdin --------
+# Every rule below reads the payload, so a payload that is empty makes each of
+# them vacuous. That is why this is a check of its own and it comes first.
+if [[ -n "$RUN_PAYLOAD" ]]; then
+  pass_check "the_guest_script_travels_on_stdin"
+else
+  fail_check "the_guest_script_travels_on_stdin" \
+    "docker run received nothing on stdin" \
+    "the guest also receives embedded fixtures, and an argv is not a place to put a file" \
+    "docker was called with:" "${RUN_ARGV:-<no docker invocation>}"
+fi
+assert_contains "the_payload_is_the_guest_checker" \
+  "$RUN_PAYLOAD" "$GUEST_SCRIPT" \
+  "the payload has to BE .ci/image-checks.sh, which names itself in its header" \
+  "a payload written inline in .ci/smoke.sh cannot be run on the host, and then nothing tests it"
+
+# -------- 3. 1 comparator row per pin the driver calls `asserted` --------
+pins="$(asserted_pins)"
+pin_total=0
+missing_rows=""
+while IFS= read -r pin; do
+  [[ -z "$pin" ]] && continue
+  pin_total=$((pin_total + 1))
+  if ! printf '%s\n' "$RUN_PAYLOAD" | grep -qE "^${pin}\|"; then
+    missing_rows="${missing_rows:+${missing_rows}
+}${pin}"
+  fi
+done <<< "$pins"
+
+if [[ "$pin_total" -eq 0 ]]; then
+  fail_check "every_asserted_pin_reaches_the_guest" \
+    "SMOKE_LIST_PINS=1 named no pin as asserted, so this rule compared nothing" \
+    "a rule with no input reports a clean result it never read"
+elif [[ -n "$missing_rows" ]]; then
+  fail_check "every_asserted_pin_reaches_the_guest" \
+    "these pins are classified asserted and carry no comparator row in the payload:" \
+    "$missing_rows" \
+    "a row is <PIN>|<expected version>|<command>, which is what .ci/image-checks.sh reads" \
+    "a classification that never reaches the guest is a claim of coverage, not coverage"
+else
+  pass_check "every_asserted_pin_reaches_the_guest"
+fi
+
+# -------- 4. the 7 gate-critical tools are named --------
+for tool in "${NAMED_TOOLS[@]}"; do
+  # The check name carries the tool, so a reader finds the missing one in the
+  # list of names and not only in the evidence.
+  check_name="the_payload_asserts_$(printf '%s' "$tool" | tr ' -' '__')"
+  assert_contains "$check_name" "$RUN_PAYLOAD" "$tool" \
+    "this tool is gate-critical and no version of it is compared today"
+done
+
+# pnpm is pinned by NO row of versions.env today: cloud/Dockerfile takes
+# `corepack prepare pnpm@latest`, so the image installs whatever the day gives
+# it. The tool name alone is not enough here — the PIN has to exist.
+assert_contains "the_payload_asserts_the_pnpm_pin" \
+  "$RUN_PAYLOAD" "PNPM_VERSION" \
+  "pnpm@latest is not a pin; the image content then changes with no diff at all"
+
+# -------- 5. an empty pin fails the run, and starts no container --------
+staged_root="$(stage_repository_without_pin "$EMPTY_PIN")"
+run_smoke "${staged_root}/.ci/smoke.sh" "$IMAGE" "$SMOKE_REF"
+rm -rf "$staged_root"
+assert_refused_without_running "an_empty_pin_fails_the_run_and_starts_no_container" \
+  "$EMPTY_PIN" \
+  "versions.env in this run holds no ${EMPTY_PIN} row, so the pin resolves to the empty string" \
+  "an empty expected version compares against nothing, and a green run would bless any image"
+
+test_summary "$TEST_NAME"
