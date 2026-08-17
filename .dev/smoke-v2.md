@@ -1,6 +1,6 @@
 # smoke-v2
 
-phase:    green
+phase:    verify
 repo:     gophersys/.devcontainer
 branch:   ci/smoke-v2
 worktree: ~/code/.worktrees/.devcontainer-smoke-v2
@@ -59,10 +59,24 @@ main run.
    seam — smoke.sh derives its root from its own location.
 
 ## Blocked
-Landing blocked by #98 (lever PR touches .ci/smoke.sh; it merges first, then
-this branch rebases). Test authoring is NOT blocked.
+(nothing — #40 merged; branch rebased onto adc66ff)
+
+## Green + rebase evidence (2026-08-16)
+- GREEN: `bash ./ctl.sh validate` rc=0; `bash ./ctl.sh test` rc=0 — 10 files,
+  135 checks, 0 failed. shellcheck rc=0. cmp of the 2 workflow copies rc=0.
+- REAL-IMAGE SMOKE: `bash .ci/smoke.sh cloud ghcr.io/gophersys/cloud:latest`
+  rc=0 against digest 4455cc48 (PRE-lever build; post-lever :latest not yet
+  published) — 38 pins asserted 0 FAIL + all functional groups. The base run
+  caught a TRUE drift: published base has pnpm 11.21.0 vs pin 11.22.0 (the
+  engine working; base republish resolves it).
+- REBASE onto adc66ff: engine superseded the heredocs; 5.75GB R4 block kept
+  verbatim and ran; benchstat proof was NOT covered by the engine (tracks
+  @latest -> not-a-version) so the lever's explicit fail-loud check was
+  carried over into both base and cloud content groups, proven ok in the run.
+- Commits: a38887c engine+pnpm | 08752a4 functional+fixtures | bb9750c gating.
+- Implementer deviations recorded: fixture module is .ci/fixtures/smoke/
+  (hnslint module-name rule); PNPM_VERSION=11.22.0 read from the built cloud
+  image; guest file whole in commit 1.
 
 ## Next
-dev-test-author writes the 4 red tests and PROVES each fails for the right
-reason: version-coverage.test.sh, smoke-contract.test.sh, guest-checks.test.sh,
-publish-order.test.sh (UNSMOKED_TODAY emptied) + stub docker extensions.
+dev-verifier refutation pass; then PR.
