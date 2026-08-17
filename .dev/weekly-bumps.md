@@ -5,7 +5,7 @@ repo:     gophersys/.devcontainer
 branch:   ci/weekly-bumps
 worktree: ~/code/.worktrees/.devcontainer-weekly-bumps
 pr:       -
-attempt:  0/2
+attempt:  1/2
 
 ## Goal
 A weekly workflow resolves every pin's upstream (one table _build/upstreams.txt,
@@ -54,7 +54,25 @@ a green weekly must not close nightly issues).
 Nothing. The PR#48 wiring-proof build was 5/6 green at intake (devbox
 finishing); landing order unaffected.
 
+## Verifier round 1 (2026-08-17) — NO-GO, 2 blocking
+B1: no inherit_errexit — fail_pin's exit 1 dies inside $( ) and the
+aggregate --dry-run/--apply path SWALLOWS failures (rc=0 with an empty-
+version bump line; --apply leaves a partial write) — the exact defect the
+file header claims impossible; the suite is structurally blind (every
+failure spec is single-pin). B2: 3 dead coordinates proven on the REAL
+network: BW (bitwarden multi-product stream — releases/latest = web vault;
+cli asset 404), CICTL + HNSLINT (our own repos: tags, ZERO GitHub
+Releases — releases/latest 404 forever, while cictl sits 4 releases
+behind). N1 Android cmdline index EXISTS (repository2-3.xml, newest
+15859902) — the no-autobump reason is false; N2 oci-index never asserts
+index media type; N3 job timeout files no issue (single-job failure()
+shape) + assets fetched twice (~3.1GB flutter alone) vs "a handful"
+comment; N4 three doc untruths incl. OpenJDK 17-vs-21; N5 this file was
+stale again (fixed here). 24 attack lines REFUTED incl. 4 clean drills.
+
 ## Next
-Test author: close the free ratchet (EXPECTED_PROVIDER_FILES += weekly-bumps
-.yml) + DELETE its duplicated readers from download-coverage.test.sh (the
-lib.sh move completes; suite must stay green). Then verify round, then PR.
+Fix round (attempt 1): test author RED spec — aggregate --dry-run with one
+failing row must exit non-zero naming the pin, no bump line with an empty
+version (red against current code = proves B1). Then implementer:
+inherit_errexit (+ substitution status checks), the 3 rows corrected with
+true classes, N1-N4. Then bounded re-verify, then PR.
