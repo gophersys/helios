@@ -25,6 +25,16 @@ CODE_SERVER_LOG=/var/log/code-server.log
 
 function log() { printf '[devbox-entrypoint] %s\n' "$*" >&2; }
 
+# ERROR, not WARNING: every caller of this is a real defect or a missing
+# credential, and a pod that reports Running while a declared service is
+# absent is the failure mode this file used to have. The marker file is
+# machine-readable state a probe or an operator can find.
+DEGRADED_MARKER=/run/devbox-degraded
+function degraded() {
+  log "ERROR: $*"
+  printf '%s\n' "$*" >>"${DEGRADED_MARKER}"
+}
+
 # -------- argv pass-through --------
 if [[ $# -gt 0 ]]; then
   exec "$@"
@@ -79,7 +89,7 @@ if [[ -n "${keys}" ]]; then
   chmod 0700 "${DEV_SSH_DIR}"
   chmod 0600 "${DEV_SSH_DIR}/authorized_keys"
 elif [[ ! -f "${DEV_SSH_DIR}/authorized_keys" ]]; then
-  log "WARNING: no authorized keys (DEVBOX_AUTHORIZED_KEYS or ${AUTHORIZED_KEYS_FILE}) — ssh logins will fail"
+  degraded "no authorized keys (DEVBOX_AUTHORIZED_KEYS or ${AUTHORIZED_KEYS_FILE}) — sshd will boot and refuse every login"
 fi
 
 # -------- mcu slot symlinks --------
@@ -104,13 +114,27 @@ done
 
 # -------- code-server --------
 # Browser VS Code for the workspaces web UI, served alongside sshd.
-# --auth none is DELIBERATE: an authenticating reverse proxy + Cloudflare
-# Access sit in front of :8443, so code-server must not stack a second
-# login on top. Config and extensions live under the default XDG paths in
-# /home/dev (~/.config/code-server, ~/.local/share/code-server), i.e. on
-# the PVC, so settings and user-installed extensions survive pod restarts.
-# Supplementary service: a startup failure (or a later crash of the
-# backgrounded child) must never take sshd down.
+#
+# AUTH IS REQUIRED BY DEFAULT. The account code-server runs as holds
+# passwordless sudo, so a reachable unauthenticated :8443 is root on the
+# pod for any peer the network lets through — and the network boundary is
+# a NetworkPolicy in ANOTHER repository, which this file cannot see and
+# must not trust as the only wall. Two sanctioned modes:
+#
+#   DEVBOX_CODE_SERVER_HASHED_PASSWORD   argon2 hash (code-server's own
+#       HASHED_PASSWORD contract); comes from a Secret via the pod env.
+#   DEVBOX_CODE_SERVER_AUTH=none-behind-proxy   the operator's EXPLICIT,
+#       named statement that an authenticating proxy owns :8443. The old
+#       behaviour, opt-in instead of default.
+#
+# Neither set -> code-server does NOT start, and the refusal is an ERROR
+# naming both knobs. sshd still runs: code-server is supplementary, and
+# a missing credential must not take the primary service down — but it
+# must never silently open either.
+#
+# Config and extensions live under the default XDG paths in /home/dev
+# (~/.config/code-server, ~/.local/share/code-server), i.e. on the PVC,
+# so settings and user-installed extensions survive pod restarts.
 if command -v code-server >/dev/null 2>&1; then
   # Seed the baked-in extension set (clangd) onto a fresh home. The image
   # keeps it in /opt because the PVC mount masks anything installed into
@@ -120,20 +144,46 @@ if command -v code-server >/dev/null 2>&1; then
     log "seeding code-server extensions -> ${DEV_CODE_SERVER_EXT_DIR}"
     if ! runuser -u dev -- mkdir -p "${DEV_CODE_SERVER_EXT_DIR%/*}" \
       || ! runuser -u dev -- cp -a "${CODE_SERVER_SEED_EXT_DIR}" "${DEV_CODE_SERVER_EXT_DIR}"; then
-      log "WARNING: could not seed code-server extensions (continuing)"
+      degraded "code-server extension seed failed — clangd IntelliSense absent until seeded by hand"
     fi
   fi
-  # cwd is already /workspace (image WORKDIR); the trailing folder arg
-  # makes the browser UI open it by default.
-  log "starting code-server on :8443 (log: ${CODE_SERVER_LOG})"
-  runuser -u dev -- code-server \
-    --bind-addr 0.0.0.0:8443 \
-    --auth none \
-    --disable-telemetry \
-    /workspace \
-    >>"${CODE_SERVER_LOG}" 2>&1 &
+  code_server_args=()
+  if [[ -n "${DEVBOX_CODE_SERVER_HASHED_PASSWORD:-}" ]]; then
+    code_server_args=(--auth password)
+    export HASHED_PASSWORD="${DEVBOX_CODE_SERVER_HASHED_PASSWORD}"
+  elif [[ "${DEVBOX_CODE_SERVER_AUTH:-}" == "none-behind-proxy" ]]; then
+    code_server_args=(--auth none)
+    log "code-server auth: none — DEVBOX_CODE_SERVER_AUTH=none-behind-proxy declares the proxy owns :8443"
+  else
+    degraded "code-server NOT STARTED: set DEVBOX_CODE_SERVER_HASHED_PASSWORD or DEVBOX_CODE_SERVER_AUTH=none-behind-proxy"
+  fi
+  if [[ ${#code_server_args[@]} -gt 0 ]]; then
+    # cwd is already /workspace (image WORKDIR); the trailing folder arg
+    # makes the browser UI open it by default. The supervisor loop exists
+    # because a bare backgrounded child dies silently: every exit is
+    # logged loudly and restarted with a fixed pause, and sshd never
+    # inherits the failure.
+    log "starting code-server on :8443 (log: ${CODE_SERVER_LOG})"
+    (
+      # The subshell inherits set -e, under which a non-zero code-server
+      # exit would kill this loop at the exact moment it exists for — the
+      # first probe of this file proved it. `|| rc=$?` keeps the failing
+      # exit inside a condition context, so the loop survives to restart.
+      while true; do
+        rc=0
+        runuser -u dev --preserve-environment -- code-server \
+          --bind-addr 0.0.0.0:8443 \
+          "${code_server_args[@]}" \
+          --disable-telemetry \
+          /workspace \
+          >>"${CODE_SERVER_LOG}" 2>&1 || rc=$?
+        log "ERROR: code-server exited rc=${rc} — restarting in 10s (log: ${CODE_SERVER_LOG})"
+        sleep 10
+      done
+    ) &
+  fi
 else
-  log "WARNING: code-server not installed — browser IDE unavailable"
+  degraded "code-server not installed — the image is defective, this binary is baked in at build time"
 fi
 
 # -------- sshd --------

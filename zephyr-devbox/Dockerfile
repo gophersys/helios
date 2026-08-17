@@ -207,12 +207,18 @@ RUN ARCH="$(dpkg --print-architecture)" \
 # -------------------------------------------------------------------------
 ENV CODE_SERVER_SEED_EXTENSIONS=/opt/code-server-extensions
 
+# The trailing rm is load-bearing: invoking code-server writes
+# ~/.config/code-server/config.yaml containing a GENERATED password, and a
+# credential left in this layer ships world-readable to every puller of
+# the image. Runtime auth comes from the entrypoint's env contract, never
+# from a baked config. Same RUN so no intermediate layer holds the file.
 RUN mkdir -p "${CODE_SERVER_SEED_EXTENSIONS}" \
  && chown -R dev:dev "${CODE_SERVER_SEED_EXTENSIONS}" \
  && runuser -u dev -- code-server \
       --extensions-dir "${CODE_SERVER_SEED_EXTENSIONS}" \
       --install-extension llvm-vs-code-extensions.vscode-clangd \
- && chmod -R a+rx "${CODE_SERVER_SEED_EXTENSIONS}"
+ && chmod -R a+rx "${CODE_SERVER_SEED_EXTENSIONS}" \
+ && rm -rf /home/dev/.config/code-server /home/dev/.local/share/code-server
 
 COPY --chmod=0755 devbox-entrypoint.sh /usr/local/bin/devbox-entrypoint.sh
 
