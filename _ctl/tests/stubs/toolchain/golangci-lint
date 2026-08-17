@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/toolchain/golangci-lint — the stub linter for the go-gate
+# group.
+#
+#   STUB_FAIL_GOLANGCI_LINT   exit 1 instead of answering   (unset)
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+if [[ "${STUB_FAIL_GOLANGCI_LINT:-}" == "1" ]]; then
+  printf 'stub golangci-lint: this run was told to fail (STUB_FAIL_GOLANGCI_LINT)\n' >&2
+  exit 1
+fi
+exit 0

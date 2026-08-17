@@ -106,22 +106,28 @@ RUN_STATUS=0
 RUN_ARGV=""
 RUN_PAYLOAD=""
 
-# run_smoke <smoke.sh> <image> <ref> — a real smoke run against the stub docker.
+# run_smoke <smoke.sh> <image> <ref> [KEY=VALUE ...] — a real smoke run against
+# the stub docker.
 #
 # RUN_ARGV holds every docker invocation, 1 per line, which is how a check tells
 # "it refused" apart from "it ran the container quietly". RUN_PAYLOAD holds the
 # stdin of `docker run`, which is the guest script.
 #
+# The trailing KEY=VALUE arguments are the stub's own knobs — STUB_IMAGE_SIZE is
+# the one the size-gate cases below set. They are passed here rather than
+# exported by the caller, so a knob cannot leak from 1 case into the next.
+#
 # The run reads /dev/null on stdin. Without that, `docker run` inherits the
 # stdin of this test file, and the stub would sit and wait on a terminal.
 function run_smoke() {
   local smoke="$1" image="$2" reference="$3"
+  shift 3
   local log payload
   log="$(mktemp)"
   payload="$(mktemp)"
   RUN_STATUS=0
   RUN_OUTPUT="$(env PATH="${STUB_BIN}:${PATH}" STUB_DOCKER_LOG="$log" STUB_DOCKER_STDIN="$payload" \
-    bash "$smoke" "$image" "$reference" < /dev/null 2>&1)" || RUN_STATUS=$?
+    "$@" bash "$smoke" "$image" "$reference" < /dev/null 2>&1)" || RUN_STATUS=$?
   RUN_ARGV="$(cat "$log")"
   RUN_PAYLOAD="$(cat "$payload")"
   rm -f "$log" "$payload"
@@ -295,5 +301,45 @@ assert_refused_without_running "an_empty_pin_fails_the_run_and_starts_no_contain
   "$EMPTY_PIN" \
   "versions.env in this run holds no ${EMPTY_PIN} row, so the pin resolves to the empty string" \
   "an empty expected version compares against nothing, and a green run would bless any image"
+
+# -------- 6. the R4 size budget, at its 2 sides --------
+#
+# The cloud budget is acceptance metric 2 of the image program (risk R4), and
+# Mateo set the number at 5.75 GB on 2026-08-16 after the levers were measured
+# one by one. Until now the gate ran only against a real image on the publish
+# path, so nothing on the pull request path could tell a working gate from a
+# gate that reads the size and never compares it.
+#
+# The 2 cases are 1 byte apart on purpose. A budget checked far from its edge
+# passes with `>` written as `>=`, with the wrong constant, and with a
+# comparison the shell reads as a string — 5750000001 vs 5750000000 as strings
+# still orders correctly, so the pair below is chosen so that ONLY the boundary
+# itself separates them.
+#
+# The stub answers `docker image inspect --format '{{.Size}}'` with
+# STUB_IMAGE_SIZE, so no image of any size is ever built.
+CLOUD_SIZE_BUDGET="5750000000"
+
+run_smoke "$SMOKE" "$IMAGE" "$SMOKE_REF" "STUB_IMAGE_SIZE=$((CLOUD_SIZE_BUDGET + 1))"
+assert_refused_without_running "an_image_one_byte_over_the_budget_fails_and_starts_no_container" \
+  "$CLOUD_SIZE_BUDGET" \
+  "the image measured $((CLOUD_SIZE_BUDGET + 1)) bytes, which is 1 byte over the 5.75 GB budget" \
+  "the gate runs before the push, so an oversize image that smokes green reaches every consumer"
+
+run_smoke "$SMOKE" "$IMAGE" "$SMOKE_REF" "STUB_IMAGE_SIZE=${CLOUD_SIZE_BUDGET}"
+if [[ "$RUN_STATUS" -ne 0 ]]; then
+  fail_check "an_image_exactly_at_the_budget_passes_the_gate_and_is_smoked" \
+    "want: exit 0 — ${CLOUD_SIZE_BUDGET} bytes is the budget, and the budget is inclusive" \
+    "got:  ${RUN_STATUS}" \
+    "a gate that refuses its own limit hands back a budget nobody can meet" \
+    "output was:" "$RUN_OUTPUT"
+elif [[ "$(docker_run_lines "$RUN_ARGV")" -ne 1 ]]; then
+  fail_check "an_image_exactly_at_the_budget_passes_the_gate_and_is_smoked" \
+    "the run exited 0 and started $(docker_run_lines "$RUN_ARGV") containers, want exactly 1" \
+    "an exit 0 with no container is a size gate that ate the whole smoke" \
+    "docker was called with:" "${RUN_ARGV:-<no docker invocation>}"
+else
+  pass_check "an_image_exactly_at_the_budget_passes_the_gate_and_is_smoked"
+fi
 
 test_summary "$TEST_NAME"

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/toolchain/dlv — the stub debugger for the debugger group.
+#
+# The group reads BOTH the status and the text: a run is accepted only when dlv
+# exits 0 AND its output says the traced process reached its exit. So the passing
+# answer here carries that sentence, and the failing one does not.
+#
+#   STUB_FAIL_DLV   exit 1 instead of running the binary   (unset)
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+if [[ "${STUB_FAIL_DLV:-}" == "1" ]]; then
+  printf 'stub dlv: could not launch process (STUB_FAIL_DLV)\n' >&2
+  exit 1
+fi
+
+case "${1:-}" in
+  exec)
+    printf 'Type "help" for a list of commands.\n'
+    printf 'Process 1 has exited with status 0\n'
+    exit 0
+    ;;
+  version)
+    printf 'Delve Debugger\nVersion: 1.26.0\n'
+    exit 0
+    ;;
+  *)
+    printf 'stub dlv: unhandled subcommand: %s\n' "${1:-}" >&2
+    exit 64
+    ;;
+esac
