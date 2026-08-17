@@ -55,7 +55,7 @@ ARG OH_MY_ZSH_INSTALL_URL=https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/mast
 # Node toolchain — nvm installs the pinned Node LTS, corepack enables yarn and pnpm.
 ARG NVM_VERSION=0.40.4                                                 # latest LTS as of 2026-04-19
 ARG NODE_VERSION=24.15.0                                               # latest LTS as of 2026-04-19 (Krypton)
-ARG NPM_VERSION=11.3.0                                                 # latest LTS as of 2026-04-19
+ARG NPM_VERSION=11.19.0                                                # latest LTS as of 2026-08-17
 ARG PNPM_VERSION=11.22.0                                               # what corepack pnpm@latest resolved on 2026-08-16
 
 # Bun — the JavaScript runtime the Oh My Pi (`omp`) harness requires (its CLI shebang is
@@ -83,7 +83,7 @@ ARG ANSIBLE_CORE_VERSION=2.20.4                                        # latest 
 ARG TAILSCALE_VERSION=1.96.4                                           # latest LTS as of 2026-04-19
 ARG BW_VERSION=2026.3.0                                                # latest LTS as of 2026-04-19
 ARG GH_VERSION=2.90.0                                                  # latest LTS as of 2026-04-19
-ARG K9S_VERSION=0.50.18                                                # latest LTS as of 2026-04-19
+ARG K9S_VERSION=0.51.0                                                 # latest LTS as of 2026-08-17
 ARG DOCKER_COMPOSE_VERSION=5.1.3                                       # latest LTS as of 2026-04-19
 ARG DOCKER_BUILDX_VERSION=0.36.1                                       # latest stable as of 2026-08-13
 ARG NATS_VERSION=0.3.2                                                 # latest LTS as of 2026-04-19
@@ -115,7 +115,7 @@ ARG KIND_VERSION=0.32.0                                                # latest 
 ARG GOFUMPT_VERSION=0.10.0                                             # latest LTS as of 2026-06-13
 ARG GOLANGCI_LINT_VERSION=2.12.2                                       # latest LTS as of 2026-06-13
 ARG GOVULNCHECK_VERSION=1.1.4                                          # latest LTS as of 2026-06-13
-ARG GOSEC_VERSION=2.22.5                                               # latest LTS as of 2026-06-13
+ARG GOSEC_VERSION=2.28.0                                               # latest LTS as of 2026-08-17
 ARG HNSLINT_VERSION=0.1.0                                              # latest as of 2026-08-11 — gophersys/hnslint
 ARG GREMLINS_VERSION=0.6.0                                             # latest LTS as of 2026-06-13 — needs >=0.6.0 for unleash --exclude-files (the mutate gate uses it)
 # golang.org/x/perf has no semver tags; @latest is the canonical install form (no version digits,
@@ -244,7 +244,7 @@ SHELL ["/usr/bin/zsh", "-o", "pipefail", "-c"]
 
 # yq — multi-arch binary from Mike Farah's releases. Pinned to match the jq
 # ecosystem; installed under /home/dev/.local/bin to stay out of /usr.
-ARG YQ_VERSION=4.44.3                                                  # latest LTS as of 2026-04-19
+ARG YQ_VERSION=4.53.3                                                  # latest LTS as of 2026-08-17
 RUN mkdir -p "/home/${USERNAME}/.local/bin" \
  && case "${TARGETPLATFORM}" in \
       linux/amd64) ARCH=amd64 ;; \
