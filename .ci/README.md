@@ -5,7 +5,7 @@ gophersys/.devcontainer repository. Each image has its own directory `<name>/`
 with its own `ctl.sh` + `project.json` + `Dockerfile`. The repository-level
 `ctl.sh` delegates to those per-image scripts. This layer is 1 level above them.
 
-**`.ci/ctl.sh` is the LOCAL aggregate, and no workflow calls it.** This sentence
+**`.ci/ctl.sh` holds 1 verb, and no workflow calls it.** This sentence
 used to read "it is the only entrypoint that should appear in a CI pipeline
 YAML", and the grep says otherwise: `.github/workflows/` executes
 `.ci/affected.sh`, `.ci/mirror-buildkit.sh`, `.ci/buildx-node.sh`,
@@ -19,7 +19,7 @@ job calls the purpose-built script it needs, because a job gates each step on
 
 ```
 .ci/
-├── ctl.sh              bash orchestration (validate/build/push/smoke across all images)
+├── ctl.sh              1 verb: validate, delegated to the repository-root ctl.sh
 ├── smoke.sh            the HOST driver — classifies every pin, resolves it, drives 1 docker run
 ├── image-checks.sh     the GUEST checks — the comparator + the functional groups
 ├── affected.sh         which images a commit changes — the input table, 1 home
@@ -65,20 +65,20 @@ bash .ci/ctl.sh <verb>
 | Verb                    | What it does                                                |
 |-------------------------|-------------------------------------------------------------|
 | `validate`              | shellcheck + hadolint + jq across the whole tree            |
-| `build-all`             | Build every image, parent first, in `BUILD_ORDER`           |
-| `push-all`              | GUARDED push of every image to ghcr.io. **Local only** — see below |
-| `smoke-test-all`        | Run `smoke.sh` against each image after a local build       |
 | `help`                  | Show the inline verb index                                  |
 
-`build-all` and `push-all` walk `BUILD_ORDER` in `.ci/ctl.sh`, which holds all 5
-images. Do not restate that chain here: this table used to say
-"(base → flutter → zephyr)" while the same file said "All 5 that it builds" 30
-lines lower, so the file disagreed with itself.
+**`build-all`, `push-all` and `smoke-test-all` stood in that table and are
+DELETED.** No workflow and no script called any of the 3 — the grep that says so
+covers `.github/workflows/`, `.ci/providers/` and every `*.sh` in the repository,
+and it found each name only in `.ci/ctl.sh`, in `.ci/project.json` and in this
+file. Each verb looped `BUILD_ORDER` unconditionally, which is the opposite of
+the affected-only rule below: `push-all` would have pushed all 5 images whatever
+`.ci/affected.sh` said. A verb nothing invokes is a capability the usage block
+advertises and nobody maintains, and this one advertised a way past the gate.
 
-**`push-all` is a local verb and no workflow runs it.** It loops `BUILD_ORDER`
-unconditionally, so it would push all 5 images whatever `.ci/affected.sh` says,
-which is the opposite of the affected-only rule the publishing workflow obeys.
-Each job of `build-and-push.yml` pushes the 1 image it just built and smoked.
+`validate` stays. It is the 1 verb here with a caller who is not a workflow — a
+developer running the pull request gate locally — and its body is the
+repository-root one, delegated.
 
 ## Which images CI smokes
 
@@ -104,36 +104,38 @@ build did not ship.
 nothing builds it. Its `content-runner` check group stayed: `cloud` carries the
 runner layer, so those checks run against the image that ships it today.
 
-`smoke-test-all` runs `smoke.sh` against every image in 1 command, for a local
-loop. No workflow calls it: each job smokes the image it just built.
+To smoke 1 image on a personal computer, call the driver the workflow calls:
+`bash .ci/smoke.sh <image> [ref]`.
 
 ## Nx integration
 
-`.ci/project.json` also exposes every verb as an Nx target:
+`.ci/project.json` exposes the verb as an Nx target:
 
 ```
 nx run ci-devcontainer:ci-.devcontainer-validate
-nx run ci-devcontainer:ci-.devcontainer-build-all
-nx run ci-devcontainer:ci-.devcontainer-push-all
-nx run ci-devcontainer:ci-.devcontainer-smoke-test-all
 ```
+
+It does not cache, and neither does any target of this repository. The reason is
+in `.claude/rules/00-identity.md`, "Nx caching": these verbs discover their file
+set at runtime, so no static `inputs` list can be complete. The list that stood
+on the root `validate` target missed 32 tracked files the verb reads, and the
+list that stood on this target repeated the fault.
 
 ## Why this layer is separate
 
-In the past each image had its own `ctl.sh`, and the repository-level `ctl.sh`
-delegated to them. That structure works for an operation on 1 image
-(`build base`, `push flutter`). It gives no place for an operation that acts on
-**all** the images as a set. CI must do such an operation on every push to
-`main`.
+This section used to argue that the repository needed 1 place for an operation
+on **all** the images as a set, and that `.ci/ctl.sh` was that place. The
+argument was refuted by the affected-only rule, and the 3 aggregate verbs it
+justified are deleted.
 
-`.ci/ctl.sh` supplies that place. It knows the dependency order. It knows that
-`push-all` does `buildx --push` on every image and fails if 1 image fails. It
-knows that the smoke test after the build is not the same as the build of 1
-image. It is the contract a local developer uses to get CI's behaviour on a
-personal computer, in 1 command.
+**The unit of a CI run is 1 image.** Each job of `build-and-push.yml` gates its
+build, its smoke and its push on `bash .ci/affected.sh <image>`, so an operation
+that walks the whole set unconditionally is not a shortcut for what CI does — it
+is the opposite of it. A local developer who wants CI's behaviour calls the same
+purpose-built script CI calls, for the 1 image they changed.
 
-**A CI pipeline does not use it, and the reason is the affected-only rule.** A
-workflow job gates its build, its smoke and its push on
-`bash .ci/affected.sh <image>`, so the unit CI works in is 1 image and not the
-set. The aggregate verbs stay for the local loop; the workflow calls the
-individual scripts of this directory.
+What this directory owns is therefore the SCRIPTS, not an aggregate verb: which
+images a commit affects, the builder, the BuildKit mirror, the smoke driver and
+its guest half, the failure notifier, and the provider YAMLs that are the source
+of truth for each CI system. `ctl.sh` keeps `validate` alone, because that 1
+gate really does act on the whole tree at once.

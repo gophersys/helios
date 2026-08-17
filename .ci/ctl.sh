@@ -3,16 +3,18 @@
 # .ci/ctl.sh — CI orchestration layer for gophersys/.devcontainer
 #
 # Sits one level above the repo-level ctl.sh and the per-image ctl.sh scripts.
-# Every verb here acts on the WHOLE set of managed images (base + flutter +
-# zephyr + zephyr-devbox + cloud) in dependency order, and delegates per-image
-# work to the repo-level ctl.sh.
 #
 # Verbs:
 #   validate              shellcheck + hadolint + jq across the repo
-#   build-all             build every image, parent first
-#   push-all              GUARDED buildx --push of every image
-#   smoke-test-all        run .ci/smoke.sh against each image
 #   help
+#
+# `build-all`, `push-all` and `smoke-test-all` stood here and are DELETED. Each
+# one looped BUILD_ORDER unconditionally, which is the opposite of the
+# affected-only rule every publishing job obeys: a job gates its build, its smoke
+# and its push on `.ci/affected.sh <image>`, so the unit of a CI run is 1 image
+# and not the set. No workflow and no script called any of the 3. A verb nothing
+# invokes is a capability the usage block advertises and nobody maintains, and
+# `push-all` advertised a way to publish all 5 images past that gate.
 #
 # Usage: bash .ci/ctl.sh <verb> [args...]
 #
@@ -22,8 +24,7 @@ IFS=$'\n\t'
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 
-# The logging and the tool gate live in _ctl/lib.sh, 1 time only. This script
-# owns the verbs that act on the whole set of images.
+# The logging and the tool gate live in _ctl/lib.sh, 1 time only.
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../_ctl/lib.sh
 source "$REPO_ROOT/_ctl/lib.sh"
@@ -46,11 +47,6 @@ function image_dir() {
   esac
 }
 
-# -------- helpers --------
-function repo_ctl() {
-  (cd "$REPO_ROOT" && bash ./ctl.sh "$@")
-}
-
 # -------- verbs --------
 
 # validate — shellcheck + hadolint + jq, recursive over the managed tree.
@@ -61,55 +57,6 @@ function cmd_validate() {
   # a RUN line that `./ctl.sh validate` rejected. A weaker twin of a gate is worse
   # than no twin, because whoever runs it believes they ran the gate.
   bash "$REPO_ROOT/ctl.sh" validate "$@"
-}
-
-# build-all — build every image, in dependency order.
-function cmd_build_all() {
-  require_cmd docker
-  local name
-  for name in "${BUILD_ORDER[@]}"; do
-    log_info "=== building ${name} ==="
-    repo_ctl build "$name"
-  done
-  log_info "build-all: OK"
-}
-
-# push-all — GUARDED push of every image to ghcr.
-# This verb checks only that buildx exists, because the required platform list
-# is not the same for every image. The per-image ctl.sh calls the full guard
-# require_buildx_and_platforms with its own list.
-function cmd_push_all() {
-  require_buildx
-  local name
-  for name in "${BUILD_ORDER[@]}"; do
-    log_info "=== pushing ${name} ==="
-    repo_ctl push "$name"
-  done
-  log_info "push-all: OK"
-}
-
-# smoke-test-all — run .ci/smoke.sh against each image. The image runs on the
-# host architecture, which is the architecture it was built for.
-function cmd_smoke_test_all() {
-  require_cmd docker
-  if [[ ! -x "$PROJECT_ROOT/smoke.sh" ]]; then
-    log_error "missing or non-executable: .ci/smoke.sh"
-    return 1
-  fi
-  local name rc=0
-  for name in "${BUILD_ORDER[@]}"; do
-    log_info "=== smoke-testing ${name} ==="
-    if ! bash "$PROJECT_ROOT/smoke.sh" "$name"; then
-      log_error "smoke-test failed for ${name}"
-      rc=1
-    fi
-  done
-  if [[ $rc -eq 0 ]]; then
-    log_info "smoke-test-all: OK"
-  else
-    log_error "smoke-test-all: FAILED"
-  fi
-  return "$rc"
 }
 
 # -------- usage --------
@@ -123,9 +70,6 @@ Managed images (build order): ${order}
 
 Verbs:
   validate              shellcheck + hadolint + jq across the repo
-  build-all             Build every image, parent first
-  push-all              GUARDED push of every image to ghcr.io
-  smoke-test-all        Run .ci/smoke.sh against each freshly-built image
   help                  Show this message
 EOF
 }
@@ -136,9 +80,6 @@ function main() {
   shift || true
   case "$cmd" in
     validate)             cmd_validate             "$@" ;;
-    build-all)            cmd_build_all            "$@" ;;
-    push-all)             cmd_push_all             "$@" ;;
-    smoke-test-all)       cmd_smoke_test_all       "$@" ;;
     help|"")              usage ;;
     *)                    log_error "unknown verb: '$cmd'"; usage; exit 1 ;;
   esac
