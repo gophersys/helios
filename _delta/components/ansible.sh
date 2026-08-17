@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
 #
-# _delta/components/ansible.sh — READY component, consumed by NOTHING today.
+# _delta/components/ansible.sh — READY component, called by NO Dockerfile today.
 #
-# ansible + ansible-core were DROPPED from every image by decision
+# ansible + ansible-core are not in the CLOUD image, by decision
 # (image-architecture §2.3): 787 MB with oci-cli, the biggest single win after
-# the Go cache. This file is the documented extension point — one delta line
-# away when infra work needs it. The pins ANSIBLE_VERSION and
+# the Go cache. **The base family still installs them.** This header said
+# "DROPPED from every image", which is false: base/Dockerfile:635-636 is a live
+# `uv tool install --with ansible== ... ansible-core==`, so base and its 3
+# children ship both, and .ci/smoke.sh:192-193 asserts their versions. The
+# trivyignore secret waiver for `.../uv/tools/ansible-core/**/sts_session_token.py`
+# exists BECAUSE of that install — a path that could not exist if the drop were
+# universal. Scope a drop to the image that made it.
+#
+# This file is the documented extension point for the cloud family — one delta
+# line away when infra work needs it. The pins ANSIBLE_VERSION and
 # ANSIBLE_CORE_VERSION already live in versions.env.
 #
 # ansible-core is the primary because the `ansible` metapackage only ships an

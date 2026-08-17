@@ -330,29 +330,14 @@ function cmd_validate() {
   return "$rc"
 }
 
-# Propagate: delegate submodule pointer bumps to brain's propagate script.
-function cmd_propagate() {
-  local brain_root
-  brain_root="$(git -C "$PROJECT_ROOT" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
-  if [[ -z "$brain_root" ]] || [[ ! -f "$brain_root/.claude/scripts/propagate.sh" ]]; then
-    log_error "propagate must be run from within brain (brain/shared/.devcontainer/)"
-    log_error "this script was invoked outside the brain orchestration context"
-    exit 1
-  fi
-  bash "$brain_root/.claude/scripts/propagate.sh" ".devcontainer" "$@"
-}
-
-# Release: delegate to brain's release.sh. Same parent-context requirement.
-function cmd_release() {
-  local brain_root
-  brain_root="$(git -C "$PROJECT_ROOT" rev-parse --show-superproject-working-tree 2>/dev/null || true)"
-  if [[ -z "$brain_root" ]] || [[ ! -f "$brain_root/.claude/scripts/release.sh" ]]; then
-    log_error "release must be run from within brain (brain/shared/.devcontainer/)"
-    log_error "this script was invoked outside the brain orchestration context"
-    exit 1
-  fi
-  bash "$brain_root/.claude/scripts/release.sh" ".devcontainer" "$@"
-}
+# `propagate` and `release` were 2 more verbs here, and both are deleted. Each
+# one shelled out to $(git rev-parse --show-superproject-working-tree)/.claude/
+# scripts/, a layout of the pre-Eden `brain` parent. Eden is the only
+# superproject and it has no .claude/scripts/, so both verbs took their own
+# error branch at every invocation and told the caller to run them "from within
+# brain". Moving the submodule pointer is 1 commit in 1 consumer; the README
+# shows it. A verb that cannot succeed is worse than an absent verb, because the
+# usage block reads as a list of things this script can do.
 
 # -------- usage --------
 function usage() {
@@ -377,8 +362,6 @@ Repo-wide commands:
   list                             Print managed image refs
   validate                         shellcheck, jq, hadolint, ARG-discipline checks
   test                             Run every _ctl/tests/*.test.sh
-  propagate                        Fan out submodule bumps (delegates to brain)
-  release                          Cut a release (delegates to brain)
   help                             Show this message
 EOF
 }
@@ -397,8 +380,6 @@ function main() {
     list)               cmd_list              "$@" ;;
     validate)           cmd_validate          "$@" ;;
     test)               cmd_test              "$@" ;;
-    propagate)          cmd_propagate         "$@" ;;
-    release)            cmd_release           "$@" ;;
     help|"")            usage ;;
     *)                  log_error "unknown command: '$cmd'"; usage; exit 1 ;;
   esac

@@ -52,7 +52,16 @@ provider-native and have no source-of-truth copy.
 
 ## Orchestration
 
-The bash orchestration layer above these YAML files is `.ci/ctl.sh`. See
-`.ci/README.md`. That layer is the entrypoint. Every local developer and every
-CI job delegates to it. The provider YAML files are thin shells that call
-`bash .ci/ctl.sh <verb>`.
+The bash layer beside these YAML files is `.ci/`. See `.ci/README.md`.
+
+**The provider files are not thin shells over `.ci/ctl.sh`.** This section used
+to say they "call `bash .ci/ctl.sh <verb>`", and no file here does. What
+`build-and-push.yml` actually calls, in order, is `.ci/affected.sh`,
+`.ci/mirror-buildkit.sh`, `.ci/buildx-node.sh`, `.ci/smoke.sh`,
+`.ci/notify-failure.sh` and the repository-root `./ctl.sh verify-published`. It
+is 697 lines, which no reading calls thin.
+
+The shape is deliberate. Each job gates its build, its smoke and its push on
+`.ci/affected.sh <image>`, so the unit of a CI run is 1 image. `.ci/ctl.sh`
+aggregates over the whole set, which cannot be gated per image, so it stays the
+LOCAL entrypoint and the workflows call the purpose-built scripts directly.

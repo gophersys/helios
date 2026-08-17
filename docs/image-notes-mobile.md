@@ -1,5 +1,20 @@
 # mobile — the build-ready image spec
 
+> **STATUS: PROPOSAL. The `mobile` image does not exist.** Last judged against
+> the tree on 2026-08-17. Read `.claude/rules/00-identity.md` for what the
+> repository builds today, and `docs/README.md` for the class of file this is.
+>
+> **Names this document PROPOSES, which are not in the tree:**
+> `ghcr.io/gophersys/mobile`, `mobile/`, `_delta/mobile.sh`, `mobile-runner`,
+> `matrix`, and `ARG PARENT_IMAGE`. `_delta/` holds `components/*.sh` and no
+> `mobile.sh`; `runner/Dockerfile` declares `ARG BASE_IMAGE` and no
+> `PARENT_IMAGE`.
+>
+> **Every pin below is the value that was current when this was written.** The
+> live pins are in `flutter/Dockerfile` and they have moved since —
+> `FLUTTER_VERSION` is 3.47.0 there today, against the 3.41.7 this document
+> repeats. Re-resolve every pin before you build from these notes.
+
 Status: build-ready notes. Develop later without new derivation.
 Grounding: the image-architecture design (draft, 2026-08) and the measured
 image census. Sizes marked EST are estimates. All other sizes are measured.
@@ -12,18 +27,28 @@ Language: ASD-STE100 Simplified Technical English.
 `ghcr.io/gophersys/mobile` is the category image for Flutter and Android
 work. It is a rename of today's `flutter` image.
 
-- **Parent:** `ghcr.io/gophersys/cloud` (the reduced base, a rename of
-  `base`). The parent supplies git, Go, Python, Node (nvm, `dev`-homed),
-  gh, docker CLI + buildx, and the gate toolchain.
+- **Parent:** `ghcr.io/gophersys/cloud`. The parent supplies git, Go, Python,
+  Node (nvm, `dev`-homed), gh, docker CLI + buildx, and the gate toolchain.
+  This document called `cloud` "a rename of `base`". It is not: `cloud`
+  builds `FROM ubuntu` directly, so it is a reduction and not a layer, and
+  `base` is still built and still published.
 - **Recipe:** `mobile = cloud + _delta/mobile.sh`. One script holds the
   delta. The `matrix` image consumes the same script. One edit moves both.
 - **Home:** this repo. The directory `flutter/` becomes `mobile/`.
 - **Absorbs:** the full content of `flutter/Dockerfile`, unchanged.
 - **Retires:** the `flutter` image name and directory. The old ghcr
   `flutter` package stays until Mateo authorizes its deletion (see §5).
-- **Child:** `mobile-runner` = mobile + the single `runner/Dockerfile`
-  (`ARG PARENT_IMAGE`). The runner delta measures ~1.04 GB. Build it only
-  when a mobile CI consumer needs a self-hosted runner. Not day 1.
+- **Child: SUPERSEDED.** This document proposed `mobile-runner` = mobile +
+  the single `runner/Dockerfile` (`ARG PARENT_IMAGE`), with the runner delta
+  measured at ~1.04 GB. The category-image program supersedes it. The
+  `+ runner` layer is retired: all 3 ARC pools run `cloud`, which folds the
+  runner in itself, the `base-runner` package is gone from ghcr, and
+  `runner/` is on disk only until the consolidation wave deletes it. A
+  `<category>-runner` child image is therefore not the shape any more — a CI
+  consumer takes a pool whose image already carries the runner. The size
+  measurement is kept because it is half of why the layer was dropped.
+  `ARG PARENT_IMAGE` never existed; `runner/Dockerfile` declares
+  `ARG BASE_IMAGE`.
 - **Out of scope for the image:** iOS. Xcode cannot run in a Linux
   container. The iOS lane runs on the mini's native macOS runner (§3.2).
 
@@ -51,10 +76,9 @@ Delta total ≈ **3.4 GB EST**. Image total ≈ cloud + 3.4 GB per arch.
 
 Row 1 shows the package in its parameterized form because that is what
 `flutter/Dockerfile` writes: `openjdk-${JAVA_VERSION}-jdk-headless` with
-`ARG JAVA_VERSION=21`. The 00-identity.md image table still says
-"OpenJDK 17" for flutter. That row is stale against the Dockerfile pin.
-Correct 00-identity.md in its own change; this spec follows the
-Dockerfile.
+`ARG JAVA_VERSION=21`. This paragraph used to instruct a future change to
+correct an "OpenJDK 17" row in `00-identity.md`. That correction landed:
+the identity's flutter row reads OpenJDK 21 now. Do not go looking for it.
 
 **Pins (one home, top of `mobile.sh`, guarded defaults):**
 
@@ -219,7 +243,7 @@ network in this gate).
 
 ### 4.3 Jobs 2–3 — arm64 and the manifest
 
-The arm64 half obeys the same law as §4.1 and as the base-runner job in
+The arm64 half obeys the same law as §4.1 and as every publish job in
 00-identity.md: build → smoke the LOADED image → only then push. A push
 cannot be undone, so no tag — the per-arch `-arm64` tag included — may
 reach ghcr before the native smoke is green.
@@ -246,7 +270,7 @@ docker buildx imagetools create \
 # [infra] ctl.sh verify-image-arch <ref>: read the ELF machine bytes per arch.
 ```
 
-The two-build shape is the base-runner pattern from 00-identity.md: the
+The two-build shape is the publish pattern from 00-identity.md: the
 first build loads and does not push, the smoke asserts the loaded image,
 and the second build pushes from the cache the first one wrote.
 
@@ -291,11 +315,14 @@ until Mateo authorizes deletion.
 **M1 — rename flutter → mobile (design step a).**
 1. `git mv flutter mobile`; image name → `ghcr.io/gophersys/mobile`;
    `ENV GOPHERSYS_DEVCONTAINER=mobile`; Dockerfile contents unchanged.
-2. Sync the graph in the 4 places 00-identity.md names: `BUILD_ORDER` in
-   `./ctl.sh` AND in `.ci/ctl.sh` (place 1 — 2 files); `dependsOn` in the
-   image's own `project.json` in this repo (place 2); job `needs` in
-   `.github/workflows/build-and-push.yml` (place 3); the byte-identical
-   provider copy `.ci/providers/github/build-and-push.yml` (place 4).
+2. Sync the graph in the 6 files 00-identity.md names: `BUILD_ORDER` in
+   `./ctl.sh` (1) and in `.ci/ctl.sh` (2); `dependsOn` in the image's own
+   `project.json` (3); job `needs` in `.github/workflows/build-and-push.yml`
+   (4); `image_parent()` in `.ci/affected.sh` (5); the byte-identical
+   provider copy `.ci/providers/github/build-and-push.yml` (6). This step
+   said 4 and omitted `image_parent()`, which arrived with affected-only
+   builds — a missing edge there publishes a child on a parent that moved
+   under it.
 3. `.ci/smoke.sh`: the `flutter)` case arm and the valid-images list →
    `mobile`.
 4. Update the warmer image list and any devcontainer.json that names

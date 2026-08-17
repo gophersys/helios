@@ -29,12 +29,22 @@
 # green on gh 2.40 while versions.env pins 2.90. Only a COMPARISON sees that, and
 # the comparison needs the pin, which exists on the host and not in the image.
 #
-# 3 things fail this script BEFORE a container is started, because each one would
-# otherwise report an image as smoked while checking nothing:
+# 7 things fail this script before it reaches the docker daemon at all, because
+# each one would otherwise report an image as smoked while checking nothing:
 #
 #   - a pin of the home that carries no classification;
+#   - a pin classified `asserted` with no command to read a version with;
 #   - a pin classified `asserted` that resolves to the empty string;
-#   - a pin classified `asserted` with no command to read a version with.
+#   - a pin classified `asserted` whose value holds no version to compare;
+#   - a home where NO pin is asserted, so the guest would compare nothing;
+#   - no fixture under .ci/fixtures/, so the functional checks read nothing;
+#   - an embedded file carrying the heredoc delimiter, which would truncate the
+#     payload without an error.
+#
+# 6 more fail after the daemon is reached and still BEFORE the smoke container
+# starts: the 3 platform-resolver refusals, the unobtainable-ref refusal, and
+# the 2 cloud size-gate refusals. This block said "3 things" and listed the
+# first 3 of them — a count written in prose that the file then grew past.
 #
 # Usage: bash .ci/smoke.sh <image> [ref]
 # where <image> ∈ {base, flutter, zephyr, zephyr-devbox, cloud}

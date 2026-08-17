@@ -1,8 +1,8 @@
 # .devcontainer
 
 This repository holds the shared IDP (internal developer platform) images for
-every project in the brain ecosystem. The repository builds **5** container
-images:
+Eden. `gophersys/eden` uses it as a submodule at `.devcontainer/`. The
+repository builds **5** container images:
 
 - 1 base image with many tools. Most projects can use it directly.
 - 2 domain-specific layers on top of the base image: flutter and zephyr.
@@ -41,7 +41,7 @@ every image has it. See "The shared ctl library" below.
 | `ghcr.io/gophersys/base` | The general-purpose image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. | `base` |
 | `ghcr.io/gophersys/flutter` | Base + OpenJDK 21 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. The targets are Linux desktop and Android. iOS is not in the scope. | `flutter` |
 | `ghcr.io/gophersys/zephyr` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif). | `zephyr` |
-| `ghcr.io/gophersys/zephyr-devbox` | Zephyr + sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules. It runs as a k8s pod. You connect to it with VS Code Remote-SSH. It starts as root and it execs sshd. A login gets the `dev` user. | `zephyr-devbox` |
+| `ghcr.io/gophersys/zephyr-devbox` | Zephyr + sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules + clangd and **code-server on `:8443`** (browser VS Code, with the clangd extension seeded at build time). It runs as a k8s pod, and it has 2 access paths: VS Code Remote-SSH, and the browser at `:8443`. It starts as root and it execs sshd. A login gets the `dev` user. code-server runs as `dev` and **needs a credential** — see "The zephyr-devbox entrypoint" below. | `zephyr-devbox` |
 | `ghcr.io/gophersys/cloud` | The reduced base + the CI fold (the Actions runner, cictl, buildx, the harnesses), built `FROM ubuntu` directly rather than from `base`, so it is a reduction and not a layer. **Every ARC pool runs it**, and the same image is a devcontainer: the default command is zsh and a CI pod overrides it. Every pin comes from `versions.env`. | `cloud` |
 
 ## Dependency graph
@@ -69,9 +69,19 @@ what the ARC pools ran.
 They run `cloud` now, pinned by digest — `cloud` folds the runner in itself
 (gophersys/infrastructure #184). So the layer has no consumer: it left
 `BUILD_ORDER`, both copies of the publishing workflow, the nightly scan matrix
-and `.ci/smoke.sh`. The directory stays on disk for one more change and nothing
-builds it; deleting it goes with the docs sweep. The published
-`ghcr.io/gophersys/base-runner` package is archived after this merges.
+and `.ci/smoke.sh`.
+
+The `ghcr.io/gophersys/base-runner` package is gone from the registry: read on
+2026-08-17, the org's container list does not hold it and the packages API
+answers 404 for it.
+
+**The directory is still on disk, and deleting it is scheduled with the
+consolidation wave.** Nothing builds it, but 3 mechanisms still read it:
+`runner/Dockerfile` is 1 of the 6 pin homes that the Monday bump writes into, it
+carries a `_build/download-exemptions.txt` row, and 5 test files hold a
+`runner/` path as a literal. The deletion edits all of them in 1 change, which
+is why it is a wave of its own and not a `git rm`.
+`.claude/rules/00-identity.md` lists the files.
 
 The reason a runner image is the image of the POD, and never a workflow
 `container:` image, is unchanged and now answered by `cloud`:
@@ -92,6 +102,7 @@ Pull an image directly:
 
 ```sh
 docker pull ghcr.io/gophersys/base:latest
+docker pull ghcr.io/gophersys/cloud:latest
 docker pull ghcr.io/gophersys/flutter:latest
 docker pull ghcr.io/gophersys/zephyr:latest
 docker pull ghcr.io/gophersys/zephyr-devbox:latest
@@ -101,29 +112,49 @@ docker pull ghcr.io/gophersys/zephyr-devbox:latest
 
 A consuming project mounts this repository at `<project>/.devcontainer/`. Each
 image directory contains its own `devcontainer.json`. Run **Dev Containers:
-Reopen in Container** and select `base`, `flutter`, `zephyr` or
+Reopen in Container** and select `base`, `cloud`, `flutter`, `zephyr` or
 `zephyr-devbox`. Each configuration bind-mounts the project to `/workspace` and
 runs as the `dev` user. The configuration files are at these paths:
 
 ```
 .devcontainer/base/devcontainer.json
+.devcontainer/cloud/devcontainer.json
 .devcontainer/flutter/devcontainer.json
 .devcontainer/zephyr/devcontainer.json
 .devcontainer/zephyr-devbox/devcontainer.json
 ```
 
-### As a GitHub Actions job container
+`cloud/devcontainer.json` carries no `postCreateCommand` and `base` does. The
+difference is where the harnesses come from: `cloud` bakes claude, omp and codex
+into the image through `_delta/components/agents.sh` at the `versions.env` pins,
+so a container start does zero network installs. `base` ships no harness, so
+`base/ctl.sh post-create` installs them at create time.
+
+### As the CI runtime
+
+The image is the image of the **pod**, and never a workflow `container:` image.
+A job names an ARC pool and no container:
 
 ```yaml
 jobs:
   build:
-    runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/gophersys/base:latest
+    runs-on: arc-build
     steps:
       - uses: actions/checkout@v4
       - run: npx nx affected -t build
 ```
+
+**This section used to show `runs-on: ubuntu-latest` with a `container:` key,
+and both halves are forbidden here.** Two measurements say so. The dind daemon
+in the runner pod pulls a `container:` image and loses it when the pod stops: at
+this image size that is 5m17s per job. And a `GITHUB_TOKEN` pull of a private
+package needs a grant for each (package, repository) pair, which GitHub gives
+only in its user interface — while 1 in-cluster `imagePullSecret` covers every
+image and every repository. Nothing in this repository runs on a GitHub-hosted
+runner either; see "Every job runs on `arc-build`" below.
+
+Which pool an image backs is declared in `gophersys/infrastructure`
+`docs/ci-substrate.md`. All 3 ARC pools run `cloud`, pinned by digest.
 
 ### Detect the image at runtime
 
@@ -132,12 +163,50 @@ Use this code in a script or in CI:
 ```sh
 case "${GOPHERSYS_DEVCONTAINER}" in
   base)          echo "running in the base image" ;;
+  cloud)         echo "running in the cloud image" ;;
   flutter)       echo "running in the flutter layer" ;;
   zephyr)        echo "running in the zephyr layer" ;;
   zephyr-devbox) echo "running in the zephyr-devbox layer" ;;
   *)             echo "not inside a gophersys devcontainer" ;;
 esac
 ```
+
+**The `cloud)` arm is not optional.** Every ARC pool runs `cloud`, so a copy of
+this block without that arm sends every CI job to the `*)` arm and prints "not
+inside a gophersys devcontainer" from inside a gophersys devcontainer. That arm
+was missing here while the same README said 45 lines higher that the pools run
+`cloud`.
+
+### The zephyr-devbox entrypoint
+
+`zephyr-devbox/devbox-entrypoint.sh` is PID 1 of the pod. Read that file for the
+full contract. sshd is the LAST thing it does, and these steps come first:
+
+| Step | What it does | Operator knob |
+|---|---|---|
+| argv pass-through | Execs any argv you supply and stops there, so a local `docker run <image> zsh` behaves like the other layers. | — |
+| host keys | Generates ed25519 + rsa keys into `/etc/ssh/hostkeys` (a PVC subpath), so the box keeps its SSH identity across restarts. | — |
+| mountpoint ownership | Chowns and chmods `/home/dev` and `/workspace`, **non-recursively** — recursing a populated home on every boot is slow and tramples intentional ownership. | — |
+| authorized_keys | Takes the keys from `DEVBOX_AUTHORIZED_KEYS`, else from a mounted `/etc/devbox/authorized_keys`, else leaves the persistent home's file alone. | `DEVBOX_AUTHORIZED_KEYS` |
+| mcu slots | Recreates `/dev/mcu-slot-1..6` from `/dev/serial/by-path`. A symlink at the node's `/dev` root does not reach the pod. Slot N is guest USB port N is physical hub slot N. | — |
+| code-server | Starts it as `dev` on `0.0.0.0:8443`, under a supervisor loop that logs and restarts every exit. | `DEVBOX_CODE_SERVER_HASHED_PASSWORD` **or** `DEVBOX_CODE_SERVER_AUTH=none-behind-proxy` |
+
+**code-server auth is required by default.** Set
+`DEVBOX_CODE_SERVER_HASHED_PASSWORD` to an argon2 hash (code-server's own
+`HASHED_PASSWORD` contract, usually from a Secret), or set
+`DEVBOX_CODE_SERVER_AUTH=none-behind-proxy` to declare that an authenticating
+proxy owns the port. With neither set, code-server does NOT start and the
+refusal names both knobs. The reason is measured: the account code-server runs
+as holds passwordless sudo, so a reachable unauthenticated `:8443` is root on
+the pod for any peer the network admits — and the network boundary is a
+NetworkPolicy in another repository, which this file cannot see and must not
+trust as the only wall.
+
+**Every refusal writes `/run/devbox-degraded` and logs ERROR, not WARNING.**
+sshd still runs, because code-server is supplementary and a missing credential
+must not take the primary service down. A pod that reports Running while a
+declared service is absent is the failure mode this entrypoint used to have, so
+the marker file gives a probe or an operator machine-readable state to find.
 
 ## Sanctioned-platform policy
 
@@ -258,8 +327,9 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
    `_SHA256_ARM64` row together, on the day `SANCTIONED_PLATFORMS` widens.
 8. **Remove the temporary files in the same layer.** For apt, use
    `rm -rf /var/lib/apt/lists/*`.
-9. **You must get approval.** A new tool and a version change go through the
-   brain-level approval gate. They have an effect on every consuming project.
+9. **You must get approval.** A new tool and a version change need Mateo's
+   approval on the pull request. They reach every image below this one in the
+   graph, and the ARC pools run `cloud`.
 10. Run `bash ./ctl.sh validate` and `bash ./ctl.sh test` until both report no
    error. Then run `bash ./ctl.sh build base` to make sure that the chain of
    images still builds.
@@ -269,8 +339,9 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
 ```
 .devcontainer/
 ├── README.md
-├── project.json                 # repo-level Nx wiring (list, validate, propagate, release)
+├── project.json                 # repo-level Nx wiring (list, validate, test)
 ├── ctl.sh                       # repo-wide control script
+├── versions.env                 # the ONE pin home of the cloud family
 ├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time only
 ├── _ctl/tests/                  # hermetic *.test.sh + harness + docker stub + fixtures
 ├── _build/                      # COPYed into base and cloud, above their first download
@@ -278,16 +349,25 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
 │   ├── download-exemptions.txt  # the downloads that take a stated class instead of a digest
 │   ├── upstreams.txt            # where the next value of every pin comes from
 │   └── resolve-upstream.sh      # the weekly resolver — 1 function per datasource
+├── _delta/components/           # 1 file per folded tool group; cloud COPYs them and runs them
+├── docs/                        # PROPOSALS for images that do not exist yet — see docs/README.md
 ├── .claude/rules/               # identity + conventions
-├── .ci/affected.sh              # which images a commit changes — 1 home for the answer
-├── .ci/buildx-node.sh           # the builder every image build uses; owns the arm64 switch
+├── .ci/                         # the CI layer — .ci/README.md lists every file
+│   ├── affected.sh              # which images a commit changes — 1 home for the answer
+│   ├── buildx-node.sh           # the builder every image build uses; owns the arm64 switch
+│   └── mirror-buildkit.sh       # keeps ghcr.io holding the BuildKit index the builder boots from
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
+├── cloud/         { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── runner/        { Dockerfile, project.json, ctl.sh }   # RETIRED — nothing builds it
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
-├── cloud/         { devcontainer.json, Dockerfile, project.json, ctl.sh }
-└── .github/workflows/build-and-push.yml
+└── .github/workflows/
+    ├── build-and-push.yml    # publish the images
+    ├── security-nightly.yml  # the nightly trivy scan + the base-OS currency probe
+    ├── weekly-bumps.yml      # the weekly upstream resolution + the 1 bump pull request
+    ├── validate.yml          # the pull request gate: ctl.sh validate + ctl.sh test + BUILD_ORDER
+    └── pr-review.yml         # the review agent, shared from gophersys/cictl
 ```
 
 ### The shared ctl library
@@ -306,23 +386,37 @@ source "$PROJECT_ROOT/../_ctl/lib.sh"
 image_main "$@"
 ```
 
-The library reads this data. Set the first 4 items before the source line:
+The library reads this data. **Set the first 6 items BEFORE the source line**,
+because the library reads them while it loads. It reads the last 2 at call time,
+so those may be set after:
 
 | Name | Use |
 |---|---|
 | `PROJECT_ROOT` | The directory that holds the script. Required. |
 | `IMAGE_NAME` | The image slug, for example `flutter`. Required for the image verbs. |
 | `IMAGE_PLATFORMS` | The platforms this image builds. The default is `SANCTIONED_PLATFORMS`. Narrower is allowed with a measurement; wider is refused. |
-| `IMAGE_BUILD_ARGS` | An array of extra arguments for `docker build`. `runner/ctl.sh` puts `BASE_IMAGE` here. |
+| `IMAGE_BUILD_ARGS` | An array of extra arguments for `docker build`. `cloud/ctl.sh` fills it from `versions.env` through `versions_env_build_args`. |
+| `IMAGE_BUILD_CONTEXT` | The `docker build` context. The default is `PROJECT_ROOT`. `base/ctl.sh` and `cloud/ctl.sh` both set the repository root, because they COPY `_build/`, `versions.env` and `_delta/`, which sit 1 level above their directory. |
+| `IMAGE_DOCKERFILE` | An explicit `--file`. The default is empty, which keeps docker's own `<context>/Dockerfile`. Set it whenever `IMAGE_BUILD_CONTEXT` is not the image directory. |
 | `IMAGE_USAGE_HEADER` | Extra lines below the `Image:` header of the help text. |
 | `IMAGE_USAGE_COMMANDS` | Extra lines below the command list of the help text. |
+
+The last 2 rows of the first 6 are not optional in practice. A per-image script
+written from an earlier version of this table — which listed 4 rows and omitted
+both — would build `base` with `base/` as its context and die on
+`COPY _build/`, because the fetcher is not inside the image directory.
 
 An image that adds a verb handles that verb itself and sends every other verb
 to `image_main`. `base/ctl.sh` does this for `up`, `exec`, `shell`, `down` and
 `post-create`.
 
-The repository-root `ctl.sh`, `.ci/ctl.sh` and `.ci/smoke.sh` source the same
-library for the logging, the tool gate and the guard. Their own verbs act on
+**8 non-image scripts source the same library**, and not for the same contract.
+`ctl.sh`, `.ci/ctl.sh`, `.ci/smoke.sh`, `.ci/affected.sh` and
+`.ci/notify-failure.sh` take the logging, the tool gate and the guard.
+`.ci/buildx-node.sh` and `.ci/mirror-buildkit.sh` take the platform and BuildKit
+declarations (`SANCTIONED_PLATFORMS`, `BUILDKIT_REF`, `BUILDKIT_UPSTREAM_REF`).
+`_build/resolve-upstream.sh` takes the pin readers and the writer — `pin_value`,
+`homes_of`, `digest_row_of`, `fetch_urls` and `bump_pin`. Their own verbs act on
 the whole set of images, so they keep those verbs themselves.
 
 `validate` runs `shellcheck -x -S style` over every shell script in the
@@ -472,17 +566,19 @@ open issue about a CVE.
 
 ## Shared-change propagation
 
-After a change is merged to `main`, each consuming project keeps the previous
-commit. The project gets the change only when a person changes its submodule
-pointer. The parent brain repository owns the propagation flow:
+After a change merges to `main`, Eden keeps the previous commit. Eden gets the
+change only when a person moves its submodule pointer:
 
 ```sh
-# From within brain:
-bash brain/.claude/scripts/propagate.sh .devcontainer
-
-# Or, equivalently, from this repo invoked through brain's submodule:
-bash ./ctl.sh propagate
+# From the eden checkout:
+git -C .devcontainer fetch origin
+git -C .devcontainer checkout <sha>
+git add .devcontainer && git commit
 ```
 
-Propagation needs approval. See
-`brain/.claude/rules/operations/shared-change-propagation.md`.
+**There is no `propagate` verb and no fan-out script.** This section used to
+show `bash brain/.claude/scripts/propagate.sh` and `bash ./ctl.sh propagate`.
+Neither path exists: `brain` is the pre-Eden name of the parent, Eden has no
+`.claude/scripts/` directory, and the verb took its own error branch at every
+invocation. The pointer bump is 1 commit in 1 consumer. It needs Mateo's
+approval, like any other merge.
