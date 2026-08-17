@@ -64,7 +64,7 @@ GOSEC_VERSION|github-release|securego/gosec|bump to the newest release github ma
 GOVULNCHECK_VERSION|github-release|golang/vuln|bump to the newest release github marks latest
 GREMLINS_VERSION|github-release|go-gremlins/gremlins|bump to the newest release github marks latest
 GRPCURL_VERSION|github-release|fullstorydev/grpcurl|bump to the newest release github marks latest
-HADOLINT_VERSION|github-release|hadolint/hadolint|bump to the newest release github marks latest, and the gate then lints at the new version
+HADOLINT_VERSION|no-autobump|hadolint/hadolint|held at 2.14.0 by decision: 2.15.1 raises DL3064/DL3066 on all 6 Dockerfiles (measured 2026-08-17, ledger #110) — unhold in its own migration pull request, never by autobump
 HELM_VERSION|github-release|helm/helm|bump to the newest release github marks latest
 K3D_VERSION|github-release|k3d-io/k3d|bump to the newest release github marks latest
 K9S_VERSION|github-release|derailed/k9s|bump to the newest release github marks latest
