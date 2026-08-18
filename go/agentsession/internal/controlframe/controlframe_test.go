@@ -17,8 +17,8 @@ import (
 //
 // This file is the codec's own suite. It is written BEFORE the package exists — the one place
 // in this change where a compile failure is the correct red, because there is no current
-// behaviour to pin: the package is new, so `undefined` IS the contract gap. Everything else in
-// this feature is proven behaviourally against the pre-R1 tree.
+// behavior to pin: the package is new, so `undefined` IS the contract gap. Everything else in
+// this feature is proven behaviorally against the pre-R1 tree.
 //
 // PR-1a lands the PERMISSION family only. The peer family (EncodePeer/DecodePeer and the
 // envelope-terminator rejection) is S4's; a scalar-only signature set is deliberate here,
@@ -111,7 +111,7 @@ func TestDecodePermission_ByRetainsItsColons(t *testing.T) {
 
 // TestDecodePermission_RejectsWhatIsNotAPermissionFrame is the NEGATIVE half, and it is
 // load-bearing: the adapter's Send uses this predicate to decide whether a Steer frame is a
-// tunnelled decision or a genuine human interjection. A false positive would swallow the
+// tunneled decision or a genuine human interjection. A false positive would swallow the
 // operator's steer; a false negative would send the decision to the model as prose.
 func TestDecodePermission_RejectsWhatIsNotAPermissionFrame(t *testing.T) {
 	t.Parallel()

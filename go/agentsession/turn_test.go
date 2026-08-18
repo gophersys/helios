@@ -104,7 +104,7 @@ func TestTurn_OrdinalReachesTwoAcrossThreeFoldedTurns(t *testing.T) {
 			t.Fatalf("Prompt %d of %d was refused: %v — the session did not survive turn %d (R1: a turn boundary parks the session in %v, it does not end it)",
 				turn+1, turns, err, turn, agentsession.StateAwaitingInput)
 		}
-		readThroughTurnBoundary(t, ctx, stream, turn+1)
+		readThroughTurnBoundary(ctx, t, stream, turn+1)
 	}
 	if err := session.Close(context.Background()); err != nil {
 		t.Fatalf("Close: %v", err)
@@ -156,7 +156,7 @@ func TestTurn_FollowUpPromptIsLegalAfterATurnBoundary(t *testing.T) {
 
 // readThroughTurnBoundary reads the live tail up to and including turn n's boundary event (the
 // one carrying that turn's TerminalPayload), so the next Prompt is issued in the right phase.
-func readThroughTurnBoundary(t *testing.T, ctx context.Context, stream agentsession.Stream, turn int) {
+func readThroughTurnBoundary(ctx context.Context, t *testing.T, stream agentsession.Stream, turn int) {
 	t.Helper()
 	for {
 		event, ok := stream.Next(ctx)

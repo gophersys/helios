@@ -118,7 +118,7 @@ func TestProperty_TerminalLedgerAccountsTokensAndCost(t *testing.T) {
 		}
 		// R1: a clean agent_end ends the TURN, not the session. The kind is identified by its
 		// stable token rather than by its constant, so this file compiles against the pre-R1
-		// tree and the failure is behavioural.
+		// tree and the failure is behavioral.
 		if ev.IsTerminal() {
 			rt.Fatalf("a clean agent_end is a TURN boundary, not a session terminal (kind %s); one omp process serves many turns (line %q)", ev.Kind, line)
 		}

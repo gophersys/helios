@@ -127,7 +127,7 @@ func TestAdvisor_ReadsTheVerdictOffTheTurnBoundary(t *testing.T) {
 
 // ── helpers ──────────────────────────────────────────────────────────────────────────────.
 
-// runBounded drives Run and waits for its reason, cancelling the run if it does not end on its
+// runBounded drives Run and waits for its reason, canceling the run if it does not end on its
 // own within the bound. The cancellation is what keeps a regression from leaking the pump
 // goroutine into goleak's verifier, which would bury the real failure under a leak report.
 func runBounded(t *testing.T, runtime *agentruntime.Runtime, bound time.Duration) agentruntime.TerminationReason {

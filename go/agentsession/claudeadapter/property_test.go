@@ -116,7 +116,7 @@ func TestProperty_ResultLedgerFaithfulAndBounded(t *testing.T) {
 // assertResultBoundary asserts which BOUNDARY a result line draws (contract revision R1): a
 // success result ends the TURN and leaves the session alive; an error result ends the SESSION.
 // The turn-end kind is identified by its stable token rather than by its constant, so this file
-// compiles against the pre-R1 tree and the failure is behavioural.
+// compiles against the pre-R1 tree and the failure is behavioral.
 func assertResultBoundary(rt *rapid.T, ev *agentsession.Event, success bool, subtype string) {
 	if !success {
 		if !ev.IsTerminal() {

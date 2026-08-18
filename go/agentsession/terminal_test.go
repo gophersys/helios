@@ -22,12 +22,12 @@ import (
 //
 // The turn bodies below are driven through the pump as an adapter would emit them; the
 // turn-boundary kind is spelled POSITIONALLY (see eventTurnEnd) so this file compiles against
-// the pre-R1 tree and every failure is behavioural.
+// the pre-R1 tree and every failure is behavioral.
 
 // eventTurnEnd is the EventKind contract revision R1 APPENDS to the taxonomy — the member
 // immediately after the current last one (EventThinkingProgress), spelled positionally so this
 // file compiles BEFORE the constant exists (the red-first order: a test whose failure is
-// `undefined: agentsession.EventTurnEnd` proves nothing about behaviour).
+// `undefined: agentsession.EventTurnEnd` proves nothing about behavior).
 //
 // Its identity is not assumed: TestTurnEnd_RendersTheAppendedTurnBoundaryToken (turn_test.go)
 // pins this ordinal to the token "turn-end", so if Round B appends some OTHER member here the
@@ -148,7 +148,7 @@ const (
 
 // turnConn is a hand-written agentsession.HarnessConn that emits ONE scripted body per Prompt
 // — the multi-turn shape a post-R1 adapter produces. It exists in this package (rather than
-// reusing agentsessiontest's fake) because the R1 behaviour under test is precisely how the
+// reusing agentsessiontest's fake) because the R1 behavior under test is precisely how the
 // PUMP reacts to a turn-boundary event and to the way the channel closes, and both must be
 // controlled exactly.
 //
@@ -354,7 +354,7 @@ func (r *recordingTranscript) snapshot() []agentsession.Event {
 // of the DURABLE transcript (the authoritative Seq-ordered record every viewer replays).
 //
 //nolint:ireturn // contract §2: Factory.Open returns the Session port; the helper mirrors the frozen seam.
-func openScriptedSession(t *testing.T, conn *turnConn) (agentsession.Session, func() []agentsession.Event) {
+func openScriptedSession(t *testing.T, conn *turnConn) (session agentsession.Session, transcriptEvents func() []agentsession.Event) {
 	t.Helper()
 	const reference = "vault://eden/anthropic#setup-token"
 	transcript := newRecordingTranscript()
@@ -372,7 +372,7 @@ func openScriptedSession(t *testing.T, conn *turnConn) (agentsession.Session, fu
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	session, err := pool.Open(context.Background(), agentsession.Spec{
+	session, err = pool.Open(context.Background(), agentsession.Spec{
 		Workspace:  "/workspace",
 		Routing:    agentsession.RouteKey{Role: "assistant"},
 		Credential: secrets.Ref(reference),

@@ -29,7 +29,7 @@ import (
 //     from len(<the token table>). Deriving the bound from the table under test is exactly the
 //     blind gate: a missing row shrinks the bound and the check passes.
 //   - the token is then read at RUNTIME through the real String() method, so what is asserted
-//     is the behaviour a consumer sees, not a source literal.
+//     is the behavior a consumer sees, not a source literal.
 //   - appending a member therefore EXTENDS the assertion with no edit to this file. Contract
 //     revision R1 appends EventTurnEnd; if its token row is forgotten, EventTurnEnd.String()
 //     returns "extension" and the distinctness check below fails naming both members.
@@ -49,14 +49,16 @@ func TestTaxonomyTokens_EveryMemberHasADistinctToken(t *testing.T) {
 			}
 			seen := make(map[string]string, len(members))
 			for ordinal, name := range members {
-				token := taxonomy.render(ordinal)
-				assertTokenShape(t, taxonomy.typeName, name, ordinal, token)
-				if previous, clash := seen[token]; clash {
+				// Named wireToken, not token: `go/token` is imported here for the source scan,
+				// and a local `token` shadows it (gocritic importShadow).
+				wireToken := taxonomy.render(ordinal)
+				assertTokenShape(t, taxonomy.typeName, name, ordinal, wireToken)
+				if previous, clash := seen[wireToken]; clash {
 					t.Errorf("%s: %s (ordinal %d) and %s render the SAME token %q — %s has no row in the token table, so String() fell back to the first member's token",
-						taxonomy.typeName, name, ordinal, previous, token, name)
+						taxonomy.typeName, name, ordinal, previous, wireToken, name)
 					continue
 				}
-				seen[token] = name
+				seen[wireToken] = name
 			}
 		})
 	}
@@ -108,21 +110,23 @@ func taxonomies() []taxonomy {
 }
 
 // assertTokenShape asserts one member's token is non-empty and is the stable lower-kebab wire
-// form the gateway projects and the UI keys off.
-func assertTokenShape(t *testing.T, typeName, name string, ordinal int, token string) {
+// form the gateway projects and the UI keys off. The parameter is named wireToken, not token:
+// `go/token` is imported here for the source scan, and a parameter named `token` shadows it
+// (gocritic importShadow).
+func assertTokenShape(t *testing.T, typeName, name string, ordinal int, wireToken string) {
 	t.Helper()
-	if token == "" {
+	if wireToken == "" {
 		t.Errorf("%s: %s (ordinal %d) renders an EMPTY token", typeName, name, ordinal)
 		return
 	}
-	if strings.TrimSpace(token) != token {
-		t.Errorf("%s: %s renders %q with surrounding whitespace", typeName, name, token)
+	if strings.TrimSpace(wireToken) != wireToken {
+		t.Errorf("%s: %s renders %q with surrounding whitespace", typeName, name, wireToken)
 	}
-	if token != strings.ToLower(token) {
-		t.Errorf("%s: %s renders %q, which is not the stable lower-kebab wire form", typeName, name, token)
+	if wireToken != strings.ToLower(wireToken) {
+		t.Errorf("%s: %s renders %q, which is not the stable lower-kebab wire form", typeName, name, wireToken)
 	}
-	if strings.ContainsAny(token, " _") {
-		t.Errorf("%s: %s renders %q; the wire form separates words with '-'", typeName, name, token)
+	if strings.ContainsAny(wireToken, " _") {
+		t.Errorf("%s: %s renders %q; the wire form separates words with '-'", typeName, name, wireToken)
 	}
 }
 
