@@ -102,8 +102,12 @@ function image_parent() {
 # made the mapping true rather than merely safe.
 function image_own_paths() {
   case "$1" in
-    base)          printf '%s\n' 'base/' '_build/' 'versions.env' ;;
-    cloud)         printf '%s\n' 'cloud/' '_delta/' '_build/' 'versions.env' ;;
+    # .dockerignore governs what the root context SHIPS, so it is an input of
+    # every root-context image — proven the day it landed, when its own merge
+    # skipped every build and the images missed 2 commits' layers until a
+    # dispatch rebuilt them (2026-08-18).
+    base)          printf '%s\n' 'base/' '_build/' 'versions.env' '.dockerignore' ;;
+    cloud)         printf '%s\n' 'cloud/' '_delta/' '_build/' 'versions.env' '.dockerignore' ;;
     flutter)       printf '%s\n' 'flutter/' ;;
     zephyr)        printf '%s\n' 'zephyr/' ;;
     zephyr-devbox) printf '%s\n' 'zephyr-devbox/' ;;
