@@ -2,24 +2,21 @@
 #
 # scripts/ctl.sh — control script for the repository-level shell scripts in scripts/.
 #
-# scripts/ belonged to no Nx project, so `nx affected` mapped a change here to no target and the
-# canonical gate ran nothing for it. That is how the BSD-only mktemp template in
-# assert-no-skipped-tests.sh survived 8 days of green pull requests. These 2 verbs are the missing
-# ownership: `lint` and `test` are the target names `.ci/ctl.sh affected-check` already asks for.
+# scripts/ belonged to no Nx project, so the canonical gate ran nothing for a change here — the
+# dead gate behind scripts/assert-no-skipped-tests.sh. `lint` and `test` are the missing ownership:
+# they are the target names `.ci/ctl.sh affected-check` already asks for.
 #
-# `test` runs mktemp-template_test.sh, which scans EVERY tracked shell file, so its Nx inputs are
-# every tracked shell file and not just this directory. Ownership alone left the same hole one
-# level out: a change to apps/agent-runtime/ctl.sh mapped to agent-runtime only, and a change to
-# .githooks/pre-commit mapped to nothing at all, so a bad template landing outside scripts/ still
-# merged green. The {workspaceRoot} globs on the `test` target in project.json close it: Nx reads a
-# {workspaceRoot} input as a reverse file -> project mapping, so a shell file anywhere marks this
-# project affected and no other. They live on that target rather than in an nx.json namedInput
-# because nx.json is itself a global implicit dependency — editing it marks all 49 projects
-# affected — and because the target is the only consumer.
+# `test` runs mktemp-template_test.sh, which scans every shell file git knows about, tracked or
+# untracked, so that target's Nx inputs are {workspaceRoot} globs rather than this directory. Nx
+# reads a {workspaceRoot} input as a reverse file -> project mapping, so a shell file anywhere
+# marks this project affected and no other. The globs sit on the target rather than in an nx.json
+# namedInput because nx.json is itself a global implicit dependency — editing it marks all 49
+# projects affected — and because the target is the only consumer.
 #
-# The globs cover *.sh, *.bash and .githooks/**, which is the whole scan set the test builds today.
-# An extension-less shell file added OUTSIDE .githooks/ would be scanned by the test but would not
-# trigger it: a glob cannot ask whether a file starts with a shell shebang.
+# That mapping has 2 limits. An Nx diff lists tracked paths only, so an untracked script is caught
+# when the scan runs, never by triggering it. And the globs cover *.sh, *.bash and .githooks/**, so
+# an extension-less shell file added OUTSIDE .githooks/ would be scanned but would not trigger the
+# scan: a glob cannot ask whether a file starts with a shell shebang.
 #
 # Usage: ./ctl.sh <command> [args...]
 #
