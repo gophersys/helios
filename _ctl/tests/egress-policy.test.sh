@@ -70,7 +70,14 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-TEST_NAME="egress-policy"
+# The FILE NAME, and not the bare rule name it used to hold. Every summary line
+# of this directory reads `=== <file>: N checks, M failed`, and this file alone
+# printed `=== egress-policy:`. An aggregate that selects the suite's summaries
+# by `.test.sh:` — the shape 20 of the 21 files share — silently dropped all of
+# this file's checks from its total, which is a coverage count that is wrong in
+# the safe-looking direction. The name a file reports itself under is the name a
+# reader greps for.
+TEST_NAME="egress-policy.test.sh"
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/.."
 REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 
