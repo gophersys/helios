@@ -99,11 +99,22 @@ repaired job has no run on this branch. 5 break-tests all went red correctly.
   --exclude-standard), probe cycle plant->rc=1 named->remove->rc=0; matcher covers
   --tmpdir optional-arg, too-many-templates, then/do/sudo/exec/command/trap leaders
   (54 fixture rows, 28/28 new-row mutants killed, 0 false positives on the real tree);
-  header states the honest scope (submodules, non-shell files, variable templates OUT).
+  header states the honest scope (submodules, non-shell files OUT; a template held in a variable is JUDGED BAD — the matcher reads literals and errs loud).
 - F5+F6 fixed in this file earlier (14bd981).
 - F7 (orchestrator): harness-conformance DISPATCHED on this branch — run 32179861311,
   in_progress at 2026-08-18T20:00:52Z. Verdict recorded below when it finishes.
 
+## Verify round 2 (2026-08-18)
+READY FOR PR conditional on R2-1 (this file, fixed) + R2-2 (ctl.sh header two words).
+F1/F2/F3/F8 closures re-confirmed with independent commands + break-tests; 19/19
+runnable fixture rows match real GNU 9.4; residual shebang-gap stated and empty today.
+F7 ANSWERED — run 32179861311: mktemp line GONE, 166 tests ran (165 pass, 0 skips),
+single FAIL = TestIntegration_LiveOmp_Gated, 68.60s vs 60s drain deadline, verbatim:
+"no terminal event within 1m0s (34 event(s) seen, last = ^N)". That is ledger #30
+MEASURED at pins omp 17.2.5 — pre-existing, named out of scope in the plan, and NOT a
+check on this PR (harness-conformance paths do not match this diff; the run was a
+manual dispatch). It becomes PR-2's input. R2-3/R2-4 (scope sentences, stricter-than-
+GNU note) + the 4x-retold narrative trim land in the post-review cleanup pass.
+
 ## Next
-Verify round 2 (dev-verifier re-refutation) + read run 32179861311's log: confirm the
-job passes the mktemp line and RUNS Go tests. Then cleanup pass, PR.
+R2-2 fix (implementer), then phase 5: open the PR.
