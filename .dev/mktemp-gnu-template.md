@@ -1,11 +1,11 @@
 # mktemp-gnu-template
 
-phase:    verify
+phase:    fix
 repo:     gophersys/eden
 branch:   fix/mktemp-gnu-template
 worktree: ~/code/.worktrees/eden-mktemp-gnu-template
 pr:       -
-attempt:  0/2
+attempt:  1/2
 
 ## Goal
 `scripts/assert-no-skipped-tests.sh:22` calls `mktemp -t assert-no-skipped-tests` — BSD
@@ -60,7 +60,7 @@ new project or the lane runs nothing (same defect class again) — settled befor
   `${PIPESTATUS[0]}` from `$?` — equivalent mutant under the subject's pipefail. It
   proves only that go's exit code reaches the caller. Plan credit reduced accordingly.
 - GREEN (implementer, commit c3b3436, 3 files +129/−1): in ghcr.io/gophersys/base —
-  behaviour test rc=0 (5/5), sweep rc=0 (73 files, 7 invocations, 0 violations),
+  behaviour test rc=0 (5/5), sweep rc=0 (73 files at that run; CORRECTION F5: the count at c3b3436 is 74 — the just-written scripts/ctl.sh was untracked and invisible to git ls-files, which is itself finding F2),
   `bash scripts/ctl.sh lint` rc=0 (6 scripts), `test` rc=0 (2 test scripts, stop-at-
   first-failure proven rc=3 in sandbox); shellcheck -S style rc=0 (0.11.0 host, 0.9.0 image).
 - RISK SETTLED: `yarn nx show projects --affected --base=origin/main` → `repository-scripts`;
@@ -78,5 +78,16 @@ new project or the lane runs nothing (same defect class again) — settled befor
 ## Blocked
 -
 
+## Verifier verdict (2026-08-18)
+Fix line CONFIRMED (byte-identical to eden's house form; CI fast lane proven to run
+repository-scripts in the failing image, rc=0). Regression-net claim REFUTED: F1 scan
+runs only on scripts/ changes (files=apps/agent-runtime/ctl.sh affects [agent-runtime]
+only; .githooks/pre-commit affects []); F2 untracked scripts invisible (probe proved
+scan rc=0 with a planted violation untracked); F3 matcher blind to --tmpdir forms and
+then/do/sudo/exec/trap leaders; F4 "holds the whole repository" over-claims; F7 the
+repaired job has no run on this branch. 5 break-tests all went red correctly.
+
 ## Next
-Phase 1: dev-planner.
+Fix round 1: test author F2+F3+F4 (test files), implementer F1 (Nx/CI wiring so ANY
+shell-file change runs the scan), orchestrator F5+F6 (this file) + F7 (workflow_dispatch
+harness-conformance on this branch after fixes land).
