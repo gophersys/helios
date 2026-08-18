@@ -53,11 +53,12 @@ func ChildEnvironmentForTest(base []string, envName, token string) []string {
 	return childEnvironment(base, envName, token)
 }
 
-// PermissionAnswerPrefixForTest exposes the adapter's internal eden:permission frame prefix so
-// a black-box test can pin it equal to the library's (the one-home invariant: a drift between
-// the library's permissionAnswer render and the adapter's parse would silently break the
-// translation, so the prefixes are asserted equal).
-func PermissionAnswerPrefixForTest() string { return permissionAnswerPrefix }
+// PermissionAnswerPrefixForTest and RationaleSeparatorForTest are RETIRED. They existed only to
+// let a black-box test assert that the adapter's copy of the eden:permission grammar equalled
+// the library's copy — a guard against a drift between two duplicated literals. Under contract
+// revision R1 the grammar has ONE home (agentsession/internal/controlframe), so there is no
+// second copy to drift from and nothing to pin: control_test.go now proves the stronger
+// property, that a frame ENCODED by the one home is DECODED by the adapter.
 
 // ParsePermissionAnswerForTest exposes the internal eden:permission frame parser (id, allow,
 // by) to the white-box translation tests, so the decode is provable without a process.
@@ -72,10 +73,6 @@ func ParsePermissionAnswerRationaleForTest(text string) (by, rationale string, o
 	answer, ok := parsePermissionAnswer(text)
 	return answer.by, answer.rationale, ok
 }
-
-// RationaleSeparatorForTest exposes the adapter's internal rationale separator so a black-box
-// test pins it equal to the library's agentsession.rationaleSeparator (the one-home invariant).
-func RationaleSeparatorForTest() string { return rationaleSeparator }
 
 // PermissionDecisionFrameForTest renders the can_use_tool control_response a resolved decision
 // produces on the wire, given the original input the ask carried — the exact bytes Send writes
