@@ -29,8 +29,6 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: tailscale
       server: https://kubernetes.default.svc
-    - namespace: embedded-lab            # only the Namespace object (app-embedded-namespace) + workspaces RBAC grant
-      server: https://kubernetes.default.svc
     - namespace: workspaces-prod         # only the Namespace object (app-workspaces-namespace)
       server: https://kubernetes.default.svc
     - namespace: eden                    # the Eden Namespace (app-eden-namespace) + orchestrator cluster RBAC (app-eden-rbac)

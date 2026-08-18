@@ -76,8 +76,8 @@ either from the Cloudflare tunnel (public) or from the MetalLB VIP (tailnet).
 ### `longhorn-system` — replicated storage
 Longhorn (manager, the CSI plugin, attacher, provisioner, resizer and
 snapshotter, the UI, and the engine-image DaemonSet). It is available for RWO
-volumes that must survive a node. The media and embedded workloads deliberately
-use **local-path** instead, because their data is node-local and can be
+volumes that must survive a node. The media workloads deliberately use
+**local-path** instead, because their data is node-local and can be
 downloaded again.
 
 ### `minio` — the S3 backup target
@@ -108,10 +108,10 @@ is the only path from the public internet into the cluster. The hostnames and th
 Cloudflare Access apps are configured in the Zero Trust dashboard, not in git.
 
 ### `tailscale` — tailnet exposure
-The Tailscale k8s operator plus one `ts-*` proxy StatefulSet for **each** env
-Service that opts in (`loadBalancerClass: tailscale`). Each Zephyr devbox gets
-its own MagicDNS name (`zephyr-<env>`). It needs the imperative `operator-oauth`
-Secret.
+The Tailscale k8s operator plus one `ts-*` proxy StatefulSet for **each**
+Service that opts in (`loadBalancerClass: tailscale`). It needs the imperative
+`operator-oauth` Secret. (The Zephyr devboxes were its first consumers; they
+were removed 2026-08-18 and no Service opts in today.)
 
 ## Platform — CI
 
@@ -138,21 +138,15 @@ org-wide runner scale set (`arc-runners`: `arc-org`, dind, `minRunners` 0 and
 - **homepage** — the single portal (`home.`), with live widgets over qBittorrent,
   Prowlarr and the disk. It is the one public app besides workspaces.
 
-### `embedded-lab` — Zephyr dev environments (project `embedded`)
-One `zephyr-devbox-<env>` Deployment for each temporary env (today
-`nucleo-bringup` and `zephyr-libs`), pinned to `k3s-w-4` with USB
-microcontrollers passed through by QEMU. The pods are privileged and use a
-hostPath `/dev` for flashing, which is why the namespace was excluded from
-Kyverno. The envs are kustomize overlays under `apps/embedded/envs/*`, generated
-by the `zephyr-envs` ApplicationSet (`prune=true`, so deleting the directory
-tears the env down).
-
 ### `workspaces-prod` — the workspace manager (project `workspaces`)
 `workspaces-api` is a Go and Svelte app at `workspaces.mateosegura.com` (public,
-gated by Access). It gives a read-only view of the `embedded-lab` envs, plus
-create and destroy operations that open GitOps PRs. It authenticates as the
-**gophersys-arc** GitHub App through the optional `workspaces-github-app` Secret.
-Without that Secret the app is read-only and returns 503.
+gated by Access). It managed the `embedded-lab` Zephyr envs — a read-only view
+plus create/destroy operations that opened GitOps PRs. **Those envs and the
+whole `embedded-lab` stack were removed on 2026-08-18 (Mateo's decision), so
+the app currently manages nothing**; whether it is removed or repurposed is an
+open call. It authenticates as the **gophersys-arc** GitHub App through the
+optional `workspaces-github-app` Secret. Without that Secret the app is
+read-only and returns 503.
 
 ### `eden` — the Eden platform (project `apps`)
 The Eden agentic-engineering stack (`apps/eden/`: backing services, RBAC, seed
@@ -166,8 +160,9 @@ Eden build, and it is noted here only for completeness. See
 - **cp-0/1/2 + w-0** — control-plane and platform (`devops`).
 - **w-1** — the media node (NVMe `/mnt/media`, GPU labels); runs the `media`
   stack.
-- **w-4** — the embedded and USB node (`usb-embedded: true`); runs
-  `embedded-lab`.
+- **w-4** — carries the `usb-embedded: true` label and QEMU USB passthrough
+  from the removed `embedded-lab` stack; nothing schedules on that label today.
+  Repurposing or unlabeling the node is an open call.
 - **w-2/3** — general `apps`.
 
 Host-level bootstrap that nothing reconciles lives in

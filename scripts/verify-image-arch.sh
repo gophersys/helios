@@ -31,9 +31,9 @@ IFS=$'\n\t'
 IMAGE="${1:-}"
 # The variants that MUST be published. The first version of this script checked
 # only the variants that existed, so an image with no arm64 entry at all passed:
-# zephyr-devbox publishes amd64 only, against a policy the identity rules call
-# non-negotiable, and this script called it PASS. A check that cannot see an
-# absence is the same defect it was written to catch.
+# the retired zephyr-devbox image published amd64 only, against a policy the
+# identity rules call non-negotiable, and this script called it PASS. A check
+# that cannot see an absence is the same defect it was written to catch.
 REQUIRED_PLATFORMS="${2:-linux/amd64,linux/arm64}"
 # A Go binary that every gophersys image carries. It is the ELF probe.
 PROBE_BINARY="${PROBE_BINARY:-gofumpt}"

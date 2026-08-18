@@ -46,7 +46,6 @@ the tunnel.
 | Workload | What it needs that the cloud cannot give |
 | --- | --- |
 | **media stack** (qBittorrent, Prowlarr, filebrowser, homepage) | 8 TB NVMe, and a residential IP for torrent egress |
-| **embedded-lab** (Zephyr devboxes) | physical microcontrollers on USB, passed through to `k3s-w-4` |
 | **MinIO** | bulk backup storage on local NVMe, free |
 | **Argo CD** | reconciles the homelab from git |
 | **eden**, **workspaces** | the platform being built; free compute |
