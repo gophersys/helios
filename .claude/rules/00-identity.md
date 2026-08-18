@@ -472,12 +472,13 @@ release was.
   claimed did not exist is `repository2-3.xml`, 408907 bytes of it. All 3 are
   `no-autobump` with the true reason. **Measure a coordinate against the real
   API before you write its row.**
-- **The digest is of the asset for the version this run resolved.** There are 3
-  HTTP reads per digested pin — the index, the digest, the re-proof — so the
-  property is not "one fetch". `_build/resolve-upstream.sh <PIN>` prints
-  `<version>|<sha256>`, where the URL is read out of the file that performs the
+- **The digest is of the asset for the version this run resolved.** The HTTP
+  reads are 1 index plus 2 per ASSET — the digest and the re-proof — so the
+  property is not "one fetch", and a dual-arch pin costs 2 assets rather than 1.
+  `_build/resolve-upstream.sh <PIN>` prints `<version>|<row>=<sha256> ...`, one
+  pair per digest row, where each URL is read out of the file that performs the
   download and never out of the table (a second URL home lets a correct digest
-  be computed of the wrong asset), and the value is then handed back to
+  be computed of the wrong asset), and each value is then handed back to
   `_build/fetch-verified.sh`, which fetches that same URL again and compares
   before a line is written. A version that moves while its digest stays cannot
   reach the branch.
@@ -497,12 +498,43 @@ release was.
   version drops the epoch and the debian revision, because `5.9` is what the
   tool reports about itself and what the smoke test compares.
 - **`bump_pin` in `_ctl/lib.sh` is the only writer**, and it edits every home of
-  the pin: the version row, the digest row beside it and that row's evidence
-  comment, and no other line. It DISCOVERS the homes through `homes_of` rather
-  than assuming any of them, which is why dropping `base/Dockerfile` from
-  `PIN_VALUE_HOMES` changed nothing about it: a pin of `versions.env` alone now
-  has 1 home, and the writer edits the 1 it finds. The multi-home path is still
-  live for the 4 per-image Dockerfiles.
+  the pin: the version row, EVERY digest row beside it and each of those rows'
+  evidence comments, and no other line. It DISCOVERS the homes through
+  `homes_of` rather than assuming any of them, which is why dropping
+  `base/Dockerfile` from `PIN_VALUE_HOMES` changed nothing about it: a pin of
+  `versions.env` alone now has 1 home, and the writer edits the 1 it finds. The
+  multi-home path is still live for the 4 per-image Dockerfiles.
+- **A pin's digest rows are a SET, and the writer REFUSES a partial one.** It
+  takes `<row>=<digest>` pairs and fails naming the row that got no value, so a
+  caller cannot move a version and leave a sibling behind. It could until
+  2026-08-18: `digest_row_of` stopped at the FIRST `<TOOL>_SHA256_<ARCH>` it
+  found — the `_AMD64` one — so every weekly bump left the `_ARM64` row on the
+  digest of the release it was bumping away from, and the arm64 leg died at that
+  download in the bump pull request. The reader is `digest_rows_of` and reports
+  all of them; the refusal is what makes a third platform safe, because the day a
+  `_SHA256_RISCV64` row is written every caller that does not compute one fails
+  here naming it.
+- **The resolver reads the arms THAT EXIST, never `SANCTIONED_PLATFORMS`.**
+  `fetch_urls` emits one record per `linux/<arch>)` arm in scope at a fetch —
+  `<platform>|<digest pin>|<url>|<case arm>` — and `_build/resolve-upstream.sh`
+  fetches one asset per record, so each row's digest is of the asset for the arm
+  that row answers for. That is also the whole handling of the 2 shapes that are
+  not 2-armed, and `flutter/Dockerfile` holds one of each. **Read that file
+  before repeating the pairing: it is the opposite of the intuitive one.** The
+  Android cmdline-tools download sits under a `linux/amd64) : ;;` guard that
+  assigns nothing, so its record carries platform `linux/amd64` and its row is
+  `ANDROID_CMDLINE_TOOLS_SHA256_NOARCH`; flutter's OWN SDK download sits in a
+  later RUN with no case at all, so its record carries platform `-` while its
+  row is `FLUTTER_SHA256_AMD64`. Nothing in that second RUN names a platform —
+  the `exit 1` in the guard RUN above is what makes the image amd64-only. A
+  reader that consulted the sanctioned set would demand an arm64 asset from both.
+- **A digest row that answers for 2 different assets is REFUSED**, naming the row
+  and both URLs. 2 records may share a row: same asset means a duplicate READING
+  of it — `base/Dockerfile` and a component under `_delta/` both fetch `k9s` and
+  `docker buildx` at one URL — and is deduplicated, while 2 assets under 1 row
+  can be correct for at most one arch. The identity compared is the URL with the
+  ARM resolved into it, because 2 arms of one RUN usually share the URL template
+  and differ only in what they assign `ARCH`.
 - **The pull request is opened, never merged.** `--dry-run` composes it and
   writes nothing TO THE REPOSITORY — it still writes temporary files and
   downloads every moved asset twice; `--apply` writes and leaves git and gh to
@@ -599,6 +631,19 @@ evidence, each verified against the asset the SAME pinned version publishes.
 Widening again means doing that fact-finding again, per pin, before an edit —
 and a pin whose new platform has no asset at the pinned version is a BLOCKER to
 report, never a bump to improvise.
+
+**Count the rows, never quote a count.** Every number in the paragraph above is a
+measurement of a tree that changes, and the arch suffixes do not divide evenly —
+read on 2026-08-18 the 4 value homes hold **48** declaration rows, 23 `_AMD64`
++ 22 `_ARM64` + 3 `_NOARCH`, because 3 downloads are `_NOARCH` and `flutter`'s
+own SDK row has no `_ARM64` sibling to pair with. A count that assumes the rows
+come in pairs is wrong by exactly those 4. Re-derive it rather than trusting this
+sentence:
+
+```sh
+grep -hcE '^[[:space:]]*(ARG[[:space:]]+)?[A-Z0-9_]+_SHA256_[A-Z0-9_]+=' \
+  versions.env flutter/Dockerfile zephyr/Dockerfile zephyr-devbox/Dockerfile
+```
 
 ### flutter is amd64-only, and the manifest says so
 

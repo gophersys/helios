@@ -7,13 +7,15 @@
 # here spells its digest literally in the fetch command, so all of them pass
 # against a reader that ignores locals entirely.
 #
-# 6 fetches, 5 different answers. The names are chosen so no one is a substring
+# 7 fetches, 6 different answers. The names are chosen so no one is a substring
 # of another, because the assertions match on the name.
 FROM ubuntu:24.04
 
 ARG ARMTOOL_VERSION=1.0.0
 ARG ARMTOOL_SHA256_AMD64=1111111111111111111111111111111111111111111111111111111111111111
 ARG ARMTOOL_SHA256_ARM64=2222222222222222222222222222222222222222222222222222222222222222
+ARG ONLYARM_VERSION=7.0.0
+ARG ONLYARM_SHA256_ARM64=7777777777777777777777777777777777777777777777777777777777777777
 ARG LITERALTOOL_VERSION=2.0.0
 ARG LITERALTOOL_SHA256_NOARCH=3333333333333333333333333333333333333333333333333333333333333333
 ARG FOOLTOOL_VERSION=3.0.0
@@ -78,3 +80,23 @@ RUN case "${TARGETPLATFORM}" in \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://example.invalid/pairb-v${PAIRB_VERSION}.tar.gz" \
       /tmp/pairb.tar.gz "${PAIRB_SHA256}" "${PAIRB_PIN}"
+
+# 6. THE ARM THAT IS NOT THE FIRST ONE. This download exists on linux/arm64 and
+# on no other platform, so the amd64 arm refuses and only the arm64 arm assigns
+# the digest. It IS a verified download — on the one platform that reaches it —
+# and a reader that collects locals from `linux/amd64)` arms alone finds no
+# assignment, reports `helper-without-digest`, and hands this file a red that
+# names a defect nobody committed.
+#
+# The mirror of it ships in the real tree with the arms the other way round:
+# flutter's Android cmdline-tools RUN opens `linux/amd64) : ;;` — a guard arm
+# that assigns NOTHING — so the amd64-only reader is empty-handed there too. Any
+# arm may be the one that answers, which is why the reader takes them all.
+RUN case "${TARGETPLATFORM}" in \
+      linux/amd64) echo "onlyarm publishes no amd64 asset"; exit 1 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${ONLYARM_SHA256_ARM64}"; SHA256_PIN=ONLYARM_SHA256_ARM64 ;; \
+      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
+    esac \
+ && /usr/local/lib/gophersys/fetch-verified.sh \
+      "https://example.invalid/onlyarm-v${ONLYARM_VERSION}-linux-${ARCH}.tar.gz" \
+      /tmp/onlyarm.tar.gz "${SHA256}" "${SHA256_PIN}"

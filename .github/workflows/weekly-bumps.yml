@@ -48,15 +48,22 @@ jobs:
     # resolution would hold a slot for 6 hours.
     #
     # 45 minutes is sized on what the run actually downloads, which is not "a
-    # handful of assets": every pin that MOVED is fetched twice, once to compute
-    # the digest and once for the re-proof through fetch-verified.sh, and
-    # flutter_linux_<version>-stable.tar.xz alone was 1 572 146 400 bytes on
-    # 2026-08-17 — ~3.1 GB for that pin. Each asset is deleted as soon as its
-    # digest is read, so the peak on disk is 1 asset and not their sum.
+    # handful of assets": every ASSET of every pin that MOVED is fetched twice,
+    # once to compute the digest and once for the re-proof through
+    # fetch-verified.sh, and flutter_linux_<version>-stable.tar.xz alone was
+    # 1 572 146 400 bytes on 2026-08-17 — ~3.1 GB for that pin. Each asset is
+    # deleted as soon as its digest is read, so the peak on disk is 1 asset and
+    # not their sum.
+    #
+    # The unit is the ASSET and not the pin, and it became so on 2026-08-18: a
+    # pin whose download has an arm per platform now resolves one asset per arm,
+    # so a moved dual-arch pin costs 4 fetches where it used to cost 2. flutter
+    # is the largest asset and is amd64-only, so the worst case did not double.
     #
     # That sizing is a CEILING measured on a hosted runner. arc-build reaches
     # the same upstreams over the homelab's link, and the first Monday on the
-    # pool is what measures the real runtime.
+    # pool is what measures the real runtime — nobody raises this number
+    # without one, because a limit raised on a guess buys a 6-hour hang.
     timeout-minutes: 45
     runs-on: arc-build
     steps:

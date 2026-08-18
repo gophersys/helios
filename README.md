@@ -533,7 +533,7 @@ to `image_main`. `base/ctl.sh` does this for `up`, `exec`, `shell`, `down` and
 `.ci/buildx-node.sh` and `.ci/mirror-buildkit.sh` take the platform and BuildKit
 declarations (`SANCTIONED_PLATFORMS`, `BUILDKIT_REF`, `BUILDKIT_UPSTREAM_REF`).
 `_build/resolve-upstream.sh` takes the pin readers and the writer — `pin_value`,
-`homes_of`, `digest_row_of`, `fetch_urls` and `bump_pin`. Their own verbs act on
+`homes_of`, `digest_rows_of`, `fetch_urls` and `bump_pin`. Their own verbs act on
 the whole set of images, so they keep those verbs themselves.
 
 `validate` runs `shellcheck -x -S style` over every shell script in the
@@ -675,6 +675,26 @@ of that pin and opens ONE pull request. Every sha256 is the digest of the asset
 for the version the same run resolved, and it is re-proven through
 `_build/fetch-verified.sh` before a line is written, so a bump cannot carry a
 stale digest. It merges nothing.
+
+**A bump moves every `_SHA256_` row of a pin, or it moves none of it.** A pin has
+one digest row per platform its download has a case arm for, so `fetch_urls`
+reads every arm, `digest_rows_of` reports the whole set, and the resolver fetches
+one asset per arm — buf spells its arm64 asset `aarch64` where grpcurl spells the
+same platform `arm64`, and each arm carries the spelling its own asset uses. The
+durable half is the writer: `bump_pin` refuses a call that leaves a declared row
+unnamed, and says which row. A row left on the old digest is invisible in the
+diff and fails the build on the leg it answers for. A row named by two arms that
+build two different asset URLs is refused too, naming both: a digest row attests
+one asset, so that shape is a defect and not a bump.
+
+Because the arms are read as WRITTEN and never against `SANCTIONED_PLATFORMS`,
+a download with one arm and a download with no arm each take exactly one row with
+no special case for either. `flutter/Dockerfile` holds one of each, and the
+pairing is the opposite of the intuitive one: the Android cmdline-tools download
+sits under a `linux/amd64) : ;;` guard and carries a `_NOARCH` row, while
+flutter's own SDK download sits in a RUN with no case at all and carries the
+`_AMD64` row — nothing in that RUN names a platform, and the `exit 1` in the
+guard above is what makes the image amd64-only.
 
 **One unreadable upstream fails the whole run.** It resolves every row first,
 reports every pin that moved AND every pin it could not read, writes nothing and

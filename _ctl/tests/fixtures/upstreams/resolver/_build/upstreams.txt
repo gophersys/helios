@@ -10,9 +10,15 @@
 #
 #   <pin>|<datasource>|<coordinate>|<policy or reason>
 #
-# The 3 github-release rows are 3 different questions: a pin whose value carries
-# no `v`, a pin whose value carries one (gophersys/cictl pins `v0.1.0`), and a
-# pin that is already at the newest release and must therefore produce no bump.
+# The 3 github-release rows at the top are 3 different questions: a pin whose
+# value carries no `v`, a pin whose value carries one (gophersys/cictl pins
+# `v0.1.0`), and a pin that is already at the newest release and must therefore
+# produce no bump.
+#
+# The 3 github-release rows at the foot ask a 4th question, and it is about the
+# ASSET rather than the version: how many digests does 1 pin answer for. Their
+# governed file is cloud/Dockerfile — 2 case arms, 2 case arms fetched twice,
+# and no case arm at all.
 
 STUBGITHUB_VERSION|github-release|stubowner/stubgithub|bump to the newest non-prerelease tag
 STUBVPREFIX_VERSION|github-release|stubowner/stubvprefix|bump to the newest non-prerelease tag
@@ -27,4 +33,7 @@ STUBK8S_VERSION|k8s-dl|stable|bump to the newest stable release
 STUBTAILSCALE_VERSION|tailscale-pkgs|stable|bump to the newest stable package
 STUBFLUTTER_VERSION|flutter-releases|stable|bump to the newest release of the stable channel
 STUBEDEN_VERSION|eden-manifest|gophersys/eden:harnesses/versions.env|mirror the value eden pins, which is the one decision point for a harness version
+STUBDUAL_VERSION|github-release|stubowner/stubdual|bump to the newest non-prerelease tag, and to 1 digest per case arm
+STUBSHARED_VERSION|github-release|stubowner/stubshared|bump to the newest non-prerelease tag; 2 governed files fetch this one at 1 url
+STUBNOARCH_VERSION|github-release|stubowner/stubnoarch|bump to the newest non-prerelease tag; 1 asset serves every platform
 STUBFROZEN_VERSION|no-autobump|none|the fixture world needs a row that resolves nothing, so the dry run can be watched leaving it alone

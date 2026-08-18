@@ -15,7 +15,7 @@
 #   SANCTIONED_PLATFORMS, BUILDKIT_REF, BUILDKIT_UPSTREAM_REF
 #                                    .ci/buildx-node.sh, .ci/mirror-buildkit.sh
 #   the pin readers and the writer   _build/resolve-upstream.sh
-#     (pin_value, homes_of, digest_row_of, fetch_urls, bump_pin)
+#     (pin_value, homes_of, digest_rows_of, fetch_urls, bump_pin)
 #
 # Their own verbs act on the whole set of images, so they keep those verbs
 # themselves. Adding an export here adds it to all 8: read the consumer list
@@ -764,7 +764,7 @@ function homes_of() {
 
 # pin_value <root> <name> — the value the first home holding <name> declares.
 #
-# The explicit `return 0` at the foot of this function and of digest_row_of is
+# The explicit `return 0` at the foot of this function and of digest_rows_of is
 # load-bearing for _build/resolve-upstream.sh, which runs under
 # `shopt -s inherit_errexit`: a `for` loop whose last statement was a false test
 # returns 1, that status leaves the command substitution, and the caller dies
@@ -784,19 +784,36 @@ function pin_value() {
   return 0
 }
 
-# digest_row_of <root> <name> — the `<tool>_SHA256_<ARCH>` row that sits beside
-# the pin, or nothing when the pin has no bytes to answer for. YQ_VERSION ->
-# YQ_SHA256_AMD64; about 30 of the 56 pins (go install, corepack, pipx) have no
-# such row at all.
-function digest_row_of() {
+# digest_rows_of <root> <name> — EVERY `<tool>_SHA256_<ARCH>` row that sits
+# beside the pin, 1 per line, across every home; nothing when the pin has no
+# bytes to answer for. YQ_VERSION -> YQ_SHA256_AMD64 and YQ_SHA256_ARM64; about
+# 30 of the 56 pins (go install, corepack, pipx) have no such row at all.
+#
+# It was digest_row_of and it stopped at the FIRST row it found, which was the
+# _AMD64 one. Every caller of a reader that answers "the digest row" in the
+# singular then wrote 1 row of a set of 2 — and the row it did not write kept
+# the digest of the release it was being bumped away from. A pin's digest rows
+# are a SET, and the vocabulary said so before this reader did.
+#
+# A row name is reported once however many homes declare it: `bump_pin` writes
+# each one into every home that holds it, so the set to be answered for is the
+# set of NAMES and not of declarations.
+function digest_rows_of() {
   local root="$1" name="$2"
-  local tool="$name" home found
+  local tool="$name" home row out=""
   tool="${tool%_VERSION}"
   tool="${tool%_REF}"
   tool="${tool%_CHANNEL}"
   for home in "${PIN_VALUE_HOMES[@]}"; do
     [[ -f "${root}/${home}" ]] || continue
-    found="$(awk -v tool="$tool" '
+    while IFS= read -r row; do
+      [[ -z "$row" ]] && continue
+      case $'\n'"${out}"$'\n' in
+        *$'\n'"${row}"$'\n'*) continue ;;
+      esac
+      out="${out:+${out}
+}${row}"
+    done <<< "$(awk -v tool="$tool" '
       /^[[:space:]]*#/ { next }
       {
         line = $0
@@ -806,14 +823,10 @@ function digest_row_of() {
         candidate = substr(line, 1, position - 1)
         if (candidate !~ ("^" tool "_SHA256_[A-Z0-9_]+$")) { next }
         print candidate
-        exit
       }
     ' "${root}/${home}")"
-    if [[ -n "$found" ]]; then
-      printf '%s' "$found"
-      return 0
-    fi
   done
+  printf '%s' "$out"
   return 0
 }
 
@@ -830,27 +843,48 @@ function evidence_of() {
   fi
 }
 
-# fetch_urls <file> — 1 record per VERIFIED download the file performs:
+# fetch_urls <file> — 1 record per VERIFIED download the file performs, PER
+# PLATFORM the case arms in scope at that download name:
 #
-#   <digest pin name>|<url exactly as the file writes it>|<var>=<value> ...
+#   <platform>|<digest pin name>|<url exactly as the file writes it>|<var>=<value> ...
 #
 # The URL of a download lives in the file that FETCHES it and nowhere else, so
 # this is how the resolver learns which bytes a digest answers for. A second
 # copy of the URL in a table would let it compute a correct digest of the wrong
 # asset.
 #
-# The 3rd field is the `linux/amd64)` case arm in scope at that fetch. `${ARCH}`
-# is not a pin and not a table field: it is a shell variable the RUN block sets
-# per platform, and the same file spells it amd64, x64 and x86_64 in different
-# arms — so the arm is read per RUN and not per file. A Dockerfile RUN resets
-# the set; a component script has 1 arm for the whole file and accumulates.
+# The 4th field is the case arm in scope at that fetch, and the 1st names it.
+# `${ARCH}` is not a pin and not a table field: it is a shell variable the RUN
+# block sets per platform, and the same file spells it amd64, x64 and x86_64 in
+# different arms — so the arm is read per RUN and not per file. A Dockerfile RUN
+# resets the set; a component script has 1 case for the whole file and
+# accumulates.
 #
-# The amd64 arm is the one read, and the record is 1 per fetch rather than 1 per
-# platform. That is a stated limit and not an oversight: what this feeds is the
-# coverage rule ("every download is answered") and the resolver's URL lookup,
-# and both are satisfied by either arm. The _ARM64 digest of a dual-arch fetch
-# is answered by the BUILD — fetch-verified.sh compares it on the arm64 leg —
-# and by nothing static.
+# EVERY arm is read. Reading the amd64 arm alone was a STATED limit here, and it
+# was the limit that broke the weekly bump: what this feeds is the coverage rule
+# ("every download is answered") and the resolver's URL lookup, both satisfied
+# by either arm — and the WRITER, which is satisfied by neither. A resolver that
+# saw 1 arm computed 1 digest, so `bump_pin` moved the version and the _AMD64
+# row and left every _ARM64 row on the value of the release being bumped AWAY
+# from. The arm64 leg then died at that download, in the bump pull request,
+# every Monday a pin moved.
+#
+# The arms are read AS WRITTEN, and never against SANCTIONED_PLATFORMS. That is
+# what keeps the 2 shapes that are not 2-armed correct without a branch for
+# either, and flutter/Dockerfile happens to hold one of each — read that file
+# before repeating the pairing, because it is the opposite of the intuitive one:
+#
+#   1 arm      the ANDROID cmdline-tools download. Its RUN opens with a
+#              `linux/amd64) : ;;` guard that assigns nothing, so the record
+#              carries platform `linux/amd64` and the row is _NOARCH.
+#   no arm     flutter's OWN SDK download. It sits in a later RUN with no case
+#              at all, so its record carries platform `-` — while the row is
+#              FLUTTER_SHA256_AMD64. Nothing in that RUN says amd64; the
+#              `exit 1` in the guard RUN above is what makes the image
+#              amd64-only.
+#
+# So the _NOARCH row is the armed one and the _AMD64 row is the unarmed one. A
+# reader that consulted the sanctioned set would demand an arm64 asset from both.
 #
 # There was a SECOND shape of that same question and it is gone with its only
 # caller: `ARCH="$(dpkg --print-architecture)"`, which zephyr-devbox used until a
@@ -867,12 +901,27 @@ function fetch_urls() {
   local file="$1"
   [[ -f "$file" ]] || return 0
   awk '
-    function reset_scope(   key) { for (key in scope) { delete scope[key] } }
+    function reset_scope(   key) {
+      for (key in scope) { delete scope[key] }
+      for (key in scope_names) { delete scope_names[key] }
+      for (key in platform_seen) { delete platform_seen[key] }
+      platform_count = 0
+    }
 
-    function collect_scope(text,   rest, position, terminator, arm, count, index_of_word, words, name, value) {
+    # The arms keep the order the file writes them in. awk iterates an array in
+    # no order at all, and a record set that reshuffles between 2 runs of the
+    # same reader is one a diff cannot be read against.
+    function remember_platform(platform) {
+      if (platform in platform_seen) { return }
+      platform_seen[platform] = 1
+      platform_order[++platform_count] = platform
+    }
+
+    function collect_scope(text,   rest, platform, terminator, arm, count, index_of_word, words, name, value) {
       rest = text
-      while ((position = index(rest, "linux/amd64)")) > 0) {
-        rest = substr(rest, position + 12)
+      while (match(rest, /linux\/[a-z0-9]+(\/[a-z0-9]+)*\)/)) {
+        platform = substr(rest, RSTART, RLENGTH - 1)
+        rest = substr(rest, RSTART + RLENGTH)
         terminator = index(rest, ";;")
         if (terminator > 0) {
           arm = substr(rest, 1, terminator - 1)
@@ -881,6 +930,7 @@ function fetch_urls() {
           arm = rest
           rest = ""
         }
+        remember_platform(platform)
         count = split(arm, words, /[;[:space:]]+/)
         for (index_of_word = 1; index_of_word <= count; index_of_word++) {
           if (words[index_of_word] !~ /^[A-Za-z_][A-Za-z0-9_]*=/) { continue }
@@ -888,14 +938,21 @@ function fetch_urls() {
           sub(/=.*$/, "", name)
           value = substr(words[index_of_word], length(name) + 2)
           gsub(/^["'"'"']|["'"'"']$/, "", value)
-          scope[name] = value
+          if (!((platform, name) in scope)) {
+            scope_names[platform] = scope_names[platform] (scope_names[platform] == "" ? "" : " ") name
+          }
+          scope[platform, name] = value
         }
       }
     }
 
-    function scope_text(   key, out) {
+    function scope_text(platform,   count, index_of_name, names, out) {
+      if (scope_names[platform] == "") { return "" }
+      count = split(scope_names[platform], names, / /)
       out = ""
-      for (key in scope) { out = out (out == "" ? "" : " ") key "=" scope[key] }
+      for (index_of_name = 1; index_of_name <= count; index_of_name++) {
+        out = out (out == "" ? "" : " ") names[index_of_name] "=" scope[platform, names[index_of_name]]
+      }
       return out
     }
 
@@ -904,29 +961,48 @@ function fetch_urls() {
     # resolved here, and ONLY where the arm assigned it a ${<TOOL>_SHA256_<ARCH>}
     # token — a general assignment-follower is a reader that an assignment can
     # fool, which is why the single-platform tree refused to have one.
-    function resolve_digest_locals(text,   key, out) {
+    #
+    # It resolves against ONE arm, which is what makes the records differ: the
+    # same ${SHA256} is ${YQ_SHA256_AMD64} under one arm and ${YQ_SHA256_ARM64}
+    # under the next, so each arm names the row that answers for ITS bytes.
+    function resolve_digest_locals(text, platform,   count, index_of_name, names, key, out) {
       out = text
-      for (key in scope) {
-        if (scope[key] !~ /^\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}$/) { continue }
-        gsub("\\$\\{" key "\\}", scope[key], out)
+      if (scope_names[platform] == "") { return out }
+      count = split(scope_names[platform], names, / /)
+      for (index_of_name = 1; index_of_name <= count; index_of_name++) {
+        key = names[index_of_name]
+        if (scope[platform, key] !~ /^\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}$/) { continue }
+        gsub("\\$\\{" key "\\}", scope[platform, key], out)
       }
       return out
     }
 
-    function emit(text,   count, index_of_part, parts, part, resolved, digest, url) {
+    # A fetch under no arm at all still emits, once. That is the _NOARCH asset:
+    # it spells its pin literally because no arm is there to choose one for it.
+    function emit_record(platform, part, url,   resolved, digest) {
+      resolved = resolve_digest_locals(part, platform)
+      if (!match(resolved, /\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}/)) { return }
+      digest = substr(resolved, RSTART + 2, RLENGTH - 3)
+      printf "%s|%s|%s|%s\n", (platform == "" ? "-" : platform), digest, url, scope_text(platform)
+    }
+
+    function emit(text,   count, index_of_part, parts, part, index_of_platform, url) {
       count = split(text, parts, /&&/)
       for (index_of_part = 1; index_of_part <= count; index_of_part++) {
         part = parts[index_of_part]
         if (part !~ /fetch-verified\.sh/) { continue }
-        resolved = resolve_digest_locals(part)
-        if (!match(resolved, /\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}/)) { continue }
-        digest = substr(resolved, RSTART + 2, RLENGTH - 3)
         # The URL is matched in the ORIGINAL text: the record carries it exactly
         # as the file writes it, ${ARCH} unexpanded, because that token is what
         # _build/download-exemptions.txt rows answer.
         if (!match(part, /https?:\/\/[^"'"'"'[:space:]\\]+/)) { continue }
         url = substr(part, RSTART, RLENGTH)
-        printf "%s|%s|%s\n", digest, url, scope_text()
+        if (platform_count == 0) {
+          emit_record("", part, url)
+          continue
+        }
+        for (index_of_platform = 1; index_of_platform <= platform_count; index_of_platform++) {
+          emit_record(platform_order[index_of_platform], part, url)
+        }
       }
     }
 
@@ -949,27 +1025,109 @@ function fetch_urls() {
   ' "$file"
 }
 
-# bump_pin <root> <pin> <version> <digest> <evidence> — write 1 bump into EVERY
-# home of the pin, and into no other line.
+# bump_pin <root> <pin> <version> <evidence> [<row>=<digest> ...] — write 1 bump
+# into EVERY home of the pin, and into no other line.
 #
-#   <digest>    64 lowercase hex, or `-` when the pin carries no digest row —
-#               the marker _build/resolve-upstream.sh prints for such a pin.
-#   <evidence>  the comment the digest row carries: `upstream-published: <url>`
-#               or `computed-at-pin: <yyyy-mm-dd>`, and `-` beside a `-` digest.
+#   <evidence>  the comment EVERY digest row in this call carries:
+#               `upstream-published: <url>` or `computed-at-pin: <yyyy-mm-dd>`,
+#               and `-` when the call names no row at all. It is 1 argument
+#               because 1 call is 1 provenance: the rows below are the bytes of
+#               the same release, read the same way, in the same run. A caller
+#               holding 2 provenances cannot use 2 calls to say so — the refusal
+#               below stops the second one — and would have to give this
+#               argument a per-row shape first.
+#   <row>=...   a `<tool>_SHA256_<ARCH>` row and the 64 lowercase hex the new
+#               version's asset digests to. No pair means a pin with no bytes to
+#               answer for, which about 30 of the 56 are.
 #
 # A pin no home declares is a FAILURE that names it. The weekly run reads its
 # pins out of _build/upstreams.txt, and a row whose pin was renamed in the homes
 # would otherwise write nothing and report a green Monday.
+#
+# ===========================================================================
+# IT REFUSES A PARTIAL SET, AND THAT REFUSAL IS THE DURABLE HALF
+# ===========================================================================
+#
+# Every row `digest_rows_of` finds beside the pin must get a value in the SAME
+# call. A row this call does not name would keep the digest of the release the
+# pin is being bumped AWAY from, and the build dies at that download on the leg
+# that row answers for — after the merge, naming a pin that read as correct in
+# the diff.
+#
+# The reader half of that (fetch_urls reading every arm) is what makes a correct
+# call possible; this is what makes an incorrect one impossible. They are not
+# the same guarantee. A third platform added later widens `digest_rows_of` by
+# itself, so the day a `_SHA256_RISCV64` row is written, every caller that does
+# not yet compute one FAILS here naming it — rather than shipping a stale row
+# that nothing static would have reported.
 function bump_pin() {
-  local root="$1" pin="$2" version="$3" digest="$4" evidence="$5"
+  local root="$1" pin="$2" version="$3" evidence="$4"
+  shift 4
   if [[ -z "$version" ]]; then
     log_error "bump_pin: ${pin}: the version argument is empty"
     return 1
   fi
-  if [[ "$digest" != "-" && ! "$digest" =~ ^[0-9a-f]{64}$ ]]; then
-    log_error "bump_pin: ${pin}: the digest '${digest}' is neither 64 lowercase hex nor '-'"
+
+  # A comment holds neither of these, and awk is handed both as -v assignments:
+  # an evidence string carrying a newline aborts awk in the MIDDLE of the write
+  # loop, which used to leave the version moved and its digest rows stale — the
+  # exact state this writer exists to prevent. Refusing up front is what makes
+  # the staging below the only thing left to get right.
+  if [[ "$version" == *$'\n'* || "$version" == *"|"* ]]; then
+    log_error "bump_pin: ${pin}: the version carries a newline or a pipe, and a declaration holds neither"
     return 1
   fi
+  if [[ "$evidence" == *$'\n'* || "$evidence" == *"|"* ]]; then
+    log_error "bump_pin: ${pin}: the evidence carries a newline or a pipe, and a comment holds neither"
+    return 1
+  fi
+
+  # pin_rows and not rows: shellcheck runs with -x, so an array declared here is
+  # an array in every file that sources this one, and 2 test files hold a
+  # `local rows="$1"` that then reads as an array expanded without an index.
+  local -a pin_rows=() pin_digests=()
+  local pair row digest given="" seen_index found
+  for pair in "$@"; do
+    if [[ "$pair" != *=* ]]; then
+      log_error "bump_pin: ${pin}: '${pair}' is not a <row>=<digest> pair"
+      return 1
+    fi
+    row="${pair%%=*}"
+    digest="${pair#*=}"
+    if [[ -z "$row" ]]; then
+      log_error "bump_pin: ${pin}: '${pair}' names no row before its '=', so that digest answers for nothing"
+      return 1
+    fi
+    if [[ ! "$digest" =~ ^[0-9a-f]{64}$ ]]; then
+      log_error "bump_pin: ${pin}: the digest '${digest}' given for ${row} is not 64 lowercase hex"
+      return 1
+    fi
+    # One row named twice is 2 answers to 1 question. Identical answers are a
+    # caller repeating itself and cost nothing; different ones mean the call
+    # cannot say which asset the row attests, and last-wins would pick by
+    # argument order.
+    found=-1
+    for ((seen_index = 0; seen_index < ${#pin_rows[@]}; seen_index++)); do
+      if [[ "${pin_rows[seen_index]}" == "$row" ]]; then
+        found="$seen_index"
+        break
+      fi
+    done
+    if [[ "$found" -ge 0 ]]; then
+      if [[ "${pin_digests[found]}" != "$digest" ]]; then
+        log_error "bump_pin: ${pin}: ${row} was given 2 different digests in the same call:"
+        log_error "  ${pin_digests[found]}"
+        log_error "  ${digest}"
+        return 1
+      fi
+      continue
+    fi
+    pin_rows+=("$row")
+    pin_digests+=("$digest")
+    given="${given:+${given}
+}${row}"
+  done
+
   local homes
   homes="$(homes_of "$root" "$pin")"
   if [[ -z "$homes" ]]; then
@@ -977,23 +1135,102 @@ function bump_pin() {
     log_error "the ${#PIN_VALUE_HOMES[@]} homes are: ${PIN_VALUE_HOMES[*]}"
     return 1
   fi
-  local digest_row=""
-  if [[ "$digest" != "-" ]]; then
-    digest_row="$(digest_row_of "$root" "$pin")"
-    if [[ -z "$digest_row" ]]; then
-      log_error "bump_pin: ${pin}: a digest was given and no home declares a <tool>_SHA256_<ARCH> row beside the pin"
-      return 1
-    fi
+
+  local declared unanswered="" unknown="" row_name
+  declared="$(digest_rows_of "$root" "$pin")"
+  while IFS= read -r row_name; do
+    [[ -z "$row_name" ]] && continue
+    case $'\n'"${given}"$'\n' in
+      *$'\n'"${row_name}"$'\n'*) continue ;;
+    esac
+    unanswered="${unanswered:+${unanswered} }${row_name}"
+  done <<< "$declared"
+  if [[ -n "$unanswered" ]]; then
+    log_error "bump_pin: ${pin}: no digest was given for ${unanswered}"
+    log_error "every <tool>_SHA256_<ARCH> row beside a pin moves in the SAME call: a row left behind"
+    log_error "keeps the digest of the version being bumped away from, and fails the build on the leg it answers for"
+    return 1
   fi
-  local today home
+  while IFS= read -r row_name; do
+    [[ -z "$row_name" ]] && continue
+    case $'\n'"${declared}"$'\n' in
+      *$'\n'"${row_name}"$'\n'*) continue ;;
+    esac
+    unknown="${unknown:+${unknown} }${row_name}"
+  done <<< "$given"
+  if [[ -n "$unknown" ]]; then
+    log_error "bump_pin: ${pin}: no home declares ${unknown}, so that digest would be written nowhere"
+    return 1
+  fi
+
+  # ===========================================================================
+  # STAGE EVERY HOME, THEN COMMIT: A HALF-WRITTEN BUMP IS THE DEFECT ITSELF
+  # ===========================================================================
+  #
+  # A pin's version row and its digest rows are 1 edit in n places. Rewriting
+  # them one at a time against the real files means every failure between the
+  # first and the last leaves the tree in the state this feature exists to make
+  # impossible — version moved, digests stale — and it is the state a build
+  # cannot detect until the download fails after the merge.
+  #
+  # So phase 1 applies EVERY rewrite to a COPY of each home and verifies the
+  # result, and phase 2 writes the copies back. A refusal in phase 1 has touched
+  # no tracked file at all.
+  local today home index staged real
+  local -a staged_files=() real_files=()
   today="$(date +%Y-%m-%d)"
+
   while IFS= read -r home; do
     [[ -z "$home" ]] && continue
-    rewrite_declaration "${root}/${home}" "$pin" "$version" "version" "$today" || return 1
-    if [[ -n "$digest_row" && -n "$(declaration_line "${root}/${home}" "$digest_row")" ]]; then
-      rewrite_declaration "${root}/${home}" "$digest_row" "$digest" "digest" "$evidence" || return 1
+    real="${root}/${home}"
+    staged="$(mktemp)" || staged=""
+    if [[ -z "$staged" || ! -f "$staged" ]]; then
+      log_error "bump_pin: ${pin}: mktemp gave no temporary file, so no edit could be staged"
+      rm -f ${staged_files[@]+"${staged_files[@]}"}
+      return 1
+    fi
+    staged_files+=("$staged")
+    real_files+=("$real")
+    if ! cat "$real" > "$staged"; then
+      log_error "bump_pin: ${pin}: could not copy ${real} for staging"
+      rm -f ${staged_files[@]+"${staged_files[@]}"}
+      return 1
+    fi
+    if ! rewrite_declaration "$staged" "$pin" "$version" "version" "$today"; then
+      rm -f ${staged_files[@]+"${staged_files[@]}"}
+      return 1
+    fi
+    for ((index = 0; index < ${#pin_rows[@]}; index++)); do
+      [[ -n "$(declaration_line "$real" "${pin_rows[index]}")" ]] || continue
+      if ! rewrite_declaration "$staged" "${pin_rows[index]}" "${pin_digests[index]}" "digest" "$evidence"; then
+        rm -f ${staged_files[@]+"${staged_files[@]}"}
+        return 1
+      fi
+    done
+    # A rewrite replaces values and never adds or drops a line, so an equal line
+    # count is what "this file survived every edit" looks like. An awk that died
+    # mid-stream leaves a short file, and a short file is the one shape that
+    # would otherwise reach the tree looking plausible.
+    if [[ ! -s "$staged" ]] || [[ "$(wc -l < "$staged")" -ne "$(wc -l < "$real")" ]]; then
+      log_error "bump_pin: ${pin}: the staged rewrite of ${home} is empty or lost lines, so nothing was written"
+      rm -f ${staged_files[@]+"${staged_files[@]}"}
+      return 1
     fi
   done <<< "$homes"
+
+  # Written back THROUGH the existing files, never moved over them: a mv from
+  # the temporary directory would carry mktemp's 0600 mode onto a tracked file.
+  # Each write is checked — an unchecked one here is the disk-full path back to
+  # the half-written state phase 1 exists to prevent.
+  for ((index = 0; index < ${#staged_files[@]}; index++)); do
+    if ! cat "${staged_files[index]}" > "${real_files[index]}"; then
+      log_error "bump_pin: ${pin}: the write to ${real_files[index]} failed"
+      log_error "every home before it in ${homes//$'\n'/, } is already written: check the tree before rerunning"
+      rm -f ${staged_files[@]+"${staged_files[@]}"}
+      return 1
+    fi
+  done
+  rm -f ${staged_files[@]+"${staged_files[@]}"}
   return 0
 }
 
@@ -1017,7 +1254,11 @@ function rewrite_declaration() {
     return 1
   fi
   local staged
-  staged="$(mktemp)"
+  staged="$(mktemp)" || staged=""
+  if [[ -z "$staged" || ! -f "$staged" ]]; then
+    log_error "rewrite_declaration: mktemp gave no temporary file for ${file}"
+    return 1
+  fi
   if ! awk -v name="$name" -v value="$value" -v mode="$mode" -v extra="$extra" '
     function is_declaration(line) {
       return (line ~ ("^[[:space:]]*ARG[[:space:]]+" name "=")) || (line ~ ("^" name "="))
@@ -1050,7 +1291,14 @@ function rewrite_declaration() {
   fi
   # Written back through the existing file rather than moved over it: a mv from
   # the temporary directory would carry mktemp's 0600 mode onto a tracked file.
-  cat "$staged" > "$file"
+  # The write is CHECKED: bump_pin hands this function a staged copy and reads
+  # its status, and an unchecked write here would report a rewrite that a full
+  # disk had truncated.
+  if ! cat "$staged" > "$file"; then
+    log_error "rewrite_declaration: could not write ${name} back to ${file}"
+    rm -f "$staged"
+    return 1
+  fi
   rm -f "$staged"
 }
 
