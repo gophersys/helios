@@ -19,6 +19,14 @@
 #   PIN_TABLE      1 row per pin, `<PIN>|<expected>|<command>[|extractor]`.
 #                  REQUIRED: an empty table exits non-zero, because a comparator
 #                  that compares nothing must never report success.
+#   ABSENT_TABLE   1 row per binary that must NOT be in this image,
+#                  `<PIN>|<binary>`. The driver builds it from every pin it
+#                  classifies `not-in-this-image:<binary>`, which until ledger
+#                  #103 was a class nothing checked — a tool that leaked into an
+#                  image read exactly like a tool that stayed out. Empty means no
+#                  negative check, which is how the pull request gate runs this
+#                  file; the host driver always sends rows, and REFUSES an image
+#                  whose whole table names no probe.
 #   SMOKE_CHECKS   space-separated names of the functional groups to run. An
 #                  unknown name FAILS naming it. Empty means the comparator
 #                  alone, which is how the pull request gate runs this file; the
@@ -194,6 +202,40 @@ function run_comparator() {
     [[ -z "$pin" ]] && continue
     compare_pin "$pin" "$expected" "$probe" "${extractor:-}"
   done <<< "$PIN_TABLE"
+}
+
+# absence_of <pin> <binary> — 1 row of ABSENT_TABLE. The tool must resolve
+# NOWHERE on PATH, and the failure prints the path it was found at, because
+# "terraform is present" sends the reader looking and
+# "/usr/local/bin/terraform is present" names the layer that put it there.
+function absence_of() {
+  local pin="$1" binary="$2" found=""
+  if [[ -z "$binary" ]]; then
+    fail "${pin}: the driver sent an absence row with no binary, so nothing was probed"
+    return 0
+  fi
+  if found="$(command -v "$binary" 2>/dev/null)"; then
+    fail "${pin}: ${binary} is at ${found}, and this image classifies ${pin} not-in-this-image"
+    return 0
+  fi
+  say "ok   ${pin}: ${binary} is absent"
+}
+
+# The negative half of the classification. `not-in-this-image` was an assertion
+# nobody checked until this group: the driver said the image does not install the
+# tool, no command ran, and a leak read like a clean image. Measured on
+# 2026-08-17 — ghcr.io/gophersys/base:latest carries /usr/local/bin/terraform and
+# /usr/local/bin/aws while base/Dockerfile installs neither.
+function run_absence_checks() {
+  if [[ -z "${ABSENT_TABLE:-}" ]]; then
+    return 0
+  fi
+  local pin binary
+  say "--- absence: every pin the driver classified not-in-this-image with a probe ---"
+  while IFS='|' read -r pin binary; do
+    [[ -z "$pin" ]] && continue
+    absence_of "$pin" "$binary"
+  done <<< "$ABSENT_TABLE"
 }
 
 # -------- the functional groups --------
@@ -566,6 +608,11 @@ function order_groups() {
 SMOKE_CHECKS="$(order_groups)"
 
 run_comparator
+# Before the functional groups, and for the reason the content groups run before
+# them: a Go build writes caches and a check group could install nothing, but the
+# absence claim is about the image AS BUILT, and the earliest reading is the
+# truest one.
+run_absence_checks
 run_functional_groups
 
 if [[ "$FAILURES" -ne 0 ]]; then

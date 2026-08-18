@@ -45,6 +45,14 @@
 #      `asserted`, in the `<PIN>|<expected>|<command>` shape .ci/image-checks.sh
 #      reads. A pin classified `asserted` and absent from the payload is a
 #      classification that lies.
+#   2b. the payload carries 1 ABSENT_TABLE row per absence probe the class table
+#      names, in the `<PIN>|<binary>` shape, and it EXPORTS that table. This is
+#      rule 2 for the negative half of a classification (ledger #103): a
+#      `not-in-this-image:terraform` row whose binary never reaches the guest is
+#      the unchecked claim the probe exists to end, and it reads exactly like a
+#      probe that ran. The export is part of the rule because the rows travel
+#      inside the payload TEXT either way — without it every row is present and
+#      the guest still sees nothing.
 #   3. a pin that resolves to the EMPTY string fails the run, names the pin, and
 #      starts NO container. An empty expected version compares against nothing,
 #      so a container that ran anyway would report a green image that was never
@@ -170,6 +178,40 @@ function asserted_pins() {
   printf '%s\n' "$text" | awk -F'|' '/^[A-Za-z_][A-Za-z0-9_]*\|asserted/ { print $1 }'
 }
 
+# absence_rows <table variable name> — the `<PIN>|<binary>` rows the class table
+# of this image asks the guest to probe, 1 per line, 1 per BINARY: a row that
+# names 2 (`RUST_CHANNEL|not-in-this-image:rustc,cargo`) is 2 rows in
+# ABSENT_TABLE, because the guest runs 1 `command -v` per binary.
+#
+# THIS READS THE TABLE TEXT, and the file already offers a seam, so the reason
+# has to be stated. SMOKE_LIST_PINS=1 prints the BARE class — that is the seam's
+# contract, and version-coverage.test.sh holds it — so the listing cannot say
+# which rows carry a probe or what binary they name. The probe is visible only in
+# the table. Widening the seam is a change to .ci/smoke.sh and is open work;
+# until then this reader is the only way this direction can fail at all.
+#
+# A `not-in-this-image` row with NO probe is deliberately not a row here.
+# RUNNER_VERSION and ANSIBLE_VERSION are the 2, and each says beside itself why a
+# probe would prove nothing: the Actions runner is on no image's PATH, and the
+# ansible metapackage ships no binary of its own.
+function absence_rows() {
+  awk -v want="$1" '
+    $0 ~ ("^read -r -d .. " want " <<") { inside = 1; next }
+    /^PIN_CLASS_TABLE$/ { inside = 0; next }
+    inside && /^[A-Za-z_][A-Za-z0-9_]*\|not-in-this-image:/ {
+      position = index($0, "|")
+      pin = substr($0, 1, position - 1)
+      rest = substr($0, position + 1)
+      second = index(rest, "|")
+      class = (second == 0) ? rest : substr(rest, 1, second - 1)
+      total = split(substr(class, index(class, ":") + 1), binaries, ",")
+      for (index_of_binary = 1; index_of_binary <= total; index_of_binary++) {
+        print pin "|" binaries[index_of_binary]
+      }
+    }
+  ' "$SMOKE"
+}
+
 # docker_run_lines <argv log> — how many `docker run` invocations a log holds.
 # The payload the driver sends can hold the word "run" itself, so the match is
 # anchored at the start of a logged line.
@@ -276,6 +318,48 @@ elif [[ -n "$missing_rows" ]]; then
 else
   pass_check "every_asserted_pin_reaches_the_guest"
 fi
+
+# -------- 3b. 1 ABSENT_TABLE row per absence probe the table names --------
+#
+# The mirror of section 3, for the negative half of a classification. The
+# measured defect: on 2026-08-17 ghcr.io/gophersys/base:latest carried
+# /usr/local/bin/terraform and /usr/local/bin/aws while 2 rows classified them
+# not-in-this-image, and nothing here could report it. A probe that does not
+# reach the guest restores exactly that silence, and the run stays green.
+absent_rows="$(absence_rows "PIN_CLASSES_CLOUD")"
+absent_row_total=0
+missing_absent_rows=""
+while IFS= read -r absent_row; do
+  [[ -z "$absent_row" ]] && continue
+  absent_row_total=$((absent_row_total + 1))
+  if ! grep -qxF -- "$absent_row" <<< "$RUN_PAYLOAD"; then
+    missing_absent_rows="${missing_absent_rows:+${missing_absent_rows}
+}${absent_row}"
+  fi
+done <<< "$absent_rows"
+
+if [[ "$absent_row_total" -eq 0 ]]; then
+  fail_check "every_absence_probe_reaches_the_guest" \
+    "the ${IMAGE} class table names no absence probe at all, so this rule compared nothing" \
+    "the driver refuses such an image, and a rule with no input reports a clean result it never read"
+elif [[ -n "$missing_absent_rows" ]]; then
+  fail_check "every_absence_probe_reaches_the_guest" \
+    "these absence probes are named in the class table and carry no ABSENT_TABLE row in the payload:" \
+    "$missing_absent_rows" \
+    "a row is <PIN>|<binary>, which is what run_absence_checks in .ci/image-checks.sh reads" \
+    "a probe that never reaches the guest is the unchecked claim not-in-this-image used to be"
+else
+  pass_check "every_absence_probe_reaches_the_guest"
+fi
+
+# The rows travel inside the payload TEXT whether or not the guest can see them.
+# Without the export they are a heredoc the guest writes to a variable of its own
+# stdin shell and never passes on, every row above is still found, and
+# run_absence_checks reads an empty ABSENT_TABLE and returns 0 — a green run with
+# every probe silently dropped.
+assert_contains "the_payload_exports_the_absence_table" \
+  "$RUN_PAYLOAD" "export ABSENT_TABLE" \
+  "the guest reads ABSENT_TABLE out of its environment, and an unexported table is an empty one there"
 
 # -------- 4. the 7 gate-critical tools are named --------
 for tool in "${NAMED_TOOLS[@]}"; do

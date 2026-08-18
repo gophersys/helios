@@ -195,9 +195,23 @@ have done to it is a doubling of 1 file.
 **The 3 per-image Dockerfiles still carry inline pins, and that is the open
 half.** `flutter/`, `zephyr/` and `zephyr-devbox/` declare their own
 `ARG NAME=value` blocks and consume no build arg from `versions.env`; `runner/`
-does the same and is retired. Their 10 pins are the ones no smoke run compares,
-recorded as ledger #102's open item. Until it closes, read "the pin value is in
-`versions.env`" as true of `base` and `cloud`, and of nothing else.
+does the same and is retired. Read "the pin value is in `versions.env`" as true
+of `base` and `cloud`, and of nothing else.
+
+**What closed is the CLASSIFICATION half, and it closed alone.** That sentence
+went on to say those pins "are the ones no smoke run compares". They are
+compared now: `.ci/smoke.sh` reads a child image's own Dockerfile as a SECOND
+pin home beside `versions.env`, with a class table of its own, and the
+refuse-to-run rule for an unclassified pin covers both homes equally. The reader
+takes every VALUE-FUL `ARG` — 19 of them across the 3 files, `BASE_TAG` and the
+3 digest rows included, because an ARG that carries a value and no class is the
+silence the rule exists to break — and 6 of them name a tool that reports its
+own version: `JAVA_VERSION`, `FLUTTER_VERSION`, `WEST_VERSION`,
+`ZEPHYR_SDK_VERSION`, `ESPTOOL_VERSION` and `CODE_SERVER_VERSION`.
+The rest are a build id, an API level, a channel or a toolchain list, and each
+one says so in its row's neighbourhood. **The VALUE home did not move**: these
+files still spell their own pins and `bump_pin` still writes into all 4 of them,
+so `PIN_VALUE_HOMES` is still 5 and ledger #102 stays open on that half.
 
 - **To change a version**, edit 1 `versions.env` row and its date comment.
   Change nothing else. The Dockerfile is not a home and takes no edit.
@@ -213,6 +227,29 @@ recorded as ledger #102's open item. Until it closes, read "the pin value is in
   `USER_UID`, `USER_GID` and `OH_MY_ZSH_INSTALL_URL` stay inline in both files:
   no upstream publishes a uid, so no row in `versions.env` and no row in
   `_build/upstreams.txt` could answer for one.
+- **`${USERNAME}` in a RUN under a zsh SHELL is not the ARG, and `validate` now
+  fails on it.** zsh sets `USERNAME` itself — a special parameter tied to the
+  EFFECTIVE user, overwritten at shell startup whatever the environment held —
+  and Docker hands a RUN line to the shell rather than expanding it. So under
+  `SHELL ["/usr/bin/zsh", ...]` a `chown ${USERNAME}` means the uid of the
+  layer, and in a root layer it silently means `chown root`. The failure never
+  shows at build time: `flutter/Dockerfile` chowned `/opt/flutter` and
+  `/opt/android-sdk` that way, both shipped root-owned, and
+  `flutter --version` as `dev` exited 128 with "detected dubious ownership" —
+  found by the first smoke run that ever executed it. `zsh_username_run_references`
+  in `ctl.sh` reports every RUN line holding `${USERNAME}` or `$USERNAME` AFTER
+  the file switches SHELL to zsh, naming the file and the line; a reference
+  BEFORE the switch passes, and an `ENV`, a `USER` or a `LABEL` is never
+  reported, because the Dockerfile PARSER expands those out of the build args
+  and no shell is involved. `base` and `cloud` had 9 and 5 such RUN lines, and
+  they are the literal `dev` now — the pattern the 3 child Dockerfiles already
+  document in their own headers. Both files still DECLARE `ARG USERNAME=dev`,
+  because `ENV`, `USER` and the pre-switch RUN still read it, so the 2 DL3064
+  inline ignores stay too. **The detector's trigger is the SHELL line in the
+  file it reads.** A child Dockerfile INHERITS zsh through its `FROM` and
+  declares no SHELL of its own, so this reader is silent on all 3 of them;
+  all 3 hardcode `dev` today, and closing the hole means resolving the `FROM`
+  graph in `ctl.sh`.
 - To add a new tool, select its **latest LTS or stable** release. Do the
   research with apt-cache, with the upstream GitHub releases, or with pypi.
   Never invent a version.
@@ -556,39 +593,59 @@ platform, so read the arm64 note at the top of that test file before you widen
 `SANCTIONED_PLATFORMS`.
 
 The smoke test compares **versions**, and it does not only run tools. `.ci/smoke.sh`
-is the host driver: it classifies every pin of `versions.env` — the 1 home, for
-every image — as `asserted`, `not-a-version` or `not-in-this-image`, resolves
+is the host driver: it classifies every pin of every home the image has as
+`asserted`, `not-a-version` or `not-in-this-image`, resolves
 each asserted pin, and sends
 `.ci/image-checks.sh`, the `.ci/fixtures/` and the assertion table into 1 `docker
 run`. The guest compares what each tool reports against its pin, and it then runs
 the gate-critical tools on the fixtures — a Go module through
 gofumpt/golangci-lint/hnslint/vet, a Dockerfile through hadolint, a compose file
 through the compose plugin, and delve/buf/grpcurl each on 1 real operation.
-`_ctl/tests/version-coverage.test.sh` fails when a pin of that home carries
+`_ctl/tests/version-coverage.test.sh` fails when a pin of `versions.env` carries
 no classification, so a new pin there cannot stay silent.
 
-**2 classification TABLES read that 1 home**, and the branch that chooses
+**2 classification TABLES read `versions.env`**, and the branch that chooses
 between them is all that is left of the family split: `cloud` takes the table
 that asserts the CI fold, and `base`/`flutter`/`zephyr`/`zephyr-devbox` take the
 table that asserts what `base` installs. A pin one image does not carry takes
 `not-in-this-image` in that image's table, which is what the class exists for.
-`home_pin_names` in `.ci/smoke.sh` holds 1 reader now; the second reader went
-with the second home, because a value-less ARG declares no value to read.
 
-**That rule covers 1 pin home, and the repository has 5.** So the 10 pins
-of the child images are unasserted today, and that is a stated gap rather than
-an oversight: `JAVA_VERSION`, `ANDROID_CMDLINE_TOOLS_VERSION`,
-`ANDROID_PLATFORM_VERSION`, `ANDROID_BUILDTOOLS_VERSION`, `FLUTTER_VERSION` and
-`FLUTTER_CHANNEL` in `flutter/Dockerfile`; `WEST_VERSION` and
-`ZEPHYR_SDK_VERSION` in `zephyr/Dockerfile`; `ESPTOOL_VERSION` and
-`CODE_SERVER_VERSION` in `zephyr-devbox/Dockerfile`. `CODE_SERVER_VERSION` shows
-the hole is live and not historical: it was pinned in the current cycle, and no
-class, no test and no smoke run compares it against the image it installs.
-Ledger #102 and #103 own the gap. Until they close it, read "a new pin cannot
-stay silent" as true of `versions.env`, and of nothing else. Those 10 pins are
-also the 10 that still carry their VALUE inline: the classification gap and the
-pin-home gap are 1 gap, and #102 closes both when those 3 Dockerfiles go
-value-less the way `base` did.
+**A CHILD image reads a second home: its own Dockerfile.** `flutter`, `zephyr`
+and `zephyr-devbox` each carry a class table of their own — `PIN_CLASSES_FLUTTER`,
+`PIN_CLASSES_ZEPHYR`, `PIN_CLASSES_DEVBOX` — over the value-ful `ARG`s of their
+own file, and every rule of the `versions.env` home applies there unchanged: an
+unclassified pin refuses the run before a container starts. `home_pin_names` in
+`.ci/smoke.sh` therefore holds 2 readers again, and this pair is not the pair
+that went away — the old second reader read `base/Dockerfile`, which declares no
+value at all now. `CODE_SERVER_VERSION` is the pin that shows why: read on
+2026-08-17, `ghcr.io/gophersys/zephyr-devbox:latest` reports code-server 4.127.0
+while `zephyr-devbox/Dockerfile` pins 4.133.0, and until that table existed no
+class, no test and no run in this repository could say so.
+
+**2 things are deliberately outside the child home**, and each is named in the
+driver: `runner/Dockerfile`, because nothing builds `base-runner` and no run can
+name it, so a table for it would be dead text; and the pins a child inherits
+from ANOTHER child — `zephyr-devbox` builds `FROM zephyr` and carries west and
+the Zephyr SDK, but `WEST_VERSION` lives in `zephyr/Dockerfile`, so the devbox
+run asserts esptool and code-server and not those 2. Closing that needs the
+`FROM` graph walked in the driver, and it is what is left of ledger #102 beside
+the value-home half.
+
+**`not-in-this-image` is a CHECKED claim now, and it was not.** Ledger #103. The
+class field of a table row takes an optional absence probe —
+`not-in-this-image:<binary>[,<binary>...]` — and the guest asserts
+`! command -v <binary>` for every one of them. Without it the class said the
+image does not install the tool, no command ran, and a tool that leaked in read
+exactly like a tool that stayed out. The leak is measured and not theoretical:
+on 2026-08-17 `ghcr.io/gophersys/base:latest` carried `/usr/local/bin/terraform`
+and `/usr/local/bin/aws` while `base/Dockerfile` installs neither — the
+published image is older than the removal, and nothing here could report it. A
+row keeps the BARE class where a probe would prove nothing, and there are
+exactly 2 such rows: `RUNNER_VERSION`, because the Actions runner is at
+`/home/runner/bin/Runner.Listener` and on no image's PATH, and `ANSIBLE_VERSION`,
+because the `ansible` metapackage ships collections and no binary of its own. A
+probe that can never fire is a check that cannot fail. The driver refuses to run
+an image whose whole table names no probe at all.
 
 ## Dev-in-container expectation
 
@@ -701,7 +758,7 @@ operator can find.
 | `inspect <image>` | Delegate to per-image `ctl.sh inspect` |
 | `base-currency [reference]` | Assert the registry still holds the digest `UBUNTU_BASE_REF` pins |
 | `list` | Print the managed image refs |
-| `validate` | shellcheck every shell script, jq, the `devcontainer.json` contract, hadolint at the pinned version, ARG-discipline checks |
+| `validate` | shellcheck every shell script, jq, the `devcontainer.json` contract, hadolint at the pinned version, ARG-discipline checks, the zsh-`$USERNAME` trap |
 | `test` | Run every `_ctl/tests/*.test.sh`; fail if it finds none |
 | `help` | Usage |
 

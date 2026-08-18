@@ -18,9 +18,8 @@
 # WHAT THIS FILE IS, AND WHAT .ci/image-checks.sh IS
 # ============================================================================
 #
-# This file is the HOST driver. It knows where a pin LIVES (versions.env, the
-# ONE home, for every image this repository builds), it classifies every one of
-# them, and it resolves the ones it says it asserts. The
+# This file is the HOST driver. It knows where a pin LIVES, it classifies every
+# one of them, and it resolves the ones it says it asserts. The
 # checks themselves are .ci/image-checks.sh, which this file sends to the
 # container on stdin together with the fixtures the functional checks read.
 #
@@ -29,14 +28,22 @@
 # green on gh 2.40 while versions.env pins 2.90. Only a COMPARISON sees that, and
 # the comparison needs the pin, which exists on the host and not in the image.
 #
-# 7 things fail this script before it reaches the docker daemon at all, because
-# each one would otherwise report an image as smoked while checking nothing:
+# 10 things fail this script before it reaches the docker daemon at all, because
+# each one would otherwise report an image as smoked while checking nothing.
+# Read the list, never the number beside it — this block said "3 things" once
+# while listing 7:
 #
-#   - a pin of the home that carries no classification;
+#   - a pin of a home of this image that carries no classification;
 #   - a pin classified `asserted` with no command to read a version with;
 #   - a pin classified `asserted` that resolves to the empty string;
 #   - a pin classified `asserted` whose value holds no version to compare;
 #   - a home where NO pin is asserted, so the guest would compare nothing;
+#   - a class outside the taxonomy, which classifies a pin into nothing while
+#     looking like an answer;
+#   - an absence probe on a class other than `not-in-this-image`, which is a
+#     binary nothing would ever assert about;
+#   - an image for which NO row names an absence probe, so `not-in-this-image`
+#     would be an unchecked assertion again;
 #   - no fixture under .ci/fixtures/, so the functional checks read nothing;
 #   - an embedded file carrying the heredoc delimiter, which would truncate the
 #     payload without an error.
@@ -55,9 +62,11 @@
 #
 #   SMOKE_LIST_PINS=1 bash .ci/smoke.sh <image>
 #
-# prints `<PIN>|<class>` for every pin of that image's home and exits 0, with no
-# docker command at all: a classification is a property of the FILES, so it is
-# readable in the pull request gate, where a container is not.
+# prints `<PIN>|<class>` for every pin of every home of that image and exits 0,
+# with no docker command at all: a classification is a property of the FILES, so
+# it is readable in the pull request gate, where a container is not. The class it
+# prints is the BARE class — the absence probe a `not-in-this-image` row may
+# carry is a property of the table, and the seam's contract is the taxonomy.
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -82,20 +91,52 @@ if [[ -z "$IMAGE" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# The pin home. One file, every image.
+# The pin homes. versions.env for every image, plus its OWN Dockerfile when the
+# image is a child.
 #
-# It was 2: the cloud family read versions.env and the base family read the ARGs
-# at the top of base/Dockerfile, so this driver had to know which family an
-# image belonged to before it could read a version at all. base/Dockerfile
-# declares no value now — every pin of it arrives as a --build-arg generated
-# from this same file — so the question does not arise and the branch below
-# selects a CLASSIFICATION and nothing else.
+# versions.env was 2 homes once: the cloud family read it and the base family
+# read the ARGs at the top of base/Dockerfile, so this driver had to know which
+# family an image belonged to before it could read a version at all.
+# base/Dockerfile declares no value now — every pin of it arrives as a
+# --build-arg generated from this same file — so the question does not arise and
+# the branch below selects a CLASSIFICATION and nothing else.
 #
-# flutter, zephyr and zephyr-devbox read it too, and always did read base's
-# home: what they assert is the toolchain they INHERIT from base. Their own
-# Dockerfile pins are still inline and still unasserted, which is ledger #102.
+# flutter, zephyr and zephyr-devbox read versions.env too, and always did read
+# base's home: what they assert there is the toolchain they INHERIT from base.
+# What they did NOT assert was their own `ARG NAME=value` block — 13 pins, of
+# which FLUTTER_VERSION, WEST_VERSION, ZEPHYR_SDK_VERSION, ESPTOOL_VERSION and
+# CODE_SERVER_VERSION name a tool that reports its own version and no run
+# compared one. That is ledger #102, and CHILD_PIN_HOME below is its home half:
+# a child image reads its own Dockerfile as a SECOND home, with its own
+# classification table, and every rule of the versions.env home applies to it
+# unchanged — an unclassified pin refuses the run just the same.
+#
+# 2 things are deliberately outside it:
+#
+#   - runner/Dockerfile. Nothing builds `base-runner` and nothing smokes it: it
+#     left BUILD_ORDER, so no loop of either control script reaches its
+#     Dockerfile. Its pins are still mirrored by
+#     _ctl/tests/runner-residue-mirroring.test.sh, and the directory goes in the
+#     consolidation deletion wave that .claude/rules/00-identity.md lists file by
+#     file. A class table for an image no run can name would be dead text.
+#   - the pins a child INHERITS from another child. zephyr-devbox builds FROM
+#     zephyr and carries west and the Zephyr SDK, and WEST_VERSION lives in
+#     zephyr/Dockerfile — so the devbox run asserts esptool and code-server and
+#     not those 2. Closing that needs the FROM graph walked here, and it is the
+#     remaining half of #102.
 # ---------------------------------------------------------------------------
 PIN_HOME="versions.env"
+
+# image_child_pin_home <image> — the Dockerfile an image declares its own pins
+# in, empty for the 2 root images. base and cloud declare every ARG value-less.
+function image_child_pin_home() {
+  case "$1" in
+    flutter)       printf 'flutter/Dockerfile' ;;
+    zephyr)        printf 'zephyr/Dockerfile' ;;
+    zephyr-devbox) printf 'zephyr-devbox/Dockerfile' ;;
+    *)             printf '' ;;
+  esac
+}
 
 # ---------------------------------------------------------------------------
 # The classification, 1 row per pin:
@@ -109,19 +150,38 @@ PIN_HOME="versions.env"
 #   not-a-version      the pin is a digest, a channel or an untagged ref
 #   not-in-this-image  the image does not install the tool
 #
+# THE CLASS FIELD CARRIES AN OPTIONAL ABSENCE PROBE, and only that 1 class may:
+#
+#   not-in-this-image:<binary>[,<binary>...]
+#
+# where each binary is asserted ABSENT in the guest — `! command -v <binary>`.
+# Without it `not-in-this-image` is an assertion nobody checks: the row says the
+# image does not install the tool, no command runs, and a tool that leaked in
+# reads exactly like a tool that stayed out. It is not a theoretical leak.
+# Measured on 2026-08-17, `ghcr.io/gophersys/base:latest` carries
+# /usr/local/bin/terraform and /usr/local/bin/aws while base/Dockerfile installs
+# neither and both rows below say `not-in-this-image` — the published image is
+# older than the removal, and no check in this repository could say so.
+#
+# A row keeps the BARE class where a probe would prove nothing, and each such
+# row says why beside it: a tool that is on no PATH in any image (the Actions
+# runner lives at /home/runner/bin/Runner.Listener), or a package that ships no
+# binary of its own. A probe that can never fire is a check that cannot fail.
+#
 # The extractor is empty for the ~30 tools whose first `<digits>.<digits>` token
 # IS the version. The 2 other readers are named in .ci/image-checks.sh, and each
 # use below says why it is there.
 #
-# A `*_SHA256_*` pin carries NO row in either table below. It is classified by
-# SHAPE in class_row, because 44 hand-copied rows — the 22 digest rows of
-# versions.env, once per table now that both tables read that 1 home — would be
-# 44 places to forget one, and the day a digest is added without its row the
-# smoke refuses to run at all. The shape is safe to trust HERE and only here:
-# _ctl/tests/download-coverage.test.sh owns those names end to end — it holds
-# each one to the 1 arch vocabulary, to 64 lowercase hex, to the home its
-# version lives in, and to an evidence comment. A digest is never a version, so
-# no reading of a shell command could compare it against an image.
+# A `*_SHA256_*` pin carries NO row in any table below. It is classified by
+# SHAPE in class_row, because the 22 digest rows of versions.env would be copied
+# once per table that reads that home, and the 3 digest ARGs of the child
+# Dockerfiles once more — the day a digest is added without its row the smoke
+# refuses to run at all. The shape is safe to trust HERE and only here:
+# _ctl/tests/download-coverage.test.sh owns those names end to end, in
+# versions.env AND in each child Dockerfile — it holds each one to the 1 arch
+# vocabulary, to 64 lowercase hex, to the home its version lives in, and to an
+# evidence comment. A digest is never a version, so no reading of a shell
+# command could compare it against an image.
 # ---------------------------------------------------------------------------
 
 read -r -d '' PIN_CLASSES_CLOUD <<'PIN_CLASS_TABLE' || true
@@ -142,7 +202,7 @@ GOSEC_VERSION|asserted|go version -m ${GOPATH}/bin/gosec|line:mod
 HNSLINT_VERSION|asserted|go version -m ${GOPATH}/bin/hnslint|line:mod
 GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
 BENCHSTAT_REF|not-a-version||
-RUST_CHANNEL|not-a-version||
+RUST_CHANNEL|not-in-this-image:rustc,cargo||
 DELVE_VERSION|asserted|dlv version|
 YQ_VERSION|asserted|yq --version|
 HADOLINT_VERSION|asserted|hadolint --version|
@@ -166,11 +226,11 @@ CICTL_VERSION|asserted|go version -m /usr/local/bin/cictl|line:mod
 CLAUDE_CODE_VERSION|asserted|claude --version|
 OMP_VERSION|asserted|omp --version|
 CODEX_VERSION|asserted|codex --version|
-TERRAFORM_VERSION|not-in-this-image||
-AWS_CLI_VERSION|not-in-this-image||
-OCI_CLI_VERSION|not-in-this-image||
+TERRAFORM_VERSION|not-in-this-image:terraform||
+AWS_CLI_VERSION|not-in-this-image:aws||
+OCI_CLI_VERSION|not-in-this-image:oci||
 ANSIBLE_VERSION|not-in-this-image||
-ANSIBLE_CORE_VERSION|not-in-this-image||
+ANSIBLE_CORE_VERSION|not-in-this-image:ansible,ansible-playbook||
 PIN_CLASS_TABLE
 
 read -r -d '' PIN_CLASSES_BASE <<'PIN_CLASS_TABLE' || true
@@ -210,17 +270,94 @@ DOCKER_BUILDX_VERSION|asserted|docker buildx version|
 OCI_CLI_VERSION|asserted|oci --version|
 ANSIBLE_CORE_VERSION|asserted|ansible --version|
 ANSIBLE_VERSION|asserted|/home/dev/.local/share/uv/tools/ansible-core/bin/python -c "import importlib.metadata as m; print(m.version('ansible'))"|
-DELVE_VERSION|not-in-this-image||
-BUF_VERSION|not-in-this-image||
-GRPCURL_VERSION|not-in-this-image||
+DELVE_VERSION|not-in-this-image:dlv||
+BUF_VERSION|not-in-this-image:buf||
+GRPCURL_VERSION|not-in-this-image:grpcurl||
 RUNNER_VERSION|not-in-this-image||
-CICTL_VERSION|not-in-this-image||
-CLAUDE_CODE_VERSION|not-in-this-image||
-OMP_VERSION|not-in-this-image||
-CODEX_VERSION|not-in-this-image||
-TERRAFORM_VERSION|not-in-this-image||
-AWS_CLI_VERSION|not-in-this-image||
+CICTL_VERSION|not-in-this-image:cictl||
+CLAUDE_CODE_VERSION|not-in-this-image:claude||
+OMP_VERSION|not-in-this-image:omp||
+CODEX_VERSION|not-in-this-image:codex||
+TERRAFORM_VERSION|not-in-this-image:terraform||
+AWS_CLI_VERSION|not-in-this-image:aws||
 PIN_CLASS_TABLE
+
+# ---------------------------------------------------------------------------
+# The child tables, 1 per child image, over that image's OWN Dockerfile.
+#
+# Same 4 fields and same taxonomy as the 2 above. They are separate tables and
+# not extra rows in PIN_CLASSES_BASE because they read a DIFFERENT home: a row
+# here names an `ARG NAME=value` of one Dockerfile, and the same reader that
+# refuses an unclassified versions.env pin refuses an unclassified one here.
+#
+# BASE_TAG is in each of them. It is a build parameter and not a pin — it
+# selects which tag of the parent image the FROM resolves — and it is a
+# value-ful ARG, so the reader finds it and it needs an answer. `not-a-version`
+# is that answer, and leaving it out would refuse every child run.
+#
+# There is no `not-in-this-image` row in any of the 3, so no absence probe
+# either: a child image installs every pin its own Dockerfile declares. The
+# absence probes for these runs come from PIN_CLASSES_BASE, which is the other
+# home each child reads.
+# ---------------------------------------------------------------------------
+
+read -r -d '' PIN_CLASSES_FLUTTER <<'PIN_CLASS_TABLE' || true
+BASE_TAG|not-a-version||
+JAVA_VERSION|asserted|java -version|prefix
+ANDROID_CMDLINE_TOOLS_VERSION|not-a-version||
+ANDROID_PLATFORM_VERSION|not-a-version||
+ANDROID_BUILDTOOLS_VERSION|not-a-version||
+FLUTTER_VERSION|asserted|flutter --version|
+FLUTTER_CHANNEL|not-a-version||
+PIN_CLASS_TABLE
+
+# JAVA_VERSION takes `prefix` because the pin is a MAJOR — openjdk-21 reports
+# `openjdk version "21.0.11"`, and an exact comparison would demand a pin that
+# moves with every ubuntu security update.
+#
+# The 3 ANDROID_* rows are `not-a-version` for the reason the header gives, and
+# the reason was measured rather than assumed: `sdkmanager --version` in
+# ghcr.io/gophersys/flutter:latest prints `20.0`, which is the cmdline-tools
+# release and not ANDROID_CMDLINE_TOOLS_VERSION=14742923 — that pin is the
+# google download build id. ANDROID_PLATFORM_VERSION is an API level and
+# ANDROID_BUILDTOOLS_VERSION is a directory name under the SDK root; no tool in
+# the SDK reports either as its own version, so any command written here would
+# compare a number against a different number and go red forever.
+#
+# FLUTTER_CHANNEL is `stable`, which is a channel and never a version — the same
+# answer RUST_CHANNEL takes in base.
+
+read -r -d '' PIN_CLASSES_ZEPHYR <<'PIN_CLASS_TABLE' || true
+BASE_TAG|not-a-version||
+WEST_VERSION|asserted|west --version|
+ZEPHYR_SDK_VERSION|asserted|cat ${ZEPHYR_SDK_INSTALL_DIR}/sdk_version|
+ZSDK_TOOLCHAINS|not-a-version||
+PIN_CLASS_TABLE
+
+# ZEPHYR_SDK_VERSION has no CLI to ask: the SDK ships toolchains, and each
+# toolchain's gcc reports the GCC version. What it does ship is `sdk_version` at
+# the root of ZEPHYR_SDK_INSTALL_DIR — the file the SDK's own
+# Zephyr-sdkConfigVersion.cmake reads — so the command is a `cat` of it. Read on
+# 2026-08-17 in ghcr.io/gophersys/zephyr-devbox:latest: `1.0.1`.
+#
+# ZSDK_TOOLCHAINS is a comma-separated LIST of toolchain names and pins no
+# version at all. What it selects is asserted by the content-devbox group, which
+# finds the gcc of each toolchain under the SDK root.
+
+read -r -d '' PIN_CLASSES_DEVBOX <<'PIN_CLASS_TABLE' || true
+BASE_TAG|not-a-version||
+ESPTOOL_VERSION|asserted|esptool version|
+CODE_SERVER_VERSION|asserted|code-server --version|
+ZSDK_EXTRA_TOOLCHAINS|not-a-version||
+PIN_CLASS_TABLE
+
+# CODE_SERVER_VERSION is why this table exists. It was pinned in the current
+# cycle and no class, no test and no run compared it against the image: read on
+# 2026-08-17, ghcr.io/gophersys/zephyr-devbox:latest reports 4.127.0 while
+# zephyr-devbox/Dockerfile pins 4.133.0. The published image is older than the
+# pin, and until this row nothing in this repository could say so.
+#
+# ZSDK_EXTRA_TOOLCHAINS is a list, for the reason ZSDK_TOOLCHAINS gives.
 
 # The functional groups .ci/image-checks.sh runs for each image, beyond the
 # version comparison. An image with no list is refused: a smoke that ran the
@@ -241,12 +378,31 @@ function image_check_groups() {
   esac
 }
 
+# The homes of THIS image, and the classification table each one is read
+# against. 2 parallel arrays and not 1 map: the mac's bash is 3.2 and has no
+# associative array, and every reader below walks the pair by index.
+PIN_HOMES=()
+PIN_TABLES=()
+CHILD_CLASSES=""
+
 case "$IMAGE" in
   cloud)
     PIN_CLASSES="$PIN_CLASSES_CLOUD"
     ;;
-  base|flutter|zephyr|zephyr-devbox)
+  base)
     PIN_CLASSES="$PIN_CLASSES_BASE"
+    ;;
+  flutter)
+    PIN_CLASSES="$PIN_CLASSES_BASE"
+    CHILD_CLASSES="$PIN_CLASSES_FLUTTER"
+    ;;
+  zephyr)
+    PIN_CLASSES="$PIN_CLASSES_BASE"
+    CHILD_CLASSES="$PIN_CLASSES_ZEPHYR"
+    ;;
+  zephyr-devbox)
+    PIN_CLASSES="$PIN_CLASSES_BASE"
+    CHILD_CLASSES="$PIN_CLASSES_DEVBOX"
     ;;
   *)
     log_error "unknown image: '$IMAGE'"
@@ -254,6 +410,23 @@ case "$IMAGE" in
     exit 2
     ;;
 esac
+
+PIN_HOMES+=("$PIN_HOME")
+PIN_TABLES+=("$PIN_CLASSES")
+
+CHILD_PIN_HOME="$(image_child_pin_home "$IMAGE")"
+# The 2 halves have to arrive together. A home with no table classifies nothing
+# and every pin of it would refuse the run; a table with no home is rows about a
+# file this run never opens.
+if [[ -n "$CHILD_PIN_HOME" || -n "$CHILD_CLASSES" ]]; then
+  if [[ -z "$CHILD_PIN_HOME" || -z "$CHILD_CLASSES" ]]; then
+    log_error "${IMAGE} declares a child pin home of '${CHILD_PIN_HOME:-<none>}' and a child class table that is ${CHILD_CLASSES:+non-}empty"
+    log_error "the home and its table are set in the same case arm of .ci/smoke.sh; set both or neither"
+    exit 1
+  fi
+  PIN_HOMES+=("$CHILD_PIN_HOME")
+  PIN_TABLES+=("$CHILD_CLASSES")
+fi
 
 CHECK_GROUPS="$(image_check_groups "$IMAGE")"
 if [[ -z "$CHECK_GROUPS" ]]; then
@@ -269,14 +442,30 @@ fi
 # home_pin_names <home> — every pin the home declares, 1 per line, in file order.
 #
 # versions.env declares `NAME=value`, and every row of it is a pin — including
-# PYTHON_PACKAGE, which is an apt package name and not a semver. A second reader
-# stood here for the `ARG NAME=value` shape of base/Dockerfile, and it went with
-# the second home: a value-less ARG declares no value to read.
+# PYTHON_PACKAGE, which is an apt package name and not a semver.
+#
+# A child Dockerfile declares `ARG NAME=value`. Only the VALUE-FUL ones are pins:
+# `ARG TARGETPLATFORM` is injected by buildx and declares nothing to compare, and
+# base/Dockerfile is value-less from end to end because its values arrive as
+# generated --build-args. The reader takes the whole file and not a "top block":
+# the ARGs-at-top convention is a rule of this repository and not a property this
+# reader can measure, so an ARG somebody adds further down is CLASSIFIED rather
+# than silently skipped.
 function home_pin_names() {
   local home="$1"
   case "$home" in
     "$PIN_HOME")
       awk -F= '/^[A-Za-z_][A-Za-z0-9_]*=/ { print $1 }' "$REPO_ROOT/$home" | awk '!seen[$0]++'
+      ;;
+    */Dockerfile)
+      awk '
+        match($0, /^[[:space:]]*ARG[[:space:]]+[A-Za-z_][A-Za-z0-9_]*=/) {
+          name = substr($0, RSTART, RLENGTH)
+          sub(/^[[:space:]]*ARG[[:space:]]+/, "", name)
+          sub(/=$/, "", name)
+          print name
+        }
+      ' "$REPO_ROOT/$home" | awk '!seen[$0]++'
       ;;
     *)
       log_error "no reader for pin home '${home}'"
@@ -314,6 +503,26 @@ function resolve_pin() {
   case "$home" in
     "$PIN_HOME")
       line="$(grep -E "^${name}=" "$file")" || status=$?
+      if [[ "$status" -ne 0 || -z "$line" ]]; then
+        PIN_PROBLEM="${home} declares no ${name}"
+        return 0
+      fi
+      line="${line%%#*}"
+      line="${line%"${line##*[![:space:]]}"}"
+      local assignment="${name}="
+      PIN_VALUE="${line#*"$assignment"}"
+      ;;
+    */Dockerfile)
+      # declaration_line and declaration_value are in _ctl/lib.sh, which this
+      # file already sources. They are the readers `bump_pin` WRITES through, so
+      # the value this run compares against the image is the value the weekly
+      # bump would edit — a second parser here is how the 2 come to disagree.
+      line="$(declaration_line "$file" "$name")"
+      if [[ -z "$line" ]]; then
+        PIN_PROBLEM="${home} declares no ${name} with a value"
+        return 0
+      fi
+      PIN_VALUE="$(declaration_value "$line")"
       ;;
     *)
       PIN_PROBLEM="no reader for pin home '${home}'"
@@ -321,15 +530,6 @@ function resolve_pin() {
       ;;
   esac
 
-  if [[ "$status" -ne 0 || -z "$line" ]]; then
-    PIN_PROBLEM="${home} declares no ${name}"
-    return 0
-  fi
-
-  line="${line%%#*}"
-  line="${line%"${line##*[![:space:]]}"}"
-  local assignment="${name}="
-  PIN_VALUE="${line#*"$assignment"}"
   if [[ -z "$PIN_VALUE" ]]; then
     PIN_PROBLEM="${home} declares ${name} with an empty value"
   fi
@@ -344,13 +544,15 @@ function expected_version() {
   printf '%s' "${raw#"${raw%%[0-9]*}"}"
 }
 
-# class_row <PIN> — the classification row for a pin, empty when it has none.
+# class_row <PIN> <table> — the classification row for a pin in that table, empty
+# when it has none. The table is passed in and not read from a global, because a
+# child image reads 2 homes and each one is judged against its own table.
 #
 # A digest is classified by its NAME and carries no table row. See the note
 # above the tables: the rule that keeps this honest is that
-# download-coverage.test.sh governs every `*_SHA256_*` name in both homes.
+# download-coverage.test.sh governs every `*_SHA256_*` name in every home.
 function class_row() {
-  local name="$1" row
+  local name="$1" table="$2" row
   if [[ "$name" == *_SHA256_* ]]; then
     printf '%s|not-a-version||' "$name"
     return 0
@@ -359,8 +561,26 @@ function class_row() {
     [[ "${row%%|*}" == "$name" ]] || continue
     printf '%s' "$row"
     return 0
-  done <<< "$PIN_CLASSES"
+  done <<< "$table"
   printf ''
+}
+
+# bare_class <class field> — the class without its absence probe. The taxonomy is
+# 3 words, and `not-in-this-image:terraform` is 1 of them carrying a probe.
+function bare_class() {
+  printf '%s' "${1%%:*}"
+}
+
+# class_probes <class field> — the absence probes a class field names, 1 binary
+# per line, empty when it names none.
+function class_probes() {
+  local field="$1"
+  [[ "$field" == *:* ]] || return 0
+  # The trailing newline is load-bearing twice over: without it, `read` drops
+  # the LAST binary of every field (it returns nonzero on an unterminated
+  # line and the loop body never runs), and a trailing comma's empty final
+  # field vanishes with it — so the empty-probe refusal below could not fire.
+  printf '%s\n' "${field#*:}" | tr ',' '\n'
 }
 
 # ---------------------------------------------------------------------------
@@ -368,59 +588,123 @@ function class_row() {
 # daemon at all and it is the seam the pull request gate reads.
 # ---------------------------------------------------------------------------
 if [[ "${SMOKE_LIST_PINS:-}" == "1" ]]; then
-  while IFS= read -r pin; do
-    [[ -z "$pin" ]] && continue
-    row="$(class_row "$pin")"
-    [[ -z "$row" ]] && continue
-    row="${row#*|}"
-    printf '%s|%s\n' "$pin" "${row%%|*}"
-  done <<< "$(home_pin_names "$PIN_HOME")"
+  for home_index in "${!PIN_HOMES[@]}"; do
+    home="${PIN_HOMES[$home_index]}"
+    table="${PIN_TABLES[$home_index]}"
+    while IFS= read -r pin; do
+      [[ -z "$pin" ]] && continue
+      row="$(class_row "$pin" "$table")"
+      [[ -z "$row" ]] && continue
+      row="${row#*|}"
+      printf '%s|%s\n' "$pin" "$(bare_class "${row%%|*}")"
+    done <<< "$(home_pin_names "$home")"
+  done
   exit 0
 fi
 
 # ---------------------------------------------------------------------------
 # The assertion table, built BEFORE anything touches docker.
+#
+# ABSENT_TABLE is built in the same pass. It is the other half of a
+# classification: PIN_TABLE says what the guest must FIND at the pinned version,
+# and ABSENT_TABLE says what it must not find at all.
 # ---------------------------------------------------------------------------
 PIN_TABLE=""
+ABSENT_TABLE=""
 UNCLASSIFIED=""
-while IFS= read -r pin; do
-  [[ -z "$pin" ]] && continue
-  if [[ -z "$(class_row "$pin")" ]]; then
-    UNCLASSIFIED="${UNCLASSIFIED:+${UNCLASSIFIED} }${pin}"
-  fi
-done <<< "$(home_pin_names "$PIN_HOME")"
+for home_index in "${!PIN_HOMES[@]}"; do
+  home="${PIN_HOMES[$home_index]}"
+  table="${PIN_TABLES[$home_index]}"
+  while IFS= read -r pin; do
+    [[ -z "$pin" ]] && continue
+    if [[ -z "$(class_row "$pin" "$table")" ]]; then
+      UNCLASSIFIED="${UNCLASSIFIED:+${UNCLASSIFIED} }${home}:${pin}"
+    fi
+  done <<< "$(home_pin_names "$home")"
+done
 if [[ -n "$UNCLASSIFIED" ]]; then
-  log_error "these pins of ${PIN_HOME} carry no classification: ${UNCLASSIFIED}"
+  log_error "these pins carry no classification: ${UNCLASSIFIED}"
   log_error "assert each one in .ci/smoke.sh, or classify it not-a-version or not-in-this-image"
   log_error "a pin nothing compares against the image is a number in a file"
   exit 1
 fi
 
-while IFS='|' read -r pin class probe extractor; do
-  [[ -z "$pin" ]] && continue
-  [[ "$class" == "asserted" ]] || continue
-  if [[ -z "$probe" ]]; then
-    log_error "${pin} is classified asserted and names no command to read a version with"
-    log_error "give it a command in the ${PIN_HOME} table of .ci/smoke.sh, or classify it not-a-version"
-    exit 1
-  fi
-  resolve_pin "$pin" "$PIN_HOME"
-  if [[ -z "$PIN_VALUE" ]]; then
-    log_error "${pin} is classified asserted and resolves to the empty string: ${PIN_PROBLEM}"
-    log_error "an empty expected version compares against nothing, so NOTHING was asserted about ${IMAGE}"
-    exit 1
-  fi
-  expected="$(expected_version "$PIN_VALUE")"
-  if [[ -z "$expected" ]]; then
-    log_error "${pin} is classified asserted and its value '${PIN_VALUE}' holds no version to compare"
-    exit 1
-  fi
-  PIN_TABLE="${PIN_TABLE:+${PIN_TABLE}
+for home_index in "${!PIN_HOMES[@]}"; do
+  home="${PIN_HOMES[$home_index]}"
+  table="${PIN_TABLES[$home_index]}"
+  while IFS='|' read -r pin class probe extractor; do
+    [[ -z "$pin" ]] && continue
+    class_name="$(bare_class "$class")"
+    case "$class_name" in
+      asserted|not-a-version|not-in-this-image) ;;
+      *)
+        log_error "${pin} carries the class '${class_name}' in the ${home} table of .ci/smoke.sh"
+        log_error "the 3 classes are: asserted, not-a-version, not-in-this-image"
+        log_error "a class outside the taxonomy classifies a pin into nothing while it looks like an answer"
+        exit 1
+        ;;
+    esac
+
+    if [[ "$class" == *:* ]]; then
+      if [[ "$class_name" != "not-in-this-image" ]]; then
+        log_error "${pin} carries an absence probe on class '${class_name}', and only not-in-this-image may"
+        log_error "an image that INSTALLS a tool cannot also be asserted not to have it"
+        exit 1
+      fi
+      while IFS= read -r binary; do
+        if [[ -z "$binary" ]]; then
+          log_error "${pin} is classified '${class}' and names an empty absence probe"
+          log_error "write not-in-this-image:<binary>[,<binary>...], or drop the colon"
+          exit 1
+        fi
+        ABSENT_TABLE="${ABSENT_TABLE:+${ABSENT_TABLE}
+}${pin}|${binary}"
+      done < <(class_probes "$class")
+      # < <(...) and not <<< "$(...)": command substitution STRIPS the trailing
+      # newline, so 'not-in-this-image:aws,' lost its empty last field and the
+      # refusal above could never fire on a trailing comma — measured 2026-08-18.
+    fi
+
+    [[ "$class_name" == "asserted" ]] || continue
+    if [[ -z "$probe" ]]; then
+      log_error "${pin} is classified asserted and names no command to read a version with"
+      log_error "give it a command in the ${home} table of .ci/smoke.sh, or classify it not-a-version"
+      exit 1
+    fi
+    resolve_pin "$pin" "$home"
+    if [[ -z "$PIN_VALUE" ]]; then
+      log_error "${pin} is classified asserted and resolves to the empty string: ${PIN_PROBLEM}"
+      log_error "an empty expected version compares against nothing, so NOTHING was asserted about ${IMAGE}"
+      exit 1
+    fi
+    expected="$(expected_version "$PIN_VALUE")"
+    if [[ -z "$expected" ]]; then
+      log_error "${pin} is classified asserted and its value '${PIN_VALUE}' holds no version to compare"
+      exit 1
+    fi
+    PIN_TABLE="${PIN_TABLE:+${PIN_TABLE}
 }${pin}|${expected}|${probe}|${extractor:-}"
-done <<< "$PIN_CLASSES"
+  done <<< "$table"
+done
+
+# `${array[*]}` joins on the FIRST character of IFS, and this script runs with
+# IFS=$'\n\t', so the plain form puts each home on a line of its own and splits
+# the message it is part of. Both readings below join on a space deliberately.
+PIN_HOMES_TEXT="$(IFS=' '; printf '%s' "${PIN_HOMES[*]}")"
 
 if [[ -z "$PIN_TABLE" ]]; then
-  log_error "no pin of ${PIN_HOME} is classified asserted, so the guest would compare nothing"
+  log_error "no pin of ${PIN_HOMES_TEXT} is classified asserted, so the guest would compare nothing"
+  exit 1
+fi
+
+# A `not-in-this-image` row that names no binary is the unchecked assertion this
+# class used to be end to end. terraform and the AWS CLI are ready components
+# that NO image installs, so every table carries at least those 2 — an image
+# whose whole table probes nothing means somebody emptied the probe field, not
+# that the image grew every tool.
+if [[ -z "$ABSENT_TABLE" ]]; then
+  log_error "no pin of ${IMAGE} is classified not-in-this-image with an absence probe"
+  log_error "the class would be an assertion nobody checks, which is what it was before ledger #103"
   exit 1
 fi
 
@@ -483,6 +767,10 @@ function payload_text() {
   printf '%s\n' "$PIN_TABLE"
   printf '%s\n)"\n' "$PAYLOAD_EOF"
   printf 'export PIN_TABLE\n'
+  printf 'ABSENT_TABLE="$(cat <<'\''%s'\''\n' "$PAYLOAD_EOF"
+  printf '%s\n' "$ABSENT_TABLE"
+  printf '%s\n)"\n' "$PAYLOAD_EOF"
+  printf 'export ABSENT_TABLE\n'
   printf 'SMOKE_CHECKS=%q\n' "$CHECK_GROUPS"
   printf 'export SMOKE_CHECKS\n'
   printf 'SMOKE_GUEST="$(mktemp)"\n'
@@ -643,6 +931,7 @@ if [[ "$IMAGE" == "zephyr-devbox" ]]; then
 fi
 
 log_info "running smoke test in ${REF} (${SMOKE_PLATFORM_RESOLVED})"
-log_info "asserting $(printf '%s\n' "$PIN_TABLE" | wc -l | tr -d ' ') pins of ${PIN_HOME}; check groups: ${CHECK_GROUPS}"
+log_info "asserting $(printf '%s\n' "$PIN_TABLE" | wc -l | tr -d ' ') pins of ${PIN_HOMES_TEXT}; check groups: ${CHECK_GROUPS}"
+log_info "probing $(printf '%s\n' "$ABSENT_TABLE" | wc -l | tr -d ' ') binaries for absence"
 docker run "${RUN_ARGS[@]}" "${REF}" bash -s <<< "$(payload_text)"
 log_info "smoke test passed for ${IMAGE}"

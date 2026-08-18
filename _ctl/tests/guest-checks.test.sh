@@ -48,6 +48,39 @@
 # would mean 1 thing on a laptop that has pnpm and another thing on a laptop
 # that does not, and a stimulus that changes with the host is not a stimulus.
 #
+# ============================================================================
+# THE OTHER TABLE: ABSENT_TABLE (ledger #103)
+# ============================================================================
+#
+#   ABSENT_TABLE  1 row per binary that must NOT be in the image, `<PIN>|<binary>`.
+#                 The driver builds it from every row it classifies
+#                 `not-in-this-image:<binary>[,<binary>]`, so 1 pin with 2 probes
+#                 arrives as 2 rows.
+#
+#   the binary is absent  exit 0, and the output NAMES the pin and the binary.
+#                         The naming is the whole check: an absence probe that
+#                         ran and said nothing is indistinguishable from a probe
+#                         that never ran, and this class spent its whole life so
+#                         far being exactly that.
+#   the binary resolves   exit non-zero, naming the PIN, the BINARY and the PATH
+#                         it was found at. The path is what turns "terraform is
+#                         present" into a defect somebody can act on: it names
+#                         the layer that installed it.
+#   an empty binary       exit non-zero, naming the pin. A row with nothing to
+#                         probe is a check that cannot fail, and the driver can
+#                         emit one — its own reader drops a trailing empty field
+#                         inside a `$( )`, so `not-in-this-image:aws,` reaches
+#                         here as `AWS_CLI_VERSION|`.
+#   the table is empty    exit 0, deliberately. This file is run with no
+#                         ABSENT_TABLE by the pull request gate, and the driver
+#                         REFUSES an image whose whole table names no probe — so
+#                         the "nothing to probe" refusal belongs there, where the
+#                         image is known, and not here.
+#
+# Until these cases existed the group was reachable by no test at all: the
+# comparator half was checked on the host and the absence half only ever ran
+# inside a container, after a build, on the publish path.
+#
 # Usage: bash _ctl/tests/guest-checks.test.sh
 #
 set -Eeuo pipefail
@@ -98,6 +131,12 @@ function run_guest() {
 MATCHING_TABLE="GH_VERSION|2.90.0|gh --version
 HNSLINT_VERSION|0.1.0|hnslint --version"
 
+# The 1-row version of it, for the absence cases that need a tool to be present
+# WITHOUT the comparator asserting the same tool in the same run. A pin cannot
+# honestly be `asserted` and `not-in-this-image` at once, and a stimulus that
+# states an impossible world proves nothing about the real one.
+MINIMAL_TABLE="HNSLINT_VERSION|0.1.0|hnslint --version"
+
 # assert_failed_naming <check name> <needle> [needle...]
 #
 # The status AND every name, as 1 check. Written this way because a bare
@@ -123,6 +162,39 @@ function assert_failed_naming() {
     fail_check "$name" \
       "the comparator exited ${GUEST_STATUS}, and its message names none of:" \
       "$missing_names" \
+      "output was:" "$GUEST_OUTPUT"
+  else
+    pass_check "$name"
+  fi
+}
+
+# assert_passed_naming <check name> <needle> [needle...]
+#
+# The mirror of assert_failed_naming, and it exists for the same reason. A bare
+# "it exited 0" is the verdict an absence probe that ran NOTHING also produces —
+# an empty ABSENT_TABLE is a legal input to this file and exits 0 — so the status
+# alone cannot tell a check that passed from a check that never happened. The
+# NAMES are what say the row was read.
+function assert_passed_naming() {
+  local name="$1"
+  shift
+  local needle missing_names=""
+  for needle in "$@"; do
+    if ! grep -qF -- "$needle" <<< "$GUEST_OUTPUT"; then
+      missing_names="${missing_names:+${missing_names}
+}${needle}"
+    fi
+  done
+  if [[ "$GUEST_STATUS" -ne 0 ]]; then
+    fail_check "$name" \
+      "want: exit 0" \
+      "got:  ${GUEST_STATUS}" \
+      "output was:" "$GUEST_OUTPUT"
+  elif [[ -n "$missing_names" ]]; then
+    fail_check "$name" \
+      "the guest exited 0, and its output names none of:" \
+      "$missing_names" \
+      "a probe that reported nothing cannot be told apart from a probe that never ran" \
       "output was:" "$GUEST_OUTPUT"
   else
     pass_check "$name"
@@ -179,5 +251,40 @@ assert_failed_naming "an_absent_tool_fails_and_names_the_tool_and_its_pin" \
 run_guest ""
 assert_failed_naming "an_empty_table_fails_and_names_PIN_TABLE" \
   "PIN_TABLE"
+
+# -------- 5. the absence half: what the image must NOT carry --------
+#
+# 2 rows for 1 pin, which is the shape the driver produces from
+# `RUST_CHANNEL|not-in-this-image:rustc,cargo`. Both must be reported: a loop
+# that reads the first row and stops gives 1 checked probe and 1 that is only
+# believed, and neither the status nor a single name would say which.
+run_guest "$MATCHING_TABLE" \
+  "ABSENT_TABLE=RUST_CHANNEL|${ABSENT_TOOL}
+RUST_CHANNEL|${ABSENT_TOOL}-cargo"
+# Every argument after the check name is a NEEDLE — this helper takes no
+# evidence lines, the way assert_failed_naming above takes none.
+assert_passed_naming "every_absent_binary_passes_and_names_the_pin_and_the_binary" \
+  "RUST_CHANNEL" "${ABSENT_TOOL}" "${ABSENT_TOOL}-cargo"
+
+# The leak. This is the measured defect of ledger #103, staged with the stub
+# PATH: the table says the image does not install the tool, and the tool is
+# right there. On 2026-08-17 ghcr.io/gophersys/base:latest carried
+# /usr/local/bin/terraform and /usr/local/bin/aws against 2 rows that said
+# not-in-this-image, and nothing in this repository could report it.
+#
+# `gh` is the leaked binary because the stub PATH really holds it, and the
+# comparator table for this run does NOT assert gh: a pin cannot be `asserted`
+# and `not-in-this-image` in the same table.
+run_guest "$MINIMAL_TABLE" "ABSENT_TABLE=GH_VERSION|gh"
+assert_failed_naming "a_binary_that_leaked_in_fails_and_names_the_pin_the_binary_and_the_path" \
+  "GH_VERSION" "gh" "${STUB_TOOLS}/gh"
+
+# A row with no binary. The driver can emit one: its class_probes reader pipes
+# through `tr` inside a `$( )`, which strips the trailing empty field, so
+# `not-in-this-image:aws,` arrives here as `AWS_CLI_VERSION|` and 1 probe of that
+# row is a check that cannot fail. It must be reported and never skipped.
+run_guest "$MINIMAL_TABLE" "ABSENT_TABLE=AWS_CLI_VERSION|"
+assert_failed_naming "an_absence_row_with_no_binary_fails_and_names_the_pin" \
+  "AWS_CLI_VERSION" "no binary"
 
 test_summary "$TEST_NAME"

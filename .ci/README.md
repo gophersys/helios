@@ -40,15 +40,24 @@ job calls the purpose-built script it needs, because a job gates each step on
 ```
 
 `smoke.sh` and `image-checks.sh` are 2 files because a pin lives on the HOST and
-a tool lives in the IMAGE. The driver reads `versions.env` — the ONE pin
-home, for every image — classifies every pin
-`asserted` / `not-a-version` / `not-in-this-image` against the table its image's
-family carries, and sends the guest file, the
+a tool lives in the IMAGE. The driver reads `versions.env` for every image, and
+for a CHILD image it reads that image's own Dockerfile as a second pin home. It
+classifies every pin of every home it reads
+`asserted` / `not-a-version` / `not-in-this-image` against the table that home
+carries, and sends the guest file, the
 fixtures and the assertion table into the container in 1 stdin stream. The guest
 compares what each tool REPORTS against the pin, then exercises the gate-critical
 tools on the fixtures. `image-checks.sh` also runs on a host against a stub PATH,
 which is how `_ctl/tests/guest-checks.test.sh` tests the comparator at pull
 request time.
+
+**`not-in-this-image` carries its own probe.** The class field takes an optional
+`:<binary>[,<binary>...]` suffix, and the guest asserts `! command -v <binary>`
+for each one. Without it the class was an assertion nobody checked: on
+2026-08-17 `ghcr.io/gophersys/base:latest` held `/usr/local/bin/terraform` and
+`/usr/local/bin/aws` while `base/Dockerfile` installs neither, and no check here
+could report it. The driver refuses to run an image whose whole table names no
+probe.
 
 The provider file is a **copy**, not a symlink, and the 2 must stay byte-for-byte
 identical. They have drifted twice. `_ctl/tests/platform-policy.test.sh` compares
