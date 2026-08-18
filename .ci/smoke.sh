@@ -50,11 +50,12 @@
 #
 # 6 more fail after the daemon is reached and still BEFORE the smoke container
 # starts: the 3 platform-resolver refusals, the unobtainable-ref refusal, and
-# the 2 cloud size-gate refusals. This block said "3 things" and listed the
-# first 3 of them — a count written in prose that the file then grew past.
+# the 2 size-gate refusals — an unreadable budget, and an image whose size the
+# daemon will not report. This block said "3 things" and listed the first 3 of
+# them — a count written in prose that the file then grew past.
 #
 # Usage: bash .ci/smoke.sh <image> [ref]
-# where <image> ∈ {base, flutter, zephyr, zephyr-devbox, cloud}
+# where <image> ∈ {base, flutter, zephyr, zephyr-devbox, cloud, hardware}
 # and [ref] is the exact image reference to test. The default is the :latest tag
 # that build-and-push.yml has just built, which is what CI runs. Naming a ref is
 # how an operator audits the SHA tag a cluster is actually running — and how a
@@ -227,7 +228,24 @@ AWS_CLI_VERSION|not-in-this-image:aws||
 OCI_CLI_VERSION|not-in-this-image:oci||
 ANSIBLE_VERSION|not-in-this-image||
 ANSIBLE_CORE_VERSION|not-in-this-image:ansible,ansible-playbook||
+KICAD_PPA_VERSION|not-in-this-image:kicad-cli||
+KIUTILS_VERSION|not-in-this-image||
+SEXPDATA_VERSION|not-in-this-image||
+PYTEST_VERSION|not-in-this-image:pytest||
+RUFF_VERSION|not-in-this-image:ruff||
 PIN_CLASS_TABLE
+
+# The 5 hardware rows keep cloud honest in the direction that matters: hardware
+# builds FROM cloud, so a KiCad layer that drifted UP into the parent would make
+# every ARC pool pull a 4.7 GB ECAD toolchain it never asked for, and the parent
+# would still smoke green. kicad-cli is the probe that says so.
+#
+# KIUTILS_VERSION and SEXPDATA_VERSION keep the BARE class. Both are import-only
+# python libraries and neither ships a console script, so there is no binary for
+# `command -v` to look for — a probe that can never fire is a check that cannot
+# fail. They are the 3rd and 4th bare rows of this table, beside RUNNER_VERSION
+# (the Actions runner is on no image's PATH) and ANSIBLE_VERSION (the
+# metapackage ships collections and no binary).
 
 read -r -d '' PIN_CLASSES_BASE <<'PIN_CLASS_TABLE' || true
 UBUNTU_BASE_REF|not-a-version||
@@ -276,7 +294,92 @@ OMP_VERSION|not-in-this-image:omp||
 CODEX_VERSION|not-in-this-image:codex||
 TERRAFORM_VERSION|not-in-this-image:terraform||
 AWS_CLI_VERSION|not-in-this-image:aws||
+KICAD_PPA_VERSION|not-in-this-image:kicad-cli||
+KIUTILS_VERSION|not-in-this-image||
+SEXPDATA_VERSION|not-in-this-image||
+PYTEST_VERSION|not-in-this-image:pytest||
+RUFF_VERSION|not-in-this-image:ruff||
 PIN_CLASS_TABLE
+
+# The same 5 rows the cloud table carries, and for the same reason read from the
+# other side of the graph: the KiCad toolchain is a leaf and nothing above it
+# installs it. The 2 bare classes are the import-only libraries — see the note
+# under the cloud table.
+
+# The hardware table. A CHILD that reads versions.env, so this is a 3rd table
+# over the SAME home rather than a table over a Dockerfile: hardware/Dockerfile
+# declares every pin value-less and takes it as a generated --build-arg, exactly
+# as cloud does, so there is no second home for it to have a table about.
+#
+# It is the cloud table with the 5 KiCad rows flipped to `asserted`. Everything
+# else is inherited through the FROM, which is what makes copying the rows the
+# TRUE answer rather than a shortcut — a row that said not-in-this-image here
+# would be asserting the absence of a tool the parent installs.
+read -r -d '' PIN_CLASSES_HARDWARE <<'PIN_CLASS_TABLE' || true
+UBUNTU_BASE_REF|not-a-version||
+ZSH_VERSION|asserted|zsh --version|prefix
+NVM_VERSION|asserted|zsh -c "nvm --version"|
+NODE_VERSION|asserted|node --version|
+NPM_VERSION|asserted|npm --version|
+PNPM_VERSION|asserted|COREPACK_HOME=/home/dev/.cache/node/corepack pnpm --version|
+BUN_VERSION|asserted|bun --version|
+PYTHON_PACKAGE|asserted|python3 --version|prefix
+UV_VERSION|asserted|uv --version|
+GO_VERSION|asserted|go version|
+GOFUMPT_VERSION|asserted|gofumpt --version|
+GOLANGCI_LINT_VERSION|asserted|golangci-lint --version|
+GOVULNCHECK_VERSION|asserted|govulncheck -version|line:govulncheck
+GOSEC_VERSION|asserted|go version -m ${GOPATH}/bin/gosec|line:mod
+HNSLINT_VERSION|asserted|go version -m ${GOPATH}/bin/hnslint|line:mod
+GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
+BENCHSTAT_REF|not-a-version||
+RUST_CHANNEL|not-in-this-image:rustc,cargo||
+DELVE_VERSION|asserted|dlv version|
+YQ_VERSION|asserted|yq --version|
+HADOLINT_VERSION|asserted|hadolint --version|
+KUBECONFORM_VERSION|asserted|kubeconform -v|
+GITLEAKS_VERSION|asserted|gitleaks version|
+KUBECTL_VERSION|asserted|kubectl version --client|
+HELM_VERSION|asserted|helm version --short|
+K9S_VERSION|asserted|k9s version --short|
+K3D_VERSION|asserted|k3d version|
+KIND_VERSION|asserted|kind version|
+TAILSCALE_VERSION|asserted|tailscale version|
+BW_VERSION|asserted|bw --version|
+GH_VERSION|asserted|gh --version|
+NATS_VERSION|asserted|nats --version|
+DOCKER_COMPOSE_VERSION|asserted|docker compose version|
+DOCKER_BUILDX_VERSION|asserted|docker buildx version|
+BUF_VERSION|asserted|buf --version|
+GRPCURL_VERSION|asserted|grpcurl -version|
+RUNNER_VERSION|asserted|/home/runner/bin/Runner.Listener --version|line:Version:
+CICTL_VERSION|asserted|go version -m /usr/local/bin/cictl|line:mod
+CLAUDE_CODE_VERSION|asserted|claude --version|
+OMP_VERSION|asserted|omp --version|
+CODEX_VERSION|asserted|codex --version|
+TERRAFORM_VERSION|not-in-this-image:terraform||
+AWS_CLI_VERSION|not-in-this-image:aws||
+OCI_CLI_VERSION|not-in-this-image:oci||
+ANSIBLE_VERSION|not-in-this-image||
+ANSIBLE_CORE_VERSION|not-in-this-image:ansible,ansible-playbook||
+KICAD_PPA_VERSION|asserted|kicad-cli version|prefix
+KIUTILS_VERSION|asserted|python3 -c "import importlib.metadata as m; print(m.version('kiutils'))"|
+SEXPDATA_VERSION|asserted|python3 -c "import importlib.metadata as m; print(m.version('sexpdata'))"|
+PYTEST_VERSION|asserted|pytest --version|
+RUFF_VERSION|asserted|ruff --version|
+PIN_CLASS_TABLE
+
+# KICAD_PPA_VERSION takes `prefix` because the pin is a MAJOR inside a PPA name,
+# the way JAVA_VERSION is a major inside an apt package name: the archive serves
+# 10.0.5~ubuntu24.04.1 on noble and `kicad-cli version` reports 10.0.5, so an
+# exact comparison would demand a pin that moves with every PPA point release
+# and the row would stop meaning "KiCad 10".
+#
+# kiutils and sexpdata are asserted through importlib.metadata and not through a
+# command, because neither ships one — the shape PIN_CLASSES_BASE already uses
+# for ANSIBLE_VERSION. Asking the INTERPRETER is also the stronger question
+# here: the pip install is only useful if `python3 -m pytest` can import it, and
+# this asks exactly that.
 
 # ---------------------------------------------------------------------------
 # The child tables, 1 per child image, over that image's OWN Dockerfile.
@@ -382,6 +485,12 @@ case "$IMAGE" in
   cloud)
     PIN_CLASSES="$PIN_CLASSES_CLOUD"
     ;;
+  hardware)
+    # No CHILD_CLASSES: this child's pins are in versions.env, not in its own
+    # Dockerfile, so it has 1 home like the 2 root images and not 2 like the
+    # other 3 children.
+    PIN_CLASSES="$PIN_CLASSES_HARDWARE"
+    ;;
   base)
     PIN_CLASSES="$PIN_CLASSES_BASE"
     ;;
@@ -399,7 +508,7 @@ case "$IMAGE" in
     ;;
   *)
     log_error "unknown image: '$IMAGE'"
-    log_error "valid images: base, flutter, zephyr, zephyr-devbox, cloud"
+    log_error "valid images: base, flutter, zephyr, zephyr-devbox, cloud, hardware"
     exit 2
     ;;
 esac
@@ -766,6 +875,12 @@ function payload_text() {
   printf 'export ABSENT_TABLE\n'
   printf 'SMOKE_CHECKS=%q\n' "$CHECK_GROUPS"
   printf 'export SMOKE_CHECKS\n'
+  # The name this run was asked about, which is what GOPHERSYS_DEVCONTAINER has
+  # to equal. It comes from argv and is non-empty by the check at the top, so the
+  # guest's "empty means no marker check" branch is for the pull request gate and
+  # never for a real run.
+  printf 'SMOKE_IMAGE=%q\n' "$IMAGE"
+  printf 'export SMOKE_IMAGE\n'
   printf 'SMOKE_GUEST="$(mktemp)"\n'
   printf 'cat > "$SMOKE_GUEST" <<'\''%s'\''\n' "$PAYLOAD_EOF"
   cat "$PROJECT_ROOT/image-checks.sh"
@@ -887,33 +1002,38 @@ if [[ "$STORED_PLATFORM" != "$SMOKE_PLATFORM_RESOLVED" ]]; then
   fi
 fi
 
-# The R4 size gate, cloud only: the acceptance budget is <= 5.75 GB (decimal,
-# the unit every census figure uses). It runs on the HOST against the loaded
-# or pulled image, BEFORE the container smoke, and in CI this whole script
-# runs before the push — so an oversize image never reaches a consumer.
+# The size gate: the acceptance budget images.yaml declares for THIS image, in
+# decimal GB — the unit every census figure of this repository uses, and the
+# unit `docker image inspect --format '{{.Size}}'` answers in. It runs on the
+# HOST against the loaded or pulled image, BEFORE the container smoke, and in CI
+# this whole script runs before the push, so an oversize image never reaches a
+# consumer.
 #
-# The budget did not move quietly. The first build measured 6,303,346,803
-# bytes against the original 5.5 GB budget, the R4 levers were applied and
-# measured one by one — in-layer npm/nvm cache hygiene −676.2 MB, the
-# --no-install-recommends audit −0 (every install already carried the flag),
-# stripping the 7 Go gate binaries −35.9 MB — and the measured floor with
-# every tool kept came out at ~5.63–5.67 GB. Per R4 the decision then went
-# to a human: Mateo decided on 2026-08-16 to keep every tool and set the
-# budget to 5.75 GB. Above THIS budget the remaining levers are splitting
-# build-essential out or dropping a tool — and either goes back to Mateo.
-if [[ "$IMAGE" == "cloud" ]]; then
-  CLOUD_SIZE_BUDGET_BYTES=5750000000
-  CLOUD_SIZE_BYTES=""
-  if ! CLOUD_SIZE_BYTES="$(docker image inspect --format '{{.Size}}' "$REF")"; then
-    log_error "cannot read the size of ${REF}; the 5.75 GB gate cannot run, which is a FAILURE and not a skip"
+# It was `if [[ "$IMAGE" == "cloud" ]]` with 5750000000 spelled inside it, and
+# the branch is what changed rather than the rule. The budget is DATA now, so
+# the budget of the next image is a manifest row and not a second branch here —
+# and the MEASUREMENT that set each budget lives beside the key it justifies,
+# which is where a reader tempted to raise one will be standing. cloud's R4
+# history moved there whole.
+#
+# An image that declares no budget takes no gate, which is what 4 of the 6
+# declare. The 2 refusals are unchanged and both are FAILURES and never skips: a
+# budget that cannot be READ, and an image whose size the daemon will not report.
+SIZE_BUDGET_BYTES="$(image_size_budget_bytes "$IMAGE")" || exit 1
+if [[ -n "$SIZE_BUDGET_BYTES" ]]; then
+  SIZE_BUDGET_GB="$(image_size_budget_gb "$IMAGE")"
+  IMAGE_SIZE_BYTES=""
+  if ! IMAGE_SIZE_BYTES="$(docker image inspect --format '{{.Size}}' "$REF")"; then
+    log_error "cannot read the size of ${REF}; the ${SIZE_BUDGET_GB} GB gate cannot run, which is a FAILURE and not a skip"
     exit 1
   fi
-  if [[ "$CLOUD_SIZE_BYTES" -gt "$CLOUD_SIZE_BUDGET_BYTES" ]]; then
-    log_error "cloud size gate: ${REF} is ${CLOUD_SIZE_BYTES} bytes, over the ${CLOUD_SIZE_BUDGET_BYTES}-byte (5.75 GB) budget"
-    log_error "the budget is acceptance metric 2 of the image program (risk R4); it does not move quietly"
+  if [[ "$IMAGE_SIZE_BYTES" -gt "$SIZE_BUDGET_BYTES" ]]; then
+    log_error "${IMAGE} size gate: ${REF} is ${IMAGE_SIZE_BYTES} bytes, over the ${SIZE_BUDGET_BYTES}-byte (${SIZE_BUDGET_GB} GB) budget"
+    log_error "the budget is an acceptance metric declared in ${IMAGES_MANIFEST}, with the measurement that set it beside the key"
+    log_error "it does not move quietly: read that comment before you raise the number"
     exit 1
   fi
-  log_info "cloud size gate: ${CLOUD_SIZE_BYTES} bytes <= ${CLOUD_SIZE_BUDGET_BYTES} (5.75 GB budget)"
+  log_info "${IMAGE} size gate: ${IMAGE_SIZE_BYTES} bytes <= ${SIZE_BUDGET_BYTES} (${SIZE_BUDGET_GB} GB budget)"
 fi
 
 RUN_ARGS=(

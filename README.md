@@ -2,13 +2,15 @@
 
 This repository holds the shared IDP (internal developer platform) images for
 Eden. `gophersys/eden` uses it as a submodule at `.devcontainer/`. The
-repository builds **5** container images:
+repository builds **6** container images:
 
 - 1 base image with many tools. Most projects can use it directly.
 - 2 domain-specific layers on top of the base image: flutter and zephyr.
 - 1 remote development box on top of zephyr: zephyr-devbox.
 - 1 cloud image, built from ubuntu directly rather than from base: the reduced
   base plus the CI fold. Every ARC runner pool runs it.
+- 1 category layer on top of cloud: hardware, which adds the KiCad ECAD
+  toolchain.
 
 The `+ runner` layer (`base-runner`) was a 6th image and it is **retired**. The
 pools run `cloud` now, so nothing pulls it and nothing builds it, and its
@@ -44,14 +46,15 @@ every image has it. See "The shared ctl library" below.
 | `ghcr.io/gophersys/zephyr` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif). | `zephyr` |
 | `ghcr.io/gophersys/zephyr-devbox` | Zephyr + sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules + clangd and **code-server on `:8443`** (browser VS Code, with the clangd extension seeded at build time). It runs as a k8s pod, and it has 2 access paths: VS Code Remote-SSH, and the browser at `:8443`. It starts as root and it execs sshd. A login gets the `dev` user. code-server runs as `dev` and **needs a credential** — see "The zephyr-devbox entrypoint" below. | `zephyr-devbox` |
 | `ghcr.io/gophersys/cloud` | The reduced base + the CI fold (the Actions runner, cictl, buildx, the harnesses), built `FROM ubuntu` directly rather than from `base`, so it is a reduction and not a layer. **Every ARC pool runs it**, and the same image is a devcontainer: the default command is zsh and a CI pod overrides it. Every pin comes from `versions.env`. | `cloud` |
+| `ghcr.io/gophersys/hardware` | Cloud + the KiCad 10 ECAD toolchain from the project's own PPA (`kicad`, `kicad-symbols`, `kicad-footprints`, `kicad-packages3d`) + the python stack the consumer's suite imports and runs (`kiutils`, `sexpdata`, `pytest`, `ruff`). `kicad-cli` drives headless ERC, DRC, netlist export and Gerber generation. The consumer is `gophersys/research-hardware`. It is the 1 CHILD image whose pins come from `versions.env`: its ARGs are value-less like cloud's, and `pins: versions.env` on its manifest entry generates the build args. Size budget 11.0 GB, PROVISIONAL — see the note beside the key in `images.yaml`. | `hardware` |
 
 ## Dependency graph
 
 ```
-        base            cloud
-     ┌───┴───┐        (FROM ubuntu)
- flutter   zephyr
-              │
+        base               cloud
+     ┌───┴───┐         (FROM ubuntu)
+ flutter   zephyr            │
+              │           hardware
         zephyr-devbox
 ```
 
@@ -60,13 +63,14 @@ Build in this order:
 1. `base`, and `cloud` beside it — `cloud` depends on nothing here.
 2. `flutter` and `zephyr`. Both layer on `base`.
 3. `zephyr-devbox`. It layers on `zephyr`.
+4. `hardware`. It layers on `cloud`.
 
 **That drawing is prose. `images.yaml` is the graph**, and it is the only place
 the image set is declared. Each entry carries the image's parent, its build
 context and Dockerfile, the paths a change to which rebuilds it, and the smoke
 check groups it runs. Everything mechanical is derived from it: `BUILD_ORDER` in
 both control scripts, the parent map and the input path table `.ci/affected.sh`
-answers with, the check groups `.ci/smoke.sh` sends to the guest, the 5 publish
+answers with, the check groups `.ci/smoke.sh` sends to the guest, the 6 publish
 jobs, and the nightly scan matrix. `bash _ctl/generate.sh` writes the last 2 —
 it is idempotent, and the workflows carry a GENERATED header saying so.
 
@@ -237,7 +241,7 @@ platform is named. A platform outside that set fails the guard and names itself,
 so an edit that adds a third fails loudly instead of quietly restoring an
 emulated build.
 
-4 of the 5 images publish both. **`flutter` publishes `linux/amd64` alone**, and
+5 of the 6 images publish both. **`flutter` alone narrows**, to `linux/amd64`, and
 that exception is DATA: a `platforms` key on its entry in `images.yaml`, with the
 measurement beside it. An image with no such key takes the sanctioned set, and a
 key that named a platform outside the set is refused — narrower is an exception
@@ -247,7 +251,7 @@ WITHIN the policy, wider would replace it.
 |---|---|
 | `build` | `docker build --platform "$IMAGE_PLATFORMS"`. The `--platform` is explicit: a bare `docker build` targets the HOST, which on an Apple Silicon Mac is not the platform that gets published. It takes 1 platform, so with 2 sanctioned the local loop names the one it wants: `IMAGE_PLATFORMS=linux/arm64 bash ./ctl.sh build base`. |
 | `push` | `docker buildx build --platform "$IMAGE_PLATFORMS" --push`. The guard `require_buildx_and_platforms` runs at the start of the verb. |
-| `verify-published [tag]` | Read the manifest the registry holds and assert it carries exactly the sanctioned set. |
+| `verify-published [tag]` | Read the manifest the registry holds and assert it carries exactly `$IMAGE_PLATFORMS` — the image's OWN set, which is the sanctioned set unless `images.yaml` narrows it. A platform the image does not publish is refused too, so the rule is equality and not "at least". |
 
 The guard is in `_ctl/lib.sh`, 1 time only, and each per-image `push` calls it.
 It fails closed in 5 conditions: a platform outside the sanctioned set, an empty
@@ -457,7 +461,7 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.ar
 ├── project.json                 # repo-level Nx wiring (list, validate, test)
 ├── ctl.sh                       # repo-wide control script
 ├── images.yaml                  # the ONE declaration of the image SET
-├── versions.env                 # the ONE pin home of base and cloud
+├── versions.env                 # the ONE pin home of base, cloud and hardware
 ├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time only,
 │                                #   and the images.yaml reader every home derives from
 ├── _ctl/generate.sh             # images.yaml -> the publish jobs + the nightly matrix
@@ -479,6 +483,7 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.ar
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
+├── hardware/      { devcontainer.json, Dockerfile, project.json, ctl.sh }
 └── .github/workflows/
     ├── build-and-push.yml    # publish the images
     ├── security-nightly.yml  # the nightly trivy scan + the base-OS currency probe
@@ -628,7 +633,7 @@ every image carries that SHA.
 **The layer cache is `ghcr.io/gophersys/<image>-cache`**, 1 registry package per
 image, written `mode=max` by the build that loads and read by the build that
 pushes. The Actions cache service gives 10 GB per repository across every scope,
-which 5 images at `mode=max` do not fit.
+which 6 images at `mode=max` do not fit.
 
 **The builder comes from `bash .ci/buildx-node.sh`** and not from
 `docker/setup-buildx-action`. It owns the switch that appends the Mac mini as a

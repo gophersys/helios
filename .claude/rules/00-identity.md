@@ -22,7 +22,7 @@ text that describes a layout nobody checked.
 
 ## Image model
 
-The repository supplies 5 **devcontainer** images. Every one of them sets the
+The repository supplies 6 **devcontainer** images. Every one of them sets the
 `GOPHERSYS_DEVCONTAINER` environment marker, so a script can detect the image
 that it runs inside.
 
@@ -32,7 +32,8 @@ that it runs inside.
 | `ghcr.io/gophersys/flutter`       | `flutter`       | Base + OpenJDK 21 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
 | `ghcr.io/gophersys/zephyr`        | `zephyr`        | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
 | `ghcr.io/gophersys/zephyr-devbox` | `zephyr-devbox` | Zephyr + sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules + clangd and code-server on `:8443` (browser VS Code, `EXPOSE 8443`, the clangd extension seeded into `/opt/code-server-extensions` at build time). It is an embedded development box for a k8s pod. It has 2 access paths: SSH as `dev`, and the browser at `:8443`. |
-| `ghcr.io/gophersys/cloud`         | `cloud`         | The successor image of the consolidation program (ledger #94), ADDITIVE today: the reduced base (no clang/cmake, no desktop/Tauri libs, no USB-BLE libs, no Rust, no ansible + oci-cli, no speedtest-cli/ncat/net-tools, Go caches removed — terraform and the AWS CLI are NOT in this list, because they left `base` itself and are ready components nothing installs; db clients and the comfort TUIs are not in it either, because cloud re-adds them through `_delta/components/`) + delve/buf/grpcurl + the CI fold (Actions runner, cictl, claude/omp/codex at the versions.env pins). ONE image for dev and CI: the default command is zsh, and a CI pod overrides the command to `/home/runner/run.sh`. Every pin lives in `versions.env` at the repository root — the same 1 home `base` reads since the 2 Dockerfile mechanisms collapsed onto it; the build feeds it in as generated `--build-arg`s, and `_delta/components/*.sh` install the folded tool groups. Its smoke gates publish (build → smoke → push) and enforces the ≤ 5.75 GB size budget (raised from 5.5 GB by Mateo, 2026-08-16: the measured floor after the R4 levers with every tool kept is ~5.63–5.67 GB). |
+| `ghcr.io/gophersys/cloud`         | `cloud`         | The successor image of the consolidation program (ledger #94), ADDITIVE today: the reduced base (no clang/cmake, no desktop/Tauri libs, no USB-BLE libs, no Rust, no ansible + oci-cli, no speedtest-cli/ncat/net-tools, Go caches removed — terraform and the AWS CLI are NOT in this list, because they left `base` itself and are ready components nothing installs; db clients and the comfort TUIs are not in it either, because cloud re-adds them through `_delta/components/`) + delve/buf/grpcurl + the CI fold (Actions runner, cictl, claude/omp/codex at the versions.env pins). ONE image for dev and CI: the default command is zsh, and a CI pod overrides the command to `/home/runner/run.sh`. Every pin lives in `versions.env` at the repository root — the same 1 home `base` reads since the 2 Dockerfile mechanisms collapsed onto it; the build feeds it in as generated `--build-arg`s, and `_delta/components/*.sh` install the folded tool groups. Its smoke gates publish (build → smoke → push) and enforces the ≤ 5.75 GB size budget (raised from 5.5 GB by Mateo, 2026-08-16: the measured floor after the R4 levers with every tool kept is ~5.63–5.67 GB). That budget is DATA now — `size_budget_gb` on its `images.yaml` entry, with the R4 measurement beside the key — and `.ci/smoke.sh` runs 1 shared gate for every image that declares one. |
+| `ghcr.io/gophersys/hardware`      | `hardware`      | Cloud + the KiCad 10 ECAD toolchain, for `gophersys/research-hardware`. It installs `kicad`, `kicad-symbols`, `kicad-footprints` and `kicad-packages3d` from `ppa:kicad/kicad-10.0-releases`, and the python stack that repository's suite imports and runs (`kiutils`, `sexpdata`, `pytest`, `ruff`) into the SYSTEM interpreter, because `python3 -m pytest` cannot import from a `uv tool` venv. The library packages are named explicitly: `kicad` does not pull them in under `--no-install-recommends`, and without them `/usr/share/kicad` exists and is EMPTY, so the consumer's resolver suite fails on `assert 0 > 10000` — which reads like a code bug. `checks_content_hardware` holds the 3 floors that keep it true. **It is the 1 CHILD image whose pins live in `versions.env`**: its ARGs are value-less like cloud's, and `pins: versions.env` on its manifest entry is what generates the build args, so no 4th `PIN_VALUE_HOME` is minted. Its `size_budget_gb` is 11.0 and PROVISIONAL — computed from 2 measured images, and reset to the first green build + 5%. |
 
 ## Structure
 
@@ -42,7 +43,7 @@ that it runs inside.
 ├── project.json                 # repo-level Nx wiring
 ├── ctl.sh                       # repo-wide control
 ├── images.yaml                  # the ONE declaration of the image SET
-├── versions.env                 # the ONE pin home of base and cloud
+├── versions.env                 # the ONE pin home of base, cloud and hardware
 ├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time,
 │                                #   and the images.yaml reader every home derives from
 ├── _ctl/generate.sh             # images.yaml -> the publish jobs + the nightly matrix
@@ -64,6 +65,7 @@ that it runs inside.
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
+├── hardware/      { devcontainer.json, Dockerfile, project.json, ctl.sh }
 └── .github/workflows/
     ├── build-and-push.yml    # publish the images
     ├── security-nightly.yml  # the nightly trivy scan + the base-OS currency probe
@@ -77,7 +79,8 @@ that it runs inside.
 1. **This repository has no Nx workspace of its own.** You must be able to run
    every operation as plain `bash ./ctl.sh <cmd>` from within this repository.
 2. **Per-image file rule.** Each devcontainer image directory at the repository
-   root (`base/`, `cloud/`, `flutter/`, `zephyr/`, `zephyr-devbox/`) contains
+   root (`base/`, `cloud/`, `flutter/`, `zephyr/`, `zephyr-devbox/`,
+   `hardware/`) contains
    `devcontainer.json` + `Dockerfile` + `project.json` + `ctl.sh`. It also
    contains each script that the image COPYs in, for example an entrypoint.
    `validate` runs `shellcheck -x -S style` on every shell script in the
@@ -174,9 +177,9 @@ green: the whole gate is a lint pass and a bash suite.
 ## ARGs-at-top + latest-LTS convention
 
 Every Dockerfile MUST declare all tool versions as `ARG`s at the top of the
-file. **In `base/Dockerfile` and `cloud/Dockerfile` those ARGs are VALUE-LESS:
-the value lives in `versions.env`, the ONE pin home, and arrives as a generated
-`--build-arg`.** Each `versions.env` row carries the
+file. **In `base/Dockerfile`, `cloud/Dockerfile` and `hardware/Dockerfile` those
+ARGs are VALUE-LESS: the value lives in `versions.env`, the ONE pin home, and
+arrives as a generated `--build-arg`.** Each `versions.env` row carries the
 `# latest LTS as of YYYY-MM-DD` comment — the date belongs beside the value it
 dates, not beside a declaration that holds none.
 
@@ -201,7 +204,10 @@ half.** `flutter/`, `zephyr/` and `zephyr-devbox/` declare their own
 `ARG NAME=value` blocks and consume no build arg from `versions.env`. `runner/`
 was a 4th and is deleted, which closed its share of the debt by removing the
 file rather than by moving it. Read "the pin value is in `versions.env`" as true
-of `base` and `cloud`, and of nothing else.
+of `base`, `cloud` and `hardware`, and of nothing else. `hardware` is a CHILD
+that reads the one home, which is what the `pins` key of `images.yaml` exists
+for: without it a child has to spell its own pins, and a 4th `PIN_VALUE_HOME`
+would be minted for the sake of a `parent:` field.
 
 **What closed is the CLASSIFICATION half, and it closed alone.** That sentence
 went on to say those pins "are the ones no smoke run compares". They are
@@ -309,8 +315,10 @@ the 3 open ones are the 3 child images.
 - **The download itself goes through `_build/fetch-verified.sh`.** It is 1 file
   by the same rule that puts a verb body in `_ctl/lib.sh` once. `base` and
   `cloud` COPY `_build/` to `/usr/local/lib/gophersys/` above their first
-  download; `flutter`, `zephyr` and `zephyr-devbox` inherit it
-  through their `FROM` and add no COPY. **Because base COPYs it, base's docker
+  download; `flutter`, `zephyr`, `zephyr-devbox` and `hardware` inherit it
+  through their `FROM` and add no COPY. `hardware` fetches nothing of its own —
+  apt over the PPA and pip are its 2 installers, and each is answered by its own
+  ecosystem — so it is deliberately NOT a governed download file. **Because base COPYs it, base's docker
   build context is the repository root and not `base/`** — `base/ctl.sh` sets
   `IMAGE_BUILD_CONTEXT`, and both copies of `build-and-push.yml` say
   `context: .` for the base job. A download that can carry no digest takes 1 row
@@ -334,7 +342,7 @@ the 3 open ones are the 3 child images.
 ## The base OS is pinned by digest
 
 `base/Dockerfile` and `cloud/Dockerfile` build `FROM ubuntu:24.04@${UBUNTU_BASE_REF}`.
-The other 4 Dockerfiles build from an image of this repository, so they inherit
+The other 5 Dockerfiles build from an image of this repository, so they inherit
 the pin instead of repeating it.
 
 The reason is the property the whole repository rests on: **the commit decides
@@ -371,7 +379,7 @@ operating systems, and `verify-published` cannot say which one it read.
 
 ## Scheduled security scan
 
-`.github/workflows/security-nightly.yml` scans the 5 published images at
+`.github/workflows/security-nightly.yml` scans the 6 published images at
 `:latest` every night at 09:00 UTC — 02:00 MST, and cron is UTC — and runs the
 base-OS currency probe above. It builds and publishes nothing.
 
@@ -453,11 +461,21 @@ release was.
 - **12 datasources, and the 12th resolves nothing.** `github-release`, `pypi`,
   `npm`, `apt`, `go-dl`, `node-dist`, `oci-index`, `k8s-dl`, `tailscale-pkgs`,
   `flutter-releases` and `eden-manifest` each read 1 upstream DOCUMENT;
-  `no-autobump` states, in a sentence, why a pin is not resolved. 13 pins take
+  `no-autobump` states, in a sentence, why a pin is not resolved. 14 pins take
   it today: the 3 `ANDROID_*` rows, `PYTHON_PACKAGE`,
-  `JAVA_VERSION`, `RUST_CHANNEL`, `FLUTTER_CHANNEL`, `BENCHSTAT_REF`,
+  `JAVA_VERSION`, `KICAD_PPA_VERSION`, `RUST_CHANNEL`, `FLUTTER_CHANNEL`,
+  `BENCHSTAT_REF`,
   `TERRAFORM_VERSION`, `AWS_CLI_VERSION`, `CICTL_VERSION`, `HNSLINT_VERSION`
-  and `BW_VERSION`. The 3 harness pins left the set on 2026-08-17, when
+  and `BW_VERSION`. `KICAD_PPA_VERSION` joined with the hardware image and takes
+  the class `PYTHON_PACKAGE` and `JAVA_VERSION` take: it is a MAJOR LINE inside
+  a name — `ppa:kicad/kicad-10.0-releases` — so the version that archive
+  publishes (`10.0.5~ubuntu24.04.1` on noble) is not what the row holds, and a
+  new major is a different PPA that a human chooses. **Only the exceptions are
+  named here.** A pin of a resolving datasource takes no line in this document,
+  which is why the 4 pypi pins the hardware image added
+  (`KIUTILS_VERSION`, `SEXPDATA_VERSION`, `PYTEST_VERSION`, `RUFF_VERSION`) are
+  absent from it: their rows are the whole record. The 3 harness pins left the
+  set on 2026-08-17, when
   `EDEN_MANIFEST_READ` was minted and their rows became `eden-manifest`. A reason under 20 characters or with no space in it is a
   placeholder and the test names it: `n/a` passes every non-empty check, and it
   is a pin nobody decided about wearing the label of a pin somebody did.
@@ -503,7 +521,9 @@ release was.
   `homes_of` rather than assuming any of them, which is why dropping
   `base/Dockerfile` from `PIN_VALUE_HOMES` changed nothing about it: a pin of
   `versions.env` alone now has 1 home, and the writer edits the 1 it finds. The
-  multi-home path is still live for the 4 per-image Dockerfiles.
+  multi-home path is still live for the 3 per-image Dockerfiles that spell their
+  own pins — `flutter`, `zephyr` and `zephyr-devbox`, which is what
+  `PIN_VALUE_HOMES` holds beside `versions.env`.
 - **A pin's digest rows are a SET, and the writer REFUSES a partial one.** It
   takes `<row>=<digest>` pairs and fails naming the row that got no value, so a
   caller cannot move a version and leave a sibling behind. It could until
@@ -565,9 +585,9 @@ release was.
 The sanctioned set is **2** platforms: `linux/amd64` and `linux/arm64`. The
 declaration is `SANCTIONED_PLATFORMS` in `_ctl/lib.sh`, and it is the only place
 a platform is named. A platform outside that set fails the guard and names
-itself. 4 of the 5 images publish both; **`flutter` publishes `linux/amd64`
-alone**, declared in `images.yaml` and measured — see the flutter subsection
-below.
+itself. 5 of the 6 images publish both; **`flutter` alone narrows**, to
+`linux/amd64`, declared in `images.yaml` and measured — see the flutter
+subsection below.
 
 **An image builds only the arch it deploys to**, and that rule is what widened
 the set as surely as it narrowed it. The narrowing measurements stay, because
@@ -647,7 +667,7 @@ grep -hcE '^[[:space:]]*(ARG[[:space:]]+)?[A-Z0-9_]+_SHA256_[A-Z0-9_]+=' \
 
 ### flutter is amd64-only, and the manifest says so
 
-**`flutter` publishes `linux/amd64` alone.** It is the 1 image of the 5 that
+**`flutter` publishes `linux/amd64` alone.** It is the 1 image of the 6 that
 declares a `platforms` key in `images.yaml`, and the reason is upstream rather
 than ours: **Flutter publishes no linux-arm64 SDK, at any version.** Read on
 2026-08-17, `releases_linux.json` (264191 bytes) lists every Linux release ever
@@ -667,7 +687,7 @@ SDK exists, and the arm64 arms and their `_SHA256_ARM64` rows go in with it.
 
 **The mechanism is `platforms` in `images.yaml`, read by `image_platforms` in
 `_ctl/lib.sh`.** An absent key means the sanctioned set, which is what the other
-4 images take, so the manifest names a platform only where an image is an
+5 images take, so the manifest names a platform only where an image is an
 exception. NARROWER is the only exception there is: a declared entry outside
 `SANCTIONED_PLATFORMS` FAILS naming the image and the platform, because a
 manifest that could widen the policy would BE the policy, and 1 place answers
@@ -818,13 +838,18 @@ through the compose plugin, and delve/buf/grpcurl each on 1 real operation.
 `_ctl/tests/version-coverage.test.sh` fails when a pin of `versions.env` carries
 no classification, so a new pin there cannot stay silent.
 
-**2 classification TABLES read `versions.env`**, and the branch that chooses
+**3 classification TABLES read `versions.env`**, and the branch that chooses
 between them is all that is left of the family split: `cloud` takes the table
-that asserts the CI fold, and `base`/`flutter`/`zephyr`/`zephyr-devbox` take the
-table that asserts what `base` installs. A pin one image does not carry takes
+that asserts the CI fold, `base`/`flutter`/`zephyr`/`zephyr-devbox` take the
+table that asserts what `base` installs, and `hardware` takes
+`PIN_CLASSES_HARDWARE` — the cloud table with the 5 KiCad rows flipped to
+`asserted`, because it inherits every tool of cloud through its `FROM`. A pin one image does not carry takes
 `not-in-this-image` in that image's table, which is what the class exists for.
 
-**A CHILD image reads a second home: its own Dockerfile.** `flutter`, `zephyr`
+**A CHILD image reads a second home: its own Dockerfile — except `hardware`,
+which has no second home to read.** Its Dockerfile declares every pin
+value-less, so there is no value in it for any reader to find, and 1 home is the
+whole of it. `flutter`, `zephyr`
 and `zephyr-devbox` each carry a class table of their own — `PIN_CLASSES_FLUTTER`,
 `PIN_CLASSES_ZEPHYR`, `PIN_CLASSES_DEVBOX` — over the value-ful `ARG`s of their
 own file, and every rule of the `versions.env` home applies there unchanged: an
@@ -859,7 +884,11 @@ row keeps the BARE class where a probe would prove nothing, and there are
 exactly 2 such rows: `RUNNER_VERSION`, because the Actions runner is at
 `/home/runner/bin/Runner.Listener` and on no image's PATH, and `ANSIBLE_VERSION`,
 because the `ansible` metapackage ships collections and no binary of its own. A
-probe that can never fire is a check that cannot fail. The driver refuses to run
+probe that can never fire is a check that cannot fail. `KIUTILS_VERSION` and
+`SEXPDATA_VERSION` joined that set with the hardware image, for the same kind of
+reason: both are import-only python libraries and neither ships a console
+script, so the hardware run asserts them through `importlib.metadata` and the 2
+parent tables carry them bare. The driver refuses to run
 an image whose whole table names no probe at all.
 
 ## Dev-in-container expectation
@@ -875,13 +904,13 @@ script and a project CI job can detect the image that they run inside.
 Each image directory contains a `devcontainer.json` that pins its published
 image. A consuming project mounts the file at
 `.devcontainer/<image>/devcontainer.json`. The VS Code command "Reopen in
-Container" then lists `base`, `cloud`, `flutter`, `zephyr` and `zephyr-devbox`
-as configurations that you can select — 5 files, 1 for each image. Each
+Container" then lists `base`, `cloud`, `flutter`, `zephyr`, `zephyr-devbox` and
+`hardware` as configurations that you can select — 6 files, 1 for each image. Each
 configuration bind-mounts the project to `/workspace` and runs as the `dev`
 user.
 
 **`ctl.sh validate` holds every `*/devcontainer.json` to 4 properties**, and
-until that pass was written these 5 files were read by NOTHING in this
+until that pass was written these 6 files were read by NOTHING in this
 repository — no verb, no test, no workflow opened one, so a typo in an image ref
 reached a developer's "Reopen in Container" and nowhere earlier. The 4 are
 `jq .` parses, `.image` matches `ghcr.io/gophersys/<name>:latest`,
@@ -893,8 +922,8 @@ directory outside `BUILD_ORDER` would otherwise take an unchecked
 `devcontainer.json` the day somebody added one, which is what `runner/` would
 have done for as long as it sat on disk retired.
 
-**`postCreateCommand` is deliberately NOT the 5th property. 1 of the 5 files
-declares it, and the other 4 must not.** The property is not symmetry; it is
+**`postCreateCommand` is deliberately NOT the 5th property. 1 of the 6 files
+declares it, and the other 5 must not.** The property is not symmetry; it is
 whether an image needs an install at create time.
 
 - **`base` declares it**, and it is the only image whose `ctl.sh` answers a
@@ -906,8 +935,8 @@ whether an image needs an install at create time.
   `_delta/components/agents.sh` at the `versions.env` pins, so an agent pod does
   zero network installs at start. Adding a post-create step would install over
   the bake on every container create.
-- **`flutter`, `zephyr` and `zephyr-devbox` must not either**, and for a
-  different reason: each one is a thin dispatcher that sends every verb to
+- **`flutter`, `zephyr`, `zephyr-devbox` and `hardware` must not either**, and
+  for a different reason: each one is a thin dispatcher that sends every verb to
   `image_main`, and `_ctl/lib.sh` has no `post-create`. A `postCreateCommand`
   in one of those 3 files would name a verb that nothing answers — the dead-path
   class this document opens with. Their toolchains are baked, which is what an
@@ -958,7 +987,7 @@ operator can find.
 |---|---|---|
 | `build` | `docker build --platform "$IMAGE_PLATFORMS"` | false |
 | `push` | `docker buildx build --platform "$IMAGE_PLATFORMS" --push` (guarded) | false |
-| `verify-published [tag]` | read the published manifest; it must carry exactly `SANCTIONED_PLATFORMS` | false |
+| `verify-published [tag]` | read the published manifest; it must carry exactly `$IMAGE_PLATFORMS` — the image's OWN set, which is the sanctioned set unless `images.yaml` narrows it. Held against `SANCTIONED_PLATFORMS`, flutter's correct amd64-only manifest reads as a broken publish forever. A platform the image does not publish is refused too, so the rule is equality and not "at least". | false |
 | `pull` | `docker pull ghcr.io/gophersys/<name>:latest` | false |
 | `inspect` | `docker image inspect ghcr.io/gophersys/<name>:latest` | false |
 | `help` | Print the usage block from `ctl.sh` | n/a |
@@ -989,10 +1018,10 @@ verb catalog is what a reader trusts.
 ## Dependency graph
 
 ```
-        base            cloud
-     ┌───┴───┐        (FROM ubuntu)
- flutter   zephyr
-              │
+        base               cloud
+     ┌───┴───┐         (FROM ubuntu)
+ flutter   zephyr            │
+              │           hardware
         zephyr-devbox
 ```
 
@@ -1002,11 +1031,20 @@ reads:
 ```yaml
 images:
   base:          { parent: "",       paths: [...], groups: [...] }
-  flutter:       { parent: base,     ... }
+  flutter:       { parent: base,     platforms: [linux/amd64], ... }
   zephyr:        { parent: base,     ... }
   zephyr-devbox: { parent: zephyr,   ... }
-  cloud:         { parent: "",       ... }
+  cloud:         { parent: "",       size_budget_gb: 5.75, ... }
+  hardware:      { parent: cloud,    pins: versions.env, size_budget_gb: 11.0, ... }
 ```
+
+**3 keys are OPTIONAL, and for each one ABSENT IS A DECISION.** `platforms`
+narrows the sanctioned set and may never widen it; `pins` names the pin home a
+build feeds in as generated `--build-arg`s, and an absent key keeps the older
+rule (a root image reads `versions.env`, a child reads its `BASE_TAG` alone);
+`size_budget_gb` declares an acceptance size budget, and an absent key means no
+size gate. `_ctl/lib.sh` reads all 3 by POSITION — fields 8, 9 and 10 of the flat
+record — so read the record shape at `image_records` before you add a fourth.
 
 `validate.yml` runs `bash ./ctl.sh validate`, then `bash ./ctl.sh test`, then
 asserts that BUILD_ORDER agrees between `ctl.sh` and `.ci/ctl.sh` — a step that
@@ -1033,7 +1071,7 @@ now, and the homes below are DERIVED from it rather than kept beside it:
    `.ci/smoke.sh`. That file carried a case table of its own.
 4. `needs:` in `.ci/providers/github/build-and-push.yml`, which
    `_ctl/generate.sh` emits from the manifest — 1 job template applied to each
-   entry, so the 5 jobs cannot drift apart. The file carries a GENERATED header
+   entry, so the 6 jobs cannot drift apart. The file carries a GENERATED header
    naming the generator and the manifest.
 5. The `image:` line of the nightly scan matrix, rewritten in place by the same
    generator. The rest of `security-nightly.yml` is hand-written, because the
@@ -1136,8 +1174,9 @@ states which capabilities are pools and which capabilities are images.
 Nothing in this repository runs on a GitHub-hosted runner: the account had 195
 of 2,000 minutes left against a $0 budget, and a warm rebuild of the whole set
 spent ~35 of them per push. The measurement was taken when the set held 6
-images; it holds 5 now, and the number is kept because the budget argument does
-not depend on the count.
+images — a different 6, with `base-runner` in it and `cloud` and `hardware` out
+— and the number is kept because the budget argument does not depend on the
+count.
 
 - **No job may install a free-disk action.** That action reclaims space by
   deleting the preinstalled SDKs of a throwaway hosted VM. On `arc-build` the
@@ -1155,7 +1194,7 @@ not depend on the count.
   promise that every image carries it.
 - **The layer cache is in the registry**, `ghcr.io/gophersys/<image>-cache`, one
   package per image, `mode=max` on the write. `type=gha` is 10 GB per repository
-  across every scope, which 5 images at `mode=max` do not fit.
+  across every scope, which 6 images at `mode=max` do not fit.
 - **The builder is `.ci/buildx-node.sh`, not `docker/setup-buildx-action`.** It
   owns the switch that appends the Mac mini as a native arm64 node when
   `SANCTIONED_PLATFORMS` names `linux/arm64`. That switch READS the library, so

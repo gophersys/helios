@@ -81,6 +81,36 @@
 # comparator half was checked on the host and the absence half only ever ran
 # inside a container, after a build, on the publish path.
 #
+# ============================================================================
+# THE THIRD ENVIRONMENT CONTRACT: SMOKE_IMAGE, AND THE MARKER
+# ============================================================================
+#
+#   SMOKE_IMAGE   the image name the DRIVER was asked about. The guest holds
+#                 GOPHERSYS_DEVCONTAINER — which every image of this repository
+#                 exports as its OWN name — against it.
+#
+#   they agree    exit 0, and the output NAMES the image. Same reason the
+#                 absence half names its rows: a marker check that ran and said
+#                 nothing is indistinguishable from one that never ran.
+#   they differ   exit non-zero, naming BOTH values. "the marker is wrong" sends
+#                 the reader to guess which of the 2 is; the pair says whether
+#                 the image lied about itself or the driver smoked the wrong ref.
+#   SMOKE_IMAGE
+#   is empty      exit 0 and check NOTHING, deliberately. That is how the pull
+#                 request gate runs this file — with no image at all — and the
+#                 host driver always sends the name.
+#
+# This check runs for EVERY image, which is what makes it worth cases of its
+# own: it lived inside checks_content_cloud asserting the literal `cloud`, so 4
+# of the 6 images asserted no marker, and the first image to inherit that group
+# would have had to lie about its own name to pass. The stimulus below uses
+# `hardware` because it is the image that made the old shape untenable — it
+# inherits content-cloud and is not cloud.
+#
+# The wrong-marker case is the one the record demands. A mislabelled image is
+# not hypothetical here: an arm64 image was published carrying an amd64
+# userland, and every check on it passed.
+#
 # Usage: bash _ctl/tests/guest-checks.test.sh
 #
 set -Eeuo pipefail
@@ -112,6 +142,12 @@ GUEST_PATH="${STUB_TOOLS}:/usr/bin:/bin"
 # The command no host holds. See the header.
 ABSENT_TOOL="gophersys-absent-tool"
 ABSENT_PIN="ABSENT_TOOL_VERSION"
+
+# The image the marker cases state a world about, and the name a WRONG marker
+# carries. Both are literals: a case that read the name out of the driver would
+# agree with any name, including the one the driver got wrong.
+MARKER_IMAGE="hardware"
+MARKER_WRONG="cloud"
 
 GUEST_OUTPUT=""
 GUEST_STATUS=0
@@ -286,5 +322,51 @@ assert_failed_naming "a_binary_that_leaked_in_fails_and_names_the_pin_the_binary
 run_guest "$MINIMAL_TABLE" "ABSENT_TABLE=AWS_CLI_VERSION|"
 assert_failed_naming "an_absence_row_with_no_binary_fails_and_names_the_pin" \
   "AWS_CLI_VERSION" "no binary"
+
+# -------- 6. the marker: the image says which image it is --------
+#
+# The 3 cases are the 3 branches of run_devcontainer_marker, and each one is a
+# different verdict. Taken alone the agreeing case proves nothing: an
+# unconditional `return 0` passes it, and so does a marker check that was
+# deleted. It is the DISAGREEING case that has to fail, and the empty case that
+# has to stay quiet, before the agreeing one means anything.
+
+# The image is what the driver smoked.
+run_guest "$MINIMAL_TABLE" "SMOKE_IMAGE=${MARKER_IMAGE}" "GOPHERSYS_DEVCONTAINER=${MARKER_IMAGE}"
+assert_passed_naming "a_marker_that_matches_passes_and_names_the_image" \
+  "GOPHERSYS_DEVCONTAINER" "$MARKER_IMAGE"
+
+# The image lies about itself. This is the shape a child image takes when it
+# inherits its parent's ENV and never overrides it: `hardware` FROMs `cloud`, so
+# a missing `ENV GOPHERSYS_DEVCONTAINER=hardware` leaves the parent's value in
+# place and every other check in this repository still passes.
+run_guest "$MINIMAL_TABLE" "SMOKE_IMAGE=${MARKER_IMAGE}" "GOPHERSYS_DEVCONTAINER=${MARKER_WRONG}"
+assert_failed_naming "a_marker_that_names_another_image_fails_and_names_both" \
+  "GOPHERSYS_DEVCONTAINER" "$MARKER_WRONG" "$MARKER_IMAGE"
+
+# The marker is absent entirely — the shape of an image that never exported it.
+# An empty value must not read as "no image was named", which is the branch that
+# turns the whole check off.
+run_guest "$MINIMAL_TABLE" "SMOKE_IMAGE=${MARKER_IMAGE}" "GOPHERSYS_DEVCONTAINER="
+assert_failed_naming "an_absent_marker_fails_and_names_the_image_the_driver_smoked" \
+  "GOPHERSYS_DEVCONTAINER" "$MARKER_IMAGE"
+
+# No image at all: the pull request gate's own shape. It must exit 0 AND say
+# nothing about a marker — a run that reported one here would be asserting
+# against an image that does not exist.
+run_guest "$MINIMAL_TABLE"
+if [[ "$GUEST_STATUS" -ne 0 ]]; then
+  fail_check "no_SMOKE_IMAGE_runs_no_marker_check" \
+    "want: exit 0 — this file runs with no image in the pull request gate" \
+    "got:  ${GUEST_STATUS}" \
+    "output was:" "$GUEST_OUTPUT"
+elif grep -qF -- "GOPHERSYS_DEVCONTAINER" <<< "$GUEST_OUTPUT"; then
+  fail_check "no_SMOKE_IMAGE_runs_no_marker_check" \
+    "the guest exited 0 and reported a marker while no image was named:" \
+    "$GUEST_OUTPUT" \
+    "an 'ok' about an image nobody smoked is a green line that read nothing"
+else
+  pass_check "no_SMOKE_IMAGE_runs_no_marker_check"
+fi
 
 test_summary "$TEST_NAME"

@@ -90,18 +90,29 @@
 # .ci/smoke.sh reads it as one with a class table of its own. 2 kinds of home,
 # 5 tables:
 #
-#   versions.env              PIN_CLASSES_CLOUD, PIN_CLASSES_BASE
+#   versions.env              PIN_CLASSES_CLOUD, PIN_CLASSES_BASE,
+#                             PIN_CLASSES_HARDWARE
 #   flutter/Dockerfile        PIN_CLASSES_FLUTTER
 #   zephyr/Dockerfile         PIN_CLASSES_ZEPHYR
 #   zephyr-devbox/Dockerfile  PIN_CLASSES_DEVBOX
 #
-# The 2 tables over the 1 shared home are deliberate: `cloud` asserts the CI
+# The 3 tables over the 1 shared home are deliberate: `cloud` asserts the CI
 # fold and the base family asserts what `base` installs, so a pin one of them
 # does not carry takes `not-in-this-image` in that table. So the rule below runs
-# TWICE over the SAME home, once per table. Both directions still bite. A row
-# added to versions.env is unclassified in whichever table forgot it, and a
+# THREE TIMES over the SAME home, once per table. Both directions still bite. A
+# row added to versions.env is unclassified in whichever table forgot it, and a
 # table row whose pin was deleted is a classification of a file that no longer
 # holds it.
+#
+# `hardware` is the 3rd of them and it is a CHILD, which is the shape that did
+# not exist before: it declares its ARGs value-less and takes every pin from
+# versions.env as a generated --build-arg, so its own Dockerfile is not a home
+# and it has 1 home like the 2 root images rather than 2 like the other 3
+# children. That is why it is judged HERE, beside cloud and base, and not in the
+# child loop below. Nothing read PIN_CLASSES_HARDWARE until this clause: an
+# unclassified versions.env row was red for 5 of the 6 images and silent for the
+# 6th, which is coverage that shrinks with no red — the exact shape this file
+# exists to refuse.
 #
 # A child image reads 2 homes, so its listing carries the records of both. The
 # records are FILTERED to the home under judgement before the rule reads them:
@@ -699,6 +710,11 @@ assert_listing_is_static "base_pin_listing_runs_and_calls_no_docker"
 base_records="$(classification_records "$LISTING_TEXT")"
 base_record_total="$(count_lines "$base_records")"
 
+run_listing hardware
+assert_listing_is_static "hardware_pin_listing_runs_and_calls_no_docker"
+hardware_records="$(classification_records "$LISTING_TEXT")"
+hardware_record_total="$(count_lines "$hardware_records")"
+
 # A listing that parses into 0 records makes every rule below vacuous, and a
 # vacuous rule reports a clean file it never read. So the liveness of the reader
 # is a check of its own.
@@ -716,12 +732,20 @@ else
     "no <NAME>|<class> record came out of SMOKE_LIST_PINS=1 for base" \
     "either the seam is absent, or this test stopped reading its records"
 fi
+if [[ "$hardware_record_total" -ge 1 ]]; then
+  pass_check "hardware_pin_listing_holds_at_least_one_record"
+else
+  fail_check "hardware_pin_listing_holds_at_least_one_record" \
+    "no <NAME>|<class> record came out of SMOKE_LIST_PINS=1 for hardware" \
+    "either the seam is absent, or this test stopped reading its records"
+fi
 
 # -------- 3. THE RULE, on the 1 pin home, once per classification table -----
-# Both tables read versions.env now. They are still 2 tables, because the CI
-# fold is asserted in cloud and `not-in-this-image` in base and vice versa, so
-# each one is judged against the SAME home separately: a pin classified in the
-# cloud table and forgotten in the base table is a silent pin for 4 of the 5
+# All 3 tables read versions.env now. They are still 3 tables, because the CI
+# fold is asserted in cloud and `not-in-this-image` in base and vice versa, and
+# the KiCad rows are asserted in hardware and `not-in-this-image` in the other 2,
+# so each one is judged against the SAME home separately: a pin classified in the
+# cloud table and forgotten in the base table is a silent pin for 4 of the 6
 # images, and 1 combined check would report it as covered.
 #
 # The pin names are read out of the home and never out of a table. A rule that
@@ -742,6 +766,12 @@ assert_home_is_covered "base_family_versions_env" \
   "$(class_table_records "PIN_CLASSES_BASE")" \
   "$PIN_HOME"
 
+assert_home_is_covered "hardware_versions_env" \
+  "$pin_names" \
+  "$hardware_records" \
+  "$(class_table_records "PIN_CLASSES_HARDWARE")" \
+  "$PIN_HOME"
+
 # -------- 4. THE SAME RULE, on the 3 child Dockerfiles -----------------------
 #
 # A child image declares its own `ARG NAME=value` block and consumes no build arg
@@ -760,7 +790,8 @@ CHILD_TABLES=("PIN_CLASSES_FLUTTER" "PIN_CLASSES_ZEPHYR" "PIN_CLASSES_DEVBOX")
 
 # Every record of every listing, for the seam check in section 5.
 all_listing_records="${cloud_records}
-${base_records}"
+${base_records}
+${hardware_records}"
 
 for child_index in "${!CHILD_IMAGES[@]}"; do
   child_image="${CHILD_IMAGES[$child_index]}"

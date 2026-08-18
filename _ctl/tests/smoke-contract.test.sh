@@ -92,6 +92,75 @@ GUEST_SCRIPT="image-checks.sh"
 IMAGE="cloud"
 SMOKE_REF="cloud:smoke"
 
+# ============================================================================
+# THE SECOND IMAGE, AND WHY 1 WAS NOT ENOUGH
+# ============================================================================
+#
+# Every rule above ran against `cloud` alone, so each one held for the ARM of
+# the driver that `cloud` takes and for no other. That was invisible while the
+# driver's per-image work was 1 `case` arm and a shared tail — and it stopped
+# being true when a second SHAPE arrived.
+#
+# `hardware` is that shape: a CHILD that reads versions.env. Its pins arrive as
+# generated --build-args like cloud's, so it takes a 3rd class table over the
+# SAME home while the other 3 children read a table over their own Dockerfile;
+# it declares a size budget, which 4 of the 6 images do not; and its whole
+# reason to exist — the KiCad rows — is `asserted` in ITS table and
+# `not-in-this-image` in the 2 others. A driver that selected the wrong table
+# would produce a payload that is entirely well-formed and asserts the wrong
+# image, and every check above would still pass, because they read cloud.
+#
+# The names below carry the image for the reason version-coverage.test.sh gives
+# at its child loop: a reader finds the broken one in the list of names, and not
+# only in the evidence.
+HARDWARE_IMAGE="hardware"
+HARDWARE_SMOKE_REF="hardware:smoke"
+HARDWARE_CLASS_TABLE="PIN_CLASSES_HARDWARE"
+
+# The 5 pins the hardware table flips from `not-in-this-image` to `asserted`,
+# each written as the COMPARATOR ROW it has to arrive as: `<PIN>|<version>|` and
+# then the command that prints the version, which is the shape
+# .ci/image-checks.sh reads.
+#
+# THE ROW, AND NOT THE TOOL NAME, AND THAT IS THE WHOLE POINT OF THESE 5.
+# Measured on 2026-08-18 by pointing the driver's hardware arm at
+# PIN_CLASSES_CLOUD: a bare `assert_contains "$RUN_PAYLOAD" "pytest"` still
+# passed, because the cloud table classifies the same pin
+# `not-in-this-image:pytest` and the binary NAME then reaches the guest inside
+# an ABSENT_TABLE row. 3 of the 5 tool names survived the wrong table that way,
+# and the check that was supposed to catch it reported the payload as correct.
+# An absence row is 2 fields and a comparator row is 3, so the pattern below
+# separates them and a name alone cannot answer.
+#
+# The VERSION field is deliberately not stated: versions.env is the pin home,
+# this is a contract test, and a value here would go red on every bump for a
+# reason that has nothing to do with the contract. So each entry is
+# `<PIN>|<the command that prints the version>` and the reader below compares
+# FIELDS.
+#
+# FIELDS, AND NOT A REGULAR EXPRESSION, and that is not a style preference. The
+# first version of this check was `grep -E "^${pin}|[^|]*|${command}"`, and `|`
+# is ALTERNATION in an ERE: the pattern read as "^PIN or [^|]* or command", the
+# middle branch matches every line ever written, and all 5 checks passed on a
+# payload that carried none of the 5 rows. It was caught by breaking the driver
+# on purpose and watching the check stay green — which is the only way that
+# class of defect is ever caught. awk comparing $1 and $3 has no metacharacters
+# to escape, and the commands here hold `(`, `)`, `'` and `-`.
+HARDWARE_ASSERTED_ROWS=(
+  'KICAD_PPA_VERSION|kicad-cli version'
+  'KIUTILS_VERSION|python3 -c "import importlib.metadata as m; print(m.version('"'"'kiutils'"'"'))"'
+  'SEXPDATA_VERSION|python3 -c "import importlib.metadata as m; print(m.version('"'"'sexpdata'"'"'))"'
+  'PYTEST_VERSION|pytest --version'
+  'RUFF_VERSION|ruff --version'
+)
+
+# The budget images.yaml declares for it: 11.0 GB, in the decimal bytes
+# image_size_budget_bytes computes. It is PROVISIONAL — an estimate computed
+# from 2 measured images, to be reset to the first green build's real size — so
+# this literal moves when that number does, and the pair of cases below is what
+# makes the move visible instead of silent.
+HARDWARE_SIZE_BUDGET="11000000000"
+
 # The tools the payload must name. Each one is a gate-critical hole today.
 # `docker compose` carries a space on purpose — the plugin is invoked that way,
 # and `docker-compose` is the retired v1 binary.
@@ -166,7 +235,7 @@ function stage_repository_without_pin() {
   printf '%s' "$root"
 }
 
-# asserted_pins — the pins .ci/smoke.sh says it compares for this image.
+# asserted_pins <image> — the pins .ci/smoke.sh says it compares for that image.
 #
 # Read from the same SMOKE_LIST_PINS seam version-coverage.test.sh checks. The
 # 2 files then cannot disagree: 1 says every pin carries a class, this one says
@@ -175,10 +244,15 @@ function stage_repository_without_pin() {
 # listing that failed becomes an empty list that looks like an answer. The awk
 # filter accepts only `<NAME>|asserted` lines, so the log noise around the
 # records cannot be read as data, and an empty result is reported below.
+#
+# The image is an ARGUMENT and not the file-level IMAGE it once read. A reader
+# fixed to 1 image answers for 1 arm of the driver's case, and the rule that
+# consumes it would then report the same image twice while naming 2.
 function asserted_pins() {
+  local image="$1"
   local text status=0
   text="$(env PATH="${STUB_BIN}:${PATH}" SMOKE_LIST_PINS=1 \
-    bash "$SMOKE" "$IMAGE" < /dev/null 2>&1)" || status=$?
+    bash "$SMOKE" "$image" < /dev/null 2>&1)" || status=$?
   if [[ "$status" -ne 0 ]]; then
     printf ''
     return 0
@@ -301,7 +375,7 @@ assert_contains "the_payload_is_the_guest_checker" \
   "a payload written inline in .ci/smoke.sh cannot be run on the host, and then nothing tests it"
 
 # -------- 3. 1 comparator row per pin the driver calls `asserted` --------
-pins="$(asserted_pins)"
+pins="$(asserted_pins "$IMAGE")"
 pin_total=0
 missing_rows=""
 while IFS= read -r pin; do
@@ -432,6 +506,173 @@ elif [[ "$(docker_run_lines "$RUN_ARGV")" -ne 1 ]]; then
     "docker was called with:" "${RUN_ARGV:-<no docker invocation>}"
 else
   pass_check "an_image_exactly_at_the_budget_passes_the_gate_and_is_smoked"
+fi
+
+# ===========================================================================
+# 7. THE SAME CONTRACT, FOR THE SECOND IMAGE SHAPE
+# ===========================================================================
+# See the note beside HARDWARE_IMAGE above for why 1 image was not enough. This
+# section asks the rules that are IMAGE-SPECIFIC — which ref, which table,
+# which tools, which budget — and does not repeat the ones that are properties
+# of the driver itself and already answered above.
+run_smoke "$SMOKE" "$HARDWARE_IMAGE" "$HARDWARE_SMOKE_REF"
+
+assert_equal "the_hardware_smoke_starts_exactly_one_container" \
+  "1" "$(docker_run_lines "$RUN_ARGV")" \
+  "docker was called with:" "${RUN_ARGV:-<no docker invocation>}" \
+  "output was:" "$RUN_OUTPUT"
+assert_contains "the_hardware_smoke_runs_the_ref_it_was_given" \
+  "$RUN_ARGV" "$HARDWARE_SMOKE_REF" \
+  "the CI job builds a local ref with push:false + load:true and smokes THAT ref" \
+  "a run against another ref would assert about an image nobody built here"
+
+# The marker's DRIVER half. The guest holds GOPHERSYS_DEVCONTAINER against
+# SMOKE_IMAGE — guest-checks.test.sh drives that comparison from both sides —
+# and this is the only place that can say the driver SENDS the name at all. It
+# travels in the payload rather than the argv, like every other table here, and
+# an unexported one is an empty one on the far side: the guest then takes its
+# "no image was named" branch and the whole marker check silently does nothing.
+assert_contains "the_payload_names_the_image_for_the_marker" \
+  "$RUN_PAYLOAD" "SMOKE_IMAGE=${HARDWARE_IMAGE}" \
+  "the guest compares GOPHERSYS_DEVCONTAINER against this name, and a payload that omits it" \
+  "turns the marker check off for every image at once"
+assert_contains "the_payload_exports_the_image_for_the_marker" \
+  "$RUN_PAYLOAD" "export SMOKE_IMAGE" \
+  "the guest reads SMOKE_IMAGE out of its environment, and an unexported name is an absent one there"
+
+# The functional group that only this image runs. It reaches the guest the same
+# way the tables do, and a group that never arrives is a content check that
+# silently did not happen.
+assert_contains "the_hardware_payload_names_its_own_check_group" \
+  "$RUN_PAYLOAD" "content-hardware" \
+  "images.yaml declares this group for this image, and .ci/image-checks.sh runs the KiCad" \
+  "library floors from it — a payload without it smokes an ECAD image and checks no ECAD tool"
+
+# Section 3, asked of the other table. The KiCad rows are `asserted` here and
+# `not-in-this-image` in the 2 tables over the same home, so a driver that chose
+# the wrong table produces a payload that is well-formed and asserts cloud.
+hardware_pins="$(asserted_pins "$HARDWARE_IMAGE")"
+hardware_pin_total=0
+hardware_missing_rows=""
+while IFS= read -r pin; do
+  [[ -z "$pin" ]] && continue
+  hardware_pin_total=$((hardware_pin_total + 1))
+  if ! grep -qE "^${pin}\|" <<< "$RUN_PAYLOAD"; then
+    hardware_missing_rows="${hardware_missing_rows:+${hardware_missing_rows}
+}${pin}"
+  fi
+done <<< "$hardware_pins"
+
+if [[ "$hardware_pin_total" -eq 0 ]]; then
+  fail_check "every_asserted_pin_reaches_the_guest_for_hardware" \
+    "SMOKE_LIST_PINS=1 named no pin as asserted for ${HARDWARE_IMAGE}, so this rule compared nothing" \
+    "a rule with no input reports a clean result it never read"
+elif [[ -n "$hardware_missing_rows" ]]; then
+  fail_check "every_asserted_pin_reaches_the_guest_for_hardware" \
+    "these pins are classified asserted and carry no comparator row in the payload:" \
+    "$hardware_missing_rows" \
+    "a row is <PIN>|<expected version>|<command>, which is what .ci/image-checks.sh reads" \
+    "a classification that never reaches the guest is a claim of coverage, not coverage"
+else
+  pass_check "every_asserted_pin_reaches_the_guest_for_hardware"
+fi
+
+# Section 3b, asked of the other table.
+hardware_absent_rows="$(absence_rows "$HARDWARE_CLASS_TABLE")"
+hardware_absent_total=0
+hardware_missing_absent=""
+while IFS= read -r absent_row; do
+  [[ -z "$absent_row" ]] && continue
+  hardware_absent_total=$((hardware_absent_total + 1))
+  if ! grep -qxF -- "$absent_row" <<< "$RUN_PAYLOAD"; then
+    hardware_missing_absent="${hardware_missing_absent:+${hardware_missing_absent}
+}${absent_row}"
+  fi
+done <<< "$hardware_absent_rows"
+
+if [[ "$hardware_absent_total" -eq 0 ]]; then
+  fail_check "every_absence_probe_reaches_the_guest_for_hardware" \
+    "the ${HARDWARE_IMAGE} class table names no absence probe at all, so this rule compared nothing" \
+    "the driver refuses such an image, and a rule with no input reports a clean result it never read"
+elif [[ -n "$hardware_missing_absent" ]]; then
+  fail_check "every_absence_probe_reaches_the_guest_for_hardware" \
+    "these absence probes are named in the class table and carry no ABSENT_TABLE row in the payload:" \
+    "$hardware_missing_absent" \
+    "a row is <PIN>|<binary>, which is what run_absence_checks in .ci/image-checks.sh reads" \
+    "a probe that never reaches the guest is the unchecked claim not-in-this-image used to be"
+else
+  pass_check "every_absence_probe_reaches_the_guest_for_hardware"
+fi
+
+# Section 4, asked of the tools this image exists for. The floors in
+# .ci/image-checks.sh are what catch an EMPTY /usr/share/kicad; this is what
+# catches a payload that never asks about KiCad at all.
+#
+# These 5 are the literal half of this section, and they are what stands when
+# the 2 rules above agree with each other: `asserted_pins` and the payload both
+# come out of the driver, so a driver reading the wrong class table moves both
+# sides at once and neither can report it. A row written here by hand cannot
+# move with it.
+# The rows the payload really carries, for the evidence of a failure below. It
+# is read once, with its own status, because this file never writes `|| true`
+# and a `grep` that matches nothing exits 1 under pipefail.
+payload_rows_status=0
+payload_rows=""
+payload_rows="$(grep -E '^[A-Z][A-Z0-9_]*\|' <<< "$RUN_PAYLOAD")" || payload_rows_status=$?
+if [[ "$payload_rows_status" -ne 0 ]]; then
+  payload_rows="<the payload carries no <NAME>| row at all>"
+fi
+
+for asserted_row in "${HARDWARE_ASSERTED_ROWS[@]}"; do
+  asserted_pin="${asserted_row%%|*}"
+  asserted_command="${asserted_row#*|}"
+  # The check name carries the pin, so a reader finds the missing one in the
+  # list of names and not only in the evidence.
+  check_name="the_hardware_payload_asserts_${asserted_pin}"
+  # $3 and not $2: field 2 is the expected VERSION, which this file does not
+  # state. A row is only a comparator row if it has a command in field 3 — an
+  # absence row has 2 fields and would leave $3 empty.
+  matched_row=""
+  matched_row="$(awk -F'|' -v pin="$asserted_pin" -v want="$asserted_command" \
+    '$1 == pin && $3 == want { print; exit }' <<< "$RUN_PAYLOAD")"
+  if [[ -n "$matched_row" ]]; then
+    pass_check "$check_name"
+  else
+    fail_check "$check_name" \
+      "no row of the payload has field 1 = ${asserted_pin} and field 3 = ${asserted_command}" \
+      "this pin is asserted in the hardware class table and in no other, so a payload without" \
+      "its 3-field row was built from another image's table — the tool NAME is not enough here," \
+      "because the cloud table carries the same binary inside a 2-field absence row" \
+      "the payload's own pin rows were:" \
+      "$payload_rows"
+  fi
+done
+
+# Section 6, at the other budget. The 2 cases are 1 byte apart for the reason
+# the cloud pair gives, and the number is this image's own: a size gate that
+# read the cloud budget for every image would pass an 11 GB image at 5.75 GB
+# only by refusing it, and would pass a 20 GB one by reading nothing at all.
+run_smoke "$SMOKE" "$HARDWARE_IMAGE" "$HARDWARE_SMOKE_REF" "STUB_IMAGE_SIZE=$((HARDWARE_SIZE_BUDGET + 1))"
+assert_refused_without_running "a_hardware_image_one_byte_over_its_budget_fails_and_starts_no_container" \
+  "$HARDWARE_SIZE_BUDGET" \
+  "the image measured $((HARDWARE_SIZE_BUDGET + 1)) bytes, which is 1 byte over the 11.0 GB budget" \
+  "the budget is PROVISIONAL and the first green build resets it — a gate that does not bite" \
+  "cannot report the re-measurement it exists to force"
+
+run_smoke "$SMOKE" "$HARDWARE_IMAGE" "$HARDWARE_SMOKE_REF" "STUB_IMAGE_SIZE=${HARDWARE_SIZE_BUDGET}"
+if [[ "$RUN_STATUS" -ne 0 ]]; then
+  fail_check "a_hardware_image_exactly_at_its_budget_passes_the_gate_and_is_smoked" \
+    "want: exit 0 — ${HARDWARE_SIZE_BUDGET} bytes is the budget, and the budget is inclusive" \
+    "got:  ${RUN_STATUS}" \
+    "a gate that refuses its own limit hands back a budget nobody can meet" \
+    "output was:" "$RUN_OUTPUT"
+elif [[ "$(docker_run_lines "$RUN_ARGV")" -ne 1 ]]; then
+  fail_check "a_hardware_image_exactly_at_its_budget_passes_the_gate_and_is_smoked" \
+    "the run exited 0 and started $(docker_run_lines "$RUN_ARGV") containers, want exactly 1" \
+    "an exit 0 with no container is a size gate that ate the whole smoke" \
+    "docker was called with:" "${RUN_ARGV:-<no docker invocation>}"
+else
+  pass_check "a_hardware_image_exactly_at_its_budget_passes_the_gate_and_is_smoked"
 fi
 
 test_summary "$TEST_NAME"

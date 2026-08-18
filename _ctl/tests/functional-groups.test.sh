@@ -15,7 +15,7 @@
 # version stubs, a PATH built for reading `<tool> --version`, and evidence that
 # reads "this pin was compared against that observed version".
 #
-# This file drives the FUNCTIONAL half: 12 stubbed tools, the real fixture tree,
+# This file drives the FUNCTIONAL half: 13 stubbed tools, the real fixture tree,
 # and evidence that reads "this step failed, so the run failed". The 2 halves
 # share nothing but the script under test — a different stub surface, a
 # different failure signature — and `bash ./ctl.sh test` names the file that
@@ -53,8 +53,16 @@
 # ============================================================================
 #
 #   1 case per functional group (go-gate, dockerfile-lint, compose, debugger,
-#     protocols) and 1 content group (content-flutter): 1 step of the group is
-#     made to fail, and the run must fail.
+#     protocols) and 2 content groups (content-flutter, content-hardware): 1 step
+#     of the group is made to fail, and the run must fail.
+#
+#   the 3 KiCad library FLOORS of content-hardware, all 3 branches: an absent
+#     directory, a directory under its floor, and one over it. This paragraph
+#     said the floors were NOT COVERED and named the reason — kicad_library_floor
+#     took an absolute /usr/share/kicad path, so a case over it would have
+#     asserted a property of the HOST this file runs on. SMOKE_KICAD_ROOT is the
+#     seam that answered it: the default is the image's own path, so a real run is
+#     unchanged, and the cases below point it at a tree this file builds.
 #   reachability: 2 groups named together both run. The guest splits SMOKE_CHECKS
 #     by hand because it runs with IFS=$'\n\t', and a split that regressed would
 #     make every group unknown at once.
@@ -94,6 +102,7 @@ STUB_TOOLS=(
   go gofumpt golangci-lint hnslint
   hadolint docker dlv buf grpcurl
   flutter adb java
+  kicad-cli
 )
 
 # The PATH every case runs with: the stub toolchain, then the 2 directories that
@@ -134,6 +143,63 @@ function run_groups() {
     SMOKE_FIXTURE_DIR="$fixture_dir" \
     "$@" bash "$GUEST" < /dev/null 2>&1)" || GUEST_STATUS=$?
   rm -rf "$fixture_dir"
+}
+
+# ---------------------------------------------------------------------------
+# THE KiCad SHARE TREE, BUILT RATHER THAN COMMITTED
+# ---------------------------------------------------------------------------
+#
+# The 3 floors are 10000 footprints, 100 symbol libraries and 1000 STEP models,
+# and those numbers are gophersys/research-hardware's own, from the assertion at
+# the foot of its ci/Dockerfile. So a committed fixture would be 11100 empty
+# files in this repository's history, which is not a fixture; it is a payload.
+# The tree is therefore BUILT into a temporary directory per case and removed
+# after it — measured at ~0.4s for the 10001-file directory, which is the whole
+# cost of driving the branch that reports a thin library.
+#
+# The FLOOR CONSTANTS are literals here, and they are the same literals
+# .ci/image-checks.sh spells. That is 2 homes for 1 number and it is deliberate,
+# for the reason platform-policy.test.sh spells SANCTIONED as a literal: a case
+# that read the floor out of the file it drives would agree with any floor,
+# including 0 — and a floor of 0 is precisely the defect a floor exists to
+# prevent, since `kicad` under --no-install-recommends leaves /usr/share/kicad
+# present and EMPTY.
+KICAD_FOOTPRINT_FLOOR=10000
+KICAD_SYMBOL_FLOOR=100
+KICAD_MODEL_FLOOR=1000
+
+# make_kicad_root <footprints> <symbols> <models> — a KiCad share tree holding
+# exactly those counts, printed as a path the caller must remove.
+#
+# A count of -1 means the DIRECTORY IS ABSENT, which is a different world from a
+# directory holding 0 files: an absent directory is a package that never
+# installed, and `find` over one answers 0 while reporting an error nobody reads.
+# kicad_library_floor tests for the directory before it counts, and that branch
+# needs a stimulus of its own.
+#
+# awk + a single xargs, and not a shell loop: 10001 forks of `touch` takes
+# minutes, and a case slow enough to skip is a case that gets skipped.
+function make_kicad_root() {
+  local footprints="$1" symbols="$2" models="$3"
+  local root
+  root="$(mktemp -d)"
+  make_kicad_directory "${root}/footprints" "$footprints" "kicad_mod"
+  make_kicad_directory "${root}/symbols" "$symbols" "kicad_sym"
+  make_kicad_directory "${root}/3dmodels" "$models" "step"
+  printf '%s' "$root"
+}
+
+# make_kicad_directory <path> <count> <extension> — <count> empty files of that
+# extension, or nothing at all when the count is negative.
+function make_kicad_directory() {
+  local path="$1" count="$2" extension="$3"
+  [[ "$count" -lt 0 ]] && return 0
+  mkdir -p "$path"
+  [[ "$count" -eq 0 ]] && return 0
+  awk -v directory="$path" -v total="$count" -v extension="$extension" \
+    'BEGIN { for (index_of_file = 1; index_of_file <= total; index_of_file++) {
+       printf "%s/part%06d.%s\n", directory, index_of_file, extension } }' \
+    | xargs touch
 }
 
 # assert_group_failed <check name> <needle> [needle...]
@@ -274,6 +340,79 @@ assert_contains "a_failing_content_step_does_not_stop_the_steps_after_it" \
   "$GUEST_OUTPUT" "ok   java" \
   "the header of .ci/image-checks.sh states that every failure is collected rather than fatal" \
   "a group that stops at its first failure reports 1 broken tool out of an unknown number"
+
+# -------- 6b. the SECOND content group, and the newest one --------
+#
+# content-hardware is the group `hardware` adds, and nothing exercised it: a
+# content group is reachable only through the `case` in run_functional_groups,
+# and a group name that reaches no arm falls through to `unknown check group`.
+# Both outcomes exit non-zero, so a status alone cannot tell "kicad-cli failed"
+# from "this group does not exist" — which is why the needles below name the
+# STEP and the group's own header line, and not the status.
+run_groups "content-hardware" STUB_FAIL_KICAD_CLI=1
+assert_group_failed "a_failing_kicad_cli_fails_the_run" \
+  "FAIL: kicad-cli" "--- hardware content ---"
+
+# -------- 6c. the 3 library floors, all 3 branches --------
+#
+# WHY THE FLOORS ARE THE POINT OF THIS GROUP. `kicad` does NOT pull the symbol,
+# footprint and 3D-model packages in under --no-install-recommends. Without them
+# /usr/share/kicad EXISTS and is EMPTY, so an image carrying kicad-cli passes
+# every presence check — `kicad-cli version` runs perfectly — and then fails the
+# consumer's entire resolver suite at runtime on `assert 0 > 10000`, which reads
+# like a code bug rather than a missing package.
+#
+# WHICH HALF RUNS WHERE. These cases are the PULL REQUEST half: they drive the
+# comparator itself, on this host, against a tree this file builds, so a floor
+# that stopped being able to fail is red before the branch merges. The SMOKE half
+# runs in CI, inside the built image, against the real /usr/share/kicad — that is
+# what says the packages really installed. Neither replaces the other: this one
+# cannot see the image, and that one cannot run in the gate.
+#
+# DELETING kicad-packages3d FROM THE APT LINE IS CAUGHT BY THE UNDER-FLOOR CASE
+# BELOW. That is the concrete regression: the models package leaves
+# hardware/Dockerfile, the image builds green, kicad-cli runs, and every
+# footprint ships with no 3D geometry. In the image the directory would be absent
+# and the first case is its shape; if a later KiCad release ships a stub
+# directory instead, the second case is its shape. Both are driven here.
+
+# The absent directory: the package never installed. `find` over a path that is
+# not there answers 0 and prints an error nobody reads, so a reader that counted
+# first would report a thin library where the truth is no library at all.
+kicad_root="$(make_kicad_root -1 "$KICAD_SYMBOL_FLOOR" "$KICAD_MODEL_FLOOR")"
+run_groups "content-hardware" "SMOKE_KICAD_ROOT=${kicad_root}"
+assert_group_failed "an_absent_kicad_library_directory_fails_and_names_the_path" \
+  "FAIL: kicad footprints" "${kicad_root}/footprints"
+rm -rf "$kicad_root"
+
+# Under the floor by 1. The boundary and not a round number: a floor compared
+# with `<=` where `<` was meant, or against the wrong constant, passes every
+# stimulus that is far from its edge.
+kicad_root="$(make_kicad_root $((KICAD_FOOTPRINT_FLOOR - 1)) "$KICAD_SYMBOL_FLOOR" "$KICAD_MODEL_FLOOR")"
+run_groups "content-hardware" "SMOKE_KICAD_ROOT=${kicad_root}"
+assert_group_failed "a_kicad_library_under_its_floor_fails_and_names_the_count_and_the_floor" \
+  "FAIL: kicad footprints" "$((KICAD_FOOTPRINT_FLOOR - 1))" "$KICAD_FOOTPRINT_FLOOR"
+rm -rf "$kicad_root"
+
+# The 3rd package specifically, so all 3 floors are known to be wired to their
+# own directory. A single reader pointed at 1 path would pass the 2 cases above
+# and report a green tree with no STEP models in it.
+kicad_root="$(make_kicad_root "$KICAD_FOOTPRINT_FLOOR" "$KICAD_SYMBOL_FLOOR" $((KICAD_MODEL_FLOOR - 1)))"
+run_groups "content-hardware" "SMOKE_KICAD_ROOT=${kicad_root}"
+assert_group_failed "a_thin_kicad_3dmodels_tree_fails_and_names_that_floor" \
+  "FAIL: kicad STEP models" "$((KICAD_MODEL_FLOOR - 1))" "$KICAD_MODEL_FLOOR"
+rm -rf "$kicad_root"
+
+# EXACTLY AT the floor, on all 3, and the run passes. Without this half a
+# comparator stuck on "fail always" satisfies every case above, and the floor is
+# inclusive — an image sitting on its own limit must not be refused.
+kicad_root="$(make_kicad_root "$KICAD_FOOTPRINT_FLOOR" "$KICAD_SYMBOL_FLOOR" "$KICAD_MODEL_FLOOR")"
+run_groups "content-hardware" "SMOKE_KICAD_ROOT=${kicad_root}"
+assert_group_passed "kicad_libraries_at_their_floors_pass_and_name_all_3_counts" \
+  "ok   kicad footprints: ${KICAD_FOOTPRINT_FLOOR}" \
+  "ok   kicad symbol libraries: ${KICAD_SYMBOL_FLOOR}" \
+  "ok   kicad STEP models: ${KICAD_MODEL_FLOOR}"
+rm -rf "$kicad_root"
 
 # -------- 7. every named group is reached --------
 # The guest runs with IFS=$'\n\t' and splits SMOKE_CHECKS by hand. A regression

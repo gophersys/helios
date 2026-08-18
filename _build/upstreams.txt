@@ -35,7 +35,8 @@
 # The 12th is `no-autobump`, which resolves nothing. Its 4th field is the REASON,
 # and it has to be a sentence: `n/a`, `todo` and `-` all pass a non-empty test,
 # and each one is a pin nobody decided about wearing the label of a pin somebody
-# did. 16 pins take it today.
+# did. 14 pins take it today — this sentence read 16 while the file held 13, so
+# read the rows and never this number.
 #
 # A reason has to be TRUE, and nothing in the pull request gate can check that.
 # 3 of these rows were corrected after their reasons were measured against the
@@ -87,7 +88,11 @@ ZEPHYR_SDK_VERSION|github-release|zephyrproject-rtos/sdk-ng|bump to the newest r
 ANSIBLE_VERSION|pypi|ansible|bump to the newest release on the index
 ANSIBLE_CORE_VERSION|pypi|ansible-core|bump to the newest release on the index
 ESPTOOL_VERSION|pypi|esptool|bump to the newest release on the index
+KIUTILS_VERSION|pypi|kiutils|bump to the newest release on the index
 OCI_CLI_VERSION|pypi|oci-cli|bump to the newest release on the index
+PYTEST_VERSION|pypi|pytest|bump to the newest release on the index
+RUFF_VERSION|pypi|ruff|bump to the newest release on the index
+SEXPDATA_VERSION|pypi|sexpdata|bump to the newest release on the index
 WEST_VERSION|pypi|west|bump to the newest release on the index
 
 # -------- npm --------
@@ -129,6 +134,7 @@ CODEX_VERSION|eden-manifest|gophersys/eden:harnesses/versions.env|mirror the val
 # follow.
 PYTHON_PACKAGE|no-autobump|python3.12|the pin is an apt PACKAGE NAME carrying the major line, so the archive version of that package is not what this row holds
 JAVA_VERSION|no-autobump|openjdk-21-jdk-headless|the pin is the jdk major line inside an apt package name, so the point release the archive publishes is not what this row holds
+KICAD_PPA_VERSION|no-autobump|ppa:kicad/kicad-10.0-releases|the pin is the KiCad major line inside a PPA NAME, so the package version that archive publishes (10.0.5~ubuntu24.04.1 on noble, read 2026-08-18) is not what this row holds, and a new major is a different PPA that a human chooses
 RUST_CHANNEL|no-autobump|stable|rustup takes a channel and not a version, and resolving it to a number would freeze the channel this pin exists to follow
 FLUTTER_CHANNEL|no-autobump|stable|the flutter download url takes a channel and not a version, and FLUTTER_VERSION is the row that moves
 BENCHSTAT_REF|no-autobump|golang.org/x/perf|the module is untagged upstream, so `go install @latest` is the canonical install form and there is no release to compare against

@@ -100,6 +100,56 @@ UNGENERATED_FILES=(
   "weekly-bumps.yml"
 )
 
+# ---------------------------------------------------------------------------
+# THE 2 FACTS THE MANIFEST STATES TWICE, AND WHAT BINDS THE COPIES
+# ---------------------------------------------------------------------------
+#
+# `parent` and `pins` are each stated in 2 places — the manifest entry, and the
+# Dockerfile that implements it — and until these sections nothing compared
+# them. That is not the drift this manifest ended; it is a drift it CREATED, by
+# becoming the second home of a fact the Dockerfile already carried.
+#
+# Both were proven by breaking them, and both breaks are green in both gates:
+#
+#   parent   set hardware's `parent: cloud` to `base`, regenerate, copy. The
+#            workflow then says `needs: [base]` and reads BASE_TAG from base,
+#            while hardware/Dockerfile still FROMs cloud. `ctl.sh validate` and
+#            `ctl.sh test` both pass. The LOUD half would eventually be a build
+#            failure; the SILENT half never fails at all — .ci/affected.sh walks
+#            the manifest edge, so hardware stops rebuilding when cloud changes
+#            and simply serves an ever-staler layer, with no red anywhere.
+#
+#   pins     delete `pins: versions.env` from hardware and regenerate. Both
+#            gates stay green, and the build dies in CI at the Dockerfile's own
+#            `:?not in versions.env` gate — 20 minutes into a publish job, on
+#            main, after the merge.
+#
+# So each fact gets a binding, read from BOTH sides and compared. The pattern is
+# the one IMAGE_PLATFORM_TABLE takes in platform-policy.test.sh: neither side is
+# allowed to be the only reader of itself.
+PARENT_IMAGE_PREFIX="ghcr.io/gophersys/"
+
+# The token a Dockerfile's pin gate writes. It is the message of the `:?` word
+# expansion the 2 root images and hardware open with, so a file that carries it
+# is a file whose ARGs are value-less and fed from the pin home.
+#
+# The TOKEN and not a count: base writes 71 of these and cloud 81, and a rule
+# that read a number would have to be edited by every bump that adds a pin.
+PIN_GATE_TOKEN="not in versions.env"
+PIN_HOME="versions.env"
+
+# The generated publish workflow, and the expression a job carries when its
+# build is fed that home. `_ctl/generate.sh` emits the `id: versions` step and
+# this reference into every build step of such a job, and emits neither for a
+# child that reads its BASE_TAG alone.
+GENERATED_WORKFLOW="${PROVIDER_DIRECTORY}/build-and-push.yml"
+# The ${} below must NOT expand: it is the literal GitHub Actions expression the
+# generator writes into the file, and this rule looks for exactly that text.
+# The same disable, for the same reason, as the BUILDKIT_REF literal in
+# _ctl/tests/egress-policy.test.sh.
+# shellcheck disable=SC2016
+VERSIONS_ARGS_REFERENCE='${{ steps.versions.outputs.args }}'
+
 FIXTURES="$TESTS_DIR/fixtures/images-manifest"
 FIXTURE_BAD_ORDER="$FIXTURES/child-above-parent.yaml"
 FIXTURE_GOOD_ORDER="$FIXTURES/parent-above-child.yaml"
@@ -207,6 +257,58 @@ function guest_group_labels() {
         if (parts[item] != "") { print parts[item] }
       }
     }
+  ' "$1"
+}
+
+# first_from_reference <dockerfile> — the image reference of the file's FIRST
+# FROM line, with any flag and any `AS <stage>` removed. Silent for a file with
+# no FROM at all, which the liveness clause below turns into a failure.
+#
+# The first and not every one: a multi-stage file would FROM its own earlier
+# stages, and the parent edge is about the stage the image ships. No Dockerfile
+# here is multi-stage today, so the rule is stated where it would first matter.
+#
+# The `--platform=` strip is deliberate even though platform-policy.test.sh
+# FORBIDS such a line: without it a file that grew one would report its flag as
+# the image name, and this rule would fail naming a parent edge that is fine
+# while the real defect has a test of its own that says so properly.
+function first_from_reference() {
+  awk '
+    /^[[:space:]]*FROM[[:space:]]/ {
+      line = $0
+      sub(/^[[:space:]]*FROM[[:space:]]+/, "", line)
+      while (line ~ /^--/) { sub(/^--[^[:space:]]+[[:space:]]*/, "", line) }
+      sub(/[[:space:]]+[Aa][Ss][[:space:]].*$/, "", line)
+      sub(/[[:space:]]+$/, "", line)
+      print line
+      exit
+    }
+  ' "$1"
+}
+
+# reference_repository <image reference> — the reference without its tag and
+# without its digest, which is the part a parent edge names.
+#
+# The digest is stripped BEFORE the tag: `ubuntu:24.04@${UBUNTU_BASE_REF}` holds
+# both, and taking the tag first would leave `ubuntu` either way while a
+# reference of the form `repo@sha256:...` would keep its digest as a false tag.
+function reference_repository() {
+  local reference="${1%%@*}"
+  printf '%s' "${reference%%:*}"
+}
+
+# job_block <file> <job name> — the lines of that job of a workflow, from its
+# own key to the next key at the same indent. Silent when the file declares no
+# such job, which the liveness clause below turns into a failure.
+#
+# 2-space indent is the shape both copies of this workflow are written in, and
+# the generator emits it. A reader that matched any indent would take the job's
+# own `steps:` as the start of the next job.
+function job_block() {
+  awk -v want="$2" '
+    $0 == "  " want ":" { inside = 1; next }
+    inside && /^  [A-Za-z_][A-Za-z0-9_-]*:/ { exit }
+    inside { print }
   ' "$1"
 }
 
@@ -562,5 +664,239 @@ $(diff -u "$REPO_ROOT/${PROVIDER_DIRECTORY}/${name}" "${staged_root}/${PROVIDER_
 fi
 
 rm -rf "$staged_root" "$first_copies"
+
+# ===========================================================================
+# 5. THE MANIFEST'S PARENT EDGE IS THE DOCKERFILE'S FROM
+# ===========================================================================
+# See the note at PARENT_IMAGE_PREFIX for the measured break. The short of it:
+# 2 files state 1 fact, `ctl.sh validate` and `ctl.sh test` were both green with
+# them disagreeing, and the half nobody would ever see is .ci/affected.sh — it
+# walks the MANIFEST edge, so a wrong parent stops rebuilding the child on the
+# commits that really change it and reports "nothing changed" forever.
+#
+# Both directions, because a root and a child fail differently:
+#
+#   a child   its FROM must name ghcr.io/gophersys/<the parent it declares>
+#   a root    its FROM must name NO image of this repository. A root that FROMs
+#             a sibling has a real parent edge the manifest does not know about,
+#             so its input set misses that parent's paths and the same silence
+#             follows from the other side.
+#
+# The TAG is deliberately not compared. A child writes `:${BASE_TAG}`, and which
+# tag that resolves to is the publish job's decision — publish-order.test.sh
+# owns it, and a second reader of it here would be a second policy about it.
+edge_records_status=0
+edge_records=""
+edge_records="$(manifest_yq '.images | to_entries | .[] |
+  [.key, .value.parent, .value.dockerfile, (.value.pins // "")] |
+  join("|")' 2>&1)" || edge_records_status=$?
+
+if [[ "$edge_records_status" -eq 0 && -n "$edge_records" ]]; then
+  pass_check "the_manifest_declares_a_dockerfile_for_every_image"
+else
+  fail_check "the_manifest_declares_a_dockerfile_for_every_image" \
+    "reading key, parent, dockerfile and pins out of ${IMAGES_MANIFEST} exited ${edge_records_status}" \
+    "it printed:" "${edge_records:-<nothing>}" \
+    "sections 5 and 6 below both read these records, and an empty set makes each of them" \
+    "pass over a repository with no images in it at all"
+fi
+
+if [[ "$edge_records_status" -ne 0 || -z "$edge_records" ]]; then
+  fail_check "every_child_dockerfile_FROMs_the_parent_the_manifest_declares" \
+    "unreadable: ${IMAGES_MANIFEST}"
+  fail_check "every_root_dockerfile_FROMs_no_image_of_this_repository" \
+    "unreadable: ${IMAGES_MANIFEST}"
+  fail_check "the_pin_gate_and_the_manifest_agree_on_which_images_read_the_pin_home" \
+    "unreadable: ${IMAGES_MANIFEST}"
+  fail_check "the_generated_job_feeds_the_pin_home_to_exactly_those_images" \
+    "unreadable: ${IMAGES_MANIFEST}"
+else
+  child_defects=""
+  root_defects=""
+  children_seen=0
+  roots_seen=0
+  missing_dockerfiles=""
+
+  while IFS='|' read -r image_name image_parent_name image_dockerfile image_pins; do
+    [[ -z "$image_name" ]] && continue
+    if [[ -z "$image_dockerfile" || ! -f "$REPO_ROOT/$image_dockerfile" ]]; then
+      missing_dockerfiles="${missing_dockerfiles:+${missing_dockerfiles}
+}${image_name}: '${image_dockerfile:-<no dockerfile key>}'"
+      continue
+    fi
+
+    from_reference="$(first_from_reference "$REPO_ROOT/$image_dockerfile")"
+    if [[ -z "$from_reference" ]]; then
+      missing_dockerfiles="${missing_dockerfiles:+${missing_dockerfiles}
+}${image_name}: ${image_dockerfile} declares no FROM line at all"
+      continue
+    fi
+    from_repository="$(reference_repository "$from_reference")"
+
+    if [[ -n "$image_parent_name" ]]; then
+      children_seen=$((children_seen + 1))
+      want_repository="${PARENT_IMAGE_PREFIX}${image_parent_name}"
+      if [[ "$from_repository" != "$want_repository" ]]; then
+        child_defects="${child_defects:+${child_defects}
+}${image_name}: ${IMAGES_MANIFEST} says parent '${image_parent_name}', ${image_dockerfile} says FROM ${from_reference}
+    want repository: ${want_repository}
+    got  repository: ${from_repository}"
+      fi
+    else
+      roots_seen=$((roots_seen + 1))
+      case "$from_repository" in
+        "${PARENT_IMAGE_PREFIX}"*)
+          root_defects="${root_defects:+${root_defects}
+}${image_name}: ${IMAGES_MANIFEST} declares no parent, and ${image_dockerfile} says FROM ${from_reference}"
+          ;;
+      esac
+    fi
+  done <<< "$edge_records"
+
+  if [[ -n "$missing_dockerfiles" ]]; then
+    fail_check "the_manifest_declares_a_dockerfile_for_every_image" \
+      "these entries name a dockerfile this repository cannot read, or one with no FROM:" \
+      "$missing_dockerfiles" \
+      "the 2 rules below read the FROM line of each one, and a file they cannot open is a" \
+      "rule that quietly judges nothing"
+  fi
+
+  # THE LIVENESS CLAUSES. A manifest with no child satisfies the child rule
+  # trivially, and one with no root satisfies the root rule the same way. Each
+  # rule therefore says how many entries it really judged.
+  if [[ "$children_seen" -ge 1 ]]; then
+    if [[ -z "$child_defects" ]]; then
+      pass_check "every_child_dockerfile_FROMs_the_parent_the_manifest_declares"
+    else
+      fail_check "every_child_dockerfile_FROMs_the_parent_the_manifest_declares" \
+        "$child_defects" \
+        "the manifest edge and the FROM line are 1 fact in 2 files, and nothing else compares them" \
+        "the LOUD half of a disagreement is a build that FROMs the wrong layer; the SILENT half is" \
+        ".ci/affected.sh, which walks the MANIFEST edge — so the child stops rebuilding on the" \
+        "commits that change its real parent, and every run stays green while the layer goes stale"
+    fi
+  else
+    fail_check "every_child_dockerfile_FROMs_the_parent_the_manifest_declares" \
+      "no entry of ${IMAGES_MANIFEST} declares a parent, so this rule judged 0 images" \
+      "either every image FROMs ubuntu now — an image-architecture change and not a manifest edit —" \
+      "or the parent field stopped being read, and this rule would be green over a graph with no edges"
+  fi
+
+  if [[ "$roots_seen" -ge 1 ]]; then
+    if [[ -z "$root_defects" ]]; then
+      pass_check "every_root_dockerfile_FROMs_no_image_of_this_repository"
+    else
+      fail_check "every_root_dockerfile_FROMs_no_image_of_this_repository" \
+        "$root_defects" \
+        "a root that FROMs a sibling has a parent edge the manifest does not declare, so its input" \
+        "set misses that parent's paths and it stops rebuilding when the layer under it moves"
+    fi
+  else
+    fail_check "every_root_dockerfile_FROMs_no_image_of_this_repository" \
+      "no entry of ${IMAGES_MANIFEST} is a root, so this rule judged 0 images" \
+      "every image having a parent is a cycle or a manifest that lost its roots, and this rule" \
+      "would be green over either"
+  fi
+
+  # =========================================================================
+  # 6. THE PIN HOME IS FED WHERE THE GATE ASKS FOR IT
+  # =========================================================================
+  # An image's build is fed versions.env when it is a ROOT (the older rule the
+  # `pins` key kept) or when it declares `pins: versions.env`. Its Dockerfile
+  # asks to be fed when it carries the `:?not in versions.env` gate. Those 2
+  # statements must be the same set, and they are checked as a BICONDITIONAL
+  # because each direction is a different live defect:
+  #
+  #   gate and not fed   every value-less ARG expands to the empty string. The
+  #                      build dies at the gate, in CI, after the merge — which
+  #                      is the measured break: dropping hardware's `pins` key
+  #                      leaves both gates green.
+  #   fed and not gated  the generated job carries a versions step whose output
+  #                      nothing validates. An unfed pin is then silent again,
+  #                      which is the exact condition the gate exists to end.
+  #
+  # `pins` is compared against the literal PIN_HOME rather than merely being
+  # non-empty: a key naming some other file is a home this rule knows nothing
+  # about, and it must be read as red rather than as "fed".
+  pin_defects=""
+  generated_defects=""
+  fed_seen=0
+  gated_seen=0
+
+  while IFS='|' read -r image_name image_parent_name image_dockerfile image_pins; do
+    [[ -z "$image_name" ]] && continue
+    [[ -f "$REPO_ROOT/$image_dockerfile" ]] || continue
+
+    fed="no"
+    if [[ -z "$image_parent_name" ]]; then
+      fed="yes"
+    elif [[ "$image_pins" == "$PIN_HOME" ]]; then
+      fed="yes"
+    fi
+    [[ "$fed" == "yes" ]] && fed_seen=$((fed_seen + 1))
+
+    gated="no"
+    if grep -qF -- "$PIN_GATE_TOKEN" "$REPO_ROOT/$image_dockerfile"; then
+      gated="yes"
+      gated_seen=$((gated_seen + 1))
+    fi
+
+    if [[ "$fed" != "$gated" ]]; then
+      if [[ "$gated" == "yes" ]]; then
+        pin_defects="${pin_defects:+${pin_defects}
+}${image_name}: ${image_dockerfile} carries the '${PIN_GATE_TOKEN}' gate and the manifest does not feed it
+    it declares parent '${image_parent_name:-<none>}' and pins '${image_pins:-<no pins key>}'
+    a child whose ARGs are value-less needs 'pins: ${PIN_HOME}'; without it every pin reaches the build empty"
+      else
+        pin_defects="${pin_defects:+${pin_defects}
+}${image_name}: the manifest feeds it ${PIN_HOME} and ${image_dockerfile} carries no gate
+    it declares parent '${image_parent_name:-<none>}' and pins '${image_pins:-<no pins key>}'
+    an unfed pin is silent again — either add the gate, or drop the pins key"
+      fi
+    fi
+
+    # The other end of the same fact: the GENERATED job. The manifest says an
+    # image is fed; this is whether the file the generator wrote really carries
+    # the build-arg wiring, in the job that builds it.
+    block="$(job_block "$REPO_ROOT/$GENERATED_WORKFLOW" "$image_name")"
+    if [[ -z "$block" ]]; then
+      generated_defects="${generated_defects:+${generated_defects}
+}${image_name}: ${GENERATED_WORKFLOW} declares no job by that name, so nothing here judged it"
+      continue
+    fi
+    carries="no"
+    if grep -qF -- "$VERSIONS_ARGS_REFERENCE" <<< "$block"; then
+      carries="yes"
+    fi
+    if [[ "$fed" != "$carries" ]]; then
+      generated_defects="${generated_defects:+${generated_defects}
+}${image_name}: the manifest feeds it ${PIN_HOME}=${fed}, and its generated job carries '${VERSIONS_ARGS_REFERENCE}'=${carries}"
+    fi
+  done <<< "$edge_records"
+
+  if [[ "$fed_seen" -lt 1 || "$gated_seen" -lt 1 ]]; then
+    fail_check "the_pin_gate_and_the_manifest_agree_on_which_images_read_the_pin_home" \
+      "this rule judged ${fed_seen} fed images and ${gated_seen} gated Dockerfiles" \
+      "0 on either side makes the comparison vacuous: with nothing fed, every ungated file agrees," \
+      "and with nothing gated the reader has stopped matching the gate rather than found a clean tree"
+  elif [[ -z "$pin_defects" ]]; then
+    pass_check "the_pin_gate_and_the_manifest_agree_on_which_images_read_the_pin_home"
+  else
+    fail_check "the_pin_gate_and_the_manifest_agree_on_which_images_read_the_pin_home" \
+      "$pin_defects" \
+      "the manifest's pins key and the Dockerfile's pin gate are 1 fact in 2 files" \
+      "both gates are green while they disagree, and the build dies in the publish job on main"
+  fi
+
+  if [[ -z "$generated_defects" ]]; then
+    pass_check "the_generated_job_feeds_the_pin_home_to_exactly_those_images"
+  else
+    fail_check "the_generated_job_feeds_the_pin_home_to_exactly_those_images" \
+      "$generated_defects" \
+      "${GENERATED_WORKFLOW} is what CI really runs, so this is the end of the chain the pins key" \
+      "starts — a manifest that says fed and a job that carries no build-arg wiring is a pin home" \
+      "nothing reads, and the Dockerfile gate is what finally reports it, 20 minutes into a publish"
+  fi
+fi
 
 test_summary "$TEST_NAME"

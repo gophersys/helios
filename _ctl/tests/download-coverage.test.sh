@@ -174,6 +174,40 @@ GOVERNED_DOCKERFILES=(
   "cloud/Dockerfile"
 )
 
+# ===========================================================================
+# THE DOCKERFILES THIS RULE DELIBERATELY DOES NOT GOVERN, AND WHY
+# ===========================================================================
+#
+# A rule that governs 5 of 6 files is a rule with a hole in it, unless the 6th
+# is a DECISION somebody wrote down. `hardware/Dockerfile` is that decision, and
+# it is recorded here the way the exemption FILE records one — a class, a reason
+# and a check — rather than by being absent from a list nobody reads.
+#
+# The reason: it performs ZERO URL fetches. Its 2 install layers are
+# `add-apt-repository` + `apt-get install` and `pip3 install`, and both are in
+# the "out of scope" list at the top of this file: apt is covered by the
+# repository signature over the Release file, and pip by PyPI. The KiCad PPA's
+# signing key is fetched by add-apt-repository itself and then SIGNS that
+# Release file, so the packages ride apt's own chain — there is no URL written
+# in this file for a digest or an exemption row to answer.
+#
+# An empty answer is exactly what a broken reader also produces, which is why
+# the exemption is CHECKED rather than stated. The rule below reads the same
+# fetch_sites this file reads its governed files with, and demands that it find
+# NOTHING here. Add a `curl` to hardware/Dockerfile tomorrow and the file stops
+# being exempt: the check goes red naming the fetch, instead of the download
+# living in the 1 Dockerfile no coverage rule opens.
+#
+# It is a LIST and not a single path because the decision generalises: an image
+# whose whole install surface is apt and pip belongs here, and one that fetches
+# a tarball belongs in GOVERNED_DOCKERFILES. The check under section 2 holds the
+# 2 lists to the set of Dockerfiles that really exist, so a 7th image can land
+# in neither only by turning that check red.
+UNGOVERNED_DOCKERFILES=(
+  "hardware/Dockerfile"
+)
+UNGOVERNED_REASON="every install is apt or pip, which this rule states are out of its scope"
+
 COMPONENT_DIRECTORY="_delta/components"
 GOVERNED_COMPONENTS=(
   "agents.sh"
@@ -1292,6 +1326,14 @@ for relative in "${GOVERNED_COMPONENTS[@]}"; do
     || missing_governed="${missing_governed:+${missing_governed}
 }${COMPONENT_DIRECTORY}/${relative}"
 done
+# The exempt list is held to the same question, and for a sharper reason: every
+# rule about an exempt file asks it to hold NOTHING, and a path that does not
+# exist holds nothing too. An exemption naming a deleted file would pass forever
+# while covering a file that is not there.
+for relative in "${UNGOVERNED_DOCKERFILES[@]}"; do
+  [[ -f "$REPO_ROOT/$relative" ]] || missing_governed="${missing_governed:+${missing_governed}
+}${relative}"
+done
 if [[ -n "$missing_governed" ]]; then
   fail_check "every_governed_file_exists" \
     "the file list in this test is stale; these are named but absent:" \
@@ -1299,6 +1341,28 @@ if [[ -n "$missing_governed" ]]; then
 else
   pass_check "every_governed_file_exists"
 fi
+
+# The mirror the Dockerfile half never had. The component list has one — a
+# literal against the directory glob — and the Dockerfiles had a literal alone,
+# so an image added tomorrow could sit in NEITHER list and every rule in this
+# file would narrow silently. That is the failure this file's own header names
+# one layer up, and the failure `VALUE_HOMES` above already shipped once.
+#
+# Governed + exempt = every `<image>/Dockerfile` of the repository. A new image
+# forces its author to choose which one it is, and neither answer can be
+# silence.
+all_dockerfiles=""
+for path in "$REPO_ROOT"/*/Dockerfile; do
+  [[ -f "$path" ]] || continue
+  all_dockerfiles="${all_dockerfiles:+${all_dockerfiles}
+}$(basename "$(dirname "$path")")/Dockerfile"
+done
+assert_equal "every_dockerfile_is_governed_or_exempt" \
+  "$(joined "${GOVERNED_DOCKERFILES[@]}" "${UNGOVERNED_DOCKERFILES[@]}")" \
+  "$(printf '%s\n' "$all_dockerfiles" | sort)" \
+  "either an image was added, renamed or deleted — GOVERNED_DOCKERFILES is the list you edit," \
+  "and UNGOVERNED_DOCKERFILES is where a Dockerfile that fetches nothing goes, with its reason —" \
+  "or the glob in this test stopped matching, which would leave a downloading file unread"
 
 # The same 2 questions asked of VALUE_HOMES, and they are 2 and not 1. Every
 # rule below that takes VALUE_HOMES reads it through `declared_digest_names`,
@@ -1384,6 +1448,28 @@ for relative in "${GOVERNED_COMPONENTS[@]}"; do
   [[ -z "$file_sites" ]] && continue
   ALL_SITES="${ALL_SITES:+${ALL_SITES}
 }${file_sites}"
+done
+
+# The exemption, CHECKED. The mirror image of the rule above it: a governed file
+# that fetches nothing is a reader that stopped matching, and an EXEMPT file that
+# fetches anything is a download in the 1 Dockerfile no coverage rule opens.
+#
+# The same reader answers both, so the exemption cannot outlive its reason. It is
+# stated as "this file performs no URL fetch", which is a property of the file
+# and not of anybody's memory of it — and the day somebody adds a curl here it
+# stops being true, loudly, at pull request time.
+for relative in "${UNGOVERNED_DOCKERFILES[@]}"; do
+  [[ -f "$REPO_ROOT/$relative" ]] || continue
+  file_sites="$(fetch_sites "$relative" "$REPO_ROOT/$relative")"
+  if [[ -z "$file_sites" ]]; then
+    pass_check "${relative}_fetches_no_url_and_is_exempt"
+  else
+    fail_check "${relative}_fetches_no_url_and_is_exempt" \
+      "${relative} is in UNGOVERNED_DOCKERFILES because ${UNGOVERNED_REASON}," \
+      "and it now performs these fetches, which no digest and no exemption row answers:" \
+      "$file_sites" \
+      "move it to GOVERNED_DOCKERFILES and answer every fetch there, or take the download out"
+  fi
 done
 
 ALL_SITE_KEYS="$(site_keys "$ALL_SITES")"

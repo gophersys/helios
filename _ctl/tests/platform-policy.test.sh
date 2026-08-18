@@ -71,15 +71,25 @@ SANCTIONED="linux/amd64,linux/arm64"
 # is a literal: reading images.yaml here would make this file agree with any
 # manifest, including one that had silently dropped an architecture.
 #
-# 4 of the 5 declare no `platforms` key and take the sanctioned set. flutter
+# 5 of the 6 declare no `platforms` key and take the sanctioned set. flutter
 # declares linux/amd64 and the manifest carries the measurement beside the key:
 # Flutter publishes no linux-arm64 SDK at any version.
+#
+# `hardware` takes the sanctioned set, and that is a MEASURED answer rather than
+# the default falling through unexamined. The 4 packages its whole reason to
+# exist installs — kicad, kicad-symbols, kicad-footprints, kicad-packages3d —
+# were read on Launchpad at the pinned major and are Published for BOTH
+# ubuntu/noble/amd64 and ubuntu/noble/arm64; the citation sits beside
+# KICAD_PPA_VERSION in versions.env. An image whose upstream served 1
+# architecture would need a narrowing key with its own measurement, the way
+# flutter has one.
 IMAGE_PLATFORM_TABLE=(
   "base|linux/amd64,linux/arm64"
   "flutter|linux/amd64"
   "zephyr|linux/amd64,linux/arm64"
   "zephyr-devbox|linux/amd64,linux/arm64"
   "cloud|linux/amd64,linux/arm64"
+  "hardware|linux/amd64,linux/arm64"
 )
 
 # The 1 image the table says is narrower than the sanctioned set. It is named
@@ -111,6 +121,7 @@ BUILD_PATH_FILES=(
   "zephyr/ctl.sh"
   "zephyr-devbox/ctl.sh"
   "zephyr-devbox/devbox-entrypoint.sh"
+  "hardware/ctl.sh"
   ".ci/ctl.sh"
   ".ci/smoke.sh"
   ".ci/buildx-node.sh"
@@ -123,6 +134,7 @@ BUILD_PATH_FILES=(
   "flutter/project.json"
   "zephyr/project.json"
   "zephyr-devbox/project.json"
+  "hardware/project.json"
   ".ci/project.json"
 )
 
@@ -314,6 +326,74 @@ else
 fi
 
 # -------- 2. each image publishes the set the policy gives it --------
+#
+# ============================================================================
+# 2a. THE TABLE IS THE WHOLE IMAGE SET — THE CLAUSE THAT WAS MISSING
+# ============================================================================
+#
+# The per-image rule below loops the TABLE. So an image with no row here is
+# asserted by NOTHING, and the file stays green while its coverage shrinks —
+# which is not a hypothetical: `hardware` landed with the manifest, the loop
+# read 5 rows, and nothing in this file could say that a 6th image had started
+# publishing to 2 architectures unwatched.
+#
+# The remedy is NOT to loop the manifest. That would make this file agree with
+# any manifest, a wrong one included, which is the reason the table is a literal
+# at all. The remedy is SET EQUALITY between the literal and the manifest, in
+# BOTH directions — the pattern publish-order.test.sh applies to
+# PUBLISHED_IMAGES, and for the same reason:
+#
+#   an image in the manifest and not in this table   publishes with no platform
+#                                                    policy watching it
+#   a row here naming no image of the manifest       is a policy this file goes
+#                                                    on asserting about an image
+#                                                    that was deleted
+#
+# Adding an image is therefore an images.yaml entry plus a row here, in 1
+# change, and neither half can be forgotten quietly.
+#
+# WHICH READER. manifest_yq from _ctl/lib.sh — its RESOLUTION only, with the
+# EXPRESSION written here, exactly as publish-order.test.sh does it. The
+# accessor `image_names` is deliberately not used: it also enforces the
+# topological order of the document, so a manifest that wrote a child above its
+# parent would fail HERE, naming a platform rule, about an ordering defect that
+# images-manifest.test.sh owns and reports properly.
+manifest_status=0
+manifest_names=""
+manifest_names="$(manifest_yq '.images | keys | .[]' 2>&1)" || manifest_status=$?
+
+# The liveness clause comes first, because the equality below reads this value:
+# an unreadable manifest would otherwise compare the table against an empty set
+# and report the WRONG defect — 6 rows that name no image — while the real fault
+# is that nothing could open the file.
+if [[ "$manifest_status" -eq 0 && -n "$manifest_names" ]]; then
+  pass_check "the_image_manifest_is_readable"
+else
+  fail_check "the_image_manifest_is_readable" \
+    "reading the image keys of ${IMAGES_MANIFEST} exited ${manifest_status}" \
+    "it printed:" "${manifest_names:-<nothing>}" \
+    "the manifest is the ONE declaration of the image set, so the equality below cannot be" \
+    "answered without it — and an empty set would agree with a repository that has no images"
+fi
+
+if [[ "$manifest_status" -ne 0 || -z "$manifest_names" ]]; then
+  fail_check "the_platform_table_names_exactly_the_manifest_images" \
+    "unreadable: ${IMAGES_MANIFEST}"
+else
+  table_names=""
+  for row in "${IMAGE_PLATFORM_TABLE[@]}"; do
+    table_names="${table_names:+${table_names}
+}${row%%|*}"
+  done
+  assert_equal "the_platform_table_names_exactly_the_manifest_images" \
+    "$(sort <<< "$manifest_names")" \
+    "$(sort <<< "$table_names")" \
+    "${IMAGES_MANIFEST} is the ONE declaration of the image set, and IMAGE_PLATFORM_TABLE is" \
+    "the hand-kept policy it owes set equality to — edit both in the same change" \
+    "the per-image rule below loops the TABLE, so an image missing from it is an image whose" \
+    "published architectures this file asserts nothing about, silently and in green"
+fi
+
 # THE LIVENESS CLAUSE first. If every row of the table equalled the sanctioned
 # set, the rule below would pass over a manifest in which the `platforms`
 # mechanism had stopped being read at all — every image would take the default

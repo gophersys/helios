@@ -34,9 +34,9 @@
 # Anything TRUE OF EVERY JOB is in this file: the step order, the gate on
 # `steps.filter.outputs.build`, the smoke-before-push order, the cache refs, the
 # timeout, the runner. Anything true of ONE image is in images.yaml — its
-# parent, its context, its dockerfile, its smoke ref, and the prose its job
-# carries. That split is what stops a per-image edit from reaching a shared
-# step, which is the drift the 5 copies allowed.
+# parent, its context, its dockerfile, its smoke ref, its pin home, and the
+# prose its job carries. That split is what stops a per-image edit from reaching
+# a shared step, which is the drift the 5 copies allowed.
 #
 # The comments are LOAD-BEARING and are reproduced, not dropped. A generator
 # that emits bare YAML would delete the measurements this repository writes
@@ -100,7 +100,7 @@ REHEARSAL_GATE="\${{ steps.filter.outputs.build == 'true' && inputs.mode == 'reh
 
 # The prose of each job, as a stream of `<<<image/key>>>` blocks. Read once, for
 # the reason image_records gives: on the container route each parse is a docker
-# run, and this generator asks about 5 images.
+# run, and this generator asks about 6 images.
 _NOTES=""
 _NOTES_LOADED=""
 
@@ -367,29 +367,57 @@ JOB_LOGIN
   printf '        if: %s\n' "$BUILD_GATE"
   printf '        run: bash .ci/buildx-node.sh\n'
 
-  # A root image feeds every pin of versions.env in as a generated --build-arg;
-  # a child feeds in the 1 tag it FROMs. Those are the same rule seen from the 2
-  # ends of the graph: an image takes the pins it declares and the parent it has.
-  local build_args_block
-  if [[ -z "$parent" ]]; then
-    printf '      - name: generate the build args from versions.env\n'
+  # An image feeds in the pins of its pin home, the 1 tag it FROMs, or both.
+  # Those are 1 rule seen from the 2 ends of the graph: an image takes the pins
+  # it reads and the parent it has, and the 2 are independent.
+  #
+  # The DEFAULT is the rule that stood here before the `pins` key existed: an
+  # image with no parent reads versions.env. It is written out rather than left
+  # implicit, because a root image declaring `pins` explicitly must produce the
+  # same job — the key is an addition to the manifest's vocabulary and not a new
+  # requirement on the 2 images that were already correct.
+  local pin_home build_args_block
+  pin_home="$(image_pins "$name")" || return 1
+  if [[ -z "$pin_home" && -z "$parent" ]]; then
+    pin_home="versions.env"
+  fi
+
+  if [[ -n "$pin_home" ]]; then
+    printf '      - name: generate the build args from %s\n' "$pin_home"
     printf '        # The one-home rule reaching CI: one --build-arg per pin line, the same\n'
     printf '        # list `%s/ctl.sh` generates locally. The Dockerfile'"'"'s pin gate fails\n' "$name"
     printf '        # the build naming any pin this step failed to carry.\n'
     printf '        if: %s\n' "$BUILD_GATE"
-    cat <<'JOB_VERSIONS'
+    cat <<'JOB_VERSIONS_HEAD'
         id: versions
         run: |
           {
             echo 'args<<VERSIONS_EOF'
-            sed -e 's/#.*$//' -e 's/[[:space:]]*$//' -e '/^$/d' versions.env
+JOB_VERSIONS_HEAD
+    # The pin home is the only variable part of the reader, so it is the only
+    # part printf writes. `\$` keeps the sed anchors out of the shell.
+    printf "            sed -e 's/#.*\$//' -e 's/[[:space:]]*\$//' -e '/^\$/d' %s\n" "$pin_home"
+    cat <<'JOB_VERSIONS_TAIL'
             echo 'VERSIONS_EOF'
           } >> "$GITHUB_OUTPUT"
-JOB_VERSIONS
-    build_args_block='          build-args: ${{ steps.versions.outputs.args }}'
-  else
+JOB_VERSIONS_TAIL
+  fi
+
+  # A child that also reads a pin home carries BOTH, and the pins go BELOW the
+  # tag: the expression expands to a multi-line string after the YAML is parsed,
+  # so anything written under it would land inside that expansion.
+  build_args_block=""
+  if [[ -n "$parent" ]]; then
     build_args_block='          build-args: |
             BASE_TAG=${{ env.BASE_TAG }}'
+  fi
+  if [[ -n "$pin_home" ]]; then
+    if [[ -n "$build_args_block" ]]; then
+      build_args_block="${build_args_block}
+            \${{ steps.versions.outputs.args }}"
+    else
+      build_args_block='          build-args: ${{ steps.versions.outputs.args }}'
+    fi
   fi
 
   cat <<'JOB_BUILD_HEAD'

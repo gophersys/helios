@@ -1257,6 +1257,7 @@ PUBLISHED_IMAGES=(
   "zephyr"
   "zephyr-devbox"
   "cloud"
+  "hardware"
 )
 
 # WHICH READER, AND WHY. The rows below are read with manifest_yq from

@@ -35,7 +35,7 @@
 # Scope, deliberately narrow: only PIN-SHAPED names are checked (*_VERSION,
 # *_REF, *_CHANNEL and *_SHA256_<ARCH>). Those are the names the convention
 # governs, and they are never shell locals or inherited ENV, so the rule holds
-# with ZERO exceptions across all 5 Dockerfiles — no allowlist. A wider rule
+# with ZERO exceptions across all 6 Dockerfiles — no allowlist. A wider rule
 # needs one, and 2 references measured on 2026-08-17 are why:
 # ${VERSION_CODENAME} comes from `. /etc/os-release` inside the RUN line that
 # uses it (base/Dockerfile:654, cloud/Dockerfile:573, declared by no ARG in
@@ -101,12 +101,20 @@ TEST_NAME="dockerfile-args.test.sh"
 # Every Dockerfile the repository builds. Named file by file rather than found by
 # a glob, for the reason platform-policy.test.sh names its list: a glob that
 # stops matching leaves a green result that read nothing.
+#
+# BOTH DIRECTIONS APPLY TO A VALUE-LESS FILE TOO, and hardware/Dockerfile is the
+# 3rd of them beside base and cloud. `ARG KIUTILS_VERSION` with no value is still
+# a DECLARATION and `${KIUTILS_VERSION}` is still a REFERENCE, so a rename that
+# drops either half is exactly as invisible here as it is in a file that spells
+# its own values — more so, because the value arrives from versions.env and a
+# reader of this file alone cannot see what it was meant to be.
 DOCKERFILES=(
   "base/Dockerfile"
   "flutter/Dockerfile"
   "zephyr/Dockerfile"
   "zephyr-devbox/Dockerfile"
   "cloud/Dockerfile"
+  "hardware/Dockerfile"
 )
 
 # The counter-stimulus. A detector that has only ever seen correct input has
