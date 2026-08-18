@@ -150,6 +150,10 @@ or removes `apps/embedded/envs/<name>/`. The `zephyr-envs` ApplicationSet deploy
 or prunes on merge. Name validation is safe against path traversal. The manager
 is gated by a token: with no token it is read-only and returns 503. Live wiring:
 the `workspaces-github` bot-PAT Secret (optional, `docs/runtime-secrets.md`).
+**2026-08-18: the managed surface was removed** — Mateo retired the devboxes and
+the whole `embedded-lab` stack, so the mechanism this entry records no longer
+has a target. The workspaces app itself stays deployed pending Mateo's
+remove-or-repurpose call.
 Creating the PAT is a one-time step in the GitHub UI, and it is the only part
 that no headless process can do. VERIFIED: the new binary is live (it logs
 `gitops env management disabled … 503`, so the token gate works).

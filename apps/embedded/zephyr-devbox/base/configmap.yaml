@@ -1,9 +1,0 @@
-# SSH authorized keys for the devbox. The base ships an EMPTY placeholder on
-# purpose — every env overlay MUST patch data.authorized_keys with the real
-# public key(s). Keys are public material, so keeping them in git is fine.
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: zephyr-devbox-authorized-keys
-data:
-  authorized_keys: ""

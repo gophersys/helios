@@ -11,8 +11,7 @@ schedule.
 
 - **local-path**, the k3s default. It gives node-local volumes for data that you
   can download again, or that is already pinned to a node. The whole `media`
-  stack and the whole `embedded-lab` stack use it deliberately. If a node is
-  lost, the data is pulled again.
+  stack uses it deliberately. If a node is lost, the data is pulled again.
 - **Longhorn v1.12.0**. It gives replicated storage with 3 replicas, for a volume
   that must survive the loss of a node. `observability` uses it for grafana,
   prometheus, loki and tempo. It is installed from the **raw upstream manifests

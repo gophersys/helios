@@ -3,8 +3,8 @@
 # Greenfield install (no prior Tailscale components in-cluster). Services opt in
 # with `type: LoadBalancer` + `loadBalancerClass: tailscale` + a
 # `tailscale.com/hostname` annotation; the operator spins up a per-Service proxy
-# pod that joins the tailnet under that MagicDNS name. First consumer: the
-# Zephyr embedded dev environments (app-zephyr-envs.yaml).
+# pod that joins the tailnet under that MagicDNS name. (Its first consumer, the
+# Zephyr devboxes, was removed 2026-08-18; no Service opts in today.)
 #
 # BOOTSTRAP SECRET (NOT in git — ESO/Vaultwarden bridge is down, so imperative,
 # same pattern as media/gluetun-wireguard): the operator needs Secret

@@ -40,16 +40,6 @@ jobs:
       - name: kubeconform floor — fixture tests
         run: bash scripts/test-lint-manifests.sh
 
-      - name: kubeconform — kustomize overlays
-        run: |
-          set -euo pipefail
-          # The two env overlays died with the devbox tear-down (PR #191);
-          # the base follows in the scaffolding-removal PR, taking this
-          # whole step with it.
-          for d in apps/embedded/zephyr-devbox/base; do
-            echo "== $d =="; kubectl kustomize "$d" | kubeconform -strict -ignore-missing-schemas -summary
-          done
-
       - name: Argo registry paths resolve
         run: bash scripts/verify-registry-paths.sh
 
