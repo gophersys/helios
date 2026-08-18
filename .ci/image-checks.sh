@@ -32,6 +32,10 @@
 #                  alone, which is how the pull request gate runs this file; the
 #                  host driver always names its groups, and refuses an image it
 #                  has no group list for.
+#   SMOKE_IMAGE    the image the driver was asked about. GOPHERSYS_DEVCONTAINER
+#                  must equal it. Empty means no marker check, which is how the
+#                  pull request gate runs this file; the host driver always sends
+#                  it, because it took the name from its own argv.
 #   SMOKE_FIXTURE_DIR  where the driver wrote the embedded fixtures. A group that
 #                  needs them FAILS naming the file it could not find.
 #
@@ -219,6 +223,31 @@ function absence_of() {
     return 0
   fi
   say "ok   ${pin}: ${binary} is absent"
+}
+
+# Every image of this repository exports GOPHERSYS_DEVCONTAINER=<its own name>,
+# so a development script and a project CI job can detect which image they run
+# inside. This is the check that the marker says what the driver was asked
+# about.
+#
+# It is a check of its own and not a line in a content group, because it is true
+# of EVERY image while a content group belongs to one. Written into
+# checks_content_cloud it asserted the literal `cloud`, which meant 4 of the 6
+# images asserted no marker at all, and the first image to inherit that group
+# would have had to lie about its own name to pass.
+#
+# Empty SMOKE_IMAGE means no marker check, the way an empty ABSENT_TABLE means
+# no absence check: that is how the pull request gate runs this file, with no
+# image at all. The host driver always sends it.
+function run_devcontainer_marker() {
+  if [[ -z "${SMOKE_IMAGE:-}" ]]; then
+    return 0
+  fi
+  if [[ "${GOPHERSYS_DEVCONTAINER:-}" != "$SMOKE_IMAGE" ]]; then
+    fail "GOPHERSYS_DEVCONTAINER is '${GOPHERSYS_DEVCONTAINER:-}', and the driver smoked '${SMOKE_IMAGE}'"
+    return 0
+  fi
+  say "ok   GOPHERSYS_DEVCONTAINER = ${SMOKE_IMAGE}"
 }
 
 # The negative half of the classification. `not-in-this-image` was an assertion
@@ -439,11 +468,11 @@ function checks_content_base() {
 function checks_content_cloud() {
   say "--- cloud content ---"
   say "architecture: $(uname -m)"
-  if [[ "${GOPHERSYS_DEVCONTAINER:-}" != "cloud" ]]; then
-    fail "GOPHERSYS_DEVCONTAINER is '${GOPHERSYS_DEVCONTAINER:-}', want 'cloud'"
-  else
-    say "ok   GOPHERSYS_DEVCONTAINER = cloud"
-  fi
+  # The GOPHERSYS_DEVCONTAINER assertion left this group and is
+  # run_devcontainer_marker below, which every image runs. It was written here
+  # as the literal `cloud`, and `hardware` builds FROM cloud and takes this
+  # group — so the check would have demanded that a hardware image call itself
+  # cloud, which is the one thing the marker exists to make impossible.
   # The gate-tools layer measured 2.06 GB in base because the RUN never removed
   # the module and build caches. The cleanup is MANDATORY in cloud, and a green
   # smoke on an image that silently kept them would bless the exact regression.
@@ -498,6 +527,58 @@ function checks_content_flutter() {
 function checks_content_zephyr() {
   say "--- zephyr content ---"
   run_step "west" west --version
+}
+
+# kicad_library_floor <label> <directory> <pattern> <floor> — the KiCad share
+# tree holds at least <floor> files of that shape.
+#
+# The directory is tested BEFORE find runs, so an absent package is reported as
+# an absent package. `find ... 2>/dev/null | wc -l` would answer 0 for it and the
+# reader would be told the library is thin when it is not there at all.
+#
+# A FLOOR and never an equality: the libraries grow with every KiCad release, so
+# an equality would go red on a bump that added a footprint.
+function kicad_library_floor() {
+  local label="$1" directory="$2" pattern="$3" floor="$4"
+  if [[ ! -d "$directory" ]]; then
+    fail "${label}: ${directory} is not in this image, so its package did not install"
+    return 0
+  fi
+  local count="" status=0
+  count="$(find "$directory" -name "$pattern" | wc -l | tr -d ' ')" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    fail "${label}: counting ${pattern} under ${directory} exited ${status}"
+    return 0
+  fi
+  if [[ "$count" -lt "$floor" ]]; then
+    fail "${label}: ${count} files under ${directory}, and the floor is ${floor}"
+    return 0
+  fi
+  say "ok   ${label}: ${count} (floor ${floor})"
+}
+
+# The KiCad toolchain, and the 3 floors are the whole point of the group.
+#
+# `kicad` does NOT pull the symbol, footprint and 3D-model packages in under
+# --no-install-recommends. Without them /usr/share/kicad EXISTS and is empty, so
+# an image with kicad-cli passes every presence check and then fails the
+# consumer's entire resolver suite at runtime on `assert 0 > 10000` — which
+# reads like a code bug rather than a missing package. The 3 numbers are
+# gophersys/research-hardware's own, from the assertion at the foot of its
+# ci/Dockerfile.
+#
+# The VERSION is deliberately not compared here: KICAD_PPA_VERSION is an
+# `asserted` row of the driver's table, which holds `kicad-cli version` against
+# the pin. What this step adds is that the binary RUNS AT ALL — kicad ships as a
+# GUI package and a headless invocation is the thing this image exists to
+# provide, so "it executes" and "it is the pinned major" are 2 questions and each
+# is asked once.
+function checks_content_hardware() {
+  say "--- hardware content ---"
+  run_step "kicad-cli" kicad-cli version
+  kicad_library_floor "kicad footprints" /usr/share/kicad/footprints '*.kicad_mod' 10000
+  kicad_library_floor "kicad symbol libraries" /usr/share/kicad/symbols '*.kicad_sym' 100
+  kicad_library_floor "kicad STEP models" /usr/share/kicad/3dmodels '*.step' 1000
 }
 
 # sdk_toolchain_gcc <name> — the gcc of a Zephyr SDK toolchain, wherever this
@@ -584,6 +665,7 @@ function run_functional_groups() {
       content-flutter) checks_content_flutter ;;
       content-zephyr) checks_content_zephyr ;;
       content-devbox) checks_content_devbox ;;
+      content-hardware) checks_content_hardware ;;
       *) fail "unknown check group: '${group}' — .ci/smoke.sh named a group this file does not have" ;;
     esac
   done
@@ -608,6 +690,7 @@ function order_groups() {
 SMOKE_CHECKS="$(order_groups)"
 
 run_comparator
+run_devcontainer_marker
 # Before the functional groups, and for the reason the content groups run before
 # them: a Go build writes caches and a check group could install nothing, but the
 # absence claim is about the image AS BUILT, and the earliest reading is the

@@ -362,11 +362,22 @@ function manifest_yq() {
 
 # The flat form of the manifest, 1 record per image in document order:
 #
-#   <name>|<parent>|<context>|<dockerfile>|<smoke_ref>|<paths>|<groups>|<platforms>
+#   <name>|<parent>|<context>|<dockerfile>|<smoke_ref>|<paths>|<groups>|<platforms>|<pins>|<size_budget_gb>
 #
-# where the last 3 fields are space-joined lists. The `|` grammar is the one
+# where fields 6, 7 and 8 are space-joined lists. The `|` grammar is the one
 # _build/upstreams.txt and .ci/smoke.sh's class tables already use, and no field
 # of this manifest can hold the character.
+#
+# The last 3 fields are OPTIONAL keys and are the empty string when the manifest
+# declares none. Each accessor below states what an empty answer MEANS, because
+# for all 3 of them "absent" is a decision and not a hole.
+#
+# READ THE POSITION OUT OF THIS LINE AND NEVER OUT OF MEMORY. The 3 optional
+# fields arrived on 2 branches that were written in parallel, and each one took
+# field 8 while it was alone. A merge that keeps both accessor blocks without
+# renumbering is SILENT: image_pins would return a platform list, and
+# _ctl/generate.sh would emit `sed ... linux/amd64` as the pin home — a file
+# name that exists nowhere, caught only when a publish job runs.
 #
 # Read ONCE per process and cached. Every accessor below answers out of the
 # cache, so a script that asks about all 5 images spends 1 parse and not 30 —
@@ -384,10 +395,11 @@ function image_records() {
   # so the status is read explicitly here — the trap _build/resolve-upstream.sh
   # documents, where a failed read returned an empty string that was then
   # reported as an answer.
-  # `.value.platforms // []` and not `.value.platforms`: the key is OPTIONAL, an
-  # absent one is null, and `null | join(" ")` would take the whole read down
-  # for the 4 images that correctly declare nothing.
-  records="$(manifest_yq '.images | to_entries | .[] | [.key, .value.parent, .value.context, .value.dockerfile, .value.smoke_ref, (.value.paths | join(" ")), (.value.groups | join(" ")), (.value.platforms // [] | join(" "))] | join("|")')" || status=$?
+  # The fallback on each optional key is not decoration: an absent key is null,
+  # and `null` reaching `join` — or reaching the array — would take the whole
+  # read down for every image that correctly declares nothing. `// []` for the
+  # list-valued key, `// ""` for the 2 scalars.
+  records="$(manifest_yq '.images | to_entries | .[] | [.key, .value.parent, .value.context, .value.dockerfile, .value.smoke_ref, (.value.paths | join(" ")), (.value.groups | join(" ")), (.value.platforms // [] | join(" ")), (.value.pins // ""), (.value.size_budget_gb // "")] | join("|")')" || status=$?
   if [[ "$status" -ne 0 ]]; then
     log_error "the image manifest could not be read: ${REPO_ROOT}/${IMAGES_MANIFEST}"
     return 1
@@ -602,6 +614,56 @@ function resolve_image_platforms() {
   local resolved
   resolved="$(image_platforms "$name")" || return 1
   IMAGE_PLATFORMS="$resolved"
+}
+
+# image_pins <name> — the pin home whose every row this image's build feeds in as
+# a generated --build-arg, empty for an image that declares none.
+#
+# EMPTY IS THE RULE THAT WAS ALREADY THERE, and not a hole: a root image reads
+# versions.env because it has no parent, and a child reads its BASE_TAG and
+# nothing else. The key answers the third shape — a CHILD whose ARGs are
+# value-less. Without it that image has to spell its own pins, which mints a
+# PIN_VALUE_HOME for the sake of a `parent:` field, and the collapse to 1 home is
+# the thing this repository spent ledger #100 on.
+#
+# Field 9, and the number is the merge of 2 parallel branches: `platforms` holds
+# 8. Read the record shape at image_records before changing either.
+function image_pins() {
+  image_field "$1" 9
+}
+
+# image_size_budget_gb <name> — the acceptance size budget in decimal GB, empty
+# for an image that declares none.
+#
+# EMPTY MEANS NO SIZE GATE. That is what 4 of the 6 images take, and it is the
+# behaviour this key generalized rather than changed: the gate was an
+# `if [[ "$IMAGE" == "cloud" ]]` branch in .ci/smoke.sh with the number spelled
+# inside it. A budget is an acceptance metric somebody SET, with the measurement
+# beside it in the manifest — not a number every image owes.
+#
+# Field 10, for the reason image_pins gives.
+function image_size_budget_gb() {
+  image_field "$1" 10
+}
+
+# image_size_budget_bytes <name> — the same budget in bytes, empty when there is
+# none. Decimal GB, which is the unit every census figure of this repository
+# uses and the unit `docker image inspect --format '{{.Size}}'` answers in.
+#
+# awk and not shell arithmetic: bash has no floating point, and 5.75 is the
+# budget a human wrote. A value that is not a number is a FAILURE naming the
+# image — a budget that silently became 0 would fail every image, and a budget
+# that silently became empty would gate nothing while looking set.
+function image_size_budget_bytes() {
+  local name="$1" declared
+  declared="$(image_size_budget_gb "$name")" || return 1
+  [[ -z "$declared" ]] && return 0
+  if [[ ! "$declared" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+    log_error "${IMAGES_MANIFEST}: '${name}' declares size_budget_gb '${declared}', which is not a number"
+    log_error "the budget gates a published image, so an unreadable one is a FAILURE and never a skip"
+    return 1
+  fi
+  awk -v gb="$declared" 'BEGIN { printf "%.0f\n", gb * 1000000000 }'
 }
 
 # -------- the base OS pin, and its currency --------

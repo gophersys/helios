@@ -76,13 +76,37 @@
 #               beyond the version comparison. An image with an empty list is
 #               refused: a smoke that compares versions and exercises nothing is
 #               not a smoke.
+#
+# The 3 keys below are OPTIONAL, and for each one ABSENT IS A DECISION rather
+# than a hole. They are written here in the order the flat record carries them —
+# platforms, pins, size_budget_gb — because _ctl/lib.sh reads them by POSITION
+# and the 2 branches that added them each took field 8 while it was alone.
+#
 #   platforms   OPTIONAL. The platforms THIS image publishes. Absent means
-#               SANCTIONED_PLATFORMS, which is what 4 of the 5 take — so the key
+#               SANCTIONED_PLATFORMS, which is what 5 of the 6 take — so the key
 #               appears only where an image is measurably NARROWER, and reading
 #               the manifest tells you which one that is. It may never be WIDER:
 #               image_platforms refuses an entry outside the sanctioned set,
 #               naming the image and the platform, because the sanctioned set is
 #               the policy and this field is an exception WITHIN it.
+#   pins        OPTIONAL. The pin home whose every row this image's build feeds
+#               in as a generated --build-arg. ABSENT KEEPS THE RULE THAT WAS
+#               ALREADY HERE: an image with no parent reads versions.env and a
+#               child reads nothing but its BASE_TAG. The key exists for the
+#               third shape — a CHILD whose ARGs are value-less because its pins
+#               live in the one home. Without it that image would have to spell
+#               its own pins, which is a 4th PIN_VALUE_HOME for the sake of a
+#               `parent:` field.
+#   size_budget_gb
+#               OPTIONAL. The acceptance size budget of the image, decimal GB,
+#               the unit every census figure in this repository uses. .ci/
+#               smoke.sh reads it and gates the LOADED image on it before the
+#               push, so an oversize image never reaches a consumer. Absent means
+#               NO size gate, which is what 4 of the 6 images take — the budget
+#               is an acceptance metric somebody set, not a number every image
+#               owes. A budget that is present and unreadable is a FAILURE and
+#               never a skip. The comment beside each key carries the
+#               measurement that set it; a budget does not move quietly.
 #   notes       the prose of THIS image's publish job, keyed by where it goes.
 #               _ctl/generate.sh wraps each line in `# ` at the right indent. An
 #               absent key emits no comment. Everything a job says that is TRUE
@@ -266,6 +290,17 @@ images:
       - compose
       - debugger
       - protocols
+    # Acceptance metric 2 of the image program (risk R4), and it did not move
+    # quietly. The first build measured 6,303,346,803 bytes against an original
+    # 5.5 GB budget; the R4 levers were applied and measured one by one —
+    # in-layer npm/nvm cache hygiene -676.2 MB, the --no-install-recommends
+    # audit -0 (every install already carried the flag), stripping the 7 Go gate
+    # binaries -35.9 MB — and the measured floor with every tool kept came out
+    # at ~5.63-5.67 GB. Per R4 the decision then went to a human: Mateo decided
+    # on 2026-08-16 to keep every tool and set the budget here. Above THIS
+    # budget the remaining levers are splitting build-essential out or dropping
+    # a tool, and either goes back to Mateo.
+    size_budget_gb: 5.75
     notes:
       job: |
         The cloud image: the reduced base + the CI fold (image-architecture, ledger
@@ -280,6 +315,73 @@ images:
         included, so a bad cloud build is felt by the next job of every repository.
       smoke: |
         Content checks for every kept tool group, the CI fold, the harness
-        bake, the absent-Go-cache assertion, and the 5.75 GB size gate (R4).
-        It runs the LOADED image, which is the exact build the publish step
-        below then copies to ghcr.io.
+        bake, the absent-Go-cache assertion, and the size gate at the budget
+        this image declares. It runs the LOADED image, which is the exact
+        build the publish step below then copies to ghcr.io.
+
+  hardware:
+    parent: cloud
+    context: hardware
+    dockerfile: hardware/Dockerfile
+    smoke_ref: hardware:smoke
+    # The 1 CHILD that reads the pin home. Its ARGs are value-less like cloud's,
+    # so its 5 pins live in versions.env and NOT in its own Dockerfile — which
+    # is why this key exists at all. Read the `pins` field note above for what
+    # an absent key means.
+    pins: versions.env
+    # versions.env is an input of this image ITSELF and not only of its parent:
+    # every pin above arrives as a --build-arg generated from that file, so a
+    # row moving there changes this build. cloud declares it too and
+    # image_input_paths de-duplicates; declaring it here is what keeps the
+    # mapping TRUE rather than merely covered by an ancestor.
+    paths:
+      - hardware/
+      - versions.env
+    groups:
+      - content-cloud
+      - content-hardware
+      - go-gate
+      - dockerfile-lint
+      - compose
+    # PROVISIONAL, and computed from 2 MEASURED images rather than chosen.
+    # Method, read on 2026-08-18 through the ghcr.io registry API:
+    #
+    #   cloud:latest (amd64) — the per-layer gzip ISIZE trailers of its 38
+    #   layers sum to 5,063,474,688 bytes. Its docker-Size budget is 5.75 GB
+    #   against a measured docker-Size floor of ~5.63-5.67 GB, so docker's
+    #   on-disk accounting runs ~1.12x the tar-stream sum for this image family
+    #   — small files round up to a filesystem block and this image has many.
+    #
+    #   research-hardware-ci:latest — the image this one replaces. Read the same
+    #   way, its KiCad apt layer is 4,664,510,464 bytes and its python stack
+    #   layer is 42,704,896 bytes: 4.71 GB, which is exactly the delta this
+    #   image adds to cloud. The KiCad layer was measured by streaming the blob
+    #   through gunzip, because at 4.66 GB its ISIZE trailer has wrapped past
+    #   2^32 and reading it alone would have understated the layer by 4.29 GB.
+    #
+    #   5.75 + 4.71 x 1.12 = 11.0
+    #
+    # It is an ESTIMATE of a number nothing here has built yet. The first green
+    # build measures the real size, and the budget is reset to that measurement
+    # + 5% in the same pull request. Until then a red here means "re-measure",
+    # not "drop a tool".
+    size_budget_gb: 11.0
+    notes:
+      job: |
+        The hardware image: cloud + the KiCad 10 ECAD toolchain. Its consumer is
+        gophersys/research-hardware, whose ci/Dockerfile carries the same PPA and
+        the same 4 packages today — folding it in here gives it one pin home, one
+        smoke gate and one nightly scan instead of three of its own.
+      base_tag: |
+        The parent this layer FROMs. cloud publishes a :<sha> tag only on a
+        commit that changed it, so when cloud did not build there is no such tag
+        and the only correct parent is the :latest that is still current.
+      filter: |
+        This image's input set contains cloud's, so cloud building implies this
+        job building. The reverse does not hold, which is what BASE_TAG answers.
+      smoke: |
+        hardware inherits every tool of cloud, so the pins of versions.env are
+        compared here too, and kicad-cli plus the 3 library floors are checked on
+        top of them. The floors are the point: an image with kicad-cli and no
+        footprints passes a naive presence check and then fails the consumer's
+        whole resolver suite at runtime.
