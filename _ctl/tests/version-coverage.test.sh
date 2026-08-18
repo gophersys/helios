@@ -75,7 +75,7 @@
 # has to know this grammar. `the_listing_prints_the_bare_class` holds that.
 #
 # ============================================================================
-# 2 KINDS OF HOME, 7 TABLES
+# 2 KINDS OF HOME, 6 TABLES
 # ============================================================================
 #
 # There were 2 homes: the cloud family read versions.env and the base family
@@ -84,17 +84,22 @@
 # --build-arg out of versions.env — so it declares no value for any reader to
 # find, and this file read it for 19 pins that are not there any more.
 #
-# A second home came back, and it is a DIFFERENT file. flutter, zephyr and
-# zephyr-devbox declare their own `ARG NAME=value` blocks and consume no build
+# A second home came back, and it is a DIFFERENT file. flutter and embedded
+# declare their own `ARG NAME=value` blocks and consume no build
 # arg from versions.env, so each one's own Dockerfile is a pin home, and
 # .ci/smoke.sh reads it as one with a class table of its own. 2 kinds of home,
-# and 7 tables — read out of .ci/smoke.sh on 2026-08-18, never incremented:
+# and 6 tables — read out of .ci/smoke.sh on 2026-08-18, never incremented:
 #
 #   versions.env              PIN_CLASSES_CLOUD, PIN_CLASSES_BASE,
 #                             PIN_CLASSES_HARDWARE, PIN_CLASSES_UI
 #   flutter/Dockerfile        PIN_CLASSES_FLUTTER
-#   zephyr/Dockerfile         PIN_CLASSES_ZEPHYR
-#   zephyr-devbox/Dockerfile  PIN_CLASSES_DEVBOX
+#   embedded/Dockerfile       PIN_CLASSES_EMBEDDED
+#
+# It was 7 tables, and the 7th is gone by a FOLD rather than by a deletion:
+# PIN_CLASSES_ZEPHYR and PIN_CLASSES_DEVBOX fused into PIN_CLASSES_EMBEDDED
+# when the 2 images became 1, and the fusion is why that image's `asserted`
+# count went from 2 to 4 — WEST_VERSION and ZEPHYR_SDK_VERSION lived in the
+# PARENT's file, so the devbox run classified neither.
 #
 # The 4 tables over the 1 shared home are deliberate: `cloud` asserts the CI
 # fold and the base family asserts what `base` installs, so a pin one of them
@@ -231,16 +236,22 @@ function env_pin_names() {
 # choice or the 2 readers disagree about what a pin is.
 #
 # WHAT THIS DOES NOT CLOSE. The comment that stood here said no reader covered
-# those 3 files and called it ledger #102 whole. That is now true of half of it:
+# those files and called it ledger #102 whole. That is now true of half of it:
 # the CLASSIFICATION half is closed, here and in the driver, so a new `ARG
 # NAME=value` in a child Dockerfile with no table row is red in the PULL REQUEST
 # gate and not only at build time. The VALUE-HOME half is open and unchanged —
-# those 4 files still spell their own pin values, `PIN_VALUE_HOMES` in
-# _ctl/lib.sh is still 5, and `bump_pin` still writes into every one of them
-# every Monday. So does the other half of #102 that no reader here can see: a
-# pin a child inherits from ANOTHER child (WEST_VERSION lives in
-# zephyr/Dockerfile and zephyr-devbox carries west) is in no home this file
-# reads, because closing it means walking the FROM graph in the driver.
+# the child Dockerfiles still spell their own pin values, they are what
+# `PIN_VALUE_HOMES` in _ctl/lib.sh holds beside versions.env (read the list,
+# never a count of it), and `bump_pin` still writes into every one of them
+# every Monday.
+#
+# The INHERITED-PIN half of #102 is closed for 1 family and open for the other.
+# It was WEST_VERSION: the pin lived in zephyr/Dockerfile, zephyr-devbox
+# carried west, and no home this file reads held it for that image. The embedded
+# fold ended that case by ending the 2 files — 1 home, 1 table, and the pin is
+# read for the image that installs it. `flutter` inherits base's pins exactly
+# the same way and nothing here sees them, so the general fix is unchanged:
+# walking the FROM graph in the driver.
 function dockerfile_pin_names() {
   awk '
     match($0, /^[[:space:]]*ARG[[:space:]]+[A-Za-z_][A-Za-z0-9_]*=/) {
@@ -250,6 +261,50 @@ function dockerfile_pin_names() {
       print name
     }
   ' "$1" | sort -u
+}
+
+# ============================================================================
+# A PIN HOME THAT IS NOT THERE IS A NAMED FAIL, NEVER A DEAD RUN
+# ============================================================================
+#
+# Both readers above hand their path STRAIGHT TO AWK, and awk on a file it
+# cannot open prints `can't open file` and exits 2. Under `set -Eeuo pipefail`
+# that ends the RUN, mid-loop, and everything below it never executes —
+# `test_summary` included.
+#
+# That is not hypothetical and it is not old. It fired on 2026-08-18, on this
+# file, on the embedded fold: CHILD_HOMES still named `zephyr/Dockerfile` after
+# the 2 images became `embedded`, and the run printed 68 PASS lines, 2 FAIL
+# lines, one awk error on stderr — and NO `=== version-coverage.test.sh: N
+# checks, M failed` line at all. `cmd_test` then reported 21 verdicts for 22
+# files. Everything after the stale slot went unread, and nothing in the output
+# SAID so; the missing verdict was a hole a reader had to notice.
+#
+# It is the same class as the grep-that-matched-nothing this suite already
+# repaired in 2 other files, and it is the worse half of it: a reader killed by
+# its own input, inside the harness whose entire purpose is that a check which
+# did not run cannot be mistaken for one that passed.
+#
+# So the existence of a home is a CHECK with a name, it runs BEFORE anything
+# hands that path to awk, and the loop that owns it skips a home it cannot read
+# instead of dying on it. The summary is then always printed, and the failure
+# names the array slot to edit.
+#
+# pin_home_exists <check name> <absolute path> <the array that names it>
+function pin_home_exists() {
+  local name="$1" path="$2" array="$3"
+  if [[ -r "$path" ]]; then
+    pass_check "$name"
+    return 0
+  fi
+  fail_check "$name" \
+    "the pin home this test names is absent or unreadable:" \
+    "$path" \
+    "it is named by ${array} in this file — edit that slot, or restore the home" \
+    "the readers here hand the path to awk, which exits 2 on a file it cannot open;" \
+    "under set -Eeuo pipefail that would END THIS RUN with no summary line, and a" \
+    "file that prints no summary is counted by cmd_test as a verdict it never got"
+  return 1
 }
 
 # classification_records <text> — the `<NAME>|<class>` records inside a listing,
@@ -309,11 +364,15 @@ function class_table_records() {
 # That is coverage that shrinks with no red, 1 level below where this file
 # already refuses it, and a mis-wire is 1 character.
 #
-# THE FIX IS NOT TO DERIVE THE NAME FROM THE IMAGE. 3 of the 7 arms would need a
-# spelling rule of their own — `zephyr-devbox` reads PIN_CLASSES_DEVBOX, and the
-# 3 children read PIN_CLASSES_BASE for their SHARED home — so a derivation would
-# be a second naming convention this file invented, and a test that generates the
-# value it checks agrees with any driver. What holds the pairing true is the
+# THE FIX IS NOT TO DERIVE THE NAME FROM THE IMAGE. 2 of the 6 arms would need a
+# rule of their own — `flutter` and `embedded` read PIN_CLASSES_BASE for their
+# SHARED home and their OWN table only through CHILD_CLASSES — so a derivation
+# would be a second naming convention this file invented, and a test that
+# generates the value it checks agrees with any driver. The count was 3 of 7
+# while `zephyr-devbox` read PIN_CLASSES_DEVBOX, a spelling no rule produces;
+# the fold removed that arm and did NOT remove the argument, because the
+# shared-home half is what makes a per-image derivation wrong.
+# What holds the pairing true is the
 # DRIVER: `.ci/smoke.sh` selects a table per image in one `case`, that selection
 # is the implementation, and these arrays are the literal it owes equality to.
 #
@@ -797,8 +856,8 @@ fi
 # PIN_HOMES: the mac's bash is 3.2 and has no associative array.
 #
 # The RULE NAME is carried separately because it is not the image name: the
-# `base` table is the BASE FAMILY's — base, flutter, zephyr and zephyr-devbox
-# all read it — and a check called `base_versions_env` would name 1 of the 4
+# `base` table is the BASE FAMILY's — base, flutter and embedded
+# all read it — and a check called `base_versions_env` would name 1 of the 3
 # images it answers for.
 SHARED_HOME_IMAGES=("cloud" "base" "hardware" "ui")
 SHARED_HOME_TABLES=("PIN_CLASSES_CLOUD" "PIN_CLASSES_BASE" "PIN_CLASSES_HARDWARE" "PIN_CLASSES_UI")
@@ -836,38 +895,45 @@ done
 # KiCad rows are asserted in hardware and `not-in-this-image` in the others, and
 # CHROME_MAJOR_VERSION is asserted in ui and in no other table at all — so each
 # one is judged against the SAME home separately: a pin classified in the cloud
-# table and forgotten in the base table is a silent pin for 4 of the 7 images,
+# table and forgotten in the base table is a silent pin for 3 of the 6 images,
 # and 1 combined check would report it as covered.
 #
 # The pin names are read out of the home and never out of a table. A rule that
 # read the listing would go on reporting coverage after the pin it covers was
 # renamed — the listing and the reference would move together and agree about
 # a file neither of them opened.
-pin_names="$(env_pin_names "$REPO_ROOT/$PIN_HOME")"
+#
+# The home is checked BEFORE env_pin_names opens it — see pin_home_exists. A
+# versions.env that moved would otherwise kill this run at the line below, and
+# the 4 rules under it would report nothing rather than reporting the move.
+pin_names=""
+if pin_home_exists "the_shared_pin_home_exists" "$REPO_ROOT/$PIN_HOME" "PIN_HOME"; then
+  pin_names="$(env_pin_names "$REPO_ROOT/$PIN_HOME")"
 
-for shared_index in "${!SHARED_HOME_IMAGES[@]}"; do
-  assert_home_is_covered "${SHARED_HOME_RULE_NAMES[$shared_index]}" \
-    "$pin_names" \
-    "${shared_home_records[$shared_index]}" \
-    "$(class_table_records "${SHARED_HOME_TABLES[$shared_index]}")" \
-    "$PIN_HOME"
-done
+  for shared_index in "${!SHARED_HOME_IMAGES[@]}"; do
+    assert_home_is_covered "${SHARED_HOME_RULE_NAMES[$shared_index]}" \
+      "$pin_names" \
+      "${shared_home_records[$shared_index]}" \
+      "$(class_table_records "${SHARED_HOME_TABLES[$shared_index]}")" \
+      "$PIN_HOME"
+  done
+fi
 
-# -------- 4. THE SAME RULE, on the 3 child Dockerfiles -----------------------
+# -------- 4. THE SAME RULE, on the child Dockerfiles -------------------------
 #
 # A child image declares its own `ARG NAME=value` block and consumes no build arg
 # from versions.env, so its own Dockerfile is a pin home with a table of its own.
 # The driver refuses to run an image with an unclassified pin in EITHER home —
 # and it refuses at build time, in the publish job, after the image is built.
 # This loop is the same rule at pull request time: add an ARG to
-# zephyr-devbox/Dockerfile with no row in PIN_CLASSES_DEVBOX, and the gate is red
+# embedded/Dockerfile with no row in PIN_CLASSES_EMBEDDED, and the gate is red
 # before the branch is merged rather than red 20 minutes into a publish.
 #
 # 3 parallel arrays and not 1 map, for the reason .ci/smoke.sh gives at
 # PIN_HOMES: the mac's bash is 3.2 and has no associative array.
-CHILD_IMAGES=("flutter" "zephyr" "zephyr-devbox")
-CHILD_HOMES=("flutter/Dockerfile" "zephyr/Dockerfile" "zephyr-devbox/Dockerfile")
-CHILD_TABLES=("PIN_CLASSES_FLUTTER" "PIN_CLASSES_ZEPHYR" "PIN_CLASSES_DEVBOX")
+CHILD_IMAGES=("flutter" "embedded")
+CHILD_HOMES=("flutter/Dockerfile" "embedded/Dockerfile")
+CHILD_TABLES=("PIN_CLASSES_FLUTTER" "PIN_CLASSES_EMBEDDED")
 
 # Every record of every listing, for the seam check in section 5.
 all_listing_records=""
@@ -884,6 +950,14 @@ for child_index in "${!CHILD_IMAGES[@]}"; do
   # of names and not only in the evidence. `-` is not a character a check name
   # takes here, because every other name in this file separates with `_`.
   child_label="$(printf '%s' "$child_image" | tr '-' '_')"
+
+  # FIRST, and before anything hands that path to awk. See pin_home_exists: a
+  # stale CHILD_HOMES slot is exactly what killed this file mid-run on the
+  # embedded fold, and the checks below this one are the ones that never ran.
+  if ! pin_home_exists "${child_label}_pin_home_exists" \
+    "$REPO_ROOT/$child_home" "CHILD_HOMES"; then
+    continue
+  fi
 
   # The same pairing, on the variable a CHILD home is selected with. It is a
   # separate clause and not the same one: a child arm assigns PIN_CLASSES the

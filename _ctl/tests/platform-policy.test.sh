@@ -71,9 +71,16 @@ SANCTIONED="linux/amd64,linux/arm64"
 # is a literal: reading images.yaml here would make this file agree with any
 # manifest, including one that had silently dropped an architecture.
 #
-# 6 of the 7 declare no `platforms` key and take the sanctioned set. flutter
+# 5 of the 6 declare no `platforms` key and take the sanctioned set. flutter
 # declares linux/amd64 and the manifest carries the measurement beside the key:
 # Flutter publishes no linux-arm64 SDK at any version.
+#
+# `embedded` takes the sanctioned set, and it is the row that replaced 2. As
+# `zephyr-devbox` the pod half had a NARROWING measurement available to it —
+# every node of the cluster it ran on is amd64 — and it never took the key
+# either. The fold settles the question rather than inheriting it: the same
+# image is what a developer opens locally in its default mode, so linux/arm64 is
+# a platform this image is CONSUMED on and not merely one it could be built for.
 #
 # `hardware` takes the sanctioned set, and that is a MEASURED answer rather than
 # the default falling through unexamined. The 4 packages its whole reason to
@@ -96,8 +103,7 @@ SANCTIONED="linux/amd64,linux/arm64"
 IMAGE_PLATFORM_TABLE=(
   "base|linux/amd64,linux/arm64"
   "flutter|linux/amd64"
-  "zephyr|linux/amd64,linux/arm64"
-  "zephyr-devbox|linux/amd64,linux/arm64"
+  "embedded|linux/amd64,linux/arm64"
   "cloud|linux/amd64,linux/arm64"
   "hardware|linux/amd64,linux/arm64"
   "ui|linux/amd64,linux/arm64"
@@ -124,8 +130,8 @@ NARROWER_IMAGE="flutter"
 # linux/arm64, so it is a file that acts on a platform name and it belongs under
 # the rule that governs them.
 #
-# THE PER-IMAGE HALF OF THIS LIST IS BOUND TO THE MANIFEST, and it was not. A
-# 7th image landed with its `ctl.sh` and its `project.json` in NEITHER this list
+# THE PER-IMAGE HALF OF THIS LIST IS BOUND TO THE MANIFEST, and it was not. The
+# ui image landed with its `ctl.sh` and its `project.json` in NEITHER this list
 # nor any other, so both files could name linux/riscv64 and every check in this
 # file would stay green — coverage that shrinks with no red, which is the
 # failure IMAGE_PLATFORM_TABLE already carries a set-equality clause against.
@@ -137,18 +143,20 @@ NARROWER_IMAGE="flutter"
 # `<name>/project.json` whose `<name>` begins with neither `.` nor `_`. That is
 # not a fudge: .claude/rules/00-identity.md says the leading underscore is what
 # marks `_ctl/` as not an image directory, and `.ci/` is the CI layer by the same
-# convention. `zephyr-devbox/devbox-entrypoint.sh` is deliberately outside the
+# convention. `embedded/embedded-entrypoint.sh` is deliberately outside the
 # pair — it is a script an image COPYs in, not one of the 2 files every image
-# directory carries — and the clause therefore says nothing about it.
+# directory carries — and the clause therefore says nothing about it. It is
+# still IN the list, and it earned its place twice over with the fold: it is PID
+# 1 of both modes now, and the mode dispatch it gained is the 1 place in the
+# tree where a platform name would decide which identity a container runs as.
 BUILD_PATH_FILES=(
   "_ctl/lib.sh"
   "ctl.sh"
   "base/ctl.sh"
   "cloud/ctl.sh"
   "flutter/ctl.sh"
-  "zephyr/ctl.sh"
-  "zephyr-devbox/ctl.sh"
-  "zephyr-devbox/devbox-entrypoint.sh"
+  "embedded/ctl.sh"
+  "embedded/embedded-entrypoint.sh"
   "hardware/ctl.sh"
   "ui/ctl.sh"
   ".ci/ctl.sh"
@@ -161,8 +169,7 @@ BUILD_PATH_FILES=(
   "base/project.json"
   "cloud/project.json"
   "flutter/project.json"
-  "zephyr/project.json"
-  "zephyr-devbox/project.json"
+  "embedded/project.json"
   "hardware/project.json"
   "ui/project.json"
   ".ci/project.json"

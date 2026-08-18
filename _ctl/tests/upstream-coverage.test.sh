@@ -100,7 +100,8 @@ TEST_NAME="upstream-coverage.test.sh"
 # any path, a wrong one included.
 UPSTREAMS_FILE="_build/upstreams.txt"
 
-# The 4 homes that hold a VALUE. `base/Dockerfile` and `cloud/Dockerfile`
+# The homes that hold a VALUE — READ THE LIST, never a count beside it.
+# `base/Dockerfile` and `cloud/Dockerfile`
 # declare their ARGs value-less and take the value from versions.env, so
 # neither is a home. The same list download-coverage.test.sh names, and the
 # same list PIN_VALUE_HOMES holds in _ctl/lib.sh — named again rather than
@@ -118,11 +119,20 @@ UPSTREAMS_FILE="_build/upstreams.txt"
 # row, so `sort -u` absorbed the whole loss and the total never moved.
 # Coverage that shrinks with no red is what this file exists to report,
 # 1 layer up.
+#
+# THE GUARDS SPOKE ON THE EMBEDDED FOLD, and the shape of what they said is
+# worth keeping. `zephyr/Dockerfile` and `zephyr-devbox/Dockerfile` became the 1
+# `embedded/Dockerfile`, and the run reported 2 checks: the stale homes, AND 4
+# rows of _build/upstreams.txt — WEST_VERSION, ZEPHYR_SDK_VERSION,
+# ESPTOOL_VERSION and CODE_SERVER_VERSION — as rows naming a pin no home
+# declares. Those 4 were a CASCADE of the first, not a second defect: the pins
+# never moved, the file that declares them was renamed, and the table was never
+# touched. A reader who "fixed" the table there would have deleted 4 correct
+# rows to silence a stale literal.
 VALUE_HOMES=(
   "versions.env"
   "flutter/Dockerfile"
-  "zephyr/Dockerfile"
-  "zephyr-devbox/Dockerfile"
+  "embedded/Dockerfile"
 )
 
 # The whole taxonomy, as a literal, exactly as platform-policy.test.sh spells

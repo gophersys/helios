@@ -169,8 +169,7 @@ HELPER_COPY_DOCKERFILES=(
 GOVERNED_DOCKERFILES=(
   "base/Dockerfile"
   "flutter/Dockerfile"
-  "zephyr/Dockerfile"
-  "zephyr-devbox/Dockerfile"
+  "embedded/Dockerfile"
   "cloud/Dockerfile"
   "ui/Dockerfile"
 )
@@ -179,13 +178,13 @@ GOVERNED_DOCKERFILES=(
 # THE DOCKERFILES THIS RULE DELIBERATELY DOES NOT GOVERN, AND WHY
 # ===========================================================================
 #
-# A rule that governs 6 of 7 files is a rule with a hole in it, unless the 7th
+# A rule that governs 5 of 6 files is a rule with a hole in it, unless the 6th
 # is a DECISION somebody wrote down. `hardware/Dockerfile` is that decision, and
 # it is recorded here the way the exemption FILE records one — a class, a reason
 # and a check — rather than by being absent from a list nobody reads.
 #
 # Both numbers are the tree's, read on 2026-08-18 and not incremented: images.yaml
-# declares 7 images, and `hardware/Dockerfile` is the only one of the 7 that
+# declares 6 images, and `hardware/Dockerfile` is the only one of the 6 that
 # writes no curl, no wget and no fetch-verified.sh call at all. `ui/Dockerfile`
 # joined the GOVERNED side rather than this one, because it fetches Google's
 # chrome signing key — 1 fetch, answered by 1 exemption row.
@@ -210,9 +209,11 @@ GOVERNED_DOCKERFILES=(
 # a tarball belongs in GOVERNED_DOCKERFILES. The check under section 2 holds the
 # 2 lists to the set of Dockerfiles that really exist, so the NEXT image can land
 # in neither only by turning that check red. That is not a promise any more: the
-# 7th image landed while this sentence read "a 7th image", and the check is what
+# ui image landed while this sentence read "a 7th image", and the check is what
 # stopped it — `every_dockerfile_is_governed_or_exempt` went red naming
-# ui/Dockerfile until the author chose a side for it.
+# ui/Dockerfile until the author chose a side for it. It fired a second time on
+# the embedded fold, in the opposite direction: 2 entries naming files the tree
+# no longer holds, which is what a list that only ever GROWS would never say.
 UNGOVERNED_DOCKERFILES=(
   "hardware/Dockerfile"
 )
@@ -234,7 +235,8 @@ GOVERNED_COMPONENTS=(
   "terraform.sh"
 )
 
-# The 4 pin homes that hold a VALUE. `base/Dockerfile` and `cloud/Dockerfile`
+# The pin homes that hold a VALUE — READ THE LIST, never a count beside it.
+# `base/Dockerfile` and `cloud/Dockerfile`
 # declare their ARGs value-less and take the value from versions.env, so
 # neither is a home. It is the same list as PIN_VALUE_HOMES in _ctl/lib.sh, and
 # it is spelled as a LITERAL on purpose: a test that reads the list it checks
@@ -247,13 +249,17 @@ GOVERNED_COMPONENTS=(
 # nothing for a file that declares no value, so both dead entries contributed 0
 # digests and every rule below narrowed silently. Coverage that shrinks with no
 # red is the exact failure this whole file exists to prevent, 1 layer up.
+#
+# It shrank again with the embedded fold — `zephyr/Dockerfile` and
+# `zephyr-devbox/Dockerfile` became the 1 `embedded/Dockerfile` — and this time
+# the guards spoke: `every_named_value_home_exists` named both dead entries
+# before a single digest rule below narrowed.
 CLOUD_HOME="versions.env"
 CLOUD_DOCKERFILE="cloud/Dockerfile"
 VALUE_HOMES=(
   "versions.env"
   "flutter/Dockerfile"
-  "zephyr/Dockerfile"
-  "zephyr-devbox/Dockerfile"
+  "embedded/Dockerfile"
 )
 
 # The 1 arch vocabulary. A literal, exactly as platform-policy.test.sh spells
