@@ -5,9 +5,13 @@
 # a stock actions-runner image with a privileged dind sidecar and NO sudo, so
 # anything KiCad-shaped has to come from a container rather than apt.
 #
-# The whole point of this workflow is that ghcr.io/gophersys/research-hardware-ci carries
-# KiCad 10: without it the ERC/DRC/Gerber/netlist half of the suite skips, which
-# is exactly the blind spot this repo had before CI existed.
+# The whole point of this workflow is that the image carries KiCad 10: without
+# it the ERC/DRC/Gerber/netlist half of the suite skips, which is exactly the
+# blind spot this repo had before CI existed. That image is now the org category
+# image ghcr.io/gophersys/hardware, built and published from the eden
+# .devcontainer estate; this repo only CONSUMES it, pinned by digest
+# (docs/image-notes.md §1 and §5). The retired repo-local image
+# ghcr.io/gophersys/research-hardware-ci stays published as the rollback anchor.
 #
 # Single job on purpose: the org has 4 runner slots shared across every repo,
 # and this project runs a tall stack of PRs. Two jobs would double contention
@@ -21,14 +25,21 @@ on:
 
 permissions:
   contents: read
-  packages: read          # pull the CI image from GHCR
+  packages: read          # declaring this block drops the default read; the
+                          # image pull itself authenticates with GHCR_PULL_TOKEN
+                          # (see the login step for why GITHUB_TOKEN cannot)
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
-  IMAGE: ghcr.io/gophersys/research-hardware-ci:latest
+  # The org hardware category image, pinned BY DIGEST. The devcontainer and CI
+  # must run identical bytes, and a moving :latest cannot promise that
+  # (docs/image-notes.md §5, acceptance metric 5). The tag stays in the
+  # reference for human readability; the digest is what actually resolves.
+  # Digest sha256:ad5851… is the multi-arch index — arc-org is linux/amd64.
+  IMAGE: ghcr.io/gophersys/hardware:latest@sha256:ad5851092f6acc7f9a32bd3557499f82d592f15f15201311106852f517734d58
 
 jobs:
   ci:
@@ -36,52 +47,67 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # GITHUB_TOKEN cannot pull this image. Its packages:read covers only
+      # packages linked to THIS repository, and ghcr.io/gophersys/hardware is a
+      # PRIVATE cross-repo package — the same 403 eden hit and documented in its
+      # docs/architecture/18-release-and-home-deploy.md (L3). GHCR_PULL_TOKEN is
+      # the org-scope pull PAT, held as a repo secret.
+      #
+      # An unset secret FAILS here and names itself: a login that silently
+      # degrades to anonymous would surface later as an unexplained pull 403.
       - name: Log in to GHCR
+        env:
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
         run: |
           set -euo pipefail
-          echo "${{ secrets.GITHUB_TOKEN }}" \
+          [ -n "$GHCR_PULL_TOKEN" ] || {
+            echo "::error::GHCR_PULL_TOKEN is not set on this repository — the org hardware image is a private cross-repo package and cannot be pulled without it"
+            exit 1
+          }
+          echo "$GHCR_PULL_TOKEN" \
             | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
-      # Pull normally; build locally when the tag is missing. That covers the
-      # bootstrap run (before build-ci-image.yml has ever pushed), a PR that
-      # changes ci/Dockerfile (where :latest is deliberately stale), and a GHCR
-      # outage — none of which should look like a code failure.
-      # Pull normally, then CHECK THE PULLED IMAGE IS USABLE and rebuild if not.
+      # Pull only — the local-rebuild fallback is gone. This repo no longer owns
+      # a CI Dockerfile to fall back to, so a failed pull or an unusable image
+      # is a FAILURE that names the image, never a quiet rebuild from something
+      # stale (docs/image-notes.md §5 step 4). A digest cannot be "deliberately
+      # stale" the way the old :latest could, which is what the fallback existed
+      # to absorb.
       #
-      # A pull alone is not enough. `:latest` is published by build-ci-image on
-      # main, so between merging a Dockerfile change and that build finishing,
-      # every branch pulls the previous image — which is how a run on a branch
-      # with correct code failed with `assert 0 > 10_000`: it got the image from
-      # before the KiCad libraries were added. Verifying capability rather than
-      # mere presence also covers the bootstrap run, a PR that edits
-      # ci/Dockerfile (where :latest is deliberately stale), and a GHCR outage.
-      - name: Ensure CI image
+      # Capability, not mere presence: an image carrying kicad-cli but no
+      # footprint libraries passes a naive smoke test and then fails the whole
+      # resolver suite with `assert 0 > 10_000`, which reads as a code bug.
+      - name: Pull the hardware image
         run: |
           set -euo pipefail
-          usable() {
-            docker run --rm "$1" sh -c \
-              'command -v kicad-cli >/dev/null &&
-               [ "$(find /usr/share/kicad/footprints -name "*.kicad_mod" 2>/dev/null | wc -l)" -gt 10000 ]' \
-              2>/dev/null
+          docker pull -q "$IMAGE" || {
+            echo "::error::cannot pull $IMAGE — check GHCR_PULL_TOKEN and that the digest is still published"
+            exit 1
           }
-          if docker pull -q "$IMAGE" 2>/dev/null && usable "$IMAGE"; then
-            echo "pulled $IMAGE (kicad-cli + libraries present)"
-          else
-            echo "::notice::$IMAGE missing or lacks KiCad libraries — building from ci/Dockerfile"
-            docker build -q -f ci/Dockerfile -t "$IMAGE" ci/
-            usable "$IMAGE" || { echo "::error::built image still lacks KiCad libraries"; exit 1; }
-          fi
+          docker run --rm --user root "$IMAGE" sh -c \
+            'command -v kicad-cli >/dev/null &&
+             [ "$(find /usr/share/kicad/footprints -name "*.kicad_mod" | wc -l)" -gt 10000 ]' || {
+            echo "::error::$IMAGE lacks kicad-cli or the KiCad footprint libraries"
+            exit 1
+          }
+          echo "pulled $IMAGE (kicad-cli + libraries present)"
 
       - name: Report toolchain
         run: |
           set -euo pipefail
-          docker run --rm "$IMAGE" kicad-cli version
-          docker run --rm "$IMAGE" python3 --version
+          docker run --rm --user root "$IMAGE" kicad-cli version
+          docker run --rm --user root "$IMAGE" python3 --version
+          docker run --rm --user root "$IMAGE" ruff --version
 
+      # --user root on every step that mounts the workspace. The retired CI image
+      # had no USER and therefore ran as root; the org image defaults to
+      # uid 1000 (dev), which cannot write into the runner-owned checkout — an
+      # EACCES on junit.xml, not a test failure. Same convention as eden's
+      # container jobs (.github/workflows/on-pr.yml, `options: --user root`).
       - name: ruff
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD":/workspace -w /workspace "$IMAGE" \
+          docker run --rm --user root -v "$PWD":/workspace -w /workspace "$IMAGE" \
             ruff check src/ tests/
 
       # data/raw is gitignored (188MB of upstream KiCad projects) but 16 of the
@@ -112,7 +138,7 @@ jobs:
       - name: pytest
         run: |
           set -euo pipefail
-          docker run --rm -v "$PWD":/workspace -w /workspace "$IMAGE" \
+          docker run --rm --user root -v "$PWD":/workspace -w /workspace "$IMAGE" \
             python3 -m pytest tests/ -q --junitxml=junit.xml
 
       # Skips matter here: one means a capability the runner was meant to

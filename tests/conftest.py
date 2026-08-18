@@ -19,7 +19,7 @@ if str(TOOLS_DIR) not in sys.path:
 # kicad-cli (ERC, DRC, netlist export, Gerber/STEP generation) are marked
 # `requires_kicad` and skip when it is absent, rather than failing with a
 # subprocess error that looks like a code defect. CI runs them for real inside
-# ghcr.io/gophersys/research-hardware-ci — see docs/ci.md.
+# ghcr.io/gophersys/hardware — see docs/ci.md.
 HAS_KICAD = shutil.which("kicad-cli") is not None
 
 # Derived pattern data (data/patterns/*.json) is produced by the extraction
