@@ -635,7 +635,7 @@ function image_pins() {
 # image_size_budget_gb <name> — the acceptance size budget in decimal GB, empty
 # for an image that declares none.
 #
-# EMPTY MEANS NO SIZE GATE. That is what 4 of the 6 images take, and it is the
+# EMPTY MEANS NO SIZE GATE. That is what 4 of the 7 images take, and it is the
 # behaviour this key generalized rather than changed: the gate was an
 # `if [[ "$IMAGE" == "cloud" ]]` branch in .ci/smoke.sh with the number spelled
 # inside it. A budget is an acceptance metric somebody SET, with the measurement
@@ -1444,7 +1444,7 @@ function image_push() {
 function image_verify_published() {
   require_buildx
   require_cmd jq
-  # The set this image PUBLISHES, which is the sanctioned set for 5 of the 6 and
+  # The set this image PUBLISHES, which is the sanctioned set for 6 of the 7 and
   # the manifest's narrower list for the 1 exception. Comparing every image
   # against the sanctioned set would report flutter — correctly amd64-only,
   # because Flutter publishes no linux-arm64 SDK — as a broken publish forever.

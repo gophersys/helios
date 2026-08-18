@@ -75,7 +75,7 @@
 # has to know this grammar. `the_listing_prints_the_bare_class` holds that.
 #
 # ============================================================================
-# 2 HOMES, 5 TABLES
+# 2 KINDS OF HOME, 7 TABLES
 # ============================================================================
 #
 # There were 2 homes: the cloud family read versions.env and the base family
@@ -88,31 +88,44 @@
 # zephyr-devbox declare their own `ARG NAME=value` blocks and consume no build
 # arg from versions.env, so each one's own Dockerfile is a pin home, and
 # .ci/smoke.sh reads it as one with a class table of its own. 2 kinds of home,
-# 5 tables:
+# and 7 tables — read out of .ci/smoke.sh on 2026-08-18, never incremented:
 #
 #   versions.env              PIN_CLASSES_CLOUD, PIN_CLASSES_BASE,
-#                             PIN_CLASSES_HARDWARE
+#                             PIN_CLASSES_HARDWARE, PIN_CLASSES_UI
 #   flutter/Dockerfile        PIN_CLASSES_FLUTTER
 #   zephyr/Dockerfile         PIN_CLASSES_ZEPHYR
 #   zephyr-devbox/Dockerfile  PIN_CLASSES_DEVBOX
 #
-# The 3 tables over the 1 shared home are deliberate: `cloud` asserts the CI
+# The 4 tables over the 1 shared home are deliberate: `cloud` asserts the CI
 # fold and the base family asserts what `base` installs, so a pin one of them
 # does not carry takes `not-in-this-image` in that table. So the rule below runs
-# THREE TIMES over the SAME home, once per table. Both directions still bite. A
+# FOUR TIMES over the SAME home, once per table. Both directions still bite. A
 # row added to versions.env is unclassified in whichever table forgot it, and a
 # table row whose pin was deleted is a classification of a file that no longer
 # holds it.
 #
-# `hardware` is the 3rd of them and it is a CHILD, which is the shape that did
-# not exist before: it declares its ARGs value-less and takes every pin from
-# versions.env as a generated --build-arg, so its own Dockerfile is not a home
-# and it has 1 home like the 2 root images rather than 2 like the other 3
-# children. That is why it is judged HERE, beside cloud and base, and not in the
-# child loop below. Nothing read PIN_CLASSES_HARDWARE until this clause: an
-# unclassified versions.env row was red for 5 of the 6 images and silent for the
-# 6th, which is coverage that shrinks with no red — the exact shape this file
-# exists to refuse.
+# Do not read that list as a count that maintains itself. It is HAND-KEPT prose,
+# and the thing that holds the arrays below to the real image set is
+# `every_manifest_image_has_a_pin_home_this_file_judges`; the thing that holds
+# each array slot to the table the driver really selects is
+# `<image>_is_judged_against_the_table_the_driver_selects`. Between them a table
+# cannot arrive, move or disappear without a red — which is what this paragraph
+# could not promise on its own.
+#
+# `hardware` was the first of that kind and `ui` is the second: a CHILD that
+# declares its ARGs value-less and takes every pin from versions.env as a
+# generated --build-arg, so its own Dockerfile is not a home and it has 1 home
+# like the 2 root images rather than 2 like the other 3 children. That is why
+# both are judged HERE, beside cloud and base, and not in the child loop below.
+#
+# THE SAME HOLE OPENED TWICE, and the second time is why the pairing clause
+# exists. Nothing read PIN_CLASSES_HARDWARE until its clause was written: an
+# unclassified versions.env row was then red for 5 of the 6 images and silent for
+# the 6th — a FROZEN measurement of a 6-image set, kept because it is the shape
+# and not the number. `ui` repeated it exactly: PIN_CLASSES_UI existed in the
+# driver and no rule here opened it, and the file reported 72 green checks over
+# 6 of the 7 images. Coverage that shrinks with no red is the exact shape this
+# file exists to refuse, and prose that lists the tables is not what stops it.
 #
 # A child image reads 2 homes, so its listing carries the records of both. The
 # records are FILTERED to the home under judgement before the rule reads them:
@@ -273,6 +286,80 @@ function class_table_records() {
       print substr($0, 1, position - 1) "|" substr(rest, 1, second - 1)
     }
   ' "$REPO_ROOT/.ci/smoke.sh"
+}
+
+# driver_table_for <image> <variable> — the class table .ci/smoke.sh's own `case`
+# assigns to that variable on that image's arm, or the empty string when the arm
+# assigns it nothing.
+#
+# ============================================================================
+# WHY A PARALLEL ARRAY NEEDED A READER OF THE DRIVER
+# ============================================================================
+#
+# The image lists below and the table lists beside them are PARALLEL ARRAYS, and
+# nothing held slot i of one to slot i of the other. Point ui's slot at
+# PIN_CLASSES_HARDWARE and the whole suite stays GREEN — measured 2026-08-18 —
+# because both tables classify the same versions.env pin names, and every rule
+# here that reads the TABLE (the 3 classes, where a probe may hang, whether a
+# probe names a binary, and the table-versus-listing agreement) then runs twice
+# against hardware's rows and never once against ui's. The listing still comes
+# from the driver's real arm, so the 2 sides disagree about which table is under
+# judgement while agreeing about every name in it.
+#
+# That is coverage that shrinks with no red, 1 level below where this file
+# already refuses it, and a mis-wire is 1 character.
+#
+# THE FIX IS NOT TO DERIVE THE NAME FROM THE IMAGE. 3 of the 7 arms would need a
+# spelling rule of their own — `zephyr-devbox` reads PIN_CLASSES_DEVBOX, and the
+# 3 children read PIN_CLASSES_BASE for their SHARED home — so a derivation would
+# be a second naming convention this file invented, and a test that generates the
+# value it checks agrees with any driver. What holds the pairing true is the
+# DRIVER: `.ci/smoke.sh` selects a table per image in one `case`, that selection
+# is the implementation, and these arrays are the literal it owes equality to.
+#
+# The arm is read as the text from `<image>)` to the `;;` that closes it, and the
+# assignment is matched anchored, so a `case` that stopped assigning the variable
+# returns the empty string and the caller reports it rather than passing.
+function driver_table_for() {
+  awk -v image="$1" -v variable="$2" '
+    $0 ~ ("^[[:space:]]*" image "\\)[[:space:]]*$") { inside = 1; next }
+    inside && $0 ~ /^[[:space:]]*;;[[:space:]]*$/ { inside = 0 }
+    inside && $0 ~ ("^[[:space:]]*" variable "=\"\\$[A-Za-z_][A-Za-z0-9_]*\"[[:space:]]*$") {
+      line = $0
+      sub(/^[^=]*="\$/, "", line)
+      sub(/"[[:space:]]*$/, "", line)
+      print line
+      exit
+    }
+  ' "$REPO_ROOT/.ci/smoke.sh"
+}
+
+# assert_table_is_the_drivers <check name> <image> <variable> <table>
+#
+# 2 conditions, 1 check. The driver really assigns a table on that arm, AND it is
+# the table this file judges that image against. Split in 2, a reader could see
+# "the driver assigns something" green while the pairing was wrong — and an arm
+# the reader cannot find at all returns the empty string, which would otherwise
+# compare equal to nothing and pass on a `case` this reader stopped parsing.
+function assert_table_is_the_drivers() {
+  local name="$1" image="$2" variable="$3" table="$4"
+  local driver_table
+  driver_table="$(driver_table_for "$image" "$variable")"
+  if [[ -z "$driver_table" ]]; then
+    fail_check "$name" \
+      ".ci/smoke.sh's case has no ${variable}=\"\$<table>\" line on the ${image}) arm" \
+      "this file judges ${image} against ${table}, and the driver's own selection is what" \
+      "makes that the right table — either the arm was rewritten, or this reader stopped" \
+      "matching it, and both leave the pairing below asserted by nothing"
+  elif [[ "$driver_table" != "$table" ]]; then
+    fail_check "$name" \
+      "the driver sends ${image} to ${driver_table}, and this file judges it against ${table}" \
+      "these are PARALLEL ARRAYS: slot i of the image list and slot i of the table list" \
+      "a mis-wire leaves every table rule running twice over one table and never over the" \
+      "other, and the pin NAMES agree, so nothing else in this file can report it"
+  else
+    pass_check "$name"
+  fi
 }
 
 # record_names <records> — the NAME column, 1 per line, in the order given.
@@ -700,53 +787,57 @@ GH_VERSION"
 fi
 
 # -------- 2. the seam: the listing runs, and it starts no container --------
-run_listing cloud
-assert_listing_is_static "cloud_pin_listing_runs_and_calls_no_docker"
-cloud_records="$(classification_records "$LISTING_TEXT")"
-cloud_record_total="$(count_lines "$cloud_records")"
+#
+# The 4 images whose pins live in versions.env, and the table each one is judged
+# against. They were 3 unrolled calls until `ui` landed, which is how the 4th
+# arrived reading NOTHING: a hand-unrolled list has no place for a clause to
+# hold, so the image was silently outside every rule in this file while the file
+# stayed green. The arrays are what the binding clause below can be written
+# against, and 3 of them rather than 1 map for the reason .ci/smoke.sh gives at
+# PIN_HOMES: the mac's bash is 3.2 and has no associative array.
+#
+# The RULE NAME is carried separately because it is not the image name: the
+# `base` table is the BASE FAMILY's — base, flutter, zephyr and zephyr-devbox
+# all read it — and a check called `base_versions_env` would name 1 of the 4
+# images it answers for.
+SHARED_HOME_IMAGES=("cloud" "base" "hardware" "ui")
+SHARED_HOME_TABLES=("PIN_CLASSES_CLOUD" "PIN_CLASSES_BASE" "PIN_CLASSES_HARDWARE" "PIN_CLASSES_UI")
+SHARED_HOME_RULE_NAMES=("cloud_versions_env" "base_family_versions_env" "hardware_versions_env" "ui_versions_env")
 
-run_listing base
-assert_listing_is_static "base_pin_listing_runs_and_calls_no_docker"
-base_records="$(classification_records "$LISTING_TEXT")"
-base_record_total="$(count_lines "$base_records")"
+shared_home_records=()
+for shared_index in "${!SHARED_HOME_IMAGES[@]}"; do
+  shared_image="${SHARED_HOME_IMAGES[$shared_index]}"
 
-run_listing hardware
-assert_listing_is_static "hardware_pin_listing_runs_and_calls_no_docker"
-hardware_records="$(classification_records "$LISTING_TEXT")"
-hardware_record_total="$(count_lines "$hardware_records")"
+  # Slot i of this array is slot i of the other, and the driver is what says so.
+  # See driver_table_for: without this the whole per-image half of the file can
+  # be pointed at another image's table and stay green.
+  assert_table_is_the_drivers "${shared_image}_is_judged_against_the_table_the_driver_selects" \
+    "$shared_image" "PIN_CLASSES" "${SHARED_HOME_TABLES[$shared_index]}"
 
-# A listing that parses into 0 records makes every rule below vacuous, and a
-# vacuous rule reports a clean file it never read. So the liveness of the reader
-# is a check of its own.
-if [[ "$cloud_record_total" -ge 1 ]]; then
-  pass_check "cloud_pin_listing_holds_at_least_one_record"
-else
-  fail_check "cloud_pin_listing_holds_at_least_one_record" \
-    "no <NAME>|<class> record came out of SMOKE_LIST_PINS=1 for cloud" \
-    "either the seam is absent, or this test stopped reading its records"
-fi
-if [[ "$base_record_total" -ge 1 ]]; then
-  pass_check "base_pin_listing_holds_at_least_one_record"
-else
-  fail_check "base_pin_listing_holds_at_least_one_record" \
-    "no <NAME>|<class> record came out of SMOKE_LIST_PINS=1 for base" \
-    "either the seam is absent, or this test stopped reading its records"
-fi
-if [[ "$hardware_record_total" -ge 1 ]]; then
-  pass_check "hardware_pin_listing_holds_at_least_one_record"
-else
-  fail_check "hardware_pin_listing_holds_at_least_one_record" \
-    "no <NAME>|<class> record came out of SMOKE_LIST_PINS=1 for hardware" \
-    "either the seam is absent, or this test stopped reading its records"
-fi
+  run_listing "$shared_image"
+  assert_listing_is_static "${shared_image}_pin_listing_runs_and_calls_no_docker"
+  shared_home_records[shared_index]="$(classification_records "$LISTING_TEXT")"
+
+  # A listing that parses into 0 records makes every rule below vacuous, and a
+  # vacuous rule reports a clean file it never read. So the liveness of the
+  # reader is a check of its own.
+  if [[ "$(count_lines "${shared_home_records[$shared_index]}")" -ge 1 ]]; then
+    pass_check "${shared_image}_pin_listing_holds_at_least_one_record"
+  else
+    fail_check "${shared_image}_pin_listing_holds_at_least_one_record" \
+      "no <NAME>|<class> record came out of SMOKE_LIST_PINS=1 for ${shared_image}" \
+      "either the seam is absent, or this test stopped reading its records"
+  fi
+done
 
 # -------- 3. THE RULE, on the 1 pin home, once per classification table -----
-# All 3 tables read versions.env now. They are still 3 tables, because the CI
-# fold is asserted in cloud and `not-in-this-image` in base and vice versa, and
-# the KiCad rows are asserted in hardware and `not-in-this-image` in the other 2,
-# so each one is judged against the SAME home separately: a pin classified in the
-# cloud table and forgotten in the base table is a silent pin for 4 of the 6
-# images, and 1 combined check would report it as covered.
+# All 4 tables read versions.env now. They are still 4 tables, because the CI
+# fold is asserted in cloud and `not-in-this-image` in base and vice versa, the
+# KiCad rows are asserted in hardware and `not-in-this-image` in the others, and
+# CHROME_MAJOR_VERSION is asserted in ui and in no other table at all — so each
+# one is judged against the SAME home separately: a pin classified in the cloud
+# table and forgotten in the base table is a silent pin for 4 of the 7 images,
+# and 1 combined check would report it as covered.
 #
 # The pin names are read out of the home and never out of a table. A rule that
 # read the listing would go on reporting coverage after the pin it covers was
@@ -754,23 +845,13 @@ fi
 # a file neither of them opened.
 pin_names="$(env_pin_names "$REPO_ROOT/$PIN_HOME")"
 
-assert_home_is_covered "cloud_versions_env" \
-  "$pin_names" \
-  "$cloud_records" \
-  "$(class_table_records "PIN_CLASSES_CLOUD")" \
-  "$PIN_HOME"
-
-assert_home_is_covered "base_family_versions_env" \
-  "$pin_names" \
-  "$base_records" \
-  "$(class_table_records "PIN_CLASSES_BASE")" \
-  "$PIN_HOME"
-
-assert_home_is_covered "hardware_versions_env" \
-  "$pin_names" \
-  "$hardware_records" \
-  "$(class_table_records "PIN_CLASSES_HARDWARE")" \
-  "$PIN_HOME"
+for shared_index in "${!SHARED_HOME_IMAGES[@]}"; do
+  assert_home_is_covered "${SHARED_HOME_RULE_NAMES[$shared_index]}" \
+    "$pin_names" \
+    "${shared_home_records[$shared_index]}" \
+    "$(class_table_records "${SHARED_HOME_TABLES[$shared_index]}")" \
+    "$PIN_HOME"
+done
 
 # -------- 4. THE SAME RULE, on the 3 child Dockerfiles -----------------------
 #
@@ -789,9 +870,11 @@ CHILD_HOMES=("flutter/Dockerfile" "zephyr/Dockerfile" "zephyr-devbox/Dockerfile"
 CHILD_TABLES=("PIN_CLASSES_FLUTTER" "PIN_CLASSES_ZEPHYR" "PIN_CLASSES_DEVBOX")
 
 # Every record of every listing, for the seam check in section 5.
-all_listing_records="${cloud_records}
-${base_records}
-${hardware_records}"
+all_listing_records=""
+for shared_index in "${!SHARED_HOME_IMAGES[@]}"; do
+  all_listing_records="${all_listing_records:+${all_listing_records}
+}${shared_home_records[$shared_index]}"
+done
 
 for child_index in "${!CHILD_IMAGES[@]}"; do
   child_image="${CHILD_IMAGES[$child_index]}"
@@ -801,6 +884,14 @@ for child_index in "${!CHILD_IMAGES[@]}"; do
   # of names and not only in the evidence. `-` is not a character a check name
   # takes here, because every other name in this file separates with `_`.
   child_label="$(printf '%s' "$child_image" | tr '-' '_')"
+
+  # The same pairing, on the variable a CHILD home is selected with. It is a
+  # separate clause and not the same one: a child arm assigns PIN_CLASSES the
+  # BASE table and CHILD_CLASSES its own, so reading PIN_CLASSES here would
+  # compare the shared home's table against the child home's list and report a
+  # mis-wire on every correct arm.
+  assert_table_is_the_drivers "${child_label}_is_judged_against_the_table_the_driver_selects" \
+    "$child_image" "CHILD_CLASSES" "$child_table"
 
   run_listing "$child_image"
   assert_listing_is_static "${child_label}_pin_listing_runs_and_calls_no_docker"
@@ -833,6 +924,65 @@ ${child_records}"
     "$(class_table_records "$child_table")" \
     "$child_home"
 done
+
+# -------- 4b. the 2 lists above are the manifest's image set, both ways -------
+#
+# Every rule in this file loops 1 of those 2 arrays, so an image in NEITHER is an
+# image whose pins nothing here classifies — and that is not hypothetical: `ui`
+# landed as the 7th image of images.yaml with a PIN_CLASSES_UI table in
+# .ci/smoke.sh that no reader on the pull request path ever opened, and this file
+# reported 72 green checks over 6 of the 7 images. Coverage that shrinks with no
+# red is the exact failure this file exists to refuse, 1 layer up, and it is the
+# same shape as the VALUE_HOMES defect download-coverage.test.sh records.
+#
+# Both directions, for the reason platform-policy.test.sh gives at
+# IMAGE_PLATFORM_TABLE:
+#
+#   an image of the manifest in neither array   is a pin home this file reads
+#                                               nothing of
+#   an array entry naming no manifest image     is a classification this file
+#                                               goes on asserting about an image
+#                                               that was deleted
+#
+# The arrays stay hand-kept. The clause holds them to the manifest; it does not
+# build them from it, because a list read out of images.yaml would agree with
+# any manifest, an emptied one included. What it CANNOT say is which of the 2
+# arrays an image belongs in — that is the pin-home question, and it is answered
+# by `<image>_pin_listing_reaches_its_own_Dockerfile` for a child with a home of
+# its own and by `<image>_pin_listing_holds_at_least_one_record` for the 4 that
+# read versions.env.
+#
+# WHICH READER. manifest_yq from _ctl/lib.sh — its RESOLUTION only, with the
+# EXPRESSION written here, exactly as publish-order.test.sh does it. The
+# accessor `image_names` is deliberately not used: it also enforces the
+# topological order of the manifest, so an ordering defect would fail HERE,
+# naming a pin-coverage rule, about something images-manifest.test.sh owns.
+manifest_status=0
+manifest_names=""
+manifest_names="$(manifest_yq '.images | keys | .[]' 2>&1)" || manifest_status=$?
+
+if [[ "$manifest_status" -eq 0 && -n "$manifest_names" ]]; then
+  pass_check "the_image_manifest_is_readable"
+else
+  fail_check "the_image_manifest_is_readable" \
+    "reading the image keys of ${IMAGES_MANIFEST} exited ${manifest_status}" \
+    "it printed:" "${manifest_names:-<nothing>}" \
+    "the manifest is the ONE declaration of the image set, so the equality below cannot be" \
+    "answered without it — and an empty set would agree with a repository that has no images"
+fi
+
+if [[ "$manifest_status" -ne 0 || -z "$manifest_names" ]]; then
+  fail_check "every_manifest_image_has_a_pin_home_this_file_judges" \
+    "unreadable: ${IMAGES_MANIFEST}"
+else
+  assert_equal "every_manifest_image_has_a_pin_home_this_file_judges" \
+    "$(printf '%s\n' "$manifest_names" | sort)" \
+    "$(printf '%s\n' "${SHARED_HOME_IMAGES[@]}" "${CHILD_IMAGES[@]}" | sort)" \
+    "${IMAGES_MANIFEST} is the ONE declaration of the image set, and SHARED_HOME_IMAGES +" \
+    "CHILD_IMAGES is the hand-kept pair of lists it owes set equality to" \
+    "every rule in this file loops 1 of those 2 arrays, so an image in neither is an image" \
+    "whose every pin is unclassified by nothing, silently and in green"
+fi
 
 # -------- 5. the seam prints the BARE class ---------------------------------
 # The absence probe is a property of the TABLE. .ci/smoke.sh says so in its own
