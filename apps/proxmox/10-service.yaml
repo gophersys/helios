@@ -1,0 +1,45 @@
+# A selectorless Service + a hand-written EndpointSlice: the backend is a
+# hypervisor on the LAN, not a pod, so nothing can populate the endpoints.
+#
+# The address is pve-00's vmbr0 address, NOT its 100.x tailnet address — the
+# ingress-nginx pod routes to 10.168.0.0/24 directly and has no tailnet route.
+#
+# EndpointSlice rather than the older Endpoints kind: the API server answers a
+# v1 Endpoints write with "deprecated in v1.33+; use discovery.k8s.io/v1
+# EndpointSlice", and a sync that warns on every reconcile is a sync nobody
+# reads.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pve-00
+  namespace: proxmox
+  labels:
+    app.kubernetes.io/name: pve-00
+    app.kubernetes.io/part-of: platform
+spec:
+  ports:
+    - name: https
+      port: 8006
+      targetPort: 8006
+      protocol: TCP
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: pve-00
+  namespace: proxmox
+  labels:
+    kubernetes.io/service-name: pve-00
+    app.kubernetes.io/name: pve-00
+    app.kubernetes.io/part-of: platform
+addressType: IPv4
+ports:
+  - name: https
+    port: 8006
+    protocol: TCP
+endpoints:
+  - addresses:
+      - 10.168.0.201
+    conditions:
+      ready: true
