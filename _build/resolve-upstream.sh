@@ -10,16 +10,18 @@
 # is being bumped away from.
 #
 #   bash _build/resolve-upstream.sh <PIN>
-#       1 record on stdout:  <version>|<sha256>
+#       1 record on stdout:  <version>|<row>=<sha256> [<row>=<sha256> ...]
 #
 #       <version>  spelled the way the pin's CURRENT value is spelled. A leading
 #                  `v` is kept when the pin carries one (cictl pins v0.1.0) and
 #                  dropped when it does not (gh pins 2.90.0); `go1.26.5` and
 #                  `bun-v1.3.14` lose their word prefix the same way.
-#       <sha256>   the digest of the bytes the GOVERNED FILE fetches for that
-#                  new version, or `-` when the pin has no digest row at all,
-#                  which about 30 of the 56 pins (go install, corepack, pipx)
-#                  do not.
+#       <row>=...  1 pair per `<tool>_SHA256_<ARCH>` row beside the pin, each
+#                  the digest of the bytes the GOVERNED FILE fetches for that
+#                  new version ON THE ARM THAT ROW ANSWERS FOR — 2 pairs for a
+#                  dual-arch asset, 1 for a _NOARCH or amd64-only one, and `-`
+#                  when the pin has no digest row at all, which about 30 of the
+#                  56 pins (go install, corepack, pipx) do not.
 #
 #   bash _build/resolve-upstream.sh --dry-run
 #       resolve every row and print the pull request it WOULD open. It writes
@@ -47,17 +49,21 @@
 # version and leaves the digest: the build then dies at the download, after the
 # merge, naming a pin that looked correct in the diff. A resolver can produce it
 # in 1 line — resolve the version, and re-read the digest out of the pin it is
-# bumping.
+# bumping. It produced it in a subtler way too, and for longer: resolving ONE
+# asset for a pin whose rows are per platform leaves every other row on the old
+# digest, which is the same defect wearing the sibling's name.
 #
 # So the digest is of bytes this run fetched, at the URL the GOVERNED FILE
 # writes with the NEW version substituted in — never a URL out of the table,
 # because a second URL home lets a correct digest be computed of the wrong
-# asset. The value is then handed back to _build/fetch-verified.sh, the ONE
-# verifier every image download goes through, which fetches that same URL a
-# second time and compares. There are 3 HTTP reads per digested pin — the index,
-# the digest, the re-proof — and the property is not that they are 1 fetch: it
-# is that the digest is of the asset of the version this run just resolved, and
-# that the verifier agreed before anything was written.
+# asset. There is 1 URL per ARM the governed file writes, so a dual-arch pin
+# resolves 2 assets and answers for both of its rows. Each value is handed back
+# to _build/fetch-verified.sh, the ONE verifier every image download goes
+# through, which fetches that same URL a second time and compares. The reads are
+# 1 index plus 2 per asset, and the property is not that they are few: it is
+# that each digest is of the asset of the version this run just resolved, on the
+# arm its row answers for, and that the verifier agreed before anything was
+# written.
 #
 # ============================================================================
 # EVERY FAILURE NAMES THE PIN, AND AN AGGREGATE RUN COLLECTS BEFORE IT FAILS
@@ -584,28 +590,45 @@ function governed_files() {
   return 0
 }
 
-# asset_record <pin> — `<digest pin>|<url>|<case arm>` for the download whose
-# URL embeds this pin, or nothing when the pin has no bytes to answer for.
-function asset_record() {
+# asset_records <pin> — `<platform>|<digest pin>|<url>|<case arm>`, 1 line per
+# download whose URL embeds this pin, or nothing when the pin has no bytes to
+# answer for.
+#
+# It was asset_record and returned the FIRST match. One asset per pin is what a
+# 1-platform set looks like: with 2 arms a pin has an asset PER ARM, each with
+# its own digest row, and a resolver that stopped at the first computed 1 digest
+# for a set of 2.
+#
+# A row is reported ONCE, by the first file that fetches it. `k9s` and
+# `docker buildx` are each fetched by base/Dockerfile AND by a component under
+# _delta/, at the same URL — the second reading would digest identical bytes a
+# second time, and the asset downloads are what the weekly's timeout budget is
+# made of. A row is deduplicated and never a URL: 2 rows fetching the same URL
+# is what a _NOARCH asset inside an armed RUN would be, and both rows have to
+# move.
+function asset_records() {
   local pin="$1"
-  local file record url
+  local file record url row seen=""
   while IFS= read -r file; do
     [[ -z "$file" ]] && continue
     while IFS= read -r record; do
       [[ -z "$record" ]] && continue
-      url="${record#*|}"
-      url="${url%%|*}"
-      if [[ "$url" == *"\${${pin}}"* ]]; then
-        printf '%s' "$record"
-        return 0
-      fi
+      url="$(row_field "$record" 3)"
+      [[ "$url" == *"\${${pin}}"* ]] || continue
+      row="$(row_field "$record" 2)"
+      case $'\n'"${seen}"$'\n' in
+        *$'\n'"${row}"$'\n'*) continue ;;
+      esac
+      seen="${seen:+${seen}
+}${row}"
+      printf '%s\n' "$record"
     done <<< "$(fetch_urls "$file")"
   done <<< "$(governed_files)"
   return 0
 }
 
-# scope_value <case arm> <name> — the value the `linux/amd64)` arm gives a
-# variable, or nothing.
+# scope_value <case arm> <name> — the value the arm this record came from gives
+# a variable, or nothing.
 function scope_value() {
   awk -v name="$2" '
     {
@@ -619,16 +642,21 @@ function scope_value() {
   ' <<< "$1"
 }
 
-# expand_url <pin> <version> <url> <case arm> — the URL the build will fetch.
+# expand_url <pin> <version> <url> <case arm> <platform> — the URL the build
+# will fetch on that platform.
 #
 # 3 kinds of token appear in a download URL, and each has exactly 1 answer: the
 # pin being resolved takes the NEW version, a `${ARCH}`-shaped variable takes the
-# value the linux/amd64 case arm of that same RUN gives it, and any other name
-# is another pin and takes the value its home holds. A token with no answer is a
-# FAILURE naming the pin — a URL fetched with `${ARCH}` still in it asks the far
-# end for a file whose name carries a dollar sign.
+# value THIS record's case arm gives it, and any other name is another pin and
+# takes the value its home holds. A token with no answer is a FAILURE naming the
+# pin — a URL fetched with `${ARCH}` still in it asks the far end for a file
+# whose name carries a dollar sign.
+#
+# The arm is why 2 records of 1 pin produce 2 URLs from 1 URL template: buf
+# spells its arm64 asset aarch64 and grpcurl spells the same platform arm64, and
+# each arm carries the spelling its own asset uses.
 function expand_url() {
-  local pin="$1" version="$2" url="$3" scope="$4"
+  local pin="$1" version="$2" url="$3" scope="$4" platform="$5"
   local rounds=0 name value token
   while [[ "$url" == *"\${"* ]]; do
     rounds=$((rounds + 1))
@@ -648,7 +676,7 @@ function expand_url() {
       fi
     fi
     if [[ -z "$value" ]]; then
-      fail_pin "$pin" "the download url reads \${${name}}, and neither the linux/amd64 case arm nor a value home declares it: ${url}"
+      fail_pin "$pin" "the download url reads \${${name}}, and neither the ${platform} case arm nor a value home declares it: ${url}"
     fi
     token="\${${name}}"
     url="${url//"$token"/$value}"
@@ -748,29 +776,42 @@ function resolve_version() {
   printf '%s' "$version"
 }
 
-# resolve_digest <pin> <version> — the sha256 of the asset THAT version names,
-# or `-` when the pin has no digest row anywhere.
+# resolve_digest <pin> <version> — `<row>=<sha256>` for EVERY digest row the pin
+# has, space separated on 1 line, or `-` when it has no digest row anywhere.
 #
 # The URL comes out of the file that performs the download, with this version
 # substituted in, and the value is then re-proven through the one verifier every
 # image download goes through. Both fetches are of the same URL, and that is the
 # point: the digest is of the bytes the build will fetch.
+#
+# It answers for the whole row set because the WRITER refuses a partial one. The
+# cost is real and it is the intended cost: a moved pin now downloads its asset
+# 2 times per arm rather than 2 times, so the budget is sized per ASSET and not
+# per pin.
 function resolve_digest() {
   local pin="$1" version="$2"
-  local digest="$NO_DIGEST"
-  local record="" url=""
-  capture record asset_record "$pin"
-  if [[ -n "$record" ]]; then
-    url="${record#*|}"
-    url="${url%%|*}"
-    capture url expand_url "$pin" "$version" "$url" "${record##*|}"
+  local records="" record platform row url scope digest pairs=""
+  capture records asset_records "$pin"
+  if [[ -z "$records" ]]; then
+    printf '%s' "$NO_DIGEST"
+    return 0
+  fi
+  while IFS= read -r record; do
+    [[ -z "$record" ]] && continue
+    platform="$(row_field "$record" 1)"
+    row="$(row_field "$record" 2)"
+    url="$(row_field "$record" 3)"
+    scope="$(row_field "$record" 4)"
+    capture url expand_url "$pin" "$version" "$url" "$scope" "$platform"
     capture digest digest_of "$pin" "$url"
     reprove_digest "$pin" "$url" "$digest"
-  fi
-  printf '%s' "$digest"
+    pairs="${pairs:+${pairs} }${row}=${digest}"
+  done <<< "$records"
+  printf '%s' "$pairs"
 }
 
-# resolve_pin <pin> — `<version>|<sha256>` on stdout, the record the CLI prints.
+# resolve_pin <pin> — `<version>|<row>=<sha256>...` on stdout, the record the
+# CLI prints.
 # Nothing else prints there: a caller reads this record, and a log line inside it
 # would be read as a version.
 #
@@ -778,16 +819,18 @@ function resolve_digest() {
 # whether or not it moved. The aggregate path below is the one that has 45 rows
 # to be careful with.
 function resolve_pin() {
-  local pin="$1" version="" digest=""
+  local pin="$1" version="" pairs=""
   capture version resolve_version "$pin"
-  capture digest resolve_digest "$pin" "$version"
-  printf '%s|%s\n' "$version" "$digest"
+  capture pairs resolve_digest "$pin" "$version"
+  printf '%s|%s\n' "$version" "$pairs"
 }
 
 # collect_bumps <movers file> <failures file> — resolve EVERY row, and separate
 # what moved from what could not be read.
 #
-#   <movers file>    `<pin>|<old>|<new>|<digest>`, 1 line per pin that moved
+#   <movers file>    `<pin>|<old>|<new>|<row>=<digest> ...`, 1 line per pin that
+#                    moved. Field 4 is the pin's WHOLE row map, because the
+#                    writer takes the whole set or refuses.
 #   <failures file>  the name of every pin whose upstream this run could not
 #                    read. Its message is already on stderr, printed at the
 #                    moment it happened.
@@ -814,7 +857,7 @@ function collect_bumps() {
   local movers_file="$1" failures_file="$2"
   : > "$movers_file"
   : > "$failures_file"
-  local row pin datasource current version digest status
+  local row pin datasource current version pairs status
   while IFS= read -r row; do
     [[ -z "$row" ]] && continue
     pin="${row%%|*}"
@@ -831,12 +874,12 @@ function collect_bumps() {
     # Nothing moved: no asset is fetched, and no line is written.
     [[ "$version" == "$current" ]] && continue
 
-    digest="$(resolve_digest "$pin" "$version")" || status=$?
+    pairs="$(resolve_digest "$pin" "$version")" || status=$?
     if [[ "$status" -ne 0 ]]; then
       printf '%s\n' "$pin" >> "$failures_file"
       continue
     fi
-    printf '%s|%s|%s|%s\n' "$pin" "$current" "$version" "$digest" >> "$movers_file"
+    printf '%s|%s|%s|%s\n' "$pin" "$current" "$version" "$pairs" >> "$movers_file"
   done <<< "$(table_rows)"
   [[ ! -s "$failures_file" ]]
 }
@@ -890,11 +933,13 @@ function pull_request() {
     printf -- '- %s: %s -> %s\n' "$(row_field "$bump" 1)" "$(row_field "$bump" 2)" "$(row_field "$bump" 3)"
   done <<< "$bumps"
   printf '\n'
-  printf 'Every sha256 above is the digest of the asset for the version beside it, read\n'
+  printf 'Every sha256 written is the digest of the asset for the version beside it, read\n'
   printf 'from that release and re-proven through _build/fetch-verified.sh before this\n'
   printf 'branch was written. Every home of each pin was edited, so the cloud family and\n'
-  printf 'the base family move together. Every row of the table resolved: a run with one\n'
-  printf 'unreadable upstream writes nothing and opens nothing.\n\n'
+  printf 'the base family move together, and so was every <tool>_SHA256_<ARCH> row beside\n'
+  printf 'it — one asset resolved per platform the case arms name, because a row left on\n'
+  printf 'the old digest fails the build on the leg it answers for. Every row of the table\n'
+  printf 'resolved: a run with one unreadable upstream writes nothing and opens nothing.\n\n'
   printf 'This pull request merges the way every other one does: validate, review,\n'
   printf 'build-smoke, and a human.\n'
 }
@@ -947,7 +992,8 @@ function apply_bumps() {
   bumps="$(cat "$movers")"
   rm -f "$movers" "$failures"
 
-  local bump pin new digest evidence today
+  local bump pin new pairs evidence today
+  local -a pair_list=()
   if [[ -z "$bumps" ]]; then
     printf 'no pin moved\n'
     return 0
@@ -957,15 +1003,23 @@ function apply_bumps() {
     [[ -z "$bump" ]] && continue
     pin="$(row_field "$bump" 1)"
     new="$(row_field "$bump" 3)"
-    digest="$(row_field "$bump" 4)"
-    # The digest was computed from the bytes this run fetched, and not read out
-    # of a checksum file upstream published, so that is what the row says.
+    pairs="$(row_field "$bump" 4)"
+    # EVERY digest below was computed from the bytes this run fetched, and not
+    # read out of a checksum file upstream published, so that is what each row
+    # says. The evidence is 1 string because it attests 1 provenance: a row must
+    # never inherit the `upstream-published:` url of the sibling it is beside,
+    # which attests an asset it is not the digest of.
     evidence="computed-at-pin: ${today}"
-    if [[ "$digest" == "$NO_DIGEST" ]]; then
+    pair_list=()
+    if [[ "$pairs" == "$NO_DIGEST" ]]; then
       evidence="$NO_DIGEST"
+    else
+      # The pairs are space separated and this file's IFS is not, so the split
+      # is spelled rather than inherited.
+      IFS=' ' read -r -a pair_list <<< "$pairs"
     fi
-    bump_pin "$UPSTREAM_ROOT" "$pin" "$new" "$digest" "$evidence" \
-      || fail_pin "$pin" "the writer could not put ${new} into every home of it"
+    bump_pin "$UPSTREAM_ROOT" "$pin" "$new" "$evidence" ${pair_list[@]+"${pair_list[@]}"} \
+      || fail_pin "$pin" "the writer could not put ${new} and its ${#pair_list[@]} digest row(s) into every home of it"
   done <<< "$bumps"
   pull_request "$bumps"
 }
