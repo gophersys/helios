@@ -21,6 +21,10 @@ func (s *session) pump(ready chan<- error) {
 
 	readySignaled := false
 	terminalSeen := false
+	// The last turn's authoritative ledger, cached on the PUMP GOROUTINE's own stack: it is
+	// what a requested Close replays as the session's final accounting, and keeping it local
+	// means the synthesis needs no shared state and no lock on the hot path.
+	var lastTurnLedger TokenLedger
 	for raw := range s.conn.Events() {
 		emitted := s.handle(raw)
 		for i := range emitted {
@@ -28,6 +32,9 @@ func (s *session) pump(ready chan<- error) {
 			if ev.Kind == EventSessionState && ev.State != nil && ev.State.To == StateReady && !readySignaled {
 				readySignaled = true
 				ready <- nil
+			}
+			if ev.Kind == EventTurnEnd && ev.Terminal != nil {
+				lastTurnLedger = ev.Terminal.Ledger
 			}
 			if ev.IsTerminal() {
 				terminalSeen = true
@@ -43,12 +50,20 @@ func (s *session) pump(ready chan<- error) {
 		s.emitTerminalFailed(ReasonAuth, "harness closed before readiness handshake")
 		return
 	}
-	if !terminalSeen {
-		// The harness channel closed without a terminal Event (a transport drop /
-		// process death mid-run). Synthesize a Failed terminal so every viewer's stream
-		// ends with a real terminal and the ledger finalizes.
-		s.emitTerminalFailed(ReasonTransport, "harness stream ended without a terminal event")
+	if terminalSeen {
+		return
 	}
+	if s.closeRequested() {
+		// A DELIBERATE Close reaped a healthy session (Close sets closed BEFORE it reaps the
+		// conn, so this read cannot mistake a requested shutdown for a death). The session
+		// ends on a clean Result replaying the last turn's ledger — not a transport fault.
+		s.emitTerminalResult(&lastTurnLedger)
+		return
+	}
+	// The harness channel closed without a terminal Event and without a Close (a transport
+	// drop / process death mid-run). Synthesize a Failed terminal so every viewer's stream
+	// ends with a real terminal and the ledger finalizes.
+	s.emitTerminalFailed(ReasonTransport, "harness stream ended without a terminal event")
 }
 
 // handle normalizes one raw adapter event into the published sequence. It applies the
@@ -91,7 +106,9 @@ func (s *session) handle(raw Event) []Event {
 	case EventResult, EventFailed, EventAborted:
 		emitted = append(emitted, s.emit(s.stampTerminal(raw)))
 	case EventMessageStart, EventThinkingDelta, EventTextDelta, EventMessageEnd,
-		EventToolUpdate, EventToolEnd, EventPermissionResolved, EventExtension:
+		EventToolUpdate, EventToolEnd, EventPermissionResolved, EventExtension, EventTurnEnd:
+		// EventTurnEnd is published verbatim: it ends a TURN, so it is NOT re-classified by
+		// stampTerminal, whose budget re-stamp belongs to the one event that ends the session.
 		emitted = append(emitted, s.emit(raw))
 	default:
 		// An unknown future kind is preserved verbatim (forward-compat), never dropped.
@@ -123,7 +140,7 @@ func (s *session) nextState(raw Event) (State, bool) {
 		return StateAwaitingPermission, true
 	case EventPermissionResolved:
 		return StateRunning, true
-	case EventMessageEnd:
+	case EventMessageEnd, EventTurnEnd:
 		if current == StateRunning {
 			return StateAwaitingInput, true
 		}
@@ -488,6 +505,25 @@ func (s *session) emitTerminalFailed(reason ErrorReason, detail string) {
 	})
 }
 
+// emitTerminalResult publishes the synthetic Result terminal a REQUESTED Close produces: the
+// session is healthy and parked between turns, so its one terminal replays the last turn's
+// authoritative ledger rather than reporting a fault. It also drives the state to Completed.
+func (s *session) emitTerminalResult(ledger *TokenLedger) {
+	from := s.priorState()
+	if from.IsTerminal() {
+		return
+	}
+	s.emit(s.stateEvent(from, StateCompleted))
+	s.setState(StateCompleted)
+	s.emit(Event{
+		Kind: EventResult,
+		Terminal: &TerminalPayload{
+			Outcome: TurnCompleted,
+			Ledger:  *ledger,
+		},
+	})
+}
+
 // State accessors and Seq/turn bookkeeping under s.mu.
 
 // priorState reports the current State under the lock.
@@ -497,6 +533,14 @@ func (s *session) priorState() State {
 	return s.state
 }
 
+// closeRequested reports whether Close was called under the lock — how the pump tells a
+// DELIBERATE shutdown from an unbidden harness death at the same event-channel close.
+func (s *session) closeRequested() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
+}
+
 // setState advances the State under the lock.
 func (s *session) setState(next State) {
 	s.mu.Lock()
@@ -504,17 +548,27 @@ func (s *session) setState(next State) {
 	s.mu.Unlock()
 }
 
-// advanceTurnOnPrompt increments the turn ordinal when a new prompt begins a new turn:
-// the AwaitingInput->Running edge. The first turn (Ready->Running) stays at 0; a
-// mid-turn continuation (AwaitingPermission->Running) keeps the current turn. It is
-// called from the pump goroutine before the transition event is stamped.
+// advanceTurnOnPrompt increments the turn ordinal when an admitted PROMPT begins a new
+// turn: the AwaitingInput->Running edge that prompt draws. The first turn (Ready->Running)
+// stays at 0; a mid-turn continuation (AwaitingPermission->Running) keeps the current turn.
+//
+// The armed flag is what separates a prompt's edge from the identical-looking one the
+// HARNESS draws resuming its own turn: one claude turn is several assistant messages, each
+// ending in a MessageEnd that parks the session, so keying on the edge alone counted a turn
+// per message. Every Running edge consumes the arming, so a stale flag cannot advance a
+// later turn twice. It is called from the pump goroutine before the transition event is
+// stamped.
 func (s *session) advanceTurnOnPrompt(prior, next State) {
-	if next != StateRunning || prior != StateAwaitingInput {
+	if next != StateRunning {
 		return
 	}
 	s.mu.Lock()
-	s.turn++
-	s.mu.Unlock()
+	defer s.mu.Unlock()
+	prompted := s.promptPending
+	s.promptPending = false
+	if prompted && prior == StateAwaitingInput {
+		s.turn++
+	}
 }
 
 // priorTurn reports the current turn ordinal under the lock.

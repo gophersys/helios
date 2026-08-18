@@ -266,10 +266,14 @@ func (n *normalizer) turnEnd(f *frame, line []byte) []agentsession.Event {
 	return []agentsession.Event{n.usageTick(f.Message.Usage)}
 }
 
-// agentEnd maps the agent_end frame (the headless -p run's terminal) to EventResult or
-// EventFailed, carrying the authoritative four-token TokenLedger built from the final
-// assistant message. A stopReason of "error" (with the upstream HTTP errorStatus) yields a
-// classified EventFailed; otherwise EventResult with the final assistant text.
+// agentEnd maps the agent_end frame (the headless -p run's terminal) to EventTurnEnd or the
+// session-terminal EventFailed, carrying the authoritative four-token TokenLedger built from
+// the final assistant message. A stopReason of "error" (with the upstream HTTP errorStatus)
+// yields a classified EventFailed; otherwise a TURN boundary with the final assistant text.
+//
+// A clean agent_end ends the TURN, not the session: omp's headless json mode is one-shot per
+// turn, so the PROCESS exits while the conn — and the session on it — stays alive for the
+// next Prompt, which runs the next process.
 func (n *normalizer) agentEnd(f *frame, line []byte) agentsession.Event {
 	final := n.finalAssistant(f)
 	if final == nil {
@@ -294,7 +298,7 @@ func (n *normalizer) agentEnd(f *frame, line []byte) agentsession.Event {
 		}
 	}
 	return agentsession.Event{
-		Kind: agentsession.EventResult,
+		Kind: agentsession.EventTurnEnd,
 		Terminal: &agentsession.TerminalPayload{
 			Outcome:    agentsession.TurnCompleted,
 			Ledger:     ledger,

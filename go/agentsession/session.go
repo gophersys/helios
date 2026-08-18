@@ -30,6 +30,7 @@ type session struct {
 	state         State
 	seq           uint64 // mirror of the last assigned Seq (authoritative is the Transcript)
 	turn          int
+	promptPending bool                          // an admitted Prompt is awaiting the Running edge that opens its turn
 	pending       map[string]*pendingPermission // RequestID -> awaiting resolution (the human-Resolve path)
 	sessionGrants []ToolGrant                   // the in-memory grant set: Spec.Grants + ScopeSession widenings (07 §3; never persisted)
 	recentDeltas  []string                      // a bounded ring of recent text/tool deltas for the advisor's AdviceContext
@@ -115,7 +116,17 @@ func (s *session) Control(ctx context.Context, command Command) (Ack, error) {
 	}
 	s.sendMu.Lock()
 	defer s.sendMu.Unlock()
+	// A Prompt opens a new turn: arm the ordinal advance BEFORE the send, because an adapter
+	// whose Send streams the whole turn synchronously (omp's one-shot exec per turn) has
+	// already published that turn's events by the time Send returns.
+	opensTurn := command.Kind == CommandPrompt
+	if opensTurn {
+		s.armTurn()
+	}
 	if err := s.conn.Send(ctx, command); err != nil {
+		if opensTurn {
+			s.disarmTurn() // the prompt never reached the harness; no turn was opened
+		}
 		return Ack{}, errors.Wrap(errors.KindUnavailable, "agentsession: send control", err)
 	}
 	return Ack{Seq: s.currentSeq()}, nil
@@ -360,6 +371,21 @@ func (s *session) recordRecentDelta(delta string) {
 	if len(s.recentDeltas) > recentDeltaWindow {
 		s.recentDeltas = s.recentDeltas[len(s.recentDeltas)-recentDeltaWindow:]
 	}
+	s.mu.Unlock()
+}
+
+// armTurn records that an admitted Prompt is awaiting the Running edge that opens its turn,
+// so the pump advances the ordinal on that edge and on no other.
+func (s *session) armTurn() {
+	s.mu.Lock()
+	s.promptPending = true
+	s.mu.Unlock()
+}
+
+// disarmTurn withdraws the arming when the prompt failed to reach the harness.
+func (s *session) disarmTurn() {
+	s.mu.Lock()
+	s.promptPending = false
 	s.mu.Unlock()
 }
 

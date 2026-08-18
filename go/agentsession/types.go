@@ -257,6 +257,7 @@ const (
 	EventAborted                             // TERMINAL: an Abort took the session to a stop; carries the ledger + By
 	EventExtension                           // a harness event with no normalized kind — preserved VERBATIM, NEVER dropped
 	EventThinkingProgress                    // a pre-message reasoning HEARTBEAT (no content yet): a running estimated thinking-token count, for a live "thinking…" status indicator
+	EventTurnEnd                             // a TURN reached a clean end: carries that turn's authoritative TokenLedger and final text, and parks the session in StateAwaitingInput — NOT a session terminal
 )
 
 // eventKindTokens holds the stable lower-kebab token for each EventKind, indexed
@@ -278,6 +279,7 @@ var eventKindTokens = [...]string{
 	EventAborted:            "aborted",
 	EventExtension:          "extension",
 	EventThinkingProgress:   "thinking-progress",
+	EventTurnEnd:            "turn-end",
 }
 
 // String returns the stable lower-kebab token (e.g. "tool-start"). Total: returns
@@ -309,7 +311,7 @@ type Event struct {
 	Tool       *ToolPayload       // EventToolStart/ToolUpdate/ToolEnd
 	Permission *PermissionPayload // EventPermissionRequest/PermissionResolved
 	Usage      *UsageMeter        // EventUsage (the running prefix of the terminal ledger)
-	Terminal   *TerminalPayload   // EventResult/Failed/Aborted (carries the authoritative TokenLedger)
+	Terminal   *TerminalPayload   // EventResult/Failed/Aborted/TurnEnd (carries the authoritative TokenLedger)
 
 	// Extension is the opaque escape hatch: the raw harness frame (or the part Eden
 	// did not normalize) as bytes. ALWAYS present for EventExtension; MAY ride
@@ -413,14 +415,14 @@ type UsageMeter struct {
 	Cumulative          bool  // true == session-to-date totals (Claude result event); false == this-turn delta
 }
 
-// TerminalPayload bounds the session: exactly one terminal Event carries it. It
-// carries the AUTHORITATIVE TokenLedger (the poc/codingharness total_cost_usd
-// ground truth) so the engine's evidence envelope and the chat's final meter
-// reconcile.
+// TerminalPayload bounds a turn AND the session: exactly one terminal Event
+// carries it, and so does every EventTurnEnd along the way. It carries the
+// AUTHORITATIVE TokenLedger (the poc/codingharness total_cost_usd ground truth)
+// so the engine's evidence envelope and the chat's final meter reconcile.
 type TerminalPayload struct {
 	Outcome    TurnOutcome
 	Ledger     TokenLedger
-	ResultText string      // EventResult: the final assistant text (batch: the artifact-adjacent result)
+	ResultText string      // EventResult/EventTurnEnd: the final assistant text (batch: the artifact-adjacent result)
 	StopReason string      // harness stop reason, surfaced verbatim for diagnostics
 	Reason     ErrorReason // EventFailed: the branchable classification
 	Detail     string      // EventFailed: a redacted message; never a credential
