@@ -46,8 +46,21 @@ env:
 jobs:
   scan:
     # A job with no limit inherits the GitHub default of 360 minutes, and a hung
-    # scan would hold a slot for 6 hours every night. 30 is a CEILING measured on
-    # the hosted runner; the first nightly on arc-build measures the real one.
+    # scan would hold a slot for 6 hours every night.
+    #
+    # 30 clears the 20m scan flag below, and the arithmetic is what says so
+    # rather than the round number. Worst of the 5 jobs of run 32121496607:
+    # 50s of setup + checkout + login + trivy install, 47s to download the
+    # 108 MiB vulnerability DB, 20m of scan, and 48s for trivy to unwind and
+    # print its FATAL — ~22m30s, leaving ~7m30s of margin. The DB download is
+    # budgeted SEPARATELY from the flag because that log does not settle whether
+    # it runs inside trivy's own deadline, and the reading that cannot
+    # under-size this number is the one to take.
+    #
+    # The ORDER is the point, not the margin: trivy's own timeout has to fire
+    # first. It fails naming the deadline and prints the WARN that says to raise
+    # it, where a job timeout stops the step with a log that diagnoses nothing.
+    # Raise this whenever the flag below is raised, and keep the gap.
     timeout-minutes: 30
     runs-on: arc-build
     permissions:
@@ -79,6 +92,36 @@ jobs:
         with:
           version: ${{ env.TRIVY_VERSION }}
       - name: scan ghcr.io/gophersys/${{ matrix.image }}:latest
+        # --timeout, and the DEFAULT is what broke this scan. Trivy defaults to
+        # 5m, and on 2026-08-18 all 5 scans died against it (run 32121496607,
+        # issue #73): the same `context deadline exceeded`, with trivy's own
+        # "Provide a higher timeout value" WARN beside it. The first dual-arch
+        # publish rebuilt every image with new layer digests, so every scan ran
+        # COLD; the default had only ever survived warm ones, which is how a
+        # budget that was always this tight looked healthy for months. No CVE
+        # was involved — the CRITICAL gate below never got to run.
+        #
+        # 20m is HEADROOM OVER AN UNMEASURED QUANTITY, and that is the honest
+        # description of it. NO scan of that run finished, so the cost of a cold
+        # one is a lower bound and not a measurement: base reached 5m43s of
+        # analysis, cloud 5m48s, and cloud — the largest, at the 5.75 GB budget —
+        # was still working at 4m05s when it started downloading a SECOND
+        # database (the Java DB), which never finished. So 20m is 4x the default
+        # that failed, not a number read off a green run.
+        #
+        # NOBODY LOWERS THIS BLIND. The first green nightly is the first real
+        # measurement this repository will hold: read the scan duration out of
+        # it, and size this flag from that number.
+        #
+        # The large-file WARNs in that log are REAL, and they stay unhidden.
+        # Trivy recommends --skip-files for them; that flag would hide a
+        # property of the image instead of fixing it. base carries 3 — two 13 MB
+        # copies of corepack's pnpm.mjs under /home/dev/.cache/node, and a 24 MB
+        # blob in /home/dev/.npm/_cacache — and cloud carries the 2 pnpm.mjs. A
+        # package cache has no business in a published image; removing it is the
+        # lean-out pass's work, not a scanner flag's. They cost scan time, so
+        # they are part of why this timeout has to be generous.
+        #
         # --exit-code 1 is what makes this a GATE. With --exit-code 0 trivy
         # prints its table, the step succeeds, the run is green, and nobody
         # reads the log of a scheduled job.
@@ -106,6 +149,7 @@ jobs:
           TRIVY_CACHE_DIR: ${{ runner.temp }}/trivy
         run: |
           trivy image \
+            --timeout 20m \
             --severity CRITICAL \
             --exit-code 1 \
             --ignorefile .ci/trivyignore.yaml \
