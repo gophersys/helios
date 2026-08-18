@@ -7,6 +7,20 @@
 # assert-no-skipped-tests.sh survived 8 days of green pull requests. These 2 verbs are the missing
 # ownership: `lint` and `test` are the target names `.ci/ctl.sh affected-check` already asks for.
 #
+# `test` runs mktemp-template_test.sh, which scans EVERY tracked shell file, so its Nx inputs are
+# every tracked shell file and not just this directory. Ownership alone left the same hole one
+# level out: a change to apps/agent-runtime/ctl.sh mapped to agent-runtime only, and a change to
+# .githooks/pre-commit mapped to nothing at all, so a bad template landing outside scripts/ still
+# merged green. The {workspaceRoot} globs on the `test` target in project.json close it: Nx reads a
+# {workspaceRoot} input as a reverse file -> project mapping, so a shell file anywhere marks this
+# project affected and no other. They live on that target rather than in an nx.json namedInput
+# because nx.json is itself a global implicit dependency — editing it marks all 49 projects
+# affected — and because the target is the only consumer.
+#
+# The globs cover *.sh, *.bash and .githooks/**, which is the whole scan set the test builds today.
+# An extension-less shell file added OUTSIDE .githooks/ would be scanned by the test but would not
+# trigger it: a glob cannot ask whether a file starts with a shell shebang.
+#
 # Usage: ./ctl.sh <command> [args...]
 #
 # Verbs are uniform with the monorepo's nx:run-commands convention: project.json
@@ -54,9 +68,13 @@ function cmd_lint() {
     scripts+=("$script")
   done < <(collect_scripts '.sh')
   # A lint that found nothing to lint and reported OK is the dead gate this project exists to
-  # close, so an empty set fails instead.
-  if [[ ${#scripts[@]} -eq 0 ]]; then
-    log_error "lint: no *.sh found in $PROJECT_ROOT"
+  # close. An empty set cannot happen here — the glob always matches this running script — so the
+  # guard asserts the set holds it. That failure is reachable: it is what a broken glob or a
+  # broken PROJECT_ROOT would look like.
+  local script_lines
+  printf -v script_lines '%s\n' "${scripts[@]}"
+  if [[ $'\n'"$script_lines" != *$'\n'"$PROJECT_ROOT/ctl.sh"$'\n'* ]]; then
+    log_error "lint: the *.sh set does not hold $PROJECT_ROOT/ctl.sh; the glob stopped resolving"
     exit 1
   fi
   log_info "lint: shellcheck ${#scripts[@]} script(s)"
