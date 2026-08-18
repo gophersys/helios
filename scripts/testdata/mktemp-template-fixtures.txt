@@ -4,11 +4,14 @@
 # comment, and an empty line is ignored. The 3 verdicts are:
 #   none  the line holds no mktemp invocation in command position (prose, a comment, a message)
 #   ok    an mktemp invocation that passes no template, or 1 template with >= 3 trailing X's
-#   bad   an mktemp invocation that GNU mktemp exits 1 on: a template with fewer than 3 trailing
-#         X's ("too few X's in template") or a second template operand ("too many templates")
+#   bad   an mktemp invocation that breaks the REPOSITORY rule: more than 1 template operand, or a
+#         template that does not END in >= 3 X's
 #
-# Every bad row below was read from real GNU mktemp (coreutils 9.4, ghcr.io/gophersys/base), not
-# from the manual page.
+# `bad` is the house rule, not a reading of GNU's exit code. The 2 differ in 1 direction: the rule
+# is the stricter of the 2. GNU accepts `mktemp fooXXXXXX.log` — it reads .log as a suffix and
+# exits 0 — and this table still calls it bad, because the eden form puts the X's last. Every GNU
+# exit code named in this file was read from real GNU mktemp (coreutils 9.4, ghcr.io/gophersys/
+# base), never from the manual page.
 #
 # This file carries the word mktemp on purpose, including the broken forms. It is not a shell
 # script and has no shell shebang, so the repository scan of mktemp-template_test.sh never reads
@@ -89,3 +92,26 @@ bad	trap "mktemp -t bad" EXIT
 ok	trap "mktemp -d -t good.XXXXXX" EXIT
 bad	trap 'mktemp -t bad' EXIT
 ok	trap 'mktemp -d -t good.XXXXXX' EXIT
+
+# --- a wrapper carries its own options and operands before the command it runs ---
+bad	env mktemp -t bad
+ok	env mktemp -t good.XXXXXX
+bad	env EDEN_LIB_NAME=agentsession mktemp -t bad
+ok	env EDEN_LIB_NAME=agentsession mktemp -t good.XXXXXX
+bad	timeout 5 mktemp -t bad
+ok	timeout 5 mktemp -t good.XXXXXX
+bad	timeout --signal=KILL 5 mktemp -t bad
+ok	timeout --signal=KILL 5 mktemp -t good.XXXXXX
+
+# --- stricter than GNU on purpose: the X run must END the template ---
+# --- `mktemp fooXXXXXX.log` is rc=0 under GNU (it takes .log as a suffix) and bad by the house
+# --- rule; `mktemp fooXX.log` is rc=1 under GNU as well ("too few X's in template").
+bad	mktemp fooXXXXXX.log
+bad	mktemp fooXX.log
+ok	mktemp foo.log.XXXXXX
+
+# --- the 2 limits, pinned so that nobody reads a green run as a full shell parse: an unknown
+# --- wrapper hides a real invocation (none — the false negative this test accepts), and a template
+# --- built at run time carries no literal X's to read, so it falls on the strict side (bad).
+none	runner mktemp -t bad
+bad	mktemp "$TEMPLATE_FROM_A_VARIABLE"

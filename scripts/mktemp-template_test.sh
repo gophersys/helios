@@ -3,11 +3,7 @@
 # scripts/mktemp-template_test.sh — repository rule: an mktemp invocation passes at most 1 template,
 # and that template carries >= 3 trailing X's.
 #
-# GNU mktemp (the devcontainer and every CI image) rejects a template with fewer than 3 trailing
-# X's — "too few X's in template" — and rejects a second template operand — "too many templates".
-# BSD mktemp on a mac accepts both forms. A form that only a mac accepts therefore reaches CI green
-# on a laptop and exits 1 in the lane, which is how scripts/assert-no-skipped-tests.sh:22 stopped
-# the harness-conformance job for 8 days.
+# A mac-only form (GNU exits 1 where BSD accepts) reaches CI green on a laptop and dies in the lane.
 #
 # SCOPE — read this before you read a green run as a repository-wide guarantee.
 #   COVERED: the shell files of THIS repository, tracked AND untracked — a .sh or .bash name, or a
@@ -18,6 +14,12 @@
 #     lib.sh alone holds 4 mktemp calls that this scan never reads. Also not covered: a non-shell
 #     file, the `run:` block of a CI yaml, a Dockerfile, a Makefile. A violation in any of those
 #     passes this test.
+#   LIMIT: the leader set of mktemp_command_position is ENUMERATED, not a shell parser. It holds
+#     the shell keywords, the wrappers sudo/exec/command/eval/env/time/timeout/nohup and the
+#     command string of trap. A wrapper outside that list — `runner mktemp -t bad` — is read as
+#     prose and passes. This test judges literal text only, so a template built at run time
+#     (`mktemp "$TEMPLATE"`) carries no X's to read and falls on the strict side: bad. The fixture
+#     table pins both limits with a row.
 #
 # It reads text only. It never runs mktemp, so its verdict is the same on a mac and in the
 # container and it needs no GNU-mktemp guard. Run it directly:
@@ -76,13 +78,26 @@ mktemp_command_position() {
 
   # The word before it opens a command: a shell keyword whose body is a command list, or a wrapper
   # that runs its arguments. `if true; then mktemp -t bad; fi` and `sudo mktemp -t bad` are both
-  # real invocations that a metacharacter-only reading misses entirely.
-  last="${prefix##*[[:space:]]}"
-  case "$last" in
-    if | elif | then | else | while | until | do | sudo | exec | command | eval | time | nohup)
-      return 0
-      ;;
-  esac
+  # real invocations that a metacharacter-only reading misses entirely. A wrapper may carry its own
+  # options and operands first — `timeout 5 mktemp`, `env FOO=bar mktemp` — so the walk steps back
+  # over an option, a number and an assignment, 4 words at most, and judges what opens them. The
+  # set is enumerated: a wrapper outside it reads as prose. See LIMIT in the file header.
+  local steps=0
+  while [[ $steps -lt 4 ]]; do
+    last="${prefix##*[[:space:]]}"
+    case "$last" in
+      if | elif | then | else | while | until | do) return 0 ;;
+      sudo | exec | command | eval | env | time | timeout | nohup) return 0 ;;
+    esac
+    case "$last" in
+      -* | [0-9]* | *=*) ;;
+      *) return 1 ;;
+    esac
+    [[ $prefix == *[[:space:]]* ]] || return 1
+    prefix="${prefix%[[:space:]]*}"
+    while [[ $prefix == *[[:space:]] ]]; do prefix="${prefix%?}"; done
+    steps=$((steps + 1))
+  done
   return 1
 }
 
