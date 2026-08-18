@@ -39,11 +39,16 @@ import (
 const fakeCanary = "STUB-FAKE-TOKEN-do-not-leak"
 
 // TestIntegration_StubBinary_RealSubprocessLifecycle spawns the REAL os/exec stub process
-// through the claude-code adapter's genuine Spawn path, drives Open -> Prompt -> drain to
-// terminal, and asserts: the init handshake reached Ready, the assistant text/tool events
-// parsed, the rate_limit_event survived as Extension through a real pipe, the terminal
-// carried the four-token ledger, Seq is monotonic, and the credential canary never leaked.
+// through the claude-code adapter's genuine Spawn path, drives Open -> Prompt -> drain to the
+// TURN BOUNDARY, and asserts: the init handshake reached Ready, the assistant text/tool events
+// parsed, the rate_limit_event survived as Extension through a real pipe, the boundary carried
+// the four-token ledger, Seq is monotonic, and the credential canary never leaked.
 // The process is reaped on Cleanup.
+//
+// Re-pinned for contract revision R1: one Prompt draws one TURN boundary, and the process stays
+// alive for the next one — so what this arm reads at the end of the turn is the boundary, not a
+// session terminal. The three-Prompt proof over the same process is its multi-turn sibling
+// (multiturn_integration_test.go).
 func TestIntegration_StubBinary_RealSubprocessLifecycle(t *testing.T) {
 	t.Parallel()
 	stub := buildStub(t)
@@ -66,7 +71,7 @@ func TestIntegration_StubBinary_RealSubprocessLifecycle(t *testing.T) {
 		t.Fatalf("Prompt: %v", err)
 	}
 
-	events, drainErr := drainTerminal(session)
+	events, drainErr := drainToTurnBoundary(session)
 	if drainErr != nil {
 		t.Fatal(drainErr)
 	}
@@ -74,7 +79,7 @@ func TestIntegration_StubBinary_RealSubprocessLifecycle(t *testing.T) {
 		t.Fatal("the stub subprocess produced no events")
 	}
 	assertSubprocessKinds(t, events)
-	assertSubprocessTerminalLedger(t, events[len(events)-1])
+	assertSubprocessBoundaryLedger(t, events[len(events)-1])
 	assertSubprocessSeqAndNoLeak(t, events)
 }
 
@@ -93,14 +98,21 @@ func assertSubprocessKinds(t *testing.T, events []agentsession.Event) {
 	}
 }
 
-// assertSubprocessTerminalLedger proves the terminal carries the four-token ledger and
-// the cost converted with no float drift (0.0123 USD -> 12300 micros).
-func assertSubprocessTerminalLedger(t *testing.T, terminal agentsession.Event) { //nolint:gocritic // Event is the contract's copyable value record (§2); this test helper takes it by value.
+// assertSubprocessBoundaryLedger proves the TURN boundary carries the four-token ledger and
+// the cost converted with no float drift (0.0123 USD -> 12300 micros) — and that it ends the
+// TURN, not the session (R1: the process keeps reading stdin for the next Prompt).
+func assertSubprocessBoundaryLedger(t *testing.T, boundary agentsession.Event) { //nolint:gocritic // Event is the contract's copyable value record (§2); this test helper takes it by value.
 	t.Helper()
-	if !terminal.IsTerminal() || terminal.Terminal == nil {
-		t.Fatalf("the real subprocess did not end on a terminal carrying a ledger")
+	if boundary.Terminal == nil {
+		t.Fatalf("the real subprocess turn did not end on a boundary carrying a ledger (last kind %s)", boundary.Kind)
 	}
-	ledger := terminal.Terminal.Ledger
+	if boundary.IsTerminal() {
+		t.Fatalf("the real subprocess turn ended the SESSION (kind %s); a success `result` is a TURN boundary", boundary.Kind)
+	}
+	if got := boundary.Kind.String(); got != turnEndToken {
+		t.Errorf("turn-boundary token = %q, want %q", got, turnEndToken)
+	}
+	ledger := boundary.Terminal.Ledger
 	if ledger.InputTokens == 0 || ledger.OutputTokens == 0 || ledger.CacheReadTokens == 0 || ledger.CacheCreationTokens == 0 {
 		t.Errorf("terminal ledger missing token kinds: %+v", ledger)
 	}
@@ -186,12 +198,18 @@ func TestIntegration_LiveClaude_Gated(t *testing.T) {
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "Reply with exactly: ok"}); err != nil {
 		t.Fatalf("live Prompt: %v", err)
 	}
-	events, drainErr := drainTerminal(session)
+	events, drainErr := drainToTurnBoundary(session)
 	if drainErr != nil {
 		t.Fatal(drainErr)
 	}
-	if len(events) == 0 || !events[len(events)-1].IsTerminal() {
-		t.Fatalf("live session did not reach a terminal")
+	// R1: a live turn ends on a TURN boundary and the session stays alive for the next Prompt,
+	// so what proves the turn completed is the boundary payload, not a session terminal.
+	if len(events) == 0 || events[len(events)-1].Terminal == nil {
+		t.Fatalf("live session did not reach a turn boundary")
+	}
+	if events[len(events)-1].IsTerminal() {
+		t.Errorf("the live turn ended the SESSION (kind %s); a success `result` is a TURN boundary",
+			events[len(events)-1].Kind)
 	}
 	for i := range events {
 		agentsessiontest.AssertNoSecretInEvent(t, events[i], token)
@@ -353,7 +371,7 @@ func TestIntegration_LiveClaude_HostToolRoundTrip(t *testing.T) {
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: prompt}); err != nil {
 		t.Fatalf("live Prompt: %v", err)
 	}
-	events, drainErr := drainTerminal(session)
+	events, drainErr := drainToTurnBoundary(session)
 	if drainErr != nil {
 		t.Fatal(drainErr)
 	}
@@ -374,16 +392,20 @@ func TestIntegration_LiveClaude_HostToolRoundTrip(t *testing.T) {
 	}
 }
 
-// TestIntegration_LiveClaude_HostToolReachesTerminal is the REGRESSION that locks the
-// sdkMcpServers stall fix: a REAL claude turn opened WITH an Eden host tool registered MUST reach
-// a terminal. The pre-fix code advertised sdkMcpServers as a JSON ARRAY, which made claude
+// TestIntegration_LiveClaude_HostToolCompletesItsTurn is the REGRESSION that locks the
+// sdkMcpServers stall fix: a REAL claude turn opened WITH an Eden host tool registered MUST
+// COMPLETE ITS TURN. The pre-fix code advertised sdkMcpServers as a JSON ARRAY, which made claude
 // complete the MCP `initialize` + `notifications/initialized` then STALL before `tools/list` — so
-// the turn never terminated (the eden_commit_transition supervisor stall). Unlike HostToolRoundTrip
-// this does NOT skip on a non-call: reaching a terminal is the HARD assertion (the array form
-// never reaches one within the window → fails; the object form processes the turn → passes). The
-// session mirrors the supervisor's breadth (a host tool + a multi-grant allowlist). SKIPPED
+// the turn never ended (the eden_commit_transition supervisor stall). Unlike HostToolRoundTrip
+// this does NOT skip on a non-call: reaching the turn boundary is the HARD assertion (the array
+// form never reaches one within the window → fails; the object form processes the turn → passes).
+// The session mirrors the supervisor's breadth (a host tool + a multi-grant allowlist). SKIPPED
 // without the live token.
-func TestIntegration_LiveClaude_HostToolReachesTerminal(t *testing.T) {
+//
+// Re-pinned for contract revision R1: the stall this locks is the ABSENCE of a turn boundary, so
+// the assertion reads the boundary payload — the same event before and after R1 — instead of a
+// session terminal, which a healthy multi-turn session no longer emits until it is Closed.
+func TestIntegration_LiveClaude_HostToolCompletesItsTurn(t *testing.T) {
 	t.Parallel()
 	token := liveTokenOrSkip(t)
 
@@ -430,8 +452,12 @@ func TestIntegration_LiveClaude_HostToolReachesTerminal(t *testing.T) {
 	for i := range events {
 		agentsessiontest.AssertNoSecretInEvent(t, events[i], token)
 	}
-	if len(events) == 0 || !events[len(events)-1].IsTerminal() {
-		t.Fatalf("the turn never reached a terminal under a registered host tool (the sdkMcpServers array stall) — kinds: %v", kindsOf(events))
+	if len(events) == 0 || events[len(events)-1].Terminal == nil {
+		t.Fatalf("the turn never reached its boundary under a registered host tool (the sdkMcpServers array stall) — kinds: %v", kindsOf(events))
+	}
+	if events[len(events)-1].IsTerminal() {
+		t.Errorf("the live turn ended the SESSION (kind %s); a success `result` is a TURN boundary",
+			events[len(events)-1].Kind)
 	}
 }
 
@@ -472,7 +498,10 @@ func liveTokenOrSkip(t *testing.T) string {
 	return token
 }
 
-// drainStreamTo reads a live stream to its terminal (or ctx deadline), returning the events.
+// drainStreamTo reads a live stream to the end of its turn (or ctx deadline), returning the
+// events. Re-pinned for contract revision R1: it stops on the boundary PAYLOAD, the same event
+// on both sides of the revision — otherwise a healthy post-R1 session, which emits no terminal
+// until it is Closed, would drain for the whole ctx deadline.
 func drainStreamTo(t *testing.T, ctx context.Context, stream agentsession.Stream) []agentsession.Event { //nolint:revive // ctx-after-t is fine for this bounded test drainer
 	t.Helper()
 	var events []agentsession.Event
@@ -482,7 +511,7 @@ func drainStreamTo(t *testing.T, ctx context.Context, stream agentsession.Stream
 			return events
 		}
 		events = append(events, event)
-		if event.IsTerminal() {
+		if event.Terminal != nil || event.IsTerminal() {
 			return events
 		}
 	}
@@ -586,22 +615,28 @@ type integrationClock struct{}
 
 func (integrationClock) Now() time.Time { return time.Date(2026, time.June, 13, 12, 0, 0, 0, time.UTC) }
 
-// drainTerminal drains a session's stream to its terminal, bounded so a regression fails
-// fast rather than hanging.
+// drainToTurnBoundary drains a session's stream to the end of its FIRST TURN, bounded so a
+// regression fails fast rather than hanging.
 // drainDeadline bounds a live harness run. Exceeding it is a FAILURE that says
 // so, never a quiet return of a partial event list.
 const drainDeadline = 15 * time.Second
 
+// Re-pinned for contract revision R1: the drain stops on the boundary PAYLOAD
+// (`event.Terminal != nil`), which is the SAME event on both sides of the revision — a success
+// `result` today, and the non-terminal turn-end it becomes once a session survives its own
+// turn. Stopping on IsTerminal() alone would wait out the whole deadline post-R1, since a
+// healthy multi-turn session emits no terminal until it is Closed.
+//
 // It returns an error rather than calling t.Fatalf, so that the deadline branch
 // below can be driven from a test. While it took a *testing.T that branch could
 // not be reached by any test, and it shipped unproven.
-func drainTerminal(session agentsession.Session) ([]agentsession.Event, error) {
-	return drainTerminalWithin(session, drainDeadline)
+func drainToTurnBoundary(session agentsession.Session) ([]agentsession.Event, error) {
+	return drainToTurnBoundaryWithin(session, drainDeadline)
 }
 
-// drainTerminalWithin takes the deadline as a parameter so a test can drive the
+// drainToTurnBoundaryWithin takes the deadline as a parameter so a test can drive the
 // timeout branch in seconds instead of waiting out the production deadline.
-func drainTerminalWithin(session agentsession.Session, deadline time.Duration) ([]agentsession.Event, error) {
+func drainToTurnBoundaryWithin(session agentsession.Session, deadline time.Duration) ([]agentsession.Event, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), deadline)
 	defer cancel()
 	stream := session.Events(ctx, agentsession.FromSeq(0))
@@ -617,24 +652,27 @@ func drainTerminalWithin(session agentsession.Session, deadline time.Duration) (
 			// event happened to be and the reader looked at event kinds instead
 			// of the clock. Name the timeout here, where it is known.
 			if ctx.Err() != nil {
-				return events, fmt.Errorf("no terminal event within %s (%d event(s) seen, last = %s); the harness is hung or slower than this deadline",
+				return events, fmt.Errorf("no turn boundary within %s (%d event(s) seen, last = %s); the harness is hung or slower than this deadline",
 					deadline, len(events), lastKind(events))
 			}
 			return events, nil
 		}
 		events = append(events, event)
-		if event.IsTerminal() {
+		if event.Terminal != nil || event.IsTerminal() {
 			return events, nil
 		}
 	}
 }
 
-// lastKind names the final event for a diagnostic, or "none".
+// lastKind names the final event for a diagnostic, or "none". It renders through String(), not
+// through a conversion: EventKind's underlying type is uint8, so `string(kind)` is a rune
+// conversion that go vet's stringintconv permits (uint8 IS byte) and that prints an
+// unprintable byte instead of the token — the diagnostic this deadline message exists to give.
 func lastKind(events []agentsession.Event) string {
 	if len(events) == 0 {
 		return "none"
 	}
-	return string(events[len(events)-1].Kind)
+	return events[len(events)-1].Kind.String()
 }
 
 // readyObserved reports whether the stream contains the Initializing->Ready handshake.
