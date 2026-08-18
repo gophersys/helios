@@ -28,13 +28,16 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=_ctl/lib.sh
 source "$PROJECT_ROOT/_ctl/lib.sh"
 
-# Dependency order — parents first. `base` is the root of the dev-image
-# family; `flutter` and `zephyr` both layer on top of `base`, and
-# `zephyr-devbox` layers on top of `zephyr`.
+# Dependency order — parents first, and DERIVED. The set is declared in
+# images.yaml and nowhere else; the order is the order the manifest writes the
+# images in, and image_names refuses a manifest that puts a child above its
+# parent. This array was a literal here and a second literal in .ci/ctl.sh, and
+# holding the 2 to each other is what validate.yml's agreement step is for.
 #
-# `cloud` is the successor image of the consolidation program (ledger #94):
-# the reduced base + the CI fold, built FROM ubuntu directly. It is what all 3
-# ARC pools run.
+# `base` is the root of the dev-image family; `flutter` and `zephyr` layer on
+# top of `base`, and `zephyr-devbox` layers on top of `zephyr`. `cloud` is the
+# successor image of the consolidation program (ledger #94): the reduced base +
+# the CI fold, built FROM ubuntu directly. It is what all 3 ARC pools run.
 #
 # `base-runner` was here and is RETIRED. The `+ runner` layer existed to make an
 # ARC pool image out of `base`; the pools run `cloud` now (gophersys/
@@ -42,7 +45,18 @@ source "$PROJECT_ROOT/_ctl/lib.sh"
 # consumer and nothing builds it. `runner/` still holds the Dockerfile for one
 # more change — deleting the directory goes with the docs sweep — and no verb of
 # this repository reaches it any more, because every loop here walks BUILD_ORDER.
-BUILD_ORDER=(base flutter zephyr zephyr-devbox cloud)
+#
+# Filled at SOURCE time, not lazily: _ctl/tests/publish-order.test.sh and
+# _ctl/tests/scheduled-workflows.test.sh read this array out of a shell that has
+# sourced this file, because the value the shell ends up holding is the value
+# the script builds with.
+BUILD_ORDER=()
+_build_order_text="$(image_names)" || exit 1
+while IFS= read -r _image; do
+  [[ -z "$_image" ]] && continue
+  BUILD_ORDER+=("$_image")
+done <<< "$_build_order_text"
+unset _build_order_text _image
 
 # -------- helpers --------
 # Image name -> source directory. These are 1:1 except for the `+ runner`

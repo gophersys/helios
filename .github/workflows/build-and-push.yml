@@ -1,3 +1,15 @@
+# GENERATED FILE — do not edit it here.
+#
+#   generator: _ctl/generate.sh
+#   manifest:  images.yaml
+#
+# Every job below is 1 template applied to 1 entry of the manifest. An edit made
+# here is lost on the next `bash _ctl/generate.sh`: change the template in the
+# generator for anything true of every job, and the image's own entry in the
+# manifest for anything true of one. .github/workflows/build-and-push.yml is a
+# hand-made copy of this file, and _ctl/tests/platform-policy.test.sh holds the
+# 2 byte for byte.
+
 name: build-and-push
 
 # Publishes the IDP image set (base + flutter + zephyr + zephyr-devbox + cloud)
@@ -37,8 +49,8 @@ name: build-and-push
 # and most pushes to main touch 1 image or none of them. Each job asks
 # `.ci/affected.sh <image>` whether this commit changes that image's inputs, and
 # gates its build, its smoke, its push and its manifest read on the answer. The
-# path table lives in that file, once — read it for what counts as an input, and
-# for why a child declares its parent's paths.
+# path table lives in images.yaml, once — read it for what counts as an input,
+# and for why a child declares its parent's paths.
 #
 # Everything builds on workflow_dispatch, on a tag, and whenever a workflow or
 # anything under .ci/ changes.
@@ -101,8 +113,9 @@ env:
   # measurement. No arm64 consumer can be verified for any image
   # (gophersys/infrastructure docs/debt-register.md D42), and the arm64 base that
   # was published was an amd64 Ubuntu userland carrying aarch64 Go binaries.
-  # This value must equal SANCTIONED_PLATFORMS in _ctl/lib.sh, and the
-  # verify-published step in each job is what proves the registry agrees.
+  # This value is SANCTIONED_PLATFORMS in _ctl/lib.sh, written in by the
+  # generator, and the verify-published step in each job is what proves the
+  # registry agrees.
   PLATFORMS: linux/amd64
 
 jobs:

@@ -60,6 +60,19 @@ Build in this order:
 2. `flutter` and `zephyr`. Both layer on `base`.
 3. `zephyr-devbox`. It layers on `zephyr`.
 
+**That drawing is prose. `images.yaml` is the graph**, and it is the only place
+the image set is declared. Each entry carries the image's parent, its build
+context and Dockerfile, the paths a change to which rebuilds it, and the smoke
+check groups it runs. Everything mechanical is derived from it: `BUILD_ORDER` in
+both control scripts, the parent map and the input path table `.ci/affected.sh`
+answers with, the check groups `.ci/smoke.sh` sends to the guest, the 5 publish
+jobs, and the nightly scan matrix. `bash _ctl/generate.sh` writes the last 2 —
+it is idempotent, and the workflows carry a GENERATED header saying so.
+
+Adding an image is 1 entry in `images.yaml`, its directory, a regeneration, and
+the hand-kept literals the policy tests carry on purpose (a test that reads the
+value it checks agrees with any value, a wrong one included).
+
 ### The `+ runner` layer is retired
 
 `runner/` holds **1** Dockerfile, which added the GitHub Actions runner to any
@@ -67,9 +80,11 @@ parent image through `BASE_IMAGE`. It built `base-runner`, and `base-runner` was
 what the ARC pools ran.
 
 They run `cloud` now, pinned by digest — `cloud` folds the runner in itself
-(gophersys/infrastructure #184). So the layer has no consumer: it left
-`BUILD_ORDER`, both copies of the publishing workflow, the nightly scan matrix
-and `.ci/smoke.sh`.
+(gophersys/infrastructure #184). So the layer has no consumer: it left the image
+set, which took it out of `BUILD_ORDER`, both copies of the publishing workflow,
+the nightly scan matrix and `.ci/smoke.sh` in one edit. Retiring an image is 1
+entry removed from `images.yaml` and a regeneration now; it was ~15 hand edits
+when `base-runner` went.
 
 The `ghcr.io/gophersys/base-runner` package is gone from the registry: read on
 2026-08-17, the org's container list does not hold it and the packages API
@@ -355,8 +370,11 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
 ├── README.md
 ├── project.json                 # repo-level Nx wiring (list, validate, test)
 ├── ctl.sh                       # repo-wide control script
+├── images.yaml                  # the ONE declaration of the image SET
 ├── versions.env                 # the ONE pin home of base and cloud
-├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time only
+├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time only,
+│                                #   and the images.yaml reader every home derives from
+├── _ctl/generate.sh             # images.yaml -> the publish jobs + the nightly matrix
 ├── _ctl/tests/                  # hermetic *.test.sh + harness + docker stub + fixtures
 ├── _build/                      # COPYed into base and cloud, above their first download
 │   ├── fetch-verified.sh        # the ONE verifier every image download goes through
@@ -542,7 +560,9 @@ deletion strips the NODE. `_ctl/tests/workflow-yaml.test.sh` holds both halves.
 
 The workflow `.github/workflows/validate.yml` is the pull request gate. It runs
 `bash ./ctl.sh validate`, `bash ./ctl.sh test`, and the BUILD_ORDER agreement
-check.
+check. That last step is now VACUOUS and is left in place for a follow-up: both
+control scripts fill `BUILD_ORDER` from `images.yaml`, so the 2 literals the
+step greps are equal by construction and it can no longer fail.
 
 The workflow `.github/workflows/security-nightly.yml` scans the published images
 for CRITICAL vulnerabilities every night and reports the night ubuntu moves under

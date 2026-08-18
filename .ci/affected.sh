@@ -6,9 +6,15 @@
 # image, and gates its build, its smoke, its push and its manifest read on the
 # reply. A warm rebuild of the whole set measured ~35 minutes on every push to
 # main, and most pushes to main touch 1 image or none of them. (That was
-# measured when the set held 6; BUILD_ORDER holds 5 now, since base-runner was
-# retired. The count is left out on purpose — this file's own image_own_paths()
-# is the list, and a number restated in prose goes stale on its own.)
+# measured when the set held 6; it holds 5 now, since base-runner was retired.
+# The count is left out on purpose — images.yaml is the list, and a number
+# restated in prose goes stale on its own.)
+#
+# THE PATH TABLE AND THE GRAPH ARE NOT HERE ANY MORE. This file carried an
+# image_parent() and an image_own_paths() of its own, which made it 2 of the 6
+# homes the dependency graph was declared in. Both come out of images.yaml now,
+# through image_parent and image_input_paths in _ctl/lib.sh, so the answer this
+# file gives and the jobs that ask for it are derived from one declaration.
 #
 #   bash .ci/affected.sh <image>
 #       1 record on stdout, in the GITHUB_OUTPUT grammar:
@@ -36,7 +42,8 @@
 # flutter, zephyr and zephyr-devbox FROM an image this repository publishes. If
 # base rebuilds and flutter does not, the published flutter is a layer on an
 # image that no longer exists at that tag. So a child's input set CONTAINS its
-# parent's, and `parent built => child builds` holds by construction.
+# parent's, and `parent built => child builds` holds by construction —
+# image_input_paths walks the `parent` edge of images.yaml to make it so.
 #
 # The other direction does not hold: flutter/ can change on its own, and then
 # base publishes no `:<sha>` tag for this commit. That is why the workflow reads
@@ -81,54 +88,6 @@ BUILD_ALL_PATHS=(
   ".ci/"
 )
 
-# The parent whose inputs this image inherits. `base` and `cloud` build FROM
-# ubuntu and have none.
-function image_parent() {
-  case "$1" in
-    flutter)       printf 'base' ;;
-    zephyr)        printf 'base' ;;
-    zephyr-devbox) printf 'zephyr' ;;
-    *)             printf '' ;;
-  esac
-}
-
-# The paths of the image ITSELF, without its parent's. A trailing `/` is a
-# prefix; anything else is an exact path.
-#
-# versions.env is an input of base as well as of cloud, and both of them now
-# READ it at build time: every pin of either image arrives as a --build-arg
-# generated from that file. This row used to admit an over-build — base took the
-# input while only cloud consumed it — and the collapse to 1 pin home is what
-# made the mapping true rather than merely safe.
-function image_own_paths() {
-  case "$1" in
-    # .dockerignore governs what the root context SHIPS, so it is an input of
-    # every root-context image — proven the day it landed, when its own merge
-    # skipped every build and the images missed 2 commits' layers until a
-    # dispatch rebuilt them (2026-08-18).
-    base)          printf '%s\n' 'base/' '_build/' 'versions.env' '.dockerignore' ;;
-    cloud)         printf '%s\n' 'cloud/' '_delta/' '_build/' 'versions.env' '.dockerignore' ;;
-    flutter)       printf '%s\n' 'flutter/' ;;
-    zephyr)        printf '%s\n' 'zephyr/' ;;
-    zephyr-devbox) printf '%s\n' 'zephyr-devbox/' ;;
-    *)
-      log_error "no input paths are declared for image '$1'"
-      log_error "every image of BUILD_ORDER needs a row here, or its job cannot decide anything"
-      exit 2
-      ;;
-  esac
-}
-
-# The full input set: this image's own paths, then its parent's, transitively.
-function image_paths() {
-  local name="$1" parent
-  image_own_paths "$name"
-  parent="$(image_parent "$name")"
-  if [[ -n "$parent" ]]; then
-    image_paths "$parent"
-  fi
-}
-
 # matches_any <file> <prefix...> — a trailing `/` matches a directory, anything
 # else is an exact path.
 function matches_any() {
@@ -157,13 +116,13 @@ function emit() {
 
 require_cmd git jq
 
-# The input set is read before any trigger is answered, so an image with no row
-# fails here rather than being quietly declared unaffected.
+# The input set is read before any trigger is answered, so an image the manifest
+# does not declare fails here rather than being quietly called unaffected.
 #
-# Through an assignment and not a process substitution: `image_paths` exits 2 on
-# an image it does not know, and inside `< <( )` that status kills a subshell
+# Through an assignment and not a process substitution: image_input_paths fails
+# on an image it does not know, and inside `< <( )` that status kills a subshell
 # the reader never sees, leaving an empty path set that matches nothing.
-paths_text="$(image_paths "$IMAGE" | awk '!seen[$0]++')"
+paths_text="$(image_input_paths "$IMAGE")" || exit 2
 PATHS=()
 while IFS= read -r path; do
   [[ -z "$path" ]] && continue

@@ -29,12 +29,20 @@ REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 # shellcheck source=../_ctl/lib.sh
 source "$REPO_ROOT/_ctl/lib.sh"
 
-# Dependency order — parents first. `cloud` stands alone (FROM ubuntu): the
-# successor image of the consolidation program (ledger #94), and what all 3 ARC
-# pools run. `base-runner` was here and is RETIRED — see the note beside the
-# other BUILD_ORDER, in the repository-root ctl.sh. The 2 must agree, and
-# validate.yml asserts that they do.
-BUILD_ORDER=(base flutter zephyr zephyr-devbox cloud)
+# Dependency order — parents first, and DERIVED from images.yaml, the same 1
+# source the repository-root ctl.sh reads. This was a second literal copy of
+# that script's array, and validate.yml's agreement step exists because the 2
+# could drift. `cloud` stands alone (FROM ubuntu): the successor image of the
+# consolidation program (ledger #94), and what all 3 ARC pools run.
+# `base-runner` was here and is RETIRED — see the note beside the other reader,
+# in the repository-root ctl.sh.
+BUILD_ORDER=()
+_build_order_text="$(image_names)" || exit 1
+while IFS= read -r _image; do
+  [[ -z "$_image" ]] && continue
+  BUILD_ORDER+=("$_image")
+done <<< "$_build_order_text"
+unset _build_order_text _image
 
 # Image name -> source directory. 1:1 except the `+ runner` variants: one
 # directory (`runner/`) builds `<parent>-runner` for every parent. Mirrors the

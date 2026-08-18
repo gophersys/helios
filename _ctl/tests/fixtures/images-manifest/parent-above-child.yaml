@@ -1,0 +1,30 @@
+# The same 2 images as child-above-parent.yaml, in the order that IS a build
+# order: the parent first.
+#
+# The pair is the point. A guard that refused every manifest would pass the
+# counter-stimulus in the other file while making the real images.yaml
+# unreadable, so this fixture is what separates "the guard fires" from "the
+# guard is stuck on". It is a 2-image document and not a copy of the real
+# manifest: a fixture that tracked the real image set would have to be edited
+# every time an image is added, and it would then be testing the set instead of
+# the ordering rule.
+images:
+  base:
+    parent: ""
+    context: "."
+    dockerfile: base/Dockerfile
+    smoke_ref: base:smoke
+    paths:
+      - base/
+    groups:
+      - content-base
+
+  flutter:
+    parent: base
+    context: flutter
+    dockerfile: flutter/Dockerfile
+    smoke_ref: flutter:smoke
+    paths:
+      - flutter/
+    groups:
+      - content-flutter
