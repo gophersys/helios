@@ -71,7 +71,24 @@ OLD pump = right reason); Round B implementer full green.
 ## Blocked
 -
 
+## Round A2 (928ab1e) — proven
+- Tests 7-8 RED on REAL subprocesses: turn 1 ends the SESSION (kind result), Prompt 2
+  refused "illegal in state COMPLETED" (correction: adapter lanes latch completed, not
+  running — the scripted root test reaches running). claude load re-pin: 50/50 cycles
+  fail at fan-out. omp lifecycle probe: session dead before Close. Shared drainer
+  re-pin proven GREEN (deadline branch unmoved). 3 lanes verified needing NO change by
+  running them. Incidental test-owned fix: lastKind rune-conversion bug (string(uint8))
+  → .String(). Rename: TestIntegration_LiveClaude_HostToolReachesTerminal →
+  _HostToolCompletesItsTurn (check eden/.ci for by-name references).
+- HONEST GAPS for Round B: tests 7-8 assertion bodies past Prompt 2 are red by
+  UNREACHABILITY (ordinals 0/1/2, one-process-served-every-turn, three-execs-one-ready,
+  sole-terminal-is-requested-close, seq+leak) — Round B must show EACH green by name.
+  claudeadapter reds ran inside a snapshot break window (controlframe absent) — re-run
+  both commands WITHOUT the window after controlframe lands. Live arms still SKIP here
+  (PR-2's lane). goleak has never seen a 3-turn lifetime.
+
 ## Next
-Red round A2: tests 7-8 (3 consecutive Prompts on ONE stub process, both adapters) +
-the adapter integration/load/lifecycle re-pins, RED against the OLD pump. Then Round B
-implementer (types/pump/session/controlframe/normalizers/agentruntime/apidiff-record).
+Round B (implementer): types.go EventTurnEnd+token; pump nextState/plain-emit/cached
+ledger/close branch; session emitTerminalResult; internal/controlframe + retire 3 homes;
+both normalizers; agentruntime 2 sites; apidiff-record; then ALL tests green including
+the named unreached assertions, full lanes, phase-gates both libs, in-container.
