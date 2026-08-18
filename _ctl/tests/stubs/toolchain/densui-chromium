@@ -11,15 +11,15 @@
 # name executable, and the version it prints is the shape .ci/smoke.sh compares
 # CHROME_MAJOR_VERSION against with its `prefix` extractor.
 #
-#   STUB_FAIL_DENSUI_CHROMIUM   exit 1 instead of answering   (unset)
+# IT CARRIES NO STUB_FAIL KNOB, and that is the reason: no case can set one,
+# because no check in this repository EXECUTES this file. It had one, and a
+# switch nothing can flip is a dead branch that reads like coverage — the same
+# class as a check that cannot fail, one level down. The day a case runs the
+# browser (the version comparator inside the guest is where that would happen),
+# the knob comes back with the case that drives it.
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
-
-if [[ "${STUB_FAIL_DENSUI_CHROMIUM:-}" == "1" ]]; then
-  printf 'stub densui-chromium: this run was told to fail (STUB_FAIL_DENSUI_CHROMIUM)\n' >&2
-  exit 1
-fi
 
 printf 'Google Chrome 151.0.7922.137\n'
 exit 0

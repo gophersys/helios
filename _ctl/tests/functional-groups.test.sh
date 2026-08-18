@@ -556,6 +556,40 @@ else
     "output was:" "$GUEST_OUTPUT"
 fi
 
+# A BROKEN TOOL IS NOT AN UNREACHABLE ONE, and the 2 need different fixes. The
+# asymmetry case above proves the exposure; this proves the group asks 3
+# DIFFERENT tools. A group that ran `node` 3 times under 3 labels would satisfy
+# every case above it — the exposure world and the healthy world both answer
+# identically for a single tool checked thrice — and would then report a green ui
+# image with no npm and no uv in it.
+#
+# So each tool is failed on its own, with the exposure ON so nothing else can be
+# the cause, and the check asserts BOTH halves: the failing tool fails for both
+# users, and the other 2 still answer. That is also what drives the stub knobs:
+# a switch no case ever sets is a switch nobody has watched work.
+#
+# The knob is SPELLED, not derived. `STUB_FAIL_$(tr ...)` builds the same string
+# and leaves the file with no literal `STUB_FAIL_NODE` in it, so the audit that
+# asks "which stub knob does no case set" — a grep, and the one that found these
+# 3 dead in the first place — goes on reporting them dead. A pairing that a
+# reader and a grep can both see is worth more than 3 saved characters.
+for ui_broken_pair in "node|STUB_FAIL_NODE" "npm|STUB_FAIL_NPM" "uv|STUB_FAIL_UV"; do
+  ui_broken_tool="${ui_broken_pair%%|*}"
+  ui_broken_knob="${ui_broken_pair#*|}"
+  run_groups "content-ui" "DENSUI_CHROME=${UI_BROWSER}" "PYTHONUNBUFFERED=1" \
+    "STUB_SUDO_SECURE_PATH=${UI_EXPOSED_SECURE_PATH}" "${ui_broken_knob}=1"
+  ui_other_readers=()
+  for ui_other_tool in node npm uv; do
+    [[ "$ui_other_tool" == "$ui_broken_tool" ]] && continue
+    ui_other_readers+=("ok   ${ui_other_tool} (this user)")
+    ui_other_readers+=("ok   ${ui_other_tool} (root, through sudo's secure_path)")
+  done
+  assert_group_failed "a_broken_${ui_broken_tool}_fails_both_readers_and_leaves_the_other_tools_answering" \
+    "FAIL: ${ui_broken_tool} (this user)" \
+    "FAIL: ${ui_broken_tool} (root, through sudo's secure_path)" \
+    "${ui_other_readers[@]}"
+done
+
 # The font. It is asserted as a PATH the group reads and not as a verdict, and
 # the reason is the one stated above: with no seam, the branch that fires is a
 # property of the host. What this holds is that the group still reads the font at

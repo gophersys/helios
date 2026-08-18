@@ -102,13 +102,21 @@ SMOKE_REF="cloud:smoke"
 # being true when a second SHAPE arrived.
 #
 # `hardware` is that shape: a CHILD that reads versions.env. Its pins arrive as
-# generated --build-args like cloud's, so it takes a 3rd class table over the
-# SAME home while the other 3 children read a table over their own Dockerfile;
-# it declares a size budget, which 4 of the 6 images do not; and its whole
-# reason to exist — the KiCad rows — is `asserted` in ITS table and
-# `not-in-this-image` in the 2 others. A driver that selected the wrong table
-# would produce a payload that is entirely well-formed and asserts the wrong
-# image, and every check above would still pass, because they read cloud.
+# generated --build-args like cloud's, so it takes a class table of its OWN over
+# the SAME home while the other 3 children read a table over their own
+# Dockerfile; it declares a size budget, which 4 of the 7 images do not; and its
+# whole reason to exist — the KiCad rows — is `asserted` in ITS table and
+# `not-in-this-image` in the 3 others that read that home. A driver that selected
+# the wrong table would produce a payload that is entirely well-formed and
+# asserts the wrong image, and every check above would still pass, because they
+# read cloud.
+#
+# Read on 2026-08-18 rather than incremented: `.ci/smoke.sh` declares 7 class
+# tables, 4 of them over versions.env (CLOUD, BASE, HARDWARE, UI) and 3 over a
+# child Dockerfile; images.yaml declares 7 images and 3 of them carry
+# `size_budget_gb` (cloud, hardware, ui), so 4 do not; and KICAD_PPA_VERSION is
+# `asserted` in PIN_CLASSES_HARDWARE and `not-in-this-image:kicad-cli` in the
+# other 3 tables over that home.
 #
 # The names below carry the image for the reason version-coverage.test.sh gives
 # at its child loop: a reader finds the broken one in the list of names, and not
@@ -202,12 +210,20 @@ UI_ASSERTED_ROWS=(
   'CHROME_MAJOR_VERSION|sh -c "${DENSUI_CHROME} --version"'
 )
 
-# The budget images.yaml declares for it: 6.3 GB, in the decimal bytes
-# image_size_budget_bytes computes. PROVISIONAL like hardware's and computed the
-# same way — cloud's measured layer sum plus the chrome+fonts layer of the image
-# this one replaces, at the ~1.12x docker accounting factor — so this literal
-# moves when the first green build measures the real number.
-UI_SIZE_BUDGET="6300000000"
+# The budget images.yaml declares for it: 6.5 GB, in the decimal bytes
+# image_size_budget_bytes computes. PROVISIONAL like hardware's, and it moved
+# from 6.3 BEFORE this image was ever built — which is what a provisional number
+# is for. The 6.3 rested on the premise that research-ui-ci's chrome+fonts layer
+# was the WHOLE delta, and that premise is false on THIS parent: research-ui-ci
+# builds FROM `base`, which installs the GTK/webkit stack, and `cloud` installs
+# none of it, so the chrome install drags its own dependency closure in here.
+# 2 independent derivations — 6.32 a-priori, 6.47 from the first rehearsal's
+# compressed delta converted at the chrome layer's own ratio — and the row is the
+# 6.5 above both. The full account with its measurements is beside the key in
+# images.yaml; read it before moving this literal, and move it when the first
+# build measured on the SAME basis as cloud's and hardware's budgets resets that
+# row.
+UI_SIZE_BUDGET="6500000000"
 
 # The tools the payload must name. Each one is a gate-critical hole today.
 # `docker compose` carries a space on purpose — the plugin is invoked that way,
@@ -891,14 +907,33 @@ for asserted_row in "${UI_ASSERTED_ROWS[@]}"; do
 done
 
 # Section 6, at the third budget. 1 byte apart for the reason the cloud pair
-# gives. This image's budget is the smallest of the 3 declared, so a gate reading
-# any other image's number would let a 6.3 GB overrun through unreported.
+# gives.
+#
+# WHAT THE PAIR PROVES, MEASURED RATHER THAN ARGUED. An earlier version of this
+# note said "this image's budget is the smallest of the 3 declared, so a gate
+# reading any other image's number would let an overrun through". Both halves
+# were wrong: cloud's 5.75 GB is smaller than this image's 6.5, and the ordering
+# is not what makes a wrong budget red anyway. The 2 cases were run against a
+# driver pointed at each of the other 2 budgets on 2026-08-18:
+#
+#   the driver reads cloud's 5.75 GB   BOTH cases red — the refusal names
+#                                      5750000000 and not this image's number,
+#                                      and the at-budget case is refused its
+#                                      own limit
+#   the driver reads hardware's 11 GB  the over-budget case red — budget+1 was
+#                                      accepted and the container started
+#
+# So the pair bites in BOTH directions, and what makes the smaller-budget
+# direction bite is not arithmetic: `assert_refused_without_running` takes this
+# image's own number as its needle, so a refusal that names another image's
+# budget is a failure even though a refusal happened. A check that only asked
+# for a non-zero status would have passed that case.
 run_smoke "$SMOKE" "$UI_IMAGE" "$UI_SMOKE_REF" "STUB_IMAGE_SIZE=$((UI_SIZE_BUDGET + 1))"
 assert_refused_without_running "a_ui_image_one_byte_over_its_budget_fails_and_starts_no_container" \
   "$UI_SIZE_BUDGET" \
-  "the image measured $((UI_SIZE_BUDGET + 1)) bytes, which is 1 byte over the 6.3 GB budget" \
-  "the budget is PROVISIONAL and the first green build resets it — a gate that does not bite" \
-  "cannot report the re-measurement it exists to force"
+  "the image measured $((UI_SIZE_BUDGET + 1)) bytes, which is 1 byte over the 6.5 GB budget" \
+  "the budget is PROVISIONAL and the first build measured on cloud's basis resets it — a gate" \
+  "that does not bite cannot report the re-measurement it exists to force"
 
 run_smoke "$SMOKE" "$UI_IMAGE" "$UI_SMOKE_REF" "STUB_IMAGE_SIZE=${UI_SIZE_BUDGET}"
 if [[ "$RUN_STATUS" -ne 0 ]]; then

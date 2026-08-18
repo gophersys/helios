@@ -35,8 +35,12 @@
 # Scope, deliberately narrow: only PIN-SHAPED names are checked (*_VERSION,
 # *_REF, *_CHANNEL and *_SHA256_<ARCH>). Those are the names the convention
 # governs, and they are never shell locals or inherited ENV, so the rule holds
-# with ZERO exceptions across all 6 Dockerfiles — no allowlist. A wider rule
-# needs one, and 2 references measured on 2026-08-17 are why:
+# with ZERO exceptions across all 7 Dockerfiles — no allowlist. That count is
+# the manifest's, read on 2026-08-18 and not incremented: images.yaml declares 7
+# images, DOCKERFILES below owes it set equality, and every one of the 7 declares
+# at least 1 governed-shaped ARG — which is what the liveness check per file
+# holds, so the count cannot go stale silently. A wider rule
+# needs an allowlist, and 2 references measured on 2026-08-17 are why:
 # ${VERSION_CODENAME} comes from `. /etc/os-release` inside the RUN line that
 # uses it (base/Dockerfile:654, cloud/Dockerfile:573, declared by no ARG in
 # either file), and ${WEST_VENV} comes from the parent image's ENV
