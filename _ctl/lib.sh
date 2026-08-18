@@ -93,19 +93,42 @@ export BUILDKIT_UPSTREAM_REF="docker.io/moby/buildkit:v0.32.2@sha256:28a898719c1
 # single source of truth: the guard, the build, the push and verify-published
 # all read it, and nothing else declares a platform.
 #
-# 1 entry. No arm64 consumer can be verified for any image — gophersys/
-# infrastructure docs/debt-register.md D42 — and the arm64 half that was
-# published was an amd64 Ubuntu userland carrying aarch64 Go binaries, so it was
-# mislabelled rather than native. Widen this list on the day a consumer exists,
-# and not before.
-SANCTIONED_PLATFORMS="linux/amd64"
+# 2 entries. The rule that narrowed this list to 1 is the rule that widens it:
+# an image builds the arch it deploys to, and D42 — no verifiable arm64 consumer
+# — is answered. Local development on Apple Silicon through the devcontainer CLI
+# consumes linux/arm64, and the Mac mini builds it NATIVELY, so this is not the
+# mislabelled variant that was dropped: that one was an amd64 Ubuntu userland
+# carrying aarch64 Go binaries, produced by a `FROM --platform=${BUILDPLATFORM}`
+# that no Dockerfile here writes any more.
+#
+# .ci/buildx-node.sh appends the mini as an arm64 builder node BECAUSE this line
+# names linux/arm64. Widening is still not 1 edit — every digest row, every
+# `linux/arm64)` case arm and the literal in
+# _ctl/tests/platform-policy.test.sh move with it.
+SANCTIONED_PLATFORMS="linux/amd64,linux/arm64"
 
-# The platforms THIS image builds. Overridable, so an image can declare a
-# measured narrower target. Wider is not a
-# choice: require_sanctioned_platforms refuses an entry outside the set above,
-# and BOTH image_build and image_push call it. `build` needs it as much as
-# `push` does, because `build` tags the official ref on the developer's host.
-: "${IMAGE_PLATFORMS:=$SANCTIONED_PLATFORMS}"
+# The platforms THIS image builds. Wider is not a choice:
+# require_sanctioned_platforms refuses an entry outside the set above, and BOTH
+# image_build and image_push call it. `build` needs it as much as `push` does,
+# because `build` tags the official ref on the developer's host.
+#
+# There are 3 sources, in falling precedence: the ENVIRONMENT, the image's own
+# `platforms` key in images.yaml, and the sanctioned set. The middle one is
+# resolved by resolve_image_platforms at the head of each verb rather than here,
+# because reading the manifest costs a `docker run` on a host without yq and
+# `help` must not pay it. The SOURCE is recorded because after the default runs
+# the variable holds a value either way, and a resolver that could not tell the
+# 2 apart would overwrite the platform a developer named.
+# `+` and not `:-`: the test is whether the name was DECLARED, not whether it
+# holds anything. `IMAGE_PLATFORMS=` is a caller naming an empty list, and the
+# guard has a refusal for exactly that — read as "unset", it would be replaced by
+# the manifest's set and the refusal could never fire.
+if [[ -n "${IMAGE_PLATFORMS+declared}" ]]; then
+  IMAGE_PLATFORMS_SOURCE="environment"
+else
+  IMAGE_PLATFORMS="$SANCTIONED_PLATFORMS"
+  IMAGE_PLATFORMS_SOURCE="default"
+fi
 
 if [[ -n "${IMAGE_NAME:-}" ]]; then
   IMAGE_REF="${IMAGE_REGISTRY_NAMESPACE}/${IMAGE_NAME}:latest"
@@ -339,9 +362,9 @@ function manifest_yq() {
 
 # The flat form of the manifest, 1 record per image in document order:
 #
-#   <name>|<parent>|<context>|<dockerfile>|<smoke_ref>|<paths>|<groups>
+#   <name>|<parent>|<context>|<dockerfile>|<smoke_ref>|<paths>|<groups>|<platforms>
 #
-# where the last 2 fields are space-joined lists. The `|` grammar is the one
+# where the last 3 fields are space-joined lists. The `|` grammar is the one
 # _build/upstreams.txt and .ci/smoke.sh's class tables already use, and no field
 # of this manifest can hold the character.
 #
@@ -361,7 +384,10 @@ function image_records() {
   # so the status is read explicitly here — the trap _build/resolve-upstream.sh
   # documents, where a failed read returned an empty string that was then
   # reported as an answer.
-  records="$(manifest_yq '.images | to_entries | .[] | [.key, .value.parent, .value.context, .value.dockerfile, .value.smoke_ref, (.value.paths | join(" ")), (.value.groups | join(" "))] | join("|")')" || status=$?
+  # `.value.platforms // []` and not `.value.platforms`: the key is OPTIONAL, an
+  # absent one is null, and `null | join(" ")` would take the whole read down
+  # for the 4 images that correctly declare nothing.
+  records="$(manifest_yq '.images | to_entries | .[] | [.key, .value.parent, .value.context, .value.dockerfile, .value.smoke_ref, (.value.paths | join(" ")), (.value.groups | join(" ")), (.value.platforms // [] | join(" "))] | join("|")')" || status=$?
   if [[ "$status" -ne 0 ]]; then
     log_error "the image manifest could not be read: ${REPO_ROOT}/${IMAGES_MANIFEST}"
     return 1
@@ -496,6 +522,86 @@ function image_input_paths() {
 # this image, space-separated on 1 line.
 function image_check_groups() {
   image_field "$1" 7
+}
+
+# image_platforms <name> — the platforms this image PUBLISHES, comma-separated,
+# in the spelling every other platform path uses.
+#
+# An image that declares nothing takes SANCTIONED_PLATFORMS, so the manifest
+# names a platform only where the image is an exception. NARROWER is the only
+# exception there is: every declared entry must be in the sanctioned set, and one
+# that is not FAILS naming the image and the platform. A manifest that could
+# widen the policy would make the policy the manifest, and the sanctioned set is
+# declared in this file precisely so 1 place answers "what may we publish".
+#
+# The narrowing itself is a MEASUREMENT and lives beside the key it justifies —
+# flutter's row cites the upstream document that says no linux-arm64 SDK exists.
+function image_platforms() {
+  local name="$1" declared
+  declared="$(image_field "$name" 8)" || return 1
+  if [[ -z "$declared" ]]; then
+    printf '%s' "$SANCTIONED_PLATFORMS"
+    return 0
+  fi
+  local -a entries=()
+  local entry
+  # The manifest joins its list with a space; every consumer of a platform list
+  # here reads commas.
+  for entry in $declared; do
+    if [[ ",${SANCTIONED_PLATFORMS}," != *",${entry},"* ]]; then
+      log_error "${IMAGES_MANIFEST}: '${name}' declares the unsanctioned platform ${entry}"
+      log_error "the sanctioned set is ${SANCTIONED_PLATFORMS}, declared in _ctl/lib.sh"
+      log_error "an image may declare a measured NARROWER set; it may never declare a wider one"
+      return 1
+    fi
+    entries+=("$entry")
+  done
+  local IFS=','
+  printf '%s' "${entries[*]}"
+}
+
+# resolve_image_platforms <name> — put the manifest's answer into
+# IMAGE_PLATFORMS, unless the caller named one.
+#
+# The argument is REQUIRED and every call site passes it, including the 3 verbs
+# below that could have read IMAGE_NAME themselves. It was optional, defaulting
+# to IMAGE_NAME, and shellcheck 0.10.0 — the version the cloud image ships and
+# therefore the version CI runs — reported that shape as SC2120 on the function
+# and SC2119 at each of the 3 bare calls. Host 0.11.0 is silent about it, so
+# `ctl.sh validate` was green here and red in CI, which is the worst way for a
+# gate to disagree with itself. Passing the name is also the better shape: the
+# function reads no global it does not receive, and `.ci/smoke.sh` — a driver
+# with an image in its argv and no IMAGE_NAME — was already calling it this way.
+# An empty argument is legal and means "no manifest lookup", which is the path a
+# dispatcher outside the manifest takes.
+#
+# The environment still wins, which is what makes the local loop usable with 2
+# sanctioned platforms: `docker build` makes 1 image, so a developer names the
+# platform they want. `IMAGE_PLATFORMS_SOURCE` is what tells the 2 apart — after
+# the default is applied the variable holds a value either way, and a resolver
+# that could not see the difference would overwrite the developer's choice.
+#
+# It is called by the verbs and not at source time: the manifest read costs a
+# `docker run` on a host without yq, and `help` must not pay it.
+function resolve_image_platforms() {
+  local name="$1"
+  [[ "${IMAGE_PLATFORMS_SOURCE:-}" == "environment" ]] && return 0
+  [[ -z "$name" ]] && return 0
+  # An unreadable manifest is a FAILURE — the answer would be a guess.
+  local records
+  records="$(image_records)" || return 1
+  # A name the manifest does not carry declares no exception, so the default
+  # stands. That is this function's whole remit: it only ever NARROWS, and what
+  # fails closed on a platform is require_sanctioned_platforms, which every verb
+  # calls whatever this one decided. Reading an absent name as an ERROR here
+  # would break any dispatcher that is not one of the manifest's images, and
+  # _ctl/tests/fixtures/no-platform-list/ctl.sh is deliberately one of those.
+  if ! printf '%s\n' "$records" | awk -F'|' -v want="$name" '$1 == want { found = 1 } END { exit !found }'; then
+    return 0
+  fi
+  local resolved
+  resolved="$(image_platforms "$name")" || return 1
+  IMAGE_PLATFORMS="$resolved"
 }
 
 # -------- the base OS pin, and its currency --------
@@ -735,16 +841,24 @@ function evidence_of() {
 #
 # The 3rd field is the `linux/amd64)` case arm in scope at that fetch. `${ARCH}`
 # is not a pin and not a table field: it is a shell variable the RUN block sets
-# from the 1 sanctioned platform, and the same file spells it amd64, x64 and
-# x86_64 in different arms — so the arm is read per RUN and not per file. A
-# Dockerfile RUN resets the set; a component script has 1 arm for the whole
-# file and accumulates.
+# per platform, and the same file spells it amd64, x64 and x86_64 in different
+# arms — so the arm is read per RUN and not per file. A Dockerfile RUN resets
+# the set; a component script has 1 arm for the whole file and accumulates.
 #
-# `ARCH="$(dpkg --print-architecture)"` is the SECOND shape of that same
-# question, and zephyr-devbox asks it that way. It is read only while
-# SANCTIONED_PLATFORMS holds 1 platform, because that is the only condition
-# under which the answer is known without running dpkg — and a guessed
-# architecture would compute a correct digest of the wrong asset.
+# The amd64 arm is the one read, and the record is 1 per fetch rather than 1 per
+# platform. That is a stated limit and not an oversight: what this feeds is the
+# coverage rule ("every download is answered") and the resolver's URL lookup,
+# and both are satisfied by either arm. The _ARM64 digest of a dual-arch fetch
+# is answered by the BUILD — fetch-verified.sh compares it on the arm64 leg —
+# and by nothing static.
+#
+# There was a SECOND shape of that same question and it is gone with its only
+# caller: `ARCH="$(dpkg --print-architecture)"`, which zephyr-devbox used until a
+# 2-platform set gave it a digest to choose as well as an asset name. That reader
+# could answer only while the sanctioned set held 1 platform, so it had been
+# unreachable since the day the set widened. Measured before deleting it: forcing
+# the reader back to a single platform produced 45 records and NOT ONE carried a
+# scope entry from that branch.
 #
 # Continuation lines are joined first, because a Dockerfile writes 1 command
 # across 4 lines and a line-at-a-time reader sees a fetch with no URL and a URL
@@ -752,11 +866,7 @@ function evidence_of() {
 function fetch_urls() {
   local file="$1"
   [[ -f "$file" ]] || return 0
-  local sanctioned_arch=""
-  if [[ "$SANCTIONED_PLATFORMS" != *,* ]]; then
-    sanctioned_arch="${SANCTIONED_PLATFORMS##*/}"
-  fi
-  awk -v sanctioned_arch="$sanctioned_arch" '
+  awk '
     function reset_scope(   key) { for (key in scope) { delete scope[key] } }
 
     function collect_scope(text,   rest, position, terminator, arm, count, index_of_word, words, name, value) {
@@ -781,15 +891,6 @@ function fetch_urls() {
           scope[name] = value
         }
       }
-      if (sanctioned_arch == "") { return }
-      rest = text
-      while (match(rest, /[A-Za-z_][A-Za-z0-9_]*="?\$\(dpkg --print-architecture\)"?/)) {
-        arm = substr(rest, RSTART, RLENGTH)
-        rest = substr(rest, RSTART + RLENGTH)
-        name = arm
-        sub(/=.*$/, "", name)
-        scope[name] = sanctioned_arch
-      }
     }
 
     function scope_text(   key, out) {
@@ -798,13 +899,31 @@ function fetch_urls() {
       return out
     }
 
-    function emit(text,   count, index_of_part, parts, part, digest, url) {
+    # A 2-platform set gives the `case` something to choose, so the arm holds
+    # the digest in a local and the fetch spells ${SHA256}. The local is
+    # resolved here, and ONLY where the arm assigned it a ${<TOOL>_SHA256_<ARCH>}
+    # token — a general assignment-follower is a reader that an assignment can
+    # fool, which is why the single-platform tree refused to have one.
+    function resolve_digest_locals(text,   key, out) {
+      out = text
+      for (key in scope) {
+        if (scope[key] !~ /^\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}$/) { continue }
+        gsub("\\$\\{" key "\\}", scope[key], out)
+      }
+      return out
+    }
+
+    function emit(text,   count, index_of_part, parts, part, resolved, digest, url) {
       count = split(text, parts, /&&/)
       for (index_of_part = 1; index_of_part <= count; index_of_part++) {
         part = parts[index_of_part]
         if (part !~ /fetch-verified\.sh/) { continue }
-        if (!match(part, /\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}/)) { continue }
-        digest = substr(part, RSTART + 2, RLENGTH - 3)
+        resolved = resolve_digest_locals(part)
+        if (!match(resolved, /\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}/)) { continue }
+        digest = substr(resolved, RSTART + 2, RLENGTH - 3)
+        # The URL is matched in the ORIGINAL text: the record carries it exactly
+        # as the file writes it, ${ARCH} unexpanded, because that token is what
+        # _build/download-exemptions.txt rows answer.
         if (!match(part, /https?:\/\/[^"'"'"'[:space:]\\]+/)) { continue }
         url = substr(part, RSTART, RLENGTH)
         printf "%s|%s|%s\n", digest, url, scope_text()
@@ -953,6 +1072,7 @@ function rewrite_declaration() {
 # -------- image verbs --------
 function image_build() {
   require_cmd docker
+  resolve_image_platforms "${IMAGE_NAME:-}"
   # The same membership rule `push` uses. `build` tags the OFFICIAL ref, so an
   # unsanctioned platform here puts a mislabelled image on the developer's host
   # under the name the registry publishes — the exact defect this policy ends.
@@ -979,6 +1099,7 @@ function image_build() {
 }
 
 function image_push() {
+  resolve_image_platforms "${IMAGE_NAME:-}"
   require_buildx_and_platforms
   require_cmd git
   local short_sha image_ref_sha
@@ -1013,6 +1134,11 @@ function image_push() {
 function image_verify_published() {
   require_buildx
   require_cmd jq
+  # The set this image PUBLISHES, which is the sanctioned set for 4 of the 5 and
+  # the manifest's narrower list for the 1 exception. Comparing every image
+  # against the sanctioned set would report flutter — correctly amd64-only,
+  # because Flutter publishes no linux-arm64 SDK — as a broken publish forever.
+  resolve_image_platforms "${IMAGE_NAME:-}"
   local tag="${1:-latest}"
   local ref="${IMAGE_REGISTRY_NAMESPACE}/${IMAGE_NAME}:${tag}"
   log_info "reading the published manifest of ${ref}"
@@ -1050,23 +1176,26 @@ function image_verify_published() {
     exit 1
   fi
 
-  local sanctioned
-  sanctioned="$(jq -rn --arg s "$SANCTIONED_PLATFORMS" '$s | split(",") | unique | join(",")')"
+  local expected
+  expected="$(jq -rn --arg s "$IMAGE_PLATFORMS" '$s | split(",") | unique | join(",")')"
 
-  if [[ "$published" == "$sanctioned" ]]; then
+  if [[ "$published" == "$expected" ]]; then
     log_info "verify-published: ${ref} carries exactly ${published}"
     return 0
   fi
 
-  log_error "verify-published: ${ref} does not carry the sanctioned platform set"
-  log_error "  published:  ${published:-<the index declares no image platform>}"
-  log_error "  sanctioned: ${sanctioned}"
+  log_error "verify-published: ${ref} does not carry the platform set this image publishes"
+  log_error "  published: ${published:-<the index declares no image platform>}"
+  log_error "  expected:  ${expected}"
+  if [[ "$IMAGE_PLATFORMS" != "$SANCTIONED_PLATFORMS" ]]; then
+    log_error "  (this image declares a narrower set in ${IMAGES_MANIFEST}; the sanctioned set is ${SANCTIONED_PLATFORMS})"
+  fi
   local p
   local -a _published
   IFS=',' read -r -a _published <<< "$published"
   for p in "${_published[@]+"${_published[@]}"}"; do
-    if [[ ",${sanctioned}," != *",${p},"* ]]; then
-      log_error "  published but not sanctioned: ${p}"
+    if [[ ",${expected}," != *",${p},"* ]]; then
+      log_error "  published but not expected: ${p}"
     fi
   done
   exit 1
@@ -1096,7 +1225,9 @@ Commands:
   build                   Build for ${IMAGE_PLATFORMS} (fast local loop)
   push                    GUARDED buildx build + push for ${IMAGE_PLATFORMS}
   verify-published [tag]  Assert the manifest published at [tag] (default latest)
-                          carries exactly ${SANCTIONED_PLATFORMS}
+                          carries exactly the platforms this image publishes
+                          (the sanctioned set is ${SANCTIONED_PLATFORMS};
+                          images.yaml may narrow it per image)
   pull                    docker pull ${IMAGE_REF}
   inspect                 docker image inspect ${IMAGE_REF}${IMAGE_USAGE_COMMANDS:-}
   help                    Show this message

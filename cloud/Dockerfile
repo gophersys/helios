@@ -73,6 +73,7 @@ ARG NPM_VERSION
 ARG PNPM_VERSION
 ARG BUN_VERSION
 ARG BUN_SHA256_AMD64
+ARG BUN_SHA256_ARM64
 
 # Python.
 ARG PYTHON_PACKAGE
@@ -82,6 +83,7 @@ ARG UV_SHA256_NOARCH
 # Go + gate tools (ADR-0018 + ADR-0020).
 ARG GO_VERSION
 ARG GO_SHA256_AMD64
+ARG GO_SHA256_ARM64
 ARG GOFUMPT_VERSION
 ARG GOLANGCI_LINT_VERSION
 ARG GOVULNCHECK_VERSION
@@ -94,48 +96,66 @@ ARG DELVE_VERSION
 # Parsing + QA.
 ARG YQ_VERSION
 ARG YQ_SHA256_AMD64
+ARG YQ_SHA256_ARM64
 ARG HADOLINT_VERSION
 ARG HADOLINT_SHA256_AMD64
+ARG HADOLINT_SHA256_ARM64
 ARG KUBECONFORM_VERSION
 ARG KUBECONFORM_SHA256_AMD64
+ARG KUBECONFORM_SHA256_ARM64
 ARG GITLEAKS_VERSION
 ARG GITLEAKS_SHA256_AMD64
+ARG GITLEAKS_SHA256_ARM64
 
 # Infra CLIs.
 ARG KUBECTL_VERSION
 ARG KUBECTL_SHA256_AMD64
+ARG KUBECTL_SHA256_ARM64
 ARG HELM_VERSION
 ARG HELM_SHA256_AMD64
+ARG HELM_SHA256_ARM64
 ARG K9S_VERSION
 ARG K9S_SHA256_AMD64
+ARG K9S_SHA256_ARM64
 ARG K3D_VERSION
 ARG K3D_SHA256_AMD64
+ARG K3D_SHA256_ARM64
 ARG KIND_VERSION
 ARG KIND_SHA256_AMD64
+ARG KIND_SHA256_ARM64
 ARG TAILSCALE_VERSION
 ARG TAILSCALE_SHA256_AMD64
+ARG TAILSCALE_SHA256_ARM64
 ARG BW_VERSION
 ARG BW_SHA256_AMD64
+ARG BW_SHA256_ARM64
 ARG GH_VERSION
 ARG GH_SHA256_AMD64
+ARG GH_SHA256_ARM64
 ARG NATS_VERSION
 ARG NATS_SHA256_AMD64
+ARG NATS_SHA256_ARM64
 
 # Docker cli-plugins (version + release-asset digest).
 ARG DOCKER_COMPOSE_VERSION
 ARG DOCKER_COMPOSE_SHA256_AMD64
+ARG DOCKER_COMPOSE_SHA256_ARM64
 ARG DOCKER_BUILDX_VERSION
 ARG DOCKER_BUILDX_SHA256_AMD64
+ARG DOCKER_BUILDX_SHA256_ARM64
 
 # Protocols.
 ARG BUF_VERSION
 ARG BUF_SHA256_AMD64
+ARG BUF_SHA256_ARM64
 ARG GRPCURL_VERSION
 ARG GRPCURL_SHA256_AMD64
+ARG GRPCURL_SHA256_ARM64
 
 # The CI fold.
 ARG RUNNER_VERSION
 ARG RUNNER_SHA256_AMD64
+ARG RUNNER_SHA256_ARM64
 ARG CICTL_VERSION
 ARG CLAUDE_CODE_VERSION
 ARG OMP_VERSION
@@ -171,11 +191,13 @@ RUN : "${ZSH_VERSION:?not in versions.env}" \
  && : "${PNPM_VERSION:?not in versions.env}" \
  && : "${BUN_VERSION:?not in versions.env}" \
  && : "${BUN_SHA256_AMD64:?not in versions.env}" \
+ && : "${BUN_SHA256_ARM64:?not in versions.env}" \
  && : "${PYTHON_PACKAGE:?not in versions.env}" \
  && : "${UV_VERSION:?not in versions.env}" \
  && : "${UV_SHA256_NOARCH:?not in versions.env}" \
  && : "${GO_VERSION:?not in versions.env}" \
  && : "${GO_SHA256_AMD64:?not in versions.env}" \
+ && : "${GO_SHA256_ARM64:?not in versions.env}" \
  && : "${GOFUMPT_VERSION:?not in versions.env}" \
  && : "${GOLANGCI_LINT_VERSION:?not in versions.env}" \
  && : "${GOVULNCHECK_VERSION:?not in versions.env}" \
@@ -186,40 +208,58 @@ RUN : "${ZSH_VERSION:?not in versions.env}" \
  && : "${DELVE_VERSION:?not in versions.env}" \
  && : "${YQ_VERSION:?not in versions.env}" \
  && : "${YQ_SHA256_AMD64:?not in versions.env}" \
+ && : "${YQ_SHA256_ARM64:?not in versions.env}" \
  && : "${HADOLINT_VERSION:?not in versions.env}" \
  && : "${HADOLINT_SHA256_AMD64:?not in versions.env}" \
+ && : "${HADOLINT_SHA256_ARM64:?not in versions.env}" \
  && : "${KUBECONFORM_VERSION:?not in versions.env}" \
  && : "${KUBECONFORM_SHA256_AMD64:?not in versions.env}" \
+ && : "${KUBECONFORM_SHA256_ARM64:?not in versions.env}" \
  && : "${GITLEAKS_VERSION:?not in versions.env}" \
  && : "${GITLEAKS_SHA256_AMD64:?not in versions.env}" \
+ && : "${GITLEAKS_SHA256_ARM64:?not in versions.env}" \
  && : "${KUBECTL_VERSION:?not in versions.env}" \
  && : "${KUBECTL_SHA256_AMD64:?not in versions.env}" \
+ && : "${KUBECTL_SHA256_ARM64:?not in versions.env}" \
  && : "${HELM_VERSION:?not in versions.env}" \
  && : "${HELM_SHA256_AMD64:?not in versions.env}" \
+ && : "${HELM_SHA256_ARM64:?not in versions.env}" \
  && : "${K9S_VERSION:?not in versions.env}" \
  && : "${K9S_SHA256_AMD64:?not in versions.env}" \
+ && : "${K9S_SHA256_ARM64:?not in versions.env}" \
  && : "${K3D_VERSION:?not in versions.env}" \
  && : "${K3D_SHA256_AMD64:?not in versions.env}" \
+ && : "${K3D_SHA256_ARM64:?not in versions.env}" \
  && : "${KIND_VERSION:?not in versions.env}" \
  && : "${KIND_SHA256_AMD64:?not in versions.env}" \
+ && : "${KIND_SHA256_ARM64:?not in versions.env}" \
  && : "${TAILSCALE_VERSION:?not in versions.env}" \
  && : "${TAILSCALE_SHA256_AMD64:?not in versions.env}" \
+ && : "${TAILSCALE_SHA256_ARM64:?not in versions.env}" \
  && : "${BW_VERSION:?not in versions.env}" \
  && : "${BW_SHA256_AMD64:?not in versions.env}" \
+ && : "${BW_SHA256_ARM64:?not in versions.env}" \
  && : "${GH_VERSION:?not in versions.env}" \
  && : "${GH_SHA256_AMD64:?not in versions.env}" \
+ && : "${GH_SHA256_ARM64:?not in versions.env}" \
  && : "${NATS_VERSION:?not in versions.env}" \
  && : "${NATS_SHA256_AMD64:?not in versions.env}" \
+ && : "${NATS_SHA256_ARM64:?not in versions.env}" \
  && : "${DOCKER_COMPOSE_VERSION:?not in versions.env}" \
  && : "${DOCKER_COMPOSE_SHA256_AMD64:?not in versions.env}" \
+ && : "${DOCKER_COMPOSE_SHA256_ARM64:?not in versions.env}" \
  && : "${DOCKER_BUILDX_VERSION:?not in versions.env}" \
  && : "${DOCKER_BUILDX_SHA256_AMD64:?not in versions.env}" \
+ && : "${DOCKER_BUILDX_SHA256_ARM64:?not in versions.env}" \
  && : "${BUF_VERSION:?not in versions.env}" \
  && : "${BUF_SHA256_AMD64:?not in versions.env}" \
+ && : "${BUF_SHA256_ARM64:?not in versions.env}" \
  && : "${GRPCURL_VERSION:?not in versions.env}" \
  && : "${GRPCURL_SHA256_AMD64:?not in versions.env}" \
+ && : "${GRPCURL_SHA256_ARM64:?not in versions.env}" \
  && : "${RUNNER_VERSION:?not in versions.env}" \
  && : "${RUNNER_SHA256_AMD64:?not in versions.env}" \
+ && : "${RUNNER_SHA256_ARM64:?not in versions.env}" \
  && : "${CICTL_VERSION:?not in versions.env}" \
  && : "${CLAUDE_CODE_VERSION:?not in versions.env}" \
  && : "${OMP_VERSION:?not in versions.env}" \
@@ -333,13 +373,14 @@ SHELL ["/usr/bin/zsh", "-o", "pipefail", "-c"]
 # /home/dev/.local/bin to stay out of /usr.
 RUN mkdir -p "/home/dev/.local/bin" \
  && case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
+      linux/amd64) ARCH=amd64; SHA256="${YQ_SHA256_AMD64}"; SHA256_PIN=YQ_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${YQ_SHA256_ARM64}"; SHA256_PIN=YQ_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${ARCH}" \
       "/home/dev/.local/bin/yq" \
-      "${YQ_SHA256_AMD64}" YQ_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && chmod +x "/home/dev/.local/bin/yq"
 
 # nvm + Node LTS + corepack (yarn, pnpm). The nvm installer inspects $SHELL
@@ -386,13 +427,14 @@ ENV GOROOT=/home/${USERNAME}/go-sdk \
     GOPATH=/home/${USERNAME}/go \
     PATH=/home/${USERNAME}/go-sdk/bin:/home/${USERNAME}/go/bin:/home/${USERNAME}/.local/bin:${PATH}
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
+      linux/amd64) ARCH=amd64; SHA256="${GO_SHA256_AMD64}"; SHA256_PIN=GO_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${GO_SHA256_ARM64}"; SHA256_PIN=GO_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && mkdir -p "${GOROOT}" "${GOPATH}/bin" \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz" /tmp/go.tgz \
-      "${GO_SHA256_AMD64}" GO_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && tar -C "${GOROOT}" --strip-components=1 -xzf /tmp/go.tgz \
  && rm /tmp/go.tgz
 
@@ -429,21 +471,23 @@ USER root
 # decision, their ready components sit in _delta/components/.
 # -------------------------------------------------------------------------
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
+      linux/amd64) ARCH=amd64; SHA256="${KUBECTL_SHA256_AMD64}"; SHA256_PIN=KUBECTL_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${KUBECTL_SHA256_ARM64}"; SHA256_PIN=KUBECTL_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://dl.k8s.io/release/v${KUBECTL_VERSION}/bin/linux/${ARCH}/kubectl" /usr/local/bin/kubectl \
-      "${KUBECTL_SHA256_AMD64}" KUBECTL_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && chmod +x /usr/local/bin/kubectl
 
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
+      linux/amd64) ARCH=amd64; SHA256="${HELM_SHA256_AMD64}"; SHA256_PIN=HELM_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${HELM_SHA256_ARM64}"; SHA256_PIN=HELM_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://get.helm.sh/helm-v${HELM_VERSION}-linux-${ARCH}.tar.gz" /tmp/helm.tgz \
-      "${HELM_SHA256_AMD64}" HELM_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && tar -C /tmp -xzf /tmp/helm.tgz \
  && mv "/tmp/linux-${ARCH}/helm" /usr/local/bin/helm \
  && rm -rf /tmp/helm.tgz "/tmp/linux-${ARCH}"
@@ -451,55 +495,60 @@ RUN case "${TARGETPLATFORM}" in \
 # k3d — the default local Kubernetes substrate for the ADR-0020
 # integration/load lanes (k3s-in-docker; single static binary).
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
+      linux/amd64) ARCH=amd64; SHA256="${K3D_SHA256_AMD64}"; SHA256_PIN=K3D_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${K3D_SHA256_ARM64}"; SHA256_PIN=K3D_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/k3d-io/k3d/releases/download/v${K3D_VERSION}/k3d-linux-${ARCH}" /usr/local/bin/k3d \
-      "${K3D_SHA256_AMD64}" K3D_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && chmod +x /usr/local/bin/k3d
 
 # kind — the second Kubernetes substrate target.
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
+      linux/amd64) ARCH=amd64; SHA256="${KIND_SHA256_AMD64}"; SHA256_PIN=KIND_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${KIND_SHA256_ARM64}"; SHA256_PIN=KIND_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/kubernetes-sigs/kind/releases/download/v${KIND_VERSION}/kind-linux-${ARCH}" /usr/local/bin/kind \
-      "${KIND_SHA256_AMD64}" KIND_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && chmod +x /usr/local/bin/kind
 
 # gitleaks — the secret-scan tool for the ADR-0020 security dimension.
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=x64 ;; \
+      linux/amd64) ARCH=x64; SHA256="${GITLEAKS_SHA256_AMD64}"; SHA256_PIN=GITLEAKS_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${GITLEAKS_SHA256_ARM64}"; SHA256_PIN=GITLEAKS_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_${ARCH}.tar.gz" /tmp/gitleaks.tgz \
-      "${GITLEAKS_SHA256_AMD64}" GITLEAKS_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && tar -C /tmp -xzf /tmp/gitleaks.tgz gitleaks \
  && mv /tmp/gitleaks /usr/local/bin/gitleaks \
  && rm /tmp/gitleaks.tgz
 
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
+      linux/amd64) ARCH=amd64; SHA256="${GH_SHA256_AMD64}"; SHA256_PIN=GH_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${GH_SHA256_ARM64}"; SHA256_PIN=GH_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/cli/cli/releases/download/v${GH_VERSION}/gh_${GH_VERSION}_linux_${ARCH}.tar.gz" /tmp/gh.tgz \
-      "${GH_SHA256_AMD64}" GH_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && tar -C /tmp -xzf /tmp/gh.tgz \
  && mv "/tmp/gh_${GH_VERSION}_linux_${ARCH}/bin/gh" /usr/local/bin/gh \
  && rm -rf /tmp/gh.tgz "/tmp/gh_${GH_VERSION}_linux_${ARCH}"
 
 # Tailscale — the static binary bundle is TARGETPLATFORM-aware.
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
+      linux/amd64) ARCH=amd64; SHA256="${TAILSCALE_SHA256_AMD64}"; SHA256_PIN=TAILSCALE_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${TAILSCALE_SHA256_ARM64}"; SHA256_PIN=TAILSCALE_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://pkgs.tailscale.com/stable/tailscale_${TAILSCALE_VERSION}_${ARCH}.tgz" /tmp/ts.tgz \
-      "${TAILSCALE_SHA256_AMD64}" TAILSCALE_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && tar -C /tmp -xzf /tmp/ts.tgz \
  && mv "/tmp/tailscale_${TAILSCALE_VERSION}_${ARCH}/tailscale" /usr/local/bin/tailscale \
  && mv "/tmp/tailscale_${TAILSCALE_VERSION}_${ARCH}/tailscaled" /usr/local/bin/tailscaled \
@@ -508,48 +557,52 @@ RUN case "${TARGETPLATFORM}" in \
 # Bitwarden CLI — native binary zip (no Node runtime required). amd64 has
 # no arch suffix in the upstream asset name; arm64 has "-arm64-".
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) BW_ASSET="bw-oss-linux-${BW_VERSION}.zip" ;; \
+      linux/amd64) BW_ASSET="bw-oss-linux-${BW_VERSION}.zip"; SHA256="${BW_SHA256_AMD64}"; SHA256_PIN=BW_SHA256_AMD64 ;; \
+      linux/arm64) BW_ASSET="bw-oss-linux-arm64-${BW_VERSION}.zip"; SHA256="${BW_SHA256_ARM64}"; SHA256_PIN=BW_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/bitwarden/clients/releases/download/cli-v${BW_VERSION}/${BW_ASSET}" /tmp/bw.zip \
-      "${BW_SHA256_AMD64}" BW_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && unzip -q /tmp/bw.zip -d /usr/local/bin \
  && chmod +x /usr/local/bin/bw \
  && rm /tmp/bw.zip
 
 # hadolint — single binary; asset names are lowercase "linux" as of 2.14.
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) HADOLINT_ASSET="hadolint-linux-x86_64" ;; \
+      linux/amd64) HADOLINT_ASSET="hadolint-linux-x86_64"; SHA256="${HADOLINT_SHA256_AMD64}"; SHA256_PIN=HADOLINT_SHA256_AMD64 ;; \
+      linux/arm64) HADOLINT_ASSET="hadolint-linux-arm64"; SHA256="${HADOLINT_SHA256_ARM64}"; SHA256_PIN=HADOLINT_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/hadolint/hadolint/releases/download/v${HADOLINT_VERSION}/${HADOLINT_ASSET}" \
       /usr/local/bin/hadolint \
-      "${HADOLINT_SHA256_AMD64}" HADOLINT_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && chmod +x /usr/local/bin/hadolint
 
 # kubeconform — Kubernetes manifest schema validation.
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
+      linux/amd64) ARCH=amd64; SHA256="${KUBECONFORM_SHA256_AMD64}"; SHA256_PIN=KUBECONFORM_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${KUBECONFORM_SHA256_ARM64}"; SHA256_PIN=KUBECONFORM_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-${ARCH}.tar.gz" \
       /tmp/kubeconform.tar.gz \
-      "${KUBECONFORM_SHA256_AMD64}" KUBECONFORM_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && tar -xzf /tmp/kubeconform.tar.gz -C /usr/local/bin kubeconform \
  && chmod +x /usr/local/bin/kubeconform \
  && rm -f /tmp/kubeconform.tar.gz
 
 # NATS CLI — single binary zip, TARGETPLATFORM-aware.
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64 ;; \
+      linux/amd64) ARCH=amd64; SHA256="${NATS_SHA256_AMD64}"; SHA256_PIN=NATS_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${NATS_SHA256_ARM64}"; SHA256_PIN=NATS_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/nats-io/natscli/releases/download/v${NATS_VERSION}/nats-${NATS_VERSION}-linux-${ARCH}.zip" /tmp/nats.zip \
-      "${NATS_SHA256_AMD64}" NATS_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && unzip -q /tmp/nats.zip -d /tmp/nats \
  && mv "/tmp/nats/nats-${NATS_VERSION}-linux-${ARCH}/nats" /usr/local/bin/nats \
  && rm -rf /tmp/nats /tmp/nats.zip
@@ -557,12 +610,13 @@ RUN case "${TARGETPLATFORM}" in \
 # Bun — JavaScript runtime for the Oh My Pi (`omp`) harness. Installed to
 # /usr/local/bin so it is on PATH for every shell and user.
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=x64 ;; \
+      linux/amd64) ARCH=x64; SHA256="${BUN_SHA256_AMD64}"; SHA256_PIN=BUN_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=aarch64; SHA256="${BUN_SHA256_ARM64}"; SHA256_PIN=BUN_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/oven-sh/bun/releases/download/bun-v${BUN_VERSION}/bun-linux-${ARCH}.zip" /tmp/bun.zip \
-      "${BUN_SHA256_AMD64}" BUN_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && unzip -q /tmp/bun.zip -d /tmp/bun \
  && mv "/tmp/bun/bun-linux-${ARCH}/bun" /usr/local/bin/bun \
  && chmod +x /usr/local/bin/bun \
@@ -585,14 +639,15 @@ RUN install -m 0755 -d /etc/apt/keyrings \
 # docker-compose standalone binary pinned to DOCKER_COMPOSE_VERSION so we are
 # independent of whatever compose-plugin version apt has at build time.
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=x86_64 ;; \
+      linux/amd64) ARCH=x86_64; SHA256="${DOCKER_COMPOSE_SHA256_AMD64}"; SHA256_PIN=DOCKER_COMPOSE_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=aarch64; SHA256="${DOCKER_COMPOSE_SHA256_ARM64}"; SHA256_PIN=DOCKER_COMPOSE_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && mkdir -p /usr/local/lib/docker/cli-plugins \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/docker/compose/releases/download/v${DOCKER_COMPOSE_VERSION}/docker-compose-linux-${ARCH}" \
       /usr/local/lib/docker/cli-plugins/docker-compose \
-      "${DOCKER_COMPOSE_SHA256_AMD64}" DOCKER_COMPOSE_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
 
 # Convenience: path shims for zsh so interactive logins see all of the
@@ -631,7 +686,8 @@ COPY _delta/components/ /opt/delta/components/
 RUN bash /opt/delta/components/db-clients.sh
 
 # k9s, pinned by K9S_VERSION.
-RUN K9S_VERSION="${K9S_VERSION}" K9S_SHA256_AMD64="${K9S_SHA256_AMD64}" bash /opt/delta/components/k9s.sh
+RUN K9S_VERSION="${K9S_VERSION}" K9S_SHA256_AMD64="${K9S_SHA256_AMD64}" \
+    K9S_SHA256_ARM64="${K9S_SHA256_ARM64}" bash /opt/delta/components/k9s.sh
 
 # Comforts kept by the census: bat, htop, btop, httpie.
 RUN bash /opt/delta/components/comforts.sh
@@ -641,7 +697,9 @@ RUN DELVE_VERSION="${DELVE_VERSION}" bash /opt/delta/components/delve.sh
 
 # buf + grpcurl, pinned by BUF_VERSION / GRPCURL_VERSION.
 RUN BUF_VERSION="${BUF_VERSION}" BUF_SHA256_AMD64="${BUF_SHA256_AMD64}" \
+    BUF_SHA256_ARM64="${BUF_SHA256_ARM64}" \
     GRPCURL_VERSION="${GRPCURL_VERSION}" GRPCURL_SHA256_AMD64="${GRPCURL_SHA256_AMD64}" \
+    GRPCURL_SHA256_ARM64="${GRPCURL_SHA256_ARM64}" \
     bash /opt/delta/components/protocols.sh
 
 # The docker buildx cli-plugin — closes the measured base-runner gap.
@@ -650,10 +708,12 @@ RUN BUF_VERSION="${BUF_VERSION}" BUF_SHA256_AMD64="${BUF_SHA256_AMD64}" \
 # exactly that mechanism); the prefix is the call site documenting its
 # component, and an understated one misleads.
 RUN DOCKER_BUILDX_VERSION="${DOCKER_BUILDX_VERSION}" DOCKER_BUILDX_SHA256_AMD64="${DOCKER_BUILDX_SHA256_AMD64}" \
+    DOCKER_BUILDX_SHA256_ARM64="${DOCKER_BUILDX_SHA256_ARM64}" \
     bash /opt/delta/components/buildx.sh
 
 # The CI fold: Actions runner + .NET deps + cictl.
 RUN RUNNER_VERSION="${RUNNER_VERSION}" RUNNER_SHA256_AMD64="${RUNNER_SHA256_AMD64}" \
+    RUNNER_SHA256_ARM64="${RUNNER_SHA256_ARM64}" \
     CICTL_VERSION="${CICTL_VERSION}" bash /opt/delta/components/runner.sh
 
 # The harness bake runs as the dev user: claude lands in ~/.local/bin and the

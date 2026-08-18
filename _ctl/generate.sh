@@ -80,6 +80,20 @@ ACTION_BUILD_PUSH="docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f1
 # The gate every step below the filter carries.
 BUILD_GATE="\${{ steps.filter.outputs.build == 'true' }}"
 
+# The 2 mode-aware gates. Both OPEN with the filter reference, and that order is
+# load-bearing: _ctl/tests/publish-order.test.sh reads the FIRST
+# `steps.<id>.outputs.<key>` on an `if:` line as the gate a step carries, and it
+# requires every step that publishes, smokes or reads a manifest to be guarded by
+# `steps.filter.outputs.build`. `inputs.mode` is not a step output, so it adds a
+# condition without moving that reference.
+#
+# `!= 'rehearsal'` and not `== 'publish'`: on a `push` event there is no input at
+# all and `inputs.mode` is the empty string. Written as an equality against
+# 'publish', every push to main would take the rehearsal branch and publish
+# nothing — the failure would be a workflow that runs green and ships no image.
+PUBLISH_GATE="\${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}"
+REHEARSAL_GATE="\${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}"
+
 # ---------------------------------------------------------------------------
 # The manifest, beyond what _ctl/lib.sh already answers.
 # ---------------------------------------------------------------------------
@@ -266,9 +280,43 @@ JOB_RUNNER
       # of quietly asserting against the last image that was published.
 JOB_ENV
   printf '      SMOKE_REF: %s\n' "$smoke_ref"
+  # A job-level key OVERRIDES the workflow-level one for this job only, so the
+  # narrower image carries its exception where it applies and the other 4 read
+  # the sanctioned set. It is emitted only where the 2 differ: a key repeating
+  # the value above it is a second declaration waiting to drift.
+  local platforms
+  platforms="$(image_platforms "$name")" || return 1
+  if [[ "$platforms" != "$SANCTIONED_PLATFORMS" ]]; then
+    printf '      # This image publishes a NARROWER set than the sanctioned one, and\n'
+    printf '      # images.yaml carries the measurement that justifies it. Never wider:\n'
+    printf '      # image_platforms refuses an entry outside SANCTIONED_PLATFORMS.\n'
+    printf '      PLATFORMS: %s\n' "$platforms"
+  fi
   if [[ -n "$parent" ]]; then
     emit_note '      ' "$name" base_tag
-    printf "      BASE_TAG: \${{ needs.%s.outputs.built == 'true' && needs.%s.outputs.short || 'latest' }}\n" \
+    cat <<'JOB_BASE_TAG'
+      # REHEARSAL takes 'latest', and that is a limitation with a name.
+      #
+      # A rehearsal publishes nothing, so the parent job pushed no :<sha> for
+      # this commit and there is nothing for this layer's FROM to resolve.
+      # Rehearsal #2 (run 32114973844) is the measurement: base and cloud went
+      # green on both platforms, and zephyr and flutter died resolving
+      # ghcr.io/gophersys/base:<sha> — a tag that a mode which ships nothing
+      # never created.
+      #
+      # So a rehearsal proves each image's OWN content builds on every sanctioned
+      # platform, against the parent that is currently published. It does NOT
+      # prove the child-at-NEW-parent seam. That seam is reachable only in
+      # publish mode, where it is smoke-gated, or by pushing quarantined tags —
+      # which this repository deliberately does not do, for the reason the arm64
+      # note at the top of _ctl/tests/publish-order.test.sh gives.
+      #
+      # GitHub's && / || yield OPERANDS and not booleans, so this reads: when the
+      # mode is rehearsal take 'latest' (a non-empty string, therefore the value
+      # of the first branch), otherwise fall through to exactly the expression
+      # this line carried before rehearsal existed.
+JOB_BASE_TAG
+    printf "      BASE_TAG: \${{ inputs.mode == 'rehearsal' && 'latest' || (needs.%s.outputs.built == 'true' && needs.%s.outputs.short || 'latest') }}\n" \
       "$parent" "$root"
   fi
 
@@ -354,17 +402,17 @@ JOB_VERSIONS
         # ship the same build. The second build reads the cache this one writes,
         # so publishing costs a layer copy rather than a rebuild.
         #
-        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
-        # the image store holds a single image. That holds for as long as
-        # PLATFORMS names 1 platform — read the arm64 note at the top of
-        # _ctl/tests/publish-order.test.sh before widening it.
+        # SMOKE_PLATFORM and not PLATFORMS: `load: true` takes 1 platform, and
+        # the arm64 half of the publish below is therefore NOT gated by a smoke
+        # run in this phase. The env block at the top of this file states that
+        # in full.
 JOB_BUILD_HEAD
   printf '        if: %s\n' "$BUILD_GATE"
   printf '        uses: %s\n' "$ACTION_BUILD_PUSH"
   printf '        with:\n'
   printf '          context: %s\n' "$context"
   printf '          file: %s\n' "$dockerfile"
-  printf '          platforms: ${{ env.PLATFORMS }}\n'
+  printf '          platforms: ${{ env.SMOKE_PLATFORM }}\n'
   printf '          push: false\n'
   printf '          load: true\n'
   printf '%s\n' "$build_args_block"
@@ -380,11 +428,16 @@ JOB_BUILD_HEAD
   cat <<'JOB_PUBLISH_HEAD'
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
-        # build-args, same platform — so buildx resolves every layer from the
-        # cache that step wrote and this one only uploads. It writes no cache of
-        # its own for that reason.
+        # build-args — so buildx resolves every amd64 layer from the cache that
+        # step wrote and uploads it. It writes no cache of its own for that
+        # reason.
+        #
+        # The platform list is WIDER here than in the gate step: the amd64 leg
+        # comes from that cache, and every other leg is built now, on the node
+        # buildx appended for it. So this step is the one that runs the arm64
+        # build, and an arm64 failure surfaces HERE rather than in the gate.
 JOB_PUBLISH_HEAD
-  printf '        if: %s\n' "$BUILD_GATE"
+  printf '        if: %s\n' "$PUBLISH_GATE"
   printf '        uses: %s\n' "$ACTION_BUILD_PUSH"
   printf '        with:\n'
   printf '          context: %s\n' "$context"
@@ -398,14 +451,40 @@ JOB_PUBLISH_HEAD
   printf "            \${{ steps.semver.outputs.tag != '' && format('{0}/{1}/%s:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}\n" "$name"
   printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache\n' "$name"
 
+  cat <<'JOB_REHEARSAL_HEAD'
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+JOB_REHEARSAL_HEAD
+  printf '        if: %s\n' "$REHEARSAL_GATE"
+  printf '        uses: %s\n' "$ACTION_BUILD_PUSH"
+  printf '        with:\n'
+  printf '          context: %s\n' "$context"
+  printf '          file: %s\n' "$dockerfile"
+  printf '          platforms: ${{ env.PLATFORMS }}\n'
+  printf '          push: false\n'
+  printf '%s\n' "$build_args_block"
+  printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache\n' "$name"
+
   cat <<'JOB_VERIFY_HEAD'
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
 JOB_VERIFY_HEAD
-  printf '        if: %s\n' "$BUILD_GATE"
+  printf '        if: %s\n' "$PUBLISH_GATE"
   printf '        run: bash ./ctl.sh verify-published %s %s\n' "$name" "$sha_expression"
 }
 
@@ -438,8 +517,8 @@ FILE_BANNER
 
   printf '# Publishes the IDP image set (%s)\n' "$set_phrase"
   cat <<'FILE_HEADER_A'
-# to the GitHub Container Registry. Every image is built for linux/amd64. On
-# semver tag pushes (v*) we also publish a :v<semver> tag.
+# to the GitHub Container Registry, for every platform the env PLATFORMS key
+# names. On semver tag pushes (v*) we also publish a :v<semver> tag.
 # Flutter and zephyr consume base — and zephyr-devbox consumes zephyr — via
 # BASE_TAG build-arg set to the commit short SHA so the child layer FROMs the
 # freshly pushed parent.
@@ -525,6 +604,44 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "publish = build and ship. rehearsal = build everything, ship nothing."
+        type: choice
+        default: publish
+        options:
+          - publish
+          - rehearsal
+
+# REHEARSAL MODE, and the hole it closes.
+#
+# The stated risk of a multi-platform publish is that a platform the gate does
+# not smoke fails at PUBLISH time — after the merge, on `main`, with :latest
+# already moving. Before this input the only way to exercise a branch's real
+# build was to publish it, so the branch could not be proven without taking the
+# risk it exists to measure.
+#
+# In rehearsal every job does everything except ship:
+#
+#   - the gate build and the amd64 smoke run EXACTLY as in publish mode. They
+#     are not conditional on the mode at all.
+#   - the publish-shaped build runs with the same context, the same build-args
+#     and the same per-image PLATFORMS, on the same builders — including the
+#     arm64 node for the platforms that need it — with `push: false`.
+#   - the manifest read-back is skipped, because nothing was pushed and reading
+#     the PREVIOUS :<sha> would report a verdict about somebody else's build.
+#
+# `inputs.mode` is empty on a `push` event, and empty is not 'rehearsal', so a
+# push to main behaves exactly as it did before this input existed. Rehearsal is
+# reachable only by dispatching it deliberately.
+#
+# It is 2 steps and not 1 `push: ${{ ... }}` expression on purpose.
+# _ctl/tests/publish-order.test.sh finds a publishing step by the LITERAL line
+# `push: true`, and the whole smoke-gates-publish rule rests on that detector:
+# an expression there would make every job read as a job that publishes nothing,
+# and the rule that guards the irreversible action would pass while checking
+# nothing. Both steps sit AFTER the smoke, so the ordering rule holds in either
+# mode.
 
 # Supersede an in-flight run for the same ref so a rapid second push doesn't run two
 # expensive image builds in parallel.
@@ -535,18 +652,40 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   OWNER: gophersys
-  # 1 platform for every image in this workflow. There were 3 keys here, and the
-  # 2 narrow ones each carried a measurement: the ARC nodes are amd64, and the 3
-  # live zephyr-devbox pods sit on amd64 nodes. The wide one had no such
-  # measurement. No arm64 consumer can be verified for any image
-  # (gophersys/infrastructure docs/debt-register.md D42), and the arm64 base that
-  # was published was an amd64 Ubuntu userland carrying aarch64 Go binaries.
-  # This value is SANCTIONED_PLATFORMS in _ctl/lib.sh, written in by the
-  # generator, and the verify-published step in each job is what proves the
-  # registry agrees.
+  # The platforms an image of this workflow PUBLISHES by default. This value is
+  # SANCTIONED_PLATFORMS in _ctl/lib.sh, written in by the generator, and the
+  # verify-published step in each job is what proves the registry agrees. It is
+  # not a key to edit here: edit the library and regenerate.
+  #
+  # A job may carry a PLATFORMS key of its OWN, which overrides this one for that
+  # job. It comes from the image's `platforms` key in images.yaml, it may only be
+  # NARROWER, and the manifest carries the measurement beside it. flutter is the
+  # 1 image that declares one today: Flutter publishes no linux-arm64 SDK.
 FILE_HEADER_B
 
   printf '  PLATFORMS: %s\n' "$SANCTIONED_PLATFORMS"
+  cat <<'FILE_HEADER_C'
+  # The platform the SMOKE step builds and asserts, and the ONE architecture
+  # this workflow gates content on.
+  #
+  # `load: true` takes 1 platform — buildx writes a manifest LIST for 2 and the
+  # docker image store holds a single image — so the gate build names 1, and
+  # this is the one the arc-build pool runs NATIVELY. The version checks the
+  # Dockerfiles dropped are the reason it has to be native: they cannot run
+  # under emulation.
+  #
+  # SAY IT PLAINLY: the arm64 content of every image is NOT smoke-gated at
+  # publish time in this phase. The amd64 smoke gates the publish for both
+  # variants, and the arm64 variant ships on the strength of the same build
+  # definition, the same pins and the per-download digest comparison. Smoking
+  # arm64 out of the registry after the push is the recorded follow-up, and it
+  # is a decision about what "publish" means to this repository — read the arm64
+  # note at the top of _ctl/tests/publish-order.test.sh before taking it.
+  #
+  # .ci/smoke.sh reads this same name: it is a choice WITHIN the sanctioned set
+  # and never a way around it, so a value outside PLATFORMS fails there.
+  SMOKE_PLATFORM: linux/amd64
+FILE_HEADER_C
   printf '\njobs:\n'
 
   local leading_blank=""

@@ -11,16 +11,18 @@ IFS=$'\n\t'
 
 : "${K9S_VERSION:?K9S_VERSION is not in versions.env}"
 : "${K9S_SHA256_AMD64:?K9S_SHA256_AMD64 is not in versions.env}"
+: "${K9S_SHA256_ARM64:?K9S_SHA256_ARM64 is not in versions.env}"
 : "${TARGETPLATFORM:?TARGETPLATFORM is not set (docker buildx injects it)}"
 
 case "${TARGETPLATFORM}" in
-  linux/amd64) ARCH=amd64 ;;
+  linux/amd64) ARCH=amd64; SHA256="${K9S_SHA256_AMD64}"; SHA256_PIN=K9S_SHA256_AMD64 ;;
+  linux/arm64) ARCH=arm64; SHA256="${K9S_SHA256_ARM64}"; SHA256_PIN=K9S_SHA256_ARM64 ;;
   *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;;
 esac
 
 /usr/local/lib/gophersys/fetch-verified.sh \
   "https://github.com/derailed/k9s/releases/download/v${K9S_VERSION}/k9s_Linux_${ARCH}.tar.gz" \
-  /tmp/k9s.tgz "${K9S_SHA256_AMD64}" K9S_SHA256_AMD64
+  /tmp/k9s.tgz "${SHA256}" "${SHA256_PIN}"
 tar -C /tmp -xzf /tmp/k9s.tgz k9s
 mv /tmp/k9s /usr/local/bin/k9s
 rm /tmp/k9s.tgz

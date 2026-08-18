@@ -227,8 +227,11 @@ the 3 open ones are the 3 child images.
 - **A value-less ARG needs a gate, or it fails silently.** An unfed pin expands
   to the empty string, and the failure surfaces much later as a mangled download
   URL. Both root Dockerfiles therefore open with a `RUN : "${PIN:?not in
-  versions.env}"` chain that stops the build naming the variable — 54 entries in
-  `base`, 55 in `cloud`. `UBUNTU_BASE_REF` is deliberately outside both chains:
+  versions.env}"` chain that stops the build naming the variable — 71 entries in
+  `base`, 81 in `cloud`. Each grew by its digest count when the platform set
+  widened: a `_SHA256_ARM64` row is a pin like any other, and an unfed one would
+  reach the arm64 leg of the build as an empty digest.
+  `UBUNTU_BASE_REF` is deliberately outside both chains:
   the `FROM` consumes it first and an absent value dies there.
 - **A build parameter is not a pin and keeps its value.** `USERNAME`,
   `USER_UID`, `USER_GID` and `OH_MY_ZSH_INSTALL_URL` stay inline in both files:
@@ -270,16 +273,34 @@ the 3 open ones are the 3 child images.
   Dockerfiles that have not moved yet. The reason is that a bump is then 2
   adjacent lines: 2 homes apart, and the bump misses one. That failure is now
   impossible for `base` and `cloud`, because they have 1 home between them.
-- **The vocabulary is `_SHA256_AMD64` and `_SHA256_NOARCH`, and nothing else.**
+- **The vocabulary is `_SHA256_AMD64`, `_SHA256_ARM64` and `_SHA256_NOARCH`, and
+  nothing else.**
   It names the PLATFORM and never the upstream asset spelling — compose writes
-  `x86_64` and buildx writes `amd64` for the same platform, and following the
-  asset gave 2 vocabularies for 1 arch. `_NOARCH` is for an asset that serves
-  every platform. There is no `_ARM64` row while `SANCTIONED_PLATFORMS` is
-  `linux/amd64` alone: a digest that nothing compares is a check that cannot
-  fail. Widening the platform set restores the `linux/arm64)` case arm and the
-  `_ARM64` row together — and the row is written ONCE now, in `versions.env`,
-  for both root images. Collapsing the mechanism before the arch axis widened is
-  why: 2 homes × 2 arches is the multiplication this repository does not pay.
+  `x86_64`/`aarch64` and buildx writes `amd64`/`arm64` for the same 2 platforms,
+  and following the asset gave 2 vocabularies per arch. `_NOARCH` is for an
+  asset that serves every platform. **The rule that said "no `_ARM64` row while
+  the set is `linux/amd64` alone" is INVERTED, not deleted**: a row exists for
+  every sanctioned platform, and a platform in the set with no row is the
+  failure the rule now names — the arm64 leg would reach its download with an
+  empty digest. Each row is written ONCE, in `versions.env`, for both root
+  images, which is why collapsing the pin mechanism before widening the arch
+  axis was worth doing: 2 homes × 2 arches is the multiplication this repository
+  did not pay.
+- **The arm chooses the digest, and the pin NAME travels with it.** With 2
+  platforms the `case` has something to choose again, so each arm sets
+  `SHA256` and `SHA256_PIN` beside its `ARCH`, and the fetch reads both. The
+  second local is not decoration: `fetch-verified.sh` names that pin in every
+  refusal, and `YQ_SHA256_ARM64` tells a reader the row to fix where "exit 1"
+  tells them nothing. **Do not spell that local `<TOOL>_SHA256_PIN`.**
+  `<PREFIX>_SHA256_<SUFFIX>` is the shape every reader of the vocabulary
+  matches, so the local reads as a digest row that no home declares —
+  `_delta/components/protocols.sh` did it and `download-coverage` reported a
+  digest living in "nowhere" while every real row was correct. It is `BUF_PIN`
+  there.
+- **A case arm stays on ONE line.** `fetch_urls` in `_ctl/lib.sh` reads an arm
+  as the text between `linux/amd64)` and the `;;` that follows it on the same
+  logical line. An arm broken across lines reads as an arm that assigns nothing,
+  and every download below it becomes a download nobody can answer for.
 - **Every digest row records where its value came from**, machine-readably:
   `# upstream-published: <checksum file url>` when the release ships a checksum
   file and the 2 agreed, otherwise `# computed-at-pin: <yyyy-mm-dd>` — TLS plus
@@ -509,13 +530,16 @@ release was.
 
 ## Sanctioned-platform policy
 
-Every image of this repository publishes **1** platform: `linux/amd64`. The
+The sanctioned set is **2** platforms: `linux/amd64` and `linux/arm64`. The
 declaration is `SANCTIONED_PLATFORMS` in `_ctl/lib.sh`, and it is the only place
 a platform is named. A platform outside that set fails the guard and names
-itself.
+itself. 4 of the 5 images publish both; **`flutter` publishes `linux/amd64`
+alone**, declared in `images.yaml` and measured — see the flutter subsection
+below.
 
-**An image builds only the arch it deploys to.** Each narrowing was measured, not
-assumed:
+**An image builds only the arch it deploys to**, and that rule is what widened
+the set as surely as it narrowed it. The narrowing measurements stay, because
+they are why the arm64 half has to be NATIVE rather than merely present:
 
 - `base-runner` ran only as an ARC pod, and every node in that cluster is amd64.
   Its arm64 half compiled Go under QEMU for an architecture that no node runs,
@@ -532,26 +556,91 @@ assumed:
   consume it Docker Desktop emulates that userland anyway. It gave none of the
   benefit of a native image and cost the larger half of a 41.7-minute build.
 
-**No arm64 consumer can be verified for any image today**, which is recorded in
-gophersys/infrastructure `docs/debt-register.md` D42. Widen
-`SANCTIONED_PLATFORMS` on the day a consumer exists, and not before.
+**D42 is ANSWERED, and the answer is 2 consumers.** Local development on Apple
+Silicon through the devcontainer CLI consumes `linux/arm64`, and the Mac mini
+builds it natively — a standalone buildkitd over mTLS, 3.44x faster than the
+same build emulated on an amd64 node, wired in `.ci/buildx-node.sh` and inert
+until this line named the platform. Neither defect that retired the old arm64
+half is reachable: no Dockerfile writes `FROM --platform=`, and
+`platform-policy.test.sh` fails one that does.
 
-**Widening it is not 1 edit.** Each shell path reads the list from that 1
-declaration, and `.ci/smoke.sh` selects a platform out of it rather than refusing
-a list of more than 1. **1 other place STATES the same policy**, and it must move
-with it: the literal `SANCTIONED` in `_ctl/tests/platform-policy.test.sh`. That
-literal is deliberate — a test that reads the value it checks agrees with any
-value, a wrong one included. There were 3. The other 2 were `PLATFORMS` in
+**Widening it is not 1 edit, and the blast radius was measured, not predicted.**
+Each shell path reads the list from that 1 declaration, and `.ci/smoke.sh`
+selects a platform out of it rather than refusing a list of more than 1. **1
+other place STATES the same policy**, and it must move with it: the literal
+`SANCTIONED` in `_ctl/tests/platform-policy.test.sh`. That literal is deliberate
+— a test that reads the value it checks agrees with any value, a wrong one
+included. There were 3. The other 2 were `PLATFORMS` in
 `.github/workflows/build-and-push.yml` and the same key in its provider copy,
 and `_ctl/generate.sh` writes `SANCTIONED_PLATFORMS` into that key now, so
 widening the list reaches both copies through a regeneration rather than through
 2 hand edits. The
 `build` verb also refuses a list of more than 1 entry, because `docker build`
-makes 1 image, so the local loop must name the 1 platform it wants. Measured on
-2026-08-13: 1 edit to `_ctl/lib.sh`, and nothing else, made 8 checks red in 4
-test files — `build` 3, `guard` 1, `platform-policy` 2, `verify-published` 2. The
-per-file counts are here because the first version of this sentence said 11,
-which is the TOTAL check count of `guard.test.sh` read as its failure count.
+makes 1 image, so the local loop must name the 1 platform it wants —
+`IMAGE_PLATFORMS=linux/arm64 bash ./ctl.sh build base`, and a bare `build` now
+fails naming the list.
+
+Measured on 2026-08-13, narrowing: 1 edit to `_ctl/lib.sh` and nothing else made
+8 checks red in 4 test files — `build` 3, `guard` 1, `platform-policy` 2,
+`verify-published` 2. The per-file counts are here because the first version of
+that sentence said 11, which is the TOTAL check count of `guard.test.sh` read as
+its failure count. Measured on 2026-08-17, widening: **11 checks red in 5 test
+files** — `build` 3, `guard` 1, `platform-policy` 3, `verify-published` 2,
+`download-coverage` 2. The 2 that the narrowing measurement did not predict are
+the reason the number is re-measured rather than reused: `platform-policy` grew
+1 because `linux/arm64` is a FORBIDDEN token on the build path and the library
+now writes it, and `download-coverage` is 2 new rules rather than 2 flipped
+literals — the 1-arch digest vocabulary, and the rule that a fetch names its pin
+literally instead of through the arm.
+
+**A digest row per platform is the other half of the cost.** 20 `_SHA256_ARM64`
+rows in `versions.env` and 2 more in the child Dockerfiles, each carrying its own
+evidence, each verified against the asset the SAME pinned version publishes.
+Widening again means doing that fact-finding again, per pin, before an edit —
+and a pin whose new platform has no asset at the pinned version is a BLOCKER to
+report, never a bump to improvise.
+
+### flutter is amd64-only, and the manifest says so
+
+**`flutter` publishes `linux/amd64` alone.** It is the 1 image of the 5 that
+declares a `platforms` key in `images.yaml`, and the reason is upstream rather
+than ours: **Flutter publishes no linux-arm64 SDK, at any version.** Read on
+2026-08-17, `releases_linux.json` (264191 bytes) lists every Linux release ever
+published — 730 of them — and `[.releases[].dart_sdk_arch] | unique` returns
+`[null,"x64"]`: 431 predate the key and carry none, 299 say `x64`, and
+`[.releases[] | select(.dart_sdk_arch != null and .dart_sdk_arch != "x64")]
+| length` is **0**. The pinned 3.47.0 stable carries 1 archive whose filename
+holds no architecture, so an HTTP probe of it succeeds and proves nothing —
+read the JSON, never the 200.
+
+No bump reaches an asset upstream does not publish, so this is not a stale pin
+and it does not expire. Whether Android platform-tools ships a linux-arm64 build
+is a question that only opens on the day Flutter itself does.
+`flutter/Dockerfile` keeps amd64-only case arms, and they are CORRECT rather
+than incomplete for as long as that key stands. Delete the key on the day the
+SDK exists, and the arm64 arms and their `_SHA256_ARM64` rows go in with it.
+
+**The mechanism is `platforms` in `images.yaml`, read by `image_platforms` in
+`_ctl/lib.sh`.** An absent key means the sanctioned set, which is what the other
+4 images take, so the manifest names a platform only where an image is an
+exception. NARROWER is the only exception there is: a declared entry outside
+`SANCTIONED_PLATFORMS` FAILS naming the image and the platform, because a
+manifest that could widen the policy would BE the policy, and 1 place answers
+"what may we publish". `resolve_image_platforms` puts that answer into
+`IMAGE_PLATFORMS` at the head of `build`, `push` and `verify-published`, and
+`.ci/smoke.sh` calls it with the image from its own argv. The ENVIRONMENT still
+outranks both — `IMAGE_PLATFORMS_SOURCE` is what tells a caller's choice from
+the default, since after the default runs the variable holds a value either way.
+
+Two consequences a reader will meet:
+
+- **`verify-published` asserts the image's OWN set**, not the sanctioned set.
+  Against the sanctioned set, flutter's correct amd64-only manifest would read
+  as a broken publish forever.
+- **The generated publish job carries a job-level `PLATFORMS` key** where the
+  image is narrower, which overrides the workflow-level one for that job. It is
+  emitted only where the 2 differ: a key repeating the value above it is a
+  second declaration waiting to drift.
 
 Verify a published image with `bash ./ctl.sh verify-published <image> [tag]`. A
 manifest declares a platform; that verb reads the manifest back out of the
@@ -574,10 +663,12 @@ buildx builder active, or the active builder unable to build 1 of the required
 platforms. The first condition is `require_sanctioned_platforms`, which `build`
 also uses.
 
-The list of platforms an image builds is `IMAGE_PLATFORMS`, which defaults to
-`SANCTIONED_PLATFORMS` and stays overridable from the environment. An image may
-declare a measured NARROWER list; it may not declare a wider one, because every
-entry still has to be sanctioned. `IMAGE_PLATFORMS` was called
+The list of platforms an image builds is `IMAGE_PLATFORMS`, and it has 3 sources
+in falling precedence: the ENVIRONMENT, the image's own `platforms` key in
+`images.yaml`, and `SANCTIONED_PLATFORMS`. An image may declare a measured
+NARROWER list; it may not declare a wider one, because every entry still has to
+be sanctioned — `flutter` is the 1 image that declares one today, and the
+section above carries its measurement. `IMAGE_PLATFORMS` was called
 `MULTI_ARCH_PLATFORMS` until the arm64 drop, and a tripwire in the library fails
 at source time if the old name is still set — both names would hold the same
 string, so a missed rename would otherwise be silent.
@@ -589,8 +680,10 @@ image. Do not add a call to the guard there.
 
 The CI workflow enforces the same policy. It sets up buildx, builds with
 `--platform ${{ env.PLATFORMS }} --push`, and then runs `verify-published`
-against the SHA tag it just pushed. It sets up no QEMU: emulation is what a
-cross-platform build needed, and there is no cross-platform build.
+against the SHA tag it just pushed. It sets up no QEMU, and that is still true
+with 2 platforms: each one is built on a node of its own architecture — amd64 on
+the pool, arm64 on the mini `.ci/buildx-node.sh` appends — so nothing is
+emulated and nothing needs to be.
 
 **Every** job builds **twice**, and the order is the point. The first build sets
 `push: false` + `load: true`, so the image goes into the local image store and
@@ -599,9 +692,74 @@ Only then does the second build push, from the cache the first one wrote. A push
 cannot be undone and no job here rolls one back, so a check that runs after the
 push reports a broken image but cannot stop one from reaching a consumer.
 `_ctl/tests/publish-order.test.sh` holds that order in the pull request gate, and
-it fails any job that publishes without a smoke step. `load: true` takes 1
-platform, so read the arm64 note at the top of that test file before you widen
-`SANCTIONED_PLATFORMS`.
+it fails any job that publishes without a smoke step.
+
+**The 2 builds no longer name the same platform list, and that is the shape of
+this phase.** `load: true` takes 1 platform — buildx writes a manifest LIST for
+2 and the docker image store holds a single image — so the gate build names
+`SMOKE_PLATFORM`, `linux/amd64`, the architecture the pool runs natively and the
+only one whose version checks can execute without emulation. The publish build
+names the full `PLATFORMS`, takes its amd64 layers from the cache the gate wrote
+and builds every other leg on the node for it.
+
+**So the arm64 content of every image is NOT smoke-gated at publish time.** The
+amd64 smoke gates the publish for both variants; the arm64 variant ships on the
+same build definition, the same pins and the per-download digest comparison, and
+`verify-published` asserts afterwards that the manifest carries both. That is a
+stated gap and the recorded follow-up: smoking arm64 out of the registry after
+the push. It is not a line to add — the arm64 note at the top of
+`publish-order.test.sh` explains why a throwaway-tag push would make that test
+report a FALSE RED, and taking that route is a decision about what "publish"
+means to this repository.
+
+**REHEARSAL MODE is what makes that gap testable before a merge.**
+`workflow_dispatch` on `build-and-push.yml` takes a `mode` input, `publish` or
+`rehearsal`, and `publish` is the default. In rehearsal every job runs its gate
+build and its amd64 smoke unchanged, then runs the publish-shaped build with the
+same context, the same build-args and the same per-image `PLATFORMS` on the same
+builders — the mini included — with `push: false`, and the manifest read-back is
+skipped because nothing was pushed. So the arm64 build that only happens at
+publish time can be exercised on a branch, with no tag moved.
+
+- **`inputs.mode` is empty on a `push` event**, and empty is not `rehearsal`, so
+  a push to main behaves exactly as it did before the input existed. The gates
+  are written `!= 'rehearsal'` for that reason: `== 'publish'` would make every
+  push to main take the rehearsal branch and ship nothing, green.
+- **It is 2 STEPS and not a `push: ${{ ... }}` expression.**
+  `_ctl/tests/publish-order.test.sh` finds a publishing step by the LITERAL line
+  `push: true`, and the whole smoke-gates-publish rule rests on that detector. An
+  expression there would make every job read as a job that publishes nothing, and
+  the rule guarding the irreversible action would pass while checking nothing.
+- **Both gates OPEN with `steps.filter.outputs.build`.** That test reads the
+  FIRST `steps.<id>.outputs.<key>` on an `if:` line as the gate a step carries,
+  so the mode condition is appended and never prepended.
+- Both steps sit AFTER the smoke, so the ordering rule holds in either mode.
+
+**A rehearsal proves each image's own content. It does NOT prove the
+child-at-NEW-parent seam, and that limitation is structural.** A child job FROMs
+`ghcr.io/gophersys/<parent>:<sha>`, and a mode that publishes nothing never
+creates that tag — so in rehearsal `BASE_TAG` resolves to `latest`, the parent
+that is currently published, and every other event keeps the expression it always
+had (`built == 'true'` → the short sha, otherwise `latest`).
+
+Rehearsal #2 (run `32114973844`) is the measurement, and it is why the input
+needed a second hunk rather than a note: `base` and `cloud` went GREEN on both
+platforms with the mini in the builder — the shape works — while `zephyr` and
+`flutter` died resolving `ghcr.io/gophersys/base:69b4f11`, a tag no rehearsal had
+pushed.
+
+So the 2 modes prove different things, and neither is redundant:
+
+- **rehearsal** — every image's own layers build on every platform it publishes,
+  against the parent that is live today. Cheap, branch-safe, nothing ships.
+- **publish** — the same, PLUS the child-at-new-parent seam, and that seam is
+  smoke-gated because the child's gate build and its smoke run before its push.
+
+Closing the seam in rehearsal would mean pushing the parent to a quarantined tag
+for the children to FROM, and this repository deliberately does not do that: a
+throwaway push is a `push: true` step that runs before the smoke, which the arm64
+note at the top of `_ctl/tests/publish-order.test.sh` measured as a FALSE RED
+against the rule that guards the irreversible action.
 
 The smoke test compares **versions**, and it does not only run tools. `.ci/smoke.sh`
 is the host driver: it classifies every pin of every home the image has as
@@ -954,11 +1112,38 @@ not depend on the count.
   package per image, `mode=max` on the write. `type=gha` is 10 GB per repository
   across every scope, which 5 images at `mode=max` do not fit.
 - **The builder is `.ci/buildx-node.sh`, not `docker/setup-buildx-action`.** It
-  makes the same `docker-container` builder — the default `docker` driver can
-  neither read nor write a registry cache — and it owns the switch that appends
-  the Mac mini as a native arm64 node when `SANCTIONED_PLATFORMS` names
-  `linux/arm64`. That switch READS the library, so widening the platform set
-  stays 1 edit in `_ctl/lib.sh`. It is inert today (D42).
+  owns the switch that appends the Mac mini as a native arm64 node when
+  `SANCTIONED_PLATFORMS` names `linux/arm64`. That switch READS the library, so
+  it took no edit of its own when the set widened. **It is live now**, and the
+  first dual-arch build is the mini's first real work: an unreachable mini, an
+  expired client PEM or a stopped buildkitd surface at the `--bootstrap` that
+  step ends with, naming the node and the endpoint.
+- **The builder has ONE driver, `remote`, and that was learned the hard way.**
+  The file made a `docker-container` builder and appended the mini with
+  `--driver remote`; buildx refuses a builder whose nodes disagree —
+  `ERROR: existing instance for "gophersys" but has mismatched driver
+  "docker-container"` — and rehearsal run `32111891941` died there. The bug was
+  invisible until arm64 was sanctioned, because the append sits inside the
+  switch that only fires when it is. So the LOCAL node is a remote node too: a
+  buildkitd container the script starts itself from `BUILDKIT_REF`, in the pod's
+  network namespace, listening on `tcp://127.0.0.1:18234` with
+  `--oci-worker-net=host` — the same flag the old driver got through
+  `--buildkitd-flags`. It is pinned to `linux/amd64`, because buildkitd
+  advertises every platform it can EMULATE and an unpinned local node would
+  volunteer for the arm64 half and build it under QEMU.
+- **That local endpoint is plaintext TCP, and the threat model is stated.**
+  `--network host` is the POD's namespace: the runner, dind and this buildkitd
+  share it and nothing outside the pod has a route to that loopback address, so
+  the peers that can reach the BUILD API are exactly the peers that can already
+  run commands in the build. The `docker-container` driver it replaces was
+  reachable through the docker socket the job already holds — the boundary did
+  not move. The MINI is the opposite case and keeps its mTLS, because that
+  endpoint is on the tailnet.
+- **Re-running the builder step REMOVES and recreates.** `docker buildx create
+  --name <existing>` fails even when the driver matches (measured, rc=1), and
+  reusing whatever is there is the other trap: a builder left by a run that died
+  between the create and the append carries the wrong node set, and the next
+  build would silently target one architecture.
 - **No bridge exists on the build path.** The builder container and every RUN
   step share the runner pod's own network namespace (`network=host` +
   `--oci-worker-net=host`). The default is a bridge at MTU 1500 nested inside

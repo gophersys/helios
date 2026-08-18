@@ -43,6 +43,7 @@ IFS=$'\n\t'
 
 : "${RUNNER_VERSION:?RUNNER_VERSION is not in versions.env}"
 : "${RUNNER_SHA256_AMD64:?RUNNER_SHA256_AMD64 is not in versions.env}"
+: "${RUNNER_SHA256_ARM64:?RUNNER_SHA256_ARM64 is not in versions.env}"
 : "${CICTL_VERSION:?CICTL_VERSION is not in versions.env}"
 : "${TARGETPLATFORM:?TARGETPLATFORM is not set (docker buildx injects it)}"
 
@@ -57,14 +58,15 @@ apt-get clean
 rm -rf /var/lib/apt/lists/*
 
 case "${TARGETPLATFORM}" in
-  linux/amd64) ARCH=x64 ;;
+  linux/amd64) ARCH=x64; SHA256="${RUNNER_SHA256_AMD64}"; SHA256_PIN=RUNNER_SHA256_AMD64 ;;
+  linux/arm64) ARCH=arm64; SHA256="${RUNNER_SHA256_ARM64}"; SHA256_PIN=RUNNER_SHA256_ARM64 ;;
   *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;;
 esac
 
 mkdir -p /home/runner
 /usr/local/lib/gophersys/fetch-verified.sh \
   "https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${ARCH}-${RUNNER_VERSION}.tar.gz" \
-  /tmp/runner.tar.gz "${RUNNER_SHA256_AMD64}" RUNNER_SHA256_AMD64
+  /tmp/runner.tar.gz "${SHA256}" "${SHA256_PIN}"
 tar -xzf /tmp/runner.tar.gz -C /home/runner
 rm -f /tmp/runner.tar.gz
 mkdir -p /home/runner/_work

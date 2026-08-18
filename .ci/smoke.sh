@@ -169,8 +169,8 @@ function image_child_pin_home() {
 # use below says why it is there.
 #
 # A `*_SHA256_*` pin carries NO row in any table below. It is classified by
-# SHAPE in class_row, because the 22 digest rows of versions.env would be copied
-# once per table that reads that home, and the 3 digest ARGs of the child
+# SHAPE in class_row, because the 42 digest rows of versions.env would be copied
+# once per table that reads that home, and the 6 digest ARGs of the child
 # Dockerfiles once more — the day a digest is added without its row the smoke
 # refuses to run at all. The shape is safe to trust HERE and only here:
 # _ctl/tests/download-coverage.test.sh owns those names end to end, in
@@ -778,6 +778,11 @@ REF="${REF_ARG:-ghcr.io/gophersys/${IMAGE}:latest}"
 # A missing tool is a failure, never a skip.
 require_cmd docker
 
+# The list this IMAGE publishes, which is the sanctioned set unless images.yaml
+# narrows it. Selecting out of the sanctioned set instead would let a smoke run
+# choose a platform the image does not build.
+resolve_image_platforms "$IMAGE"
+
 # Every entry of the list must be sanctioned before 1 of them is chosen.
 require_sanctioned_platforms
 
@@ -801,10 +806,10 @@ require_sanctioned_platforms
 #   2. the platform of the docker DAEMON, when the list holds it. This is the
 #      premise of the whole script: the version checks the Dockerfiles dropped
 #      could not run under emulation, so the native variant is the one to smoke.
-#      The moment arm64 is sanctioned, the amd64 runner smokes amd64 and the
-#      arm64 builder smokes arm64, each natively, with no further edit here.
-#   3. the only entry, when the list holds exactly 1. This is today, and on a
-#      developer host of another architecture it runs emulated.
+#      It is the live path now that the set holds 2: the amd64 pool smokes amd64
+#      natively, and it took no edit here.
+#   3. the only entry, when the list holds exactly 1. On a developer host of
+#      another architecture it runs emulated.
 #   4. otherwise FAIL, naming the list and the daemon. An unspecified platform is
 #      how a smoke test silently asserts against the wrong architecture, which is
 #      worse than not running.

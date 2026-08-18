@@ -13,8 +13,8 @@
 name: build-and-push
 
 # Publishes the IDP image set (base + flutter + zephyr + zephyr-devbox + cloud)
-# to the GitHub Container Registry. Every image is built for linux/amd64. On
-# semver tag pushes (v*) we also publish a :v<semver> tag.
+# to the GitHub Container Registry, for every platform the env PLATFORMS key
+# names. On semver tag pushes (v*) we also publish a :v<semver> tag.
 # Flutter and zephyr consume base — and zephyr-devbox consumes zephyr — via
 # BASE_TAG build-arg set to the commit short SHA so the child layer FROMs the
 # freshly pushed parent.
@@ -97,6 +97,44 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "publish = build and ship. rehearsal = build everything, ship nothing."
+        type: choice
+        default: publish
+        options:
+          - publish
+          - rehearsal
+
+# REHEARSAL MODE, and the hole it closes.
+#
+# The stated risk of a multi-platform publish is that a platform the gate does
+# not smoke fails at PUBLISH time — after the merge, on `main`, with :latest
+# already moving. Before this input the only way to exercise a branch's real
+# build was to publish it, so the branch could not be proven without taking the
+# risk it exists to measure.
+#
+# In rehearsal every job does everything except ship:
+#
+#   - the gate build and the amd64 smoke run EXACTLY as in publish mode. They
+#     are not conditional on the mode at all.
+#   - the publish-shaped build runs with the same context, the same build-args
+#     and the same per-image PLATFORMS, on the same builders — including the
+#     arm64 node for the platforms that need it — with `push: false`.
+#   - the manifest read-back is skipped, because nothing was pushed and reading
+#     the PREVIOUS :<sha> would report a verdict about somebody else's build.
+#
+# `inputs.mode` is empty on a `push` event, and empty is not 'rehearsal', so a
+# push to main behaves exactly as it did before this input existed. Rehearsal is
+# reachable only by dispatching it deliberately.
+#
+# It is 2 steps and not 1 `push: ${{ ... }}` expression on purpose.
+# _ctl/tests/publish-order.test.sh finds a publishing step by the LITERAL line
+# `push: true`, and the whole smoke-gates-publish rule rests on that detector:
+# an expression there would make every job read as a job that publishes nothing,
+# and the rule that guards the irreversible action would pass while checking
+# nothing. Both steps sit AFTER the smoke, so the ordering rule holds in either
+# mode.
 
 # Supersede an in-flight run for the same ref so a rapid second push doesn't run two
 # expensive image builds in parallel.
@@ -107,16 +145,36 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   OWNER: gophersys
-  # 1 platform for every image in this workflow. There were 3 keys here, and the
-  # 2 narrow ones each carried a measurement: the ARC nodes are amd64, and the 3
-  # live zephyr-devbox pods sit on amd64 nodes. The wide one had no such
-  # measurement. No arm64 consumer can be verified for any image
-  # (gophersys/infrastructure docs/debt-register.md D42), and the arm64 base that
-  # was published was an amd64 Ubuntu userland carrying aarch64 Go binaries.
-  # This value is SANCTIONED_PLATFORMS in _ctl/lib.sh, written in by the
-  # generator, and the verify-published step in each job is what proves the
-  # registry agrees.
-  PLATFORMS: linux/amd64
+  # The platforms an image of this workflow PUBLISHES by default. This value is
+  # SANCTIONED_PLATFORMS in _ctl/lib.sh, written in by the generator, and the
+  # verify-published step in each job is what proves the registry agrees. It is
+  # not a key to edit here: edit the library and regenerate.
+  #
+  # A job may carry a PLATFORMS key of its OWN, which overrides this one for that
+  # job. It comes from the image's `platforms` key in images.yaml, it may only be
+  # NARROWER, and the manifest carries the measurement beside it. flutter is the
+  # 1 image that declares one today: Flutter publishes no linux-arm64 SDK.
+  PLATFORMS: linux/amd64,linux/arm64
+  # The platform the SMOKE step builds and asserts, and the ONE architecture
+  # this workflow gates content on.
+  #
+  # `load: true` takes 1 platform — buildx writes a manifest LIST for 2 and the
+  # docker image store holds a single image — so the gate build names 1, and
+  # this is the one the arc-build pool runs NATIVELY. The version checks the
+  # Dockerfiles dropped are the reason it has to be native: they cannot run
+  # under emulation.
+  #
+  # SAY IT PLAINLY: the arm64 content of every image is NOT smoke-gated at
+  # publish time in this phase. The amd64 smoke gates the publish for both
+  # variants, and the arm64 variant ships on the strength of the same build
+  # definition, the same pins and the per-download digest comparison. Smoking
+  # arm64 out of the registry after the push is the recorded follow-up, and it
+  # is a decision about what "publish" means to this repository — read the arm64
+  # note at the top of _ctl/tests/publish-order.test.sh before taking it.
+  #
+  # .ci/smoke.sh reads this same name: it is a choice WITHIN the sanctioned set
+  # and never a way around it, so a value outside PLATFORMS fails there.
+  SMOKE_PLATFORM: linux/amd64
 
 jobs:
   base:
@@ -174,10 +232,13 @@ jobs:
         if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/mirror-buildkit.sh
       - name: point buildx at the build nodes
-        # Replaces docker/setup-buildx-action. It makes the same
-        # docker-container builder — the default docker driver can neither read
-        # nor write a registry cache — and it owns the arm64 switch that reads
-        # SANCTIONED_PLATFORMS. Inert today: that list holds linux/amd64 alone.
+        # Replaces docker/setup-buildx-action. It makes a `remote` builder whose
+        # first node is a buildkitd container it starts in the pod's own network
+        # namespace — the default docker driver can neither read nor write a
+        # registry cache — and it owns the arm64 switch that reads
+        # SANCTIONED_PLATFORMS. That switch is LIVE: the list names linux/arm64,
+        # so every build appends the Mac mini as a second node. One driver for
+        # both, because buildx refuses a builder whose nodes disagree.
         # It runs after the registry login: the builder boots by pulling the
         # private BuildKit mirror, and an anonymous pull of it is refused.
         if: ${{ steps.filter.outputs.build == 'true' }}
@@ -203,16 +264,16 @@ jobs:
         # ship the same build. The second build reads the cache this one writes,
         # so publishing costs a layer copy rather than a rebuild.
         #
-        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
-        # the image store holds a single image. That holds for as long as
-        # PLATFORMS names 1 platform — read the arm64 note at the top of
-        # _ctl/tests/publish-order.test.sh before widening it.
+        # SMOKE_PLATFORM and not PLATFORMS: `load: true` takes 1 platform, and
+        # the arm64 half of the publish below is therefore NOT gated by a smoke
+        # run in this phase. The env block at the top of this file states that
+        # in full.
         if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: base/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.SMOKE_PLATFORM }}
           push: false
           load: true
           build-args: ${{ steps.versions.outputs.args }}
@@ -228,10 +289,15 @@ jobs:
         run: bash .ci/smoke.sh base ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
-        # build-args, same platform — so buildx resolves every layer from the
-        # cache that step wrote and this one only uploads. It writes no cache of
-        # its own for that reason.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        # build-args — so buildx resolves every amd64 layer from the cache that
+        # step wrote and uploads it. It writes no cache of its own for that
+        # reason.
+        #
+        # The platform list is WIDER here than in the gate step: the amd64 leg
+        # comes from that cache, and every other leg is built now, on the node
+        # buildx appended for it. So this step is the one that runs the arm64
+        # build, and an arm64 failure surfaces HERE rather than in the gate.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -244,12 +310,35 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/base:${{ steps.sha.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/base:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: base/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          build-args: ${{ steps.versions.outputs.args }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published base ${{ steps.sha.outputs.short }}
 
   flutter:
@@ -270,10 +359,34 @@ jobs:
       # can pull it, so a load that did not happen fails the smoke step instead
       # of quietly asserting against the last image that was published.
       SMOKE_REF: flutter:smoke
+      # This image publishes a NARROWER set than the sanctioned one, and
+      # images.yaml carries the measurement that justifies it. Never wider:
+      # image_platforms refuses an entry outside SANCTIONED_PLATFORMS.
+      PLATFORMS: linux/amd64
       # The parent this layer FROMs. base publishes a :<sha> tag only on a
       # commit that changed it, so when base did not build there is no such tag
       # and the only correct parent is the :latest that is still current.
-      BASE_TAG: ${{ needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
+      # REHEARSAL takes 'latest', and that is a limitation with a name.
+      #
+      # A rehearsal publishes nothing, so the parent job pushed no :<sha> for
+      # this commit and there is nothing for this layer's FROM to resolve.
+      # Rehearsal #2 (run 32114973844) is the measurement: base and cloud went
+      # green on both platforms, and zephyr and flutter died resolving
+      # ghcr.io/gophersys/base:<sha> — a tag that a mode which ships nothing
+      # never created.
+      #
+      # So a rehearsal proves each image's OWN content builds on every sanctioned
+      # platform, against the parent that is currently published. It does NOT
+      # prove the child-at-NEW-parent seam. That seam is reachable only in
+      # publish mode, where it is smoke-gated, or by pushing quarantined tags —
+      # which this repository deliberately does not do, for the reason the arm64
+      # note at the top of _ctl/tests/publish-order.test.sh gives.
+      #
+      # GitHub's && / || yield OPERANDS and not booleans, so this reads: when the
+      # mode is rehearsal take 'latest' (a non-empty string, therefore the value
+      # of the first branch), otherwise fall through to exactly the expression
+      # this line carried before rehearsal existed.
+      BASE_TAG: ${{ inputs.mode == 'rehearsal' && 'latest' || (needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: extract semver tag
@@ -314,16 +427,16 @@ jobs:
         # ship the same build. The second build reads the cache this one writes,
         # so publishing costs a layer copy rather than a rebuild.
         #
-        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
-        # the image store holds a single image. That holds for as long as
-        # PLATFORMS names 1 platform — read the arm64 note at the top of
-        # _ctl/tests/publish-order.test.sh before widening it.
+        # SMOKE_PLATFORM and not PLATFORMS: `load: true` takes 1 platform, and
+        # the arm64 half of the publish below is therefore NOT gated by a smoke
+        # run in this phase. The env block at the top of this file states that
+        # in full.
         if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: flutter
           file: flutter/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.SMOKE_PLATFORM }}
           push: false
           load: true
           build-args: |
@@ -338,10 +451,15 @@ jobs:
         run: bash .ci/smoke.sh flutter ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
-        # build-args, same platform — so buildx resolves every layer from the
-        # cache that step wrote and this one only uploads. It writes no cache of
-        # its own for that reason.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        # build-args — so buildx resolves every amd64 layer from the cache that
+        # step wrote and uploads it. It writes no cache of its own for that
+        # reason.
+        #
+        # The platform list is WIDER here than in the gate step: the amd64 leg
+        # comes from that cache, and every other leg is built now, on the node
+        # buildx appended for it. So this step is the one that runs the arm64
+        # build, and an arm64 failure surfaces HERE rather than in the gate.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: flutter
@@ -355,12 +473,36 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/flutter:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: flutter
+          file: flutter/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          build-args: |
+            BASE_TAG=${{ env.BASE_TAG }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published flutter ${{ needs.base.outputs.short }}
 
   zephyr:
@@ -388,7 +530,27 @@ jobs:
       # The parent this layer FROMs. base publishes a :<sha> tag only on a
       # commit that changed it, so when base did not build there is no such tag
       # and the only correct parent is the :latest that is still current.
-      BASE_TAG: ${{ needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
+      # REHEARSAL takes 'latest', and that is a limitation with a name.
+      #
+      # A rehearsal publishes nothing, so the parent job pushed no :<sha> for
+      # this commit and there is nothing for this layer's FROM to resolve.
+      # Rehearsal #2 (run 32114973844) is the measurement: base and cloud went
+      # green on both platforms, and zephyr and flutter died resolving
+      # ghcr.io/gophersys/base:<sha> — a tag that a mode which ships nothing
+      # never created.
+      #
+      # So a rehearsal proves each image's OWN content builds on every sanctioned
+      # platform, against the parent that is currently published. It does NOT
+      # prove the child-at-NEW-parent seam. That seam is reachable only in
+      # publish mode, where it is smoke-gated, or by pushing quarantined tags —
+      # which this repository deliberately does not do, for the reason the arm64
+      # note at the top of _ctl/tests/publish-order.test.sh gives.
+      #
+      # GitHub's && / || yield OPERANDS and not booleans, so this reads: when the
+      # mode is rehearsal take 'latest' (a non-empty string, therefore the value
+      # of the first branch), otherwise fall through to exactly the expression
+      # this line carried before rehearsal existed.
+      BASE_TAG: ${{ inputs.mode == 'rehearsal' && 'latest' || (needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: extract semver tag
@@ -429,16 +591,16 @@ jobs:
         # ship the same build. The second build reads the cache this one writes,
         # so publishing costs a layer copy rather than a rebuild.
         #
-        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
-        # the image store holds a single image. That holds for as long as
-        # PLATFORMS names 1 platform — read the arm64 note at the top of
-        # _ctl/tests/publish-order.test.sh before widening it.
+        # SMOKE_PLATFORM and not PLATFORMS: `load: true` takes 1 platform, and
+        # the arm64 half of the publish below is therefore NOT gated by a smoke
+        # run in this phase. The env block at the top of this file states that
+        # in full.
         if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: zephyr
           file: zephyr/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.SMOKE_PLATFORM }}
           push: false
           load: true
           build-args: |
@@ -453,10 +615,15 @@ jobs:
         run: bash .ci/smoke.sh zephyr ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
-        # build-args, same platform — so buildx resolves every layer from the
-        # cache that step wrote and this one only uploads. It writes no cache of
-        # its own for that reason.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        # build-args — so buildx resolves every amd64 layer from the cache that
+        # step wrote and uploads it. It writes no cache of its own for that
+        # reason.
+        #
+        # The platform list is WIDER here than in the gate step: the amd64 leg
+        # comes from that cache, and every other leg is built now, on the node
+        # buildx appended for it. So this step is the one that runs the arm64
+        # build, and an arm64 failure surfaces HERE rather than in the gate.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: zephyr
@@ -470,12 +637,36 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-cache
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: zephyr
+          file: zephyr/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          build-args: |
+            BASE_TAG=${{ env.BASE_TAG }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published zephyr ${{ needs.base.outputs.short }}
 
   zephyr-devbox:
@@ -502,7 +693,27 @@ jobs:
       # The parent is zephyr, so it is ZEPHYR's verdict that decides whether a
       # :<sha> tag exists to FROM. base's short sha is still the tag zephyr
       # pushed under, because every job of a run shares one commit.
-      BASE_TAG: ${{ needs.zephyr.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
+      # REHEARSAL takes 'latest', and that is a limitation with a name.
+      #
+      # A rehearsal publishes nothing, so the parent job pushed no :<sha> for
+      # this commit and there is nothing for this layer's FROM to resolve.
+      # Rehearsal #2 (run 32114973844) is the measurement: base and cloud went
+      # green on both platforms, and zephyr and flutter died resolving
+      # ghcr.io/gophersys/base:<sha> — a tag that a mode which ships nothing
+      # never created.
+      #
+      # So a rehearsal proves each image's OWN content builds on every sanctioned
+      # platform, against the parent that is currently published. It does NOT
+      # prove the child-at-NEW-parent seam. That seam is reachable only in
+      # publish mode, where it is smoke-gated, or by pushing quarantined tags —
+      # which this repository deliberately does not do, for the reason the arm64
+      # note at the top of _ctl/tests/publish-order.test.sh gives.
+      #
+      # GitHub's && / || yield OPERANDS and not booleans, so this reads: when the
+      # mode is rehearsal take 'latest' (a non-empty string, therefore the value
+      # of the first branch), otherwise fall through to exactly the expression
+      # this line carried before rehearsal existed.
+      BASE_TAG: ${{ inputs.mode == 'rehearsal' && 'latest' || (needs.zephyr.outputs.built == 'true' && needs.base.outputs.short || 'latest') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: extract semver tag
@@ -543,16 +754,16 @@ jobs:
         # ship the same build. The second build reads the cache this one writes,
         # so publishing costs a layer copy rather than a rebuild.
         #
-        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
-        # the image store holds a single image. That holds for as long as
-        # PLATFORMS names 1 platform — read the arm64 note at the top of
-        # _ctl/tests/publish-order.test.sh before widening it.
+        # SMOKE_PLATFORM and not PLATFORMS: `load: true` takes 1 platform, and
+        # the arm64 half of the publish below is therefore NOT gated by a smoke
+        # run in this phase. The env block at the top of this file states that
+        # in full.
         if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: zephyr-devbox
           file: zephyr-devbox/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.SMOKE_PLATFORM }}
           push: false
           load: true
           build-args: |
@@ -569,10 +780,15 @@ jobs:
         run: bash .ci/smoke.sh zephyr-devbox ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
-        # build-args, same platform — so buildx resolves every layer from the
-        # cache that step wrote and this one only uploads. It writes no cache of
-        # its own for that reason.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        # build-args — so buildx resolves every amd64 layer from the cache that
+        # step wrote and uploads it. It writes no cache of its own for that
+        # reason.
+        #
+        # The platform list is WIDER here than in the gate step: the amd64 leg
+        # comes from that cache, and every other leg is built now, on the node
+        # buildx appended for it. So this step is the one that runs the arm64
+        # build, and an arm64 failure surfaces HERE rather than in the gate.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: zephyr-devbox
@@ -586,12 +802,36 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr-devbox:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox-cache
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: zephyr-devbox
+          file: zephyr-devbox/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          build-args: |
+            BASE_TAG=${{ env.BASE_TAG }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published zephyr-devbox ${{ needs.base.outputs.short }}
 
   # The cloud image: the reduced base + the CI fold (image-architecture, ledger
@@ -674,16 +914,16 @@ jobs:
         # ship the same build. The second build reads the cache this one writes,
         # so publishing costs a layer copy rather than a rebuild.
         #
-        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
-        # the image store holds a single image. That holds for as long as
-        # PLATFORMS names 1 platform — read the arm64 note at the top of
-        # _ctl/tests/publish-order.test.sh before widening it.
+        # SMOKE_PLATFORM and not PLATFORMS: `load: true` takes 1 platform, and
+        # the arm64 half of the publish below is therefore NOT gated by a smoke
+        # run in this phase. The env block at the top of this file states that
+        # in full.
         if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
           file: cloud/Dockerfile
-          platforms: ${{ env.PLATFORMS }}
+          platforms: ${{ env.SMOKE_PLATFORM }}
           push: false
           load: true
           build-args: ${{ steps.versions.outputs.args }}
@@ -699,10 +939,15 @@ jobs:
         run: bash .ci/smoke.sh cloud ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
-        # build-args, same platform — so buildx resolves every layer from the
-        # cache that step wrote and this one only uploads. It writes no cache of
-        # its own for that reason.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        # build-args — so buildx resolves every amd64 layer from the cache that
+        # step wrote and uploads it. It writes no cache of its own for that
+        # reason.
+        #
+        # The platform list is WIDER here than in the gate step: the amd64 leg
+        # comes from that cache, and every other leg is built now, on the node
+        # buildx appended for it. So this step is the one that runs the arm64
+        # build, and an arm64 failure surfaces HERE rather than in the gate.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -715,10 +960,33 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/cloud:${{ steps.sha.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/cloud:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/cloud-cache
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: cloud/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          build-args: ${{ steps.versions.outputs.args }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/cloud-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published cloud ${{ steps.sha.outputs.short }}

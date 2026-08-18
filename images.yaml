@@ -76,6 +76,13 @@
 #               beyond the version comparison. An image with an empty list is
 #               refused: a smoke that compares versions and exercises nothing is
 #               not a smoke.
+#   platforms   OPTIONAL. The platforms THIS image publishes. Absent means
+#               SANCTIONED_PLATFORMS, which is what 4 of the 5 take — so the key
+#               appears only where an image is measurably NARROWER, and reading
+#               the manifest tells you which one that is. It may never be WIDER:
+#               image_platforms refuses an entry outside the sanctioned set,
+#               naming the image and the platform, because the sanctioned set is
+#               the policy and this field is an exception WITHIN it.
 #   notes       the prose of THIS image's publish job, keyed by where it goes.
 #               _ctl/generate.sh wraps each line in `# ` at the right indent. An
 #               absent key emits no comment. Everything a job says that is TRUE
@@ -117,10 +124,13 @@ images:
         This step is NOT gated, and neither are the 2 above it: their outputs
         are what every gate below reads, and what the child jobs read.
       buildx: |
-        Replaces docker/setup-buildx-action. It makes the same
-        docker-container builder — the default docker driver can neither read
-        nor write a registry cache — and it owns the arm64 switch that reads
-        SANCTIONED_PLATFORMS. Inert today: that list holds linux/amd64 alone.
+        Replaces docker/setup-buildx-action. It makes a `remote` builder whose
+        first node is a buildkitd container it starts in the pod's own network
+        namespace — the default docker driver can neither read nor write a
+        registry cache — and it owns the arm64 switch that reads
+        SANCTIONED_PLATFORMS. That switch is LIVE: the list names linux/arm64,
+        so every build appends the Mac mini as a second node. One driver for
+        both, because buildx refuses a builder whose nodes disagree.
         It runs after the registry login: the builder boots by pulling the
         private BuildKit mirror, and an anonymous pull of it is refused.
       smoke: |
@@ -134,6 +144,29 @@ images:
     context: flutter
     dockerfile: flutter/Dockerfile
     smoke_ref: flutter:smoke
+    # The 1 image of the set that is NARROWER than SANCTIONED_PLATFORMS, and the
+    # reason is upstream and not ours: Flutter publishes no linux-arm64 SDK. Read
+    # on 2026-08-17,
+    # https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json
+    # (264191 bytes) lists EVERY Linux release ever published — 730 of them — and
+    # `[.releases[].dart_sdk_arch] | unique` returns [null,"x64"]. Quote it that
+    # way: 431 of the 730 predate the key and carry none, 299 say x64, and the
+    # count that decides this is `[.releases[] | select(.dart_sdk_arch != null
+    # and .dart_sdk_arch != "x64")] | length` = 0. The pinned 3.47.0 stable
+    # carries 1 archive, stable/linux/flutter_linux_3.47.0-stable.tar.xz, and its
+    # dart_sdk_arch is x64 — the filename carries no architecture, so an HTTP
+    # probe of it succeeds and proves nothing.
+    #
+    # This is a BLOCKER and not a stale pin: no bump reaches an asset upstream
+    # does not publish. Whether Android platform-tools ships a linux-arm64 build
+    # is moot while this row stands — that question only opens on the day
+    # Flutter itself does.
+    #
+    # Delete this key on that day. flutter/Dockerfile keeps amd64-only case
+    # arms, and they are CORRECT rather than incomplete for as long as it is
+    # here.
+    platforms:
+      - linux/amd64
     paths:
       - flutter/
     groups:

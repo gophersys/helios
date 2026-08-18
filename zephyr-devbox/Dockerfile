@@ -31,6 +31,7 @@ ARG BUILDPLATFORM
 ARG ESPTOOL_VERSION=5.3.1                                              # latest stable as of 2026-07-05
 ARG CODE_SERVER_VERSION=4.133.0                                        # latest stable as of 2026-08-17
 ARG CODE_SERVER_SHA256_AMD64=241feb9fcbd96b1e2caa2e16ecafa67a70d6f7f60659058ddc9a8ba51d366d7e  # computed-at-pin: 2026-08-17
+ARG CODE_SERVER_SHA256_ARM64=332bfdde6bdfd6c8c721b1722b2a69e1737d65e3131b161a63d54b0855967254  # computed-at-pin: 2026-08-17
 # Extra Zephyr SDK toolchains installed on top of the parent layer's set
 # (arm-zephyr-eabi + riscv64-zephyr-elf). This is EVERY Espressif toolchain
 # sdk-ng v1.0.1 ships (names verified against the release's toolchain
@@ -188,11 +189,20 @@ RUN { \
 # fetch). The entrypoint serves it on :8443 alongside sshd; an
 # authenticating reverse proxy + Cloudflare Access front it.
 # -------------------------------------------------------------------------
-RUN ARCH="$(dpkg --print-architecture)" \
+# `ARCH="$(dpkg --print-architecture)"` stood here and answered the same
+# question correctly on both platforms. It cannot choose the DIGEST, which a
+# 2-platform set has to, so this block takes the `case` every other download in
+# this repository takes. The deb spelling and the buildx spelling agree on both
+# arches, which is why the arm bodies read the way they do.
+RUN case "${TARGETPLATFORM}" in \
+      linux/amd64) ARCH=amd64; SHA256="${CODE_SERVER_SHA256_AMD64}"; SHA256_PIN=CODE_SERVER_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=arm64; SHA256="${CODE_SERVER_SHA256_ARM64}"; SHA256_PIN=CODE_SERVER_SHA256_ARM64 ;; \
+      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
+    esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server_${CODE_SERVER_VERSION}_${ARCH}.deb" \
       /tmp/code-server.deb \
-      "${CODE_SERVER_SHA256_AMD64}" CODE_SERVER_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && dpkg -i /tmp/code-server.deb \
  && rm /tmp/code-server.deb
 # NOTE: no in-layer version smoke, per repo convention — verified on the
