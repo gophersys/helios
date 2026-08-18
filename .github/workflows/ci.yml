@@ -4,6 +4,13 @@ on:
 
 env:
   PYTHONUNBUFFERED: "1"   # gates must stream — silence is indistinguishable from a hang
+  # The org ui image bakes DENSUI_CHROME, named before the densui -> ui rename
+  # landed in this repo; tools/ui/src/ui/probe.py reads UI_CHROME. Unset, the
+  # probe falls through to its PATH candidate search and can pass WITHOUT ever
+  # launching the browser the image baked — a check that proves less than it
+  # claims. Naming the image's own entry point makes a missing browser a loud
+  # ProbeError instead. Transitional: it goes when ui exports UI_CHROME.
+  UI_CHROME: /usr/local/bin/densui-chromium
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -14,10 +21,15 @@ jobs:
     runs-on: arc-org  # the org ARC fleet — eden/infrastructure owns the controller
     timeout-minutes: 30   # a hung job must fail loudly, not hold the fleet seat for 6h
     container:
-      image: ghcr.io/gophersys/research-ui-ci:latest   # browser + fonts + uv + node baked
+      # The org ui CATEGORY image (ADR-0003): browser + DejaVu + uv + node baked,
+      # one lineage for every UI repo. It is a CROSS-REPO private package (built
+      # by gophersys/.devcontainer), and GITHUB_TOKEN's packages:read reaches
+      # only packages linked to THIS repo — eden lesson L3 — so the pull PAT is
+      # the credential that can fetch it.
+      image: ghcr.io/gophersys/ui:latest
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ secrets.GHCR_PULL_TOKEN }}
       options: --user root
     steps:
       - uses: actions/checkout@v4
@@ -28,10 +40,10 @@ jobs:
     runs-on: arc-org
     timeout-minutes: 30
     container:
-      image: ghcr.io/gophersys/research-ui-ci:latest
+      image: ghcr.io/gophersys/ui:latest   # same image as `test`, same reason
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ secrets.GHCR_PULL_TOKEN }}
       options: --user root
     steps:
       - uses: actions/checkout@v4

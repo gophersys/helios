@@ -65,7 +65,7 @@ never by the renderer.
 | `demos/bench/` | the CONTRACT demo: rendered from a live parameter tree after a scripted drill session — the pixels are evidence of contract states |
 | `corpus/` | one minimal page per measured defect class, seeded with exactly one deliberate defect its predicate must catch (`./ctl.sh score`) |
 | `docs/` | `eyes.md` (what looking may and may not decide), `spec.md`, `scorecard.md`, `adr/` (ADR-0001 computed-not-judged, ADR-0002 licensed assets) |
-| `ci/` | the `research-ui-ci` image (Chromium + fonts + uv); CI runs the same gates as `ctl.sh` |
+| `ci/` | the RETIRED `research-ui-ci` image (ADR-0003): CI now runs the org `ghcr.io/gophersys/ui` image; this Dockerfile still feeds the devcontainer and stays as the rollback anchor until migration step (5) |
 | `loop/` | the autonomous 5-minute work loop (launchd; armed manually) |
 | `.claude/` | repo instrumentation: rules, `ui-reason`/`ui-layout`/`ui-bind` skills, the `ui-verifier` agent |
 | `PLAN.md` / `LOOP.md` / `LOG.md` | the autonomous work loop: plan, protocol, journal |

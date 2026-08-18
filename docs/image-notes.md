@@ -279,6 +279,44 @@ Preconditions: steps (a) renames and (b) cloud reduction are merged;
 6. After a soak period: delete the ghcr package `research-ui-ci`.
    **Mateo authorizes this deletion. Nobody else.**
 
+### Status — steps 1 and 2 have landed (2026-08-18)
+
+Step 1 is done upstream: `ghcr.io/gophersys/ui` is published by
+`gophersys/.devcontainer` (`ui/Dockerfile`, `FROM cloud`), **dual-arch**
+— amd64 AND arm64. R3 dissolved rather than resolved: Google's stable
+component now publishes `google-chrome-stable` for arm64 at the same
+version as amd64 (measured upstream 2026-08-18), so section 3's
+"Google ships NO arm64 Linux Chrome" is out of date and the pinned
+Debian Chromium candidate is not needed. Nothing compares the arm64
+browser yet — that gap is recorded upstream, not here.
+
+Step 2 landed with three deviations, each deliberate:
+
+- **Tag, not digest.** CI pins `ghcr.io/gophersys/ui:latest`, not a
+  digest. The image is days old and still moving daily, and this repo
+  has no bump automation to move a digest. The digest pin and the
+  acceptance-metric-5 tripwire belong with step 3, when dev and CI can
+  be pinned to ONE value in one commit. The `:latest` amd64 digest at
+  the time of the change was `sha256:11a9e70f8780c37e…`.
+- **`UI_CHROME` is set by the workflows.** The published image bakes
+  `DENSUI_CHROME=/usr/local/bin/densui-chromium`, named before the
+  `densui` → `ui` rename landed here, while `tools/ui/src/ui/probe.py`
+  reads `UI_CHROME`. Section 2's "both arches resolve `ui-chromium` and
+  `ENV UI_CHROME`" is therefore not yet true of the org image. Unset,
+  `find_chrome()` falls through to its PATH candidate search and finds
+  `/usr/bin/google-chrome-stable` anyway — it passes without proving the
+  baked entry point, which is the silent-fallback failure this document
+  already warns about. The workflows name the path instead, so a moved
+  symlink is a loud `ProbeError`. The bridge is removed when `ui`
+  exports `UI_CHROME`.
+- **Steps 3 and 5 are NOT in that change.** `.devcontainer/Dockerfile`
+  still builds `FROM research-ui-ci:latest`, so dev and CI drift until
+  step 3: chrome `151.0.7922.137` vs `151.0.7922.169`, node `22.23.2`
+  vs `24.19.0`, uv root-installed vs cloud's. `build-ci-image.yml` is
+  left alive on purpose while that dependency exists — deleting it
+  would freeze the image the devcontainer still consumes. Steps 3 and 5
+  are one PR.
+
 ### Rollback
 
 - The deleted files stay in git history. One revert restores them.
