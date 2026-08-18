@@ -108,6 +108,29 @@ AUTH_KNOB="DEVBOX_CODE_SERVER_AUTH=none-behind-proxy"
 # The machine-readable state a probe or an operator finds after a degraded boot.
 DEGRADED_MARKER="/run/devbox-degraded"
 
+# The first path the pod arm touches. A literal, so that "it entered the pod
+# preparation" is asserted against the directory the contract names and not
+# against whatever the file happens to say today.
+HOSTKEY_DIR="/etc/ssh/hostkeys"
+
+# The log prefix. It is the string an operator greps a pod's logs for and the
+# string every runbook and every `kubectl logs | grep` in another repository
+# would carry, so it is a NAME with consumers and not decoration. It was
+# `[devbox-entrypoint]` while the file was zephyr-devbox's, and the fold renamed
+# it — a rename nothing held, which is how the old name would have survived in
+# half the tree.
+LOG_PREFIX="[embedded-entrypoint]"
+
+# The refusal that is NOT a degraded() call. The empty-argv refusal writes the
+# marker itself, GUARDED, because it is the 1 refusal a non-root caller reaches
+# and /run is not writable there — see the checks in section 5b.
+REFUSAL_MARKER_TEXT="no command to exec in toolchain mode"
+
+# The documented exit status of that refusal. README.md and
+# .claude/rules/00-identity.md both spell it beside the step tables, so it is a
+# contract and not an implementation detail.
+EMPTY_ARGV_EXIT=2
+
 STUB_LOG="$(mktemp)"
 ENTRYPOINT_OUTPUT=""
 ENTRYPOINT_STATUS=0
@@ -134,6 +157,7 @@ function run_entrypoint() {
     "PATH=${STUB_DIR}:/usr/bin:/bin"
     "STUB_ENTRYPOINT_LOG=${STUB_LOG}"
     "STUB_ID_UID=${uid}"
+    "STUB_STAT_UID=0"
   )
   if [[ -n "$mode" ]]; then
     environment=("${environment[@]}" "${MODE_VARIABLE}=${mode}")
@@ -185,6 +209,27 @@ function entrypoint_lines() {
   printf '%s' "$hits"
 }
 
+# function_body <name> — the lines BETWEEN `function <name>() {` and the `}`
+# that closes it in column 1.
+#
+# A file-wide grep is the wrong reader for a rule about what a FUNCTION does. It
+# passes when the string it wants lives anywhere at all, and "anywhere" includes
+# the caller that was supposed to stop needing it — which is precisely how a
+# `degraded()` reduced to a bare log would keep a marker check green. This
+# reader answers about the body and nothing else.
+#
+# The `[[ -r ]]` guard is not decoration: awk on a file it cannot open exits 2
+# and, under `set -Eeuo pipefail`, ends the RUN with no summary. That shape has
+# already been shipped twice in this directory.
+function function_body() {
+  [[ -r "$ENTRYPOINT" ]] || return 0
+  awk -v name="$1" '
+    $0 ~ "^function[[:space:]]+" name "\\(\\)[[:space:]]*\\{" { inside = 1; next }
+    inside && /^\}/ { inside = 0; next }
+    inside { print }
+  ' "$ENTRYPOINT"
+}
+
 printf '=== RUN  %s\n' "$TEST_NAME"
 
 # -------- 1. the subject and its harness are really there --------
@@ -197,7 +242,7 @@ printf '=== RUN  %s\n' "$TEST_NAME"
 missing_harness=""
 [[ -f "$ENTRYPOINT" ]] || missing_harness="${missing_harness:+${missing_harness}
 }${ENTRYPOINT_RELATIVE}"
-for stub in id runuser "$PROBE_COMMAND" mkdir chmod chown ssh-keygen; do
+for stub in id runuser "$PROBE_COMMAND" mkdir chmod chown ssh-keygen stat; do
   [[ -x "$STUB_DIR/$stub" ]] || missing_harness="${missing_harness:+${missing_harness}
 }stubs/entrypoint/${stub} (absent, or not executable)"
 done
@@ -310,11 +355,13 @@ for wrong_mode in "DEVBOX" "devbox " "dev" "toolchain"; do
 done
 
 # The whole of /etc/ssh, stated as the log this arm may not hold. mkdir and
-# chmod are the first 2 statements of the pod preparation and ssh-keygen is the
-# third, so all 3 absent is "the preparation was not entered".
+# chmod are the first 2 statements of the pod preparation, ssh-keygen is the
+# third, and stat + chown belong to the mounted-volume ownership step below
+# them — so all 5 absent is "the preparation was not entered", read at 5
+# different depths of it rather than at 1.
 run_entrypoint 0 "" "$PROBE_COMMAND"
 touched_etc_ssh=""
-for tripwire in mkdir chmod chown ssh-keygen; do
+for tripwire in mkdir chmod chown ssh-keygen stat; do
   if grep -q "^${tripwire} " "$STUB_LOG"; then
     touched_etc_ssh="${touched_etc_ssh:+${touched_etc_ssh}
 }${tripwire}"
@@ -345,8 +392,14 @@ fi
 # deleted, the euid-0 case stayed green and only this one went red.
 for empty_argv_uid in 0 1000; do
   run_entrypoint "$empty_argv_uid" ""
-  assert_status_nonzero "an_empty_argv_at_euid_${empty_argv_uid}_is_refused" \
-    "$ENTRYPOINT_STATUS" \
+  # EXACTLY 2, and not merely non-zero. The status is the documented contract —
+  # both step tables spell it — and it is also what proves the marker write is
+  # GUARDED: an unguarded `printf >>/run/devbox-degraded` on a host where /run
+  # is absent or unwritable dies under `set -e` and the caller reads 1, so a
+  # NAMED refusal would arrive as an unexplained failure. Measured by
+  # break-test: removing the `if !` turns this into 1 on this host.
+  assert_equal "an_empty_argv_at_euid_${empty_argv_uid}_is_refused" \
+    "$EMPTY_ARGV_EXIT" "$ENTRYPOINT_STATUS" \
     "an exec with no argv is a no-op, and the next statement is the pod preparation" \
     "it printed:" "${ENTRYPOINT_OUTPUT:-<nothing>}" \
     "the stubs recorded:" "$(stub_log)"
@@ -356,6 +409,65 @@ for empty_argv_uid in 0 1000; do
     "falling through here would start an sshd for a caller who asked for a command" \
     "it printed:" "${ENTRYPOINT_OUTPUT:-<nothing>}"
 done
+
+# -------- 4b. the POSITIVE case: devbox mode ENTERS the pod arm --------
+#
+# THE WHOLE FILE WAS NEGATIVE UNTIL THIS SECTION, and that was a hole big enough
+# to drive both production pods through. Every check above asserts that some
+# value is NOT the pod mode; not one asserted that the pod mode IS. Measured by
+# the verifier on 2026-08-18: change the dispatch's literal "devbox" to
+# "devboxx" and all 31 checks stayed green, `ctl.sh test` stayed green, and
+# `ctl.sh validate` stayed green — while both live devboxes would have come up
+# as toolchain containers that exec `zsh`, exit, and report Completed. No sshd,
+# no code-server, no host keys, and nothing anywhere in this repository saying
+# so.
+#
+# A dispatch is 2-armed and a suite that only ever exercises 1 arm has tested a
+# branch, not a dispatch.
+#
+# HOW FAR THIS RUNS, exactly. The pod arm reaches its first SHELL REDIRECTION
+# and dies there — /run/devbox-degraded on a host where /run does not exist
+# (this mac) or is not writable (a Linux container as `dev`). That is the
+# absolute-path seam recorded at the top of this file and deferred. So the
+# assertions are about the steps that DID run, read from the stub log, and the
+# status is deliberately not asserted: it is a fact about the seam, not about
+# the dispatch, and pinning it would turn this red on the day the seam lands.
+#
+# WHAT IT COSTS ON A ROOT HOST: where /run IS writable the arm gets 1 line
+# further and appends 1 line to /run/devbox-degraded before dying. No image of
+# this repository runs its suite as root — every one of them runs as `dev` —
+# and DEVBOX_AUTHORIZED_KEYS is deliberately left unset here so the run takes
+# the degraded branch rather than the branch that WRITES /home/dev/.ssh/
+# authorized_keys, which on a Linux host would be a real user's real file.
+run_entrypoint 0 "$POD_MODE" "$PROBE_COMMAND"
+
+assert_contains "the_pod_mode_enters_the_pod_preparation" \
+  "$(stub_log)" "mkdir -p ${HOSTKEY_DIR}" \
+  "GOPHERSYS_EMBEDDED_MODE=${POD_MODE} is the ONLY value that may reach this, and it must" \
+  "it printed:" "${ENTRYPOINT_OUTPUT:-<nothing>}"
+
+assert_contains "the_pod_mode_generates_the_persistent_host_keys" \
+  "$(stub_log)" "ssh-keygen" \
+  "the box keeps its SSH identity across pod restarts because this step runs" \
+  "the stubs recorded:" "$(stub_log)"
+
+assert_contains "the_pod_mode_logs_through_the_images_own_prefix" \
+  "$ENTRYPOINT_OUTPUT" "${LOG_PREFIX} generating ed25519 host key" \
+  "the prefix and the step together: this is the line an operator greps for in a pod that" \
+  "came up, and it is the proof this run reached the pod arm rather than merely not exec-ing"
+
+# The other half, and it is the half that the misspelling break turns red: the
+# toolchain exec must NOT have happened. Without this, a dispatch that ran BOTH
+# arms would satisfy every assertion above.
+assert_not_contains "the_pod_mode_never_execs_the_argv" \
+  "$(stub_log)" "$PROBE_COMMAND" \
+  "the pod arm ends at the sshd exec; a run that also exec'd the CMD is not a dispatch" \
+  "it printed:" "${ENTRYPOINT_OUTPUT:-<nothing>}"
+
+assert_not_contains "the_pod_mode_never_drops_to_dev_through_runuser" \
+  "$(stub_log)" "runuser -u dev -- ${PROBE_COMMAND}" \
+  "the pod half runs as ROOT: it binds :22, writes /etc/ssh and chowns mountpoints" \
+  "it printed:" "${ENTRYPOINT_OUTPUT:-<nothing>}"
 
 # -------- 5. the pod arm, READ AS TEXT --------
 # Section 0 of this header says why these are text and what would make them
@@ -377,15 +489,46 @@ assert_contains "the_pod_arm_writes_the_degraded_marker_path" \
   "without the marker a probe and an operator have only the log to read, and a pod that" \
   "reports Running while a declared service is absent is the failure this file had once"
 
-# shellcheck disable=SC2016
+# THIS WAS A HEADCOUNT, AND A HEADCOUNT IS NOT A PROPERTY. It counted the
+# `>>"${DEGRADED_MARKER}"` writes in the file and asserted 1, and the moment a
+# SECOND refusal correctly grew a marker write the check went red on a
+# correctness improvement. Bumping the literal to 2 would have re-armed the same
+# trap one number further along: what the file owes is that each refusal writes
+# the marker, not that the file holds N writes. So the rule is now per-WRITER,
+# and each writer is named.
+#
+# WRITER 1 — degraded(), the pod path. Read from the FUNCTION BODY and not from
+# the file: a `>>"${DEGRADED_MARKER}"` anywhere else satisfies a file-wide grep
+# while degraded() itself only logs, which is exactly the state this check
+# exists to refuse.
 # The single quotes are the point: the needle is the LITERAL source text of the
 # redirection, and a `${DEGRADED_MARKER}` this file expanded would search the
-# entrypoint for a path instead of for the write that uses it.
-marker_write="$(grep -cF -- '>>"${DEGRADED_MARKER}"' <<< "$entrypoint_code")" || marker_write=0
-assert_equal "degraded_appends_to_the_marker_rather_than_only_logging" \
-  "1" "$marker_write" \
+# entrypoint for a path instead of for the write that uses it. The disable
+# directive sits on the line ABOVE the statement, because shellcheck attaches it
+# to the command that FOLLOWS it and a prose line in between detaches it — which
+# is how the first version of this hunk failed `ctl.sh validate`.
+degraded_body_write=0
+# shellcheck disable=SC2016
+degraded_body_write="$(grep -cF -- '>>"${DEGRADED_MARKER}"' <<< "$(function_body degraded)")" \
+  || degraded_body_write=0
+assert_equal "the_degraded_function_body_writes_the_marker" \
+  "1" "$degraded_body_write" \
   "the marker write is what makes a degraded boot MACHINE-READABLE" \
-  "a degraded() that only logged would leave the state invisible to everything but a human"
+  "a degraded() that only logged would leave the state invisible to everything but a human" \
+  "the body this test read was:" "$(function_body degraded)"
+
+# WRITER 2 — the empty-argv refusal, the TOOLCHAIN path. It is deliberately not
+# a degraded() call, and section 5b below is where that difference is held.
+refusal_marker_line=""
+refusal_marker_line="$(grep -F "$REFUSAL_MARKER_TEXT" <<< "$entrypoint_code")" \
+  || refusal_marker_line=""
+# shellcheck disable=SC2016
+# A literal needle again, for the reason above it.
+assert_contains "the_toolchain_refusal_writes_the_marker_too" \
+  "$refusal_marker_line" '>>"${DEGRADED_MARKER}"' \
+  "the log line always lands; the marker is the half a probe and an operator can read" \
+  "a refusal that only logged would leave the toolchain path with no machine-readable state" \
+  "at all, while the pod path has one"
 
 # The refusal itself, as 1 line, and then the 2 knobs inside it. Asserting the
 # knob NAMES against the whole file would pass on the header paragraph that
@@ -419,17 +562,95 @@ assert_equal "the_code_server_supervisor_keeps_a_failing_exit_in_a_condition" \
   "the subshell inherits set -e, under which a non-zero code-server exit would kill the" \
   "restart loop at the exact moment it exists for — measured on the first probe of this file"
 
-# The pod arm's ORDER, as the order the sections appear in the file. It is a
-# structural proxy and it says so: what it holds is that host keys come before
-# authorized_keys, that the mcu links come before code-server, and that the sshd
-# exec is below all of them. Moving the sshd exec above code-server would start
-# the listener and never reach the browser IDE, and no reader of a running pod
-# would see why.
+# -------- 5b. the toolchain refusal's marker write is GUARDED --------
+# The 2 writers are not the same shape, and the difference is load-bearing.
+#
+# degraded()'s write is BARE. It runs on the pod path only, as root, where /run
+# exists and is writable, and a failure there is a defect worth dying on.
+#
+# The empty-argv refusal is the 1 refusal a NON-ROOT caller reaches —
+# `docker run --user dev embedded` with a replaced CMD, and `--user dev` is the
+# shape .ci/smoke.sh itself uses. There /run is not writable. An unguarded
+# append would then fail, `set -e` would kill the script at that line, and the
+# caller would read status 1 with no explanation — a NAMED refusal turned into
+# an unexplained death, on the one path a real caller can reach.
+#
+# So the write is attempted and a failure to write is REPORTED rather than
+# fatal. Nothing else in this repository holds that shape, and the check for it
+# is 2-sided on purpose: the exit-status assertion in section 4 fails when the
+# guard goes away on a host with an unwritable /run, and this text check fails
+# EVERYWHERE, including on a root host where the bare write would succeed and
+# the behavioural check could not tell the difference.
+if [[ -z "$refusal_marker_line" ]]; then
+  fail_check "the_toolchain_refusal_guards_its_marker_write" \
+    "no line of ${ENTRYPOINT_RELATIVE} carries the refusal text: ${REFUSAL_MARKER_TEXT}" \
+    "the writer this rule is about is gone, so its shape cannot be judged"
+else
+  refusal_marker_trimmed="${refusal_marker_line#"${refusal_marker_line%%[![:space:]]*}"}"
+  case "$refusal_marker_trimmed" in
+    "if ! "*)
+      pass_check "the_toolchain_refusal_guards_its_marker_write"
+      ;;
+    *)
+      fail_check "the_toolchain_refusal_guards_its_marker_write" \
+        "the refusal's marker write is not inside a condition; the line reads:" \
+        "$refusal_marker_trimmed" \
+        "this refusal is reachable as a NON-root caller, where /run is not writable — a bare" \
+        "append fails there, set -e kills the script at that line, and the documented exit ${EMPTY_ARGV_EXIT}" \
+        "never happens: the caller gets an unexplained 1 instead of a named refusal"
+      ;;
+  esac
+fi
+
+# The log PREFIX. Every line this file emits carries it, so it is the string an
+# operator greps a pod's logs for and the string a runbook in another repository
+# would hardcode. It was `[devbox-entrypoint]` until the fold renamed the file,
+# and nothing held it — a rename that leaves a stale reference is not complete,
+# and here the stale reference would have been in every reader's fingers.
+# log() is a 1-line definition, so its text IS its body and function_body (which
+# reads to a `}` in column 1) correctly returns nothing for it. The definition
+# line is the haystack, and it is read rather than the whole file: the header
+# paragraph above the dispatch also spells the name, and a check the PROSE could
+# satisfy is the trap section 5 opens with.
+log_definition=""
+log_definition="$(grep -F 'function log()' <<< "$entrypoint_code")" || log_definition=""
+assert_contains "the_log_prefix_is_the_images_own_name" \
+  "$log_definition" "$LOG_PREFIX" \
+  "log() is the 1 producer of every line this entrypoint writes, so this prefix is the" \
+  "whole grep contract an operator has against a running pod — it read [devbox-entrypoint]" \
+  "until the fold, and a rename that leaves a stale reference is not complete"
+
+# The ORDER, as the order the sections appear in the file. It is a structural
+# proxy and it says so: what it holds is that each step is above the step that
+# depends on it, and that the sshd exec is below all of them.
+#
+# ALL 7 MARKERS, and it held 5. The 2 that were missing are the 2 whose position
+# carries the most:
+#
+#   mode dispatch    it is the FIRST section, and everything below it is the pod
+#                    path. A dispatch that sank below the host-key generation
+#                    would run the pod preparation for every `docker run` and
+#                    then decide the mode, which is the safe-by-absence property
+#                    inverted while every behavioural check still passed.
+#   mounted-volume   its `chmod 0755` on /home/dev has to run BEFORE
+#   ownership        authorized_keys is written into /home/dev/.ssh. local-path
+#                    PVCs mount 0777, sshd StrictModes then refuses the key file
+#                    ("bad ownership or modes for directory /home/dev"), and the
+#                    pod comes up REFUSING EVERY LOGIN with a correct key
+#                    installed. The file states that itself, in the comment
+#                    above the chmod, and nothing held it. Moving that block
+#                    below authorized_keys is a 2-line diff that reads as tidying.
+#
+# The names are the file's own section banners. That is a coupling worth being
+# explicit about: renaming a banner turns this red, and the failure names the
+# marker it could not find rather than pretending the step is gone.
 order_ok=1
 order_evidence=""
 previous=0
 for marker in \
+  "# -------- mode dispatch --------" \
   "# -------- host keys --------" \
+  "# -------- mounted-volume ownership --------" \
   "# -------- authorized_keys --------" \
   "# -------- mcu slot symlinks --------" \
   "# -------- code-server --------" \
@@ -444,10 +665,11 @@ do
   previous="${current:-0}"
 done
 if [[ "$order_ok" -eq 1 ]]; then
-  pass_check "the_pod_arm_states_its_5_steps_in_order"
+  pass_check "the_entrypoint_states_its_7_steps_in_order"
 else
-  fail_check "the_pod_arm_states_its_5_steps_in_order" \
-    "the pod preparation must read host keys -> authorized_keys -> mcu symlinks -> code-server -> sshd" \
+  fail_check "the_entrypoint_states_its_7_steps_in_order" \
+    "the file must read mode dispatch -> host keys -> mounted-volume ownership ->" \
+    "authorized_keys -> mcu symlinks -> code-server -> sshd" \
     "the section markers were found at:" \
     "$order_evidence" \
     "an absent marker is a section that was renamed or deleted, and a marker out of order is a" \
