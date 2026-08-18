@@ -4,6 +4,8 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"time"
+
+	"github.com/gophersys/libs/go/agentsession/internal/controlframe"
 )
 
 // budgetAbortReason is the Abort text the library sends when the cumulative cost
@@ -20,10 +22,6 @@ const defaultPermissionTimeout = 5 * time.Minute
 // recentDeltaWindow bounds the recent text/tool delta ring handed to the advisor in the
 // AdviceContext (a small, redacted snippet — never the whole transcript, never a secret).
 const recentDeltaWindow = 16
-
-// permissionAnswerPrefix tags the normalized control frame that answers a permission
-// request, so the adapter's Send can map it to the harness's native permission-answer.
-const permissionAnswerPrefix = "eden:permission:"
 
 // sessionID derives a stable, unique session id from the spec + route plus a random
 // suffix, so two sessions over the same workspace never collide on the transcript key.
@@ -53,27 +51,11 @@ func randomSuffix() string {
 	return hex.EncodeToString(buf)
 }
 
-// rationaleSeparator delimits the OPTIONAL audit Rationale appended to the answer frame.
-// It is the ASCII unit separator (0x1f), a byte that never appears in a request id, a
-// verdict, or a By identity ("user:id" / "policy:name" / "advisor:name") — so a frame
-// WITHOUT a rationale parses byte-identically to the pre-ratification frame (the change is
-// additive: a parser that ignores the separator reads the unchanged id:verdict:by).
-const rationaleSeparator = "\x1f"
-
-// permissionAnswer renders the normalized answer frame for a resolved permission request:
-// the request id, the allow/deny verdict, the deciding identity, and — when the decider
-// supplied one — the audit Rationale after a 0x1f separator. It carries NO secret and is
-// bounded. The Rationale is the founder model's audit-logged reasoning; appending it here
-// is how the library's produced Decision carries it to the adapter (which strips the
-// separator and surfaces by/verdict on the wire), so the field is consumed, not dead.
+// permissionAnswer renders the normalized answer frame for a resolved permission request
+// through the grammar's ONE HOME (internal/controlframe). The Rationale is the founder
+// model's audit-logged reasoning; handing it to the codec here is how the library's
+// produced Decision carries it to the adapter (which surfaces by/verdict on the wire), so
+// the field is consumed, not dead.
 func permissionAnswer(requestID string, decision Decision) string {
-	verdict := "deny"
-	if decision.Allow {
-		verdict = "allow"
-	}
-	frame := permissionAnswerPrefix + requestID + ":" + verdict + ":" + decision.By
-	if decision.Rationale != "" {
-		frame += rationaleSeparator + decision.Rationale
-	}
-	return frame
+	return controlframe.EncodePermission(requestID, decision.Allow, decision.By, decision.Rationale)
 }
