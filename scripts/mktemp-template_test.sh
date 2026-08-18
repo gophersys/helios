@@ -1,12 +1,23 @@
 #!/usr/bin/env bash
 #
-# scripts/mktemp-template_test.sh — repository rule: an mktemp template carries >= 3 trailing X's.
+# scripts/mktemp-template_test.sh — repository rule: an mktemp invocation passes at most 1 template,
+# and that template carries >= 3 trailing X's.
 #
 # GNU mktemp (the devcontainer and every CI image) rejects a template with fewer than 3 trailing
-# X's — "too few X's in template" — while BSD mktemp on a mac accepts the same line. A form that
-# only a mac accepts therefore reaches CI green on a laptop and exits 1 in the lane, which is how
-# scripts/assert-no-skipped-tests.sh:22 stopped the harness-conformance job for 8 days. This test
-# holds the whole repository to the portable form.
+# X's — "too few X's in template" — and rejects a second template operand — "too many templates".
+# BSD mktemp on a mac accepts both forms. A form that only a mac accepts therefore reaches CI green
+# on a laptop and exits 1 in the lane, which is how scripts/assert-no-skipped-tests.sh:22 stopped
+# the harness-conformance job for 8 days.
+#
+# SCOPE — read this before you read a green run as a repository-wide guarantee.
+#   COVERED: the shell files of THIS repository, tracked AND untracked — a .sh or .bash name, or a
+#     shell shebang on the first line. Untracked is deliberate: a brand-new script is exactly where
+#     a fresh violation enters the tree, and `git ls-files` alone cannot see one.
+#   NOT COVERED: the 3 submodules — libs/, infrastructure/ and .devcontainer/. Their content is a
+#     gitlink here, not a file, and each submodule repository carries its own gate; libs/go/_ctl/
+#     lib.sh alone holds 4 mktemp calls that this scan never reads. Also not covered: a non-shell
+#     file, the `run:` block of a CI yaml, a Dockerfile, a Makefile. A violation in any of those
+#     passes this test.
 #
 # It reads text only. It never runs mktemp, so its verdict is the same on a mac and in the
 # container and it needs no GNU-mktemp guard. Run it directly:
@@ -19,26 +30,83 @@ here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(git -C "$here" rev-parse --show-toplevel)"
 fixtures="${here}/testdata/mktemp-template-fixtures.txt"
 
+# Part C plants this file to prove the scan reaches an untracked path. A leftover from an
+# interrupted run would be scanned by part B and reported as a violation, so it goes first.
+probe_relative='scripts/testdata/untracked-scan-probe.tmp.sh'
+probe_path="${repository_root}/${probe_relative}"
+rm -f "$probe_path"
+
 fails=0
 invocations_examined=0
 
-# mktemp counts only in command position. The word inside a comment, a message or a document is
-# prose, and a rule that reads prose as code cannot be trusted to name a real violation. The word
-# also opens a variable name (mktemp_version=...), so both sides of the occurrence are judged.
-mktemp_leader_pattern='(^|[;&|(`!{])[[:space:]]*$'
-mktemp_follower_pattern='^([[:space:]]|\)|$)'
+# The word mktemp also opens a variable name (mktemp_version=...) and closes nothing, so the text
+# on the right of the occurrence is judged too. `;`, `&` and `|` end the command right there.
+mktemp_follower_pattern='^([[:space:]]|[);&|]|$)'
+# A command string that a keyword runs: trap 'cmd' EXIT, trap "cmd" EXIT.
+mktemp_quoted_command_pattern='(^|[[:space:];&|(`])trap$'
+mktemp_command_quote=''
+
+# mktemp_command_position <the text on the line before this occurrence> -> 0 when the occurrence
+# stands in command position. It sets mktemp_command_quote to the quote that opened the command
+# string, or to the empty string when no quote opened it.
+mktemp_command_position() {
+  local prefix="$1" last
+  mktemp_command_quote=''
+
+  # A quote directly before the word opens a word, not a command — printf 'mktemp %s\n' is prose.
+  # It opens a command only after a keyword that runs a command string.
+  case "$prefix" in
+    *[\"\'])
+      mktemp_command_quote="${prefix: -1}"
+      prefix="${prefix%?}"
+      while [[ $prefix == *[[:space:]] ]]; do prefix="${prefix%?}"; done
+      [[ $prefix =~ $mktemp_quoted_command_pattern ]] && return 0
+      mktemp_command_quote=''
+      return 1
+      ;;
+  esac
+
+  while [[ $prefix == *[[:space:]] ]]; do prefix="${prefix%?}"; done
+
+  # The line starts here, or a metacharacter ended the command before it.
+  [[ -z "$prefix" ]] && return 0
+  case "$prefix" in
+    *[\;\&\|\(\`\!\{]) return 0 ;;
+  esac
+
+  # The word before it opens a command: a shell keyword whose body is a command list, or a wrapper
+  # that runs its arguments. `if true; then mktemp -t bad; fi` and `sudo mktemp -t bad` are both
+  # real invocations that a metacharacter-only reading misses entirely.
+  last="${prefix##*[[:space:]]}"
+  case "$last" in
+    if | elif | then | else | while | until | do | sudo | exec | command | eval | time | nohup)
+      return 0
+      ;;
+  esac
+  return 1
+}
 
 # mktemp_template_verdict <source line> -> echoes none | ok | bad
 mktemp_template_verdict() {
   local line="$1"
-  local remainder="$line" consumed='' before after prefix
-  local -a invocations=()
+  local remainder consumed='' before after prefix leading
+  local -a invocations=() quotes=()
+
+  # A whole-line comment is prose. It is never executed, so it can hold any broken form.
+  leading="${line%%[![:space:]]*}"
+  if [[ "${line#"$leading"}" == '#'* ]]; then
+    printf 'none\n'
+    return 0
+  fi
+
+  remainder="$line"
   while [[ $remainder == *mktemp* ]]; do
     before="${remainder%%mktemp*}"
     after="${remainder#*mktemp}"
     prefix="${consumed}${before}"
-    if [[ $prefix =~ $mktemp_leader_pattern ]] && [[ $after =~ $mktemp_follower_pattern ]]; then
+    if mktemp_command_position "$prefix" && [[ $after =~ $mktemp_follower_pattern ]]; then
       invocations+=("$after")
+      quotes+=("$mktemp_command_quote")
     fi
     consumed="${prefix}mktemp"
     remainder="$after"
@@ -48,9 +116,9 @@ mktemp_template_verdict() {
     return 0
   fi
 
-  local arguments
-  for arguments in "${invocations[@]}"; do
-    if [[ "$(mktemp_arguments_verdict "$arguments")" == 'bad' ]]; then
+  local index
+  for index in "${!invocations[@]}"; do
+    if [[ "$(mktemp_arguments_verdict "${invocations[index]}" "${quotes[index]}")" == 'bad' ]]; then
       printf 'bad\n'
       return 0
     fi
@@ -58,9 +126,14 @@ mktemp_template_verdict() {
   printf 'ok\n'
 }
 
-# mktemp_arguments_verdict <everything after one mktemp in command position> -> ok | bad
+# mktemp_arguments_verdict <everything after one mktemp in command position> [opening quote] -> ok | bad
 mktemp_arguments_verdict() {
-  local arguments="$1"
+  local arguments="$1" quote="${2:-}"
+  # A command string ends at the quote that closes it: in `trap "mktemp -d -t x.XXXXXX" EXIT` the
+  # word EXIT belongs to trap, not to mktemp.
+  if [[ -n "$quote" ]]; then
+    arguments="${arguments%%"$quote"*}"
+  fi
   # Drop the redirections first, so 2>&1 and >/dev/null are never read as a template operand.
   arguments="$(printf '%s' "$arguments" |
     sed -E 's/[0-9]*>>?[[:space:]]*(&[0-9-]+|[^[:space:];|)&]+)//g; s/[0-9]*<[[:space:]]*[^[:space:];|)&]+//g')"
@@ -88,8 +161,13 @@ mktemp_arguments_verdict() {
         continue
       fi
       case "$token" in
-        # These flags take a directory or a suffix, never a template.
-        -p | --tmpdir | --suffix) expects_value=1 ;;
+        # GNU takes the next word for these two: -p DIR and --suffix SUFF are required arguments.
+        -p | --suffix) expects_value=1 ;;
+        # The argument of --tmpdir is OPTIONAL, so getopt_long attaches it only as --tmpdir=DIR.
+        # Bare --tmpdir leaves the next word an operand: `mktemp --tmpdir bad` exits 1 with "too
+        # few X's in template", and `mktemp --tmpdir /var/tmp x.XXXXXX` exits 1 with "too many
+        # templates" (both read from GNU coreutils 9.4 in ghcr.io/gophersys/base).
+        --tmpdir) ;;
         # -t is a flag under GNU and takes the next word under BSD. Either reading puts the
         # template in the next word, so -t is skipped here and the next word is judged.
         -*) ;;
@@ -100,6 +178,11 @@ mktemp_arguments_verdict() {
 
   if [[ ${#templates[@]} -eq 0 ]]; then
     printf 'ok\n'
+    return 0
+  fi
+  # GNU mktemp accepts 1 template operand at most; a second one is "too many templates", exit 1.
+  if [[ ${#templates[@]} -gt 1 ]]; then
+    printf 'bad\n'
     return 0
   fi
   local template
@@ -139,9 +222,10 @@ if [[ $fixture_rows -lt 15 ]]; then
   exit 1
 fi
 
-# --- part B — no tracked shell file breaks the rule ----------------------------------------------
-# The scan set is the tracked shell files: a .sh or .bash name, or a shell shebang. A document that
-# quotes the broken form on purpose is therefore not scanned, and neither is the fixture table.
+# --- part B — no shell file of this repository breaks the rule ------------------------------------
+# The scan set is every shell file git knows about, tracked or untracked: a .sh or .bash name, or a
+# shell shebang. A document that quotes the broken form on purpose is therefore not scanned, and
+# neither is the fixture table. A submodule is a gitlink here, so its files are out of scope.
 scan_files() {
   local file first_line
   while IFS= read -r file; do
@@ -157,7 +241,10 @@ scan_files() {
     if [[ $first_line =~ ^#!.*[/[:space:]](bash|sh|dash|zsh)([[:space:]]|$) ]]; then
       printf '%s\n' "$file"
     fi
-  done < <(git -C "$repository_root" ls-files)
+  done < <(
+    git -C "$repository_root" ls-files
+    git -C "$repository_root" ls-files --others --exclude-standard
+  )
 }
 
 scanned=0
@@ -205,12 +292,44 @@ if [[ $invocations_examined -lt 4 ]]; then
 fi
 
 if [[ -n "$violations" ]]; then
-  printf '  FAIL  repository scan — an mktemp template needs >= 3 trailing X'"'"'s (GNU rejects fewer):\n' >&2
+  printf '  FAIL  repository scan — an mktemp invocation passes 1 template at most, and it needs >= 3 trailing X'"'"'s (GNU rejects both):\n' >&2
   printf '%s' "$violations" | sed 's/^/          /' >&2
   fails=$((fails + 1))
 else
-  printf '  ok    repository scan — %d shell file(s), %d mktemp invocation(s), 0 violation(s)\n' \
+  printf '  ok    repository scan — %d shell file(s) tracked+untracked, %d mktemp invocation(s), 0 violation(s)\n' \
     "$scanned" "$invocations_examined"
+fi
+
+# --- part C — the scan set really reaches an untracked file ---------------------------------------
+# `git ls-files` lists tracked paths only, so before this the scan was blind to a NEW script — the
+# exact moment a fresh violation enters the tree — and returned 0 with a planted violation present.
+# The probe plants that case, asks the scan set for it, and removes it again.
+remove_probe() { rm -f "$probe_path"; }
+trap remove_probe EXIT
+# The word is passed as an operand, never written in command position, so the scan of part B does
+# not read this line as a violation of the very file that asserts the rule.
+printf '#!/usr/bin/env bash\n%s -t untracked-scan-probe\n' 'mktemp' >"$probe_path"
+probe_state="$(git -C "$repository_root" status --porcelain -- "$probe_relative")"
+probe_seen="$(scan_files | grep -c -F -x -e "$probe_relative")" || probe_seen=0
+remove_probe
+trap - EXIT
+
+if [[ "$probe_state" != '?? '* ]]; then
+  printf 'mktemp-template_test: FAILED — the probe %s is not untracked (git says: %s).\n' \
+    "$probe_relative" "$probe_state" >&2
+  exit 1
+fi
+if [[ "$probe_seen" -ne 1 ]]; then
+  printf '  FAIL  untracked probe — the scan set holds the planted untracked script %d time(s), want 1\n' \
+    "$probe_seen" >&2
+  printf '          an untracked shell file is invisible to plain git ls-files; the scan set must\n' >&2
+  printf '          also read: git ls-files --others --exclude-standard\n' >&2
+  fails=$((fails + 1))
+elif [[ "$(mktemp_template_verdict 'mktemp -t untracked-scan-probe')" != 'bad' ]]; then
+  printf '  FAIL  untracked probe — the planted line is in the scan set but judged not-bad\n' >&2
+  fails=$((fails + 1))
+else
+  printf '  ok    untracked probe — a planted untracked script enters the scan set and is judged bad\n'
 fi
 
 if [[ $fails -ne 0 ]]; then
