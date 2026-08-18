@@ -53,10 +53,25 @@ no feature code); test author then proves tests 1-9 red (7-8 red against new stu
 OLD pump = right reason); Round B implementer full green.
 
 ## Proven
--
+- STUBS (implementer, f5da09f): both stub harnesses turn-driven; 1 process served 3
+  turns (result lines 1→3 measured); all 5 lanes green at stated scope (unit/
+  integration/lifecycle/load -race rc=0, ctl.sh lint 0 issues); 62 PASS unchanged.
+- RED Round A (test author, aa34dbd/ac89336/b2fed0e/e742f87): tests 1-6 + re-pins all
+  RED for R1 reasons in ghcr.io/gophersys/base — success result → kind=result
+  IsTerminal=true (both adapters, incl. 2-turn case); requested Close → EventFailed
+  "stream ended without a terminal"; Prompt 2 of 3 refused "illegal in state running";
+  agentruntime advisor records allow-vote as DENY (correctness, not slowness);
+  token-totality test proven able to fail on scratch (2 probes); controlframe suite
+  proven to bite on BEHAVIOUR via naive-codec scratch (4/5 FAIL) and pass on the
+  reference codec. EventTurnEnd spelled positionally so reds are behavioral, proven
+  honest on scratch (bare const turns only the token test green).
+- KNOWN STATE: claudeadapter test binary uncompilable until controlframe lands
+  (sanctioned, own commit ac89336; package reds recorded at aa34dbd before it).
 
 ## Blocked
 -
 
 ## Next
-Phase 1: dev-planner.
+Red round A2: tests 7-8 (3 consecutive Prompts on ONE stub process, both adapters) +
+the adapter integration/load/lifecycle re-pins, RED against the OLD pump. Then Round B
+implementer (types/pump/session/controlframe/normalizers/agentruntime/apidiff-record).
