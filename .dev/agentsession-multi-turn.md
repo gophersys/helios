@@ -87,8 +87,25 @@ OLD pump = right reason); Round B implementer full green.
   both commands WITHOUT the window after controlframe lands. Live arms still SKIP here
   (PR-2's lane). goleak has never seen a 3-turn lifetime.
 
+## Round B (implementer) — landed
+R1 implemented in full; judge fatals held (no emit off pump, no pump-side Send, no
+guardControl bypass); apidiff delta = controlframe section, 4 lines, zero for
+EventTurnEnd. All 6 formerly-unreachable assertions proven EXECUTED+BITING via
+reversible break-probes; goleak clean over real 3-turn lifetimes, both adapters, no
+new ignores. All 4 lanes RC=0 both libs (5 credential-gated live SKIPs named, PR-2's
+lane). Design refinement beyond plan text, flagged+justified: turn ordinal advances
+only on an admitted Prompt (multi-message claude turns otherwise counted 8 for 3);
+conformance case still passes. Renamed live test: zero by-name references anywhere.
+Architecture gate RED only when run explicitly (contract doc lives in eden;
+pre-existing; PR lane never runs it — verified).
+GATE RESIDUE, all test-owned: (1) claudeadapter_test.go TestNormalize_SampleStream
+un-re-pinned — asserts IsTerminal count==1 over a success-result fixture, directly
+contradicts R1 test 1; sole cause of every agentsession lane FAIL; fix = count
+ev.Terminal != nil. (2) 13 lint issues in test files (9 misspell, 3 gocritic,
+1 revive). Latent notes: agentsessiontest/conn.go:200 close-race coin flip (harmless
+under R1); LedgerFold default-arm does not fold turn boundaries (real design question,
+not Round B's).
+
 ## Next
-Round B (implementer): types.go EventTurnEnd+token; pump nextState/plain-emit/cached
-ledger/close branch; session emitTerminalResult; internal/controlframe + retire 3 homes;
-both normalizers; agentruntime 2 sites; apidiff-record; then ALL tests green including
-the named unreached assertions, full lanes, phase-gates both libs, in-container.
+Test-author final round: re-pin TestNormalize_SampleStream + fix the 13 test-file lint
+issues; full phase-gates both libs to green. Then dev-verifier, cleanup pass, PR.
