@@ -271,7 +271,53 @@ fi
 # it. The order is asserted per job by line position, in both copies —
 # platform-policy.test.sh already holds the 2 copies byte-identical, and this
 # file still checks both so a red here names the file that actually broke.
-# ----------------------------------------------------------------------------
+#
+# ============================================================================
+# HOW MANY BUILD JOBS, AND WHY THAT NUMBER IS NOT A LITERAL HERE
+# ============================================================================
+#
+# The header of this file says it asserts LITERALS on purpose, and that stays
+# true of everything above: `network=host`, the ghcr.io reference shape and
+# `--retry-all-errors` are POLICY, and a check that read a policy out of the
+# script it governs would agree with any policy.
+#
+# A job count is not a policy. It is 1 build job per published image, and
+# images.yaml is the ONE declaration of that set — _ctl/generate.sh emits these
+# jobs from it. So the expectation here is AGREEMENT between 2 things DERIVED
+# from the same manifest, which is the case publish-order.test.sh section 0
+# already refuses to write a literal for: a literal would be a third copy of a
+# set nobody hand-writes any more.
+#
+# The manifest is not grading itself either. publish-order.test.sh holds
+# images.yaml to a hand-kept PUBLISHED_IMAGES literal, so an image that appears
+# in the manifest and in no policy list is red there. What was red here instead
+# was the LITERAL 5, which had 2 bodies — the `-eq 5` below and a
+# `for i in 1 2 3 4 5` in the order loop — and the day a 6th image landed the
+# first went red while the second silently stopped covering job 6.
+manifest_status=0
+manifest_names=""
+manifest_names="$(image_names 2>&1)" || manifest_status=$?
+
+expected_jobs=0
+if [[ "$manifest_status" -eq 0 ]]; then
+  while IFS= read -r manifest_name; do
+    [[ -z "$manifest_name" ]] && continue
+    expected_jobs=$((expected_jobs + 1))
+  done <<< "$manifest_names"
+fi
+
+# The liveness clause, and it comes first: every clause below counts against
+# this number, and 0 would let a workflow with no build job at all read as
+# correct.
+if [[ "$expected_jobs" -ge 1 ]]; then
+  pass_check "images.yaml: the manifest names the build jobs to expect"
+else
+  fail_check "images.yaml: the manifest names the build jobs to expect" \
+    "image_names exited ${manifest_status} and named ${expected_jobs} images" \
+    "it printed: ${manifest_names:-<nothing>}" \
+    "the count below is compared against that number, and a count of 0 agrees with a workflow" \
+    "that declares no build job at all"
+fi
 
 for wf in "$WORKFLOW" "$PROVIDER_WORKFLOW"; do
   wf_name="$(basename "$(dirname "$wf")")/$(basename "$wf")"
@@ -287,27 +333,63 @@ for wf in "$WORKFLOW" "$PROVIDER_WORKFLOW"; do
   n_mirror="$(printf '%s\n' "$mirror_lines" | grep -c . || true)"
   n_buildx="$(printf '%s\n' "$buildx_lines" | grep -c . || true)"
 
-  if [[ "$n_login" -eq 5 && "$n_mirror" -eq 5 && "$n_buildx" -eq 5 ]]; then
-    pass_check "${wf_name}: all 5 build jobs carry login + mirror + builder"
+  # The name carries no number. "all 5 build jobs" was the name of this check
+  # until a 6th image landed, and a name that states a count goes stale in the
+  # same commit as the count it states — a reader then sees a green line that
+  # promises 5 while 6 jobs exist.
+  if [[ "$expected_jobs" -ge 1 \
+     && "$n_login" -eq "$expected_jobs" \
+     && "$n_mirror" -eq "$expected_jobs" \
+     && "$n_buildx" -eq "$expected_jobs" ]]; then
+    pass_check "${wf_name}: every build job carries login + mirror + builder"
   else
-    fail_check "${wf_name}: all 5 build jobs carry login + mirror + builder" \
+    fail_check "${wf_name}: every build job carries login + mirror + builder" \
+      "images.yaml declares ${expected_jobs} images, so ${expected_jobs} build jobs are expected" \
       "login=${n_login} mirror=${n_mirror} buildx=${n_buildx} — a job is missing a step, and its builder boots unauthenticated or unmirrored"
-    continue
   fi
 
-  order_ok=1
-  for i in 1 2 3 4 5; do
-    l="$(printf '%s\n' "$login_lines" | sed -n "${i}p")"
-    m="$(printf '%s\n' "$mirror_lines" | sed -n "${i}p")"
-    b="$(printf '%s\n' "$buildx_lines" | sed -n "${i}p")"
-    if [[ "$l" -ge "$m" || "$m" -ge "$b" ]]; then
-      order_ok=0
-      fail_check "${wf_name}: job ${i} orders login -> mirror -> builder" \
-        "login@${l} mirror@${m} builder@${b}"
+  # ==========================================================================
+  # THE ORDER LOOP RUNS WHATEVER THE COUNT CLAUSE JUST SAID
+  # ==========================================================================
+  #
+  # It sat behind a `continue` on the failing branch above. So on the day the
+  # 6th image landed, the count clause went red AND this check VANISHED: the
+  # file went from 13 checks to 11, and the ORDER of the new job's
+  # login -> mirror -> builder was read by nothing at all. The 2 disappeared
+  # checks were the only 2 that could have said whether the new job's builder
+  # boots after its login.
+  #
+  # A check that removes itself when its neighbour fails is absent exactly when
+  # it is needed: a workflow is edited, 1 clause reports the edit, and the
+  # clause that would report a SECOND defect in the same edit is skipped
+  # because of the first. So the loop now covers every job that carries all 3
+  # steps, and a count mismatch narrows what it can read rather than deleting
+  # it.
+  jobs_to_order="$n_login"
+  if [[ "$n_mirror" -lt "$jobs_to_order" ]]; then jobs_to_order="$n_mirror"; fi
+  if [[ "$n_buildx" -lt "$jobs_to_order" ]]; then jobs_to_order="$n_buildx"; fi
+
+  if [[ "$jobs_to_order" -lt 1 ]]; then
+    fail_check "${wf_name}: every job orders login -> mirror -> builder" \
+      "no job carries all 3 steps (login=${n_login} mirror=${n_mirror} buildx=${n_buildx})," \
+      "so this rule read no job at all — and a rule over 0 jobs reports a workflow it never opened"
+  else
+    order_ok=1
+    job_index=1
+    while [[ "$job_index" -le "$jobs_to_order" ]]; do
+      l="$(printf '%s\n' "$login_lines" | sed -n "${job_index}p")"
+      m="$(printf '%s\n' "$mirror_lines" | sed -n "${job_index}p")"
+      b="$(printf '%s\n' "$buildx_lines" | sed -n "${job_index}p")"
+      if [[ "$l" -ge "$m" || "$m" -ge "$b" ]]; then
+        order_ok=0
+        fail_check "${wf_name}: job ${job_index} orders login -> mirror -> builder" \
+          "login@${l} mirror@${m} builder@${b}"
+      fi
+      job_index=$((job_index + 1))
+    done
+    if [[ "$order_ok" -eq 1 ]]; then
+      pass_check "${wf_name}: every job orders login -> mirror -> builder"
     fi
-  done
-  if [[ "$order_ok" -eq 1 ]]; then
-    pass_check "${wf_name}: every job orders login -> mirror -> builder"
   fi
 done
 

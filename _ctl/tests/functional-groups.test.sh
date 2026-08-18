@@ -15,7 +15,7 @@
 # version stubs, a PATH built for reading `<tool> --version`, and evidence that
 # reads "this pin was compared against that observed version".
 #
-# This file drives the FUNCTIONAL half: 12 stubbed tools, the real fixture tree,
+# This file drives the FUNCTIONAL half: 13 stubbed tools, the real fixture tree,
 # and evidence that reads "this step failed, so the run failed". The 2 halves
 # share nothing but the script under test — a different stub surface, a
 # different failure signature — and `bash ./ctl.sh test` names the file that
@@ -53,8 +53,15 @@
 # ============================================================================
 #
 #   1 case per functional group (go-gate, dockerfile-lint, compose, debugger,
-#     protocols) and 1 content group (content-flutter): 1 step of the group is
-#     made to fail, and the run must fail.
+#     protocols) and 2 content groups (content-flutter, content-hardware): 1 step
+#     of the group is made to fail, and the run must fail.
+#
+#   NOT covered here, and stated so it is not read as covered: the 3 KiCad
+#   library FLOORS of content-hardware. kicad_library_floor takes an absolute
+#   /usr/share/kicad path, so a case over it would assert a property of the HOST
+#   this file runs on rather than of the guest, and a stimulus that changes with
+#   the machine is not a stimulus. Reaching them needs a root the driver can set,
+#   which is a change to .ci/image-checks.sh.
 #   reachability: 2 groups named together both run. The guest splits SMOKE_CHECKS
 #     by hand because it runs with IFS=$'\n\t', and a split that regressed would
 #     make every group unknown at once.
@@ -94,6 +101,7 @@ STUB_TOOLS=(
   go gofumpt golangci-lint hnslint
   hadolint docker dlv buf grpcurl
   flutter adb java
+  kicad-cli
 )
 
 # The PATH every case runs with: the stub toolchain, then the 2 directories that
@@ -274,6 +282,18 @@ assert_contains "a_failing_content_step_does_not_stop_the_steps_after_it" \
   "$GUEST_OUTPUT" "ok   java" \
   "the header of .ci/image-checks.sh states that every failure is collected rather than fatal" \
   "a group that stops at its first failure reports 1 broken tool out of an unknown number"
+
+# -------- 6b. the SECOND content group, and the newest one --------
+#
+# content-hardware is the group `hardware` adds, and nothing exercised it: a
+# content group is reachable only through the `case` in run_functional_groups,
+# and a group name that reaches no arm falls through to `unknown check group`.
+# Both outcomes exit non-zero, so a status alone cannot tell "kicad-cli failed"
+# from "this group does not exist" — which is why the needles below name the
+# STEP and the group's own header line, and not the status.
+run_groups "content-hardware" STUB_FAIL_KICAD_CLI=1
+assert_group_failed "a_failing_kicad_cli_fails_the_run" \
+  "FAIL: kicad-cli" "--- hardware content ---"
 
 # -------- 7. every named group is reached --------
 # The guest runs with IFS=$'\n\t' and splits SMOKE_CHECKS by hand. A regression

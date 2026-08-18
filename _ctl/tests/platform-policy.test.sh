@@ -111,6 +111,7 @@ BUILD_PATH_FILES=(
   "zephyr/ctl.sh"
   "zephyr-devbox/ctl.sh"
   "zephyr-devbox/devbox-entrypoint.sh"
+  "hardware/ctl.sh"
   ".ci/ctl.sh"
   ".ci/smoke.sh"
   ".ci/buildx-node.sh"
@@ -123,6 +124,7 @@ BUILD_PATH_FILES=(
   "flutter/project.json"
   "zephyr/project.json"
   "zephyr-devbox/project.json"
+  "hardware/project.json"
   ".ci/project.json"
 )
 
