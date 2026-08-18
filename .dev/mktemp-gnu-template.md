@@ -87,7 +87,23 @@ scan rc=0 with a planted violation untracked); F3 matcher blind to --tmpdir form
 then/do/sudo/exec/trap leaders; F4 "holds the whole repository" over-claims; F7 the
 repaired job has no run on this branch. 5 break-tests all went red correctly.
 
+## Fix round 1 — landed
+- F1 (implementer, 4f4f118): {workspaceRoot} shell-globs on repository-scripts' test
+  target inputs — Nx's one reverse file->project locator (getImplicitlyTouchedProjects).
+  Acceptance a-d proven in-image: apps/agent-runtime/ctl.sh -> [agent-runtime,
+  repository-scripts]; .githooks/pre-commit -> [repository-scripts]; README.md -> [];
+  30-file before/after sample: only delta anywhere is +repository-scripts on shell files.
+  nx.json deliberately untouched (any edit there marks all 49 projects affected).
+  F8: cmd_lint guard made LIVE (asserts the set holds ctl.sh), break-tested red.
+- F2+F3+F4 (test author, 522b358): scan set = tracked + untracked (--others
+  --exclude-standard), probe cycle plant->rc=1 named->remove->rc=0; matcher covers
+  --tmpdir optional-arg, too-many-templates, then/do/sudo/exec/command/trap leaders
+  (54 fixture rows, 28/28 new-row mutants killed, 0 false positives on the real tree);
+  header states the honest scope (submodules, non-shell files, variable templates OUT).
+- F5+F6 fixed in this file earlier (14bd981).
+- F7 (orchestrator): harness-conformance DISPATCHED on this branch — run 32179861311,
+  in_progress at 2026-08-18T20:00:52Z. Verdict recorded below when it finishes.
+
 ## Next
-Fix round 1: test author F2+F3+F4 (test files), implementer F1 (Nx/CI wiring so ANY
-shell-file change runs the scan), orchestrator F5+F6 (this file) + F7 (workflow_dispatch
-harness-conformance on this branch after fixes land).
+Verify round 2 (dev-verifier re-refutation) + read run 32179861311's log: confirm the
+job passes the mktemp line and RUNS Go tests. Then cleanup pass, PR.
