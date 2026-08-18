@@ -1,4 +1,9 @@
-# syntax=docker/dockerfile:1.7
+# NOTE: no `# syntax=` directive, deliberately. It made every cold builder
+# pull the dockerfile frontend from docker.io — the LAST Docker Hub
+# dependency on the build path, and a 502 from auth.docker.io killed a
+# build through it (run 2026-08-18). The builder's own built-in frontend
+# (BuildKit v0.32) supersedes dockerfile:1.7, and no feature here needs
+# the external one.
 #
 # hadolint global ignore=SC1071,DL4006,SC3040
 #
