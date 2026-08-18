@@ -61,7 +61,6 @@ that it runs inside.
 │   └── mirror-buildkit.sh       # keeps ghcr.io holding the BuildKit index the builder boots from
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── cloud/         { devcontainer.json, Dockerfile, project.json, ctl.sh }
-├── runner/        { Dockerfile, project.json, ctl.sh }   # RETIRED — nothing builds it, deletion pending
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
@@ -98,31 +97,31 @@ that it runs inside.
    every other verb to `image_main`. `base/ctl.sh` does this for the
    devcontainer lifecycle verbs.
 
-   **`runner/` was the 1 exception, and it is RETIRED.** See "The `+ runner`
-   layer is retired" below. The directory is still on disk and nothing builds
-   it: it left `BUILD_ORDER`, so no loop of `ctl.sh` — `validate`'s hadolint
-   pass included — reaches its Dockerfile any more. `image_dir()` still maps
-   `*-runner` to `runner/` in both control scripts, because those 2 functions
-   must agree whatever the set holds.
+   **`runner/` was the 1 exception, and it is DELETED.** See "The `+ runner`
+   layer is retired" below. There is no exception to this rule any more: every
+   directory the rule names is an image of `images.yaml`, and `image_dir()` in
+   `ctl.sh` is `<root>/<name>` for all of them. The `.ci/ctl.sh` copy of that
+   function went with the arm it mirrored — it had no caller of its own.
 
-   **"Nothing builds it" is not "nothing reaches it".** `runner/Dockerfile` is
-   still 1 of the 5 `PIN_VALUE_HOMES` in `_ctl/lib.sh`, so `bump_pin` writes
-   into it every Monday; it is 1 of the 6 `GOVERNED_DOCKERFILES` in
-   `_build/resolve-upstream.sh`; `_build/upstreams.txt` carries its
-   `RUNNER_VERSION` row and `_build/download-exemptions.txt` carries its
-   claude-installer row; and 5 test files hold `runner/Dockerfile`,
-   `runner/ctl.sh` or `runner/project.json` as a literal. Deleting the
-   directory is scheduled with the consolidation wave and not with this docs
-   sweep, and that list is the real cost: the deletion edits every file above
-   in 1 change, and it is not a `git rm`.
+   **"Nothing builds it" was not "nothing reaches it", and that is what the
+   deletion cost.** While the directory sat retired, `runner/Dockerfile` was 1
+   of the 5 `PIN_VALUE_HOMES` in `_ctl/lib.sh` and `bump_pin` wrote into it
+   every Monday; it was 1 of the 6 `GOVERNED_DOCKERFILES` in
+   `_build/resolve-upstream.sh`; `_build/download-exemptions.txt` carried its
+   claude-installer row; and 5 test files held `runner/Dockerfile`,
+   `runner/ctl.sh` or `runner/project.json` as a literal. So the deletion edited
+   every one of those files in 1 change and was not a `git rm` — which is the
+   general lesson, not a fact about runner: measure what READS a directory
+   before you call it inert.
 
-   **Those 2 lists hold different members, and now different lengths.** Read
-   each list, never a count beside it. `PIN_VALUE_HOMES` is 5 since
-   `base/Dockerfile` went value-less — `versions.env` plus the 4 Dockerfiles
-   that still spell their own pins. `GOVERNED_DOCKERFILES` is still 6 and holds
-   `base/Dockerfile` AND `cloud/Dockerfile`, because a governed file is one that
-   FETCHES and base still fetches every download it always did. It stopped
-   declaring the VALUES, not the URLs.
+   **Those 2 lists hold different members, and different lengths.** Read
+   each list, never a count beside it. `PIN_VALUE_HOMES` is 4: `base/Dockerfile`
+   left it when it went value-less and `runner/Dockerfile` left it by deletion,
+   so it is `versions.env` plus the 3 Dockerfiles that still spell their own
+   pins. `GOVERNED_DOCKERFILES` is 5 and holds `base/Dockerfile` AND
+   `cloud/Dockerfile`, because a governed file is one that FETCHES and base
+   still fetches every download it always did. It stopped declaring the VALUES,
+   not the URLs.
 3. **Do not add a `CLAUDE.md` file.** The conventions of this repository stay
    here, in `.claude/rules/`.
 4. **A human writes the text.** Do not put an AI or LLM attribution of any kind
@@ -185,10 +184,12 @@ dates, not beside a declaration that holds none.
 `base/Dockerfile` carried 55 inline `ARG NAME=value` pins — measured
 2026-08-17 — and 54 of them were spelled in `versions.env` as well, at equal
 values; `_ctl/tests/pin-mirroring.test.sh` existed only to hold the 2 copies to
-1 value. The rule did not die whole: 3 pins are still dual-home
-(`versions.env` and the retired `runner/Dockerfile`), and
-`_ctl/tests/runner-residue-mirroring.test.sh` keeps the mirror for exactly
-those until runner/'s deletion wave removes the second home. The 55th was
+1 value. The rule did not die whole at that collapse: 3 pins stayed dual-home in
+`versions.env` and the retired `runner/Dockerfile`, and
+`_ctl/tests/runner-residue-mirroring.test.sh` held that pair to 1 value. **No
+pin has 2 homes now.** `runner/` is deleted, so `RUNNER_VERSION`,
+`CICTL_VERSION` and `CLAUDE_CODE_VERSION` hold their `versions.env` row alone,
+and that test file went with its subject. The 55th was
 `RUST_CHANNEL`, which `cloud` does not install and which
 is a `versions.env` row now like the rest. Everything downstream paid for the
 split: 6 pin homes, a family branch in `.ci/smoke.sh`, an admitted over-build in
@@ -197,8 +198,9 @@ have done to it is a doubling of 1 file.
 
 **The 3 per-image Dockerfiles still carry inline pins, and that is the open
 half.** `flutter/`, `zephyr/` and `zephyr-devbox/` declare their own
-`ARG NAME=value` blocks and consume no build arg from `versions.env`; `runner/`
-does the same and is retired. Read "the pin value is in `versions.env`" as true
+`ARG NAME=value` blocks and consume no build arg from `versions.env`. `runner/`
+was a 4th and is deleted, which closed its share of the debt by removing the
+file rather than by moving it. Read "the pin value is in `versions.env`" as true
 of `base` and `cloud`, and of nothing else.
 
 **What closed is the CLASSIFICATION half, and it closed alone.** That sentence
@@ -213,8 +215,10 @@ own version: `JAVA_VERSION`, `FLUTTER_VERSION`, `WEST_VERSION`,
 `ZEPHYR_SDK_VERSION`, `ESPTOOL_VERSION` and `CODE_SERVER_VERSION`.
 The rest are a build id, an API level, a channel or a toolchain list, and each
 one says so in its row's neighbourhood. **The VALUE home did not move**: these
-files still spell their own pins and `bump_pin` still writes into all 4 of them,
-so `PIN_VALUE_HOMES` is still 5 and ledger #102 stays open on that half.
+files still spell their own pins and `bump_pin` still writes into all 3 of them,
+so `PIN_VALUE_HOMES` is 4 and ledger #102 stays open on that half. It was 5 with
+`runner/Dockerfile` in it, and that home left by deletion and not by moving —
+the 3 open ones are the 3 child images.
 
 - **To change a version**, edit 1 `versions.env` row and its date comment.
   Change nothing else. The Dockerfile is not a home and takes no edit.
@@ -629,9 +633,10 @@ value at all now. `CODE_SERVER_VERSION` is the pin that shows why: read on
 while `zephyr-devbox/Dockerfile` pins 4.133.0, and until that table existed no
 class, no test and no run in this repository could say so.
 
-**2 things are deliberately outside the child home**, and each is named in the
-driver: `runner/Dockerfile`, because nothing builds `base-runner` and no run can
-name it, so a table for it would be dead text; and the pins a child inherits
+**1 thing is deliberately outside the child home**, and it is named in the
+driver. `runner/Dockerfile` was the other, and it is deleted rather than
+excluded: a table for an image no run can name would have been dead text, and so
+was the file. What is left is the pins a child inherits
 from ANOTHER child — `zephyr-devbox` builds `FROM zephyr` and carries west and
 the Zephyr SDK, but `WEST_VERSION` lives in `zephyr/Dockerfile`, so the devbox
 run asserts esptool and code-server and not those 2. Closing that needs the
@@ -680,9 +685,10 @@ reached a developer's "Reopen in Container" and nowhere earlier. The 4 are
 `.remoteUser` is `dev`, `.workspaceFolder` is `/workspace` — the contract this
 section states. The pass FAILS naming the file and the property, and it fails
 when the glob matches zero files, because a check that opened no file is not a
-check that passed. It finds the files by glob and not by `BUILD_ORDER`: `runner/`
-is out of `BUILD_ORDER` and would otherwise take an unchecked `devcontainer.json`
-the day somebody added one.
+check that passed. It finds the files by glob and not by `BUILD_ORDER`: a
+directory outside `BUILD_ORDER` would otherwise take an unchecked
+`devcontainer.json` the day somebody added one, which is what `runner/` would
+have done for as long as it sat on disk retired.
 
 **`postCreateCommand` is deliberately NOT the 5th property. 1 of the 5 files
 declares it, and the other 4 must not.** The property is not symmetry; it is
@@ -872,7 +878,7 @@ directory — **add or rename a provider file and you edit
 change.** The direction is provider → workflow: `validate.yml` and `pr-review.yml`
 are provider-native and have no source-of-truth copy.
 
-## The `+ runner` layer is retired
+## The `+ runner` layer is retired and deleted
 
 CI runs **these images**. There is no second set of CI images, and 2 measured
 constraints say the toolchain has to be the image of the POD rather than a
@@ -896,15 +902,19 @@ out of both copies of the publishing workflow, out of the nightly scan matrix,
 and out of `.ci/smoke.sh`. Its `content-runner` check group did NOT go with it —
 `cloud` carries the runner layer, and that group runs against `cloud`.
 
-1 thing is deliberately left. The second thing this section listed as left is
-already gone, and the entry stays so the next reader does not go looking:
+**This section is a historical record now, and nothing is left.** The 3 facts a
+reader needs:
 
-- **`runner/` is still on disk.** Nothing builds it: no loop of either control
-  script reaches its Dockerfile, because every loop walks `BUILD_ORDER`. That is
-  not the same as inert — it is still a pin home, an exemptions row and a
-  literal in 5 test files, all listed under convention 2 above. Its deletion is
-  scheduled with the consolidation wave, and it edits every one of those files
-  in the same change.
+- **`runner/` is DELETED**, on 2026-08-18, under Mateo's D2 decision: the CI
+  fold lives in the shared parent, so the parent-plus-runner-layer image
+  directory has no future role. It sat on disk retired between the two dates,
+  which is the state convention 2 above describes and warns about — nothing
+  built it, and 4 mechanisms plus 5 test files still read it.
+- **Its content is not lost.** `_delta/components/runner.sh` installs the
+  Actions runner and cictl into `cloud`, and `_delta/components/agents.sh`
+  installs claude — the same 2 downloads `runner/Dockerfile` performed, at the
+  same URLs, from the same `versions.env` pins. The audit that preceded D2
+  compared them line by line.
 - **`ghcr.io/gophersys/base-runner` is GONE from the registry.** This document
   said the package "is still published" and that it would be archived "after
   this merges". Read on 2026-08-17, the org holds no `base-runner` and no

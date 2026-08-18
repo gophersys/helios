@@ -11,7 +11,8 @@ repository builds **5** container images:
   base plus the CI fold. Every ARC runner pool runs it.
 
 The `+ runner` layer (`base-runner`) was a 6th image and it is **retired**. The
-pools run `cloud` now, so nothing pulls it and nothing builds it.
+pools run `cloud` now, so nothing pulls it and nothing builds it, and its
+`runner/` directory is deleted.
 
 Each image has 2 roles:
 
@@ -73,14 +74,14 @@ Adding an image is 1 entry in `images.yaml`, its directory, a regeneration, and
 the hand-kept literals the policy tests carry on purpose (a test that reads the
 value it checks agrees with any value, a wrong one included).
 
-### The `+ runner` layer is retired
+### The `+ runner` layer is retired and deleted
 
-`runner/` holds **1** Dockerfile, which added the GitHub Actions runner to any
+`runner/` held **1** Dockerfile, which added the GitHub Actions runner to any
 parent image through `BASE_IMAGE`. It built `base-runner`, and `base-runner` was
 what the ARC pools ran.
 
 They run `cloud` now, pinned by digest — `cloud` folds the runner in itself
-(gophersys/infrastructure #184). So the layer has no consumer: it left the image
+(gophersys/infrastructure #184). So the layer had no consumer: it left the image
 set, which took it out of `BUILD_ORDER`, both copies of the publishing workflow,
 the nightly scan matrix and `.ci/smoke.sh` in one edit. Retiring an image is 1
 entry removed from `images.yaml` and a regeneration now; it was ~15 hand edits
@@ -90,13 +91,18 @@ The `ghcr.io/gophersys/base-runner` package is gone from the registry: read on
 2026-08-17, the org's container list does not hold it and the packages API
 answers 404 for it.
 
-**The directory is still on disk, and deleting it is scheduled with the
-consolidation wave.** Nothing builds it, but 3 mechanisms still read it:
-`runner/Dockerfile` is 1 of the 5 pin homes that the Monday bump writes into, it
-carries a `_build/download-exemptions.txt` row, and 5 test files hold a
-`runner/` path as a literal. The deletion edits all of them in 1 change, which
-is why it is a wave of its own and not a `git rm`.
-`.claude/rules/00-identity.md` lists the files.
+**The directory is deleted**, on 2026-08-18 under Mateo's D2 decision: the CI
+fold lives in the shared parent, so a parent-plus-runner-layer directory has no
+future role. Its content is `_delta/components/runner.sh` and
+`_delta/components/agents.sh` in the `cloud` build — the same 2 downloads, at
+the same URLs, from the same `versions.env` pins.
+
+The deletion was a wave and not a `git rm`, because nothing BUILT the directory
+and 4 mechanisms still READ it: `runner/Dockerfile` was 1 of the 5 pin homes the
+Monday bump wrote into and 1 of the 6 governed download files, it carried a
+`_build/download-exemptions.txt` row, and 5 test files held a `runner/` path as
+a literal. Read `.claude/rules/00-identity.md` for the file-by-file record; the
+general lesson is that "nothing builds it" is not "nothing reaches it".
 
 The reason a runner image is the image of the POD, and never a workflow
 `container:` image, is unchanged and now answered by `cloud`:
@@ -390,7 +396,6 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
 │   └── mirror-buildkit.sh       # keeps ghcr.io holding the BuildKit index the builder boots from
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── cloud/         { devcontainer.json, Dockerfile, project.json, ctl.sh }
-├── runner/        { Dockerfile, project.json, ctl.sh }   # RETIRED — nothing builds it
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }

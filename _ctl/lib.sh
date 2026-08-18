@@ -101,7 +101,7 @@ export BUILDKIT_UPSTREAM_REF="docker.io/moby/buildkit:v0.32.2@sha256:28a898719c1
 SANCTIONED_PLATFORMS="linux/amd64"
 
 # The platforms THIS image builds. Overridable, so an image can declare a
-# measured narrower target the way runner/ctl.sh once did. Wider is not a
+# measured narrower target. Wider is not a
 # choice: require_sanctioned_platforms refuses an entry outside the set above,
 # and BOTH image_build and image_push call it. `build` needs it as much as
 # `push` does, because `build` tags the official ref on the developer's host.
@@ -111,8 +111,9 @@ if [[ -n "${IMAGE_NAME:-}" ]]; then
   IMAGE_REF="${IMAGE_REGISTRY_NAMESPACE}/${IMAGE_NAME}:latest"
 fi
 
-# Extra arguments for docker build. The runner layer threads its parent through
-# BASE_IMAGE here. Declare the array only if the sourcing script did not.
+# Extra arguments for docker build. base and cloud fill it from versions.env
+# through versions_env_build_args. Declare the array only if the sourcing script
+# did not.
 if ! declare -p IMAGE_BUILD_ARGS >/dev/null 2>&1; then
   IMAGE_BUILD_ARGS=()
 fi
@@ -580,26 +581,28 @@ function require_base_image_current() {
 }
 
 # -------- the pin homes: the readers, and the writer --------
-# A pin is declared in exactly 1 of the 5 value homes: a `NAME=value` row in
+# A pin is declared in exactly 1 of the 4 value homes: a `NAME=value` row in
 # versions.env, or an `ARG NAME=value` at the top of a per-image Dockerfile that
-# has not moved to versions.env yet. 3 callers read those 2 shapes — the
-# coverage tests, the mirroring test and _build/resolve-upstream.sh — so the
-# readers live here once, by the rule that puts a verb body in this file 1 time
-# (ledger #100).
+# has not moved to versions.env yet. 2 callers read those 2 shapes — the
+# coverage tests and _build/resolve-upstream.sh — so the readers live here once,
+# by the rule that puts a verb body in this file 1 time (ledger #100). There
+# were 3: the mirroring test read the versions.env ∩ runner/Dockerfile pair, and
+# it left with the directory, because no pin has 2 homes any more.
 #
 # base/Dockerfile LEFT this list. Its ARGs are value-less now and every one of
 # its pins arrives as a --build-arg generated from versions.env, so it declares
 # no value for any reader here to find. That is the whole point of the collapse:
 # 54 of its 55 pins were spelled in versions.env as well, and a test held the 2
-# copies to 1 value. The 4 that remain are the per-image Dockerfiles, and
-# closing them is ledger #102.
+# copies to 1 value. runner/Dockerfile LEFT it too, by deletion (D2, 2026-08-18):
+# the directory is gone and RUNNER_VERSION, CICTL_VERSION and CLAUDE_CODE_VERSION
+# hold their versions.env home alone. The 3 that remain are the per-image
+# Dockerfiles, and closing them is ledger #102.
 #
 # Every reader takes an explicit ROOT. The resolver runs against a fixture tree
 # as readily as against this repository, and a reader that assumed REPO_ROOT
 # would answer about the wrong files.
 PIN_VALUE_HOMES=(
   "versions.env"
-  "runner/Dockerfile"
   "flutter/Dockerfile"
   "zephyr/Dockerfile"
   "zephyr-devbox/Dockerfile"

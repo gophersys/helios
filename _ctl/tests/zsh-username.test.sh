@@ -98,13 +98,13 @@ CLEAN_FIXTURE="$TESTS_DIR/fixtures/zsh-username/pre-switch.Dockerfile"
 # glob, for the reason platform-policy.test.sh names its list: a glob that stops
 # matching leaves a green result that read nothing.
 #
-# `runner/Dockerfile` is in the list and OUTSIDE validate's reach: that verb
-# walks BUILD_ORDER, which runner left when the image was retired. So for that 1
-# file this test is the only reader, and it stays until the deletion wave takes
-# the directory.
+# `runner/Dockerfile` was in this list and OUTSIDE validate's reach: that verb
+# walks BUILD_ORDER, which runner left when the image was retired, so for that 1
+# file this test was the only reader. The deletion wave took the directory, and
+# the entry went with it. Every file named here is in BUILD_ORDER now, so the
+# gate reads all 5 and this list is a second reader rather than a sole one.
 DOCKERFILES=(
   "base/Dockerfile"
-  "runner/Dockerfile"
   "flutter/Dockerfile"
   "zephyr/Dockerfile"
   "zephyr-devbox/Dockerfile"

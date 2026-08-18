@@ -10,10 +10,10 @@
 # THE DEFECT
 # ============================================================================
 #
-# The 6 Dockerfiles and _delta/components/*.sh perform 55 URL fetches between
-# them (counted by this file's own reader on 2026-08-17), and 4 of the 55
-# compare the bytes against a digest: docker-compose and docker-buildx, twice
-# each. The other 51 take whatever the far end sends. TLS says the bytes came
+# The Dockerfiles and _delta/components/*.sh performed 55 URL fetches between
+# them the day this rule was written, and 4 of the 55
+# compared the bytes against a digest: docker-compose and docker-buildx, twice
+# each. The other 51 took whatever the far end sent. TLS says the bytes came
 # from the host the URL names; it says nothing about WHICH bytes that host
 # served, so a compromised release asset, a re-tagged upstream release, or a
 # mirror that answers first all install silently and publish to ghcr.io under
@@ -168,7 +168,6 @@ HELPER_COPY_DOCKERFILES=(
 # checked against the directory below, so adding a component is an edit HERE.
 GOVERNED_DOCKERFILES=(
   "base/Dockerfile"
-  "runner/Dockerfile"
   "flutter/Dockerfile"
   "zephyr/Dockerfile"
   "zephyr-devbox/Dockerfile"
@@ -191,14 +190,23 @@ GOVERNED_COMPONENTS=(
   "terraform.sh"
 )
 
-# The 2 pin homes that hold a VALUE. cloud/Dockerfile declares its ARGs
-# value-less and takes the value from versions.env, so it is not a home.
+# The 4 pin homes that hold a VALUE. `base/Dockerfile` and `cloud/Dockerfile`
+# declare their ARGs value-less and take the value from versions.env, so
+# neither is a home. It is the same list as PIN_VALUE_HOMES in _ctl/lib.sh, and
+# it is spelled as a LITERAL on purpose: a test that reads the list it checks
+# agrees with any list, a wrong one included.
+#
+# THIS LIST WAS WRONG AND GREEN, and the 2 guards below it are why it cannot be
+# again. It named `runner/Dockerfile` after that file was deleted and
+# `base/Dockerfile` after that file went value-less, and all 61 checks passed:
+# `declared_digest_names` returns nothing for a file it cannot open, and
+# nothing for a file that declares no value, so both dead entries contributed 0
+# digests and every rule below narrowed silently. Coverage that shrinks with no
+# red is the exact failure this whole file exists to prevent, 1 layer up.
 CLOUD_HOME="versions.env"
 CLOUD_DOCKERFILE="cloud/Dockerfile"
 VALUE_HOMES=(
   "versions.env"
-  "base/Dockerfile"
-  "runner/Dockerfile"
   "flutter/Dockerfile"
   "zephyr/Dockerfile"
   "zephyr-devbox/Dockerfile"
@@ -467,10 +475,12 @@ function digest_references() {
 #
 # They live in _ctl/lib.sh, which this file already sources, by the rule that
 # puts a verb body in the library 1 time (ledger #100). They were written here
-# first and moved out when a third caller appeared: _build/resolve-upstream.sh
-# reads the same pin homes to decide what a bump would write, and
-# _ctl/tests/runner-residue-mirroring.test.sh reads them to hold the 2 homes of
-# a pin to 1 value. 3 copies of "what does this file declare for that name" are 3 answers
+# first and moved out when a second caller appeared: _build/resolve-upstream.sh
+# reads the same pin homes to decide what a bump would write.
+# `_ctl/tests/runner-residue-mirroring.test.sh` was a third caller, holding the
+# 2 homes of a pin to 1 value; it is deleted with `runner/`, because the pair it
+# read was `versions.env` ∩ `runner/Dockerfile` and no pin has 2 homes now.
+# 2 copies of "what does this file declare for that name" are 2 answers
 # that are free to disagree, and the one that disagrees is the one nothing runs.
 #
 # `homes_of` takes a ROOT first there — `homes_of <root> <name> [home...]` —
@@ -1013,6 +1023,45 @@ else
   pass_check "every_governed_file_exists"
 fi
 
+# The same 2 questions asked of VALUE_HOMES, and they are 2 and not 1. Every
+# rule below that takes VALUE_HOMES reads it through `declared_digest_names`,
+# which returns nothing for a file it cannot open AND nothing for a file that
+# declares no value. So a home can leave this list's subject in 2 ways, and
+# both of them are silent: the file is DELETED, or the file stops declaring.
+# `runner/Dockerfile` left the first way and `base/Dockerfile` left the second,
+# and 61 checks stayed green through both.
+missing_homes=""
+for relative in "${VALUE_HOMES[@]}"; do
+  [[ -f "$REPO_ROOT/$relative" ]] || missing_homes="${missing_homes:+${missing_homes}
+}${relative}"
+done
+if [[ -n "$missing_homes" ]]; then
+  fail_check "every_named_value_home_exists" \
+    "the VALUE_HOMES list in this test is stale; these are named but absent:" \
+    "$missing_homes" \
+    "every digest rule below reads nothing out of a file it cannot open, and reports clean"
+else
+  pass_check "every_named_value_home_exists"
+fi
+
+silent_homes=""
+for relative in "${VALUE_HOMES[@]}"; do
+  [[ -f "$REPO_ROOT/$relative" ]] || continue
+  if [[ -z "$(declared_digest_names "$REPO_ROOT/$relative")" ]]; then
+    silent_homes="${silent_homes:+${silent_homes}
+}${relative}"
+  fi
+done
+if [[ -n "$silent_homes" ]]; then
+  fail_check "every_named_value_home_declares_a_digest" \
+    "these homes are named in VALUE_HOMES and declare no <TOOL>_SHA256_<ARCH> with a value:" \
+    "$silent_homes" \
+    "a home that declares nothing is not a value home — drop it from the list, or find out" \
+    "why the declarations left, because every digest rule below just narrowed and stayed green"
+else
+  pass_check "every_named_value_home_declares_a_digest"
+fi
+
 # The mirror. A literal list catches a glob that stopped matching; a glob
 # catches a component added without an edit here. Neither alone is enough.
 component_files=""
@@ -1031,7 +1080,9 @@ assert_equal "the_component_list_in_this_test_is_the_component_directory" \
 # 3. THE READERS ARE ALIVE ON THE REAL TREE.
 #
 # A rule over 0 fetch sites reports a clean repository it never read. Every one
-# of the 6 Dockerfiles fetches at least 1 URL today, so a Dockerfile with none
+# of the 5 Dockerfiles fetches at least 1 URL today — 53 fetch sites across the
+# governed set, 45 of them verified, measured by this file's own reader on
+# 2026-08-17 after runner/ was deleted — so a Dockerfile with none
 # is a reader that stopped matching, not a Dockerfile that stopped downloading.
 # ===========================================================================
 ALL_SITES=""

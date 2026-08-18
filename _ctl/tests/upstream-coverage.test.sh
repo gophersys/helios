@@ -11,7 +11,7 @@
 # THE DEFECT
 # ============================================================================
 #
-# The 6 value homes hold 56 pins (counted by this file's own reader on
+# The 4 value homes hold 56 pins (counted by this file's own reader on
 # 2026-08-17) and NOTHING says where the next value of any of them comes from.
 # A pin is bumped when a human happens to look. `ZSH_VERSION=5.9` carries
 # `# latest LTS as of 2026-04-19`, and that comment is 4 months old: it records
@@ -25,7 +25,7 @@
 # THE RULE THIS FILE ENCODES
 # ============================================================================
 #
-# Every pin of the 6 value homes carries exactly 1 row in _build/upstreams.txt,
+# Every pin of the 4 value homes carries exactly 1 row in _build/upstreams.txt,
 # and every row of that table names a pin that exists. A pin is answered in 1 of
 # 2 ways, and nothing else counts:
 #
@@ -53,7 +53,7 @@
 # listing.
 #
 # So the reader here never treats the table as a source of truth. It reads the
-# pins out of the 6 value homes and holds the table to THEM:
+# pins out of the 4 value homes and holds the table to THEM:
 #
 #   unanswered   a pin with no row            -> report the pin
 #   ghost        a row naming no pin          -> report the row
@@ -100,14 +100,26 @@ TEST_NAME="upstream-coverage.test.sh"
 # any path, a wrong one included.
 UPSTREAMS_FILE="_build/upstreams.txt"
 
-# The 6 homes that hold a VALUE. cloud/Dockerfile declares its ARGs value-less
-# and takes the value from versions.env, so it is not a home. The same list
-# download-coverage.test.sh names, named again rather than shared, because a
-# test that reads the list it checks agrees with a shortened one.
+# The 4 homes that hold a VALUE. `base/Dockerfile` and `cloud/Dockerfile`
+# declare their ARGs value-less and take the value from versions.env, so
+# neither is a home. The same list download-coverage.test.sh names, and the
+# same list PIN_VALUE_HOMES holds in _ctl/lib.sh — named again rather than
+# shared, because a test that reads the list it checks agrees with a shortened
+# one.
+#
+# NAMING IT AGAIN IS NOT ENOUGH BY ITSELF, and the 2 guards below it are the
+# other half. This list named `runner/Dockerfile` after that file was deleted
+# and `base/Dockerfile` after that file went value-less, and all 19 checks
+# passed: `home_pins` returns nothing for a file it cannot open, and nothing for
+# a file that declares no value-ful pin, so both dead entries contributed 0 pins
+# and every rule below narrowed silently. The `>= 50` floor could not catch it
+# either: every pin either entry ever held — RUNNER_VERSION, CICTL_VERSION and
+# CLAUDE_CODE_VERSION for runner, and 54 of base's 55 — was ALSO a versions.env
+# row, so `sort -u` absorbed the whole loss and the total never moved.
+# Coverage that shrinks with no red is what this file exists to report,
+# 1 layer up.
 VALUE_HOMES=(
   "versions.env"
-  "base/Dockerfile"
-  "runner/Dockerfile"
   "flutter/Dockerfile"
   "zephyr/Dockerfile"
   "zephyr-devbox/Dockerfile"
@@ -445,20 +457,64 @@ REAL_ROWS="$(table_rows "$TABLE_PATH")"
 REAL_ROW_PINS="$(row_pins "$REAL_ROWS")"
 REAL_PINS="$(all_home_pins "$REPO_ROOT" "${VALUE_HOMES[@]}")"
 
+# Before any rule over REAL_PINS: is every home in the list still a home? There
+# are 2 ways to stop being one and `all_home_pins` is silent about both — the
+# file is DELETED, or the file stops declaring a value-ful pin. So they are 2
+# checks. The total below cannot stand in for either: a home whose pins are all
+# ALSO versions.env rows contributes 0 to a `sort -u` total, so it can leave
+# without moving the number by 1.
+missing_homes=""
+for home in "${VALUE_HOMES[@]}"; do
+  [[ -f "$REPO_ROOT/$home" ]] || missing_homes="${missing_homes:+${missing_homes}
+}${home}"
+done
+if [[ -n "$missing_homes" ]]; then
+  fail_check "every_named_value_home_exists" \
+    "the VALUE_HOMES list in this test is stale; these are named but absent:" \
+    "$missing_homes" \
+    "all_home_pins reads nothing out of a file it cannot open, so every rule below" \
+    "goes on reporting full coverage of a set that just got smaller"
+else
+  pass_check "every_named_value_home_exists"
+fi
+
+silent_homes=""
+for home in "${VALUE_HOMES[@]}"; do
+  [[ -f "$REPO_ROOT/$home" ]] || continue
+  if [[ -z "$(home_pins "$REPO_ROOT/$home" "$home")" ]]; then
+    silent_homes="${silent_homes:+${silent_homes}
+}${home}"
+  fi
+done
+if [[ -n "$silent_homes" ]]; then
+  fail_check "every_named_value_home_declares_a_pin" \
+    "these homes are named in VALUE_HOMES and declare no version-shaped pin with a value:" \
+    "$silent_homes" \
+    "a home that declares nothing is not a value home — drop it from the list, or find out" \
+    "why the declarations left; base/Dockerfile sat here for exactly that reason and 19 checks stayed green"
+else
+  pass_check "every_named_value_home_declares_a_pin"
+fi
+
 # A table that parses into 0 rows makes every rule below vacuous, and a vacuous
 # rule reports a clean file it never read. So the liveness of both readers is a
 # check of its own.
 real_pin_total="$(count_lines "$REAL_PINS")"
 real_row_total="$(count_lines "$REAL_ROWS")"
 
-# 56 measured on 2026-08-17: 45 rows of versions.env plus the 11 pins whose only
+# 56 measured on 2026-08-17: 46 rows of versions.env plus the 10 pins whose only
 # home is a Dockerfile. The floor is 50 rather than the measured number because
 # a pin removed is a legitimate change and a reader that stopped reading is not.
+#
+# THE FLOOR IS NOT THE LIST GUARD, and the 2 checks above are not redundant
+# with it. This total was 56 before runner/Dockerfile was deleted and 56 after,
+# because every pin that home held was also a versions.env row and `sort -u`
+# reports a union. A floor over a union cannot see a home leave.
 if [[ "$real_pin_total" -ge 50 ]]; then
   pass_check "the_value_homes_hold_the_pins_this_rule_is_about"
 else
   fail_check "the_value_homes_hold_the_pins_this_rule_is_about" \
-    "the reader found ${real_pin_total} pins across the 6 value homes, and 56 were measured on 2026-08-17" \
+    "the reader found ${real_pin_total} pins across the 4 value homes, and 56 were measured on 2026-08-17" \
     "every rule below is vacuous over an empty pin list, and a vacuous rule reports" \
     "a clean repository it never read" \
     "it read:" "${REAL_PINS:-<nothing>}"
@@ -480,7 +536,7 @@ if [[ -z "$unanswered" ]]; then
   pass_check "every_pin_carries_an_upstream_row"
 else
   fail_check "every_pin_carries_an_upstream_row" \
-    "these pins of the 6 value homes carry no row in ${UPSTREAMS_FILE}:" \
+    "these pins of the 4 value homes carry no row in ${UPSTREAMS_FILE}:" \
     "$unanswered" \
     "give each one a datasource and its coordinate, or a no-autobump row stating why" \
     "a pin nothing watches is a snapshot that looks current forever"
