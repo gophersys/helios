@@ -331,9 +331,12 @@ July and the rule that brought it back:
 **Flutter publishes no linux-arm64 SDK, at any version.** Read on 2026-08-17,
 `https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json`
 (264191 bytes) lists every Linux release ever published and
-`[.releases[].dart_sdk_arch] | unique` is exactly `["x64"]`. The pinned 3.47.0
-stable carries 1 archive, and its filename holds no architecture — so an HTTP
-probe of it returns 200 and proves nothing. **Read the JSON, never the 200.**
+`[.releases[].dart_sdk_arch] | unique` returns `[null,"x64"]` over 730 releases:
+431 predate the key, 299 say `x64`, and the count that decides it —
+`[.releases[] | select(.dart_sdk_arch != null and .dart_sdk_arch != "x64")]
+| length` — is **0**. The pinned 3.47.0 stable carries 1 archive, and its
+filename holds no architecture, so an HTTP probe of it returns 200 and proves
+nothing. **Read the JSON, never the 200.**
 
 No bump reaches an asset upstream does not publish, so this does not expire on
 its own. `flutter/Dockerfile` keeps amd64-only `case` arms and they are correct,
@@ -628,13 +631,24 @@ pushes. The Actions cache service gives 10 GB per repository across every scope,
 which 5 images at `mode=max` do not fit.
 
 **The builder comes from `bash .ci/buildx-node.sh`** and not from
-`docker/setup-buildx-action`. It makes the same `docker-container` builder — the
-default `docker` driver can neither read nor write a registry cache — and it
-owns the switch that appends the Mac mini as a native arm64 node when
-`SANCTIONED_PLATFORMS` names `linux/arm64`. That switch reads the library, so it
-needed no edit when the set widened, and it is LIVE: the first dual-arch build
-is the mini's first real work, and an unreachable mini or an expired client PEM
-fails at the `--bootstrap` that step ends with.
+`docker/setup-buildx-action`. It owns the switch that appends the Mac mini as a
+native arm64 node when `SANCTIONED_PLATFORMS` names `linux/arm64`. That switch
+reads the library, so it needed no edit when the set widened, and it is LIVE:
+the first dual-arch build is the mini's first real work, and an unreachable mini
+or an expired client PEM fails at the `--bootstrap` that step ends with.
+
+**The builder has one driver, `remote`, for both of its nodes.** buildx refuses
+a builder whose nodes disagree — a `docker-container` builder rejects a
+`--driver remote` append with `mismatched driver`, and a rehearsal run died
+exactly there. So the local node is a buildkitd container the script starts
+itself from the ghcr-mirrored `BUILDKIT_REF`, in the pod's network namespace,
+on `tcp://127.0.0.1:18234`, pinned to `linux/amd64`. It keeps everything the
+`docker-container` driver gave: a registry cache the plain `docker` driver
+cannot read or write, `load: true` for the gate build, the pod's netns and the
+`--oci-worker-net=host` worker flag. The endpoint is plaintext because only the
+pod can route to it; the mini keeps mTLS because it is on the tailnet. Re-running
+the step removes and recreates — `buildx create` on an existing name fails even
+when the driver matches.
 
 **Every job runs on `arc-build`**, the homelab ARC pool, and so do the nightly
 scan and the weekly bump. Nothing in this repository runs on a GitHub-hosted

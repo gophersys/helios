@@ -232,10 +232,13 @@ jobs:
         if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/mirror-buildkit.sh
       - name: point buildx at the build nodes
-        # Replaces docker/setup-buildx-action. It makes the same
-        # docker-container builder — the default docker driver can neither read
-        # nor write a registry cache — and it owns the arm64 switch that reads
-        # SANCTIONED_PLATFORMS. Inert today: that list holds linux/amd64 alone.
+        # Replaces docker/setup-buildx-action. It makes a `remote` builder whose
+        # first node is a buildkitd container it starts in the pod's own network
+        # namespace — the default docker driver can neither read nor write a
+        # registry cache — and it owns the arm64 switch that reads
+        # SANCTIONED_PLATFORMS. That switch is LIVE: the list names linux/arm64,
+        # so every build appends the Mac mini as a second node. One driver for
+        # both, because buildx refuses a builder whose nodes disagree.
         # It runs after the registry login: the builder boots by pulling the
         # private BuildKit mirror, and an anonymous pull of it is refused.
         if: ${{ steps.filter.outputs.build == 'true' }}

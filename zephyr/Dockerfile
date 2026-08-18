@@ -119,27 +119,32 @@ RUN case "${TARGETPLATFORM}" in \
 
 # -------------------------------------------------------------------------
 # udev rules for common development boards (ST-Link, J-Link, Black Magic
-# Probe, DAPLink, Nordic nRF, Espressif). Shipped from the SDK when present;
-# otherwise a minimal fallback rule allowing `plugdev` members raw access to
-# typical USB CMSIS-DAP descriptors.
+# Probe, DAPLink, Nordic nRF, Espressif). These rules are the ONLY source: the
+# SDK ships none.
 # -------------------------------------------------------------------------
-# The guard matched the sysroot by its ARCH and the copy beside it matched by a
-# glob. The 2 agreed on amd64 and disagreed silently on arm64: the aarch64 SDK
-# ships the same 60-openocd.rules under aarch64-pokysdk-linux, so the guard was
-# false, the layer wrote only the fallback rules below, and nothing said so. A
-# skip nobody is told about is the failure class this repository refuses
-# everywhere else.
+# A branch that copied 60-openocd.rules out of the SDK stood here, and it was
+# dead code twice over. MEASURED on 2026-08-18, both platforms, by listing the
+# pinned tarballs:
 #
-# `find` and not a shell glob: this file inherits zsh through its FROM, and zsh
-# treats a glob that matches nothing as an ERROR rather than as a literal, so a
-# glob is only safe here while something guarantees the match. find does its own
-# matching and behaves identically under every shell.
+#   zephyr-sdk-1.0.1_linux-x86_64_minimal.tar.xz    20 entries
+#   zephyr-sdk-1.0.1_linux-aarch64_minimal.tar.xz   20 entries
+#
+# and in NEITHER of them is there a `sysroots/` directory or a file named
+# 60-openocd.rules. A 1.0.1 minimal tarball carries cmake/, hosttools/,
+# setup.sh, sdk_version and sdk_gnu_toolchains — nothing else. `setup.sh -c`
+# installs the gnu toolchains; `-h` is deliberately omitted 20 lines above, so
+# the host tools never unpack either. The comment that described a
+# `sysroots/<arch>-pokysdk-linux/usr/share/openocd/contrib` layout was reading
+# the 0.16.x SDK, which this image has not pinned for some time.
+#
+# So the copy could never fire, and the version of it that used `find` was
+# WORSE than dead: find exits 1 on a path that does not exist, and under this
+# `&&` chain that killed the RUN on amd64 and arm64 alike — a layer that had
+# always worked, broken by a guard written for a layout nobody listed.
+#
+# The fallback rules below are therefore unconditional, and they are what the
+# image has actually been shipping all along.
 RUN mkdir -p /etc/udev/rules.d \
- && OPENOCD_RULES="$(find "${ZEPHYR_SDK_INSTALL_DIR}/sysroots" \
-      -path '*/usr/share/openocd/contrib/60-openocd.rules' -print -quit)" \
- && if [ -n "${OPENOCD_RULES}" ]; then \
-      cp -v "${OPENOCD_RULES}" /etc/udev/rules.d/; \
-    fi \
  && { \
       echo '# gophersys/zephyr — common dev board udev rules.'; \
       echo '# ST-Link (STM32)'; \

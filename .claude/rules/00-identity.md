@@ -606,9 +606,12 @@ report, never a bump to improvise.
 declares a `platforms` key in `images.yaml`, and the reason is upstream rather
 than ours: **Flutter publishes no linux-arm64 SDK, at any version.** Read on
 2026-08-17, `releases_linux.json` (264191 bytes) lists every Linux release ever
-published and `[.releases[].dart_sdk_arch] | unique` is exactly `["x64"]`. The
-pinned 3.47.0 stable carries 1 archive whose filename holds no architecture, so
-an HTTP probe of it succeeds and proves nothing — read the JSON, never the 200.
+published — 730 of them — and `[.releases[].dart_sdk_arch] | unique` returns
+`[null,"x64"]`: 431 predate the key and carry none, 299 say `x64`, and
+`[.releases[] | select(.dart_sdk_arch != null and .dart_sdk_arch != "x64")]
+| length` is **0**. The pinned 3.47.0 stable carries 1 archive whose filename
+holds no architecture, so an HTTP probe of it succeeds and proves nothing —
+read the JSON, never the 200.
 
 No bump reaches an asset upstream does not publish, so this is not a stale pin
 and it does not expire. Whether Android platform-tools ships a linux-arm64 build
@@ -1083,14 +1086,38 @@ not depend on the count.
   package per image, `mode=max` on the write. `type=gha` is 10 GB per repository
   across every scope, which 5 images at `mode=max` do not fit.
 - **The builder is `.ci/buildx-node.sh`, not `docker/setup-buildx-action`.** It
-  makes the same `docker-container` builder — the default `docker` driver can
-  neither read nor write a registry cache — and it owns the switch that appends
-  the Mac mini as a native arm64 node when `SANCTIONED_PLATFORMS` names
-  `linux/arm64`. That switch READS the library, so it took no edit of its own
-  when the set widened. **It is live now**, and the first dual-arch build is the
-  mini's first real work: an unreachable mini, an expired client PEM or a
-  stopped buildkitd surface at the `--bootstrap` that step ends with, naming the
-  node and the endpoint.
+  owns the switch that appends the Mac mini as a native arm64 node when
+  `SANCTIONED_PLATFORMS` names `linux/arm64`. That switch READS the library, so
+  it took no edit of its own when the set widened. **It is live now**, and the
+  first dual-arch build is the mini's first real work: an unreachable mini, an
+  expired client PEM or a stopped buildkitd surface at the `--bootstrap` that
+  step ends with, naming the node and the endpoint.
+- **The builder has ONE driver, `remote`, and that was learned the hard way.**
+  The file made a `docker-container` builder and appended the mini with
+  `--driver remote`; buildx refuses a builder whose nodes disagree —
+  `ERROR: existing instance for "gophersys" but has mismatched driver
+  "docker-container"` — and rehearsal run `32111891941` died there. The bug was
+  invisible until arm64 was sanctioned, because the append sits inside the
+  switch that only fires when it is. So the LOCAL node is a remote node too: a
+  buildkitd container the script starts itself from `BUILDKIT_REF`, in the pod's
+  network namespace, listening on `tcp://127.0.0.1:18234` with
+  `--oci-worker-net=host` — the same flag the old driver got through
+  `--buildkitd-flags`. It is pinned to `linux/amd64`, because buildkitd
+  advertises every platform it can EMULATE and an unpinned local node would
+  volunteer for the arm64 half and build it under QEMU.
+- **That local endpoint is plaintext TCP, and the threat model is stated.**
+  `--network host` is the POD's namespace: the runner, dind and this buildkitd
+  share it and nothing outside the pod has a route to that loopback address, so
+  the peers that can reach the BUILD API are exactly the peers that can already
+  run commands in the build. The `docker-container` driver it replaces was
+  reachable through the docker socket the job already holds — the boundary did
+  not move. The MINI is the opposite case and keeps its mTLS, because that
+  endpoint is on the tailnet.
+- **Re-running the builder step REMOVES and recreates.** `docker buildx create
+  --name <existing>` fails even when the driver matches (measured, rc=1), and
+  reusing whatever is there is the other trap: a builder left by a run that died
+  between the create and the append carries the wrong node set, and the next
+  build would silently target one architecture.
 - **No bridge exists on the build path.** The builder container and every RUN
   step share the runner pod's own network namespace (`network=host` +
   `--oci-worker-net=host`). The default is a bridge at MTU 1500 nested inside

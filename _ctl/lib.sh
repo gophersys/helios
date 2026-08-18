@@ -560,12 +560,20 @@ function image_platforms() {
   printf '%s' "${entries[*]}"
 }
 
-# resolve_image_platforms [name] — put the manifest's answer into
+# resolve_image_platforms <name> — put the manifest's answer into
 # IMAGE_PLATFORMS, unless the caller named one.
 #
-# The argument defaults to IMAGE_NAME, which is what a per-image ctl.sh sets.
-# .ci/smoke.sh takes the image from its own argv and passes it here, because it
-# is a driver rather than an image script and sets no IMAGE_NAME.
+# The argument is REQUIRED and every call site passes it, including the 3 verbs
+# below that could have read IMAGE_NAME themselves. It was optional, defaulting
+# to IMAGE_NAME, and shellcheck 0.10.0 — the version the cloud image ships and
+# therefore the version CI runs — reported that shape as SC2120 on the function
+# and SC2119 at each of the 3 bare calls. Host 0.11.0 is silent about it, so
+# `ctl.sh validate` was green here and red in CI, which is the worst way for a
+# gate to disagree with itself. Passing the name is also the better shape: the
+# function reads no global it does not receive, and `.ci/smoke.sh` — a driver
+# with an image in its argv and no IMAGE_NAME — was already calling it this way.
+# An empty argument is legal and means "no manifest lookup", which is the path a
+# dispatcher outside the manifest takes.
 #
 # The environment still wins, which is what makes the local loop usable with 2
 # sanctioned platforms: `docker build` makes 1 image, so a developer names the
@@ -576,7 +584,7 @@ function image_platforms() {
 # It is called by the verbs and not at source time: the manifest read costs a
 # `docker run` on a host without yq, and `help` must not pay it.
 function resolve_image_platforms() {
-  local name="${1:-${IMAGE_NAME:-}}"
+  local name="$1"
   [[ "${IMAGE_PLATFORMS_SOURCE:-}" == "environment" ]] && return 0
   [[ -z "$name" ]] && return 0
   # An unreadable manifest is a FAILURE — the answer would be a guess.
@@ -1064,7 +1072,7 @@ function rewrite_declaration() {
 # -------- image verbs --------
 function image_build() {
   require_cmd docker
-  resolve_image_platforms
+  resolve_image_platforms "${IMAGE_NAME:-}"
   # The same membership rule `push` uses. `build` tags the OFFICIAL ref, so an
   # unsanctioned platform here puts a mislabelled image on the developer's host
   # under the name the registry publishes — the exact defect this policy ends.
@@ -1091,7 +1099,7 @@ function image_build() {
 }
 
 function image_push() {
-  resolve_image_platforms
+  resolve_image_platforms "${IMAGE_NAME:-}"
   require_buildx_and_platforms
   require_cmd git
   local short_sha image_ref_sha
@@ -1130,7 +1138,7 @@ function image_verify_published() {
   # the manifest's narrower list for the 1 exception. Comparing every image
   # against the sanctioned set would report flutter — correctly amd64-only,
   # because Flutter publishes no linux-arm64 SDK — as a broken publish forever.
-  resolve_image_platforms
+  resolve_image_platforms "${IMAGE_NAME:-}"
   local tag="${1:-latest}"
   local ref="${IMAGE_REGISTRY_NAMESPACE}/${IMAGE_NAME}:${tag}"
   log_info "reading the published manifest of ${ref}"
