@@ -37,9 +37,11 @@ keep this one: a cluster UI shows every node from any member.
 The LAN address is the load-bearing one: the ingress-nginx pod has a route to
 10.168.0.0/24 and none to 100.64.0.0/10.
 
-## Known blocker — pve-00 black-holes its own LAN
+## pve-00 black-holed its own LAN — incident, resolved 2026-08-18
 
-**This ingress cannot serve until pve-00 is fixed.** From the ingress-nginx pod:
+Building this app found pve-00 unreachable from the LAN for every protocol.
+`:8006` timed out from the ingress-nginx pod while pve-01 and pve-03 answered,
+and ARP still resolved, so the node looked present:
 
 ```
 10.168.0.201:8006  http=000  curl_rc=28   (timeout)
@@ -47,27 +49,32 @@ The LAN address is the load-bearing one: the ingress-nginx pod has a route to
 10.168.0.203:8006  http=200  curl_rc=0
 ```
 
-pveproxy is healthy — `curl https://10.168.0.201:8006/` **on pve-00** returns
-200, and `pve-firewall` is disabled. The break is routing. pve-00 accepts tailnet
-routes (`RouteAll: true`) and has accepted a route for its own LAN:
+pveproxy was healthy the whole time (the same GET **on** pve-00 returned 200, and
+`pve-firewall` was disabled). The break was routing: pve-00 accepted tailnet
+routes (`RouteAll: true`) and pve-01 advertises this same subnet, so pve-00
+installed a route to its own LAN over the tailnet —
 
 ```
-# pve-00
-ip rule                  ->  5270: from all lookup 52
-ip route show table 52   ->  10.168.0.0/24 dev tailscale0        <-- this line
-ip route get 10.168.0.221 -> dev tailscale0 table 52 src 100.77.217.116
+ip rule                   ->  5270: from all lookup 52
+ip route show table 52    ->  10.168.0.0/24 dev tailscale0      <-- this line
+ip route get 10.168.0.221 ->  dev tailscale0 table 52 src 100.77.217.116
 ```
 
-Every reply to a 10.168.0.x host therefore leaves over tailscale0 with a tailnet
-source address and is dropped. ARP still answers, so the node looks present while
-ping, ssh and :8006 all time out from the LAN. pve-01 and pve-03 do not carry
-that route in table 52, which is why they answer.
+— and every reply to a `10.168.0.x` host left over `tailscale0` with a tailnet
+source address and was dropped.
 
-This is a machine defect, not a defect of this app — pve-00 is currently
-unreachable from its own LAN for every protocol, which also affects anything else
-that talks to it over 10.168.0.201. Fixing it is an imperative change to a
-machine and needs authorization; it is not GitOps. Once it is fixed, re-run the
-probe above and expect `http=200`.
+**Fixed** with `tailscale set --accept-routes=false` on pve-00. Verified after
+the change: table 52 no longer carries `10.168.0.0/24`, `GET
+https://10.168.0.201:8006/` from the ingress-nginx pod returns **200** (a HEAD
+returns 501 — pveproxy behaviour, identical on pve-01), and `bash ctl.sh
+verify-access` is 15/15.
+
+**It can come back silently.** The fix is a Tailscale pref on a host that has no
+identity file in this repo, so nothing in git reproduces it: re-provision pve-00,
+or run one `tailscale up --accept-routes`, and the black-hole returns with no
+symptom other than this hostname timing out. That, and the open question of
+whether pve-00 should keep advertising `10.168.0.0/24` alongside pve-01, are
+recorded in **D22** of `docs/debt-register.md`.
 
 ## Exposure
 
@@ -84,13 +91,3 @@ root-equivalent on 4 running VMs. It must never move to a `public-*` class.
 Copy `10-service.yaml` with the node's own name and vmbr0 address, add a second
 Ingress for its hostname, and declare that hostname in
 `contracts/exposure.yaml`. Nothing else changes.
-
-## pve-00 LAN reachability — FIXED 2026-08-18
-
-The route defect above was fixed the same day: `tailscale set --accept-routes=false`
-on pve-00 removed the `10.168.0.0/24 dev tailscale0` line from table 52. Verified:
-`GET https://10.168.0.201:8006/` from the ingress-nginx pod returns 200 (HEAD
-returns 501 — pveproxy behaviour, identical on pve-01), and `verify-access` is
-15/15. pve-00 still advertises 10.168.0.0/24 as a second subnet router; whether
-to keep dual advertisement (failover) or single-home it on pve-01 is an open
-topology decision, recorded in NEEDS-MATEO.

@@ -333,6 +333,31 @@ Stale: (4) `sentinel-00` and `sentinel-01` (the instances are terminated) and 2
 laptops offline for 153 days still hold tailnet identities. Every tailnet device
 is a possible entry point.
 
+**Added (2026-08-18) — gap (2) bit, and the fix it needed lives only on the
+host.** While `apps/proxmox` was built, pve-00 was found unreachable from its own
+LAN for every protocol: ping, ssh and `:8006` all timed out from the ingress-nginx
+pod while ARP still answered, so the node looked present. Cause: pve-00 accepted
+tailnet routes (`RouteAll: true`) and pve-01 advertises the same `10.168.0.0/24`,
+so pve-00 installed `10.168.0.0/24 dev tailscale0` in table 52 and sent every
+reply to a `10.168.0.x` host out over the tailnet with a tailnet source address.
+The fix was imperative — `tailscale set --accept-routes=false` on pve-00 — and
+verified: table 52 no longer carries the subnet, and a GET to
+`https://10.168.0.201:8006/` from the ingress pod returns 200.
+
+That fix is exactly the kind of state this register exists for. It is Tailscale
+prefs on a host that has **no identity file**, so nothing in git describes it: a
+re-provision of pve-00, or one `tailscale up --accept-routes`, silently restores
+the black-hole, and the only symptom is that `proxmox.mateosegura.com` starts
+timing out. Declaring pve-00 (gap 2) is what makes the pref reproducible.
+
+**Open decision for Mateo — dual subnet routers.** pve-00 still advertises
+`10.168.0.0/24` alongside pve-01, so 2 nodes advertise the same subnet. Keep both
+(failover if one hypervisor is down) or single-home the advertisement on pve-01
+(one path, no ambiguity)? Nothing is broken either way today — `accept-routes=false`
+on pve-00 is what stops the advertisement from turning back on itself — but the
+choice belongs with the pve-00 declaration, not before it. Consumer to check when
+it changes: `apps/proxmox` reaches `10.168.0.201:8006` from the ingress pod.
+
 ### D23 ➡️ Backups have no alerting — MERGED into D16 (2026-08-12)
 This was D16 written a second time. Both entries said the same 2 things: the
 backups sit on a single cloud, and a CronJob that stops looks exactly like one
