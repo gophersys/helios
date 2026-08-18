@@ -1,19 +1,46 @@
 #!/usr/bin/env bash
 #
-# _ctl/tests/platform-policy.test.sh — the static half of the arm64 drop.
+# _ctl/tests/platform-policy.test.sh — the static half of the sanctioned-platform
+# policy.
 #
 # Static means static: this file reads files. It starts no container, it calls
 # no daemon and it reaches no network, so it runs identically on a laptop and
-# on a CI runner.
+# on a CI runner. The 1 exception is the YAML parser `manifest_yq` resolves,
+# which is yq on PATH inside the devcontainer.
 #
-# What it encodes: exactly 1 platform is sanctioned for a published image, the
-# library declares it once, and every other place on the build path either
-# repeats that same value or does not name a platform at all.
+# What it encodes:
 #
-# The sanctioned value is written here as a literal ON PURPOSE. A test that
-# reads the value out of the implementation and then compares it to itself
-# agrees with any value the implementation happens to hold, including a wrong
-# one. The literal is the policy; _ctl/lib.sh is the implementation of it.
+#   - 2 platforms are sanctioned for a published image, the library declares the
+#     set once, and every other place on the build path either names a member of
+#     it or names no platform at all;
+#   - an IMAGE may publish a NARROWER set than the sanctioned one, declared in
+#     images.yaml and measured. It may never publish a wider one, and a manifest
+#     that tries is refused NAMING the image and the platform;
+#   - the generated workflow repeats the sanctioned set at the workflow level and
+#     carries a job-level override ONLY where the image is narrower.
+#
+# The sanctioned value is written here as a literal ON PURPOSE, and so is the
+# per-image table below it. A test that reads the value out of the
+# implementation and then compares it to itself agrees with any value the
+# implementation happens to hold, including a wrong one. The literals are the
+# policy; _ctl/lib.sh and images.yaml are the implementation of it.
+#
+# WHAT CHANGED WHEN THE SET WIDENED, because the shape of 2 rules inverted
+# rather than their values:
+#
+#   - "no linux/arm64 on the build path" is GONE. arm64 is sanctioned, the
+#     library writes it, both workflow copies carry it and .ci/buildx-node.sh
+#     switches on it — 6 legitimate hits in the library alone. The rule that
+#     replaces it forbids an UNSANCTIONED platform token, and it is driven from
+#     SANCTIONED_PLATFORMS so it needs no edit the next time the set moves.
+#     linux/riscv64 is the tripwire the reader is watched firing on.
+#   - "every PLATFORMS key equals the sanctioned set" is now a SUBSET rule at the
+#     job level, and equality at the workflow level. Equality everywhere would
+#     fail flutter's measured amd64-only override, which is correct; a bare
+#     subset rule everywhere would pass a workflow-level key that quietly
+#     narrowed the whole publish. Each occurrence is keyed by its scope, because
+#     the 2 keys emitted the SAME check name before and a failure could not say
+#     which line it was about.
 #
 # Usage: bash _ctl/tests/platform-policy.test.sh
 #
@@ -35,18 +62,46 @@ source "$TESTS_DIR/harness.sh"
 
 TEST_NAME="platform-policy.test.sh"
 
-# The policy. 1 platform, and its name.
-SANCTIONED="linux/amd64"
+LIBRARY="_ctl/lib.sh"
+
+# The policy. 2 platforms, and their names.
+SANCTIONED="linux/amd64,linux/arm64"
+
+# What each image PUBLISHES, as a literal table, for the same reason SANCTIONED
+# is a literal: reading images.yaml here would make this file agree with any
+# manifest, including one that had silently dropped an architecture.
+#
+# 4 of the 5 declare no `platforms` key and take the sanctioned set. flutter
+# declares linux/amd64 and the manifest carries the measurement beside the key:
+# Flutter publishes no linux-arm64 SDK at any version.
+IMAGE_PLATFORM_TABLE=(
+  "base|linux/amd64,linux/arm64"
+  "flutter|linux/amd64"
+  "zephyr|linux/amd64,linux/arm64"
+  "zephyr-devbox|linux/amd64,linux/arm64"
+  "cloud|linux/amd64,linux/arm64"
+)
+
+# The 1 image the table says is narrower than the sanctioned set. It is named
+# here so the LIVENESS clause below can check that the table still holds an
+# exception at all — a table in which every row equalled the sanctioned set
+# would satisfy the per-image rule while proving nothing about the mechanism
+# that makes an exception possible.
+NARROWER_IMAGE="flutter"
 
 # The build path, named file by file. This is deliberately NOT a repository-wide
-# grep. A document must stay free to say the words "linux/arm64" while it
-# explains why arm64 was dropped, and a repository-wide grep would forbid the
-# explanation along with the defect. The Dockerfiles are absent for the same
-# kind of reason: their TARGETPLATFORM case blocks stay, because they are how a
-# binary install resolves its architecture, and they cost nothing on a
-# single-platform build. The `_delta/components/*.sh` install scripts are absent
-# for that same reason: they run inside a Dockerfile RUN and resolve their
-# architecture from TARGETPLATFORM, exactly as the Dockerfile case blocks do.
+# grep. A document must stay free to say the words "linux/riscv64" while it
+# explains why riscv64 is not sanctioned, and a repository-wide grep would
+# forbid the explanation along with the defect. The Dockerfiles are absent for a
+# different kind of reason: their TARGETPLATFORM case blocks are how a binary
+# install resolves its architecture, and an arm for a platform outside the set
+# is dead code rather than a publish. The `_delta/components/*.sh` install
+# scripts are absent for that same reason.
+#
+# .ci/buildx-node.sh is IN the list, and it was not before. It reads
+# SANCTIONED_PLATFORMS and appends the arm64 builder node when that list names
+# linux/arm64, so it is a file that acts on a platform name and it belongs under
+# the rule that governs them.
 BUILD_PATH_FILES=(
   "_ctl/lib.sh"
   "ctl.sh"
@@ -58,6 +113,7 @@ BUILD_PATH_FILES=(
   "zephyr-devbox/devbox-entrypoint.sh"
   ".ci/ctl.sh"
   ".ci/smoke.sh"
+  ".ci/buildx-node.sh"
   ".github/workflows/build-and-push.yml"
   ".github/workflows/validate.yml"
   ".ci/providers/github/build-and-push.yml"
@@ -70,13 +126,15 @@ BUILD_PATH_FILES=(
   ".ci/project.json"
 )
 
-# A token that must not appear in any file above. The second one is the old
-# variable name: both values become the same string after the drop, so a missed
-# rename is invisible at runtime and only a name check finds it.
-FORBIDDEN_TOKENS=(
-  "linux/arm64"
-  "MULTI_ARCH_PLATFORMS"
-)
+# The retired variable name. It is a NAME rule and not a platform rule: both
+# names hold the same string, so a caller that still sets the old one gets the
+# right platform by accident and only a name check finds the missed rename.
+RETIRED_PLATFORM_VARIABLE="MULTI_ARCH_PLATFORMS"
+
+# The tripwire platform. Not sanctioned, no digest row answers for it, and no
+# Dockerfile case arm has an arm for it — so a build path that names it would
+# reach every download with an empty digest.
+TRIPWIRE_PLATFORM="linux/riscv64"
 
 WORKFLOW="$REPO_ROOT/.github/workflows/build-and-push.yml"
 
@@ -104,6 +162,136 @@ EXPECTED_PROVIDER_FILES=(
   "weekly-bumps.yml"
 )
 
+# The fixtures that prove the manifest rule fires, in both directions.
+PLATFORM_FIXTURES="$TESTS_DIR/fixtures/platform-policy"
+FIXTURE_UNSANCTIONED="$PLATFORM_FIXTURES/unsanctioned-platform.yaml"
+FIXTURE_NARROWER="$PLATFORM_FIXTURES/sanctioned-narrower.yaml"
+
+# The image and the platform the stimulus fixture holds. The refusal must name
+# BOTH — a guard that says "invalid manifest" sends the reader back to read the
+# file by hand.
+FIXTURE_IMAGE="flutter"
+FIXTURE_BAD_PLATFORM="linux/riscv64"
+
+# ---------------------------------------------------------------------------
+# The readers.
+# ---------------------------------------------------------------------------
+
+# joined <element...> — 1 element per line, sorted, for a set comparison.
+function joined() {
+  printf '%s\n' "$@" | sort
+}
+
+# platform_tokens <file> — every `linux/<arch>` token the file writes, as
+# `<line number>:<token>`, 1 per line.
+#
+# The token shape is buildx's own: lowercase alphanumerics, with an optional
+# `/vN` variant arm. It deliberately does NOT take a trailing `.`, because
+# _ctl/lib.sh ends a sentence with the word linux/arm64 and a reader that swept
+# the period into the token would report a platform nobody wrote.
+function platform_tokens() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+  grep -noE 'linux/[a-z0-9]+(/v[0-9]+)?' "$file" || true
+}
+
+# unsanctioned_platform_tokens <label> <file> — every token of that file whose
+# platform is NOT in SANCTIONED, as `<label>:<line>:<token>`.
+#
+# The membership test is the library's own shape — a comma-fenced substring —
+# and not a substring of the raw list. `linux/arm` is a prefix of `linux/arm64`,
+# so a naive reader would call an unsanctioned 32-bit arm platform sanctioned.
+function unsanctioned_platform_tokens() {
+  local label="$1" file="$2"
+  local record line token out=""
+  while IFS= read -r record; do
+    [[ -z "$record" ]] && continue
+    line="${record%%:*}"
+    token="${record#*:}"
+    if [[ ",${SANCTIONED}," == *",${token},"* ]]; then
+      continue
+    fi
+    out="${out:+${out}
+}${label}:${line}:${token}"
+  done <<< "$(platform_tokens "$file")"
+  printf '%s' "$out"
+}
+
+# workflow_platform_keys <file> — every `PLATFORMS*` key of a workflow, as
+#
+#   <scope>|<line number>|<key>|<value>
+#
+# where <scope> is the job the key sits in, or `workflow` for the top-level env
+# block. The scope is what makes each check name UNIQUE. Before it, both keys
+# of this file emitted `workflow_PLATFORMS_is_the_sanctioned_set`, the harness
+# printed that name twice, and a failure could not say which of the 2 lines it
+# was about — 2 checks wearing 1 name is 1 check a reader can act on.
+function workflow_platform_keys() {
+  local file="$1"
+  awk '
+    /^jobs:[[:space:]]*$/ { in_jobs = 1; job = ""; next }
+    in_jobs && /^  [A-Za-z0-9_-]+:[[:space:]]*$/ {
+      job = $0
+      sub(/^[[:space:]]+/, "", job)
+      sub(/:[[:space:]]*$/, "", job)
+      next
+    }
+    /^[[:space:]]+PLATFORMS[A-Z_]*:/ {
+      line = $0
+      sub(/^[[:space:]]+/, "", line)
+      key = line
+      sub(/:.*$/, "", key)
+      value = line
+      sub(/^[^:]*:[[:space:]]*/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      scope = (in_jobs && job != "") ? job : "workflow"
+      printf "%s|%d|%s|%s\n", scope, NR, key, value
+    }
+  ' "$file"
+}
+
+# IMAGE_PLATFORMS_OUTPUT / IMAGE_PLATFORMS_STATUS — set by the probe below.
+IMAGE_PLATFORMS_OUTPUT=""
+IMAGE_PLATFORMS_STATUS=0
+
+# run_image_platforms <repository root> <image> — ask the real library what that
+# image publishes, against a repository root of the caller's choosing.
+#
+# No seam is added to the library for this and none is needed: manifest_yq reads
+# "${REPO_ROOT}/images.yaml", so a directory holding that name and a versions.env
+# is the whole world the reader looks at. That is the shape run_order_guard in
+# images-manifest.test.sh already uses.
+#
+# stderr is folded into stdout because the refusal IS the answer here: a rule
+# that refused and printed nothing readable is a rule this file must fail on.
+function run_image_platforms() {
+  local root="$1" name="$2"
+  local library_path
+  # Resolved BEFORE the assignment prefix below, and not inside its argument
+  # list: the prefix rebinds REPO_ROOT for the forked shell only, so a
+  # "$REPO_ROOT/..." written there would still expand to THIS shell's value.
+  # SC2097 and SC2098 report exactly that, and a reader cannot tell the intent
+  # from the accident. (A comment whose first word after the hash is the linter's
+  # own name is read as a DIRECTIVE, which is how this line first failed the gate.)
+  library_path="$REPO_ROOT/$LIBRARY"
+  IMAGE_PLATFORMS_STATUS=0
+  IMAGE_PLATFORMS_OUTPUT="$(PROJECT_ROOT="$root" REPO_ROOT="$root" bash -c '
+    source "$1"
+    image_platforms "$2"
+  ' probe "$library_path" "$name" 2>&1)" || IMAGE_PLATFORMS_STATUS=$?
+}
+
+# stage_manifest_root <manifest> — a repository root whose images.yaml is that
+# file. COPIES and not symlinks: nothing here writes, but a staging helper that
+# can reach the real tree is 1 edit away from one that does.
+function stage_manifest_root() {
+  local manifest="$1" root
+  root="$(mktemp -d)"
+  cp "$manifest" "${root}/images.yaml"
+  cp "$REPO_ROOT/versions.env" "${root}/versions.env"
+  printf '%s' "$root"
+}
+
 printf '=== RUN  %s\n' "$TEST_NAME"
 
 # -------- 1. the library declares the sanctioned set --------
@@ -125,32 +313,182 @@ else
     "_ctl/lib.sh must declare SANCTIONED_PLATFORMS as the single source of truth"
 fi
 
-# -------- 2. every PLATFORMS* in the workflow repeats it --------
-platform_lines=""
-platform_lines_status=0
-platform_lines="$(grep -E '^[[:space:]]+PLATFORMS[A-Z_]*:' "$WORKFLOW")" || platform_lines_status=$?
+# -------- 2. each image publishes the set the policy gives it --------
+# THE LIVENESS CLAUSE first. If every row of the table equalled the sanctioned
+# set, the rule below would pass over a manifest in which the `platforms`
+# mechanism had stopped being read at all — every image would take the default
+# and every row would agree.
+narrower_rows=""
+for row in "${IMAGE_PLATFORM_TABLE[@]}"; do
+  [[ "${row#*|}" == "$SANCTIONED" ]] && continue
+  narrower_rows="${narrower_rows:+${narrower_rows}
+}${row}"
+done
+if [[ -n "$narrower_rows" ]]; then
+  pass_check "the_image_platform_table_still_holds_a_narrower_exception"
+else
+  fail_check "the_image_platform_table_still_holds_a_narrower_exception" \
+    "every row of IMAGE_PLATFORM_TABLE equals the sanctioned set" \
+    "the per-image rule below would then be satisfied by a library that had stopped" \
+    "reading the manifest's platforms key at all — every image would take the default" \
+    "and every comparison would agree"
+fi
 
-if [[ "$platform_lines_status" -ne 0 || -z "$platform_lines" ]]; then
+assert_contains "the_narrower_exception_is_${NARROWER_IMAGE}" \
+  "$narrower_rows" "${NARROWER_IMAGE}|" \
+  "the measurement that justifies the exception lives beside the key in images.yaml," \
+  "and this name is what ties that measurement to this policy file"
+
+for row in "${IMAGE_PLATFORM_TABLE[@]}"; do
+  image_name="${row%%|*}"
+  want_platforms="${row#*|}"
+  run_image_platforms "$REPO_ROOT" "$image_name"
+  if [[ "$IMAGE_PLATFORMS_STATUS" -ne 0 ]]; then
+    fail_check "image_platforms_${image_name}_is_its_declared_set" \
+      "image_platforms ${image_name} exited ${IMAGE_PLATFORMS_STATUS}" \
+      "want: ${want_platforms}" \
+      "it printed:" "${IMAGE_PLATFORMS_OUTPUT:-<nothing>}"
+  else
+    assert_equal "image_platforms_${image_name}_is_its_declared_set" \
+      "$want_platforms" "$IMAGE_PLATFORMS_OUTPUT" \
+      "an image publishes the sanctioned set unless images.yaml declares a measured" \
+      "narrower one; this table is the policy and images.yaml is the implementation"
+  fi
+done
+
+# -------- 2b. a manifest may NARROW the set and may never widen it --------
+# THE RULE IS WATCHED FIRING, ON A FIXTURE, IN BOTH DIRECTIONS. A rule that has
+# only ever seen the correct manifest has never been observed to fail, and a
+# rule that refused every declared `platforms` key would make flutter's correct
+# amd64-only row a broken manifest forever.
+missing_fixtures=""
+for fixture in "$FIXTURE_UNSANCTIONED" "$FIXTURE_NARROWER"; do
+  [[ -f "$fixture" ]] || missing_fixtures="${missing_fixtures:+${missing_fixtures}
+}${fixture}"
+done
+
+if [[ -n "$missing_fixtures" ]]; then
+  fail_check "counter_stimulus_the_platform_fixtures_exist" \
+    "the fixtures this rule is proven with are absent:" "$missing_fixtures"
+  fail_check "a_manifest_platform_outside_the_sanctioned_set_is_refused" "no fixture to feed it"
+  fail_check "counter_stimulus_a_narrower_manifest_set_is_accepted" "no fixture to feed it"
+else
+  pass_check "counter_stimulus_the_platform_fixtures_exist"
+
+  staged_root="$(stage_manifest_root "$FIXTURE_UNSANCTIONED")"
+  run_image_platforms "$staged_root" "$FIXTURE_IMAGE"
+  rm -rf "$staged_root"
+  if [[ "$IMAGE_PLATFORMS_STATUS" -eq 0 ]]; then
+    fail_check "a_manifest_platform_outside_the_sanctioned_set_is_refused" \
+      "want: a non-zero exit status naming '${FIXTURE_IMAGE}' and '${FIXTURE_BAD_PLATFORM}'" \
+      "got:  0 — the manifest widened the policy and nothing said so" \
+      "it printed:" "${IMAGE_PLATFORMS_OUTPUT:-<nothing>}" \
+      "a manifest that could widen the sanctioned set would BE the policy"
+  elif ! grep -qF -- "$FIXTURE_IMAGE" <<< "$IMAGE_PLATFORMS_OUTPUT"; then
+    fail_check "a_manifest_platform_outside_the_sanctioned_set_is_refused" \
+      "it exited ${IMAGE_PLATFORMS_STATUS} and never named the image '${FIXTURE_IMAGE}'" \
+      "output was:" "$IMAGE_PLATFORMS_OUTPUT"
+  elif ! grep -qF -- "$FIXTURE_BAD_PLATFORM" <<< "$IMAGE_PLATFORMS_OUTPUT"; then
+    fail_check "a_manifest_platform_outside_the_sanctioned_set_is_refused" \
+      "it exited ${IMAGE_PLATFORMS_STATUS} and never named the platform '${FIXTURE_BAD_PLATFORM}'" \
+      "output was:" "$IMAGE_PLATFORMS_OUTPUT"
+  else
+    pass_check "a_manifest_platform_outside_the_sanctioned_set_is_refused"
+  fi
+
+  staged_root="$(stage_manifest_root "$FIXTURE_NARROWER")"
+  run_image_platforms "$staged_root" "$FIXTURE_IMAGE"
+  rm -rf "$staged_root"
+  if [[ "$IMAGE_PLATFORMS_STATUS" -ne 0 ]]; then
+    fail_check "counter_stimulus_a_narrower_manifest_set_is_accepted" \
+      "the same image declaring linux/amd64 alone exited ${IMAGE_PLATFORMS_STATUS}" \
+      "output was:" "$IMAGE_PLATFORMS_OUTPUT" \
+      "a rule that refuses every declared platforms key makes flutter's correct row" \
+      "a broken manifest forever, and the stimulus above would pass on it"
+  else
+    assert_equal "counter_stimulus_a_narrower_manifest_set_is_accepted" \
+      "linux/amd64" "$IMAGE_PLATFORMS_OUTPUT"
+  fi
+fi
+
+# -------- 3. every PLATFORMS* key of the workflow, keyed by its scope --------
+platform_keys=""
+platform_keys="$(workflow_platform_keys "$WORKFLOW")"
+
+if [[ -z "$platform_keys" ]]; then
   # No key found means the test is reading the wrong file or the wrong shape.
   # That is a failure, never a silent pass over an empty set.
   fail_check "workflow_declares_at_least_one_PLATFORMS_key" \
-    "no line matching '^[[:space:]]+PLATFORMS[A-Z_]*:' in ${WORKFLOW}" \
-    "grep exited ${platform_lines_status}"
+    "no PLATFORMS key found in ${WORKFLOW}" \
+    "the reader keys each one by the job it sits in, so a shape change here" \
+    "would leave every rule below passing over an empty set"
 else
   pass_check "workflow_declares_at_least_one_PLATFORMS_key"
-  while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-    trimmed="${line#"${line%%[![:space:]]*}"}"
-    key="${trimmed%%:*}"
-    value="${trimmed#*:}"
-    value="${value#"${value%%[![:space:]]*}"}"
-    value="${value%"${value##*[![:space:]]}"}"
-    assert_equal "workflow_${key}_is_the_sanctioned_set" "$SANCTIONED" "$value" \
-      "in ${WORKFLOW}"
-  done <<< "$platform_lines"
+
+  workflow_level_values=""
+  job_level_scopes=""
+  while IFS= read -r record; do
+    [[ -z "$record" ]] && continue
+    scope="$(cut -d'|' -f1 <<< "$record")"
+    line_number="$(cut -d'|' -f2 <<< "$record")"
+    key="$(cut -d'|' -f3 <<< "$record")"
+    value="$(cut -d'|' -f4 <<< "$record")"
+
+    if [[ "$scope" == "workflow" ]]; then
+      workflow_level_values="${workflow_level_values:+${workflow_level_values}
+}${value}"
+      # The workflow-level key is SANCTIONED_PLATFORMS written in by the
+      # generator, so it is held to EQUALITY. A subset rule here would pass a
+      # key that quietly narrowed the whole publish to 1 architecture.
+      assert_equal "workflow_${key}_at_the_workflow_level_is_exactly_the_sanctioned_set" \
+        "$SANCTIONED" "$value" \
+        "in ${WORKFLOW}:${line_number}" \
+        "edit SANCTIONED_PLATFORMS in _ctl/lib.sh and regenerate; this key is not a home"
+      continue
+    fi
+
+    job_level_scopes="${job_level_scopes:+${job_level_scopes}
+}${scope}"
+    # A job-level key is an image's own NARROWER set. Every entry must still be
+    # sanctioned, and the list must not be the sanctioned set itself: a key that
+    # repeats the value above it is a second declaration waiting to drift.
+    outside=""
+    IFS=',' read -r -a job_platforms <<< "$value"
+    for platform in ${job_platforms[@]+"${job_platforms[@]}"}; do
+      if [[ ",${SANCTIONED}," != *",${platform},"* ]]; then
+        outside="${outside:+${outside} }${platform}"
+      fi
+    done
+    if [[ -n "$outside" ]]; then
+      fail_check "workflow_${key}_in_job_${scope}_is_within_the_sanctioned_set" \
+        "these entries are outside the sanctioned set ${SANCTIONED}:" "$outside" \
+        "in ${WORKFLOW}:${line_number}, value '${value}'" \
+        "a job may NARROW what it publishes; it may never widen the policy"
+    elif [[ "$value" == "$SANCTIONED" ]]; then
+      fail_check "workflow_${key}_in_job_${scope}_is_within_the_sanctioned_set" \
+        "the job-level key repeats the workflow-level value: ${value}" \
+        "in ${WORKFLOW}:${line_number}" \
+        "the generator emits a job-level key only where the 2 differ; a key that repeats" \
+        "the one above it is a second declaration waiting to drift"
+    else
+      pass_check "workflow_${key}_in_job_${scope}_is_within_the_sanctioned_set"
+    fi
+  done <<< "$platform_keys"
+
+  assert_equal "the_workflow_declares_exactly_one_workflow_level_PLATFORMS_key" \
+    "$SANCTIONED" "$workflow_level_values" \
+    "more than 1 line here means 2 workflow-level declarations, and the second wins silently"
+
+  assert_equal "the_only_job_with_a_job_level_PLATFORMS_key_is_${NARROWER_IMAGE}" \
+    "$(joined "$NARROWER_IMAGE")" \
+    "$(printf '%s\n' "$job_level_scopes" | awk 'NF' | sort)" \
+    "the generator emits a job-level key only for an image whose set differs from the" \
+    "sanctioned one, and images.yaml declares exactly 1 such image today" \
+    "a new name here is either a new measured exception — which needs its row in" \
+    "IMAGE_PLATFORM_TABLE and in images.yaml — or a hand edit of a generated file"
 fi
 
-# -------- 3. EVERY provider copy is byte-identical to its workflow --------
+# -------- 4. EVERY provider copy is byte-identical to its workflow --------
 # The 2 build-and-push.yml files drifted in commit d9089b2, which added 5
 # `timeout-minutes: 90` blocks to the workflow and to neither copy of the
 # provider file, while .claude/rules/00-identity.md called them identical byte
@@ -158,21 +496,16 @@ fi
 #
 # The rule now covers every file of the provider directory rather than that 1
 # pair. The narrow version had the same hole one level up: a second provider
-# file got no check on the day it was added, and .ci/providers/README.md said so
-# in prose — "a second provider file added here gets no such check until you add
-# 1 for it". A rule that has to be extended by hand for each new file is a rule
-# that will not be.
+# file got no check at all on the day it was added, and .ci/providers/README.md
+# said so in prose — "a second provider file added here gets no such check until
+# you add 1 for it". A rule that has to be extended by hand for each new file is
+# a rule that will not be.
 provider_files=""
 for path in "$REPO_ROOT/$PROVIDER_DIRECTORY"/*; do
   [[ -f "$path" ]] || continue
   provider_files="${provider_files:+${provider_files}
 }$(basename "$path")"
 done
-
-# joined <element...> — 1 element per line, sorted, for a set comparison.
-function joined() {
-  printf '%s\n' "$@" | sort
-}
 
 assert_equal "the_provider_directory_holds_the_expected_files" \
   "$(joined "${EXPECTED_PROVIDER_FILES[@]}")" \
@@ -219,7 +552,7 @@ while IFS= read -r name; do
   fi
 done <<< "$provider_files"
 
-# -------- 4. no forbidden token on the named build path --------
+# -------- 5. no UNSANCTIONED platform token on the named build path --------
 missing_files=""
 for relative in "${BUILD_PATH_FILES[@]}"; do
   if [[ ! -f "$REPO_ROOT/$relative" ]]; then
@@ -235,38 +568,94 @@ else
   pass_check "every_named_build_path_file_exists"
 fi
 
-for token in "${FORBIDDEN_TOKENS[@]}"; do
-  hits=""
-  for relative in "${BUILD_PATH_FILES[@]}"; do
-    [[ -f "$REPO_ROOT/$relative" ]] || continue
-    file_hits=""
-    hit_status=0
-    file_hits="$(grep -nF -- "$token" "$REPO_ROOT/$relative")" || hit_status=$?
-    if [[ "$hit_status" -eq 0 ]]; then
-      while IFS= read -r hit; do
-        [[ -z "$hit" ]] && continue
-        hits="${hits:+${hits}
-}${relative}:${hit}"
-      done <<< "$file_hits"
-    fi
-  done
-  # A token name is part of the check name, so a reader sees which one failed.
-  check_name="no_${token}_on_the_named_build_path"
-  if [[ -z "$hits" ]]; then
-    pass_check "$check_name"
-  else
-    fail_check "$check_name" \
-      "'${token}' still appears on the build path:" \
-      "$hits"
-  fi
+# THE READER IS WATCHED FIRING FIRST, on a file written for the purpose. The
+# real tree is expected to be clean, so a reader that had stopped matching would
+# report the same empty result as a tree that is correct — the difference is
+# invisible without a stimulus.
+probe_file="$(mktemp)"
+{
+  printf 'PLATFORMS="linux/amd64,linux/arm64"\n'
+  printf 'EXTRA="%s"\n' "$TRIPWIRE_PLATFORM"
+  printf 'VARIANT="linux/arm/v7"\n'
+  printf 'PREFIX="linux/arm"\n'
+  printf '# a sentence that ends on the word linux/arm64.\n'
+} > "$probe_file"
+probe_hits="$(unsanctioned_platform_tokens "probe" "$probe_file")"
+rm -f "$probe_file"
+
+probe_reported_unsanctioned=1
+for probe_token in "$TRIPWIRE_PLATFORM" "linux/arm/v7" "linux/arm"; do
+  grep -q ":${probe_token}\$" <<< "$probe_hits" || probe_reported_unsanctioned=0
+done
+probe_reported_sanctioned=0
+for probe_token in "linux/amd64" "linux/arm64"; do
+  grep -q ":${probe_token}\$" <<< "$probe_hits" && probe_reported_sanctioned=1
 done
 
-# -------- 5. the base image does not pin a build platform in its FROM --------
+if [[ "$probe_reported_unsanctioned" -eq 1 && "$probe_reported_sanctioned" -eq 0 ]]; then
+  pass_check "counter_stimulus_the_platform_token_reader_reports_only_unsanctioned_tokens"
+else
+  fail_check "counter_stimulus_the_platform_token_reader_reports_only_unsanctioned_tokens" \
+    "a file holding linux/amd64, linux/arm64, ${TRIPWIRE_PLATFORM}, linux/arm/v7 and linux/arm" \
+    "must report the last 3 and neither of the first 2; it reported:" \
+    "${probe_hits:-<nothing>}" \
+    "the bare linux/arm is in the stimulus because it is a PREFIX of linux/arm64, so a" \
+    "substring membership test calls an unsanctioned 32-bit arm platform sanctioned" \
+    "the trailing sentence is there because _ctl/lib.sh ends one on 'linux/arm64.', and a" \
+    "reader that swept the period into the token would report a platform nobody wrote"
+fi
+
+hits=""
+for relative in "${BUILD_PATH_FILES[@]}"; do
+  [[ -f "$REPO_ROOT/$relative" ]] || continue
+  file_hits="$(unsanctioned_platform_tokens "$relative" "$REPO_ROOT/$relative")"
+  [[ -z "$file_hits" ]] && continue
+  hits="${hits:+${hits}
+}${file_hits}"
+done
+
+if [[ -z "$hits" ]]; then
+  pass_check "no_unsanctioned_platform_token_on_the_named_build_path"
+else
+  fail_check "no_unsanctioned_platform_token_on_the_named_build_path" \
+    "these files name a platform outside the sanctioned set ${SANCTIONED}:" \
+    "$hits" \
+    "the rule is membership of SANCTIONED_PLATFORMS and not a deny-list, so it needs" \
+    "no edit here when the set moves — widen the library, with a consumer you measured," \
+    "and every digest row and case arm that the new platform costs"
+fi
+
+retired_hits=""
+for relative in "${BUILD_PATH_FILES[@]}"; do
+  [[ -f "$REPO_ROOT/$relative" ]] || continue
+  file_hits=""
+  hit_status=0
+  file_hits="$(grep -nF -- "$RETIRED_PLATFORM_VARIABLE" "$REPO_ROOT/$relative")" || hit_status=$?
+  [[ "$hit_status" -eq 0 ]] || continue
+  while IFS= read -r hit; do
+    [[ -z "$hit" ]] && continue
+    retired_hits="${retired_hits:+${retired_hits}
+}${relative}:${hit}"
+  done <<< "$file_hits"
+done
+
+if [[ -z "$retired_hits" ]]; then
+  pass_check "no_${RETIRED_PLATFORM_VARIABLE}_on_the_named_build_path"
+else
+  fail_check "no_${RETIRED_PLATFORM_VARIABLE}_on_the_named_build_path" \
+    "'${RETIRED_PLATFORM_VARIABLE}' still appears on the build path:" \
+    "$retired_hits" \
+    "both names hold the same string, so a missed rename gets the right platform by" \
+    "accident and only this name check finds it"
+fi
+
+# -------- 6. the base image does not pin a build platform in its FROM --------
 # `FROM --platform=${BUILDPLATFORM:-linux/amd64} ubuntu:24.04` is the mechanical
-# cause of the mislabelled arm64 image: it pins the userland to the BUILD host's
-# architecture while buildx labels the result with the TARGET platform. Removing
-# arm64 without removing this line reproduces the same defect in the opposite
-# direction on an Apple Silicon host.
+# cause of the mislabelled arm64 image the set once carried: it pins the
+# userland to the BUILD host's architecture while buildx labels the result with
+# the TARGET platform. With arm64 sanctioned again this line is the difference
+# between a native arm64 image and an amd64 userland wearing an arm64 label, so
+# the rule matters MORE now than it did while the set held 1 platform.
 from_hits=""
 from_status=0
 from_hits="$(grep -nE '^[[:space:]]*FROM[[:space:]]+--platform=' "$REPO_ROOT/base/Dockerfile")" || from_status=$?

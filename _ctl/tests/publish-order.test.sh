@@ -95,21 +95,32 @@
 # manifest check at the same time.
 #
 # ============================================================================
-# WHAT BREAKS THIS RULE WHEN linux/arm64 ARRIVES — read this before widening
-# SANCTIONED_PLATFORMS
+# linux/arm64 ARRIVED, AND THIS RULE SURVIVED IT. HOW, AND AT WHAT COST
 # ============================================================================
 #
-# SANCTIONED_PLATFORMS holds 1 platform today, so the cheap remedy is available:
-# build with `push: false` + `load: true`, smoke the loaded local image, then
-# publish. The fixture carries a `push: false` step precisely so the detector is
-# watched NOT to count it as a publish, which is what makes that remedy legal
-# here.
+# This paragraph was a WARNING until the set widened. It is an ANSWER now, and
+# the answer is that the 2 builds of each job stopped naming the same platform
+# list.
 #
 # `load: true` cannot take a multi-platform build. buildx produces a manifest
-# LIST for 2 platforms and the docker image store holds a single image, so the
-# build fails rather than loading half of it. The day a second architecture is
-# sanctioned — which is the direction the buildx work in this branch exists to
-# enable — the load-and-smoke shape stops working, and what is left is:
+# LIST for 2 platforms and the docker image store holds a single image, so a
+# 2-platform build with `load: true` fails rather than loading half of it. That
+# fact did not change; what changed is which build carries the list.
+#
+#   - The GATE build names SMOKE_PLATFORM, `linux/amd64`, with `push: false` +
+#     `load: true`. 1 platform, so the load works, and it is the architecture
+#     the arc-build pool runs NATIVELY — which the smoke needs, because the
+#     version checks the Dockerfiles dropped cannot execute under emulation.
+#   - The PUBLISH build names the full PLATFORMS and runs after the smoke, from
+#     the cache the gate build wrote.
+#
+# So NOTHING reaches ghcr.io before the smoke, and this rule is satisfied by
+# construction rather than by exception. The NARROWING of the gate build is what
+# preserved smoke-gates-publish through a widening of the publish. The fixture
+# still carries a `push: false` step precisely so the detector is watched NOT to
+# count it as a publish, and that is what makes the shape legal here.
+#
+# THE ROUTE THAT WAS NOT TAKEN, and why it is recorded rather than deleted:
 #
 #   - push to a THROWAWAY tag, smoke each platform out of the registry, then
 #     push the real tags. THIS RULE REPORTS THAT AS A VIOLATION, because the
@@ -121,14 +132,18 @@
 #           publishes   step 6   .github/workflows/build-and-push.yml:143
 #           smokes      step 7   .github/workflows/build-and-push.yml:155
 #
-#   - build to a local registry or `--output type=oci`, smoke from there, then
-#     publish. This rule is satisfied, because nothing reaches ghcr.io before
-#     the smoke.
+#     Whoever takes that route has to change this test with it, and that change
+#     is a decision about what "publish" means to this repository — not a line
+#     to delete.
 #
-# So the rule survives the arm64 switch only if the remedy chosen there does not
-# publish to ghcr.io before smoking. Whoever takes the throwaway-tag route has
-# to change this test with it, and that change is a decision about what
-# "publish" means to this repository — not a line to delete.
+# THE COST, stated plainly because no check here can state it: the arm64 content
+# of every image is NOT smoke-gated at publish time. The amd64 smoke gates the
+# publish for both variants; the arm64 variant ships on the same build
+# definition, the same pins and the same per-download digest comparison, and
+# `_ctl/tests/verify-published.test.sh` holds the rule that the manifest carries
+# both afterwards. Closing it means smoking arm64 out of the registry AFTER the
+# push, which is the recorded follow-up and is a step this rule would have to
+# learn to allow.
 #
 # Usage: bash _ctl/tests/publish-order.test.sh
 #

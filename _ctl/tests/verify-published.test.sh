@@ -1,32 +1,48 @@
 #!/usr/bin/env bash
 #
 # _ctl/tests/verify-published.test.sh — the published manifest must carry
-# exactly the sanctioned platform set, and nothing else.
+# exactly the platform set THAT IMAGE publishes, and nothing else.
 #
 # Hermetic. The stub `docker` goes first on PATH and answers the manifest read
 # from a JSON file in fixtures/manifests/, so no registry is contacted and the
 # result does not change when somebody pushes.
 #
-# The verb under test is `verify-published`. It does not exist yet, so every
-# case here is red. A reader must not have to guess that: the first check asks
-# the dispatcher whether it knows the verb at all, and every later failure
-# repeats the dispatcher's own reply, which is the words
-#   unknown command: 'verify-published'
-# rather than a shell error somebody could misdiagnose as a broken test.
+# ============================================================================
+# THE SET IS PER-IMAGE, AND THAT IS WHAT THIS FILE CHANGED
+# ============================================================================
 #
-# Contract this file fixes for the implementation:
+# The verb compared every image against SANCTIONED_PLATFORMS while the set held
+# 1 platform, and the 2 questions had 1 answer. They do not any more:
+#
+#   base    publishes linux/amd64,linux/arm64 — no `platforms` key, so it takes
+#           the sanctioned set;
+#   flutter publishes linux/amd64 alone, declared in images.yaml and measured —
+#           Flutter ships no linux-arm64 SDK at any version.
+#
+# So the same amd64-only manifest is a BROKEN publish for base and a CORRECT
+# publish for flutter, and this file drives both images against it. Against the
+# sanctioned set, flutter's correct manifest would read as broken forever; a
+# rule that only asked "is every published platform sanctioned" would call
+# base's missing arm64 half fine. Only the per-image set answers both.
+#
+# Contract this file holds for the implementation:
 #   - the verb is a PER-IMAGE verb, so `bash base/ctl.sh verify-published`
 #     reaches it, exactly like build / push / pull / inspect;
 #   - it appears in the usage block, because in this repository the output of
 #     `bash ./ctl.sh help` is the specification of the interface;
 #   - an entry whose platform is unknown/unknown is an ATTESTATION, not an
-#     image variant. buildx attaches one per variant on every push, so a check
-#     that counts entries instead of reading their platform calls a correct
-#     single-platform image a 2-variant image;
+#     image variant. buildx attaches one per variant on every push — 2 of them
+#     on a dual-platform image — so a check that counts entries instead of
+#     reading their platform calls a correct 2-variant image a 4-variant image;
 #   - when the manifest cannot be read at all, the real client error is what
 #     the operator needs. "no variants found" for a manifest that was never
 #     read is the failure mode this repository has shipped before: a message
 #     that describes a state nobody observed.
+#
+# The dispatcher check below is kept from the run in which the verb did not
+# exist. It is not decoration: every later failure repeats the dispatcher's own
+# reply, so a reader is never left inferring "the verb is gone" from an exit
+# status that a missing verb and a real verdict both produce.
 #
 # Usage: bash _ctl/tests/verify-published.test.sh
 #
@@ -49,6 +65,14 @@ TEST_NAME="verify-published.test.sh"
 STUB_BIN="$TESTS_DIR/stubs"
 MANIFESTS="$TESTS_DIR/fixtures/manifests"
 BASE_CTL="$REPO_ROOT/base/ctl.sh"
+FLUTTER_CTL="$REPO_ROOT/flutter/ctl.sh"
+
+# The 3 manifest shapes, and what each one IS. Every one of them carries the
+# attestation entries buildx really attaches, because a fixture without them
+# would let a counting implementation pass.
+MANIFEST_DUAL="$MANIFESTS/amd64-arm64-attested.json"    # amd64 + arm64 + 2 attestations
+MANIFEST_AMD64="$MANIFESTS/amd64-attested.json"         # amd64 + 1 attestation
+MANIFEST_ARM64="$MANIFESTS/arm64-only.json"             # arm64 alone, no attestation
 
 # The dispatcher's answer to a verb it does not have. Finding this in the
 # output means the run proved nothing about manifests — it proved the verb is
@@ -61,18 +85,20 @@ VERB_MISSING=0
 RUN_OUTPUT=""
 RUN_STATUS=0
 
-# run_verify [KEY=VALUE ...] — the real base/ctl.sh, the stub docker.
+# run_verify <ctl.sh> [KEY=VALUE ...] — a real per-image ctl.sh, the stub docker.
 function run_verify() {
+  local ctl="$1"
+  shift
   RUN_STATUS=0
-  RUN_OUTPUT="$(env PATH="${STUB_BIN}:${PATH}" "$@" bash "$BASE_CTL" verify-published 2>&1)" || RUN_STATUS=$?
+  RUN_OUTPUT="$(env PATH="${STUB_BIN}:${PATH}" "$@" bash "$ctl" verify-published 2>&1)" || RUN_STATUS=$?
   # Carried into every failure below, so no reader has to infer the cause from
   # an exit status that a missing verb and a real verdict both produce.
   if grep -qF -- "$UNKNOWN_VERB_REPLY" <<< "$RUN_OUTPUT"; then
     VERB_MISSING=1
-    VERB_NOTE="cause: base/ctl.sh answered \"${UNKNOWN_VERB_REPLY}\" — the verb does not exist yet"
+    VERB_NOTE="cause: ${ctl} answered \"${UNKNOWN_VERB_REPLY}\" — the verb does not exist"
   else
     VERB_MISSING=0
-    VERB_NOTE="note: base/ctl.sh knows the verb, so this is the verb's own verdict"
+    VERB_NOTE="note: ${ctl} knows the verb, so this is the verb's own verdict"
   fi
 }
 
@@ -80,8 +106,8 @@ function run_verify() {
 # verb answered nothing about any manifest, so no case may pass on that run.
 # Without this the checks below pass by accident: the usage block the
 # dispatcher prints on an unknown verb ends non-zero AND contains the string
-# "linux/arm64", which is 2 of the 3 things an arm64 refusal is asked for. The
-# first run of this file passed 2 checks that way.
+# "linux/arm64", which is 2 of the 3 things a refusal is asked for. The first
+# run of this file passed 2 checks that way.
 function verb_is_missing() {
   local name="$1"
   shift
@@ -141,6 +167,20 @@ else
     "without it the real docker answers, and nothing below is hermetic"
 fi
 
+missing_manifests=""
+for fixture in "$MANIFEST_DUAL" "$MANIFEST_AMD64" "$MANIFEST_ARM64"; do
+  [[ -f "$fixture" ]] || missing_manifests="${missing_manifests:+${missing_manifests}
+}${fixture}"
+done
+if [[ -n "$missing_manifests" ]]; then
+  fail_check "every_manifest_fixture_exists" \
+    "these fixtures are named below and absent:" "$missing_manifests" \
+    "the stub answers the manifest read out of them, so a missing one makes the stub" \
+    "print nothing and the verb judge an empty document"
+else
+  pass_check "every_manifest_fixture_exists"
+fi
+
 # -------- the verb exists, and the help block says so --------
 help_output=""
 help_status=0
@@ -153,35 +193,72 @@ else
     "in this repository the output of help IS the specification of the interface"
 fi
 
-# -------- amd64 + arm64 + attestations -> refused, naming linux/arm64 --------
-run_verify STUB_MANIFEST_JSON="$MANIFESTS/amd64-arm64-attested.json"
-assert_verify_refused_naming "an_arm64_variant_is_refused_and_named" "linux/arm64" \
-  "manifest fixture: amd64 + arm64 + 2 unknown/unknown attestations"
+# ===========================================================================
+# base publishes BOTH platforms
+# ===========================================================================
+# The inversion. `an_arm64_variant_is_refused_and_named` stood here while the
+# set held 1 platform; an arm64 variant is now REQUIRED of base, and this is the
+# shape a correct dual-platform publish has in the registry — 2 image manifests
+# and the 2 attestation manifests buildx attaches to them.
+run_verify "$BASE_CTL" STUB_MANIFEST_JSON="$MANIFEST_DUAL"
+assert_verify_status "a_dual_platform_manifest_is_accepted_for_base" "0" \
+  "manifest fixture: amd64 + arm64 + 2 unknown/unknown attestations" \
+  "base declares no platforms key in images.yaml, so it publishes the sanctioned set"
 
-# -------- amd64 + attestation -> accepted --------
-# The load-bearing half of this file. buildx attaches an attestation manifest
-# per variant on every push, so this shape is what a CORRECT single-platform
-# image looks like today. A check that counts manifest entries reads 2 here and
-# refuses a correct image.
-run_verify STUB_MANIFEST_JSON="$MANIFESTS/amd64-attested.json"
-assert_verify_status "an_attestation_entry_is_not_a_variant" "0" \
-  "manifest fixture: amd64 + 1 unknown/unknown attestation, which is the shape" \
-  "buildx publishes for a correct single-platform image"
+# THE LOAD-BEARING HALF. buildx attaches an attestation manifest per variant on
+# every push, so the fixture above holds 4 entries for 2 platforms. An
+# implementation that counted entries reads 4 and refuses a correct image; one
+# that counted them and expected 2 would refuse this too.
+assert_contains "an_attestation_entry_is_not_counted_as_a_variant" "$RUN_OUTPUT" \
+  "carries exactly linux/amd64,linux/arm64" \
+  "the fixture holds 4 manifest entries and exactly 2 of them are image variants" \
+  "output was:" "$RUN_OUTPUT"
 
-# -------- arm64 alone -> refused --------
-# Not a subset check and not a count check: the published set must EQUAL the
-# sanctioned set, so 1 wrong variant fails as surely as 1 extra one.
-run_verify STUB_MANIFEST_JSON="$MANIFESTS/arm64-only.json"
-assert_verify_refused_naming "an_arm64_only_image_is_refused" "linux/arm64" \
-  "manifest fixture: arm64 alone, with no amd64 variant at all"
+# -------- base with the arm64 half missing -> refused, naming it --------
+run_verify "$BASE_CTL" STUB_MANIFEST_JSON="$MANIFEST_AMD64"
+assert_verify_refused_naming "an_amd64_only_manifest_is_refused_for_base_naming_linux_arm64" \
+  "linux/arm64" \
+  "manifest fixture: amd64 + 1 attestation — a publish whose arm64 leg never landed" \
+  "this is the exact shape flutter publishes CORRECTLY, which is why the set has to be" \
+  "read per image and not from SANCTIONED_PLATFORMS"
+
+# -------- base with only the arm64 half -> refused, naming the missing amd64 --------
+# Not a subset check and not a count check: the published set must EQUAL the set
+# the image publishes, so 1 missing variant fails as surely as 1 extra one.
+run_verify "$BASE_CTL" STUB_MANIFEST_JSON="$MANIFEST_ARM64"
+assert_verify_refused_naming "an_arm64_only_manifest_is_refused_for_base_naming_linux_amd64" \
+  "linux/amd64" \
+  "manifest fixture: arm64 alone, with no amd64 variant and no attestation at all"
+
+# ===========================================================================
+# flutter publishes linux/amd64 ALONE
+# ===========================================================================
+# The same amd64-only fixture the check above refuses. If this passes and that
+# one fails on one document, the verb is reading the image's own set — and no
+# weaker statement proves it.
+run_verify "$FLUTTER_CTL" STUB_MANIFEST_JSON="$MANIFEST_AMD64"
+assert_verify_status "an_amd64_only_manifest_is_accepted_for_flutter" "0" \
+  "flutter declares platforms: [linux/amd64] in images.yaml, and the manifest carries" \
+  "the measurement beside the key: Flutter publishes no linux-arm64 SDK at any version" \
+  "against SANCTIONED_PLATFORMS this correct publish would read as broken forever"
+
+# -------- flutter with an arm64 variant it must not have -> refused --------
+# The other direction, and the one a narrower set makes possible: an EXTRA
+# variant. A rule that only asked "is every published platform sanctioned" would
+# accept this, because linux/arm64 is sanctioned — it is just not flutter's.
+run_verify "$FLUTTER_CTL" STUB_MANIFEST_JSON="$MANIFEST_DUAL"
+assert_verify_refused_naming "an_arm64_variant_is_refused_for_flutter_and_named" \
+  "published but not expected: linux/arm64" \
+  "manifest fixture: amd64 + arm64 + 2 attestations, which base accepts" \
+  "the refusal has to name the OFFENDING variant and not only the 2 sets, or an" \
+  "operator reading it has to diff 2 comma lists by eye"
 
 # -------- the manifest cannot be read -> the REAL error survives --------
-# 3 conditions, 1 check, on purpose. As 3 checks, 2 of them pass today for
-# reasons that have nothing to do with the feature: an absent verb also exits
-# non-zero, and an absent verb also never says "no variants". A check that
-# passes before the thing it checks exists is the failure this whole phase is
-# here to avoid.
-run_verify \
+# 3 conditions, 1 check, on purpose. As 3 checks, 2 of them pass for reasons
+# that have nothing to do with the feature: any abort exits non-zero, and a verb
+# that printed nothing also never says "no variants". A check that passes
+# without the behaviour is the failure this whole phase is here to avoid.
+run_verify "$BASE_CTL" \
   STUB_MANIFEST_STATUS="1" \
   STUB_MANIFEST_ERROR="ghcr.io/gophersys/base:latest: manifest unknown"
 if verb_is_missing "a_failed_manifest_read_carries_the_real_error"; then

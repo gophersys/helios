@@ -12,13 +12,37 @@
 #      though the plan called it the most likely silent breakage this feature
 #      closes — a bare `docker build` targets the HOST, which is arm64 on an
 #      Apple Silicon machine, so the local image is not the published one;
-#   2. `build` never asked whether its platform was sanctioned at all, so
-#      `IMAGE_PLATFORMS=linux/arm64 bash base/ctl.sh build` really did build and
-#      tag an arm64 image, while `push` refused the same list. A guard on the
-#      publish path only is a guard a developer walks around without knowing.
+#   2. `build` never asked whether its platform was sanctioned at all, so an
+#      unsanctioned IMAGE_PLATFORMS really did build and tag an image, while
+#      `push` refused the same list. A guard on the publish path only is a guard
+#      a developer walks around without knowing.
 #
 # So this file asserts the argv, not just the exit status. An exit status of 0
 # says a command ran; only the argv says WHICH image was built.
+#
+# ============================================================================
+# WHAT THE 2-PLATFORM SET DID TO THIS FILE
+# ============================================================================
+#
+# A bare `bash base/ctl.sh build` USED to succeed, because the default list held
+# 1 platform. It cannot any more and it must not: `docker build` produces
+# exactly 1 image, the default is now the 2-platform sanctioned set, and the verb
+# refuses a list of more than 1 by design. So the old
+# `build_succeeds_on_the_default_platform_list` asserted a contract that no
+# longer exists, and flipping its literal would have kept a green check over a
+# command nobody can run.
+#
+# The contract this file holds instead is the one a developer meets:
+#
+#   bash base/ctl.sh build                      -> REFUSED, naming the 2-entry list
+#   IMAGE_PLATFORMS=linux/amd64 ... build       -> builds, --platform linux/amd64
+#   IMAGE_PLATFORMS=linux/arm64 ... build       -> builds, --platform linux/arm64
+#
+# The arm64 row is the inversion. `build_refuses_linux_arm64_and_names_it` was a
+# real rule while the set held 1 platform; arm64 is sanctioned now, the Mac mini
+# builds it natively, and a test that still refused it would forbid the local
+# loop this widening exists to serve. The refusal checks moved to platforms that
+# are genuinely outside the set.
 #
 # Usage: bash _ctl/tests/build.test.sh
 #
@@ -44,7 +68,19 @@ BASE_CTL="$REPO_ROOT/base/ctl.sh"
 # The policy, written as a literal for the same reason platform-policy.test.sh
 # writes it: a test that reads the value out of the implementation agrees with
 # a wrong value too.
-SANCTIONED="linux/amd64"
+SANCTIONED="linux/amd64,linux/arm64"
+
+# Its members, named one at a time. `build` takes exactly 1, so every accepting
+# case below names one of these and no list.
+AMD64="linux/amd64"
+ARM64="linux/arm64"
+
+# Outside the set. riscv64 is an architecture no node of ours runs and no digest
+# row answers for. The bare `linux/arm` is the near-miss: it is a PREFIX of the
+# sanctioned linux/arm64, so a guard that tested membership with a substring
+# instead of a comma-fenced comparison would accept it.
+UNSANCTIONED="linux/riscv64"
+UNSANCTIONED_PREFIX_OF_A_MEMBER="linux/arm"
 
 RUN_OUTPUT=""
 RUN_STATUS=0
@@ -106,38 +142,85 @@ else
     "without it the real docker answers, and nothing below is hermetic"
 fi
 
-# -------- KEEP: the platform is explicit, and it is the sanctioned one --------
-# GREEN from the first run. The deletion this catches is 1 line:
+# -------- the default list is the sanctioned set, and build cannot take it --------
+# The stimulus is a run with NO IMAGE_PLATFORMS in the environment, so the value
+# under test is the one resolve_image_platforms produces for `base`: no
+# `platforms` key in images.yaml, therefore SANCTIONED_PLATFORMS. This is the
+# 1 check that reads the DEFAULT rather than a value the test handed in, and it
+# is what makes "the local loop must name its platform" a checked statement
+# instead of a sentence in a document.
+run_build "$BASE_CTL"
+assert_refused_without_building "build_refuses_the_default_platform_list_and_names_it" \
+  "$SANCTIONED" \
+  "the default is the 2-platform sanctioned set and docker build makes exactly 1 image," \
+  "so a bare build must fail NAMING the list a developer has to choose from —" \
+  "IMAGE_PLATFORMS=linux/arm64 bash base/ctl.sh build"
+
+# -------- KEEP: the platform is explicit, and it is the one that was named --------
+# The deletion this catches is 1 line:
 #   docker build --platform "${IMAGE_PLATFORMS}" ...  ->  docker build ...
 # Nothing else in the repository reads that argument, so without this check the
 # local image silently becomes whatever the host happens to be.
-run_build "$BASE_CTL"
-assert_equal "build_succeeds_on_the_default_platform_list" "0" "$RUN_STATUS" \
+run_build "$BASE_CTL" IMAGE_PLATFORMS="$AMD64"
+assert_equal "build_succeeds_when_the_developer_names_1_sanctioned_platform" "0" "$RUN_STATUS" \
   "output was:" "$RUN_OUTPUT"
 assert_contains "build_passes_the_platform_explicitly_to_docker_build" \
-  "$RUN_ARGV" "docker build --platform ${SANCTIONED}" \
+  "$RUN_ARGV" "docker build --platform ${AMD64}" \
   "a bare docker build targets the HOST: arm64 on an Apple Silicon machine," \
   "so the image built locally would not be the image that gets published"
 
+# -------- linux/arm64 is SANCTIONED now, and build must serve it --------
+# The inversion, and the reason it is 2 checks rather than a flipped literal.
+# The status says the guard lets arm64 through; the argv says the value reached
+# `--platform` unchanged. A build that accepted arm64 and then passed amd64 to
+# docker would satisfy the first alone, and it is the exact defect the mislabelled
+# arm64 variant was made of: a label that did not describe the bytes.
+run_build "$BASE_CTL" IMAGE_PLATFORMS="$ARM64"
+assert_equal "build_accepts_linux_arm64_now_that_it_is_sanctioned" "0" "$RUN_STATUS" \
+  "arm64 is in SANCTIONED_PLATFORMS and the mini builds it natively; a build that" \
+  "refused it would forbid the local loop the widening exists to serve" \
+  "output was:" "$RUN_OUTPUT"
+assert_contains "build_passes_linux_arm64_explicitly_to_docker_build" \
+  "$RUN_ARGV" "docker build --platform ${ARM64}" \
+  "this is what proves the value is THREADED rather than hardcoded: the amd64 check" \
+  "above passes on a build that ignores IMAGE_PLATFORMS and always writes linux/amd64"
+
 # -------- KEEP: 1 platform per docker build --------
 # The stimulus is a 2-entry list whose every entry is sanctioned, so the ONLY
-# rule that can refuse it is the 1-image rule. A list with 2 different entries
-# would be refused by the sanctioned-set rule and prove nothing about this one.
-run_build "$BASE_CTL" IMAGE_PLATFORMS="${SANCTIONED},${SANCTIONED}"
+# rule that can refuse it is the 1-image rule. The order is REVERSED against the
+# default so this case cannot be satisfied by whatever refuses the default: the
+# 2 arrive by different routes, this one through the environment and that one
+# through resolve_image_platforms.
+run_build "$BASE_CTL" IMAGE_PLATFORMS="${ARM64},${AMD64}"
 assert_refused_without_building "build_refuses_a_list_that_holds_more_than_1_entry" \
-  "${SANCTIONED},${SANCTIONED}" \
+  "${ARM64},${AMD64}" \
   "docker build produces exactly 1 image; a 2-entry list has to go through push"
 
-# -------- NEW: an unsanctioned platform is refused on the BUILD path too --------
-run_build "$BASE_CTL" IMAGE_PLATFORMS="linux/arm64"
-assert_refused_without_building "build_refuses_linux_arm64_and_names_it" \
-  "linux/arm64" \
-  "push already refuses this list. A developer who runs build instead must not" \
-  "get an arm64 image tagged ghcr.io/gophersys/base:latest on their host."
-
-run_build "$BASE_CTL" IMAGE_PLATFORMS="linux/riscv64"
+# -------- an unsanctioned platform is refused on the BUILD path too --------
+run_build "$BASE_CTL" IMAGE_PLATFORMS="$UNSANCTIONED"
 assert_refused_without_building "build_refuses_linux_riscv64_and_names_it" \
-  "linux/riscv64" \
-  "the rule is membership of the sanctioned set, not a deny-list of 1 platform"
+  "$UNSANCTIONED" \
+  "push already refuses this list. A developer who runs build instead must not get" \
+  "an unsanctioned image tagged ghcr.io/gophersys/base:latest on their host," \
+  "and the rule is membership of the sanctioned set, not a deny-list of 1 platform"
+
+run_build "$BASE_CTL" IMAGE_PLATFORMS="$UNSANCTIONED_PREFIX_OF_A_MEMBER"
+assert_refused_without_building "build_refuses_a_platform_that_is_only_a_prefix_of_a_sanctioned_one" \
+  "$UNSANCTIONED_PREFIX_OF_A_MEMBER" \
+  "linux/arm is a PREFIX of the sanctioned linux/arm64 and is a platform of its own," \
+  "so a membership test written as a substring search would build 32-bit arm and" \
+  "tag it with the published name"
+
+# -------- a DECLARED but empty list is a caller naming nothing --------
+# `IMAGE_PLATFORMS=` is not an absent variable. The library tests for the name
+# being DECLARED (`${VAR+declared}`) and not for it holding anything, precisely
+# so this case reaches the refusal: read as unset, it would be replaced by the
+# manifest's set and a caller that named an empty list would get a build it never
+# asked for. That was a real defect, found and fixed, and this pins it.
+run_build "$BASE_CTL" IMAGE_PLATFORMS=""
+assert_refused_without_building "build_refuses_a_declared_but_empty_platform_list" \
+  "empty" \
+  "an empty value must not fall back to the default: the caller named a list, the" \
+  "list has no entries, and there is no platform to build"
 
 test_summary "$TEST_NAME"

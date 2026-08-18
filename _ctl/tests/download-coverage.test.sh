@@ -216,8 +216,19 @@ VALUE_HOMES=(
 # SANCTIONED as a literal: a test that reads the vocabulary it checks agrees
 # with 2 vocabularies as happily as with 1, and the second one is where a pin
 # hides. _NOARCH is the spelling for an asset that serves every platform.
-DIGEST_SUFFIXES=("AMD64" "NOARCH")
-DIGEST_SUFFIXES_TEXT="_SHA256_AMD64, _SHA256_NOARCH"
+#
+# The vocabulary names the PLATFORM and never the upstream asset spelling —
+# compose writes x86_64/aarch64 and buildx writes amd64/arm64 for the same 2
+# platforms, and following the asset gave 2 vocabularies per arch.
+#
+# _SHA256_ARM64 is HERE and it was not, and the rule that kept it out was
+# INVERTED rather than deleted. "No _ARM64 row while the set is linux/amd64
+# alone" was correct then: a digest for a platform nothing builds is a check
+# that cannot fail. A row now exists for every SANCTIONED platform, and the
+# failure the rule names is the other one — a platform in the set with no row,
+# whose leg of the build reaches its download with an empty digest.
+DIGEST_SUFFIXES=("AMD64" "ARM64" "NOARCH")
+DIGEST_SUFFIXES_TEXT="_SHA256_AMD64, _SHA256_ARM64, _SHA256_NOARCH"
 
 # The exemption taxonomy. A 3rd class is not a class, it is a hole with a name.
 EXEMPTION_CLASSES=("unversioned-url" "not-installed-today")
@@ -235,6 +246,13 @@ FIXTURE_HOME_OTHER="$FIXTURE_DIR/home-other.env"
 FIXTURE_COPY_ABOVE="$FIXTURE_DIR/copy-above.Dockerfile"
 FIXTURE_COPY_BELOW="$FIXTURE_DIR/copy-below.Dockerfile"
 FIXTURE_COPY_ABSENT="$FIXTURE_DIR/copy-absent.Dockerfile"
+
+# The fixture for the reader capability the 2-platform set introduced: a fetch
+# that names a case arm's LOCAL instead of its pin. Every other fixture here
+# spells its digest literally in the fetch command, so all of them pass against
+# a reader that ignores locals — which is exactly the reader this file had.
+FIXTURE_ARM_LOCAL="$FIXTURE_DIR/arm-local.Dockerfile"
+FIXTURE_ARM_LOCAL_LABEL="download-coverage/arm-local.Dockerfile"
 
 # ---------------------------------------------------------------------------
 # The readers.
@@ -262,10 +280,75 @@ FIXTURE_COPY_ABSENT="$FIXTURE_DIR/copy-absent.Dockerfile"
 # A comment line is dropped BEFORE the join, which is what the builder itself
 # does with a comment inside a RUN continuation — and it is why the URL written
 # in prose at the bottom of the fixture is not read as a download.
+#
+# ===========================================================================
+# IT FOLLOWS THE CASE ARM'S LOCALS, BECAUSE THE FETCH STOPPED SPELLING THE PIN
+# ===========================================================================
+#
+# With 1 sanctioned platform the `case` had nothing to choose, so every fetch
+# named its digest literally: `"${YQ_SHA256_AMD64}"` sat in the fetch-verified
+# argument list and a reader that matched that token in the command was enough.
+# With 2 platforms the arm chooses, so the arm sets `SHA256` and `SHA256_PIN`
+# and the fetch spells `"${SHA256}" "${SHA256_PIN}"`. The token is no longer in
+# the command.
+#
+# So this reader reported EVERY verified download in the repository as a helper
+# call that passes no digest — 39 of them, all correct. That is not a literal to
+# flip: the reader has to learn the shape, and the shape is the one `fetch_urls`
+# in _ctl/lib.sh already reads. Both are the same 3 functions on purpose. A
+# second shape here would be a second answer to "what does this fetch verify".
+#
+# It resolves a local ONLY where the linux/amd64 arm assigned it a
+# `${<TOOL>_SHA256_<ARCH>}` token. A general assignment-follower is a reader an
+# assignment can fool: `SHA256=deadbeef` in an arm would then read as a verified
+# download, and the whole rule is about what the helper COMPARES.
+#
+# The arm is read as the text between `linux/amd64)` and the `;;` that follows
+# it on the same logical line, which is why "a case arm stays on ONE line" is a
+# rule of this repository and not a taste. The scope resets at each RUN, so one
+# layer's SHA256 cannot answer for the next layer's fetch; a component .sh has
+# no RUN line, its case sits at the top of the file, and the scope it builds
+# reaches every fetch below it — which is exactly how those files are written.
 function fetch_sites() {
   local label="$1" file="$2"
   awk -v label="$label" '
-    function classify(text,   count, i, parts, part, url, state, digest) {
+    function reset_scope(   key) { for (key in scope) { delete scope[key] } }
+
+    function collect_scope(text,   rest, position, terminator, arm, count, index_of_word, words, name, value) {
+      rest = text
+      while ((position = index(rest, "linux/amd64)")) > 0) {
+        rest = substr(rest, position + 12)
+        terminator = index(rest, ";;")
+        if (terminator > 0) {
+          arm = substr(rest, 1, terminator - 1)
+          rest = substr(rest, terminator + 2)
+        } else {
+          arm = rest
+          rest = ""
+        }
+        count = split(arm, words, /[;[:space:]]+/)
+        for (index_of_word = 1; index_of_word <= count; index_of_word++) {
+          if (words[index_of_word] !~ /^[A-Za-z_][A-Za-z0-9_]*=/) { continue }
+          name = words[index_of_word]
+          sub(/=.*$/, "", name)
+          value = substr(words[index_of_word], length(name) + 2)
+          gsub(/^"|"$/, "", value)
+          gsub(/^'\''|'\''$/, "", value)
+          scope[name] = value
+        }
+      }
+    }
+
+    function resolve_digest_locals(text,   key, out) {
+      out = text
+      for (key in scope) {
+        if (scope[key] !~ /^\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}$/) { continue }
+        gsub("\\$\\{" key "\\}", scope[key], out)
+      }
+      return out
+    }
+
+    function classify(text,   count, i, parts, part, resolved, url, state, digest) {
       gsub(/&&/, "\n", text)
       gsub(/\|\|/, "\n", text)
       gsub(/;/, "\n", text)
@@ -285,11 +368,15 @@ function fetch_sites() {
         }
 
         digest = ""
-        if (match(part, /\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}/)) {
-          digest = substr(part, RSTART + 2, RLENGTH - 3)
+        resolved = resolve_digest_locals(part)
+        if (match(resolved, /\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}/)) {
+          digest = substr(resolved, RSTART + 2, RLENGTH - 3)
           if (state == "helper-without-digest") { state = "verified" }
         }
 
+        # The URL is matched in the ORIGINAL text. The record carries it exactly
+        # as the file writes it, ${ARCH} unexpanded, because that token is what
+        # a _build/download-exemptions.txt row keys on.
         url = "<no-url>"
         if (match(part, /https?:\/\/[^"'\''[:space:]\\]+/)) {
           url = substr(part, RSTART, RLENGTH)
@@ -306,13 +393,16 @@ function fetch_sites() {
       sub(/[[:space:]]+$/, "", line)
       if (line ~ /\\$/) {
         sub(/\\$/, "", line)
+        if (buffer == "" && line ~ /^[[:space:]]*RUN[[:space:]]/) { reset_scope() }
         buffer = buffer line " "
         next
       }
+      if (buffer == "" && line ~ /^[[:space:]]*RUN[[:space:]]/) { reset_scope() }
+      collect_scope(buffer line)
       classify(buffer line)
       buffer = ""
     }
-    END { if (buffer != "") { classify(buffer) } }
+    END { if (buffer != "") { collect_scope(buffer); classify(buffer) } }
   ' "$file"
 }
 
@@ -837,6 +927,79 @@ $(fetch_sites "download-coverage/component.sh" "$FIXTURE_COMPONENT")"
     "$fixture_sites" "prose-only.tar.gz" \
     "that URL appears only inside a comment, and base/Dockerfile writes URLs in prose too"
 
+  # -----------------------------------------------------------------------
+  # THE CASE-ARM LOCAL, watched in all 4 of its answers.
+  #
+  # This is the capability the widening cost, and no other fixture exercises
+  # it: with 1 sanctioned platform every fetch spelled its own pin, so the
+  # reader that shipped here reported all 39 verified downloads of the real
+  # tree as helper calls that pass no digest. The rule did not change; the
+  # SHAPE the rule reads did.
+  # -----------------------------------------------------------------------
+  if [[ ! -f "$FIXTURE_ARM_LOCAL" ]]; then
+    fail_check "counter_stimulus_the_arm_local_fixture_exists" \
+      "absent: ${FIXTURE_ARM_LOCAL}" \
+      "without it the local-following reader is a capability nobody has watched work"
+    fail_check "counter_stimulus_follows_a_case_arm_local_to_its_pin" "no fixture to read"
+    fail_check "counter_stimulus_is_not_fooled_by_a_non_digest_assignment" "no fixture to read"
+    fail_check "counter_stimulus_still_reads_a_fetch_that_names_its_pin_literally" "no fixture to read"
+    fail_check "counter_stimulus_the_arm_scope_does_not_leak_into_the_next_RUN" "no fixture to read"
+  else
+    pass_check "counter_stimulus_the_arm_local_fixture_exists"
+
+    arm_sites="$(fetch_sites "$FIXTURE_ARM_LOCAL_LABEL" "$FIXTURE_ARM_LOCAL")"
+
+    # 1. The arm assigned SHA256 a ${<TOOL>_SHA256_<ARCH>} token, so the fetch
+    #    that spells ${SHA256} is answered by ARMTOOL_SHA256_AMD64 — the pin
+    #    whose home, evidence and 64 hex digits every rule below can then check.
+    assert_contains "counter_stimulus_follows_a_case_arm_local_to_its_pin" \
+      "$arm_sites" "armtool-v\${ARMTOOL_VERSION}-linux-\${ARCH}.tar.gz|verified|ARMTOOL_SHA256_AMD64" \
+      "the pin name is nowhere in the fetch command; it is in the arm above it" \
+      "sites read:" "$arm_sites"
+
+    # 2. THE HALF THAT MAKES IT A READER AND NOT A GUESS. The arm assigns a bare
+    #    hex string, no pin answers for that download, and a general
+    #    assignment-follower would call it verified. `helper-without-digest` is
+    #    the only honest answer.
+    assert_contains "counter_stimulus_is_not_fooled_by_a_non_digest_assignment" \
+      "$arm_sites" "fooltool-v\${FOOLTOOL_VERSION}-linux-\${ARCH}.tar.gz|helper-without-digest|" \
+      "SHA256=<64 hex> in an arm is a value no home declares and no bump can move," \
+      "so a reader that resolved it would report coverage of a pin that does not exist" \
+      "sites read:" "$arm_sites"
+
+    # 3. The old shape still reads. A _NOARCH asset has nothing to choose, so it
+    #    keeps naming its pin in the fetch itself, and both shapes live in the
+    #    real tree today.
+    assert_contains "counter_stimulus_still_reads_a_fetch_that_names_its_pin_literally" \
+      "$arm_sites" "literaltool-v\${LITERALTOOL_VERSION}.tar.gz|verified|LITERALTOOL_SHA256_NOARCH" \
+      "sites read:" "$arm_sites"
+
+    # 4. The scope resets at the RUN. A layer that spells ${SHA256} and sets it
+    #    nowhere would compare against the empty string at build time; read as
+    #    ARMTOOL's digest it would look answered by a pin that has nothing to do
+    #    with it, which is worse than unanswered because nothing would report it.
+    assert_contains "counter_stimulus_the_arm_scope_does_not_leak_into_the_next_RUN" \
+      "$arm_sites" "orphantool-v\${ORPHANTOOL_VERSION}.tar.gz|helper-without-digest|" \
+      "layer 1 of the fixture sets SHA256 from a real pin and no later arm reassigns that" \
+      "name, so this record is what a leaking scope would turn into ARMTOOL_SHA256_AMD64" \
+      "sites read:" "$arm_sites"
+
+    # 5. ONE ARM, TWO TOOLS. _delta/components/protocols.sh is exactly this
+    #    shape, and it is why the locals there carry the tool's name. Each fetch
+    #    must be answered by ITS OWN pin: a reader that took "the digest of this
+    #    arm" would hand the first tool's digest to the second and report full
+    #    coverage while the build compared the wrong bytes.
+    assert_contains "counter_stimulus_one_arm_two_tools_answers_the_first_with_its_own_pin" \
+      "$arm_sites" "paira-v\${PAIRA_VERSION}.tar.gz|verified|PAIRA_SHA256_AMD64" \
+      "sites read:" "$arm_sites"
+
+    assert_contains "counter_stimulus_one_arm_two_tools_answers_the_second_with_its_own_pin" \
+      "$arm_sites" "pairb-v\${PAIRB_VERSION}.tar.gz|verified|PAIRB_SHA256_AMD64" \
+      "this is the half that fails when a reader keeps 1 digest per arm, and it fails" \
+      "SILENTLY: the record still says verified, it just names the wrong pin" \
+      "sites read:" "$arm_sites"
+  fi
+
   # The unclassified direction — the defect this whole file exists for.
   fixture_unclassified="$(keys_absent_from "$(sites_in_state "$fixture_sites" "plain")" "$fixture_row_keys")"
   assert_contains "counter_stimulus_reports_the_download_that_nobody_answered" \
@@ -919,7 +1082,7 @@ else
 
   assert_equal "counter_stimulus_leaves_the_sanctioned_vocabulary_alone" \
     "" "$(bad_vocabulary "$good_references")" \
-    "_SHA256_AMD64 and _SHA256_NOARCH are the vocabulary, so neither may be reported"
+    "${DIGEST_SUFFIXES_TEXT} are the vocabulary, so none of them may be reported"
 
   assert_contains "counter_stimulus_reports_the_digest_that_lives_in_no_home" \
     "$(home_mismatches "$bad_references" "$bad_home")" "HOMELESS_SHA256_AMD64" \
@@ -1305,8 +1468,9 @@ else
     "these digest names sit outside the 1 vocabulary:" \
     "$vocabulary_violations" \
     "the vocabulary is: ${DIGEST_SUFFIXES_TEXT}" \
-    "SANCTIONED_PLATFORMS is linux/amd64 alone, so a second arch spelling names a platform" \
-    "nothing builds, and a digest nothing compares is a check that cannot fail"
+    "it names the PLATFORM and never the upstream asset spelling — a row spelled" \
+    "_X86_64 or _AARCH64 is a second vocabulary for a platform that already has one," \
+    "and the second is where a pin hides from every reader that knows the first"
 fi
 
 home_report="$(home_mismatches "$REAL_REFERENCES" "${VALUE_HOMES[@]}")"
