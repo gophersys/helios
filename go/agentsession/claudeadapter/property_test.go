@@ -45,12 +45,17 @@ func TestProperty_NormalizeIsDeterministic(t *testing.T) {
 	})
 }
 
-// TestProperty_ResultLedgerFaithfulAndBounded asserts the terminal ledger the normalizer
-// builds from a result line is a faithful, bounded projection of the wire usage: every
-// token kind equals the reported count (never negative, never invented), the cost is
-// EXACTLY round(usd*1e6) with no float drift, and the success subtype determines the
-// terminal Kind (Result vs Failed). This is the FinOps-load-bearing invariant — the ledger
-// is the authoritative spend record.
+// TestProperty_ResultLedgerFaithfulAndBounded asserts the ledger the normalizer builds from a
+// result line is a faithful, bounded projection of the wire usage: every token kind equals the
+// reported count (never negative, never invented), the cost is EXACTLY round(usd*1e6) with no
+// float drift, and the subtype determines the BOUNDARY the line draws. This is the
+// FinOps-load-bearing invariant — the ledger is the authoritative spend record.
+//
+// Re-pinned for contract revision R1: a SUCCESS result is a TURN boundary over the whole
+// generated space (non-terminal, rendering the "turn-end" token, still carrying the full
+// ledger), while an ERROR result stays a SESSION terminal (EventFailed). Asserting it as a
+// property rather than on one fixture is what stops the fix from being special-cased to the
+// committed sample: EVERY well-formed success result must be a turn boundary.
 func TestProperty_ResultLedgerFaithfulAndBounded(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
@@ -84,16 +89,10 @@ func TestProperty_ResultLedgerFaithfulAndBounded(t *testing.T) {
 			rt.Fatalf("result line must yield exactly one terminal event, got %d", len(events))
 		}
 		ev := events[0]
-		if !ev.IsTerminal() || ev.Terminal == nil {
-			rt.Fatalf("result line must be terminal with a payload, got kind %v", ev.Kind)
+		if ev.Terminal == nil {
+			rt.Fatalf("result line must carry a TerminalPayload, got kind %v", ev.Kind)
 		}
-		wantKind := agentsession.EventResult
-		if !success {
-			wantKind = agentsession.EventFailed
-		}
-		if ev.Kind != wantKind {
-			rt.Fatalf("subtype %q -> kind %v, want %v", subtype, ev.Kind, wantKind)
-		}
+		assertResultBoundary(rt, &ev, success, subtype)
 		l := ev.Terminal.Ledger
 		assertNonNegativeTokens(rt, &l)
 		if l.InputTokens != int64(in) || l.OutputTokens != int64(out) ||
@@ -112,6 +111,29 @@ func TestProperty_ResultLedgerFaithfulAndBounded(t *testing.T) {
 			rt.Fatalf("ledger harness = %q, want claude-code", l.Harness)
 		}
 	})
+}
+
+// assertResultBoundary asserts which BOUNDARY a result line draws (contract revision R1): a
+// success result ends the TURN and leaves the session alive; an error result ends the SESSION.
+// The turn-end kind is identified by its stable token rather than by its constant, so this file
+// compiles against the pre-R1 tree and the failure is behavioural.
+func assertResultBoundary(rt *rapid.T, ev *agentsession.Event, success bool, subtype string) {
+	if !success {
+		if !ev.IsTerminal() {
+			rt.Fatalf("subtype %q: an error result must stay a SESSION terminal, got non-terminal kind %v", subtype, ev.Kind)
+		}
+		if ev.Kind != agentsession.EventFailed {
+			rt.Fatalf("subtype %q -> kind %v, want %v", subtype, ev.Kind, agentsession.EventFailed)
+		}
+		return
+	}
+	if ev.IsTerminal() {
+		rt.Fatalf("subtype %q: a success result is a TURN boundary, not a session terminal (kind %v); one claude process emits one result PER TURN",
+			subtype, ev.Kind)
+	}
+	if got := ev.Kind.String(); got != "turn-end" {
+		rt.Fatalf("subtype %q: a success result must render the turn-end token, got %q", subtype, got)
+	}
 }
 
 // TestProperty_UnknownTypeIsVerbatimExtension asserts that ANY line whose top-level type

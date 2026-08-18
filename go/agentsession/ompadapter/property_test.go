@@ -86,10 +86,15 @@ func TestProperty_UnknownFrameSurvivesVerbatim(t *testing.T) {
 
 // TestProperty_TerminalLedgerAccountsTokensAndCost asserts the ledger accounting invariant over
 // the four-token + USD-cost space: an agent_end whose final assistant message carries a usage
-// block folds to an EventResult whose TokenLedger reproduces the four token kinds EXACTLY and
+// block folds to a boundary event whose TokenLedger reproduces the four token kinds EXACTLY and
 // converts the USD cost to micro-units with the documented round-to-nearest rule and NO float
 // drift across the whole cost range. This is the FinOps-load-bearing path (ADR-0008 routing
 // economics are MEASURED here).
+//
+// Re-pinned for contract revision R1: a CLEAN agent_end is a TURN boundary over the whole
+// generated space — non-terminal, rendering the "turn-end" token, still carrying the full
+// authoritative ledger. Asserting it as a property rather than on one fixture is what stops the
+// fix from being special-cased to the committed sample.
 func TestProperty_TerminalLedgerAccountsTokensAndCost(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
@@ -108,8 +113,17 @@ func TestProperty_TerminalLedgerAccountsTokensAndCost(t *testing.T) {
 			rt.Fatalf("agent_end produced %d events, want 1 terminal: %q", len(events), line)
 		}
 		ev := events[0]
-		if ev.Kind != agentsession.EventResult {
-			rt.Fatalf("terminal Kind = %s, want result (line %q)", ev.Kind, line)
+		if ev.Terminal == nil {
+			rt.Fatalf("agent_end must carry a TerminalPayload, got kind %s (line %q)", ev.Kind, line)
+		}
+		// R1: a clean agent_end ends the TURN, not the session. The kind is identified by its
+		// stable token rather than by its constant, so this file compiles against the pre-R1
+		// tree and the failure is behavioural.
+		if ev.IsTerminal() {
+			rt.Fatalf("a clean agent_end is a TURN boundary, not a session terminal (kind %s); one omp process serves many turns (line %q)", ev.Kind, line)
+		}
+		if got := ev.Kind.String(); got != "turn-end" {
+			rt.Fatalf("a clean agent_end must render the turn-end token, got %q (line %q)", got, line)
 		}
 		ledger := ev.Terminal.Ledger
 		if ledger.InputTokens != in || ledger.OutputTokens != out ||
