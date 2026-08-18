@@ -1,10 +1,10 @@
 # mktemp-gnu-template
 
-phase:    fix
+phase:    wait
 repo:     gophersys/eden
 branch:   fix/mktemp-gnu-template
 worktree: ~/code/.worktrees/eden-mktemp-gnu-template
-pr:       -
+pr:       11
 attempt:  1/2
 
 ## Goal
@@ -117,4 +117,6 @@ manual dispatch). It becomes PR-2's input. R2-3/R2-4 (scope sentences, stricter-
 GNU note) + the 4x-retold narrative trim land in the post-review cleanup pass.
 
 ## Next
-R2-2 fix (implementer), then phase 5: open the PR.
+Phase 6: watch PR #11 checks (read logs, fast-green-is-not-green); pr-review verdict as
+its own read; post-review cleanup pass (R2-3, R2-4, narrative trim in test header);
+re-run gates; delete this file in the last commit; merge --merge; worktree remove.
