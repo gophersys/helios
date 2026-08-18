@@ -137,6 +137,9 @@ ARG OMP_VERSION
 ARG CODEX_VERSION
 
 # Non-root dev user identity.
+# DL3064's secret-name heuristic fires on 'USERNAME'. This is a username
+# LITERAL, not a credential. Ledger #105 owns the deeper zsh-$USERNAME trap.
+# hadolint ignore=DL3064
 ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=1000
@@ -582,6 +585,9 @@ RUN case "${TARGETPLATFORM}" in \
 # Convenience: path shims for zsh so interactive logins see all of the
 # installed toolchains without per-user config. No cargo path: Rust moved to
 # the category deltas that need it.
+# The single quotes are the point: these lines are WRITTEN to a file, and
+# $PATH must expand when zsh SOURCES it, never while this layer builds.
+# hadolint ignore=SC2016
 RUN { \
       echo '# Set by gophersys/cloud Dockerfile.'; \
       echo 'export PATH=/home/dev/.local/bin:/home/dev/go-sdk/bin:/home/dev/go/bin:/usr/local/lib/docker/cli-plugins:${PATH}'; \

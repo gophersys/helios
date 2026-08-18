@@ -191,8 +191,8 @@ function hadolint_resolve() {
 function hadolint_at_pin() {
   local mode="$1" pin="$2" file="$3"
   case "$mode" in
-    host)      hadolint "$file" ;;
-    container) docker run --rm -v "$(dirname "$file"):/w:ro" -w /w "hadolint/hadolint:v${pin}" hadolint "$(basename "$file")" ;;
+    host)      hadolint --config "$PROJECT_ROOT/.hadolint.yaml" "$file" ;;
+    container) docker run --rm -v "$(dirname "$file"):/w:ro" -v "$PROJECT_ROOT/.hadolint.yaml:/hadolint.yaml:ro" -w /w "hadolint/hadolint:v${pin}" hadolint --config /hadolint.yaml "$(basename "$file")" ;;
     *)         log_error "hadolint_at_pin: unknown mode '${mode}'"; return 1 ;;
   esac
 }
