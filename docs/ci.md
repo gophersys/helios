@@ -146,6 +146,16 @@ Without either, KiCad-dependent tests skip with a reason naming the missing tool
   it is only ever read. Closing this means writing that generator and adding an
   extraction step (cacheable, since the corpus is pinned). Until then those nine tests
   run nowhere, which the named skip makes visible instead of silent.
+- **Live Claude CLI tests never run in CI.** `tests/test_e2e_novel_mcu.py` (ESP32-C6
+  datasheet extraction, which deliberately has no hardcoded fallback) and
+  `tests/test_cluster_label.py` shell out to `claude --print`. The org image *ships* the
+  CLI at `/home/dev/.local/bin/claude` but carries no credentials, so it answers
+  "Not logged in" and exits 1. They are marked `requires_claude`; `conftest.py` probes
+  whether the CLI can actually answer and skips with that probe's own words. Under the
+  retired image the CLI was absent entirely, so these tests had always skipped — CI
+  signal is unchanged, the reason is now truthful. Closing this gap means giving the job
+  an Anthropic credential and accepting a live, paid, non-hermetic call per run: Mateo's
+  call, not a default.
 - No branch protection is enforced yet; `ci` should be made a required check on `main`
   once it has a green history.
 - `maxRunners: 4` is shared org-wide. A busy org queues this repo's jobs; the workflow

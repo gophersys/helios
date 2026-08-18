@@ -1,14 +1,24 @@
 """Label subcircuit clusters using Claude CLI."""
 
 import json
+import shutil
 import subprocess
 from pathlib import Path
 
-CLAUDE_CLI = "/home/mateo/.local/bin/claude"
+# Resolved from PATH, never a hardcoded location — the same rule as kicad-cli
+# (.claude/rules/00-essential.md). The previous literal
+# /home/mateo/.local/bin/claude existed on no machine this code runs on: not on
+# macOS (home is /Users/mateo), not in the devcontainer or CI image (/home/dev),
+# so every call raised FileNotFoundError from subprocess.
+CLAUDE_CLI = shutil.which("claude")
 
 
 def label_cluster(cluster: dict) -> str:
     """Call Claude CLI to generate a short label for a subcircuit cluster."""
+    if CLAUDE_CLI is None:
+        raise FileNotFoundError(
+            "claude not found on PATH — install the Claude CLI to label clusters."
+        )
     components = ", ".join(cluster["canonical_components"])
     examples = ", ".join(cluster.get("example_projects", [])[:3])
     prompt = (
