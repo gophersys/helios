@@ -1,0 +1,39 @@
+name: fixture-scan-deadline-default
+
+# A FIXTURE, not a workflow. See good-nightly.yml.
+#
+# The scan that takes trivy's DEFAULT deadline, which is the production failure
+# this rule exists for. Trivy defaults to 5m; on 2026-08-18 all 5 legs of run
+# 32121496607 died against it with the same `context deadline exceeded` and
+# trivy's own "Provide a higher timeout value" WARN beside it. No CVE was
+# involved — the CRITICAL gate never got to run — and the whole suite was green,
+# because nothing here read the flag that was missing.
+#
+# The ONLY --timeout in this file is inside THIS COMMENT: `--timeout 20m`. A
+# detector that reads prose calls this file timed, and the rule then passes on
+# the one shape it exists for.
+#
+# The job ceiling below is correct and generous, which is the second half of the
+# same lesson: a JOB limit is not a SCAN limit. 30 minutes of job budget does
+# nothing about a scanner that gives up at 5 and exits with a log nobody reads.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    timeout-minutes: 30
+    runs-on: arc-build
+    steps:
+      - name: scan the image
+        run: |
+          trivy image \
+            --severity CRITICAL \
+            --exit-code 1 \
+            --ignorefile .ci/trivyignore.yaml \
+            ghcr.io/gophersys/base:latest

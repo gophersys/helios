@@ -1,0 +1,50 @@
+name: fixture-scan-deadline-malformed
+
+# A FIXTURE, not a workflow. See good-nightly.yml.
+#
+# Two scans that NAME the flag and still take no deadline from it. This is why
+# the rule parses the VALUE instead of grepping the flag: both jobs below
+# satisfy `grep -- --timeout` and neither one gives trivy a working budget.
+#
+#   0m   a deadline that is already spent. The flag is present, the diff looks
+#        like a fix, and the context expires the moment the scan starts.
+#   20   not a Go duration. Trivy parses this argument with time.ParseDuration,
+#        which rejects a unitless number — so the failure is an argument error
+#        at 09:00 UTC, in a job with no author watching it.
+#
+# Both jobs carry a correct job ceiling, so the margin rule has nothing to say
+# about them. The 2 rules are independent and this file proves the first one
+# alone.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  zero-deadline:
+    timeout-minutes: 30
+    runs-on: arc-build
+    steps:
+      - name: scan with a deadline that is already spent
+        run: |
+          trivy image \
+            --timeout 0m \
+            --severity CRITICAL \
+            --exit-code 1 \
+            ghcr.io/gophersys/base:latest
+
+  unitless-deadline:
+    timeout-minutes: 30
+    runs-on: arc-build
+    steps:
+      - name: scan with a number that is not a duration
+        run: |
+          trivy image \
+            --timeout 20 \
+            --severity CRITICAL \
+            --exit-code 1 \
+            ghcr.io/gophersys/base:latest

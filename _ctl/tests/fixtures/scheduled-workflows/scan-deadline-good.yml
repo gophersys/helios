@@ -1,0 +1,55 @@
+name: fixture-scan-deadline-good
+
+# A FIXTURE, not a workflow. See good-nightly.yml.
+#
+# The QUIET direction of the scan-deadline rule, in both spellings the same
+# policy takes. Every scanning job here names an explicit, positive --timeout
+# and gives itself a job ceiling that clears it with room. The `notify` job runs
+# no scan and must never be asked for either number: a detector that demanded a
+# scan deadline of it would make the rule impossible to satisfy, and the first
+# person to hit it would delete it.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    timeout-minutes: 30
+    runs-on: arc-build
+    steps:
+      - name: scan the image
+        run: |
+          trivy image \
+            --timeout 20m \
+            --severity CRITICAL \
+            --exit-code 1 \
+            --ignorefile .ci/trivyignore.yaml \
+            ghcr.io/gophersys/base:latest
+
+  scan-through-the-action:
+    timeout-minutes: 30
+    runs-on: arc-build
+    steps:
+      # The action input, which is the other spelling of the same policy. A
+      # reader that only knew the CLI flag would report this job as a scan with
+      # no deadline, and the fix for that report would be to delete the rule.
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ghcr.io/gophersys/base:latest
+          severity: CRITICAL
+          exit-code: "1"
+          timeout: 20m
+
+  notify:
+    if: ${{ !cancelled() }}
+    needs: [scan, scan-through-the-action]
+    runs-on: arc-build
+    steps:
+      - name: file the failure
+        if: ${{ failure() }}
+        run: bash .ci/notify-failure.sh "the nightly scan failed"
