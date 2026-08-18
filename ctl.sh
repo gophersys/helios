@@ -367,7 +367,8 @@ function cmd_test() {
   return "$rc"
 }
 
-# Validate: shellcheck every shell script, jq every project.json, hold every
+# Validate: shellcheck every shell script, assert every per-image ctl.sh the
+# manifest names is executable, jq every project.json, hold every
 # devcontainer.json to its 4 contract properties, hadolint every Dockerfile,
 # refuse Dockerfiles that hardcode a semver-shaped version inside a RUN line
 # instead of threading an ARG, and refuse a ${USERNAME} that a zsh RUN layer
@@ -400,6 +401,18 @@ function cmd_validate() {
 
   for name in "${BUILD_ORDER[@]}"; do
     dir="$(image_dir "$name")"
+
+    # A dispatcher's MODE is not something shellcheck can see. It reads the file
+    # and says nothing about the executable bit, so a per-image ctl.sh committed
+    # 100644 passes every check here and dies in image_ctl instead — which runs
+    # AFTER the push. hardware/ctl.sh shipped that way (run 32133161779):
+    # :latest and :<sha> were published, then `verify-published` failed on the
+    # mode, leaving 2 tags that no verb could read back.
+    if [[ ! -x "$dir/ctl.sh" ]]; then
+      log_error "${name}/ctl.sh: missing or non-executable — image_ctl refuses it, so every per-image verb of ${name} fails"
+      log_error "chmod +x ${name}/ctl.sh — git records the mode, and the sibling dispatchers are all 100755"
+      rc=1
+    fi
 
     log_info "jq parse: ${name}/project.json"
     jq empty "$dir/project.json" || rc=1
@@ -501,9 +514,9 @@ Repo-wide commands:
   base-currency [reference]        Assert the registry still holds the digest
                                    UBUNTU_BASE_REF pins (default ubuntu:24.04)
   list                             Print managed image refs
-  validate                         shellcheck, jq, devcontainer.json contract,
-                                   hadolint, ARG-discipline checks, the
-                                   zsh-\$USERNAME trap
+  validate                         shellcheck, per-image ctl.sh executability,
+                                   jq, devcontainer.json contract, hadolint,
+                                   ARG-discipline checks, the zsh-\$USERNAME trap
   test                             Run every _ctl/tests/*.test.sh
   help                             Show this message
 EOF

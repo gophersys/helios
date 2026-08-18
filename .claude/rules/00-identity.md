@@ -100,6 +100,20 @@ that it runs inside.
    every other verb to `image_main`. `base/ctl.sh` does this for the
    devcontainer lifecycle verbs.
 
+   **A dispatcher is EXECUTABLE, and `validate` is what holds it there.**
+   `image_ctl` in the root `ctl.sh` refuses a per-image `ctl.sh` that is not
+   `-x`, so a file committed 100644 makes every per-image verb of that image
+   fail. Nothing caught it before this gate: `validate` shellchecks the file by
+   READING it, and a reader is blind to the mode. `hardware/ctl.sh` shipped that
+   way (run `32133161779`) — the publish job pushed `:latest` and `:8af73ec`,
+   and then `verify-published` died on the mode, which is the ordering the whole
+   build → smoke → push rule exists to avoid: the check that could have stopped
+   it ran after the irreversible action. The check derives its list from
+   `images.yaml` like every other loop in `cmd_validate`, so a directory that is
+   not an image of the manifest is not held to it —
+   `_ctl/tests/fixtures/no-platform-list/ctl.sh` is a dispatcher-shaped fixture
+   and not an image.
+
    **`runner/` was the 1 exception, and it is DELETED.** See "The `+ runner`
    layer is retired" below. There is no exception to this rule any more: every
    directory the rule names is an image of `images.yaml`, and `image_dir()` in
@@ -1003,7 +1017,7 @@ operator can find.
 | `inspect <image>` | Delegate to per-image `ctl.sh inspect` |
 | `base-currency [reference]` | Assert the registry still holds the digest `UBUNTU_BASE_REF` pins |
 | `list` | Print the managed image refs |
-| `validate` | shellcheck every shell script, jq, the `devcontainer.json` contract, hadolint at the pinned version, ARG-discipline checks, the zsh-`$USERNAME` trap |
+| `validate` | shellcheck every shell script, assert every per-image `ctl.sh` the manifest names is executable, jq, the `devcontainer.json` contract, hadolint at the pinned version, ARG-discipline checks, the zsh-`$USERNAME` trap |
 | `test` | Run every `_ctl/tests/*.test.sh`; fail if it finds none |
 | `help` | Usage |
 
