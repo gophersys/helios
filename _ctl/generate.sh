@@ -100,7 +100,7 @@ REHEARSAL_GATE="\${{ steps.filter.outputs.build == 'true' && inputs.mode == 'reh
 
 # The prose of each job, as a stream of `<<<image/key>>>` blocks. Read once, for
 # the reason image_records gives: on the container route each parse is a docker
-# run, and this generator asks about 5 images.
+# run, and this generator asks about 6 images.
 _NOTES=""
 _NOTES_LOADED=""
 

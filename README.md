@@ -251,7 +251,7 @@ WITHIN the policy, wider would replace it.
 |---|---|
 | `build` | `docker build --platform "$IMAGE_PLATFORMS"`. The `--platform` is explicit: a bare `docker build` targets the HOST, which on an Apple Silicon Mac is not the platform that gets published. It takes 1 platform, so with 2 sanctioned the local loop names the one it wants: `IMAGE_PLATFORMS=linux/arm64 bash ./ctl.sh build base`. |
 | `push` | `docker buildx build --platform "$IMAGE_PLATFORMS" --push`. The guard `require_buildx_and_platforms` runs at the start of the verb. |
-| `verify-published [tag]` | Read the manifest the registry holds and assert it carries exactly the sanctioned set. |
+| `verify-published [tag]` | Read the manifest the registry holds and assert it carries exactly `$IMAGE_PLATFORMS` — the image's OWN set, which is the sanctioned set unless `images.yaml` narrows it. A platform the image does not publish is refused too, so the rule is equality and not "at least". |
 
 The guard is in `_ctl/lib.sh`, 1 time only, and each per-image `push` calls it.
 It fails closed in 5 conditions: a platform outside the sanctioned set, an empty

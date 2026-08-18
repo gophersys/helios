@@ -380,7 +380,7 @@ function manifest_yq() {
 # name that exists nowhere, caught only when a publish job runs.
 #
 # Read ONCE per process and cached. Every accessor below answers out of the
-# cache, so a script that asks about all 5 images spends 1 parse and not 30 —
+# cache, so a script that asks about all 6 images spends 1 parse and not 30 —
 # which matters on the container route, where each parse is a docker run.
 _IMAGES_RECORDS=""
 _IMAGES_RECORDS_LOADED=""
@@ -1444,7 +1444,7 @@ function image_push() {
 function image_verify_published() {
   require_buildx
   require_cmd jq
-  # The set this image PUBLISHES, which is the sanctioned set for 4 of the 5 and
+  # The set this image PUBLISHES, which is the sanctioned set for 5 of the 6 and
   # the manifest's narrower list for the 1 exception. Comparing every image
   # against the sanctioned set would report flutter — correctly amd64-only,
   # because Flutter publishes no linux-arm64 SDK — as a broken publish forever.

@@ -111,7 +111,7 @@
 #               _ctl/generate.sh wraps each line in `# ` at the right indent. An
 #               absent key emits no comment. Everything a job says that is TRUE
 #               OF EVERY JOB is in the generator's template instead, which is
-#               what stops the 5 jobs from drifting apart again.
+#               what stops the 6 jobs from drifting apart again.
 
 images:
   base:

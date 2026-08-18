@@ -288,7 +288,7 @@ function devcontainer_files() {
 # The 4 are the contract .claude/rules/00-identity.md states — the published ref,
 # the `dev` user (uid 1000, sudo-nopasswd), and /workspace, which is Eden's
 # bind-mount convention. postCreateCommand is deliberately NOT a 5th: exactly 1
-# of the 5 files declares it and the other 4 must not, so agreement is the wrong
+# of the 6 files declares it and the other 5 must not, so agreement is the wrong
 # property here. That document's dev-in-container section gives the reason per
 # image.
 function check_devcontainer_json() {

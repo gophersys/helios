@@ -38,6 +38,12 @@
 #                  it, because it took the name from its own argv.
 #   SMOKE_FIXTURE_DIR  where the driver wrote the embedded fixtures. A group that
 #                  needs them FAILS naming the file it could not find.
+#   SMOKE_KICAD_ROOT  the root of the KiCad share tree the content-hardware
+#                  floors count under. Optional, and the default is the image's
+#                  own /usr/share/kicad, so a real run never sets it. It is a
+#                  TEST SEAM: an absolute path is drivable only from inside a
+#                  built image, so the branch that reports a thin library had no
+#                  hermetic stimulus until this name existed.
 #
 # The extractor field, and why the default is not enough on its own:
 #
@@ -573,12 +579,22 @@ function kicad_library_floor() {
 # GUI package and a headless invocation is the thing this image exists to
 # provide, so "it executes" and "it is the pinned major" are 2 questions and each
 # is asked once.
+#
+# SMOKE_KICAD_ROOT is the SEAM, and the default is the image's own path, so a
+# real run is byte-identical to the one before this variable existed. It exists
+# because the 3 floors were untestable: an absolute path can only be driven from
+# inside a built image, so the branch that REPORTS a thin library had no
+# hermetic stimulus and the harness had to say so in writing. With the root as a
+# variable the suite points it at a fixture tree and drives all 3 branches —
+# absent directory, under the floor, over it. A check nothing can make fail is
+# not a check that passed.
 function checks_content_hardware() {
+  local kicad_root="${SMOKE_KICAD_ROOT:-/usr/share/kicad}"
   say "--- hardware content ---"
   run_step "kicad-cli" kicad-cli version
-  kicad_library_floor "kicad footprints" /usr/share/kicad/footprints '*.kicad_mod' 10000
-  kicad_library_floor "kicad symbol libraries" /usr/share/kicad/symbols '*.kicad_sym' 100
-  kicad_library_floor "kicad STEP models" /usr/share/kicad/3dmodels '*.step' 1000
+  kicad_library_floor "kicad footprints" "${kicad_root}/footprints" '*.kicad_mod' 10000
+  kicad_library_floor "kicad symbol libraries" "${kicad_root}/symbols" '*.kicad_sym' 100
+  kicad_library_floor "kicad STEP models" "${kicad_root}/3dmodels" '*.step' 1000
 }
 
 # sdk_toolchain_gcc <name> — the gcc of a Zephyr SDK toolchain, wherever this
