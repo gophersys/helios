@@ -1,7 +1,8 @@
 # Cluster-scoped orchestrator RBAC for Eden (the create-project-namespace
 # authority) — platform project on purpose (see apps/eden/rbac-cluster/rbac.yaml).
 # The `apps` AppProject is namespace-scoped and cannot grant a ClusterRole, so a
-# platform-project Application applies it, exactly like app-workspaces-rbac.
+# platform-project Application applies it — granting rights ACROSS a project
+# boundary is a platform decision, never the requesting app's own.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

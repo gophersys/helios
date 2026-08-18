@@ -1,5 +1,6 @@
-# Owns the long-lived workspaces-prod Namespace (platform project — same
-# rationale as app-embedded-namespace.yaml).
+# Owns the long-lived workspaces-prod Namespace (platform project: a
+# namespace-scoped AppProject cannot create the cluster-scoped Namespace
+# object, so a platform-project Application owns it, prune:false).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

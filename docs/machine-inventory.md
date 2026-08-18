@@ -72,14 +72,11 @@ tailnet.
 
 ## Temporary devices
 
-| Device | Tailnet | Notes |
-| --- | --- | --- |
-| `zephyr-nucleo-bringup` | `100.76.193.42` | Zephyr devbox pod, USB passthrough on `k3s-w-4` |
-| `zephyr-zephyr-libs` | `100.106.109.58` | the same |
-
-The `zephyr-envs` ApplicationSet creates and destroys them, and the Tailscale
-operator gives each one its own MagicDNS name. They are not machines. Do not
-declare them.
+None today. The two Zephyr devbox pods (`zephyr-nucleo-bringup`,
+`zephyr-zephyr-libs`) were removed 2026-08-18 with the whole `embedded-lab`
+stack; their tailnet nodes died with their Services. The pattern stands: a
+pod the Tailscale operator exposes gets its own MagicDNS name, is not a
+machine, and is never declared here.
 
 ## Declared but NOT on the tailnet
 

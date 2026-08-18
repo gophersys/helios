@@ -1,7 +1,7 @@
 # Owns the long-lived `eden` Namespace (platform project — same rationale as
-# app-workspaces-namespace.yaml / app-embedded-namespace.yaml: a namespace-scoped
-# project cannot create the cluster-scoped Namespace object, so a platform-project
-# Application does). prune:false so a bad sync can never delete the namespace.
+# app-workspaces-namespace.yaml: a namespace-scoped project cannot create the
+# cluster-scoped Namespace object, so a platform-project Application does).
+# prune:false so a bad sync can never delete the namespace.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

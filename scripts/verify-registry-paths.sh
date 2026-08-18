@@ -69,7 +69,7 @@ for f in "$REGISTRY"/*.yaml; do
         skipped=$((skipped + 1)); continue ;;
     esac
     # An ApplicationSet git directory generator uses a glob on purpose
-    # (apps/embedded/envs/* — one Application per directory). A glob passes when
+    # (one Application per matching directory). A glob passes when
     # it matches at least one thing; a glob matching nothing is a dead generator
     # and worth failing on, because it looks identical to a working one.
     case "$path" in
