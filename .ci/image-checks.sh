@@ -597,6 +597,54 @@ function checks_content_hardware() {
   kicad_library_floor "kicad STEP models" "${kicad_root}/3dmodels" '*.step' 1000
 }
 
+# The ui image, and the 4 things no version comparison can say about it.
+#
+# The VERSION is deliberately not compared here: CHROME_MAJOR_VERSION is an
+# `asserted` row of the driver's table, and that row already reads the browser
+# through ${DENSUI_CHROME}. What this group adds is why, when it breaks — an
+# unset variable, a dangling symlink, a missing font and a PATH are 4 different
+# defects and "sh exited 127" names none of them.
+#
+# THE TOOLCHAIN PAIR IS THE POINT OF THIS GROUP. node, npm and uv are on the
+# image's ENV PATH, so a check that ran only as the container's own user stays
+# GREEN with the /usr/local/bin exposure deleted — and that exposure is the whole
+# reason this image carries no second Node. `sudo` is the second reader, because
+# it replaces PATH with sudoers' secure_path, which is the same reset
+# /etc/profile makes in every LOGIN shell — and `bash -lc` is how the consumer's
+# gates invoke themselves. Both of those PATHs hold /usr/local/bin and neither
+# holds /home/dev/.nvm, so the pair fails exactly when the symlinks are gone.
+function checks_content_ui() {
+  say "--- ui content ---"
+  say "architecture: $(uname -m)"
+  local browser="${DENSUI_CHROME:-}"
+  if [[ -z "$browser" ]]; then
+    fail "DENSUI_CHROME is not set: densui probe.py treats that the same as an empty value and searches for a browser of its own, so a gate can pass without ever using the one this image baked"
+  elif [[ ! -x "$browser" ]]; then
+    fail "DENSUI_CHROME is ${browser}, and there is no executable there"
+  else
+    say "ok   DENSUI_CHROME = ${browser}"
+  fi
+  local font="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+  if [[ -f "$font" ]]; then
+    say "ok   fallback font: ${font}"
+  else
+    fail "the fallback font ${font} is not in this image, so a layout that is COMPUTED from font metrics has nothing to measure off macOS"
+  fi
+  # An ENV and not a tool, and it is asserted for the reason it exists: without
+  # it a piped gate block-buffers, and 9.5 silent minutes read as a stall and got
+  # cancelled once.
+  if [[ "${PYTHONUNBUFFERED:-}" == "1" ]]; then
+    say "ok   PYTHONUNBUFFERED = 1"
+  else
+    fail "PYTHONUNBUFFERED is '${PYTHONUNBUFFERED:-}' and not 1, so a gate that pipes its output buffers it and a slow step is indistinguishable from a hung one"
+  fi
+  local tool
+  for tool in node npm uv; do
+    run_step "${tool} (this user)" "$tool" --version
+    run_step "${tool} (root, through sudo's secure_path)" sudo "$tool" --version
+  done
+}
+
 # sdk_toolchain_gcc <name> — the gcc of a Zephyr SDK toolchain, wherever this
 # SDK release puts it. It prints nothing when there is none, and the caller
 # turns that into a FAILURE.
@@ -682,6 +730,7 @@ function run_functional_groups() {
       content-zephyr) checks_content_zephyr ;;
       content-devbox) checks_content_devbox ;;
       content-hardware) checks_content_hardware ;;
+      content-ui)     checks_content_ui ;;
       *) fail "unknown check group: '${group}' — .ci/smoke.sh named a group this file does not have" ;;
     esac
   done

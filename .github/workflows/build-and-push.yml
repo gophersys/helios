@@ -12,7 +12,7 @@
 
 name: build-and-push
 
-# Publishes the IDP image set (base + flutter + zephyr + zephyr-devbox + cloud + hardware)
+# Publishes the IDP image set (base + flutter + zephyr + zephyr-devbox + cloud + hardware + ui)
 # to the GitHub Container Registry, for every platform the env PLATFORMS key
 # names. On semver tag pushes (v*) we also publish a :v<semver> tag.
 # Flutter and zephyr consume base — and zephyr-devbox consumes zephyr — via
@@ -81,7 +81,7 @@ name: build-and-push
 # ============================================================================
 #
 # type=gha is the Actions cache service, 10 GB per repository across all scopes,
-# which 6 images at mode=max cannot fit — the measured hit rate was not worth
+# which 7 images at mode=max cannot fit — the measured hit rate was not worth
 # the quota. type=registry puts each image's cache in its own ghcr package,
 # ghcr.io/gophersys/<image>-cache, which the pool can read and write with the
 # same GITHUB_TOKEN it already pushes with. Those packages do not exist until
@@ -1175,3 +1175,187 @@ jobs:
         # this run never made.
         if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published hardware ${{ needs.cloud.outputs.short }}
+
+  # The ui image: cloud + headless Chrome and the DejaVu fallback font. Its
+  # consumer is gophersys/research-ui, which today builds its own
+  # research-ui-ci image and builds its devcontainer FROM that — ADR-0003
+  # retires both in favour of this one, so dev and CI pin one digest and the
+  # toolchain has one pin home, one smoke gate and one nightly scan.
+  ui:
+    # A job with no limit inherits the GitHub default of 360 minutes. arc-build
+    # has 6 slots and one build wave takes all of them, so a hung job holds a
+    # slot for 6 hours. Every timeout in this file is a CEILING sized on the
+    # HOSTED runner; the first run on arc-build is what measures the real
+    # runtime, and a resize comes from that measurement rather than from a guess.
+    timeout-minutes: 90
+    needs: [cloud]
+    runs-on: arc-build
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # The tag the build below LOADS into the local docker image store, and the
+      # ref the smoke test then runs. It carries no registry on purpose: nothing
+      # can pull it, so a load that did not happen fails the smoke step instead
+      # of quietly asserting against the last image that was published.
+      SMOKE_REF: ui:smoke
+      # The parent this layer FROMs. cloud publishes a :<sha> tag only on a
+      # commit that changed it, so when cloud did not build there is no such tag
+      # and the only correct parent is the :latest that is still current.
+      # REHEARSAL takes 'latest', and that is a limitation with a name.
+      #
+      # A rehearsal publishes nothing, so the parent job pushed no :<sha> for
+      # this commit and there is nothing for this layer's FROM to resolve.
+      # Rehearsal #2 (run 32114973844) is the measurement: base and cloud went
+      # green on both platforms, and zephyr and flutter died resolving
+      # ghcr.io/gophersys/base:<sha> — a tag that a mode which ships nothing
+      # never created.
+      #
+      # So a rehearsal proves each image's OWN content builds on every sanctioned
+      # platform, against the parent that is currently published. It does NOT
+      # prove the child-at-NEW-parent seam. That seam is reachable only in
+      # publish mode, where it is smoke-gated, or by pushing quarantined tags —
+      # which this repository deliberately does not do, for the reason the arm64
+      # note at the top of _ctl/tests/publish-order.test.sh gives.
+      #
+      # GitHub's && / || yield OPERANDS and not booleans, so this reads: when the
+      # mode is rehearsal take 'latest' (a non-empty string, therefore the value
+      # of the first branch), otherwise fall through to exactly the expression
+      # this line carried before rehearsal existed.
+      BASE_TAG: ${{ inputs.mode == 'rehearsal' && 'latest' || (needs.cloud.outputs.built == 'true' && needs.cloud.outputs.short || 'latest') }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: extract semver tag
+        id: semver
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=" >> "$GITHUB_OUTPUT"
+          fi
+      - name: does this commit change ui
+        # This image's input set contains cloud's, so cloud building implies this
+        # job building. The reverse does not hold, which is what BASE_TAG answers.
+        id: filter
+        run: bash .ci/affected.sh ui >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: keep the BuildKit mirror populated
+        # The builder step below boots from a ghcr.io image — see the header of
+        # .ci/buildx-node.sh. This step is what makes that true on the day the
+        # pin moves; every other run is 1 authenticated read of our registry.
+        # It sits after the login because the mirror package is private.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/mirror-buildkit.sh
+      - name: point buildx at the build nodes
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/buildx-node.sh
+      - name: generate the build args from versions.env
+        # The one-home rule reaching CI: one --build-arg per pin line, the same
+        # list `ui/ctl.sh` generates locally. The Dockerfile's pin gate fails
+        # the build naming any pin this step failed to carry.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        id: versions
+        run: |
+          {
+            echo 'args<<VERSIONS_EOF'
+            sed -e 's/#.*$//' -e 's/[[:space:]]*$//' -e '/^$/d' versions.env
+            echo 'VERSIONS_EOF'
+          } >> "$GITHUB_OUTPUT"
+      - name: build the image, load it locally, publish nothing yet
+        # The gate has to run before the irreversible action. A push cannot be
+        # undone and no job here rolls one back, so a smoke test placed after it
+        # reports a broken image but cannot stop one reaching a consumer.
+        # buildx loads this build into the local docker image store instead, the
+        # step after it asserts the content, and only then does the publish step
+        # ship the same build. The second build reads the cache this one writes,
+        # so publishing costs a layer copy rather than a rebuild.
+        #
+        # SMOKE_PLATFORM and not PLATFORMS: `load: true` takes 1 platform, and
+        # the arm64 half of the publish below is therefore NOT gated by a smoke
+        # run in this phase. The env block at the top of this file states that
+        # in full.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ui
+          file: ui/Dockerfile
+          platforms: ${{ env.SMOKE_PLATFORM }}
+          push: false
+          load: true
+          build-args: |
+            BASE_TAG=${{ env.BASE_TAG }}
+            ${{ steps.versions.outputs.args }}
+          tags: ${{ env.SMOKE_REF }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/ui-cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/ui-cache,mode=max
+      - name: smoke test (native amd64)
+        # ui inherits every tool of cloud, so the pins of versions.env are compared
+        # here too, and the browser major is compared through the baked
+        # DENSUI_CHROME on top of them. The content group is where the rest lives:
+        # the font a computed layout measures with, and node/npm/uv resolving as
+        # BOTH root and dev — the check that fails if the /usr/local/bin exposure
+        # is ever dropped, which no version comparison could see.
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/smoke.sh ui ${{ env.SMOKE_REF }}
+      - name: publish the image the smoke test passed
+        # The same build definition as the load step above — same context, same
+        # build-args — so buildx resolves every amd64 layer from the cache that
+        # step wrote and uploads it. It writes no cache of its own for that
+        # reason.
+        #
+        # The platform list is WIDER here than in the gate step: the amd64 leg
+        # comes from that cache, and every other leg is built now, on the node
+        # buildx appended for it. So this step is the one that runs the arm64
+        # build, and an arm64 failure surfaces HERE rather than in the gate.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ui
+          file: ui/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          build-args: |
+            BASE_TAG=${{ env.BASE_TAG }}
+            ${{ steps.versions.outputs.args }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/ui:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/ui:${{ needs.cloud.outputs.short }}
+            ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/ui:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/ui-cache
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: ui
+          file: ui/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          build-args: |
+            BASE_TAG=${{ env.BASE_TAG }}
+            ${{ steps.versions.outputs.args }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/ui-cache
+      - name: verify the published manifest
+        # A push DECLARES a platform; this reads what the registry actually
+        # holds. At the SHA tag, never at :latest, so a concurrent run cannot
+        # make this describe somebody else's image. It runs only when this job
+        # published, because an unbuilt image has no SHA tag for this commit.
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
+        run: bash ./ctl.sh verify-published ui ${{ needs.cloud.outputs.short }}

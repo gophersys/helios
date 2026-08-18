@@ -55,7 +55,7 @@
 # them — a count written in prose that the file then grew past.
 #
 # Usage: bash .ci/smoke.sh <image> [ref]
-# where <image> ∈ {base, flutter, zephyr, zephyr-devbox, cloud, hardware}
+# where <image> ∈ {base, flutter, zephyr, zephyr-devbox, cloud, hardware, ui}
 # and [ref] is the exact image reference to test. The default is the :latest tag
 # that build-and-push.yml has just built, which is what CI runs. Naming a ref is
 # how an operator audits the SHA tag a cluster is actually running — and how a
@@ -233,6 +233,7 @@ KIUTILS_VERSION|not-in-this-image||
 SEXPDATA_VERSION|not-in-this-image||
 PYTEST_VERSION|not-in-this-image:pytest||
 RUFF_VERSION|not-in-this-image:ruff||
+CHROME_MAJOR_VERSION|not-in-this-image:google-chrome-stable,densui-chromium||
 PIN_CLASS_TABLE
 
 # The 5 hardware rows keep cloud honest in the direction that matters: hardware
@@ -246,6 +247,12 @@ PIN_CLASS_TABLE
 # fail. They are the 3rd and 4th bare rows of this table, beside RUNNER_VERSION
 # (the Actions runner is on no image's PATH) and ANSIBLE_VERSION (the
 # metapackage ships collections and no binary).
+#
+# CHROME_MAJOR_VERSION probes 2 binaries and not 1. google-chrome-stable is the
+# package's own name and densui-chromium is the symlink the ui layer adds, so a
+# browser that drifted UP into the parent would be caught whichever half arrived:
+# every ARC pool runs cloud, and a 0.46 GB browser nobody asked for would ship to
+# all of them.
 
 read -r -d '' PIN_CLASSES_BASE <<'PIN_CLASS_TABLE' || true
 UBUNTU_BASE_REF|not-a-version||
@@ -299,12 +306,14 @@ KIUTILS_VERSION|not-in-this-image||
 SEXPDATA_VERSION|not-in-this-image||
 PYTEST_VERSION|not-in-this-image:pytest||
 RUFF_VERSION|not-in-this-image:ruff||
+CHROME_MAJOR_VERSION|not-in-this-image:google-chrome-stable,densui-chromium||
 PIN_CLASS_TABLE
 
 # The same 5 rows the cloud table carries, and for the same reason read from the
 # other side of the graph: the KiCad toolchain is a leaf and nothing above it
 # installs it. The 2 bare classes are the import-only libraries — see the note
-# under the cloud table.
+# under the cloud table. CHROME_MAJOR_VERSION is a 6th row of that kind: base is
+# the OTHER root, so nothing in its graph installs a browser either.
 
 # The hardware table. A CHILD that reads versions.env, so this is a 3rd table
 # over the SAME home rather than a table over a Dockerfile: hardware/Dockerfile
@@ -367,6 +376,7 @@ KIUTILS_VERSION|asserted|python3 -c "import importlib.metadata as m; print(m.ver
 SEXPDATA_VERSION|asserted|python3 -c "import importlib.metadata as m; print(m.version('sexpdata'))"|
 PYTEST_VERSION|asserted|pytest --version|
 RUFF_VERSION|asserted|ruff --version|
+CHROME_MAJOR_VERSION|not-in-this-image:google-chrome-stable,densui-chromium||
 PIN_CLASS_TABLE
 
 # KICAD_PPA_VERSION takes `prefix` because the pin is a MAJOR inside a PPA name,
@@ -380,6 +390,83 @@ PIN_CLASS_TABLE
 # for ANSIBLE_VERSION. Asking the INTERPRETER is also the stronger question
 # here: the pip install is only useful if `python3 -m pytest` can import it, and
 # this asks exactly that.
+
+# The ui table. The 2nd CHILD that reads versions.env, so it is a 4th table over
+# the SAME home and not a table over a Dockerfile — ui/Dockerfile declares its 1
+# ARG value-less and takes the value as a generated --build-arg, exactly as cloud
+# and hardware do.
+#
+# It is the cloud table with 1 row flipped: CHROME_MAJOR_VERSION. Everything else
+# is inherited through the FROM, and the 5 KiCad rows stay not-in-this-image
+# because ui is cloud's other leaf and installs none of them.
+read -r -d '' PIN_CLASSES_UI <<'PIN_CLASS_TABLE' || true
+UBUNTU_BASE_REF|not-a-version||
+ZSH_VERSION|asserted|zsh --version|prefix
+NVM_VERSION|asserted|zsh -c "nvm --version"|
+NODE_VERSION|asserted|node --version|
+NPM_VERSION|asserted|npm --version|
+PNPM_VERSION|asserted|COREPACK_HOME=/home/dev/.cache/node/corepack pnpm --version|
+BUN_VERSION|asserted|bun --version|
+PYTHON_PACKAGE|asserted|python3 --version|prefix
+UV_VERSION|asserted|uv --version|
+GO_VERSION|asserted|go version|
+GOFUMPT_VERSION|asserted|gofumpt --version|
+GOLANGCI_LINT_VERSION|asserted|golangci-lint --version|
+GOVULNCHECK_VERSION|asserted|govulncheck -version|line:govulncheck
+GOSEC_VERSION|asserted|go version -m ${GOPATH}/bin/gosec|line:mod
+HNSLINT_VERSION|asserted|go version -m ${GOPATH}/bin/hnslint|line:mod
+GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
+BENCHSTAT_REF|not-a-version||
+RUST_CHANNEL|not-in-this-image:rustc,cargo||
+DELVE_VERSION|asserted|dlv version|
+YQ_VERSION|asserted|yq --version|
+HADOLINT_VERSION|asserted|hadolint --version|
+KUBECONFORM_VERSION|asserted|kubeconform -v|
+GITLEAKS_VERSION|asserted|gitleaks version|
+KUBECTL_VERSION|asserted|kubectl version --client|
+HELM_VERSION|asserted|helm version --short|
+K9S_VERSION|asserted|k9s version --short|
+K3D_VERSION|asserted|k3d version|
+KIND_VERSION|asserted|kind version|
+TAILSCALE_VERSION|asserted|tailscale version|
+BW_VERSION|asserted|bw --version|
+GH_VERSION|asserted|gh --version|
+NATS_VERSION|asserted|nats --version|
+DOCKER_COMPOSE_VERSION|asserted|docker compose version|
+DOCKER_BUILDX_VERSION|asserted|docker buildx version|
+BUF_VERSION|asserted|buf --version|
+GRPCURL_VERSION|asserted|grpcurl -version|
+RUNNER_VERSION|asserted|/home/runner/bin/Runner.Listener --version|line:Version:
+CICTL_VERSION|asserted|go version -m /usr/local/bin/cictl|line:mod
+CLAUDE_CODE_VERSION|asserted|claude --version|
+OMP_VERSION|asserted|omp --version|
+CODEX_VERSION|asserted|codex --version|
+TERRAFORM_VERSION|not-in-this-image:terraform||
+AWS_CLI_VERSION|not-in-this-image:aws||
+OCI_CLI_VERSION|not-in-this-image:oci||
+ANSIBLE_VERSION|not-in-this-image||
+ANSIBLE_CORE_VERSION|not-in-this-image:ansible,ansible-playbook||
+KICAD_PPA_VERSION|not-in-this-image:kicad-cli||
+KIUTILS_VERSION|not-in-this-image||
+SEXPDATA_VERSION|not-in-this-image||
+PYTEST_VERSION|not-in-this-image:pytest||
+RUFF_VERSION|not-in-this-image:ruff||
+CHROME_MAJOR_VERSION|asserted|sh -c "${DENSUI_CHROME} --version"|prefix
+PIN_CLASS_TABLE
+
+# CHROME_MAJOR_VERSION takes `prefix` because the pin is a MAJOR line, the way
+# KICAD_PPA_VERSION and JAVA_VERSION are: `google-chrome-stable --version`
+# reports 151.0.7922.137 and the row holds 151, so an exact comparison would
+# demand a pin that moves with every point release Google ships.
+#
+# It reads the browser through ${DENSUI_CHROME} ON PURPOSE, and that is why the
+# command is wrapped in `sh -c` rather than written bare: probe_tool takes the
+# FIRST word of a row as the binary to look for, and an unexpanded
+# `${DENSUI_CHROME}` is on no PATH — the shape `zsh -c "nvm --version"` already
+# uses here. Reading the ENV is the stronger question: the consumer's probe.py
+# reads exactly that variable, and an empty value there makes it fall through to
+# its own candidate search, which passes while proving nothing about the image.
+# So this 1 row compares the version AND proves the entry point the gates use.
 
 # ---------------------------------------------------------------------------
 # The child tables, 1 per child image, over that image's OWN Dockerfile.
@@ -491,6 +578,10 @@ case "$IMAGE" in
     # other 3 children.
     PIN_CLASSES="$PIN_CLASSES_HARDWARE"
     ;;
+  ui)
+    # No CHILD_CLASSES, for the reason the hardware arm gives.
+    PIN_CLASSES="$PIN_CLASSES_UI"
+    ;;
   base)
     PIN_CLASSES="$PIN_CLASSES_BASE"
     ;;
@@ -508,7 +599,7 @@ case "$IMAGE" in
     ;;
   *)
     log_error "unknown image: '$IMAGE'"
-    log_error "valid images: base, flutter, zephyr, zephyr-devbox, cloud, hardware"
+    log_error "valid images: base, flutter, zephyr, zephyr-devbox, cloud, hardware, ui"
     exit 2
     ;;
 esac

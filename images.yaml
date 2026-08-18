@@ -385,3 +385,94 @@ images:
         top of them. The floors are the point: an image with kicad-cli and no
         footprints passes a naive presence check and then fails the consumer's
         whole resolver suite at runtime.
+
+  ui:
+    parent: cloud
+    context: ui
+    dockerfile: ui/Dockerfile
+    smoke_ref: ui:smoke
+    # The 2nd CHILD that reads the pin home, for the reason hardware's entry
+    # gives: its ARGs are value-less like cloud's, so no 4th PIN_VALUE_HOME is
+    # minted for the sake of a `parent:` field.
+    pins: versions.env
+    # versions.env is an input of this image ITSELF and not only of its parent:
+    # NODE_VERSION is IN the path its toolchain-exposure layer links from, and
+    # CHROME_MAJOR_VERSION is what its smoke asserts the browser against.
+    paths:
+      - ui/
+      - versions.env
+    groups:
+      - content-cloud
+      - content-ui
+      - go-gate
+      - dockerfile-lint
+      - compose
+    # NO `platforms` KEY, AND THAT IS A MEASUREMENT AND NOT AN OVERSIGHT. This
+    # entry was planned as the 2nd narrower image, on the premise that
+    # `google-chrome-stable` is published for amd64 alone — the premise
+    # research-ui states in ci/Dockerfile, in ADR-0003 (risk R3) and in
+    # docs/image-notes.md section 3. The premise is FALSE as of 2026-08-18, so
+    # writing the key would have narrowed this image on a reason that is not
+    # true. Read from Google's own repo metadata on that day:
+    #
+    #   https://dl.google.com/linux/chrome/deb/dists/stable/Release
+    #   (1666 bytes, Date: Sat, 15 Aug 2026 09:04:10 UTC) declares
+    #   `Architectures: amd64 arm64` and lists a Packages index for each.
+    #
+    #   Both indexes carry google-chrome-stable at the SAME version,
+    #   151.0.7922.137-1, and both .debs answer 200 with the Content-Length the
+    #   index states: .../google-chrome-stable_151.0.7922.137-1_amd64.deb is
+    #   140,080,344 bytes and the _arm64.deb is 132,287,036.
+    #
+    # So the sanctioned set is the correct set here, and it is taken by ABSENCE
+    # the way 4 of the other images take it. 2 consequences a reader should
+    # know: the arm64 half of this image has never been BUILT — rehearsal mode
+    # on build-and-push.yml is what exercises it before a publish — and the
+    # version-skew question research-ui records as Q2 does not arise, because
+    # one package version serves both architectures. Narrowing this image later
+    # is a human decision with a measurement beside it, exactly like flutter's.
+
+    # The size budget below is PROVISIONAL, and computed from 2 MEASURED images
+    # rather than chosen — hardware's method, read the same way on 2026-08-18
+    # through the ghcr.io registry API:
+    #
+    #   cloud:latest (amd64) — the per-layer gzip ISIZE trailers of its 38
+    #   layers sum to 5,063,539,712 bytes. Against its declared 5.75 GB budget
+    #   and its measured docker-Size floor of ~5.63-5.67 GB, docker's on-disk
+    #   accounting runs ~1.12x the tar-stream sum for this image family.
+    #
+    #   research-ui-ci:latest — the image this one replaces. Its chrome+fonts
+    #   layer is 463,258,112 uncompressed bytes = 0.463 GB, and that layer is
+    #   the whole delta this image adds: the 2 layers beside it in that image
+    #   (Node 22 at 201,604,608 bytes, uv at 59,372,544) are NOT re-installed
+    #   here, because ui exposes cloud's own Node and uv at /usr/local/bin
+    #   instead of carrying a second copy of each.
+    #
+    #   5.75 + 0.463 x 1.12 = 6.27, rounded to 6.3
+    #
+    # It is an ESTIMATE of a number nothing here has built yet. The first green
+    # build measures the real size, and the budget is reset to that measurement
+    # + 5% in the same pull request. Until then a red here means "re-measure",
+    # not "drop a tool".
+    size_budget_gb: 6.3
+    notes:
+      job: |
+        The ui image: cloud + headless Chrome and the DejaVu fallback font. Its
+        consumer is gophersys/research-ui, which today builds its own
+        research-ui-ci image and builds its devcontainer FROM that — ADR-0003
+        retires both in favour of this one, so dev and CI pin one digest and the
+        toolchain has one pin home, one smoke gate and one nightly scan.
+      base_tag: |
+        The parent this layer FROMs. cloud publishes a :<sha> tag only on a
+        commit that changed it, so when cloud did not build there is no such tag
+        and the only correct parent is the :latest that is still current.
+      filter: |
+        This image's input set contains cloud's, so cloud building implies this
+        job building. The reverse does not hold, which is what BASE_TAG answers.
+      smoke: |
+        ui inherits every tool of cloud, so the pins of versions.env are compared
+        here too, and the browser major is compared through the baked
+        DENSUI_CHROME on top of them. The content group is where the rest lives:
+        the font a computed layout measures with, and node/npm/uv resolving as
+        BOTH root and dev — the check that fails if the /usr/local/bin exposure
+        is ever dropped, which no version comparison could see.

@@ -145,12 +145,19 @@ VERIFIER="${SCRIPT_DIRECTORY}/fetch-verified.sh"
 # and _delta/components/agents.sh fetch the same 2 URLs for `cloud` — so the
 # asset RUNNER_VERSION answers for is still found, by a component instead of by
 # a Dockerfile. Read the component before assuming any URL left with it.
+#
+# ui/Dockerfile is the 6th, and it answers for no digest today: its 1 fetch is
+# google's apt signing key, which takes an exemption row rather than a digest.
+# It is named here because a governed file is one that FETCHES — the day that
+# file downloads an asset, the resolver already reads it instead of answering `-`
+# for a pin that has bytes.
 GOVERNED_DOCKERFILES=(
   "base/Dockerfile"
   "flutter/Dockerfile"
   "zephyr/Dockerfile"
   "zephyr-devbox/Dockerfile"
   "cloud/Dockerfile"
+  "ui/Dockerfile"
 )
 COMPONENT_DIRECTORY="_delta/components"
 

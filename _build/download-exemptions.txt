@@ -57,6 +57,13 @@ base/Dockerfile|https://sh.rustup.rs|unversioned-url|the rustup bootstrap script
 base/Dockerfile|https://download.docker.com/linux/ubuntu/gpg|unversioned-url|it is docker's apt signing key, which has no version, and apt verifies every package against the signature it makes
 cloud/Dockerfile|https://download.docker.com/linux/ubuntu/gpg|unversioned-url|it is docker's apt signing key, which has no version, and apt verifies every package against the signature it makes
 
+# Google's chrome apt signing key. The same class, the same shape and the same
+# reason as docker's 2 rows above — a key has no version, and the chrome
+# packages ride the signature it makes over the Release file. No new class was
+# invented for it, which is the point: the ui image fetches its key the way base
+# and cloud already fetch theirs.
+ui/Dockerfile|https://dl.google.com/linux/linux_signing_key.pub|unversioned-url|it is google's apt signing key, which has no version, and apt verifies every chrome package against the signature it makes
+
 # The claude installer. CLAUDE_CODE_VERSION is an ARGUMENT to the script, not
 # part of its URL, so the script itself is unversioned. The call site verifies
 # the installed version afterwards and FAILS when it differs from the pin.
