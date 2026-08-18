@@ -93,6 +93,23 @@ data:
             description: MinIO · Longhorn backup store
             icon: minio
             siteMonitor: http://minio.minio.svc.cluster.local:9000/minio/health/ready
+        # The 3 hypervisors are standalone PVE nodes, not one cluster, so no
+        # single UI shows all of them. pve-00 gets the hostname; the other 2 are
+        # reached by tailnet address. None carries a siteMonitor: pveproxy
+        # serves its own self-signed certificate and homepage would read every
+        # node as offline. See apps/proxmox/README.md.
+        - Proxmox pve-00:
+            href: https://proxmox.mateosegura.com
+            description: Hypervisor · MS-A2 · k3s-cp-0, w-0, w-1, w-2
+            icon: proxmox
+        - Proxmox pve-01:
+            href: https://100.124.246.39:8006
+            description: Hypervisor · ThinkPad P1 · k3s-cp-1, w-3, w-4
+            icon: proxmox
+        - Proxmox pve-03:
+            href: https://100.126.209.124:8006
+            description: Hypervisor · Yoga · k3s-cp-2
+            icon: proxmox
 
     - Studio:
         # Runs ON the MacBook Air, not in the cluster: it needs Ableton Live,

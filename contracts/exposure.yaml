@@ -44,6 +44,7 @@ hosts:
   eden:     { class: tailnet, cluster: homelab, why: "Eden platform" }
   files:    { class: tailnet, cluster: homelab, why: "filebrowser over /mnt/media" }
   prowlarr: { class: tailnet, cluster: homelab, why: "indexer manager" }
+  proxmox:  { class: tailnet, cluster: homelab, why: "Proxmox admin surface — hypervisor root; never public" }
   torrent:  { class: tailnet, cluster: homelab, why: "qBittorrent WebUI" }
   s3:       { class: tailnet, cluster: homelab, why: "MinIO API — backup target" }
   # ---- cloud (prod) cluster · direct, Cloudflare-bypassing ----

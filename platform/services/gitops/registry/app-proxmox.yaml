@@ -1,0 +1,22 @@
+# Proxmox VE admin UI — a Service/EndpointSlice/Ingress pair pointing at a
+# hypervisor on the LAN. No workload, so it needs no project of its own.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: proxmox
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: main
+    path: apps/proxmox
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: proxmox
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false
+    syncOptions:
+      - CreateNamespace=true
