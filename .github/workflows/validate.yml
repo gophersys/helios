@@ -46,23 +46,20 @@ jobs:
       - name: ctl.sh test
         run: bash ./ctl.sh test
 
-      # The dependency graph is declared in 4 places and all 4 must agree. This
-      # asserts the 2 that are machine-checkable from here: BUILD_ORDER in the
-      # repository-root ctl.sh and in .ci/ctl.sh. They drifted once already —
-      # .ci/providers/github/build-and-push.yml became an old copy that listed 3
-      # images, and nobody saw the difference.
-      - name: BUILD_ORDER agrees between ctl.sh and .ci/ctl.sh
+      # The dependency graph is declared ONCE, in images.yaml, and the
+      # publishing workflow is GENERATED from it. The old step here compared
+      # BUILD_ORDER between ctl.sh and .ci/ctl.sh — with both now filled from
+      # the manifest it compared two identical strings and could never fail.
+      # This step is the one that can: run the generator, and the committed
+      # provider files plus the live workflow must be EXACTLY its output. A
+      # manifest edit that skipped regeneration, or a hand edit to a generated
+      # file, both land here as a diff.
+      - name: the committed workflows are the generator's output
         run: |
           set -euo pipefail
-          root="$(grep -oE '^BUILD_ORDER=\(.*\)' ctl.sh | head -1)"
-          ci="$(grep -oE '^BUILD_ORDER=\(.*\)' .ci/ctl.sh | head -1)"
-          if [ -z "$root" ] || [ -z "$ci" ]; then
-            echo "::error::BUILD_ORDER not found in ctl.sh or .ci/ctl.sh"
+          bash _ctl/generate.sh
+          if ! git diff --exit-code .ci/providers/github/build-and-push.yml .ci/providers/github/security-nightly.yml .github/workflows/build-and-push.yml; then
+            echo "::error::the committed files differ from the generator's output — run bash _ctl/generate.sh and copy to .github/workflows/, or fix the hand edit"
             exit 1
           fi
-          if [ "$root" != "$ci" ]; then
-            echo "::error::BUILD_ORDER differs between ctl.sh and .ci/ctl.sh"
-            printf '  ctl.sh:     %s\n  .ci/ctl.sh: %s\n' "$root" "$ci"
-            exit 1
-          fi
-          echo "BUILD_ORDER agrees: $root"
+          echo "generator output matches the committed workflows"

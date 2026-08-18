@@ -41,8 +41,11 @@ that it runs inside.
 ├── README.md
 ├── project.json                 # repo-level Nx wiring
 ├── ctl.sh                       # repo-wide control
+├── images.yaml                  # the ONE declaration of the image SET
 ├── versions.env                 # the ONE pin home of base and cloud
-├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time
+├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time,
+│                                #   and the images.yaml reader every home derives from
+├── _ctl/generate.sh             # images.yaml -> the publish jobs + the nightly matrix
 ├── _ctl/tests/                  # hermetic *.test.sh + harness + docker stub + fixtures
 ├── .claude/rules/00-identity.md # (this file)
 ├── docs/                        # PROPOSALS for images that do not exist yet — see docs/README.md
@@ -356,9 +359,10 @@ base-OS currency probe above. It builds and publishes nothing.
 
 - **CRITICAL fails the run, fixed or unfixed.** The scan sets
   `--severity CRITICAL --exit-code 1` and **no `--ignore-unfixed`**. HIGH is not
-  gated: its count on these images is unmeasured, and a gate that is red every
-  morning teaches the reader to ignore red. The measurement is 1
-  `workflow_dispatch` run at `HIGH,CRITICAL`.
+  gated, by measurement and decision (Mateo, 2026-08-18): the count is
+  267-333 per image (base 267, cloud 333, zephyr 267, zephyr-devbox 268,
+  measured in-cluster at trivy 0.65.0), and a ~270-finding red every morning
+  teaches the reader to ignore red. Re-measure before ever gating it.
 - **An unfixed CRITICAL becomes a waiver, never a skip.** Waivers live in
   `.ci/trivyignore.yaml`. Each entry carries 4 fields: trivy's own `id`,
   `statement` (WHY it is accepted) and `expired_at` (`yyyy-mm-dd`), and `paths`.
@@ -530,11 +534,14 @@ gophersys/infrastructure `docs/debt-register.md` D42. Widen
 
 **Widening it is not 1 edit.** Each shell path reads the list from that 1
 declaration, and `.ci/smoke.sh` selects a platform out of it rather than refusing
-a list of more than 1. But 3 other places STATE the same policy, and they must
-move with it: `PLATFORMS` in `.github/workflows/build-and-push.yml`, the same key
-in its provider copy, and the literal `SANCTIONED` in
-`_ctl/tests/platform-policy.test.sh`. That literal is deliberate — a test that
-reads the value it checks agrees with any value, a wrong one included. The
+a list of more than 1. **1 other place STATES the same policy**, and it must move
+with it: the literal `SANCTIONED` in `_ctl/tests/platform-policy.test.sh`. That
+literal is deliberate — a test that reads the value it checks agrees with any
+value, a wrong one included. There were 3. The other 2 were `PLATFORMS` in
+`.github/workflows/build-and-push.yml` and the same key in its provider copy,
+and `_ctl/generate.sh` writes `SANCTIONED_PLATFORMS` into that key now, so
+widening the list reaches both copies through a regeneration rather than through
+2 hand edits. The
 `build` verb also refuses a list of more than 1 entry, because `docker build`
 makes 1 image, so the local loop must name the 1 platform it wants. Measured on
 2026-08-13: 1 edit to `_ctl/lib.sh`, and nothing else, made 8 checks red in 4
@@ -780,41 +787,80 @@ verb catalog is what a reader trusts.
         zephyr-devbox
 ```
 
+That drawing is prose. `images.yaml` is the graph, and this is what the machine
+reads:
+
+```yaml
+images:
+  base:          { parent: "",       paths: [...], groups: [...] }
+  flutter:       { parent: base,     ... }
+  zephyr:        { parent: base,     ... }
+  zephyr-devbox: { parent: zephyr,   ... }
+  cloud:         { parent: "",       ... }
+```
+
 `validate.yml` runs `bash ./ctl.sh validate`, then `bash ./ctl.sh test`, then
-asserts that BUILD_ORDER agrees between `ctl.sh` and `.ci/ctl.sh`. `.ci/ctl.sh
-validate` delegates to the root `ctl.sh`: it used to be a second copy and the 2
-diverged, so it reported OK on a Dockerfile that the root script rejected.
+asserts that BUILD_ORDER agrees between `ctl.sh` and `.ci/ctl.sh` — a step that
+can no longer fail, for the reason stated below. `.ci/ctl.sh validate` delegates
+to the root `ctl.sh`: it used to be a second copy and the 2 diverged, so it
+reported OK on a Dockerfile that the root script rejected.
 
-The graph is declared in **6** files. All 6 MUST stay the same. Count the list,
-never the sentence — this heading said 5 while carrying 6 bullets, and its 4th
-bullet called itself "the 5th home" by counting `BUILD_ORDER`'s 2 files as 2:
+**The graph is declared ONCE, in `images.yaml` at the repository root.** That
+sentence used to read "the graph is declared in 6 files. All 6 MUST stay the
+same", and the 6 were held to each other by tests. The declaration is 1 file
+now, and the homes below are DERIVED from it rather than kept beside it:
 
-1. `BUILD_ORDER` in `./ctl.sh`.
-2. `BUILD_ORDER` in `.ci/ctl.sh`.
-3. `dependsOn` in each image's `project.json`.
-4. `needs:` in `.github/workflows/build-and-push.yml`.
-5. `image_parent()` in `.ci/affected.sh`. It arrived with affected-only builds.
-   It is the graph again because a child's input set has to CONTAIN its
-   parent's: that inclusion is what makes "the parent built, so the child
-   builds" true by construction, and a missing edge there publishes a layer on a
-   parent that moved under it. The workflow's `needs:` and this map answer 2
-   different questions — order, and inputs — and both are the same graph.
-6. `.ci/providers/github/build-and-push.yml`. This file is the source of truth
-   for the provider, and it must match home 4 byte for byte. It is a home in its
-   own right, because a reader who edits 1 of the pair has already drifted the
-   graph. Once it became an old copy that listed only 3 images, and nobody saw
-   the difference. Then it drifted again in commit `d9089b2`, which added 5
-   `timeout-minutes: 90` blocks to the workflow and to neither copy of this
-   file, while this rule went on calling them identical. A rule that nothing
-   checks is a rule that drifts: `_ctl/tests/platform-policy.test.sh` compares
-   the 2 files with `cmp` now, and `bash ./ctl.sh test` runs it in the pull
-   request gate.
+1. `BUILD_ORDER` in `./ctl.sh` and in `.ci/ctl.sh`. Both arrays are filled at
+   source time from `image_names` in `_ctl/lib.sh`, which reads the manifest.
+   Document order in `images.yaml` IS build order, and `image_names` refuses a
+   manifest that writes a child above its parent — so the order is a checked
+   property and not a convention.
+2. `image_parent()` and the input path table, both in `_ctl/lib.sh` and read by
+   `.ci/affected.sh`. That file carried a copy of each. A child's input set has
+   to CONTAIN its parent's: that inclusion is what makes "the parent built, so
+   the child builds" true by construction, and `image_input_paths` walks the
+   manifest's `parent` edge to produce it.
+3. The check groups, `image_check_groups` in `_ctl/lib.sh`, read by
+   `.ci/smoke.sh`. That file carried a case table of its own.
+4. `needs:` in `.ci/providers/github/build-and-push.yml`, which
+   `_ctl/generate.sh` emits from the manifest — 1 job template applied to each
+   entry, so the 5 jobs cannot drift apart. The file carries a GENERATED header
+   naming the generator and the manifest.
+5. The `image:` line of the nightly scan matrix, rewritten in place by the same
+   generator. The rest of `security-nightly.yml` is hand-written, because the
+   trivy pin and the waiver rules are not image facts.
+6. `.github/workflows/` holds a hand-made COPY of each provider file, and
+   `_ctl/tests/platform-policy.test.sh` compares the pair with `cmp`. That copy
+   is not a home in its own right any more — it is the output of a copy — but
+   the `cmp` stays, because a reader who edits one of the pair still drifts the
+   pair. It caught nothing twice before it existed: once the provider file was
+   an old copy that listed only 3 images, and once commit `d9089b2` added 5
+   `timeout-minutes: 90` blocks to the workflow and to neither copy.
+7. `dependsOn` in each image's `project.json`, and the image's
+   `devcontainer.json`. These are still HAND-WRITTEN. Generating them is the
+   next slice of this work and is not done.
 
-**2 files still say 4**, and they are the files the reader meets on a red gate:
-the step comment at `.github/workflows/validate.yml:49`, and the `fail_check`
-evidence string in `_ctl/tests/publish-order.test.sh`. That number was correct
-before `image_parent()` and before the `cmp`. Both belong to the wave that owns
-workflows and tests; this document is the count they must take.
+**The policy tests keep their hand-kept literals, and that is deliberate.**
+`SANCTIONED` in `platform-policy.test.sh`, `EXPECTED_PROVIDER_FILES` beside its
+glob, the governed-file lists in `dockerfile-args.test.sh` and
+`download-coverage.test.sh`: a test that reads the value it checks agrees with
+any value, a wrong one included, so none of them may read `images.yaml`. What
+they owe the manifest is set EQUALITY — a literal list that no longer matches
+the manifest is a red test — and that check is what replaces the hand-copying.
+
+**The BUILD_ORDER agreement step in `validate.yml` is now VACUOUS.** It greps
+`^BUILD_ORDER=(...)` out of both control scripts and compares the 2 strings;
+both read `BUILD_ORDER=()` today, so it compares 2 equal literals and can no
+longer fail. It is left in place with this change and its replacement is open
+work: the check worth having is "the manifest parses, its order is a valid
+topological order, and every policy-test literal equals its set". A step that
+cannot fail is exactly the believed-and-empty check this repository refuses
+elsewhere, so it does not get to stay unnamed.
+
+**1 file still says 4**: the `fail_check` evidence string in
+`_ctl/tests/publish-order.test.sh`. That number was correct before
+`image_parent()` and before the `cmp`. It belongs to the wave that owns the
+tests; this document is the count it must take.
 
 That `cmp` covers **every** file of `.ci/providers/github/`, found by a glob, and
 not `build-and-push.yml` alone. The narrow version had the same hole 1 level up:
@@ -889,7 +935,8 @@ not depend on the count.
 - **Only what changed is built.** Each job of `build-and-push.yml` asks
   `.ci/affected.sh <image>` whether the commit touches that image's inputs and
   gates its build, smoke, push and manifest read on the answer. The path table
-  lives in that 1 file. Everything builds on `workflow_dispatch`, on a tag, and
+  lives in `images.yaml`, and that script derives its answer from it through
+  `image_input_paths`. Everything builds on `workflow_dispatch`, on a tag, and
   on any change to a workflow or to `.ci/`. **An unbuilt image keeps its
   `:latest` and publishes no `:<sha>` for that commit** — a SHA tag is not a
   promise that every image carries it.

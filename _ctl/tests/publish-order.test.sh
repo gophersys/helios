@@ -178,11 +178,14 @@ WORKFLOWS=(
 #      and for the same stated reason: a literal written here is a THIRD copy,
 #      and the next change to the image set only has to edit 1 more file.
 #
-#   2. .claude/rules/00-identity.md already states this as an invariant: "The
-#      graph is declared in 4 places. All 4 MUST stay the same" — BUILD_ORDER in
-#      ctl.sh and .ci/ctl.sh, dependsOn in each project.json, and `needs:` in
-#      both copies of build-and-push.yml. A literal here does not check that
+#   2. .claude/rules/00-identity.md already states this as an invariant, and the
+#      sentence has since got shorter: "The graph is declared ONCE, in
+#      images.yaml at the repository root", with BUILD_ORDER in ctl.sh and in
+#      .ci/ctl.sh, `needs:` in both copies of build-and-push.yml and the input
+#      path table all DERIVED from it. A literal here does not check that
 #      invariant; it checks a snapshot of it, taken by hand, on some past day.
+#      Section 4 below is where a hand-kept literal earns its place, because
+#      there the thing being compared is the declaration itself.
 #
 # Retiring an image is the measurement. base-runner leaves BUILD_ORDER in the
 # change this comment is written for: the ARC pools repointed at `cloud`, so
@@ -728,42 +731,12 @@ function affected_calls_total() {
   printf '%s' "$total"
 }
 
-# case_arm_labels <script> <function name> — the names the case arms of that
-# shell function are keyed on, 1 per line, `*` excluded.
-#
-# This is the only textual reader in the file, and it is here because the
-# direction it answers cannot be probed: running a script proves a row EXISTS
-# for an image, and no argument proves a row exists for NO OTHER image. A row
-# for an image nobody builds is dead weight that reads as coverage, and the
-# #107 lesson is that a coverage table needs both directions or it goes stale in
-# the direction nobody checks.
-#
-# 2 tables are read with it, and both are keyed on the image name:
-#   .ci/affected.sh  image_own_paths     the input paths that decide a rebuild
-#   .ci/smoke.sh     image_check_groups  the functional groups the guest runs
-function case_arm_labels() {
-  awk -v want="$2" '
-    $0 == "function " want "() {" { inside = 1; next }
-    inside && /^}/ { exit }
-    inside {
-      line = $0
-      sub(/^[[:space:]]+/, "", line)
-      if (line ~ /^#/) { next }
-      if (line !~ /\)/) { next }
-      label = line
-      sub(/\).*$/, "", label)
-      if (label == "*") { next }
-      # An arm label is a name or a `|` alternation of names. Anything else is a
-      # line this reader does not understand, and the liveness clause below is
-      # what turns "understood nothing" into a failure.
-      if (label ~ /[^A-Za-z0-9_.|-]/) { next }
-      total = split(label, parts, "|")
-      for (item = 1; item <= total; item++) {
-        if (parts[item] != "") { print parts[item] }
-      }
-    }
-  ' "$1"
-}
+# case_arm_labels stood here and is DELETED with the 2 tables it read. It parsed
+# the case arms of image_own_paths in .ci/affected.sh and of image_check_groups
+# in .ci/smoke.sh, and both functions are gone: each file derives its answer from
+# images.yaml through _ctl/lib.sh now. A reader kept past its input is worse than
+# a deleted one — it finds 0 rows and reports every image as dead, which is the
+# red section 4 was rewritten to answer.
 
 # joined <array element...> — 1 element per line, sorted, for a set comparison.
 function joined() {
@@ -856,7 +829,9 @@ else
   fail_check "both_BUILD_ORDER_homes_declare_the_same_set" \
     "${BUILD_ORDER_HOMES[0]}:  $(tr '\n' ' ' <<< "$build_order")" \
     "${BUILD_ORDER_HOMES[1]}: $(tr '\n' ' ' <<< "$provider_build_order")" \
-    ".claude/rules/00-identity.md: the graph is declared in 4 places and all 4 must stay the same" \
+    ".claude/rules/00-identity.md: the graph is declared ONCE, in images.yaml, and both of these" \
+    "arrays are filled from it at source time — so a difference here is 2 readers of 1 file" \
+    "disagreeing, and the manifest is where you look before either script" \
     "the ORDER matters as well as the set: it is a build order, and base has to precede its children" \
     "until now only a step of validate.yml compared these 2, so a local gate could not see the drift"
 fi
@@ -1159,8 +1134,9 @@ done
 # the thing being asked can answer, by RUNNING it: the filter is a script, and
 # an assertion about a script that never ran it is an assertion about its text.
 #
-# Section 4 below reads the same table statically, for the direction no argument
-# can probe — a row for an image nobody builds.
+# Section 4 below reads the SOURCE the filter derives that answer from —
+# images.yaml — for the direction no argument can probe: an entry for an image
+# nobody builds, which running the filter with a name proves nothing about.
 if [[ ! -f "$REPO_ROOT/$AFFECTED_SCRIPT" ]]; then
   fail_check "the_affected_filter_script_exists" \
     "absent: ${AFFECTED_SCRIPT}" \
@@ -1174,9 +1150,9 @@ else
 
   # -- direction 1, behavioural: it answers for every image that is built --
   # workflow_dispatch is the manual all-images build, so the script answers
-  # `build=true` and returns before it touches git. The input table is read
-  # BEFORE that branch, which is what makes this probe a test of the table and
-  # not of the trigger.
+  # `build=true` and returns before it touches git. The input paths are resolved
+  # BEFORE that branch, which is what makes this probe a test of the manifest
+  # row and not of the trigger.
   unanswered=""
   while IFS= read -r image; do
     [[ -z "$image" ]] && continue
@@ -1196,12 +1172,14 @@ else
       "$unanswered" \
       "BUILD_ORDER is:" "$(tr '\n' ' ' <<< "$build_order")" \
       "the job of an image with no row exits 2 at publish time, on main, after the merge" \
-      "fix: add the image's own input paths to image_own_paths in ${AFFECTED_SCRIPT}"
+      "fix: give the image a non-empty 'paths' list in ${IMAGES_MANIFEST} — that is where the" \
+      "input table lives, and ${AFFECTED_SCRIPT} derives its answer from it through _ctl/lib.sh"
   fi
 
   # -- the fallback fails CLOSED --
-  # A `*)` arm that answered `build=true` would be worse than no table: every
-  # image would build, and the row that was deleted would never be missed.
+  # An answer of `build=true` for an unknown image would be worse than no
+  # manifest at all: every image would build, and the entry that was deleted
+  # would never be missed.
   refusal_status=0
   refusal_output=""
   refusal_output="$(GITHUB_EVENT_NAME=workflow_dispatch \
@@ -1223,79 +1201,209 @@ else
 fi
 
 # ===========================================================================
-# 4. EVERY PER-IMAGE TABLE IS BUILD_ORDER
+# 4. THE MANIFEST DECLARES THE SET, AND CARRIES EVERY ROW THE HOMES READ
 # ===========================================================================
-# 2 shell files keep a table keyed on the image name, and each is a declaration
-# of the published set made for a different purpose:
+# This section read 2 case tables until images.yaml landed:
 #
 #   .ci/affected.sh  image_own_paths     what a rebuild of that image depends on
 #   .ci/smoke.sh     image_check_groups  what the guest runs inside that image
 #
-# Both must equal BUILD_ORDER, and both directions matter. A missing row is
-# loud but LATE: the job exits 2 in the publish workflow, on main, after the
-# merge. An extra row is silent forever — a table that looks complete while one
-# of its rows describes an image nobody builds. Retiring an image is what leaves
-# one, and the retirement of base-runner is what this section was written for.
+# Both functions are DELETED. Each file derives its answer from images.yaml
+# through _ctl/lib.sh now, so a case-arm reader over either one finds 0 rows and
+# reports every image as dead — which is exactly what it did, and it is the red
+# this rewrite answers.
 #
-# The 2 arms are read with 1 reader, so a third table added tomorrow costs a row
-# here and no new code.
-IMAGE_TABLES=(
-  ".ci/affected.sh|image_own_paths|the input paths that decide a rebuild"
-  ".ci/smoke.sh|image_check_groups|the functional groups the guest runs"
+# The properties did not go anywhere; they moved into the manifest, and they are
+# read there. What changes is WHERE a defect can be:
+#
+#   before  2 hand-kept tables could each drift from BUILD_ORDER
+#   after   1 manifest row per image, and the drift left to catch is between
+#           that manifest and the hand-kept literal below
+#
+# THE LITERAL IS THE POINT, AND IT IS NOT A COPY THIS FILE FORGOT TO DELETE.
+# Section 0 above deliberately refuses a literal job list, because there the
+# expectation is AGREEMENT between 2 derived declarations — BUILD_ORDER and the
+# workflow — and both are derived from this manifest, so a literal would be a
+# third copy of a set nobody hand-writes any more.
+#
+# Here the manifest is not a derived home; it is the declaration itself, and
+# nothing else in this repository states the image set by hand. A check that
+# read the set out of images.yaml and then compared it to images.yaml would
+# agree with any manifest, an emptied one included. So the set is written here,
+# by hand, and what this file owes the manifest is set EQUALITY —
+# .claude/rules/00-identity.md, "the policy tests keep their hand-kept literals":
+# a literal list that no longer matches the manifest is a red test, and that is
+# the check that replaces the hand-copying the 6 declarations used to need.
+#
+# Adding an image is therefore an images.yaml entry plus this array, in 1 change.
+PUBLISHED_IMAGES=(
+  "base"
+  "flutter"
+  "zephyr"
+  "zephyr-devbox"
+  "cloud"
 )
 
-for table_record in "${IMAGE_TABLES[@]}"; do
-  table_script="${table_record%%|*}"
-  table_rest="${table_record#*|}"
-  table_function="${table_rest%%|*}"
-  table_purpose="${table_rest#*|}"
-  check_stem="${table_function}"
+# WHICH READER, AND WHY. The rows below are read with manifest_yq from
+# _ctl/lib.sh — its RESOLUTION only (yq 4.x on PATH, else mikefarah/yq at the
+# versions.env pin through docker, else a failure naming the tool). The
+# EXPRESSION is written here, and the accessors are not used: image_names,
+# image_own_paths and image_check_groups are the derivation under test, and a
+# check that asked them what the manifest says would be asking the
+# implementation to grade itself. A second yq resolver written into this file
+# would be the duplication that _ctl/lib.sh exists to end — and it would be the
+# half that breaks first, since only 1 of the 2 would learn the container route.
+#
+# The record shape is _ctl/lib.sh's own: `|` separated, the list fields joined
+# with a space. No field of this manifest can hold a `|`.
+manifest_status=0
+manifest_records=""
+manifest_records="$(manifest_yq '.images | to_entries | .[] |
+  [.key, .value.parent, (.value.paths | join(" ")), (.value.groups | join(" "))] |
+  join("|")' 2>&1)" || manifest_status=$?
 
-  if [[ ! -f "$REPO_ROOT/$table_script" ]]; then
-    fail_check "the_${check_stem}_table_is_readable" \
-      "absent: ${table_script}"
-    fail_check "${check_stem}_holds_exactly_the_BUILD_ORDER_images" \
-      "absent: ${table_script}"
-    continue
-  fi
+manifest_names=""
+if [[ "$manifest_status" -eq 0 && -n "$manifest_records" ]]; then
+  manifest_names="$(cut -d'|' -f1 <<< "$manifest_records")"
+fi
 
-  declared_images="$(case_arm_labels "$REPO_ROOT/$table_script" "$table_function")"
-  declared_total="$(grep -c . <<< "$declared_images")" || declared_total=0
-  if [[ "$declared_total" -ge 2 ]]; then
-    pass_check "the_${check_stem}_table_is_readable"
+# The liveness clause, and it comes first: every clause below reads those
+# records, and an unreadable manifest would leave them all passing over an empty
+# set — the believed-and-empty check this repository refuses elsewhere.
+if [[ -n "$manifest_names" ]]; then
+  pass_check "the_image_manifest_is_readable"
+else
+  fail_check "the_image_manifest_is_readable" \
+    "reading ${IMAGES_MANIFEST} exited ${manifest_status}" \
+    "it printed:" "${manifest_records:-<nothing>}" \
+    "the manifest is the ONE declaration of the image set, so nothing below it can be answered" \
+    "without it — and every clause below would agree with a repository that has no images"
+fi
+
+if [[ -z "$manifest_names" ]]; then
+  fail_check "the_manifest_declares_exactly_the_published_images" \
+    "unreadable: ${IMAGES_MANIFEST}"
+  fail_check "every_declared_image_has_its_own_input_paths" \
+    "unreadable: ${IMAGES_MANIFEST}"
+  fail_check "every_declared_image_inherits_its_parents_input_paths" \
+    "unreadable: ${IMAGES_MANIFEST}"
+  fail_check "every_declared_image_has_check_groups" \
+    "unreadable: ${IMAGES_MANIFEST}"
+else
+  # -- 4a. set equality, in both directions --
+  # An image in the manifest and not here is an image that publishes with no
+  # policy literal watching it. An image here and not in the manifest is a name
+  # this file goes on believing after the manifest dropped it, and every
+  # per-image clause below would then report it as a manifest defect.
+  assert_equal "the_manifest_declares_exactly_the_published_images" \
+    "$(joined "${PUBLISHED_IMAGES[@]}")" \
+    "$(sort <<< "$manifest_names")" \
+    "${IMAGES_MANIFEST} is the ONE declaration of the image set, and PUBLISHED_IMAGES in this" \
+    "test is the hand-kept literal it owes set equality to — edit both in the same change" \
+    "a literal that no longer matches the manifest is a red test, and that is what replaces" \
+    "the 6 hand-copied declarations the graph used to live in"
+
+  # -- 4b/4c/4d. the rows, for each image the LITERAL names --
+  # Keyed on the literal and not on the manifest's own key list: a manifest that
+  # lost an entry must fail the row clauses too, and a loop over its keys would
+  # simply not visit the image that went missing.
+  missing_paths=""
+  missing_groups=""
+  broken_inheritance=""
+  for image in "${PUBLISHED_IMAGES[@]}"; do
+    record="$(awk -F'|' -v want="$image" '$1 == want { print; exit }' <<< "$manifest_records")"
+    if [[ -z "$record" ]]; then
+      missing_paths="${missing_paths:+${missing_paths}
+}${image}: no entry in ${IMAGES_MANIFEST} at all"
+      missing_groups="${missing_groups:+${missing_groups}
+}${image}: no entry in ${IMAGES_MANIFEST} at all"
+      continue
+    fi
+    image_parent_name="$(cut -d'|' -f2 <<< "$record")"
+    image_own="$(cut -d'|' -f3 <<< "$record")"
+    image_groups="$(cut -d'|' -f4 <<< "$record")"
+
+    # 4b. an image whose paths nothing can match never rebuilds, and the
+    # affected-only gate reports that as "nothing changed" on every commit.
+    if [[ -z "$image_own" ]]; then
+      missing_paths="${missing_paths:+${missing_paths}
+}${image}: an empty paths list"
+    fi
+
+    # 4d. an image with no groups gets a smoke that compares versions and
+    # exercises nothing, which is not a smoke.
+    if [[ -z "$image_groups" ]]; then
+      missing_groups="${missing_groups:+${missing_groups}
+}${image}: an empty groups list"
+    fi
+
+    # 4c. THE INCLUSION. A child's FULL input set has to CONTAIN its parent's
+    # own paths: that is what makes "the parent built, so the child builds" true
+    # by construction, and a missing edge publishes a layer on a parent that
+    # moved under it.
+    #
+    # This is the 1 clause that reads a derived answer, because the derivation
+    # IS the property: the manifest states a child's own paths WITHOUT its
+    # parent's on purpose, so the inclusion exists only in image_input_paths.
+    # The parent's rows come out of the manifest record, so the 2 sides of the
+    # comparison are not the same function talking to itself.
+    [[ -z "$image_parent_name" ]] && continue
+    parent_record="$(awk -F'|' -v want="$image_parent_name" '$1 == want { print; exit }' <<< "$manifest_records")"
+    if [[ -z "$parent_record" ]]; then
+      broken_inheritance="${broken_inheritance:+${broken_inheritance}
+}${image}: names parent '${image_parent_name}', which ${IMAGES_MANIFEST} does not declare"
+      continue
+    fi
+    full_status=0
+    full_paths=""
+    full_paths="$(image_input_paths "$image" 2>&1)" || full_status=$?
+    if [[ "$full_status" -ne 0 ]]; then
+      broken_inheritance="${broken_inheritance:+${broken_inheritance}
+}${image}: image_input_paths exited ${full_status} — ${full_paths}"
+      continue
+    fi
+    # Split on the SPACE the record joins its list with, and not on IFS: this
+    # file sets IFS to newline+tab, so an unquoted expansion would hand the
+    # whole `base/ _build/ versions.env .dockerignore` field over as 1 path and
+    # report every multi-path parent as missing. Measured while writing this
+    # clause — the red named a path with 3 spaces in it.
+    while IFS= read -r parent_path; do
+      [[ -z "$parent_path" ]] && continue
+      grep -qxF -- "$parent_path" <<< "$full_paths" && continue
+      broken_inheritance="${broken_inheritance:+${broken_inheritance}
+}${image}: its input set misses '${parent_path}', which its parent '${image_parent_name}' declares"
+    done <<< "$(cut -d'|' -f3 <<< "$parent_record" | tr ' ' '\n')"
+  done
+
+  if [[ -z "$missing_paths" ]]; then
+    pass_check "every_declared_image_has_its_own_input_paths"
   else
-    fail_check "the_${check_stem}_table_is_readable" \
-      "the reader found ${declared_total} row(s) in ${table_function} of ${table_script}" \
-      "it read:" "${declared_images:-<nothing>}" \
-      "either the table moved out of that function — and case_arm_labels in this test is what" \
-      "you edit — or it stopped matching, and the clause below would report every image as dead"
+    fail_check "every_declared_image_has_its_own_input_paths" \
+      "${IMAGES_MANIFEST} — the input paths that decide a rebuild:" \
+      "$missing_paths" \
+      "an image whose paths match nothing never rebuilds, and .ci/affected.sh reports that as" \
+      "'nothing changed' on every commit — a job that is green because it did no work"
   fi
 
-  table_defects=""
-  while IFS= read -r image; do
-    [[ -z "$image" ]] && continue
-    grep -qxF -- "$image" <<< "$build_order" && continue
-    table_defects="${table_defects:+${table_defects}
-}a row for '${image}', which BUILD_ORDER does not declare"
-  done <<< "$declared_images"
-  while IFS= read -r image; do
-    [[ -z "$image" ]] && continue
-    grep -qxF -- "$image" <<< "$declared_images" && continue
-    table_defects="${table_defects:+${table_defects}
-}NO row for '${image}', which BUILD_ORDER does declare"
-  done <<< "$build_order"
-
-  if [[ -z "$table_defects" ]]; then
-    pass_check "${check_stem}_holds_exactly_the_BUILD_ORDER_images"
+  if [[ -z "$broken_inheritance" ]]; then
+    pass_check "every_declared_image_inherits_its_parents_input_paths"
   else
-    fail_check "${check_stem}_holds_exactly_the_BUILD_ORDER_images" \
-      "${table_script} — ${table_purpose}:" \
-      "$table_defects" \
-      "the table is:   $(tr '\n' ' ' <<< "$declared_images")" \
-      "BUILD_ORDER is: $(tr '\n' ' ' <<< "$build_order")" \
-      "an extra row is a declaration nothing reads, which is what a half-finished image" \
-      "retirement leaves behind; a missing row fails the job at publish time, after the merge"
+    fail_check "every_declared_image_inherits_its_parents_input_paths" \
+      "${IMAGES_MANIFEST} — a child's input set must CONTAIN its parent's:" \
+      "$broken_inheritance" \
+      "that inclusion is what makes 'the parent built, so the child builds' true by construction" \
+      "without it a child publishes a layer FROM a parent that moved under it in the same run"
   fi
-done
+
+  if [[ -z "$missing_groups" ]]; then
+    pass_check "every_declared_image_has_check_groups"
+  else
+    fail_check "every_declared_image_has_check_groups" \
+      "${IMAGES_MANIFEST} — the functional groups the guest runs:" \
+      "$missing_groups" \
+      "a smoke that compares versions and exercises nothing is not a smoke: the image would" \
+      "publish having proven only that its tools report a number"
+  fi
+fi
 
 test_summary "$TEST_NAME"

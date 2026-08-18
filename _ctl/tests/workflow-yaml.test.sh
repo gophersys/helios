@@ -175,6 +175,36 @@ HOSTED_ONLY_ACTIONS=(
 # ---------------------------------------------------------------------------
 # The parser plumbing.
 # ---------------------------------------------------------------------------
+#
+# THIS IS THE SECOND COPY OF THE yq RESOLUTION, AND IT IS NOT CONSOLIDATED
+# TODAY. _ctl/lib.sh grew manifest_yq_pin and manifest_yq when images.yaml
+# landed, and the overlap is measured rather than guessed:
+#
+#   yq_pin           the awk body is IDENTICAL to manifest_yq_pin's, character
+#                    for character, once the 2 variable names are matched up
+#   yq_host_version  the same 3 lines that manifest_yq runs INLINE — it is not
+#                    a function there, so there is nothing to call
+#   yq_resolve       the same 3-branch route (yq 4.x on PATH, else the pinned
+#                    image through docker, else fail naming the tool)
+#
+# 1 home is the rule this repository keeps everywhere else, so the reason for
+# not moving is stated here and not left to the next reader to rediscover:
+#
+#   1. manifest_yq takes an EXPRESSION and hardcodes its file —
+#      "${REPO_ROOT}/${IMAGES_MANIFEST}". This file parses every workflow of 2
+#      directories, so it needs the ROUTE as a value, which is what yq_resolve
+#      returns and manifest_yq does not expose. Calling manifest_yq here would
+#      parse images.yaml and report the answer as a verdict on a workflow.
+#   2. yq_pin names the pin and its home HERE, deliberately. manifest_yq_pin
+#      reads which pin to look for out of _ctl/lib.sh, so a rename there would
+#      silently move what "the parser is pinned" means, and the check that owns
+#      that sentence would follow it.
+#
+# Closing this is 1 change to _ctl/lib.sh — a generic `yq_at_pin <file>
+# <expression>` plus an exported host-version reader, with manifest_yq
+# re-expressed as its first caller — and this file then keeps only its own pin
+# literal. That is an implementation change and not a test edit, so it is
+# written down as open work rather than half-done here.
 
 # yq_pin — the YQ_VERSION versions.env declares. Empty when there is none.
 function yq_pin() {

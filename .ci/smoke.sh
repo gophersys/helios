@@ -366,23 +366,14 @@ PIN_CLASS_TABLE
 # ZSDK_EXTRA_TOOLCHAINS is a list, for the reason ZSDK_TOOLCHAINS gives.
 
 # The functional groups .ci/image-checks.sh runs for each image, beyond the
-# version comparison. An image with no list is refused: a smoke that ran the
-# comparator alone would assert every version and exercise nothing.
+# version comparison, are the `groups` field of images.yaml — image_check_groups
+# in _ctl/lib.sh reads it. This file carried a case table of its own, which was
+# 1 of the ~15 homes an image name had to be written into.
 #
 # `base-runner` had a row here and is RETIRED — the ARC pools run `cloud` now,
 # so nothing builds it. The `content-runner` group did NOT go with it: `cloud`
 # carries the runner layer, so the checks that read /home/runner, its ownership
 # and the docker group still run, on the image that ships them today.
-function image_check_groups() {
-  case "$1" in
-    base)          printf 'content-base go-gate dockerfile-lint compose' ;;
-    flutter)       printf 'content-base content-flutter go-gate dockerfile-lint compose' ;;
-    zephyr)        printf 'content-base content-zephyr go-gate dockerfile-lint compose' ;;
-    zephyr-devbox) printf 'content-base content-zephyr content-devbox go-gate dockerfile-lint compose' ;;
-    cloud)         printf 'content-cloud content-runner go-gate dockerfile-lint compose debugger protocols' ;;
-    *)             printf '' ;;
-  esac
-}
 
 # The homes of THIS image, and the classification table each one is read
 # against. 2 parallel arrays and not 1 map: the mac's bash is 3.2 and has no
@@ -434,9 +425,9 @@ if [[ -n "$CHILD_PIN_HOME" || -n "$CHILD_CLASSES" ]]; then
   PIN_TABLES+=("$CHILD_CLASSES")
 fi
 
-CHECK_GROUPS="$(image_check_groups "$IMAGE")"
+CHECK_GROUPS="$(image_check_groups "$IMAGE")" || exit 2
 if [[ -z "$CHECK_GROUPS" ]]; then
-  log_error "no functional check group is declared for '${IMAGE}'"
+  log_error "no functional check group is declared for '${IMAGE}' in images.yaml"
   log_error "a smoke that compares versions and exercises nothing is not a smoke"
   exit 2
 fi

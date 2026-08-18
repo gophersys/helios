@@ -261,6 +261,242 @@ function require_buildx_and_platforms() {
   done
 }
 
+# -------- the image set: images.yaml is the source of truth --------
+# The graph was declared in 6 files that a test held to each other, and one image
+# was a literal in 22. It is declared in images.yaml now, once, and every
+# mechanical home reads it through the functions below: BUILD_ORDER in both
+# control scripts, image_parent() and the input path table in .ci/affected.sh,
+# the check groups in .ci/smoke.sh, and the publish jobs through
+# _ctl/generate.sh.
+#
+# The policy tests keep their hand-kept literals on purpose. A test that reads
+# the value it checks agrees with any value, a wrong one included; what it owes
+# this file is set EQUALITY, not a read.
+IMAGES_MANIFEST="images.yaml"
+
+# The pin governs the CONTAINER route only. yq is used here as a parser, the
+# question asked of it is "what does this document say", and the answer does not
+# move across 4.x point releases — so any 4.x on PATH is accepted, the way
+# _ctl/tests/workflow-yaml.test.sh accepts one. Major 4 is required rather than
+# "some yq" because the other yq (kislyuk/yq, a jq wrapper at 3.x) takes a
+# different command line and would fail for a reason that says nothing about the
+# document.
+IMAGES_MANIFEST_YQ_PIN_NAME="YQ_VERSION"
+IMAGES_MANIFEST_YQ_PIN_HOME="versions.env"
+
+# manifest_yq_pin — the YQ_VERSION versions.env declares, comment stripped.
+# Empty when there is none.
+function manifest_yq_pin() {
+  awk -v name="$IMAGES_MANIFEST_YQ_PIN_NAME" '
+    index($0, name "=") == 1 {
+      value = substr($0, length(name) + 2)
+      sub(/[[:space:]]*#.*$/, "", value)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      print value
+      exit
+    }
+  ' "${REPO_ROOT}/${IMAGES_MANIFEST_YQ_PIN_HOME}"
+}
+
+# manifest_yq <expression> — evaluate <expression> against the manifest.
+#
+# A missing parser is a FAILURE and never a skip: without one this function
+# cannot say what images exist, and a caller that took an empty answer would
+# report a repository with no images as a repository that is fine. The
+# resolution is ctl.sh's hadolint shape — the tool on PATH when it is usable,
+# the pinned image through docker otherwise, and a failure naming the tool when
+# neither route exists.
+function manifest_yq() {
+  local expression="$1"
+  local manifest="${REPO_ROOT}/${IMAGES_MANIFEST}"
+  if [[ ! -f "$manifest" ]]; then
+    log_error "the image manifest is absent: ${manifest}"
+    log_error "it declares the image set, so nothing below it can be answered without it"
+    return 1
+  fi
+  local have=""
+  if command -v yq >/dev/null 2>&1; then
+    # 2>&1 rather than 2>/dev/null, the reason ctl.sh gives about hadolint: a yq
+    # that cannot report its own version is a yq whose output belongs on screen.
+    have="$(yq --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" || have=""
+  fi
+  if [[ "$have" =~ ^4\. ]]; then
+    yq eval "$expression" "$manifest"
+    return
+  fi
+  local pin
+  pin="$(manifest_yq_pin)"
+  if [[ -n "$pin" ]] && command -v docker >/dev/null 2>&1; then
+    docker run --rm -v "$(dirname "$manifest"):/w:ro" -w /w "mikefarah/yq:${pin}" \
+      eval "$expression" "$(basename "$manifest")"
+    return
+  fi
+  log_error "a YAML parser is required and this host has yq ${have:-none}, with no docker to run mikefarah/yq:${pin:-<unpinned>}"
+  log_error "run this inside the devcontainer, which ships yq ${pin:-at YQ_VERSION}, or install yq 4.x"
+  return 1
+}
+
+# The flat form of the manifest, 1 record per image in document order:
+#
+#   <name>|<parent>|<context>|<dockerfile>|<smoke_ref>|<paths>|<groups>
+#
+# where the last 2 fields are space-joined lists. The `|` grammar is the one
+# _build/upstreams.txt and .ci/smoke.sh's class tables already use, and no field
+# of this manifest can hold the character.
+#
+# Read ONCE per process and cached. Every accessor below answers out of the
+# cache, so a script that asks about all 5 images spends 1 parse and not 30 —
+# which matters on the container route, where each parse is a docker run.
+_IMAGES_RECORDS=""
+_IMAGES_RECORDS_LOADED=""
+
+function image_records() {
+  if [[ -n "$_IMAGES_RECORDS_LOADED" ]]; then
+    printf '%s\n' "$_IMAGES_RECORDS"
+    return 0
+  fi
+  local records status=0
+  # Through an assignment and not a pipe: bash 3.2 unsets errexit inside `$( )`,
+  # so the status is read explicitly here — the trap _build/resolve-upstream.sh
+  # documents, where a failed read returned an empty string that was then
+  # reported as an answer.
+  records="$(manifest_yq '.images | to_entries | .[] | [.key, .value.parent, .value.context, .value.dockerfile, .value.smoke_ref, (.value.paths | join(" ")), (.value.groups | join(" "))] | join("|")')" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    log_error "the image manifest could not be read: ${REPO_ROOT}/${IMAGES_MANIFEST}"
+    return 1
+  fi
+  if [[ -z "$records" ]]; then
+    log_error "${IMAGES_MANIFEST} declares no image — a repository with an empty set is a manifest that was not read"
+    return 1
+  fi
+  _IMAGES_RECORDS="$records"
+  _IMAGES_RECORDS_LOADED="yes"
+  printf '%s\n' "$_IMAGES_RECORDS"
+}
+
+# image_record <name> — the 1 record of <name>. Fails naming the image when the
+# manifest does not declare it, because every caller below is about to answer a
+# question about that image and an empty record would answer it wrongly.
+function image_record() {
+  local name="$1" records record
+  records="$(image_records)" || return 1
+  record="$(printf '%s\n' "$records" | awk -F'|' -v want="$name" '$1 == want { print; exit }')"
+  if [[ -z "$record" ]]; then
+    log_error "no image named '${name}' in ${IMAGES_MANIFEST}"
+    log_error "the manifest is the source of truth for the set; add the image there or fix the name"
+    return 1
+  fi
+  printf '%s' "$record"
+}
+
+# image_field <name> <index> — field <index> of an image's record, 1-based.
+function image_field() {
+  local record
+  record="$(image_record "$1")" || return 1
+  printf '%s' "$record" | cut -d'|' -f"$2"
+}
+
+# image_names — every image, 1 per line, in document order.
+#
+# That order IS the build order, and a parent below its child would emit an
+# order that builds a layer against a parent this run has not made yet. So the
+# order is CHECKED here rather than trusted: the manifest states the rule and
+# this is what holds it.
+function image_names() {
+  local records
+  records="$(image_records)" || return 1
+  # `emitted` and not the obvious `seen`: `shellcheck -x` follows the source
+  # line of every script that reads this library, and it carries a name's TYPE
+  # across the join. An array here made a plain string named `seen` in
+  # _ctl/tests/scheduled-workflows.test.sh read as SC2178, and `validate` lints
+  # that file with -x. A shared library owes its callers unusual names.
+  local -a emitted=()
+  local record name parent found earlier
+  while IFS= read -r record; do
+    [[ -z "$record" ]] && continue
+    name="${record%%|*}"
+    parent="$(printf '%s' "$record" | cut -d'|' -f2)"
+    if [[ -n "$parent" ]]; then
+      found=""
+      for earlier in ${emitted[@]+"${emitted[@]}"}; do
+        [[ "$earlier" == "$parent" ]] && found="yes"
+      done
+      if [[ -z "$found" ]]; then
+        log_error "${IMAGES_MANIFEST}: '${name}' is written above its parent '${parent}'"
+        log_error "document order is build order, so a parent must appear first — move '${parent}' up"
+        return 1
+      fi
+    fi
+    emitted+=("$name")
+    printf '%s\n' "$name"
+  done <<< "$records"
+}
+
+# image_parent <name> — the image <name> builds FROM, empty for one that builds
+# FROM ubuntu.
+function image_parent() {
+  image_field "$1" 2
+}
+
+# image_context <name> — the docker build context of the publish job.
+function image_context() {
+  image_field "$1" 3
+}
+
+# image_dockerfile <name> — the --file of the publish job.
+function image_dockerfile() {
+  image_field "$1" 4
+}
+
+# image_smoke_ref <name> — the tag the publish job loads and the smoke asserts.
+function image_smoke_ref() {
+  image_field "$1" 5
+}
+
+# image_own_paths <name> — the build inputs of the image ITSELF, 1 per line,
+# without its parent's. An empty list is a FAILURE: an image whose inputs
+# nothing can match is an image that never builds, and the affected-only gate
+# would report that as "nothing changed" every time.
+function image_own_paths() {
+  local paths
+  paths="$(image_field "$1" 6)" || return 1
+  if [[ -z "$paths" ]]; then
+    log_error "${IMAGES_MANIFEST}: '${1}' declares no input path"
+    log_error "its job could not decide anything, so it would report unaffected on every commit"
+    return 1
+  fi
+  # The trailing newline is load-bearing: image_paths_with_parents concatenates
+  # this output with its parent's, and without it a child's last path is glued
+  # to the parent's first.
+  printf '%s\n' "$paths" | tr ' ' '\n'
+}
+
+# image_paths_with_parents <name> — this image's own paths, then its parent's,
+# transitively, with the duplicates the graph produces.
+function image_paths_with_parents() {
+  local name="$1" parent
+  image_own_paths "$name" || return 1
+  parent="$(image_parent "$name")" || return 1
+  if [[ -n "$parent" ]]; then
+    image_paths_with_parents "$parent"
+  fi
+}
+
+# image_input_paths <name> — the FULL input set, 1 per line, de-duplicated.
+#
+# A child's input set CONTAINS its parent's, and that inclusion is what makes
+# "the parent built, so the child builds" true by construction. A missing edge
+# there publishes a layer on a parent that moved under it.
+function image_input_paths() {
+  image_paths_with_parents "$1" | awk '!seen[$0]++'
+}
+
+# image_check_groups <name> — the functional groups .ci/image-checks.sh runs for
+# this image, space-separated on 1 line.
+function image_check_groups() {
+  image_field "$1" 7
+}
+
 # -------- the base OS pin, and its currency --------
 # base/Dockerfile and cloud/Dockerfile build FROM ubuntu at a DIGEST, so the
 # commit decides the image: under the moving tag, 2 builds of 1 commit produce 2

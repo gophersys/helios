@@ -147,6 +147,13 @@ function run_smoke() {
 # No seam is added to .ci/smoke.sh for this. The script already reads its
 # repository root out of its own location, so a copy of the file tree with a
 # mutated versions.env is all a test needs to state the world it wants.
+#
+# EVERY file the driver reads has to be in the tree, and images.yaml joined that
+# set when the image graph became data. Without its symlink the staged run died
+# in _ctl/lib.sh — "the image manifest is absent" — before it read a single pin,
+# so the case reported rule 3 as broken while the pin guard it names was
+# untouched. A staging function that omits an input does not weaken the case it
+# stages; it replaces it with a different one.
 function stage_repository_without_pin() {
   local pin="$1"
   local root
@@ -154,6 +161,7 @@ function stage_repository_without_pin() {
   ln -s "$REPO_ROOT/_ctl" "${root}/_ctl"
   ln -s "$REPO_ROOT/base" "${root}/base"
   ln -s "$REPO_ROOT/.ci" "${root}/.ci"
+  ln -s "$REPO_ROOT/images.yaml" "${root}/images.yaml"
   grep -v "^${pin}=" "$REPO_ROOT/versions.env" > "${root}/versions.env"
   printf '%s' "$root"
 }
