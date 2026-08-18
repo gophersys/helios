@@ -1,0 +1,17 @@
+# The one hadolint policy home. Both routes of ctl.sh's hadolint pass name
+# this file with --config, so the host verdict and the container verdict
+# cannot disagree about it.
+#
+# DL3066 (non-numeric user-id): ignored REPO-WIDE by convention. Every image
+# runs as the named user `dev` (uid 1000) on purpose — the name is the
+# invariant the Dockerfiles and the entrypoints share, and the uid is fixed
+# at useradd. Numeric USER lines would trade a readable convention for a
+# lint preference. Raised by hadolint 2.15.1; decided 2026-08-18 with the
+# migration (ledger #110).
+#
+# Everything else stays ON. DL3064 in particular is NOT ignored here: its
+# secret-name heuristic has exactly 2 false positives today (ARG USERNAME in
+# base and cloud), and those carry inline ignores WITH the reason — a global
+# ignore would blind the rule for a real credential ARG tomorrow.
+ignored:
+  - DL3066

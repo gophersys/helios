@@ -158,6 +158,9 @@ ARG GITLEAKS_SHA256_AMD64
 
 # Non-root dev user identity. These 3 are build parameters and not pins: no
 # upstream publishes a uid, so they keep their values here.
+# DL3064's secret-name heuristic fires on 'USERNAME'. This is a username
+# LITERAL, not a credential. Ledger #105 owns the deeper zsh-$USERNAME trap.
+# hadolint ignore=DL3064
 ARG USERNAME=dev
 ARG USER_UID=1000
 ARG USER_GID=1000
@@ -714,6 +717,9 @@ RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" 
 # installed toolchains without per-user config. Written to /etc/zsh/zshenv
 # so every zsh (interactive or not) picks it up.
 USER root
+# The single quotes are the point: these lines are WRITTEN to a file, and
+# $PATH must expand when zsh SOURCES it, never while this layer builds.
+# hadolint ignore=SC2016
 RUN { \
       echo '# Set by gophersys/base Dockerfile.'; \
       echo 'export PATH=/home/dev/.local/bin:/home/dev/.cargo/bin:/home/dev/go-sdk/bin:/home/dev/go/bin:/usr/local/lib/docker/cli-plugins:${PATH}'; \
