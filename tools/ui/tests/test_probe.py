@@ -55,3 +55,15 @@ def test_missing_root_fails_loudly(page):
 def test_missing_page_fails_loudly(tmp_path):
     with pytest.raises(probe.ProbeError):
         probe.collect(tmp_path / "absent.html", root="#root", containers={}, parts={})
+
+
+def test_ui_chrome_set_but_missing_fails_loudly(monkeypatch, tmp_path):
+    # CI names UI_CHROME so that a browser entry point that moved is a loud
+    # error. Left to the candidate search, find_chrome() would silently resolve
+    # SOME other chrome on PATH and the gates would measure with a browser
+    # nobody chose — proven in the ui image: with the baked symlink deleted and
+    # UI_CHROME unset, find_chrome() returned /usr/bin/google-chrome, rc=0.
+    # This is the branch that makes the guard worth its two lines.
+    monkeypatch.setenv("UI_CHROME", str(tmp_path / "densui-chromium"))
+    with pytest.raises(probe.ProbeError, match="does not exist"):
+        probe.find_chrome()

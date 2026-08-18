@@ -279,6 +279,53 @@ Preconditions: steps (a) renames and (b) cloud reduction are merged;
 6. After a soak period: delete the ghcr package `research-ui-ci`.
    **Mateo authorizes this deletion. Nobody else.**
 
+### Status — steps 1 and 2 have landed (2026-08-18)
+
+Step 1 is done upstream: `ghcr.io/gophersys/ui` is published by
+`gophersys/.devcontainer` (`ui/Dockerfile`, `FROM cloud`), **dual-arch**
+— amd64 AND arm64. R3 dissolved rather than resolved: Google's stable
+component now publishes `google-chrome-stable` for arm64 at the same
+version as amd64 (measured upstream 2026-08-18), so section 3's
+"Google ships NO arm64 Linux Chrome" is out of date and the pinned
+Debian Chromium candidate is not needed. Nothing compares the arm64
+browser yet — that gap is recorded upstream, not here.
+
+Step 2 landed **by digest, as this ADR requires**, plus two deviations
+that remain deliberate:
+
+- **The pin.** All three container jobs run
+  `ghcr.io/gophersys/ui:latest@sha256:26547a1fdc03bacd4bae9845f43fa74b200347d726034e96e04ae8116486117c`
+  (resolved 2026-08-18). That digest is the **multi-arch index**, not
+  the amd64 manifest (`sha256:11a9e70f8780c37e…`) — this ADR asks dev
+  and CI to pin the SAME digest, and only the index resolves for both
+  an arm64 devcontainer and the amd64 fleet. The tag is retained ahead
+  of the `@` for readability; the digest is what resolves. `ui`
+  republishes daily off an unpinned chrome channel, so the tag alone
+  would let a green commit go red the next day with no code change —
+  which is the property this pin exists to remove during the soak.
+  Step 3 pins `.devcontainer/devcontainer.json` to this same string and
+  adds the acceptance-metric-5 tripwire over the two references. The
+  form matches the sibling lane: research-hardware pins
+  `ghcr.io/gophersys/hardware:latest@sha256:ad5851…` the same way.
+- **`UI_CHROME` is set by the workflows.** The published image bakes
+  `DENSUI_CHROME=/usr/local/bin/densui-chromium`, named before the
+  `densui` → `ui` rename landed here, while `tools/ui/src/ui/probe.py`
+  reads `UI_CHROME`. Section 2's "both arches resolve `ui-chromium` and
+  `ENV UI_CHROME`" is therefore not yet true of the org image. Unset,
+  `find_chrome()` falls through to its PATH candidate search and finds
+  `/usr/bin/google-chrome-stable` anyway — it passes without proving the
+  baked entry point, which is the silent-fallback failure this document
+  already warns about. The workflows name the path instead, so a moved
+  symlink is a loud `ProbeError`. The bridge is removed when `ui`
+  exports `UI_CHROME`.
+- **Steps 3 and 5 are NOT in that change.** `.devcontainer/Dockerfile`
+  still builds `FROM research-ui-ci:latest`, so dev and CI drift until
+  step 3: chrome `151.0.7922.137` vs `151.0.7922.169`, node `22.23.2`
+  vs `24.19.0`, uv root-installed vs cloud's. `build-ci-image.yml` is
+  left alive on purpose while that dependency exists — deleting it
+  would freeze the image the devcontainer still consumes. Steps 3 and 5
+  are one PR.
+
 ### Rollback
 
 - The deleted files stay in git history. One revert restores them.

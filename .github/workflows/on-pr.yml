@@ -12,19 +12,33 @@ concurrency:
 
 permissions:
   contents: read
-  packages: read   # gates pulls a private ghcr image — declaring this block drops the default read
+  # No packages: read. The gates image is a CROSS-REPO private package and
+  # GITHUB_TOKEN's packages:read never reached it (eden lesson L3); the pull is
+  # made with GHCR_PULL_TOKEN below, so the grant would be a permission nothing
+  # uses.
   pull-requests: write
 
 jobs:
   gates:
-    runs-on: arc-org  # the org ARC fleet — same gates as on-push, same image as the devcontainer
+    # the org ARC fleet — same gates as on-push, same image as on-push. NOT the
+    # devcontainer's image yet: .devcontainer/Dockerfile still builds FROM the
+    # retired research-ui-ci, and step (5) of docs/image-notes.md closes that gap.
+    runs-on: arc-org
     timeout-minutes: 30   # a hung job must fail loudly, not hold the fleet seat for 6h
     container:
-      image: ghcr.io/gophersys/research-ui-ci:latest
+      # The org ui CATEGORY image (ADR-0003) — the same image AND the same digest
+      # ci.yml runs, so a PR and a push cannot disagree about the toolchain.
+      # Cross-repo private package: only GHCR_PULL_TOKEN can pull it (eden
+      # lesson L3). Digest = the multi-arch index; see ci.yml for why.
+      image: ghcr.io/gophersys/ui:latest@sha256:26547a1fdc03bacd4bae9845f43fa74b200347d726034e96e04ae8116486117c
       credentials:
         username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        password: ${{ secrets.GHCR_PULL_TOKEN }}
       options: --user root
+    env:
+      # See ci.yml: the image bakes DENSUI_CHROME, probe.py reads UI_CHROME.
+      # Without this the probe silently falls back to a PATH search.
+      UI_CHROME: /usr/local/bin/densui-chromium
     steps:
       - uses: actions/checkout@v4
       - run: ./ctl.sh test
