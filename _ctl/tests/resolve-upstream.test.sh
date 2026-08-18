@@ -155,6 +155,12 @@ FIXTURE_WORLD="$FIXTURE_ROOT/resolver"
 RESPONSES="$FIXTURE_ROOT/responses"
 ASSETS="$FIXTURE_ROOT/assets"
 
+# The second world, and it is separate because it is BROKEN BY DESIGN: 1 digest
+# row claimed by 2 case arms that resolve to 2 different assets. Every aggregate
+# run over a world holding that pin fails, and the cases that assert a clean
+# --dry-run and a clean --apply need a world where every row resolves.
+ONE_ROW_WORLD="$FIXTURE_ROOT/one-row-two-assets"
+
 # The digest of each fixture asset, as a LITERAL. See the header: a test that
 # computes the value it checks agrees with any bytes. The guard below reads the
 # files and holds them to these 10 numbers, so an edit to a fixture asset turns
@@ -283,6 +289,13 @@ BASE_MAP="$WORK/map-base.txt"
   printf 'stubshared_Linux_amd64.tar.gz|200|%s\n'       "$ASSETS/stubshared-0.9.1-amd64.tar.gz"
   printf 'stubshared_Linux_arm64.tar.gz|200|%s\n'       "$ASSETS/stubshared-0.9.1-arm64.tar.gz"
   printf 'stubnoarch-7.1.0-any.tar.gz|200|%s\n'         "$ASSETS/stubnoarch-7.1.0.tar.gz"
+  # The 2 assets of the one-row-two-assets world. They are served so that a
+  # resolver which SWALLOWED the second record would succeed rather than die at
+  # the download: the case that reads that refusal must be able to tell a
+  # refusal from a 404, and a world where the wrong behaviour also fails proves
+  # nothing about which failure it read.
+  printf 'stubonerow-1.2.3-linux-x86_64.tar.gz|200|%s\n'  "$ASSETS/stubdual-1.2.3-amd64.tar.gz"
+  printf 'stubonerow-1.2.3-linux-aarch64.tar.gz|200|%s\n' "$ASSETS/stubdual-1.2.3-arm64.tar.gz"
   printf '# indexes\n'
   printf 'auth.docker.io|200|%s\n'        "$RESPONSES/oci-registry-token.json"
   printf 'stubowner/stubgithub|200|%s\n'  "$RESPONSES/github-release-stubgithub.json"
@@ -903,6 +916,20 @@ function fetches_of() {
   awk -v needle="$1" '$0 == needle { total++ } END { print total + 0 }' <<< "$CURL_LOG"
 }
 
+# platforms_of_row <governed file> <row> — field 1 of every fetch_urls record
+# that answers for <row>, 1 per line, in the order the file writes its arms.
+#
+# THE RESOLVER'S RECORD DOES NOT CARRY THIS FIELD, so nothing else in this file
+# can see it. `<version>|<row>=<digest>` is what the CLI prints, and a reader
+# that set the platform of every record to a constant would leave every check
+# above green — measured: with the field replaced by a literal, all 56 passed.
+# The platform is what `expand_url` names in its refusal and what a maintainer
+# reads to know WHICH leg a record answers for, so it is asserted here against
+# the library reader itself.
+function platforms_of_row() {
+  awk -F'|' -v want="$2" '$2 == want { print $1 }' <<< "$(fetch_urls "$1")"
+}
+
 run_resolver "$BASE_MAP" "$RESOLUTION_WORLD" -- "STUBDUAL_VERSION"
 assert_resolves "a_dual_arch_pin_resolves_one_digest_per_arm" "STUBDUAL_VERSION" \
   "1.2.3|${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64} ${ROW_STUBDUAL_ARM64}=${ASSET_DIGEST_STUBDUAL_ARM64}" \
@@ -987,6 +1014,45 @@ else
     "url for the SAME 2 rows — the k9s and buildx shape. A row is deduplicated and" \
     "never a url: without it each row is answered twice, the record carries 4 pairs," \
     "and every Monday spends 2 extra whole-asset downloads per pin of that shape"
+fi
+
+# -------- the PLATFORM field, which no check above reads --------
+# The 3 checks above assert the resolver's record, and that record carries the
+# row and the digest and NOT the platform. So the whole set stayed green when
+# the platform expression in `fetch_urls` was replaced by a literal — 56 checks,
+# 0 failed, over a reader that had stopped saying which leg each record answers
+# for. It is the field `expand_url` names in its refusal ("neither the
+# linux/arm64 case arm nor a value home declares it"), and the field a
+# maintainer reads to tell 2 records of 1 pin apart.
+DUAL_GOVERNED_FILE="${RESOLUTION_WORLD}/cloud/Dockerfile"
+dual_amd64_platforms="$(platforms_of_row "$DUAL_GOVERNED_FILE" "$ROW_STUBDUAL_AMD64")"
+dual_arm64_platforms="$(platforms_of_row "$DUAL_GOVERNED_FILE" "$ROW_STUBDUAL_ARM64")"
+if [[ "$dual_amd64_platforms" == "linux/amd64" && "$dual_arm64_platforms" == "linux/arm64" ]]; then
+  pass_check "each_record_of_a_dual_arch_pin_names_the_platform_of_its_own_arm"
+else
+  fail_check "each_record_of_a_dual_arch_pin_names_the_platform_of_its_own_arm" \
+    "want: exactly 1 record per row — ${ROW_STUBDUAL_AMD64} on linux/amd64 and ${ROW_STUBDUAL_ARM64} on linux/arm64" \
+    "got:  ${ROW_STUBDUAL_AMD64} on:" "${dual_amd64_platforms:-<no record>}" \
+    "      ${ROW_STUBDUAL_ARM64} on:" "${dual_arm64_platforms:-<no record>}" \
+    "every record fetch_urls emits:" "$(fetch_urls "$DUAL_GOVERNED_FILE")" \
+    "the platform is the arm's OWN name, taken from the \`linux/<arch>)\` token the file" \
+    "writes. A constant there — or the sanctioned set read positionally — labels the" \
+    "aarch64 asset as the amd64 leg, and every message about that record then names the" \
+    "wrong architecture to the person fixing it"
+fi
+
+noarch_platforms="$(platforms_of_row "$DUAL_GOVERNED_FILE" "$ROW_STUBNOARCH")"
+if [[ "$noarch_platforms" == "-" ]]; then
+  pass_check "an_armless_fetch_records_its_platform_as_a_dash"
+else
+  fail_check "an_armless_fetch_records_its_platform_as_a_dash" \
+    "want: exactly 1 record for ${ROW_STUBNOARCH}, on platform '-'" \
+    "got:" "${noarch_platforms:-<no record>}" \
+    "every record fetch_urls emits:" "$(fetch_urls "$DUAL_GOVERNED_FILE")" \
+    "no case arm is in scope at that fetch, so there is no platform to name and '-' says" \
+    "so. A reader that put a platform there would be inventing the one fact the file" \
+    "deliberately does not state — which is how flutter's own SDK row, unarmed and" \
+    "_AMD64, gets read as an arm64 download that upstream has never published"
 fi
 
 # ===========================================================================
@@ -1101,6 +1167,66 @@ else
     "leaves the caller to diff 2 files to find out which digest it owes"
 fi
 
+# -------- one row, two assets: the shape the dedupe must NOT swallow --------
+# The k9s reading above and this one are the same 2 records to a reader that
+# keys on the row: same row, 2 records, drop the second. What tells them apart
+# is the ASSET each arm names — the url with that arm's own ARCH resolved into
+# it — and the difference is the whole guarantee. Same asset means one download
+# read twice and is deduplicated; 2 assets under 1 row means the row can attest
+# at most one of them, and the OTHER architecture installs bytes nothing
+# answered for. The build cannot see it: the digest it compares is the one that
+# matches, on the leg that matches.
+#
+# The fixture is named flutter/Dockerfile because that is where the live seed
+# is. ANDROID_CMDLINE_TOOLS_SHA256_NOARCH is a _NOARCH row emitted under
+# flutter's `linux/amd64) : ;;` guard arm today — 1 arm, correct — and the day
+# that RUN gains an arm64 arm without splitting the row, the tree IS this
+# fixture. Whoever writes that arm meets this failure and has to choose: 2 rows
+# for 2 assets, or 1 asset for both arms.
+run_resolver "$BASE_MAP" "$ONE_ROW_WORLD" -- "STUBONEROW_VERSION"
+one_row_output="${RESOLVER_STDOUT}
+${RESOLVER_STDERR}"
+one_row_missing=""
+for expected in \
+  "STUBONEROW_SHA256_NOARCH" \
+  "stubonerow-\${STUBONEROW_VERSION}-linux-x86_64.tar.gz" \
+  "stubonerow-\${STUBONEROW_VERSION}-linux-aarch64.tar.gz"; do
+  if ! grep -qF -- "$expected" <<< "$one_row_output"; then
+    one_row_missing="${one_row_missing:+${one_row_missing}
+}${expected}"
+  fi
+done
+if [[ "$RESOLVER_STATUS" -ne 0 && -z "$one_row_missing" ]]; then
+  pass_check "one_row_naming_two_different_assets_is_refused_naming_both"
+else
+  fail_check "one_row_naming_two_different_assets_is_refused_naming_both" \
+    "want: a non-zero exit, and a message naming the row AND both assets" \
+    "got:  exit ${RESOLVER_STATUS}, and the message never names:" "${one_row_missing:-<nothing>}" \
+    "stdout was:" "${RESOLVER_STDOUT:-<none>}" \
+    "stderr was:" "${RESOLVER_STDERR:-<none>}" \
+    "the urls it asked for:" "${CURL_LOG:-<none>}" \
+    "naming the row alone would leave the reader diffing 2 arms to find out which asset" \
+    "it is being asked to choose between; a silent dedupe would leave them nothing at all," \
+    "and the writer would then be satisfied by a row set it had only half resolved"
+fi
+
+# The counter-stimulus for it, stated where the rule is: the OTHER 2-record
+# shape must still pass silently. STUBSHARED is fetched by cloud/Dockerfile and
+# by _delta/components/stubshared.sh at 1 url for the same 2 rows — same row,
+# same resolved asset — and the check above in section 3 reads it resolving to
+# exactly 2 pairs with 2 fetches per asset. A refusal that fired on identity as
+# well as on difference would turn k9s and buildx red in the real tree.
+if [[ "$shared_pairs" == "${ROW_STUBSHARED_AMD64}=${ASSET_DIGEST_STUBSHARED_AMD64} ${ROW_STUBSHARED_ARM64}=${ASSET_DIGEST_STUBSHARED_ARM64}" ]]; then
+  pass_check "counter_stimulus_one_row_naming_one_asset_in_two_files_is_still_silent"
+else
+  fail_check "counter_stimulus_one_row_naming_one_asset_in_two_files_is_still_silent" \
+    "want: ${ROW_STUBSHARED_AMD64}=${ASSET_DIGEST_STUBSHARED_AMD64} ${ROW_STUBSHARED_ARM64}=${ASSET_DIGEST_STUBSHARED_ARM64}" \
+    "got:  ${shared_pairs:-<none>}" \
+    "the refusal above must fire on 2 DIFFERENT assets under 1 row and never on 1 asset" \
+    "read twice; k9s and docker buildx are fetched by base/Dockerfile and by a component" \
+    "at one url, and a refusal that could not tell the 2 apart would make the real tree red"
+fi
+
 UNDECLARED_WORLD="$(committed_fixture_world "undeclared-digest-row")"
 run_bump_pin "$UNDECLARED_WORLD" "STUBDUAL_VERSION" "1.2.3" "computed-at-pin: ${TODAY}" \
   "${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64}" \
@@ -1121,6 +1247,168 @@ else
     "digest of that third row would be written NOWHERE, and a caller that computed it" \
     "believes a platform is pinned that nothing verifies — which is the same silence as" \
     "a missing row, wearing the shape of a complete call"
+fi
+
+# -------- the argument that used to abort the write MIDWAY --------
+# A comment holds no newline, and the evidence reaches awk as a `-v` assignment.
+# A newline in it aborts awk in the MIDDLE of the write loop, so the version row
+# was already rewritten and the digest rows were not: version moved, digests
+# stale, which is the precise state this whole feature exists to make
+# impossible — and it is the state no build can detect until the download fails
+# after the merge.
+#
+# 2 things now make it unreachable, and this case reads BOTH: the argument is
+# refused before any file is opened, and every home is staged on a copy that is
+# verified before a single byte is written back. So the check is not only "it
+# said no" — it is "it said no and the tree is byte for byte what it was".
+NEWLINE_WORLD="$(committed_fixture_world "newline-evidence")"
+newline_version_before="$(row_value "$NEWLINE_WORLD" "STUBDUAL_VERSION")"
+run_bump_pin "$NEWLINE_WORLD" "STUBDUAL_VERSION" "1.2.3" "computed-at-pin: ${TODAY}
+this second line is what aborted awk halfway through the write loop" \
+  "${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64}" \
+  "${ROW_STUBDUAL_ARM64}=${ASSET_DIGEST_STUBDUAL_ARM64}"
+newline_porcelain="$(git -C "$NEWLINE_WORLD" status --porcelain)"
+newline_version_after="$(row_value "$NEWLINE_WORLD" "STUBDUAL_VERSION")"
+# The message has to be the WRITER'S OWN refusal, naming the pin and the
+# argument. `awk: newline in string ... at source line 1` also carries the word
+# newline, and a check that took it would pass against a writer with no guard at
+# all — the staging below catches that one, so the tree is clean either way and
+# the status cannot tell them apart. What the up-front guard adds is a reader
+# who learns WHICH ARGUMENT they got wrong instead of a line number in an awk
+# program they did not write.
+if [[ "$BUMP_STATUS" -ne 0 ]] \
+  && grep -qF -- "bump_pin: STUBDUAL_VERSION: the evidence carries a newline" <<< "$BUMP_OUTPUT" \
+  && [[ -z "$newline_porcelain" ]] \
+  && [[ "$newline_version_after" == "$newline_version_before" ]]; then
+  pass_check "an_evidence_carrying_a_newline_is_refused_before_anything_is_written"
+else
+  fail_check "an_evidence_carrying_a_newline_is_refused_before_anything_is_written" \
+    "want: a non-zero status, the writer's OWN refusal naming the pin and the evidence," \
+    "      an empty porcelain, and STUBDUAL_VERSION still ${newline_version_before}" \
+    "got:  exit ${BUMP_STATUS}, STUBDUAL_VERSION=${newline_version_after:-<none>}, porcelain:" \
+    "${newline_porcelain:-<empty>}" \
+    "the writer said:" "${BUMP_OUTPUT:-<nothing>}" \
+    "the diff it left behind:" "$(git -C "$NEWLINE_WORLD" diff)" \
+    "a version row moved and its digest rows left stale is the exact defect this writer" \
+    "exists to prevent, and it is the one state a build cannot detect until the download" \
+    "fails after the merge — the status alone does not prove it, the clean tree does"
+fi
+
+# -------- and the SECOND wall, on a stimulus that walks past the first --------
+# `\n` — a backslash and an n — is not a newline, so both argument guards accept
+# it. awk expands escape sequences in a `-v` assignment, so the comment it
+# writes carries a REAL newline and the rewritten file gains a line. That is a
+# mid-write corruption reachable today, with every guard in place, and it is
+# what the staging is for: every home is rewritten on a COPY and the copy is
+# verified before a byte goes back. The refusal has therefore touched no tracked
+# file, and this case reads the tree rather than the status to say so.
+STAGED_WORLD="$(committed_fixture_world "staged-write")"
+staged_version_before="$(row_value "$STAGED_WORLD" "STUBDUAL_VERSION")"
+run_bump_pin "$STAGED_WORLD" "STUBDUAL_VERSION" "1.2.3" 'computed-at-pin: 2026-08-18\nand a second line' \
+  "${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64}" \
+  "${ROW_STUBDUAL_ARM64}=${ASSET_DIGEST_STUBDUAL_ARM64}"
+staged_porcelain="$(git -C "$STAGED_WORLD" status --porcelain)"
+staged_version_after="$(row_value "$STAGED_WORLD" "STUBDUAL_VERSION")"
+if [[ "$BUMP_STATUS" -ne 0 ]] \
+  && [[ -z "$staged_porcelain" ]] \
+  && [[ "$staged_version_after" == "$staged_version_before" ]]; then
+  pass_check "a_rewrite_that_corrupts_a_home_writes_no_byte_of_it"
+else
+  fail_check "a_rewrite_that_corrupts_a_home_writes_no_byte_of_it" \
+    "want: a non-zero status, an empty porcelain, and STUBDUAL_VERSION still ${staged_version_before}" \
+    "got:  exit ${BUMP_STATUS}, STUBDUAL_VERSION=${staged_version_after:-<none>}, porcelain:" \
+    "${staged_porcelain:-<empty>}" \
+    "the writer said:" "${BUMP_OUTPUT:-<nothing>}" \
+    "the diff it left behind:" "$(git -C "$STAGED_WORLD" diff)" \
+    "the version row is rewritten BEFORE the digest rows, so a writer that edited the" \
+    "real file in place leaves exactly the state this feature exists to make impossible:" \
+    "version moved, digest rows stale or mangled, and a build that only finds out at the" \
+    "download after the merge"
+fi
+
+# -------- 1 row, 2 answers in 1 call --------
+# A duplicate pair is a caller saying the same thing twice or 2 different things
+# at once, and the 2 cost very different amounts. Identical is a caller
+# repeating itself. CONTRADICTORY means the call cannot say which asset the row
+# attests, and whichever of last-wins or first-wins the writer happened to
+# implement would pick by ARGUMENT ORDER — a digest chosen by the order a loop
+# ran in, written with an evidence comment claiming it was read from bytes.
+CONTRADICTION_WORLD="$(committed_fixture_world "contradictory-duplicate")"
+run_bump_pin "$CONTRADICTION_WORLD" "STUBDUAL_VERSION" "1.2.3" "computed-at-pin: ${TODAY}" \
+  "${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64}" \
+  "${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_ARM64}" \
+  "${ROW_STUBDUAL_ARM64}=${ASSET_DIGEST_STUBDUAL_ARM64}"
+contradiction_porcelain="$(git -C "$CONTRADICTION_WORLD" status --porcelain)"
+if [[ "$BUMP_STATUS" -ne 0 ]] \
+  && grep -qF -- "$ASSET_DIGEST_STUBDUAL_AMD64" <<< "$BUMP_OUTPUT" \
+  && grep -qF -- "$ASSET_DIGEST_STUBDUAL_ARM64" <<< "$BUMP_OUTPUT" \
+  && [[ -z "$contradiction_porcelain" ]]; then
+  pass_check "a_row_given_two_different_digests_is_refused_naming_both_values"
+else
+  fail_check "a_row_given_two_different_digests_is_refused_naming_both_values" \
+    "want: a non-zero status, a message naming BOTH digests, and an empty porcelain" \
+    "      ${ASSET_DIGEST_STUBDUAL_AMD64}" \
+    "      ${ASSET_DIGEST_STUBDUAL_ARM64}" \
+    "got:  exit ${BUMP_STATUS}, porcelain:" "${contradiction_porcelain:-<empty>}" \
+    "the writer said:" "${BUMP_OUTPUT:-<nothing>}" \
+    "naming 1 value tells the caller which answer was kept and not which 2 disagreed," \
+    "and the disagreement is the bug: 2 digests for 1 row means the run resolved 2 assets" \
+    "and believes they are the same one"
+fi
+
+# The counter-stimulus, and it is what keeps the refusal from being a blanket
+# ban: 1 row named twice with the SAME digest says one thing twice. A resolver
+# whose 2 governed files agree produces exactly that, and refusing it would make
+# a correct call fail on a repetition that changes nothing.
+IDENTICAL_WORLD="$(committed_fixture_world "identical-duplicate")"
+run_bump_pin "$IDENTICAL_WORLD" "STUBDUAL_VERSION" "1.2.3" "computed-at-pin: ${TODAY}" \
+  "${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64}" \
+  "${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64}" \
+  "${ROW_STUBDUAL_ARM64}=${ASSET_DIGEST_STUBDUAL_ARM64}"
+identical_amd64="$(row_value "$IDENTICAL_WORLD" "$ROW_STUBDUAL_AMD64")"
+identical_arm64="$(row_value "$IDENTICAL_WORLD" "$ROW_STUBDUAL_ARM64")"
+if [[ "$BUMP_STATUS" -eq 0 ]] \
+  && [[ "$identical_amd64" == "$ASSET_DIGEST_STUBDUAL_AMD64" ]] \
+  && [[ "$identical_arm64" == "$ASSET_DIGEST_STUBDUAL_ARM64" ]]; then
+  pass_check "counter_stimulus_a_row_given_the_same_digest_twice_is_accepted"
+else
+  fail_check "counter_stimulus_a_row_given_the_same_digest_twice_is_accepted" \
+    "want: exit 0, and both rows on their own digest" \
+    "got:  exit ${BUMP_STATUS}" \
+    "      ${ROW_STUBDUAL_AMD64}=${identical_amd64:-<none>}" \
+    "      ${ROW_STUBDUAL_ARM64}=${identical_arm64:-<none>}" \
+    "the writer said:" "${BUMP_OUTPUT:-<nothing>}" \
+    "a refusal that fired on repetition as well as on contradiction would fail a call" \
+    "whose 2 sources AGREE, which is the shape a correct resolver produces"
+fi
+
+# -------- a pair with nothing before its '=' --------
+# `=<digest>` is a pair whose row name is the empty string, and it is what a
+# caller building pairs from an empty variable produces. Without a refusal it
+# passes every other guard: the completeness check is satisfied by the real
+# pairs beside it, the unknown-row check skips an empty name, and the write loop
+# looks for a declaration of "" and finds none. So the call reports success
+# having written a digest nowhere, and the caller believes a row it named is
+# pinned.
+EMPTY_ROW_WORLD="$(committed_fixture_world "empty-row-name")"
+run_bump_pin "$EMPTY_ROW_WORLD" "STUBDUAL_VERSION" "1.2.3" "computed-at-pin: ${TODAY}" \
+  "${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64}" \
+  "${ROW_STUBDUAL_ARM64}=${ASSET_DIGEST_STUBDUAL_ARM64}" \
+  "=${ASSET_DIGEST_STUBDUAL_AMD64}"
+empty_row_porcelain="$(git -C "$EMPTY_ROW_WORLD" status --porcelain)"
+if [[ "$BUMP_STATUS" -ne 0 ]] \
+  && grep -qF -- "=${ASSET_DIGEST_STUBDUAL_AMD64}" <<< "$BUMP_OUTPUT" \
+  && [[ -z "$empty_row_porcelain" ]]; then
+  pass_check "a_pair_with_an_empty_row_name_is_refused_naming_it"
+else
+  fail_check "a_pair_with_an_empty_row_name_is_refused_naming_it" \
+    "want: a non-zero status, a message quoting the pair, and an empty porcelain" \
+    "got:  exit ${BUMP_STATUS}, porcelain:" "${empty_row_porcelain:-<empty>}" \
+    "the writer said:" "${BUMP_OUTPUT:-<nothing>}" \
+    "the diff it left behind:" "$(git -C "$EMPTY_ROW_WORLD" diff)" \
+    "every other guard passes this call: the rows beside it satisfy the completeness" \
+    "check, the unknown-row reader skips an empty name, and the write loop finds no" \
+    "declaration to edit — so the digest is written nowhere and the run says it worked"
 fi
 
 # ===========================================================================

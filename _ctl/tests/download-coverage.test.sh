@@ -298,12 +298,39 @@ FIXTURE_ARM_LOCAL_LABEL="download-coverage/arm-local.Dockerfile"
 # in _ctl/lib.sh already reads. Both are the same 3 functions on purpose. A
 # second shape here would be a second answer to "what does this fetch verify".
 #
-# It resolves a local ONLY where the linux/amd64 arm assigned it a
+# ===========================================================================
+# EVERY ARM, AND THAT SENTENCE ABOVE WAS FALSE FOR A WHILE
+# ===========================================================================
+#
+# The twin claim was written when both readers collected from `linux/amd64)`
+# arms alone. `fetch_urls` then learned every arm — it has to, because it emits
+# a record per arm and the writer refuses a partial row set — and this half did
+# not move. The comment went on promising a twin-ness that no longer existed,
+# which is the worse half of the defect: the 2 readers disagreed about what the
+# same file says, and the comment said they could not.
+#
+# What an amd64-only reader gets wrong here is a FALSE RED, and it is reachable
+# from the real tree in both directions: a download published for arm64 alone is
+# assigned by the arm64 arm only, and flutter's Android RUN opens
+# `linux/amd64) : ;;` — a guard arm that assigns nothing at all. Either way the
+# amd64 arm is empty-handed and a correct, verified download reads as a helper
+# call passing no digest. This file's whole purpose is to report unanswered
+# downloads, so a false red here costs it the reader's trust in every real one.
+#
+# ONE RECORD PER FETCH is still the shape, and that is the 1 deliberate
+# difference from `fetch_urls`: the coverage rule keys on `<file>|<url>`, and a
+# record per arm would make 2 rows out of 1 download whose URL template is
+# written once. So the arms are tried IN THE ORDER THE FILE WRITES THEM and the
+# first one that resolves a `${<TOOL>_SHA256_<ARCH>}` token answers. Every real
+# 2-armed RUN writes amd64 first, so this changes no answer that was already
+# right; it adds the ones the amd64 arm could not give.
+#
+# It resolves a local ONLY where an arm assigned it a
 # `${<TOOL>_SHA256_<ARCH>}` token. A general assignment-follower is a reader an
 # assignment can fool: `SHA256=deadbeef` in an arm would then read as a verified
 # download, and the whole rule is about what the helper COMPARES.
 #
-# The arm is read as the text between `linux/amd64)` and the `;;` that follows
+# An arm is read as the text between `linux/<arch>)` and the `;;` that follows
 # it on the same logical line, which is why "a case arm stays on ONE line" is a
 # rule of this repository and not a taste. The scope resets at each RUN, so one
 # layer's SHA256 cannot answer for the next layer's fetch; a component .sh has
@@ -312,12 +339,27 @@ FIXTURE_ARM_LOCAL_LABEL="download-coverage/arm-local.Dockerfile"
 function fetch_sites() {
   local label="$1" file="$2"
   awk -v label="$label" '
-    function reset_scope(   key) { for (key in scope) { delete scope[key] } }
+    function reset_scope(   key) {
+      for (key in scope) { delete scope[key] }
+      for (key in scope_names) { delete scope_names[key] }
+      for (key in platform_seen) { delete platform_seen[key] }
+      platform_count = 0
+    }
 
-    function collect_scope(text,   rest, position, terminator, arm, count, index_of_word, words, name, value) {
+    # The arms keep the order the file writes them in. awk iterates an array in
+    # no order at all, and "the first arm that answers" has to mean the first
+    # one WRITTEN or the reader gives 2 answers on 2 runs of the same file.
+    function remember_platform(platform) {
+      if (platform in platform_seen) { return }
+      platform_seen[platform] = 1
+      platform_order[++platform_count] = platform
+    }
+
+    function collect_scope(text,   rest, platform, terminator, arm, count, index_of_word, words, name, value) {
       rest = text
-      while ((position = index(rest, "linux/amd64)")) > 0) {
-        rest = substr(rest, position + 12)
+      while (match(rest, /linux\/[a-z0-9]+(\/[a-z0-9]+)*\)/)) {
+        platform = substr(rest, RSTART, RLENGTH - 1)
+        rest = substr(rest, RSTART + RLENGTH)
         terminator = index(rest, ";;")
         if (terminator > 0) {
           arm = substr(rest, 1, terminator - 1)
@@ -326,6 +368,7 @@ function fetch_sites() {
           arm = rest
           rest = ""
         }
+        remember_platform(platform)
         count = split(arm, words, /[;[:space:]]+/)
         for (index_of_word = 1; index_of_word <= count; index_of_word++) {
           if (words[index_of_word] !~ /^[A-Za-z_][A-Za-z0-9_]*=/) { continue }
@@ -334,18 +377,36 @@ function fetch_sites() {
           value = substr(words[index_of_word], length(name) + 2)
           gsub(/^"|"$/, "", value)
           gsub(/^'\''|'\''$/, "", value)
-          scope[name] = value
+          if (!((platform, name) in scope)) {
+            scope_names[platform] = scope_names[platform] (scope_names[platform] == "" ? "" : " ") name
+          }
+          scope[platform, name] = value
         }
       }
     }
 
-    function resolve_digest_locals(text,   key, out) {
+    function resolve_in_arm(text, platform,   count, index_of_name, names, key, out) {
       out = text
-      for (key in scope) {
-        if (scope[key] !~ /^\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}$/) { continue }
-        gsub("\\$\\{" key "\\}", scope[key], out)
+      if (scope_names[platform] == "") { return out }
+      count = split(scope_names[platform], names, / /)
+      for (index_of_name = 1; index_of_name <= count; index_of_name++) {
+        key = names[index_of_name]
+        if (scope[platform, key] !~ /^\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}$/) { continue }
+        gsub("\\$\\{" key "\\}", scope[platform, key], out)
       }
       return out
+    }
+
+    # Every arm, in written order, and the FIRST that resolves a digest token
+    # answers. An amd64-only reader reports a download that only the arm64 arm
+    # assigns as a helper call passing no digest — a red naming a defect nobody
+    # committed.
+    function resolve_digest_locals(text,   index_of_platform, candidate) {
+      for (index_of_platform = 1; index_of_platform <= platform_count; index_of_platform++) {
+        candidate = resolve_in_arm(text, platform_order[index_of_platform])
+        if (match(candidate, /\$\{[A-Za-z_][A-Za-z0-9_]*_SHA256_[A-Z0-9_]+\}/)) { return candidate }
+      }
+      return text
     }
 
     function classify(text,   count, i, parts, part, resolved, url, state, digest) {
@@ -992,6 +1053,59 @@ $(fetch_sites "download-coverage/component.sh" "$FIXTURE_COMPONENT")"
     assert_contains "counter_stimulus_one_arm_two_tools_answers_the_first_with_its_own_pin" \
       "$arm_sites" "paira-v\${PAIRA_VERSION}.tar.gz|verified|PAIRA_SHA256_AMD64" \
       "sites read:" "$arm_sites"
+
+    # 6. THE ARM THAT IS NOT THE FIRST ONE. A download that exists on arm64 and
+    #    on no other platform is answered by the arm64 arm, because that is the
+    #    only arm that assigns anything. A reader that collects locals from
+    #    `linux/amd64)` alone reports `helper-without-digest` here — a red naming
+    #    a defect nobody committed, against a download that IS verified on the
+    #    platform that reaches it. The real tree holds the mirror of this shape:
+    #    flutter's Android RUN opens `linux/amd64) : ;;`, a guard arm that
+    #    assigns nothing at all.
+    assert_contains "counter_stimulus_answers_a_fetch_whose_only_assigning_arm_is_arm64" \
+      "$arm_sites" "onlyarm-v\${ONLYARM_VERSION}-linux-\${ARCH}.tar.gz|verified|ONLYARM_SHA256_ARM64" \
+      "this reader is the twin of fetch_urls in _ctl/lib.sh, which reads EVERY arm; an" \
+      "amd64-only twin makes this file report a false red on a correct download, and" \
+      "makes the 2 readers disagree about what the same file says" \
+      "sites read:" "$arm_sites"
+
+    # 7. THE TWIN-NESS ITSELF, as a check rather than as a sentence. The header
+    #    above promised that this reader and `fetch_urls` in _ctl/lib.sh are the
+    #    same 3 functions, and that promise went FALSE and stayed in the file:
+    #    fetch_urls learned every arm, this half did not, and the comment went on
+    #    asserting they agreed. So the agreement is executed here — every URL
+    #    fetch_urls answers with a digest row must be `verified` here, naming a
+    #    row fetch_urls names for that same URL.
+    #
+    #    The 2 readers are not identical and must not be: fetch_urls emits 1
+    #    record per ARM because the writer needs a digest per row, and this one
+    #    emits 1 record per FETCH because the coverage rule keys on <file>|<url>.
+    #    What they owe each other is the ANSWER, and this is that debt.
+    twin_disagreements=""
+    while IFS= read -r library_record; do
+      [[ -z "$library_record" ]] && continue
+      twin_url="$(awk -F'|' '{ print $3 }' <<< "$library_record")"
+      twin_rows="$(awk -F'|' -v want="$twin_url" '$3 == want { print $2 }' <<< "$(fetch_urls "$FIXTURE_ARM_LOCAL")")"
+      twin_site="$(awk -F'|' -v want="$twin_url" '$2 == want { print $3 "|" $4 }' <<< "$arm_sites")"
+      twin_site_state="${twin_site%%|*}"
+      twin_site_row="${twin_site#*|}"
+      if [[ "$twin_site_state" != "verified" ]] || ! grep -qxF -- "$twin_site_row" <<< "$twin_rows"; then
+        twin_disagreements="${twin_disagreements:+${twin_disagreements}
+}${twin_url}
+  _ctl/lib.sh fetch_urls says: ${twin_rows//$'\n'/, }
+  this file's fetch_sites says: ${twin_site:-<no record at all>}"
+      fi
+    done <<< "$(fetch_urls "$FIXTURE_ARM_LOCAL")"
+    if [[ -z "$twin_disagreements" ]]; then
+      pass_check "the_two_readers_agree_on_every_verified_download_of_the_arm_local_fixture"
+    else
+      fail_check "the_two_readers_agree_on_every_verified_download_of_the_arm_local_fixture" \
+        "$twin_disagreements" \
+        "the header of fetch_sites claims both readers are the same 3 functions. A claim" \
+        "that only a comment holds goes false the next time either half learns something," \
+        "and it did: fetch_urls learned to read every arm and this one kept reading" \
+        "linux/amd64) alone, so the same file meant 2 things and the comment said it could not"
+    fi
 
     assert_contains "counter_stimulus_one_arm_two_tools_answers_the_second_with_its_own_pin" \
       "$arm_sites" "pairb-v\${PAIRB_VERSION}.tar.gz|verified|PAIRB_SHA256_AMD64" \
