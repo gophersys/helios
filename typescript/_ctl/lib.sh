@@ -466,7 +466,14 @@ cmd_mutate() {
 
   # Normal node_modules resolution: the vitest-runner plugin is named by its plain specifier and
   # Stryker resolves it (with its peer @stryker-mutator/api co-resolved) through node — no store path.
-  local cfg; cfg="$(mktemp -t "${EDEN_LIB_NAME}-stryker.XXXXXX.json")"
+  #
+  # The config goes in a temp DIRECTORY under a FIXED name: BSD/macOS mktemp appends its random
+  # suffix AFTER a mid-template `.json` instead of substituting the X's, and Stryker then rejects the
+  # unknown extension (GNU mktemp substitutes, so CI never saw it). `mktemp -d` is unambiguous on
+  # both, and the file inside is always exactly stryker.json.
+  local cfgdir cfg
+  cfgdir="$(mktemp -d -t "${EDEN_LIB_NAME}-stryker.XXXXXX")"
+  cfg="${cfgdir}/stryker.json"
   cat > "$cfg" <<JSON
 {
   "packageManager": "npm",
@@ -489,7 +496,7 @@ JSON
   local rc=0
   ( cd "$PROJECT_ROOT" && node "$core_bin" run "$cfg" ) || rc=$?
 
-  rm -f "$cfg"
+  rm -rf "$cfgdir"
   rm -rf "${PROJECT_ROOT}/.stryker-tmp"
   # StrykerJS 9.x's vitest-runner writes per-worker `stryker-setup-<n>.js` files into the project
   # root and, under inPlace, leaves them behind (stryker-js#5305). Reap them so the working tree is
