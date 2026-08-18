@@ -290,14 +290,23 @@ version as amd64 (measured upstream 2026-08-18), so section 3's
 Debian Chromium candidate is not needed. Nothing compares the arm64
 browser yet — that gap is recorded upstream, not here.
 
-Step 2 landed with three deviations, each deliberate:
+Step 2 landed **by digest, as this ADR requires**, plus two deviations
+that remain deliberate:
 
-- **Tag, not digest.** CI pins `ghcr.io/gophersys/ui:latest`, not a
-  digest. The image is days old and still moving daily, and this repo
-  has no bump automation to move a digest. The digest pin and the
-  acceptance-metric-5 tripwire belong with step 3, when dev and CI can
-  be pinned to ONE value in one commit. The `:latest` amd64 digest at
-  the time of the change was `sha256:11a9e70f8780c37e…`.
+- **The pin.** All three container jobs run
+  `ghcr.io/gophersys/ui:latest@sha256:26547a1fdc03bacd4bae9845f43fa74b200347d726034e96e04ae8116486117c`
+  (resolved 2026-08-18). That digest is the **multi-arch index**, not
+  the amd64 manifest (`sha256:11a9e70f8780c37e…`) — this ADR asks dev
+  and CI to pin the SAME digest, and only the index resolves for both
+  an arm64 devcontainer and the amd64 fleet. The tag is retained ahead
+  of the `@` for readability; the digest is what resolves. `ui`
+  republishes daily off an unpinned chrome channel, so the tag alone
+  would let a green commit go red the next day with no code change —
+  which is the property this pin exists to remove during the soak.
+  Step 3 pins `.devcontainer/devcontainer.json` to this same string and
+  adds the acceptance-metric-5 tripwire over the two references. The
+  form matches the sibling lane: research-hardware pins
+  `ghcr.io/gophersys/hardware:latest@sha256:ad5851…` the same way.
 - **`UI_CHROME` is set by the workflows.** The published image bakes
   `DENSUI_CHROME=/usr/local/bin/densui-chromium`, named before the
   `densui` → `ui` rename landed here, while `tools/ui/src/ui/probe.py`

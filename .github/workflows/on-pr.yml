@@ -26,10 +26,11 @@ jobs:
     runs-on: arc-org
     timeout-minutes: 30   # a hung job must fail loudly, not hold the fleet seat for 6h
     container:
-      # The org ui CATEGORY image (ADR-0003) — the same image ci.yml runs, so a
-      # PR and a push cannot disagree about the toolchain. Cross-repo private
-      # package: only GHCR_PULL_TOKEN can pull it (eden lesson L3).
-      image: ghcr.io/gophersys/ui:latest
+      # The org ui CATEGORY image (ADR-0003) — the same image AND the same digest
+      # ci.yml runs, so a PR and a push cannot disagree about the toolchain.
+      # Cross-repo private package: only GHCR_PULL_TOKEN can pull it (eden
+      # lesson L3). Digest = the multi-arch index; see ci.yml for why.
+      image: ghcr.io/gophersys/ui:latest@sha256:26547a1fdc03bacd4bae9845f43fa74b200347d726034e96e04ae8116486117c
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GHCR_PULL_TOKEN }}
