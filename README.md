@@ -285,6 +285,25 @@ download covers the arm64 bytes, and `verify-published` asserts the manifest
 carries both. Smoking arm64 out of the registry after the push is the recorded
 follow-up.
 
+### Rehearsal mode
+
+Dispatch the workflow with `mode=rehearsal` to run everything except the ship:
+
+```sh
+gh workflow run build-and-push.yml --ref <branch> -f mode=rehearsal
+```
+
+Every job builds its gate image and smokes it exactly as in publish mode, then
+runs the publish-shaped build — same context, same build-args, same per-image
+`PLATFORMS`, same builders including the arm64 node — with `push: false`. The
+manifest read-back is skipped, because nothing was pushed and reading the
+previous `:<sha>` would report a verdict about another run's build.
+
+It exists because the arm64 leg is built only by the publish step, so without it
+the only way to exercise a branch's real multi-platform build was to publish it.
+`mode` defaults to `publish`, and a `push` event carries no input at all, so
+publish behaviour is unchanged.
+
 ### Why there IS an arm64 variant
 
 Every image runs where its consumers are. The rule is **build only the

@@ -80,6 +80,20 @@ ACTION_BUILD_PUSH="docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f1
 # The gate every step below the filter carries.
 BUILD_GATE="\${{ steps.filter.outputs.build == 'true' }}"
 
+# The 2 mode-aware gates. Both OPEN with the filter reference, and that order is
+# load-bearing: _ctl/tests/publish-order.test.sh reads the FIRST
+# `steps.<id>.outputs.<key>` on an `if:` line as the gate a step carries, and it
+# requires every step that publishes, smokes or reads a manifest to be guarded by
+# `steps.filter.outputs.build`. `inputs.mode` is not a step output, so it adds a
+# condition without moving that reference.
+#
+# `!= 'rehearsal'` and not `== 'publish'`: on a `push` event there is no input at
+# all and `inputs.mode` is the empty string. Written as an equality against
+# 'publish', every push to main would take the rehearsal branch and publish
+# nothing — the failure would be a workflow that runs green and ships no image.
+PUBLISH_GATE="\${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}"
+REHEARSAL_GATE="\${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}"
+
 # ---------------------------------------------------------------------------
 # The manifest, beyond what _ctl/lib.sh already answers.
 # ---------------------------------------------------------------------------
@@ -401,7 +415,7 @@ JOB_BUILD_HEAD
         # buildx appended for it. So this step is the one that runs the arm64
         # build, and an arm64 failure surfaces HERE rather than in the gate.
 JOB_PUBLISH_HEAD
-  printf '        if: %s\n' "$BUILD_GATE"
+  printf '        if: %s\n' "$PUBLISH_GATE"
   printf '        uses: %s\n' "$ACTION_BUILD_PUSH"
   printf '        with:\n'
   printf '          context: %s\n' "$context"
@@ -415,14 +429,40 @@ JOB_PUBLISH_HEAD
   printf "            \${{ steps.semver.outputs.tag != '' && format('{0}/{1}/%s:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}\n" "$name"
   printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache\n' "$name"
 
+  cat <<'JOB_REHEARSAL_HEAD'
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+JOB_REHEARSAL_HEAD
+  printf '        if: %s\n' "$REHEARSAL_GATE"
+  printf '        uses: %s\n' "$ACTION_BUILD_PUSH"
+  printf '        with:\n'
+  printf '          context: %s\n' "$context"
+  printf '          file: %s\n' "$dockerfile"
+  printf '          platforms: ${{ env.PLATFORMS }}\n'
+  printf '          push: false\n'
+  printf '%s\n' "$build_args_block"
+  printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache\n' "$name"
+
   cat <<'JOB_VERIFY_HEAD'
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
 JOB_VERIFY_HEAD
-  printf '        if: %s\n' "$BUILD_GATE"
+  printf '        if: %s\n' "$PUBLISH_GATE"
   printf '        run: bash ./ctl.sh verify-published %s %s\n' "$name" "$sha_expression"
 }
 
@@ -542,6 +582,44 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "publish = build and ship. rehearsal = build everything, ship nothing."
+        type: choice
+        default: publish
+        options:
+          - publish
+          - rehearsal
+
+# REHEARSAL MODE, and the hole it closes.
+#
+# The stated risk of a multi-platform publish is that a platform the gate does
+# not smoke fails at PUBLISH time — after the merge, on `main`, with :latest
+# already moving. Before this input the only way to exercise a branch's real
+# build was to publish it, so the branch could not be proven without taking the
+# risk it exists to measure.
+#
+# In rehearsal every job does everything except ship:
+#
+#   - the gate build and the amd64 smoke run EXACTLY as in publish mode. They
+#     are not conditional on the mode at all.
+#   - the publish-shaped build runs with the same context, the same build-args
+#     and the same per-image PLATFORMS, on the same builders — including the
+#     arm64 node for the platforms that need it — with `push: false`.
+#   - the manifest read-back is skipped, because nothing was pushed and reading
+#     the PREVIOUS :<sha> would report a verdict about somebody else's build.
+#
+# `inputs.mode` is empty on a `push` event, and empty is not 'rehearsal', so a
+# push to main behaves exactly as it did before this input existed. Rehearsal is
+# reachable only by dispatching it deliberately.
+#
+# It is 2 steps and not 1 `push: ${{ ... }}` expression on purpose.
+# _ctl/tests/publish-order.test.sh finds a publishing step by the LITERAL line
+# `push: true`, and the whole smoke-gates-publish rule rests on that detector:
+# an expression there would make every job read as a job that publishes nothing,
+# and the rule that guards the irreversible action would pass while checking
+# nothing. Both steps sit AFTER the smoke, so the ordering rule holds in either
+# mode.
 
 # Supersede an in-flight run for the same ref so a rapid second push doesn't run two
 # expensive image builds in parallel.

@@ -97,6 +97,44 @@ on:
     branches: [main]
     tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "publish = build and ship. rehearsal = build everything, ship nothing."
+        type: choice
+        default: publish
+        options:
+          - publish
+          - rehearsal
+
+# REHEARSAL MODE, and the hole it closes.
+#
+# The stated risk of a multi-platform publish is that a platform the gate does
+# not smoke fails at PUBLISH time — after the merge, on `main`, with :latest
+# already moving. Before this input the only way to exercise a branch's real
+# build was to publish it, so the branch could not be proven without taking the
+# risk it exists to measure.
+#
+# In rehearsal every job does everything except ship:
+#
+#   - the gate build and the amd64 smoke run EXACTLY as in publish mode. They
+#     are not conditional on the mode at all.
+#   - the publish-shaped build runs with the same context, the same build-args
+#     and the same per-image PLATFORMS, on the same builders — including the
+#     arm64 node for the platforms that need it — with `push: false`.
+#   - the manifest read-back is skipped, because nothing was pushed and reading
+#     the PREVIOUS :<sha> would report a verdict about somebody else's build.
+#
+# `inputs.mode` is empty on a `push` event, and empty is not 'rehearsal', so a
+# push to main behaves exactly as it did before this input existed. Rehearsal is
+# reachable only by dispatching it deliberately.
+#
+# It is 2 steps and not 1 `push: ${{ ... }}` expression on purpose.
+# _ctl/tests/publish-order.test.sh finds a publishing step by the LITERAL line
+# `push: true`, and the whole smoke-gates-publish rule rests on that detector:
+# an expression there would make every job read as a job that publishes nothing,
+# and the rule that guards the irreversible action would pass while checking
+# nothing. Both steps sit AFTER the smoke, so the ordering rule holds in either
+# mode.
 
 # Supersede an in-flight run for the same ref so a rapid second push doesn't run two
 # expensive image builds in parallel.
@@ -256,7 +294,7 @@ jobs:
         # comes from that cache, and every other leg is built now, on the node
         # buildx appended for it. So this step is the one that runs the arm64
         # build, and an arm64 failure surfaces HERE rather than in the gate.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -269,12 +307,35 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/base:${{ steps.sha.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/base:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: base/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          build-args: ${{ steps.versions.outputs.args }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published base ${{ steps.sha.outputs.short }}
 
   flutter:
@@ -375,7 +436,7 @@ jobs:
         # comes from that cache, and every other leg is built now, on the node
         # buildx appended for it. So this step is the one that runs the arm64
         # build, and an arm64 failure surfaces HERE rather than in the gate.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: flutter
@@ -389,12 +450,36 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/flutter:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: flutter
+          file: flutter/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          build-args: |
+            BASE_TAG=${{ env.BASE_TAG }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published flutter ${{ needs.base.outputs.short }}
 
   zephyr:
@@ -495,7 +580,7 @@ jobs:
         # comes from that cache, and every other leg is built now, on the node
         # buildx appended for it. So this step is the one that runs the arm64
         # build, and an arm64 failure surfaces HERE rather than in the gate.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: zephyr
@@ -509,12 +594,36 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-cache
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: zephyr
+          file: zephyr/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          build-args: |
+            BASE_TAG=${{ env.BASE_TAG }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published zephyr ${{ needs.base.outputs.short }}
 
   zephyr-devbox:
@@ -616,7 +725,7 @@ jobs:
         # comes from that cache, and every other leg is built now, on the node
         # buildx appended for it. So this step is the one that runs the arm64
         # build, and an arm64 failure surfaces HERE rather than in the gate.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: zephyr-devbox
@@ -630,12 +739,36 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox:${{ needs.base.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/zephyr-devbox:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox-cache
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: zephyr-devbox
+          file: zephyr-devbox/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          build-args: |
+            BASE_TAG=${{ env.BASE_TAG }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/zephyr-devbox-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published zephyr-devbox ${{ needs.base.outputs.short }}
 
   # The cloud image: the reduced base + the CI fold (image-architecture, ledger
@@ -751,7 +884,7 @@ jobs:
         # comes from that cache, and every other leg is built now, on the node
         # buildx appended for it. So this step is the one that runs the arm64
         # build, and an arm64 failure surfaces HERE rather than in the gate.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -764,10 +897,33 @@ jobs:
             ${{ env.REGISTRY }}/${{ env.OWNER }}/cloud:${{ steps.sha.outputs.short }}
             ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/cloud:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/cloud-cache
+      - name: rehearsal — build what the publish step would build, ship nothing
+        # The step above with `push: false`. Same context, same build-args, same
+        # PLATFORMS, same builders — so the arm64 leg is really built, on the
+        # arm64 node, and a failure that would have surfaced at publish time
+        # surfaces here instead, on a branch, with no tag moved.
+        #
+        # It carries no `tags:` because it produces no image to name, and no
+        # cache-to for the reason the publish step has none: the gate build
+        # above is the writer.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
+        with:
+          context: .
+          file: cloud/Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: false
+          build-args: ${{ steps.versions.outputs.args }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/cloud-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
         # published, because an unbuilt image has no SHA tag for this commit.
-        if: ${{ steps.filter.outputs.build == 'true' }}
+        #
+        # A rehearsal pushed nothing, so there is no :<sha> of this run to read.
+        # Left ungated it would read the tag a PREVIOUS run published and report
+        # a verdict about somebody else's build — a green that checked an image
+        # this run never made.
+        if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published cloud ${{ steps.sha.outputs.short }}

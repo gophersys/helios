@@ -709,6 +709,29 @@ the push. It is not a line to add — the arm64 note at the top of
 report a FALSE RED, and taking that route is a decision about what "publish"
 means to this repository.
 
+**REHEARSAL MODE is what makes that gap testable before a merge.**
+`workflow_dispatch` on `build-and-push.yml` takes a `mode` input, `publish` or
+`rehearsal`, and `publish` is the default. In rehearsal every job runs its gate
+build and its amd64 smoke unchanged, then runs the publish-shaped build with the
+same context, the same build-args and the same per-image `PLATFORMS` on the same
+builders — the mini included — with `push: false`, and the manifest read-back is
+skipped because nothing was pushed. So the arm64 build that only happens at
+publish time can be exercised on a branch, with no tag moved.
+
+- **`inputs.mode` is empty on a `push` event**, and empty is not `rehearsal`, so
+  a push to main behaves exactly as it did before the input existed. The gates
+  are written `!= 'rehearsal'` for that reason: `== 'publish'` would make every
+  push to main take the rehearsal branch and ship nothing, green.
+- **It is 2 STEPS and not a `push: ${{ ... }}` expression.**
+  `_ctl/tests/publish-order.test.sh` finds a publishing step by the LITERAL line
+  `push: true`, and the whole smoke-gates-publish rule rests on that detector. An
+  expression there would make every job read as a job that publishes nothing, and
+  the rule guarding the irreversible action would pass while checking nothing.
+- **Both gates OPEN with `steps.filter.outputs.build`.** That test reads the
+  FIRST `steps.<id>.outputs.<key>` on an `if:` line as the gate a step carries,
+  so the mode condition is appended and never prepended.
+- Both steps sit AFTER the smoke, so the ordering rule holds in either mode.
+
 The smoke test compares **versions**, and it does not only run tools. `.ci/smoke.sh`
 is the host driver: it classifies every pin of every home the image has as
 `asserted`, `not-a-version` or `not-in-this-image`, resolves
