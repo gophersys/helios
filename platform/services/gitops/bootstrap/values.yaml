@@ -17,6 +17,68 @@ configs:
   cm:
     application.resourceTrackingMethod: annotation
     url: https://argocd.mateosegura.com
+    # The chart default excludes discovery.k8s.io/EndpointSlice. That default
+    # made Argo SKIP the hand-authored EndpointSlice in apps/proxmox/ and still
+    # report the app Synced — the ingress had no backend and served 503
+    # (incident 2026-08-18, apps/proxmox/README.md). This is the chart's
+    # default list with ONE change: EndpointSlice is not excluded. Core v1
+    # Endpoints stays excluded — nothing here writes that deprecated kind.
+    # Cost: the controller watches controller-managed EndpointSlices too; at
+    # homelab scale that churn is acceptable. Argo never prunes them — they
+    # carry no tracking annotation.
+    resource.exclusions: |
+      ### Network resources created by the Kubernetes control plane and excluded to reduce the number of watched events and UI clutter
+      - apiGroups:
+        - ''
+        kinds:
+        - Endpoints
+      ### Internal Kubernetes resources excluded reduce the number of watched events
+      - apiGroups:
+        - coordination.k8s.io
+        kinds:
+        - Lease
+      ### Internal Kubernetes Authz/Authn resources excluded reduce the number of watched events
+      - apiGroups:
+        - authentication.k8s.io
+        - authorization.k8s.io
+        kinds:
+        - SelfSubjectReview
+        - TokenReview
+        - LocalSubjectAccessReview
+        - SelfSubjectAccessReview
+        - SelfSubjectRulesReview
+        - SubjectAccessReview
+      ### Intermediate Certificate Request excluded reduce the number of watched events
+      - apiGroups:
+        - certificates.k8s.io
+        kinds:
+        - CertificateSigningRequest
+      - apiGroups:
+        - cert-manager.io
+        kinds:
+        - CertificateRequest
+      ### Cilium internal resources excluded reduce the number of watched events and UI Clutter
+      - apiGroups:
+        - cilium.io
+        kinds:
+        - CiliumIdentity
+        - CiliumEndpoint
+        - CiliumEndpointSlice
+      ### Kyverno intermediate and reporting resources excluded reduce the number of watched events and improve performance
+      - apiGroups:
+        - kyverno.io
+        - reports.kyverno.io
+        - wgpolicyk8s.io
+        kinds:
+        - PolicyReport
+        - ClusterPolicyReport
+        - EphemeralReport
+        - ClusterEphemeralReport
+        - AdmissionReport
+        - ClusterAdmissionReport
+        - BackgroundScanReport
+        - ClusterBackgroundScanReport
+        - UpdateRequest
   params:
     server.insecure: true
 

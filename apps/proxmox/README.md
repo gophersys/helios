@@ -76,6 +76,29 @@ symptom other than this hostname timing out. That, and the open question of
 whether pve-00 should keep advertising `10.168.0.0/24` alongside pve-01, are
 recorded in **D22** of `docs/debt-register.md`.
 
+## Argo silently skipped the EndpointSlice — incident, resolved 2026-08-18
+
+First deploy of this app served **503** while Argo reported the app Synced and
+Healthy. The nginx log showed the empty upstream list directly:
+`[proxmox-pve-00-8006] []`, and `kubectl -n proxmox get endpointslice` returned
+nothing — the EndpointSlice in `10-service.yaml` was never applied.
+
+The cause is Argo CD's default `resource.exclusions` (chart argo-cd 10.1.2, app
+v3.4.4): it excludes `discovery.k8s.io/EndpointSlice` as control-plane noise.
+An excluded kind is invisible to Argo — it is dropped from the sync **without a
+warning**, and the app still shows Synced. A hand-authored EndpointSlice is
+exactly the case the default did not anticipate.
+
+**Fixed** in `platform/services/gitops/bootstrap/values.yaml`: the exclusion
+list is overridden with the chart default minus `EndpointSlice`. Core v1
+`Endpoints` stays excluded. Service was restored first by a hand `kubectl
+apply` of the committed manifest (safe: Argo cannot fight over a kind it does
+not see), verified live: the EndpointSlice exists, nginx lists
+`10.168.0.201:8006` as the backend, and the hostname returns **200** with the
+PVE login page. After this change syncs, Argo adopts the object and the hand
+apply stops being load-bearing — the argocd self-app is manual-sync by design,
+so the sync is a deliberate post-merge step.
+
 ## Exposure
 
 Declared `tailnet` in `contracts/exposure.yaml`. The A record is DNS-only
