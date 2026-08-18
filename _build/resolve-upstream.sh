@@ -159,7 +159,7 @@ VERIFIER="${SCRIPT_DIRECTORY}/fetch-verified.sh"
 # URLs, under the same 2-armed `case`.
 GOVERNED_DOCKERFILES=(
   "base/Dockerfile"
-  "flutter/Dockerfile"
+  "mobile/Dockerfile"
   "embedded/Dockerfile"
   "cloud/Dockerfile"
   "ui/Dockerfile"
@@ -634,7 +634,7 @@ function governed_files() {
 #
 # So the second shape FAILS naming the row and both URLs. It is reachable from
 # the tree as it stands: ANDROID_CMDLINE_TOOLS_SHA256_NOARCH is a _NOARCH row
-# emitted under flutter's `linux/amd64)` guard arm, and the day that RUN gains
+# emitted under mobile's `linux/amd64)` guard arm, and the day that RUN gains
 # an arm64 arm it becomes 2 records of 1 row. Whoever writes that arm gets this
 # failure and has to choose — 2 rows for 2 assets, or 1 asset for both arms —
 # rather than shipping a green half-resolution.

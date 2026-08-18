@@ -885,7 +885,7 @@ fi
 #                Its arm64 arm fetches an asset spelled `aarch64` and answers
 #                for the row spelled `_ARM64`: the row names the PLATFORM and
 #                never the upstream's asset spelling.
-#   STUBGO       1 arm -> 1 record. flutter's shape, and Flutter publishes no
+#   STUBGO       1 arm -> 1 record. mobile's shape, and Flutter publishes no
 #                linux-arm64 SDK at any version, so an arm64 row here would be
 #                a row no asset can ever answer for.
 #   STUBNOARCH   no arm at all -> 1 record, and the row is `_SHA256_NOARCH`.
@@ -968,7 +968,7 @@ else
     "got:  exit ${RESOLVER_STATUS}, and the pairs were:" "${amd64_only_pairs:-<none>}" \
     "stderr was:" "${RESOLVER_STDERR:-<none>}" \
     "the urls it asked for:" "${CURL_LOG:-<none>}" \
-    "base/Dockerfile names linux/amd64 alone for this pin, which is flutter's shape and" \
+    "base/Dockerfile names linux/amd64 alone for this pin, which is mobile's shape and" \
     "is CORRECT rather than incomplete: no bump reaches an asset upstream does not" \
     "publish. A reader that consulted the sanctioned set instead of the arms that exist" \
     "either invents a row no home declares, or dies expanding a url whose \${ARCH} the" \
@@ -1177,9 +1177,9 @@ fi
 # answered for. The build cannot see it: the digest it compares is the one that
 # matches, on the leg that matches.
 #
-# The fixture is named flutter/Dockerfile because that is where the live seed
+# The fixture is named mobile/Dockerfile because that is where the live seed
 # is. ANDROID_CMDLINE_TOOLS_SHA256_NOARCH is a _NOARCH row emitted under
-# flutter's `linux/amd64) : ;;` guard arm today — 1 arm, correct — and the day
+# mobile's `linux/amd64) : ;;` guard arm today — 1 arm, correct — and the day
 # that RUN gains an arm64 arm without splitting the row, the tree IS this
 # fixture. Whoever writes that arm meets this failure and has to choose: 2 rows
 # for 2 assets, or 1 asset for both arms.

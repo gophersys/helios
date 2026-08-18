@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# flutter/ctl.sh — control script for the flutter image:
-#   ghcr.io/gophersys/flutter
+# mobile/ctl.sh — control script for the mobile image:
+#   ghcr.io/gophersys/mobile
 #
 # Thin dispatcher. The body of every verb is in _ctl/lib.sh, 1 time only.
 # Run `bash ./ctl.sh help` for the interface, and read _ctl/lib.sh for the
@@ -12,7 +12,7 @@ IFS=$'\n\t'
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-IMAGE_NAME="flutter"
+IMAGE_NAME="mobile"
 
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../_ctl/lib.sh

@@ -168,7 +168,7 @@ HELPER_COPY_DOCKERFILES=(
 # checked against the directory below, so adding a component is an edit HERE.
 GOVERNED_DOCKERFILES=(
   "base/Dockerfile"
-  "flutter/Dockerfile"
+  "mobile/Dockerfile"
   "embedded/Dockerfile"
   "cloud/Dockerfile"
   "ui/Dockerfile"
@@ -258,7 +258,7 @@ CLOUD_HOME="versions.env"
 CLOUD_DOCKERFILE="cloud/Dockerfile"
 VALUE_HOMES=(
   "versions.env"
-  "flutter/Dockerfile"
+  "mobile/Dockerfile"
   "embedded/Dockerfile"
 )
 
@@ -361,7 +361,7 @@ FIXTURE_ARM_LOCAL_LABEL="download-coverage/arm-local.Dockerfile"
 #
 # What an amd64-only reader gets wrong here is a FALSE RED, and it is reachable
 # from the real tree in both directions: a download published for arm64 alone is
-# assigned by the arm64 arm only, and flutter's Android RUN opens
+# assigned by the arm64 arm only, and mobile's Android RUN opens
 # `linux/amd64) : ;;` — a guard arm that assigns nothing at all. Either way the
 # amd64 arm is empty-handed and a correct, verified download reads as a helper
 # call passing no digest. This file's whole purpose is to report unanswered
@@ -1110,7 +1110,7 @@ $(fetch_sites "download-coverage/component.sh" "$FIXTURE_COMPONENT")"
     #    `linux/amd64)` alone reports `helper-without-digest` here — a red naming
     #    a defect nobody committed, against a download that IS verified on the
     #    platform that reaches it. The real tree holds the mirror of this shape:
-    #    flutter's Android RUN opens `linux/amd64) : ;;`, a guard arm that
+    #    mobile's Android RUN opens `linux/amd64) : ;;`, a guard arm that
     #    assigns nothing at all.
     assert_contains "counter_stimulus_answers_a_fetch_whose_only_assigning_arm_is_arm64" \
       "$arm_sites" "onlyarm-v\${ONLYARM_VERSION}-linux-\${ARCH}.tar.gz|verified|ONLYARM_SHA256_ARM64" \

@@ -55,7 +55,7 @@
 # them — a count written in prose that the file then grew past.
 #
 # Usage: bash .ci/smoke.sh <image> [ref]
-# where <image> ∈ {base, flutter, embedded, cloud, hardware, ui}
+# where <image> ∈ {base, mobile, embedded, cloud, hardware, ui}
 # and [ref] is the exact image reference to test. The default is the :latest tag
 # that build-and-push.yml has just built, which is what CI runs. Naming a ref is
 # how an operator audits the SHA tag a cluster is actually running — and how a
@@ -102,7 +102,7 @@ fi
 # --build-arg generated from this same file — so the question does not arise and
 # the branch below selects a CLASSIFICATION and nothing else.
 #
-# flutter and embedded read versions.env too, and always did read base's home:
+# mobile and embedded read versions.env too, and always did read base's home:
 # what they assert there is the toolchain they INHERIT from base. What they did
 # NOT assert was their own `ARG NAME=value` block — 13 pins, of which
 # FLUTTER_VERSION, WEST_VERSION, ZEPHYR_SDK_VERSION, ESPTOOL_VERSION and
@@ -130,7 +130,7 @@ PIN_HOME="versions.env"
 # in, empty for the 2 root images. base and cloud declare every ARG value-less.
 function image_child_pin_home() {
   case "$1" in
-    flutter)  printf 'flutter/Dockerfile' ;;
+    mobile)  printf 'mobile/Dockerfile' ;;
     embedded) printf 'embedded/Dockerfile' ;;
     *)        printf '' ;;
   esac
@@ -499,7 +499,7 @@ PIN_CLASS_TABLE
 # home each child reads.
 # ---------------------------------------------------------------------------
 
-read -r -d '' PIN_CLASSES_FLUTTER <<'PIN_CLASS_TABLE' || true
+read -r -d '' PIN_CLASSES_MOBILE <<'PIN_CLASS_TABLE' || true
 BASE_TAG|not-a-version||
 JAVA_VERSION|asserted|java -version|prefix
 ANDROID_CMDLINE_TOOLS_VERSION|not-a-version||
@@ -534,7 +534,7 @@ PIN_CLASS_TABLE
 # #102. The 2 images are 1 image now, so the 2 tables are 1 table over 1 home,
 # and the 4 `asserted` rows are all compared in 1 run where the devbox run
 # compared 2 of them. That closes #102 FOR THIS FAMILY
-# and for no other: `flutter` still inherits base's pins the same way, and the
+# and for no other: `mobile` still inherits base's pins the same way, and the
 # general fix is a FROM-graph walker in this driver, which is still open.
 read -r -d '' PIN_CLASSES_EMBEDDED <<'PIN_CLASS_TABLE' || true
 BASE_TAG|not-a-version||
@@ -602,9 +602,9 @@ case "$IMAGE" in
   base)
     PIN_CLASSES="$PIN_CLASSES_BASE"
     ;;
-  flutter)
+  mobile)
     PIN_CLASSES="$PIN_CLASSES_BASE"
-    CHILD_CLASSES="$PIN_CLASSES_FLUTTER"
+    CHILD_CLASSES="$PIN_CLASSES_MOBILE"
     ;;
   embedded)
     PIN_CLASSES="$PIN_CLASSES_BASE"
@@ -612,7 +612,7 @@ case "$IMAGE" in
     ;;
   *)
     log_error "unknown image: '$IMAGE'"
-    log_error "valid images: base, flutter, embedded, cloud, hardware, ui"
+    log_error "valid images: base, mobile, embedded, cloud, hardware, ui"
     exit 2
     ;;
 esac

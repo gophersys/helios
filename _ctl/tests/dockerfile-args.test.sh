@@ -56,7 +56,7 @@
 # non-comment ${USERNAME} in the repository is in base/ or cloud/ — measured
 # 2026-08-18, 18 and 15 of them, and 0 in the other 4 files — and both declare
 # `ARG USERNAME=dev`, so a wider rule would resolve it and never
-# flag it — flutter/, embedded/, hardware/ and ui/ name it only inside comments,
+# flag it — mobile/, embedded/, hardware/ and ui/ name it only inside comments,
 # which every reader here skips. And the zsh reading it described is now a GATE
 # FAILURE rather than an exemption: `ctl.sh validate` runs
 # zsh_username_run_references over each Dockerfile, and a ${USERNAME} in a RUN
@@ -140,7 +140,7 @@ TEST_NAME="dockerfile-args.test.sh"
 # agree with any manifest, an emptied one included.
 DOCKERFILES=(
   "base/Dockerfile"
-  "flutter/Dockerfile"
+  "mobile/Dockerfile"
   "embedded/Dockerfile"
   "cloud/Dockerfile"
   "hardware/Dockerfile"

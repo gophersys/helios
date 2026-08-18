@@ -1,17 +1,32 @@
 # mobile — the build-ready image spec
 
-> **STATUS: PROPOSAL. The `mobile` image does not exist.** Last judged against
-> the tree on 2026-08-17. Read `.claude/rules/00-identity.md` for what the
-> repository builds today, and `docs/README.md` for the class of file this is.
+> **STATUS: PART LANDED, PART PROPOSAL. M1 shipped on 2026-08-18; the rest of
+> this document is still a proposal.** Last judged against the tree on
+> 2026-08-18. Read `.claude/rules/00-identity.md` for what the repository builds
+> today, and `docs/README.md` for the class of file this is.
 >
-> **Names this document PROPOSES, which are not in the tree:**
-> `ghcr.io/gophersys/mobile`, `mobile/`, `_delta/mobile.sh`, `mobile-runner`,
-> `matrix`, and `ARG PARENT_IMAGE`. `_delta/` holds `components/*.sh` and no
-> `mobile.sh`; `runner/Dockerfile` declared `ARG BASE_IMAGE` and no
-> `PARENT_IMAGE`, and the file itself is deleted (D2, 2026-08-18).
+> **What LANDED (§7 M1, the naming step of ledger #94):** the image is
+> `mobile`, `mobile/` is its directory, `ghcr.io/gophersys/mobile` is its ref,
+> and `ENV GOPHERSYS_DEVCONTAINER=mobile`. The banner above this one said "the
+> `mobile` image does not exist" and that is no longer true.
+>
+> **What did NOT land, and is still a proposal.** The image's PARENT is still
+> `base`, not `cloud`: M1 renamed the identity and changed no layer. So every
+> size figure below still describes the proposed cloud-parented image and not
+> the one the repository builds. Names this document proposes that remain
+> absent from the tree: `_delta/mobile.sh`, `mobile-runner`, `matrix`, and
+> `ARG PARENT_IMAGE`. `_delta/` holds `components/*.sh` and no `mobile.sh`;
+> `runner/Dockerfile` declared `ARG BASE_IMAGE` and no `PARENT_IMAGE`, and the
+> file itself is deleted (D2, 2026-08-18).
+>
+> **The SDK keeps the name flutter, and only the IMAGE became mobile.**
+> `FLUTTER_VERSION`, `FLUTTER_CHANNEL`, `FLUTTER_SHA256_AMD64`, `/opt/flutter`,
+> the `flutter` binary, the `flutter-releases` datasource and the
+> `content-flutter` check group all keep their spelling, because each one names
+> the Flutter SDK rather than the image that carries it.
 >
 > **Every pin below is the value that was current when this was written.** The
-> live pins are in `flutter/Dockerfile` and they have moved since —
+> live pins are in `mobile/Dockerfile` and they have moved since —
 > `FLUTTER_VERSION` is 3.47.0 there today, against the 3.41.7 this document
 > repeats. Re-resolve every pin before you build from these notes.
 
@@ -25,19 +40,25 @@ Language: ASD-STE100 Simplified Technical English.
 ## 1. What the mobile image is
 
 `ghcr.io/gophersys/mobile` is the category image for Flutter and Android
-work. It is a rename of today's `flutter` image.
+work. It is a rename of the `flutter` image, and **that rename LANDED on
+2026-08-18** — the bullets below are marked DONE or still PROPOSED one by one,
+because half of this section is now a record and half is still a design.
 
-- **Parent:** `ghcr.io/gophersys/cloud`. The parent supplies git, Go, Python,
+- **Parent — PROPOSED, not landed.** `ghcr.io/gophersys/cloud`. The image
+  still builds `FROM ghcr.io/gophersys/base` today. The parent supplies git, Go, Python,
   Node (nvm, `dev`-homed), gh, docker CLI + buildx, and the gate toolchain.
   This document called `cloud` "a rename of `base`". It is not: `cloud`
   builds `FROM ubuntu` directly, so it is a reduction and not a layer, and
   `base` is still built and still published.
-- **Recipe:** `mobile = cloud + _delta/mobile.sh`. One script holds the
+- **Recipe — PROPOSED.** `mobile = cloud + _delta/mobile.sh`. One script holds the
   delta. The `matrix` image consumes the same script. One edit moves both.
-- **Home:** this repo. The directory `flutter/` becomes `mobile/`.
-- **Absorbs:** the full content of `flutter/Dockerfile`, unchanged.
-- **Retires:** the `flutter` image name and directory. The old ghcr
-  `flutter` package stays until Mateo authorizes its deletion (see §5).
+- **Home — DONE.** This repo. The directory `flutter/` is `mobile/`.
+- **Absorbs — DONE.** The full content of `flutter/Dockerfile`, unchanged,
+  as `mobile/Dockerfile`.
+- **Retires — DONE.** The `flutter` image name and directory are gone from the
+  tree. The ghcr `flutter` package stays, frozen at its last publish as the
+  ROLLBACK ANCHOR, until Mateo authorizes its deletion (see §5). No publish
+  moves `flutter:latest` again.
 - **Child: SUPERSEDED.** This document proposed `mobile-runner` = mobile +
   the single `runner/Dockerfile` (`ARG PARENT_IMAGE`), with the runner delta
   measured at ~1.04 GB. The category-image program supersedes it. The
@@ -63,7 +84,7 @@ embedded deltas. The mobile image loses all of that weight for free.
 
 ## 2. The exact delta — `_delta/mobile.sh`
 
-The delta is the `flutter/Dockerfile` content, as-is. Nothing in the delta
+The delta is the `mobile/Dockerfile` content, as-is. Nothing in the delta
 itself is dropped. The census proves each group serves the lane.
 
 | # | Group | Exact content | Size |
@@ -75,10 +96,10 @@ itself is dropped. The census proves each group serves the lane.
 Delta total ≈ **3.4 GB EST**. Image total ≈ cloud + 3.4 GB per arch.
 
 Row 1 shows the package in its parameterized form because that is what
-`flutter/Dockerfile` writes: `openjdk-${JAVA_VERSION}-jdk-headless` with
+`mobile/Dockerfile` writes: `openjdk-${JAVA_VERSION}-jdk-headless` with
 `ARG JAVA_VERSION=21`. This paragraph used to instruct a future change to
 correct an "OpenJDK 17" row in `00-identity.md`. That correction landed:
-the identity's flutter row reads OpenJDK 21 now. Do not go looking for it.
+the identity's mobile row reads OpenJDK 21 now. Do not go looking for it.
 
 **Pins (one home, top of `mobile.sh`, guarded defaults):**
 
@@ -195,10 +216,11 @@ that proves mobile is **a real APK built from a real Flutter project**.
 Every gate FAILS loudly. A gate that cannot run (mini unreachable, image
 not local) is a failure that names the missing thing.
 
-Every command in this section assumes M1 is complete. `.ci/smoke.sh`
-accepts `mobile` only after M1 step 3 renames the `flutter)` case arm and
-the valid-images list. Run these commands before M1 and the script fails
-with `unknown image: 'mobile'`.
+Every command in this section assumes M1 is complete, and **M1 is complete
+since 2026-08-18**: `.ci/smoke.sh` carries the `mobile)` case arm and names
+`mobile` in its valid-images list, so these commands no longer fail with
+`unknown image: 'mobile'`. The rest of the section still describes the
+cloud-parented image, which does not exist.
 
 ### 4.1 Job 1 — amd64 build + smoke BEFORE publish (arc-org pod)
 
@@ -312,7 +334,10 @@ A missing /dev/kvm is a FAILURE that names the node — never a skip.
 Each step is one /dev feature. Order matters. Old ghcr tags never move
 until Mateo authorizes deletion.
 
-**M1 — rename flutter → mobile (design step a).**
+**M1 — rename flutter → mobile (design step a). LANDED 2026-08-18.**
+Every numbered step below is DONE. Step 2 is recorded as it was written; the
+graph is 1 file now (`images.yaml`) and the 6 homes it names are DERIVED, so
+that step was 1 manifest key plus `bash _ctl/generate.sh`.
 1. `git mv flutter mobile`; image name → `ghcr.io/gophersys/mobile`;
    `ENV GOPHERSYS_DEVCONTAINER=mobile`; Dockerfile contents unchanged.
 2. Sync the graph in the 6 files 00-identity.md names: `BUILD_ORDER` in
@@ -327,8 +352,9 @@ until Mateo authorizes deletion.
    `mobile`.
 4. Update the warmer image list and any devcontainer.json that names
    `flutter`.
-*Rollback:* revert the commit. The old `flutter` tags never moved.
-Consumers re-pin in one commit.
+*Rollback:* revert the commit. The old `flutter` tags never moved, and
+`ghcr.io/gophersys/flutter:latest` is frozen at the last publish before the
+rename. Consumers re-pin in one commit.
 
 **M2 — ride the parent change (design step b).**
 1. Create `_delta/mobile.sh` from the Dockerfile RUN bodies; pins become
@@ -358,7 +384,9 @@ M1.
 install.
 
 **Deletions (after proof, Mateo authorizes):** the ghcr `flutter` package
-deletes after M1 + the fleet re-pin soak. `mobile-runner` publishes only
+deletes after M1 + the fleet re-pin soak. M1 landed 2026-08-18 and the package
+is untouched — deletion is Mateo's decision alone, and nothing in this
+repository may take it. `mobile-runner` publishes only
 when a consumer exists.
 
 ---

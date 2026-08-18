@@ -20,7 +20,7 @@
 #
 # The failure is silent by construction: the build succeeds, the image ships,
 # and the wrong ownership surfaces at RUNTIME in another image. It has already
-# happened here. flutter/Dockerfile chowned /opt/flutter and /opt/android-sdk
+# happened here. mobile/Dockerfile chowned /opt/flutter and /opt/android-sdk
 # that way, both shipped root-owned, and `flutter --version` as `dev` exited 128
 # with "detected dubious ownership in repository at '/opt/flutter'" — found by
 # the first smoke run that ever executed the tool, not by a build and not by a
@@ -118,7 +118,7 @@ CLEAN_FIXTURE="$TESTS_DIR/fixtures/zsh-username/pre-switch.Dockerfile"
 # decision rather than a side effect of this one.
 DOCKERFILES=(
   "base/Dockerfile"
-  "flutter/Dockerfile"
+  "mobile/Dockerfile"
   "embedded/Dockerfile"
   "cloud/Dockerfile"
 )
@@ -185,7 +185,7 @@ else
   pass_check "the_reader_runs_and_reports_the_broken_fixture"
 fi
 
-# The report names the LINE and the line's own text. "flutter/Dockerfile has a
+# The report names the LINE and the line's own text. "mobile/Dockerfile has a
 # ${USERNAME} problem" sends a reader through 400 lines; a line number does not.
 # shellcheck disable=SC2016
 # The single quotes are the point: the needle is the literal text of a fixture
@@ -253,7 +253,7 @@ for relative in "${DOCKERFILES[@]}"; do
       "these RUN lines read \${USERNAME} after the file switched SHELL to zsh:" \
       "${DETECTOR_OUTPUT:-<the reader exited ${DETECTOR_STATUS} and printed nothing>}" \
       "zsh auto-sets USERNAME to the EFFECTIVE user, so each one reads the layer's uid and not the ARG" \
-      "write the literal 'dev' — the pattern flutter/ and embedded/ document in their headers"
+      "write the literal 'dev' — the pattern mobile/ and embedded/ document in their headers"
   fi
 done
 

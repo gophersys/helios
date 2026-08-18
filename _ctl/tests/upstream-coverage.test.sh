@@ -131,7 +131,7 @@ UPSTREAMS_FILE="_build/upstreams.txt"
 # rows to silence a stale literal.
 VALUE_HOMES=(
   "versions.env"
-  "flutter/Dockerfile"
+  "mobile/Dockerfile"
   "embedded/Dockerfile"
 )
 

@@ -1,7 +1,7 @@
 # _ctl/tests/fixtures/zsh-username/post-switch.Dockerfile — the trap, staged.
 #
 # The counter-stimulus of zsh-username.test.sh, and it is the shape of a defect
-# this repository has already shipped: flutter/Dockerfile chowned /opt/flutter
+# this repository has already shipped: mobile/Dockerfile chowned /opt/flutter
 # and /opt/android-sdk through ${USERNAME} from zsh-as-root layers, both images
 # shipped root-owned, and `flutter --version` as `dev` exited 128 with "detected
 # dubious ownership". No build failed. The first smoke run that ever executed

@@ -1,4 +1,4 @@
-# A manifest whose document order is NOT a build order: `flutter` declares
+# A manifest whose document order is NOT a build order: `mobile` declares
 # `base` as its parent and is written ABOVE it.
 #
 # BUILD_ORDER is the document order of `images:`, so this file emits an order
@@ -10,13 +10,13 @@
 # guard REFUSES it and names both images. A guard whose refusal nothing has
 # watched is a guard nobody can say fires.
 images:
-  flutter:
+  mobile:
     parent: base
-    context: flutter
-    dockerfile: flutter/Dockerfile
-    smoke_ref: flutter:smoke
+    context: mobile
+    dockerfile: mobile/Dockerfile
+    smoke_ref: mobile:smoke
     paths:
-      - flutter/
+      - mobile/
     groups:
       - content-flutter
 

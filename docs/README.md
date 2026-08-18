@@ -28,4 +28,4 @@ names files nobody can find teaches the reader to distrust the whole set.
 
 | File | Class | State |
 |---|---|---|
-| `image-notes-mobile.md` | proposal | The `mobile` category image. Parked. Its `mobile-runner` child design is SUPERSEDED by the category-image program. |
+| `image-notes-mobile.md` | proposal, part landed | The `mobile` category image. Its M1 NAMING step landed 2026-08-18 — the image is `mobile` and `mobile/` is its directory — so the file carries a DONE/PROPOSED marker per bullet. The re-parent onto `cloud`, `_delta/mobile.sh` and `matrix` are still proposals. Its `mobile-runner` child design is SUPERSEDED by the category-image program. |
