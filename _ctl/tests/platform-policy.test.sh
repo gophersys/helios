@@ -71,7 +71,7 @@ SANCTIONED="linux/amd64,linux/arm64"
 # is a literal: reading images.yaml here would make this file agree with any
 # manifest, including one that had silently dropped an architecture.
 #
-# 5 of the 6 declare no `platforms` key and take the sanctioned set. flutter
+# 6 of the 7 declare no `platforms` key and take the sanctioned set. flutter
 # declares linux/amd64 and the manifest carries the measurement beside the key:
 # Flutter publishes no linux-arm64 SDK at any version.
 #
@@ -83,6 +83,16 @@ SANCTIONED="linux/amd64,linux/arm64"
 # KICAD_PPA_VERSION in versions.env. An image whose upstream served 1
 # architecture would need a narrowing key with its own measurement, the way
 # flutter has one.
+#
+# `ui` takes the sanctioned set for the same KIND of reason, and it is the row
+# that was nearly written the other way: the plan, research-ui's ADR-0003 risk
+# R3 and that repository's own ci/Dockerfile all state that Chrome is published
+# for amd64 alone, and a narrowing key written on that premise would have
+# narrowed this image on a reason that is FALSE. Google's stable component
+# declares `Architectures: amd64 arm64` and carries google-chrome-stable at ONE
+# version, 151.0.7922.137-1, in both indexes (read 2026-08-18; the record with
+# its byte counts sits beside the images.yaml entry). So the absence of a key is
+# a measurement here, and this row is the literal that says so.
 IMAGE_PLATFORM_TABLE=(
   "base|linux/amd64,linux/arm64"
   "flutter|linux/amd64"
@@ -90,6 +100,7 @@ IMAGE_PLATFORM_TABLE=(
   "zephyr-devbox|linux/amd64,linux/arm64"
   "cloud|linux/amd64,linux/arm64"
   "hardware|linux/amd64,linux/arm64"
+  "ui|linux/amd64,linux/arm64"
 )
 
 # The 1 image the table says is narrower than the sanctioned set. It is named
@@ -112,6 +123,23 @@ NARROWER_IMAGE="flutter"
 # SANCTIONED_PLATFORMS and appends the arm64 builder node when that list names
 # linux/arm64, so it is a file that acts on a platform name and it belongs under
 # the rule that governs them.
+#
+# THE PER-IMAGE HALF OF THIS LIST IS BOUND TO THE MANIFEST, and it was not. A
+# 7th image landed with its `ctl.sh` and its `project.json` in NEITHER this list
+# nor any other, so both files could name linux/riscv64 and every check in this
+# file would stay green — coverage that shrinks with no red, which is the
+# failure IMAGE_PLATFORM_TABLE already carries a set-equality clause against.
+# This is the third time the class has bitten (GOVERNED_DOCKERFILES,
+# IMAGE_PLATFORM_TABLE, here), so the clause below closes it here too, in both
+# directions.
+#
+# The per-image half is every entry spelled `<name>/ctl.sh` or
+# `<name>/project.json` whose `<name>` begins with neither `.` nor `_`. That is
+# not a fudge: .claude/rules/00-identity.md says the leading underscore is what
+# marks `_ctl/` as not an image directory, and `.ci/` is the CI layer by the same
+# convention. `zephyr-devbox/devbox-entrypoint.sh` is deliberately outside the
+# pair — it is a script an image COPYs in, not one of the 2 files every image
+# directory carries — and the clause therefore says nothing about it.
 BUILD_PATH_FILES=(
   "_ctl/lib.sh"
   "ctl.sh"
@@ -122,6 +150,7 @@ BUILD_PATH_FILES=(
   "zephyr-devbox/ctl.sh"
   "zephyr-devbox/devbox-entrypoint.sh"
   "hardware/ctl.sh"
+  "ui/ctl.sh"
   ".ci/ctl.sh"
   ".ci/smoke.sh"
   ".ci/buildx-node.sh"
@@ -135,7 +164,16 @@ BUILD_PATH_FILES=(
   "zephyr/project.json"
   "zephyr-devbox/project.json"
   "hardware/project.json"
+  "ui/project.json"
   ".ci/project.json"
+)
+
+# The 2 files every image directory of the manifest carries, and the 2 this list
+# owes set equality on. Literals, because the per-image file rule is a rule of
+# .claude/rules/00-identity.md and not something a reader of the tree measures.
+IMAGE_BUILD_PATH_FILE_NAMES=(
+  "ctl.sh"
+  "project.json"
 )
 
 # The retired variable name. It is a NAME rule and not a platform rule: both
@@ -646,6 +684,48 @@ if [[ -n "$missing_files" ]]; then
     "$missing_files"
 else
   pass_check "every_named_build_path_file_exists"
+fi
+
+# The other direction, and the one that was silent: the file above answers "is
+# every named file there" and nothing answered "is every image's pair named".
+# See the note at BUILD_PATH_FILES — an image whose ctl.sh and project.json are
+# in no list is an image whose build path this whole section reads past.
+if [[ "$manifest_status" -ne 0 || -z "$manifest_names" ]]; then
+  fail_check "the_build_path_names_the_pair_of_every_manifest_image" \
+    "unreadable: ${IMAGES_MANIFEST}"
+else
+  wanted_pairs=""
+  while IFS= read -r image_name; do
+    [[ -z "$image_name" ]] && continue
+    for pair_file in "${IMAGE_BUILD_PATH_FILE_NAMES[@]}"; do
+      wanted_pairs="${wanted_pairs:+${wanted_pairs}
+}${image_name}/${pair_file}"
+    done
+  done <<< "$manifest_names"
+
+  # Every entry of the list that CLAIMS to be an image's own file. `.ci/` and
+  # `_ctl/` are excluded by the convention that names them, and a root-level
+  # `ctl.sh` has no directory to name an image with.
+  listed_pairs=""
+  for relative in "${BUILD_PATH_FILES[@]}"; do
+    case "$relative" in
+      */*/*) continue ;;
+      .*|_*) continue ;;
+      */ctl.sh|*/project.json) ;;
+      *) continue ;;
+    esac
+    listed_pairs="${listed_pairs:+${listed_pairs}
+}${relative}"
+  done
+
+  assert_equal "the_build_path_names_the_pair_of_every_manifest_image" \
+    "$(sort <<< "$wanted_pairs")" \
+    "$(sort <<< "$listed_pairs")" \
+    "${IMAGES_MANIFEST} is the ONE declaration of the image set, and every image directory" \
+    "carries ctl.sh + project.json by the per-image file rule of .claude/rules/00-identity.md" \
+    "an image whose 2 files are in no list is an image that may name any platform it likes," \
+    "silently and in green — and a listed pair naming no image of the manifest is a rule" \
+    "this file goes on asserting about a directory that was deleted"
 fi
 
 # THE READER IS WATCHED FIRING FIRST, on a file written for the purpose. The

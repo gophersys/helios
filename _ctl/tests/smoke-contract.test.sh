@@ -161,6 +161,54 @@ HARDWARE_ASSERTED_ROWS=(
 # makes the move visible instead of silent.
 HARDWARE_SIZE_BUDGET="11000000000"
 
+# ============================================================================
+# THE THIRD IMAGE, WHICH IS THE SECOND OF ITS SHAPE
+# ============================================================================
+#
+# `ui` is a CHILD that reads versions.env, the shape `hardware` introduced, and
+# that is exactly why it is here: a shape with 1 member is a shape whose driver
+# arm could be hardcoded to that member and nobody would know. Its 4th class
+# table over the same home, its own content group and its own budget are each a
+# thing the driver has to SELECT rather than assume.
+#
+# What is different from hardware, and what these checks are pinned on: this
+# image asserts exactly 1 pin nothing else does, and that pin is not compared by
+# running the tool's own name. `google-chrome-stable` is installed UNPINNED by
+# Google's design — the docker-ce-cli precedent — so the row that MEANS anything
+# is CHROME_MAJOR_VERSION, and it reaches the guest as a probe through the baked
+# ${DENSUI_CHROME} rather than through a binary name on PATH. A payload that
+# carried the pin with any other command would assert a browser this image did
+# not bake.
+UI_IMAGE="ui"
+UI_SMOKE_REF="ui:smoke"
+UI_CLASS_TABLE="PIN_CLASSES_UI"
+
+# The 1 pin the ui table flips to `asserted`, written as the COMPARATOR ROW it
+# has to arrive as, for the reason HARDWARE_ASSERTED_ROWS gives: a bare
+# `assert_contains "$RUN_PAYLOAD" "chrome"` would pass on a payload built from
+# another table, and the tool NAME is not the contract here at all.
+#
+# The command is `sh -c "..."` and the ${DENSUI_CHROME} inside it is UNEXPANDED
+# on purpose. The row travels to the guest as text and the expansion happens
+# THERE, inside the image, which is the whole point: the probe reads the entry
+# point the image baked, and a row that named /usr/bin/google-chrome-stable
+# directly would keep passing on an image whose DENSUI_CHROME points somewhere
+# else — the one variable every gate of the consumer resolves through.
+#
+# The ${} must NOT expand here, for that reason, and the same disable as the
+# GitHub-expression literal in _ctl/tests/images-manifest.test.sh says so.
+# shellcheck disable=SC2016
+UI_ASSERTED_ROWS=(
+  'CHROME_MAJOR_VERSION|sh -c "${DENSUI_CHROME} --version"'
+)
+
+# The budget images.yaml declares for it: 6.3 GB, in the decimal bytes
+# image_size_budget_bytes computes. PROVISIONAL like hardware's and computed the
+# same way — cloud's measured layer sum plus the chrome+fonts layer of the image
+# this one replaces, at the ~1.12x docker accounting factor — so this literal
+# moves when the first green build measures the real number.
+UI_SIZE_BUDGET="6300000000"
+
 # The tools the payload must name. Each one is a gate-critical hole today.
 # `docker compose` carries a space on purpose — the plugin is invoked that way,
 # and `docker-compose` is the retired v1 binary.
@@ -294,6 +342,31 @@ function absence_rows() {
   ' "$SMOKE"
 }
 
+# named_check_groups <payload> — the SMOKE_CHECKS assignment the driver wrote
+# into the payload, or the empty string when it wrote none.
+#
+# A CHECK THAT COULD NOT FAIL IS WHY THIS EXISTS. The rule below asked whether
+# the payload NAMES the image's own group, and it asked it of the whole payload —
+# which IS .ci/image-checks.sh, and that file spells every group name itself, in
+# the `case` arm that dispatches it. So `content-hardware` was found in the
+# guest's own source whatever the driver decided, and the check passed on a
+# payload built for another image entirely. Measured 2026-08-18 by deleting
+# `content-ui` from the ui entry of images.yaml: the driver wrote
+# `SMOKE_CHECKS=content-cloud\ go-gate\ dockerfile-lint\ compose`, the group was
+# never dispatched, and the check stayed GREEN.
+#
+# The assignment line is the only place in the payload where the DRIVER speaks.
+# The reader takes the first line that starts with it and nothing else, so the
+# 2 later references to ${SMOKE_CHECKS} inside the guest's own code cannot answer
+# for it either.
+#
+# awk and not grep: grep exits 1 when it matches nothing, and this file runs
+# under `set -Eeuo pipefail` — a payload with no assignment at all is the defect
+# this reader has to REPORT, so it must survive reading one.
+function named_check_groups() {
+  awk '/^SMOKE_CHECKS=/ { print; exit }' <<< "$1"
+}
+
 # docker_run_lines <argv log> — how many `docker run` invocations a log holds.
 # The payload the driver sends can hold the word "run" itself, so the match is
 # anchored at the start of a logged line.
@@ -303,6 +376,23 @@ function absence_rows() {
 # `|| true`.
 function docker_run_lines() {
   printf '%s\n' "$1" | awk '/^docker run / { total++ } END { print total + 0 }'
+}
+
+# docker_run_argv <argv log> — the `docker run` invocations themselves, and no
+# other docker call.
+#
+# THE SECOND CHECK THAT COULD NOT FAIL, and the rule it repairs is "the driver
+# smokes the ref it was given". That rule read the WHOLE argv log, and the driver
+# calls `docker image inspect` on the same ref twice before it runs anything — for
+# the platform and for the size. So the ref was always in the log, whatever
+# container was started. Measured 2026-08-18 by rewriting the last line of
+# .ci/smoke.sh to `docker run ... "cloud:latest"`: all 3 ref checks stayed GREEN
+# while every smoke in this file asserted about an image nobody built.
+#
+# A ref that is inspected and not run is exactly the failure the rule names: the
+# gate reports an image as smoked and the container it smoked was another one.
+function docker_run_argv() {
+  awk '/^docker run /' <<< "$1"
 }
 
 # assert_refused_without_running <check name> <needle> [evidence...]
@@ -354,9 +444,10 @@ assert_equal "the_smoke_starts_exactly_one_container" \
   "docker was called with:" "${RUN_ARGV:-<no docker invocation>}" \
   "output was:" "$RUN_OUTPUT"
 assert_contains "the_smoke_runs_the_ref_it_was_given" \
-  "$RUN_ARGV" "$SMOKE_REF" \
+  "$(docker_run_argv "$RUN_ARGV")" "$SMOKE_REF" \
   "the CI job builds a local ref with push:false + load:true and smokes THAT ref" \
-  "a run against another ref would assert about an image nobody built here"
+  "a run against another ref would assert about an image nobody built here" \
+  "the docker run line is what is read here; the size and platform gates inspect the ref too"
 
 # -------- 2. the guest script travels on stdin --------
 # Every rule below reads the payload, so a payload that is empty makes each of
@@ -522,9 +613,10 @@ assert_equal "the_hardware_smoke_starts_exactly_one_container" \
   "docker was called with:" "${RUN_ARGV:-<no docker invocation>}" \
   "output was:" "$RUN_OUTPUT"
 assert_contains "the_hardware_smoke_runs_the_ref_it_was_given" \
-  "$RUN_ARGV" "$HARDWARE_SMOKE_REF" \
+  "$(docker_run_argv "$RUN_ARGV")" "$HARDWARE_SMOKE_REF" \
   "the CI job builds a local ref with push:false + load:true and smokes THAT ref" \
-  "a run against another ref would assert about an image nobody built here"
+  "a run against another ref would assert about an image nobody built here" \
+  "the docker run line is what is read here; the size and platform gates inspect the ref too"
 
 # The marker's DRIVER half. The guest holds GOPHERSYS_DEVCONTAINER against
 # SMOKE_IMAGE — guest-checks.test.sh drives that comparison from both sides —
@@ -543,10 +635,15 @@ assert_contains "the_payload_exports_the_image_for_the_marker" \
 # The functional group that only this image runs. It reaches the guest the same
 # way the tables do, and a group that never arrives is a content check that
 # silently did not happen.
+#
+# It is asked of the SMOKE_CHECKS assignment and not of the payload, for the
+# reason named_check_groups gives: the guest names every group in its own case
+# arm, so the whole-payload form was a check that could not fail.
 assert_contains "the_hardware_payload_names_its_own_check_group" \
-  "$RUN_PAYLOAD" "content-hardware" \
+  "$(named_check_groups "$RUN_PAYLOAD")" "content-hardware" \
   "images.yaml declares this group for this image, and .ci/image-checks.sh runs the KiCad" \
-  "library floors from it — a payload without it smokes an ECAD image and checks no ECAD tool"
+  "library floors from it — a payload without it smokes an ECAD image and checks no ECAD tool" \
+  "the driver's own line is what is read here; the guest's case arm names the group too"
 
 # Section 3, asked of the other table. The KiCad rows are `asserted` here and
 # `not-in-this-image` in the 2 tables over the same home, so a driver that chose
@@ -673,6 +770,150 @@ elif [[ "$(docker_run_lines "$RUN_ARGV")" -ne 1 ]]; then
     "docker was called with:" "${RUN_ARGV:-<no docker invocation>}"
 else
   pass_check "a_hardware_image_exactly_at_its_budget_passes_the_gate_and_is_smoked"
+fi
+
+# ===========================================================================
+# 8. THE SAME CONTRACT, FOR THE SECOND IMAGE OF THAT SHAPE
+# ===========================================================================
+# See the note beside UI_IMAGE above. Section 7 asks the image-specific rules of
+# `hardware`; this asks them of `ui`, and the point of asking twice is that the
+# 2 images differ in every answer — a different table, a different group, a
+# different budget, a different asserted pin — while taking the same arm of the
+# driver. An arm that answered `hardware` for both would pass section 7 alone.
+run_smoke "$SMOKE" "$UI_IMAGE" "$UI_SMOKE_REF"
+
+assert_equal "the_ui_smoke_starts_exactly_one_container" \
+  "1" "$(docker_run_lines "$RUN_ARGV")" \
+  "docker was called with:" "${RUN_ARGV:-<no docker invocation>}" \
+  "output was:" "$RUN_OUTPUT"
+assert_contains "the_ui_smoke_runs_the_ref_it_was_given" \
+  "$(docker_run_argv "$RUN_ARGV")" "$UI_SMOKE_REF" \
+  "the CI job builds a local ref with push:false + load:true and smokes THAT ref" \
+  "a run against another ref would assert about an image nobody built here" \
+  "the docker run line is what is read here; the size and platform gates inspect the ref too"
+
+# The functional group that only this image runs. Every branch of it is driven by
+# functional-groups.test.sh — the browser, the font, PYTHONUNBUFFERED and the
+# root-vs-dev pair — and not one of them happens if the group name never reaches
+# the guest.
+assert_contains "the_ui_payload_names_its_own_check_group" \
+  "$(named_check_groups "$RUN_PAYLOAD")" "content-ui" \
+  "images.yaml declares this group for this image, and it is the only check that can see" \
+  "the /usr/local/bin exposure at all — no version comparison resolves a tool twice" \
+  "the driver's own line is what is read here; the guest's case arm names the group too"
+
+# Section 3, asked of the 4th table.
+ui_pins="$(asserted_pins "$UI_IMAGE")"
+ui_pin_total=0
+ui_missing_rows=""
+while IFS= read -r pin; do
+  [[ -z "$pin" ]] && continue
+  ui_pin_total=$((ui_pin_total + 1))
+  if ! grep -qE "^${pin}\|" <<< "$RUN_PAYLOAD"; then
+    ui_missing_rows="${ui_missing_rows:+${ui_missing_rows}
+}${pin}"
+  fi
+done <<< "$ui_pins"
+
+if [[ "$ui_pin_total" -eq 0 ]]; then
+  fail_check "every_asserted_pin_reaches_the_guest_for_ui" \
+    "SMOKE_LIST_PINS=1 named no pin as asserted for ${UI_IMAGE}, so this rule compared nothing" \
+    "a rule with no input reports a clean result it never read"
+elif [[ -n "$ui_missing_rows" ]]; then
+  fail_check "every_asserted_pin_reaches_the_guest_for_ui" \
+    "these pins are classified asserted and carry no comparator row in the payload:" \
+    "$ui_missing_rows" \
+    "a row is <PIN>|<expected version>|<command>, which is what .ci/image-checks.sh reads" \
+    "a classification that never reaches the guest is a claim of coverage, not coverage"
+else
+  pass_check "every_asserted_pin_reaches_the_guest_for_ui"
+fi
+
+# Section 3b, asked of the 4th table.
+ui_absent_rows="$(absence_rows "$UI_CLASS_TABLE")"
+ui_absent_total=0
+ui_missing_absent=""
+while IFS= read -r absent_row; do
+  [[ -z "$absent_row" ]] && continue
+  ui_absent_total=$((ui_absent_total + 1))
+  if ! grep -qxF -- "$absent_row" <<< "$RUN_PAYLOAD"; then
+    ui_missing_absent="${ui_missing_absent:+${ui_missing_absent}
+}${absent_row}"
+  fi
+done <<< "$ui_absent_rows"
+
+if [[ "$ui_absent_total" -eq 0 ]]; then
+  fail_check "every_absence_probe_reaches_the_guest_for_ui" \
+    "the ${UI_IMAGE} class table names no absence probe at all, so this rule compared nothing" \
+    "the driver refuses such an image, and a rule with no input reports a clean result it never read"
+elif [[ -n "$ui_missing_absent" ]]; then
+  fail_check "every_absence_probe_reaches_the_guest_for_ui" \
+    "these absence probes are named in the class table and carry no ABSENT_TABLE row in the payload:" \
+    "$ui_missing_absent" \
+    "a row is <PIN>|<binary>, which is what run_absence_checks in .ci/image-checks.sh reads" \
+    "a probe that never reaches the guest is the unchecked claim not-in-this-image used to be"
+else
+  pass_check "every_absence_probe_reaches_the_guest_for_ui"
+fi
+
+# Section 4, asked of the 1 pin this image exists for. The row is compared by
+# FIELDS for the reason HARDWARE_ASSERTED_ROWS states — `|` is alternation in an
+# ERE, and a regular expression here passed on a payload carrying none of the
+# rows it claimed to check.
+ui_payload_rows_status=0
+ui_payload_rows=""
+ui_payload_rows="$(grep -E '^[A-Z][A-Z0-9_]*\|' <<< "$RUN_PAYLOAD")" || ui_payload_rows_status=$?
+if [[ "$ui_payload_rows_status" -ne 0 ]]; then
+  ui_payload_rows="<the payload carries no <NAME>| row at all>"
+fi
+
+for asserted_row in "${UI_ASSERTED_ROWS[@]}"; do
+  asserted_pin="${asserted_row%%|*}"
+  asserted_command="${asserted_row#*|}"
+  check_name="the_ui_payload_asserts_${asserted_pin}"
+  # $3 and not $2: field 2 is the expected VERSION, which this file does not
+  # state, and field 4 is the `prefix` extractor this pin needs because the row
+  # holds a MAJOR line while the browser reports 151.0.7922.137.
+  matched_row=""
+  matched_row="$(awk -F'|' -v pin="$asserted_pin" -v want="$asserted_command" \
+    '$1 == pin && $3 == want { print; exit }' <<< "$RUN_PAYLOAD")"
+  if [[ -n "$matched_row" ]]; then
+    pass_check "$check_name"
+  else
+    fail_check "$check_name" \
+      "no row of the payload has field 1 = ${asserted_pin} and field 3 = ${asserted_command}" \
+      "this pin is asserted in the ui class table and in no other, and its probe reads the" \
+      "browser through the baked \${DENSUI_CHROME} — a row naming the binary directly would" \
+      "keep passing on an image whose entry point points somewhere else" \
+      "the payload's own pin rows were:" \
+      "$ui_payload_rows"
+  fi
+done
+
+# Section 6, at the third budget. 1 byte apart for the reason the cloud pair
+# gives. This image's budget is the smallest of the 3 declared, so a gate reading
+# any other image's number would let a 6.3 GB overrun through unreported.
+run_smoke "$SMOKE" "$UI_IMAGE" "$UI_SMOKE_REF" "STUB_IMAGE_SIZE=$((UI_SIZE_BUDGET + 1))"
+assert_refused_without_running "a_ui_image_one_byte_over_its_budget_fails_and_starts_no_container" \
+  "$UI_SIZE_BUDGET" \
+  "the image measured $((UI_SIZE_BUDGET + 1)) bytes, which is 1 byte over the 6.3 GB budget" \
+  "the budget is PROVISIONAL and the first green build resets it — a gate that does not bite" \
+  "cannot report the re-measurement it exists to force"
+
+run_smoke "$SMOKE" "$UI_IMAGE" "$UI_SMOKE_REF" "STUB_IMAGE_SIZE=${UI_SIZE_BUDGET}"
+if [[ "$RUN_STATUS" -ne 0 ]]; then
+  fail_check "a_ui_image_exactly_at_its_budget_passes_the_gate_and_is_smoked" \
+    "want: exit 0 — ${UI_SIZE_BUDGET} bytes is the budget, and the budget is inclusive" \
+    "got:  ${RUN_STATUS}" \
+    "a gate that refuses its own limit hands back a budget nobody can meet" \
+    "output was:" "$RUN_OUTPUT"
+elif [[ "$(docker_run_lines "$RUN_ARGV")" -ne 1 ]]; then
+  fail_check "a_ui_image_exactly_at_its_budget_passes_the_gate_and_is_smoked" \
+    "the run exited 0 and started $(docker_run_lines "$RUN_ARGV") containers, want exactly 1" \
+    "an exit 0 with no container is a size gate that ate the whole smoke" \
+    "docker was called with:" "${RUN_ARGV:-<no docker invocation>}"
+else
+  pass_check "a_ui_image_exactly_at_its_budget_passes_the_gate_and_is_smoked"
 fi
 
 test_summary "$TEST_NAME"

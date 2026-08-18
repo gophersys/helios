@@ -172,6 +172,7 @@ GOVERNED_DOCKERFILES=(
   "zephyr/Dockerfile"
   "zephyr-devbox/Dockerfile"
   "cloud/Dockerfile"
+  "ui/Dockerfile"
 )
 
 # ===========================================================================

@@ -103,6 +103,7 @@ STUB_TOOLS=(
   hadolint docker dlv buf grpcurl
   flutter adb java
   kicad-cli
+  node npm uv sudo densui-chromium
 )
 
 # The PATH every case runs with: the stub toolchain, then the 2 directories that
@@ -167,6 +168,35 @@ function run_groups() {
 KICAD_FOOTPRINT_FLOOR=10000
 KICAD_SYMBOL_FLOOR=100
 KICAD_MODEL_FLOOR=1000
+
+# ---------------------------------------------------------------------------
+# THE content-ui WORLD
+# ---------------------------------------------------------------------------
+#
+# The fallback font path, as a LITERAL, for the reason the KiCad floors are
+# literals: a case that read the path out of the file it drives would agree with
+# any path, including one that names no font at all. research-ui's assemble.py
+# takes exactly this path off macOS, and a layout that is COMPUTED from font
+# metrics cannot be computed without it.
+UI_FALLBACK_FONT="/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
+
+# The browser the image bakes. The group asks whether DENSUI_CHROME names an
+# EXECUTABLE, so the stub toolchain's own densui-chromium is what a healthy world
+# points at here — the same name ui/Dockerfile symlinks into /usr/local/bin.
+UI_BROWSER="${STUB_TOOLCHAIN}/densui-chromium"
+
+# A path that exists and holds nothing. It is the difference between "the
+# variable is set" and "the entry point is really baked": a DENSUI_CHROME
+# pointing at a browser that never installed is exactly as broken as no browser,
+# and it is the shape a renamed package leaves behind.
+UI_BROWSER_ABSENT="${STUB_TOOLCHAIN}/densui-chromium-that-never-installed"
+
+# What sudo's secure_path holds in a HEALTHY ui image. The stub toolchain plays
+# /usr/local/bin here: it is the directory the 3 symlinks of ui/Dockerfile put
+# node, npm and uv in, and it is the directory both sudoers' secure_path and
+# /etc/profile already name. The stub sudo defaults to a secure_path WITHOUT it,
+# which is the world where that layer was never written.
+UI_EXPOSED_SECURE_PATH="$GUEST_PATH"
 
 # make_kicad_root <footprints> <symbols> <models> — a KiCad share tree holding
 # exactly those counts, printed as a path the caller must remove.
@@ -413,6 +443,128 @@ assert_group_passed "kicad_libraries_at_their_floors_pass_and_name_all_3_counts"
   "ok   kicad symbol libraries: ${KICAD_SYMBOL_FLOOR}" \
   "ok   kicad STEP models: ${KICAD_MODEL_FLOOR}"
 rm -rf "$kicad_root"
+
+# -------- 6d. the THIRD content group, and every branch it can take --------
+#
+# content-ui is the group `ui` adds, and nothing exercised it: a content group is
+# reachable only through the `case` in run_functional_groups, so a group name
+# that reaches no arm falls through to `unknown check group`. Both outcomes exit
+# non-zero, which is why every needle below names the STEP and the group's own
+# header line rather than resting on the status — the same reason section 6b
+# gives for content-hardware.
+#
+# EVERY VALUE THIS GROUP READS IS PASSED IN, none inherited. `run_groups` does
+# not run `env -i`, so a variable this file leaves alone comes from the shell
+# that started the suite — and DENSUI_CHROME and PYTHONUNBUFFERED are exactly the
+# 2 variables the ui image itself exports. Run the suite inside that image with
+# the world inherited and every case here would pass on the image's own ENV
+# instead of on the world it staged. That is the shape of the probe this
+# organisation already shipped: a check that verified itself in a shell which had
+# already loaded what it tested for.
+
+# The browser, unset. `if env:` in densui probe.py is FALSE for the empty string,
+# so an empty DENSUI_CHROME is worse than an absent binary: the probe falls
+# through to its own candidate search and a gate then passes without ever using
+# the browser this image baked. Empty and absent are 1 branch in the guest —
+# `${DENSUI_CHROME:-}` — and empty is the spelling that cannot be faked by an
+# inherited value.
+run_groups "content-ui" "DENSUI_CHROME=" "PYTHONUNBUFFERED=1" \
+  "STUB_SUDO_SECURE_PATH=${UI_EXPOSED_SECURE_PATH}"
+assert_group_failed "an_unset_DENSUI_CHROME_fails_the_run" \
+  "DENSUI_CHROME is not set" "--- ui content ---"
+
+# The browser, named but not there. A package that is renamed upstream leaves
+# exactly this: the ENV still says what the image meant, and the symlink target
+# is gone.
+run_groups "content-ui" "DENSUI_CHROME=${UI_BROWSER_ABSENT}" "PYTHONUNBUFFERED=1" \
+  "STUB_SUDO_SECURE_PATH=${UI_EXPOSED_SECURE_PATH}"
+assert_group_failed "a_DENSUI_CHROME_naming_no_executable_fails_and_names_the_path" \
+  "there is no executable there" "$UI_BROWSER_ABSENT"
+
+# PYTHONUNBUFFERED, wrong. An ENV and not a tool, and it is asserted for the
+# reason it exists: without it a piped gate block-buffers, and 9.5 silent minutes
+# read as a stall and got a run cancelled once. `0` and not "unset", because the
+# guest compares against the literal 1 and a variable somebody set to the wrong
+# value is the case an absent one does not cover.
+run_groups "content-ui" "DENSUI_CHROME=${UI_BROWSER}" "PYTHONUNBUFFERED=0" \
+  "STUB_SUDO_SECURE_PATH=${UI_EXPOSED_SECURE_PATH}"
+assert_group_failed "a_PYTHONUNBUFFERED_that_is_not_1_fails_the_run" \
+  "PYTHONUNBUFFERED is '0' and not 1"
+
+# ---------------------------------------------------------------------------
+# THE ROOT-VS-DEV PAIR, WHICH IS THE WHOLE REASON THIS GROUP EXISTS
+# ---------------------------------------------------------------------------
+#
+# ui/Dockerfile answers open question Q4 of research-ui's image-notes with ONE
+# toolchain instead of a second root-wide Node and a second root-wide uv: cloud
+# already puts node, npm and uv on the image-wide ENV PATH, and the 3 symlinks
+# into /usr/local/bin are what makes them reachable from the 2 PATHs that ignore
+# that ENV — sudoers' secure_path, and the /etc/profile every `bash -lc` rewrites
+# PATH from. Delete those symlinks and the image still builds, still smokes every
+# version pin green, and every gate of the consumer that runs as root dies with
+# "node: not found". NO VERSION COMPARISON CAN SEE THAT: the tool is present, at
+# the right version, for the user the comparator happens to run as.
+#
+# So the case is an ASYMMETRY and not a failure count: `dev` stays green while
+# all 3 root readers exit 127. A check that only asked for a failure would also
+# pass on an image with no node at all, which is a different defect with a
+# different fix.
+run_groups "content-ui" "DENSUI_CHROME=${UI_BROWSER}" "PYTHONUNBUFFERED=1"
+assert_group_failed "dropping_the_usr_local_bin_exposure_fails_only_the_root_readers" \
+  "FAIL: node (root, through sudo's secure_path)" \
+  "FAIL: npm (root, through sudo's secure_path)" \
+  "FAIL: uv (root, through sudo's secure_path)" \
+  "ok   node (this user)" \
+  "ok   npm (this user)" \
+  "ok   uv (this user)"
+
+# The other half, and it is the half a comparator stuck on "fail always"
+# satisfies nothing of: with the exposure ON sudo's secure_path, all 6 readers
+# answer.
+#
+# IT READS THE OUTPUT AND NOT THE STATUS, which is a deliberate weakening and
+# needs its reason stated. `checks_content_ui` reads the fallback font at an
+# ABSOLUTE path, so on any host without a DejaVu font at that path — this laptop
+# is one, measured 2026-08-18 — the group cannot exit 0 no matter what else is
+# true, and `assert_group_passed` would report the HOST rather than the image.
+# The seam that would answer it is the one SMOKE_KICAD_ROOT already is for the
+# KiCad floors; it does not exist for the font, and adding it is a change to
+# .ci/image-checks.sh. Until it does, the 6 `ok` lines are what this half can
+# state, and a group that stopped running the pair reports none of them.
+run_groups "content-ui" "DENSUI_CHROME=${UI_BROWSER}" "PYTHONUNBUFFERED=1" \
+  "STUB_SUDO_SECURE_PATH=${UI_EXPOSED_SECURE_PATH}"
+ui_missing_readers=""
+for ui_reader in \
+  "ok   node (this user)" \
+  "ok   node (root, through sudo's secure_path)" \
+  "ok   npm (this user)" \
+  "ok   npm (root, through sudo's secure_path)" \
+  "ok   uv (this user)" \
+  "ok   uv (root, through sudo's secure_path)"
+do
+  grep -qF -- "$ui_reader" <<< "$GUEST_OUTPUT" && continue
+  ui_missing_readers="${ui_missing_readers:+${ui_missing_readers}
+}${ui_reader}"
+done
+if [[ -z "$ui_missing_readers" ]]; then
+  pass_check "the_exposed_toolchain_answers_for_both_users"
+else
+  fail_check "the_exposed_toolchain_answers_for_both_users" \
+    "sudo's secure_path holds ${UI_EXPOSED_SECURE_PATH}, and these readers did not answer:" \
+    "$ui_missing_readers" \
+    "without this half a comparator stuck on 'fail always' satisfies the asymmetry case above" \
+    "output was:" "$GUEST_OUTPUT"
+fi
+
+# The font. It is asserted as a PATH the group reads and not as a verdict, and
+# the reason is the one stated above: with no seam, the branch that fires is a
+# property of the host. What this holds is that the group still reads the font at
+# all — delete those lines from checks_content_ui and this goes red on every
+# host, in both worlds.
+assert_contains "the_ui_content_group_reads_the_dejavu_fallback_font" \
+  "$GUEST_OUTPUT" "$UI_FALLBACK_FONT" \
+  "research-ui's assemble.py takes this exact path as its fallback font off macOS," \
+  "and a layout COMPUTED from font metrics has nothing to measure without it"
 
 # -------- 7. every named group is reached --------
 # The guest runs with IFS=$'\n\t' and splits SMOKE_CHECKS by hand. A regression

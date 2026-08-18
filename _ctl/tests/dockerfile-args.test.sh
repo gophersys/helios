@@ -107,7 +107,30 @@ TEST_NAME="dockerfile-args.test.sh"
 # a DECLARATION and `${KIUTILS_VERSION}` is still a REFERENCE, so a rename that
 # drops either half is exactly as invisible here as it is in a file that spells
 # its own values — more so, because the value arrives from versions.env and a
-# reader of this file alone cannot see what it was meant to be.
+# reader of this file alone cannot see what it was meant to be. `ui/Dockerfile`
+# is the 4th, and its single governed name — NODE_VERSION, threaded into the
+# /home/dev/.nvm/versions/node/v${NODE_VERSION}/bin path its toolchain-exposure
+# layer symlinks from — is the sharpest case in the repository for the dangling
+# direction: an undeclared NODE_VERSION makes that `ln -s` point at a path with a
+# hole in it, and the `test -x` beside it is what would report it, at build time,
+# in a publish job.
+#
+# THE LIST IS BOUND TO THE MANIFEST, and it was NOT. It was a bare literal with
+# no clause holding it to anything, so `ui/Dockerfile` landed and escaped both
+# rules of this file in GREEN SILENCE — no red, no evidence, just 1 less file
+# read. That is the same shrink-with-no-red that VALUE_HOMES in
+# download-coverage.test.sh already shipped once and that IMAGE_PLATFORM_TABLE in
+# platform-policy.test.sh carries a set-equality clause against. It is the 3rd
+# occurrence of the class, so the clause is written here in both directions:
+#
+#   a manifest Dockerfile absent from this list   is a file whose ARGs nothing
+#                                                 in the pull request gate reads
+#   an entry naming no manifest Dockerfile        is a rule this file goes on
+#                                                 asserting about a deleted image
+#
+# The literal stays a literal. The clause holds it to the manifest; it does not
+# replace it with the manifest, because a list read out of images.yaml would
+# agree with any manifest, an emptied one included.
 DOCKERFILES=(
   "base/Dockerfile"
   "flutter/Dockerfile"
@@ -115,6 +138,7 @@ DOCKERFILES=(
   "zephyr-devbox/Dockerfile"
   "cloud/Dockerfile"
   "hardware/Dockerfile"
+  "ui/Dockerfile"
 )
 
 # The counter-stimulus. A detector that has only ever seen correct input has
@@ -132,12 +156,27 @@ GOVERNED_SUFFIX='(_VERSION|_REF|_CHANNEL|_SHA256_[A-Z0-9_]+)$'
 
 # version_references <file> — every version-shaped ${NAME} the file REFERENCES,
 # 1 per line, comments excluded.
+#
+# THE STATUS IS READ, AND IT HAS TO BE. grep exits 1 when it matches nothing, and
+# this file runs under `set -Eeuo pipefail`, so the plain pipeline KILLED the run
+# on a Dockerfile that references no version at all: the loop below died at that
+# file, `test_summary` never ran, and the suite reported a file that names no
+# check instead of the check that was supposed to name the file. Measured
+# 2026-08-18 by stripping the last ${NODE_VERSION} out of ui/Dockerfile — the
+# output stopped after hardware and printed no summary line.
+#
+# A file with no reference is a defect this reader has to REPORT — it is exactly
+# what `<file>_references_at_least_one_version_ARG` exists for — so it must
+# survive reading one. Status 1 is "matched nothing" and is an answer; anything
+# above it is a real error and still ends the run. It is the reason
+# version-coverage.test.sh states at env_pin_names, applied to the direction
+# that could actually reach it here.
 function version_references() {
   local file="$1"
-  grep -vE '^[[:space:]]*#' "$file" \
-    | grep -oE "$VERSION_REFERENCE" \
-    | sed -e 's/^\${//' -e 's/}$//' \
-    | sort -u
+  local text="" status=0
+  text="$(grep -vE '^[[:space:]]*#' "$file" | grep -oE "$VERSION_REFERENCE")" || status=$?
+  [[ "$status" -le 1 ]] || return "$status"
+  printf '%s\n' "$text" | sed -e 's/^\${//' -e 's/}$//' | sort -u
 }
 
 # declared_args <file> — every name an ARG in that file DECLARES, 1 per line.
@@ -226,6 +265,47 @@ if [[ -n "$missing_files" ]]; then
     "$missing_files"
 else
   pass_check "every_named_Dockerfile_exists"
+fi
+
+# -------- 1b. the list is the manifest's set of Dockerfiles, both ways --------
+# See the note at DOCKERFILES. The check above answers "is every named file
+# there" and nothing answered "is every image's Dockerfile named".
+#
+# WHICH READER. manifest_yq from _ctl/lib.sh — its RESOLUTION only, with the
+# EXPRESSION written here, exactly as publish-order.test.sh and
+# platform-policy.test.sh do it. The `dockerfile` key is read rather than
+# `<name>/Dockerfile` being assembled, because the manifest is where the build
+# path of an image is declared and an image that moved its file would otherwise
+# satisfy a rule about a path nothing builds.
+manifest_status=0
+manifest_dockerfiles=""
+manifest_dockerfiles="$(manifest_yq '.images | to_entries | .[] | .value.dockerfile' 2>&1)" || manifest_status=$?
+
+# The liveness clause first, because the equality below reads this value: an
+# unreadable manifest would compare the list against an empty set and report the
+# WRONG defect — 7 entries naming no image — while the real fault is that nothing
+# could open the file.
+if [[ "$manifest_status" -eq 0 && -n "$manifest_dockerfiles" ]]; then
+  pass_check "the_image_manifest_is_readable"
+else
+  fail_check "the_image_manifest_is_readable" \
+    "reading the dockerfile keys of ${IMAGES_MANIFEST} exited ${manifest_status}" \
+    "it printed:" "${manifest_dockerfiles:-<nothing>}" \
+    "the manifest is the ONE declaration of the image set, so the equality below cannot be" \
+    "answered without it — and an empty set would agree with a repository that has no images"
+fi
+
+if [[ "$manifest_status" -ne 0 || -z "$manifest_dockerfiles" ]]; then
+  fail_check "the_dockerfile_list_names_exactly_the_manifest_dockerfiles" \
+    "unreadable: ${IMAGES_MANIFEST}"
+else
+  assert_equal "the_dockerfile_list_names_exactly_the_manifest_dockerfiles" \
+    "$(sort <<< "$manifest_dockerfiles")" \
+    "$(printf '%s\n' "${DOCKERFILES[@]}" | sort)" \
+    "${IMAGES_MANIFEST} is the ONE declaration of the image set, and DOCKERFILES is the" \
+    "hand-kept list it owes set equality to — edit both in the same change" \
+    "the 2 rules below loop the LIST, so a Dockerfile missing from it is a Dockerfile whose" \
+    "dangling and orphan ARGs this file asserts nothing about, silently and in green"
 fi
 
 # -------- 2. the counter-stimulus: the detector FIRES --------

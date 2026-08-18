@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/toolchain/densui-chromium — the stub headless browser the ui
+# image bakes as its ONE entry point.
+#
+# ui/Dockerfile symlinks /usr/bin/google-chrome-stable to
+# /usr/local/bin/densui-chromium and exports DENSUI_CHROME at that name, so every
+# gate of gophersys/research-ui resolves 1 path instead of branching on the
+# architecture. The content-ui group asks only whether DENSUI_CHROME names an
+# EXECUTABLE, so nothing here is run by that group — this file is what makes the
+# name executable, and the version it prints is the shape .ci/smoke.sh compares
+# CHROME_MAJOR_VERSION against with its `prefix` extractor.
+#
+#   STUB_FAIL_DENSUI_CHROMIUM   exit 1 instead of answering   (unset)
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+if [[ "${STUB_FAIL_DENSUI_CHROMIUM:-}" == "1" ]]; then
+  printf 'stub densui-chromium: this run was told to fail (STUB_FAIL_DENSUI_CHROMIUM)\n' >&2
+  exit 1
+fi
+
+printf 'Google Chrome 151.0.7922.137\n'
+exit 0
