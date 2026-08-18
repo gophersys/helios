@@ -366,7 +366,27 @@ jobs:
       # The parent this layer FROMs. base publishes a :<sha> tag only on a
       # commit that changed it, so when base did not build there is no such tag
       # and the only correct parent is the :latest that is still current.
-      BASE_TAG: ${{ needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
+      # REHEARSAL takes 'latest', and that is a limitation with a name.
+      #
+      # A rehearsal publishes nothing, so the parent job pushed no :<sha> for
+      # this commit and there is nothing for this layer's FROM to resolve.
+      # Rehearsal #2 (run 32114973844) is the measurement: base and cloud went
+      # green on both platforms, and zephyr and flutter died resolving
+      # ghcr.io/gophersys/base:<sha> — a tag that a mode which ships nothing
+      # never created.
+      #
+      # So a rehearsal proves each image's OWN content builds on every sanctioned
+      # platform, against the parent that is currently published. It does NOT
+      # prove the child-at-NEW-parent seam. That seam is reachable only in
+      # publish mode, where it is smoke-gated, or by pushing quarantined tags —
+      # which this repository deliberately does not do, for the reason the arm64
+      # note at the top of _ctl/tests/publish-order.test.sh gives.
+      #
+      # GitHub's && / || yield OPERANDS and not booleans, so this reads: when the
+      # mode is rehearsal take 'latest' (a non-empty string, therefore the value
+      # of the first branch), otherwise fall through to exactly the expression
+      # this line carried before rehearsal existed.
+      BASE_TAG: ${{ inputs.mode == 'rehearsal' && 'latest' || (needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: extract semver tag
@@ -510,7 +530,27 @@ jobs:
       # The parent this layer FROMs. base publishes a :<sha> tag only on a
       # commit that changed it, so when base did not build there is no such tag
       # and the only correct parent is the :latest that is still current.
-      BASE_TAG: ${{ needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
+      # REHEARSAL takes 'latest', and that is a limitation with a name.
+      #
+      # A rehearsal publishes nothing, so the parent job pushed no :<sha> for
+      # this commit and there is nothing for this layer's FROM to resolve.
+      # Rehearsal #2 (run 32114973844) is the measurement: base and cloud went
+      # green on both platforms, and zephyr and flutter died resolving
+      # ghcr.io/gophersys/base:<sha> — a tag that a mode which ships nothing
+      # never created.
+      #
+      # So a rehearsal proves each image's OWN content builds on every sanctioned
+      # platform, against the parent that is currently published. It does NOT
+      # prove the child-at-NEW-parent seam. That seam is reachable only in
+      # publish mode, where it is smoke-gated, or by pushing quarantined tags —
+      # which this repository deliberately does not do, for the reason the arm64
+      # note at the top of _ctl/tests/publish-order.test.sh gives.
+      #
+      # GitHub's && / || yield OPERANDS and not booleans, so this reads: when the
+      # mode is rehearsal take 'latest' (a non-empty string, therefore the value
+      # of the first branch), otherwise fall through to exactly the expression
+      # this line carried before rehearsal existed.
+      BASE_TAG: ${{ inputs.mode == 'rehearsal' && 'latest' || (needs.base.outputs.built == 'true' && needs.base.outputs.short || 'latest') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: extract semver tag
@@ -653,7 +693,27 @@ jobs:
       # The parent is zephyr, so it is ZEPHYR's verdict that decides whether a
       # :<sha> tag exists to FROM. base's short sha is still the tag zephyr
       # pushed under, because every job of a run shares one commit.
-      BASE_TAG: ${{ needs.zephyr.outputs.built == 'true' && needs.base.outputs.short || 'latest' }}
+      # REHEARSAL takes 'latest', and that is a limitation with a name.
+      #
+      # A rehearsal publishes nothing, so the parent job pushed no :<sha> for
+      # this commit and there is nothing for this layer's FROM to resolve.
+      # Rehearsal #2 (run 32114973844) is the measurement: base and cloud went
+      # green on both platforms, and zephyr and flutter died resolving
+      # ghcr.io/gophersys/base:<sha> — a tag that a mode which ships nothing
+      # never created.
+      #
+      # So a rehearsal proves each image's OWN content builds on every sanctioned
+      # platform, against the parent that is currently published. It does NOT
+      # prove the child-at-NEW-parent seam. That seam is reachable only in
+      # publish mode, where it is smoke-gated, or by pushing quarantined tags —
+      # which this repository deliberately does not do, for the reason the arm64
+      # note at the top of _ctl/tests/publish-order.test.sh gives.
+      #
+      # GitHub's && / || yield OPERANDS and not booleans, so this reads: when the
+      # mode is rehearsal take 'latest' (a non-empty string, therefore the value
+      # of the first branch), otherwise fall through to exactly the expression
+      # this line carried before rehearsal existed.
+      BASE_TAG: ${{ inputs.mode == 'rehearsal' && 'latest' || (needs.zephyr.outputs.built == 'true' && needs.base.outputs.short || 'latest') }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: extract semver tag

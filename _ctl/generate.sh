@@ -294,7 +294,29 @@ JOB_ENV
   fi
   if [[ -n "$parent" ]]; then
     emit_note '      ' "$name" base_tag
-    printf "      BASE_TAG: \${{ needs.%s.outputs.built == 'true' && needs.%s.outputs.short || 'latest' }}\n" \
+    cat <<'JOB_BASE_TAG'
+      # REHEARSAL takes 'latest', and that is a limitation with a name.
+      #
+      # A rehearsal publishes nothing, so the parent job pushed no :<sha> for
+      # this commit and there is nothing for this layer's FROM to resolve.
+      # Rehearsal #2 (run 32114973844) is the measurement: base and cloud went
+      # green on both platforms, and zephyr and flutter died resolving
+      # ghcr.io/gophersys/base:<sha> — a tag that a mode which ships nothing
+      # never created.
+      #
+      # So a rehearsal proves each image's OWN content builds on every sanctioned
+      # platform, against the parent that is currently published. It does NOT
+      # prove the child-at-NEW-parent seam. That seam is reachable only in
+      # publish mode, where it is smoke-gated, or by pushing quarantined tags —
+      # which this repository deliberately does not do, for the reason the arm64
+      # note at the top of _ctl/tests/publish-order.test.sh gives.
+      #
+      # GitHub's && / || yield OPERANDS and not booleans, so this reads: when the
+      # mode is rehearsal take 'latest' (a non-empty string, therefore the value
+      # of the first branch), otherwise fall through to exactly the expression
+      # this line carried before rehearsal existed.
+JOB_BASE_TAG
+    printf "      BASE_TAG: \${{ inputs.mode == 'rehearsal' && 'latest' || (needs.%s.outputs.built == 'true' && needs.%s.outputs.short || 'latest') }}\n" \
       "$parent" "$root"
   fi
 

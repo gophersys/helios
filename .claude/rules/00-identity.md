@@ -735,6 +735,32 @@ publish time can be exercised on a branch, with no tag moved.
   so the mode condition is appended and never prepended.
 - Both steps sit AFTER the smoke, so the ordering rule holds in either mode.
 
+**A rehearsal proves each image's own content. It does NOT prove the
+child-at-NEW-parent seam, and that limitation is structural.** A child job FROMs
+`ghcr.io/gophersys/<parent>:<sha>`, and a mode that publishes nothing never
+creates that tag — so in rehearsal `BASE_TAG` resolves to `latest`, the parent
+that is currently published, and every other event keeps the expression it always
+had (`built == 'true'` → the short sha, otherwise `latest`).
+
+Rehearsal #2 (run `32114973844`) is the measurement, and it is why the input
+needed a second hunk rather than a note: `base` and `cloud` went GREEN on both
+platforms with the mini in the builder — the shape works — while `zephyr` and
+`flutter` died resolving `ghcr.io/gophersys/base:69b4f11`, a tag no rehearsal had
+pushed.
+
+So the 2 modes prove different things, and neither is redundant:
+
+- **rehearsal** — every image's own layers build on every platform it publishes,
+  against the parent that is live today. Cheap, branch-safe, nothing ships.
+- **publish** — the same, PLUS the child-at-new-parent seam, and that seam is
+  smoke-gated because the child's gate build and its smoke run before its push.
+
+Closing the seam in rehearsal would mean pushing the parent to a quarantined tag
+for the children to FROM, and this repository deliberately does not do that: a
+throwaway push is a `push: true` step that runs before the smoke, which the arm64
+note at the top of `_ctl/tests/publish-order.test.sh` measured as a FALSE RED
+against the rule that guards the irreversible action.
+
 The smoke test compares **versions**, and it does not only run tools. `.ci/smoke.sh`
 is the host driver: it classifies every pin of every home the image has as
 `asserted`, `not-a-version` or `not-in-this-image`, resolves
