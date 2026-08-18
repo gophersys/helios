@@ -212,7 +212,7 @@ NONE of them runs unless the mode says so:
 
 | Step | What it does | Operator knob |
 |---|---|---|
-| mode dispatch | Everything below runs only under `GOPHERSYS_EMBEDDED_MODE=devbox`. Any other value, absence included, is toolchain mode: it execs the argv docker hands it (the image `CMD` when you named none) as `dev`, touches nothing under `/etc/ssh`, and a local `docker run <image> zsh` behaves like the other layers. | `GOPHERSYS_EMBEDDED_MODE` |
+| mode dispatch | Everything below runs only under `GOPHERSYS_EMBEDDED_MODE=devbox`. Any other value, absence included, is toolchain mode: it execs the argv docker hands it (the image `CMD` when you named none) as `dev`, touches nothing under `/etc/ssh`, and a local `docker run <image> zsh` behaves like the other layers. **Toolchain mode with an EMPTY argv exits 2** naming the cause — the image declares `CMD`, so reaching it means a caller replaced `CMD` with nothing, and execing nothing would fall through to the pod steps below. It writes `/run/devbox-degraded` when it can; as a non-root caller `/run` is read-only and the log line is then the whole record. | `GOPHERSYS_EMBEDDED_MODE` |
 | host keys | Generates ed25519 + rsa keys into `/etc/ssh/hostkeys` (a PVC subpath), so the box keeps its SSH identity across restarts. | — |
 | mountpoint ownership | Chowns and chmods `/home/dev` and `/workspace`, **non-recursively** — recursing a populated home on every boot is slow and tramples intentional ownership. | — |
 | authorized_keys | Takes the keys from `DEVBOX_AUTHORIZED_KEYS`, else from a mounted `/etc/devbox/authorized_keys`, else leaves the persistent home's file alone. | `DEVBOX_AUTHORIZED_KEYS` |
@@ -230,11 +230,19 @@ the pod for any peer the network admits — and the network boundary is a
 NetworkPolicy in another repository, which this file cannot see and must not
 trust as the only wall.
 
-**Every refusal writes `/run/devbox-degraded` and logs ERROR, not WARNING.**
+**Every refusal in the pod path writes `/run/devbox-degraded` and logs ERROR.**
 sshd still runs, because code-server is supplementary and a missing credential
 must not take the primary service down. A pod that reports Running while a
 declared service is absent is the failure mode this entrypoint used to have, so
 the marker file gives a probe or an operator machine-readable state to find.
+
+Two things are deliberately NOT refusals, and an earlier version of this
+paragraph said "every refusal … logs ERROR, not WARNING" while both existed.
+**The mcu slot links are best-effort by design** and log WARNING: outside k8s
+those `/dev/serial/by-path` entries do not exist, and a missing bench board must
+not abort the boot. **The empty-argv refusal is in the TOOLCHAIN path**, not the
+pod path, so it exits 2 rather than degrading a service, and its marker write is
+attempted rather than required — the caller may be unprivileged.
 
 ## Sanctioned-platform policy
 

@@ -217,16 +217,16 @@ split: 6 pin homes, a family branch in `.ci/smoke.sh`, an admitted over-build in
 `.ci/affected.sh`. It is 1 mechanism now, and the doubling that dual-arch would
 have done to it is a doubling of 1 file.
 
-**The 3 per-image Dockerfiles still carry inline pins, and that is the open
+**The 2 per-image Dockerfiles still carry inline pins, and that is the open
 half.** `flutter/` and `embedded/` declare their own
 `ARG NAME=value` blocks and consume no build arg from `versions.env`. `runner/`
 was a 4th and is deleted, which closed its share of the debt by removing the
 file rather than by moving it; `zephyr/` and `zephyr-devbox/` were 2 of the 3
 that remained and are 1 now, which closed a home the same way — by removing a
 file, not by moving a pin into `versions.env`. Read "the pin value is in `versions.env`" as true
-of `base`, `cloud` and `hardware`, and of nothing else. `hardware` is a CHILD
-that reads the one home, which is what the `pins` key of `images.yaml` exists
-for: without it a child has to spell its own pins, and a 4th `PIN_VALUE_HOME`
+of `base`, `cloud`, `hardware` and `ui`, and of nothing else. `hardware` and
+`ui` are CHILDREN that read the one home, which is what the `pins` key of
+`images.yaml` exists for: without it a child has to spell its own pins, and a 4th `PIN_VALUE_HOME`
 would be minted for the sake of a `parent:` field.
 
 **What closed is the CLASSIFICATION half, and it closed alone.** That sentence
@@ -234,17 +234,19 @@ went on to say those pins "are the ones no smoke run compares". They are
 compared now: `.ci/smoke.sh` reads a child image's own Dockerfile as a SECOND
 pin home beside `versions.env`, with a class table of its own, and the
 refuse-to-run rule for an unclassified pin covers both homes equally. The reader
-takes every VALUE-FUL `ARG` — 19 of them across the 3 files, `BASE_TAG` and the
-3 digest rows included, because an ARG that carries a value and no class is the
+takes every VALUE-FUL `ARG` — measured on 2026-08-18, 20 of them across the 2
+files (flutter 9, embedded 11), each file's own `BASE_TAG` and all 6 digest rows
+included, because an ARG that carries a value and no class is the
 silence the rule exists to break — and 6 of them name a tool that reports its
 own version: `JAVA_VERSION`, `FLUTTER_VERSION`, `WEST_VERSION`,
 `ZEPHYR_SDK_VERSION`, `ESPTOOL_VERSION` and `CODE_SERVER_VERSION`.
 The rest are a build id, an API level, a channel or a toolchain list, and each
 one says so in its row's neighbourhood. **The VALUE home did not move**: these
-files still spell their own pins and `bump_pin` still writes into all 3 of them,
-so `PIN_VALUE_HOMES` is 4 and ledger #102 stays open on that half. It was 5 with
-`runner/Dockerfile` in it, and that home left by deletion and not by moving —
-the 3 open ones are the 3 child images.
+files still spell their own pins and `bump_pin` still writes into both of them,
+so `PIN_VALUE_HOMES` is 3 and ledger #102 stays open on that half. It was 5 with
+`runner/Dockerfile` in it, and that home left by deletion and not by moving; the
+zephyr pair left the same way, by becoming 1 file rather than by moving a value —
+the 2 open ones are the 2 child images that spell their own pins.
 
 - **To change a version**, edit 1 `versions.env` row and its date comment.
   Change nothing else. The Dockerfile is not a home and takes no edit.
@@ -676,7 +678,7 @@ report, never a bump to improvise.
 
 **Count the rows, never quote a count.** Every number in the paragraph above is a
 measurement of a tree that changes, and the arch suffixes do not divide evenly —
-read on 2026-08-18 the 4 value homes hold **48** declaration rows, 23 `_AMD64`
+read on 2026-08-18 the 3 value homes hold **48** declaration rows, 23 `_AMD64`
 + 22 `_ARM64` + 3 `_NOARCH`, because 3 downloads are `_NOARCH` and `flutter`'s
 own SDK row has no `_ARM64` sibling to pair with. A count that assumes the rows
 come in pairs is wrong by exactly those 4. Re-derive it rather than trusting this
@@ -982,6 +984,14 @@ thing it does, and 5 operator-facing steps come first:
    exactly as the `zephyr` image was, and the pod OPTS IN. The default arm is
    the one that has to be safe by absence: an entrypoint that fell through to
    sshd on a missing env would start a listener for every `docker run`.
+   **Toolchain mode with an EMPTY argv EXITS 2**, naming the cause. The image
+   declares `CMD`, so reaching that needs a caller who replaced `CMD` with
+   nothing, and `exec` with no argument would return and fall into the 4 pod
+   steps below — the silent wrong branch the dispatch exists to prevent. It
+   attempts the marker file and does not require it: this is the 1 refusal
+   reachable as a NON-root caller, where `/run` is not writable, and an
+   unguarded write would die under `set -e` and replace a named refusal with an
+   unexplained failure.
 2. It generates persistent ed25519 and rsa host keys into `/etc/ssh/hostkeys`,
    so the box keeps its SSH identity across pod restarts.
 3. It takes `authorized_keys` from `DEVBOX_AUTHORIZED_KEYS` (a pod env, usually
@@ -1004,12 +1014,22 @@ thing it does, and 5 operator-facing steps come first:
    admits — and the network boundary is a NetworkPolicy in another repository,
    which this file cannot see and must not trust as the only wall.
 
-**Every refusal above writes `/run/devbox-degraded` and logs ERROR, not
-WARNING.** sshd still runs, because code-server is supplementary and a missing
+**Every refusal in the POD PATH writes `/run/devbox-degraded` and logs ERROR.**
+sshd still runs, because code-server is supplementary and a missing
 credential must not take the primary service down. But a pod that reports
 Running while a declared service is absent is the failure mode this entrypoint
 used to have, so the marker file is machine-readable state a probe or an
 operator can find.
+
+**That sentence said "every refusal … logs ERROR, not WARNING", and 2 things
+contradicted it.** Read the file, not this paragraph. Step 4's mcu slot links
+are BEST-EFFORT by design and log WARNING — outside k8s those
+`/dev/serial/by-path` entries do not exist, and an absent bench board must not
+abort the boot. And step 1's empty-argv refusal is in the TOOLCHAIN path rather
+than the pod path: it exits 2 instead of degrading a service that keeps running,
+and it attempts its marker rather than requiring one. A blanket "every" over a
+file with 2 stated exceptions is the believed-and-wrong prose this document
+warns about everywhere else.
 
 ## Per-image verb catalog
 

@@ -189,7 +189,7 @@ RUN case "${TARGETPLATFORM}" in \
 # image has actually been shipping all along.
 RUN mkdir -p /etc/udev/rules.d \
  && { \
-      echo '# gophersys/zephyr — common dev board udev rules.'; \
+      echo '# gophersys/embedded — common dev board udev rules.'; \
       echo '# ST-Link (STM32)'; \
       echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="0483", ATTRS{idProduct}=="374b", MODE="0666", GROUP="plugdev"'; \
       echo '# SEGGER J-Link'; \
@@ -296,7 +296,7 @@ RUN ( cd "${ZEPHYR_SDK_INSTALL_DIR}" \
 # -------------------------------------------------------------------------
 RUN mkdir -p /etc/udev/rules.d \
  && { \
-      echo '# gophersys/zephyr-devbox — USB-UART bridge udev rules.'; \
+      echo '# gophersys/embedded — USB-UART bridge udev rules.'; \
       echo '# Silicon Labs CP210x (classic ESP32 devkits)'; \
       echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE="0666", GROUP="plugdev"'; \
       echo '# WCH CH340/CH341'; \
@@ -313,7 +313,7 @@ RUN mkdir -p /etc/udev/rules.d \
 # -------------------------------------------------------------------------
 RUN mkdir -p /etc/ssh/sshd_config.d /etc/ssh/hostkeys /etc/devbox \
  && { \
-      echo '# gophersys/zephyr-devbox — hardened sshd for the remote dev box.'; \
+      echo '# gophersys/embedded — hardened sshd for the remote dev box.'; \
       echo 'HostKey /etc/ssh/hostkeys/ssh_host_ed25519_key'; \
       echo 'HostKey /etc/ssh/hostkeys/ssh_host_rsa_key'; \
       echo 'PermitRootLogin no'; \
@@ -336,7 +336,7 @@ RUN mkdir -p /etc/ssh/sshd_config.d /etc/ssh/hostkeys /etc/devbox \
 # freeze the build-time PATH into every SSH session.
 # hadolint ignore=SC2016
 RUN { \
-      echo '# Set by gophersys/zephyr-devbox Dockerfile — SSH logins do not inherit container ENV.'; \
+      echo '# Set by the gophersys/embedded Dockerfile — SSH logins do not inherit container ENV.'; \
       echo 'export PATH=/opt/west-venv/bin:/opt/esptool-venv/bin:${PATH}'; \
       echo 'export ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk'; \
       echo 'export ZEPHYR_BASE=/workspace/zephyr'; \

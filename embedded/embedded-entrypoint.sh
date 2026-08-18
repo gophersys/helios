@@ -29,7 +29,7 @@ CODE_SERVER_SEED_EXT_DIR="${CODE_SERVER_SEED_EXTENSIONS:-/opt/code-server-extens
 DEV_CODE_SERVER_EXT_DIR="${DEV_HOME}/.local/share/code-server/extensions"
 CODE_SERVER_LOG=/var/log/code-server.log
 
-function log() { printf '[devbox-entrypoint] %s\n' "$*" >&2; }
+function log() { printf '[embedded-entrypoint] %s\n' "$*" >&2; }
 
 # ERROR, not WARNING: every caller of this is a real defect or a missing
 # credential, and a pod that reports Running while a declared service is
@@ -64,9 +64,22 @@ if [[ "${GOPHERSYS_EMBEDDED_MODE:-}" != "devbox" ]]; then
   # An empty argv here would `exec` nothing and fall THROUGH to the pod
   # preparation, which is the silent wrong branch this dispatch exists to
   # prevent. The image declares CMD, so reaching this needs a caller that
-  # replaced it with nothing.
+  # replaced it with nothing. EXIT 2 — the same code the driver scripts of this
+  # repository use for a caller error, and it is documented in README.md and in
+  # .claude/rules/00-identity.md beside the steps below.
   if [[ $# -eq 0 ]]; then
     log "ERROR: no command to exec — the image CMD is /usr/bin/zsh and this caller replaced it with an empty argv"
+    # The marker is the machine-readable half of every refusal in this file, so
+    # this refusal owes one too. It does NOT go through degraded(): this is the
+    # 1 refusal reachable as a NON-root caller — `docker run --user dev` is what
+    # .ci/smoke.sh does — and there /run is not writable. degraded()'s
+    # unguarded redirect would die under `set -e` and turn a NAMED refusal into
+    # an unexplained failure, so the write is attempted and a failure to write
+    # is reported rather than fatal. The log line above always lands; the marker
+    # is the half that needs a writable /run.
+    if ! printf '%s\n' "no command to exec in toolchain mode" >>"${DEGRADED_MARKER}" 2>/dev/null; then
+      log "note: ${DEGRADED_MARKER} is not writable by uid $(id -u) — the line above is the whole record"
+    fi
     exit 2
   fi
   if [[ "$(id -u)" -eq 0 ]]; then
