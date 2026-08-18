@@ -55,7 +55,7 @@
 # them — a count written in prose that the file then grew past.
 #
 # Usage: bash .ci/smoke.sh <image> [ref]
-# where <image> ∈ {base, flutter, zephyr, zephyr-devbox, cloud, hardware, ui}
+# where <image> ∈ {base, flutter, embedded, cloud, hardware, ui}
 # and [ref] is the exact image reference to test. The default is the :latest tag
 # that build-and-push.yml has just built, which is what CI runs. Naming a ref is
 # how an operator audits the SHA tag a cluster is actually running — and how a
@@ -102,10 +102,10 @@ fi
 # --build-arg generated from this same file — so the question does not arise and
 # the branch below selects a CLASSIFICATION and nothing else.
 #
-# flutter, zephyr and zephyr-devbox read versions.env too, and always did read
-# base's home: what they assert there is the toolchain they INHERIT from base.
-# What they did NOT assert was their own `ARG NAME=value` block — 13 pins, of
-# which FLUTTER_VERSION, WEST_VERSION, ZEPHYR_SDK_VERSION, ESPTOOL_VERSION and
+# flutter and embedded read versions.env too, and always did read base's home:
+# what they assert there is the toolchain they INHERIT from base. What they did
+# NOT assert was their own `ARG NAME=value` block — 13 pins, of which
+# FLUTTER_VERSION, WEST_VERSION, ZEPHYR_SDK_VERSION, ESPTOOL_VERSION and
 # CODE_SERVER_VERSION name a tool that reports its own version and no run
 # compared one. That is ledger #102, and CHILD_PIN_HOME below is its home half:
 # a child image reads its own Dockerfile as a SECOND home, with its own
@@ -116,11 +116,13 @@ fi
 # DELETED (D2, 2026-08-18) rather than excluded — a class table for an image no
 # run could name would have been dead text, and so was the file:
 #
-#   - the pins a child INHERITS from another child. zephyr-devbox builds FROM
-#     zephyr and carries west and the Zephyr SDK, and WEST_VERSION lives in
-#     zephyr/Dockerfile — so the devbox run asserts esptool and code-server and
-#     not those 2. Closing that needs the FROM graph walked here, and it is the
-#     remaining half of #102.
+#   - the pins a child INHERITS from ANOTHER CHILD. zephyr-devbox built FROM
+#     zephyr and carried west and the Zephyr SDK while WEST_VERSION lived in
+#     zephyr/Dockerfile, so the devbox run asserted esptool and code-server and
+#     not those 2. That instance is gone by CONSTRUCTION and not by a fix: the
+#     2 images are `embedded`, so both pairs are 1 home and 1 table. The general
+#     hole is open — a child of a child would meet it again — and closing it
+#     needs the FROM graph walked here, which is the remaining half of #102.
 # ---------------------------------------------------------------------------
 PIN_HOME="versions.env"
 
@@ -128,10 +130,9 @@ PIN_HOME="versions.env"
 # in, empty for the 2 root images. base and cloud declare every ARG value-less.
 function image_child_pin_home() {
   case "$1" in
-    flutter)       printf 'flutter/Dockerfile' ;;
-    zephyr)        printf 'zephyr/Dockerfile' ;;
-    zephyr-devbox) printf 'zephyr-devbox/Dockerfile' ;;
-    *)             printf '' ;;
+    flutter)  printf 'flutter/Dockerfile' ;;
+    embedded) printf 'embedded/Dockerfile' ;;
+    *)        printf '' ;;
   esac
 }
 
@@ -524,11 +525,25 @@ PIN_CLASS_TABLE
 # FLUTTER_CHANNEL is `stable`, which is a channel and never a version — the same
 # answer RUST_CHANNEL takes in base.
 
-read -r -d '' PIN_CLASSES_ZEPHYR <<'PIN_CLASS_TABLE' || true
+# PIN_CLASSES_ZEPHYR and PIN_CLASSES_DEVBOX were 2 tables over 2 files, and
+# THE SPLIT COST A CHECK. `zephyr-devbox` built FROM `zephyr` and carried west
+# and the Zephyr SDK, but WEST_VERSION and ZEPHYR_SDK_VERSION were declared in
+# the PARENT's Dockerfile, and CHILD_PIN_HOME reads 1 file: the image's own. So
+# the devbox run asserted esptool and code-server against the image and left the
+# 2 pins it inherited compared by nothing — the inherited-pin half of ledger
+# #102. The 2 images are 1 image now, so the 2 tables are 1 table over 1 home,
+# and the 4 `asserted` rows are all compared in 1 run where the devbox run
+# compared 2 of them. That closes #102 FOR THIS FAMILY
+# and for no other: `flutter` still inherits base's pins the same way, and the
+# general fix is a FROM-graph walker in this driver, which is still open.
+read -r -d '' PIN_CLASSES_EMBEDDED <<'PIN_CLASS_TABLE' || true
 BASE_TAG|not-a-version||
 WEST_VERSION|asserted|west --version|
 ZEPHYR_SDK_VERSION|asserted|cat ${ZEPHYR_SDK_INSTALL_DIR}/sdk_version|
 ZSDK_TOOLCHAINS|not-a-version||
+ESPTOOL_VERSION|asserted|esptool version|
+CODE_SERVER_VERSION|asserted|code-server --version|line:with Code
+ZSDK_EXTRA_TOOLCHAINS|not-a-version||
 PIN_CLASS_TABLE
 
 # ZEPHYR_SDK_VERSION has no CLI to ask: the SDK ships toolchains, and each
@@ -537,17 +552,10 @@ PIN_CLASS_TABLE
 # Zephyr-sdkConfigVersion.cmake reads — so the command is a `cat` of it. Read on
 # 2026-08-17 in ghcr.io/gophersys/zephyr-devbox:latest: `1.0.1`.
 #
-# ZSDK_TOOLCHAINS is a comma-separated LIST of toolchain names and pins no
-# version at all. What it selects is asserted by the content-devbox group, which
-# finds the gcc of each toolchain under the SDK root.
-
-read -r -d '' PIN_CLASSES_DEVBOX <<'PIN_CLASS_TABLE' || true
-BASE_TAG|not-a-version||
-ESPTOOL_VERSION|asserted|esptool version|
-CODE_SERVER_VERSION|asserted|code-server --version|line:with Code
-ZSDK_EXTRA_TOOLCHAINS|not-a-version||
-PIN_CLASS_TABLE
-
+# ZSDK_TOOLCHAINS and ZSDK_EXTRA_TOOLCHAINS are comma-separated LISTS of
+# toolchain names and pin no version at all. What they select is asserted by the
+# content-devbox group, which finds the gcc of each toolchain under the SDK root.
+#
 # CODE_SERVER_VERSION scopes to the line that says 'with Code' — the canonical
 # '4.133.0 <hash> with Code 1.x' line. Unscoped, the reader took the FIRST
 # number in the whole output, and in the built image that was '12.329': the
@@ -559,8 +567,6 @@ PIN_CLASS_TABLE
 # 2026-08-17, ghcr.io/gophersys/zephyr-devbox:latest reports 4.127.0 while
 # zephyr-devbox/Dockerfile pins 4.133.0. The published image is older than the
 # pin, and until this row nothing in this repository could say so.
-#
-# ZSDK_EXTRA_TOOLCHAINS is a list, for the reason ZSDK_TOOLCHAINS gives.
 
 # The functional groups .ci/image-checks.sh runs for each image, beyond the
 # version comparison, are the `groups` field of images.yaml — image_check_groups
@@ -600,17 +606,13 @@ case "$IMAGE" in
     PIN_CLASSES="$PIN_CLASSES_BASE"
     CHILD_CLASSES="$PIN_CLASSES_FLUTTER"
     ;;
-  zephyr)
+  embedded)
     PIN_CLASSES="$PIN_CLASSES_BASE"
-    CHILD_CLASSES="$PIN_CLASSES_ZEPHYR"
-    ;;
-  zephyr-devbox)
-    PIN_CLASSES="$PIN_CLASSES_BASE"
-    CHILD_CLASSES="$PIN_CLASSES_DEVBOX"
+    CHILD_CLASSES="$PIN_CLASSES_EMBEDDED"
     ;;
   *)
     log_error "unknown image: '$IMAGE'"
-    log_error "valid images: base, flutter, zephyr, zephyr-devbox, cloud, hardware, ui"
+    log_error "valid images: base, flutter, embedded, cloud, hardware, ui"
     exit 2
     ;;
 esac
@@ -1118,7 +1120,7 @@ fi
 # which is where a reader tempted to raise one will be standing. cloud's R4
 # history moved there whole.
 #
-# An image that declares no budget takes no gate, which is what 4 of the 7
+# An image that declares no budget takes no gate, which is what 3 of the 6
 # declare. The 2 refusals are unchanged and both are FAILURES and never skips: a
 # budget that cannot be READ, and an image whose size the daemon will not report.
 SIZE_BUDGET_BYTES="$(image_size_budget_bytes "$IMAGE")" || exit 1
@@ -1143,10 +1145,16 @@ RUN_ARGS=(
   --interactive
   --platform "$SMOKE_PLATFORM_RESOLVED"
 )
-if [[ "$IMAGE" == "zephyr-devbox" ]]; then
-  # The devbox image defaults to USER root (sshd entrypoint) and its
-  # entrypoint execs any provided argv; force the dev user so the base
-  # checks run in the same identity as the other images.
+if [[ "$IMAGE" == "embedded" ]]; then
+  # The embedded image ships USER root, because 1 of its 2 modes is a pod that
+  # runs sshd. Force the dev user so the base checks run in the same identity as
+  # the other images.
+  #
+  # This is ALSO the non-root arm of the entrypoint's euid test, and it is
+  # reached by accident rather than by design: the argv below is a command, so
+  # the entrypoint takes its DEFAULT mode, finds euid != 0 and execs plainly
+  # instead of through runuser. Nothing here exercises the devbox mode or the
+  # root arm — _ctl/tests/embedded-entrypoint.test.sh is that coverage.
   RUN_ARGS+=(--user dev)
 fi
 

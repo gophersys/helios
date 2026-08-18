@@ -5,12 +5,13 @@ Eden. `gophersys/eden` uses it as a submodule at `.devcontainer/`. The
 repository builds **6** container images:
 
 - 1 base image with many tools. Most projects can use it directly.
-- 2 domain-specific layers on top of the base image: flutter and zephyr.
-- 1 remote development box on top of zephyr: zephyr-devbox.
+- 2 domain-specific layers on top of the base image: flutter, and embedded —
+  the Zephyr toolchain AND the remote development box, in 1 image whose 2
+  identities are a mode of its entrypoint.
 - 1 cloud image, built from ubuntu directly rather than from base: the reduced
   base plus the CI fold. Every ARC runner pool runs it.
-- 1 category layer on top of cloud: hardware, which adds the KiCad ECAD
-  toolchain.
+- 2 category layers on top of cloud: hardware, which adds the KiCad ECAD
+  toolchain, and ui, which adds headless Chrome.
 
 The `+ runner` layer (`base-runner`) was a 6th image and it is **retired**. The
 pools run `cloud` now, so nothing pulls it and nothing builds it, and its
@@ -43,27 +44,25 @@ every image has it. See "The shared ctl library" below.
 |---|---|---|
 | `ghcr.io/gophersys/base` | The general-purpose image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. Every pin comes from `versions.env`. | `base` |
 | `ghcr.io/gophersys/flutter` | Base + OpenJDK 21 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. The targets are Linux desktop and Android. iOS is not in the scope. | `flutter` |
-| `ghcr.io/gophersys/zephyr` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif). | `zephyr` |
-| `ghcr.io/gophersys/zephyr-devbox` | Zephyr + sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules + clangd and **code-server on `:8443`** (browser VS Code, with the clangd extension seeded at build time). It runs as a k8s pod, and it has 2 access paths: VS Code Remote-SSH, and the browser at `:8443`. It starts as root and it execs sshd. A login gets the `dev` user. code-server runs as `dev` and **needs a credential** — see "The zephyr-devbox entrypoint" below. | `zephyr-devbox` |
+| `ghcr.io/gophersys/embedded` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif), plus the pod half: sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules + clangd and **code-server on `:8443`** (browser VS Code, with the clangd extension seeded at build time). **It was 2 images**, `zephyr` and `zephyr-devbox`. It ships `USER root` and its entrypoint picks the identity: `GOPHERSYS_EMBEDDED_MODE=devbox` is the k8s pod (VS Code Remote-SSH, and the browser at `:8443`, code-server as `dev` and **needing a credential**); anything else, absence included, execs your command as `dev` the way the toolchain layer always did — see "The embedded entrypoint" below. | `embedded` |
 | `ghcr.io/gophersys/cloud` | The reduced base + the CI fold (the Actions runner, cictl, buildx, the harnesses), built `FROM ubuntu` directly rather than from `base`, so it is a reduction and not a layer. **Every ARC pool runs it**, and the same image is a devcontainer: the default command is zsh and a CI pod overrides it. Every pin comes from `versions.env`. | `cloud` |
-| `ghcr.io/gophersys/hardware` | Cloud + the KiCad 10 ECAD toolchain from the project's own PPA (`kicad`, `kicad-symbols`, `kicad-footprints`, `kicad-packages3d`) + the python stack the consumer's suite imports and runs (`kiutils`, `sexpdata`, `pytest`, `ruff`). `kicad-cli` drives headless ERC, DRC, netlist export and Gerber generation. The consumer is `gophersys/research-hardware`. It is the 1 CHILD image whose pins come from `versions.env`: its ARGs are value-less like cloud's, and `pins: versions.env` on its manifest entry generates the build args. Size budget 11.0 GB, PROVISIONAL — see the note beside the key in `images.yaml`. | `hardware` |
+| `ghcr.io/gophersys/hardware` | Cloud + the KiCad 10 ECAD toolchain from the project's own PPA (`kicad`, `kicad-symbols`, `kicad-footprints`, `kicad-packages3d`) + the python stack the consumer's suite imports and runs (`kiutils`, `sexpdata`, `pytest`, `ruff`). `kicad-cli` drives headless ERC, DRC, netlist export and Gerber generation. The consumer is `gophersys/research-hardware`. It is 1 of the 2 CHILD images whose pins come from `versions.env`: its ARGs are value-less like cloud's, and `pins: versions.env` on its manifest entry generates the build args. Size budget 11.0 GB, PROVISIONAL — see the note beside the key in `images.yaml`. | `hardware` |
+| `ghcr.io/gophersys/ui` | Cloud + headless Chrome and the DejaVu fallback font. The consumer is `gophersys/research-ui`. It exposes cloud's own Node and uv at `/usr/local/bin` rather than installing a second copy of each, and its content group asserts `node`/`npm`/`uv` resolving as BOTH root and dev. It is the other CHILD whose pins come from `versions.env`. Size budget 6.5 GB, PROVISIONAL — see the note beside the key in `images.yaml`. | `ui` |
 
 ## Dependency graph
 
 ```
-        base               cloud
-     ┌───┴───┐         (FROM ubuntu)
- flutter   zephyr            │
-              │           hardware
-        zephyr-devbox
+        base                cloud
+     ┌───┴────┐         (FROM ubuntu)
+ flutter   embedded     ┌────┴────┐
+                     hardware    ui
 ```
 
 Build in this order:
 
 1. `base`, and `cloud` beside it — `cloud` depends on nothing here.
-2. `flutter` and `zephyr`. Both layer on `base`.
-3. `zephyr-devbox`. It layers on `zephyr`.
-4. `hardware`. It layers on `cloud`.
+2. `flutter` and `embedded`. Both layer on `base`.
+3. `hardware` and `ui`. Both layer on `cloud`.
 
 **That drawing is prose. `images.yaml` is the graph**, and it is the only place
 the image set is declared. Each entry carries the image's parent, its build
@@ -129,24 +128,26 @@ Pull an image directly:
 docker pull ghcr.io/gophersys/base:latest
 docker pull ghcr.io/gophersys/cloud:latest
 docker pull ghcr.io/gophersys/flutter:latest
-docker pull ghcr.io/gophersys/zephyr:latest
-docker pull ghcr.io/gophersys/zephyr-devbox:latest
+docker pull ghcr.io/gophersys/embedded:latest
+docker pull ghcr.io/gophersys/hardware:latest
+docker pull ghcr.io/gophersys/ui:latest
 ```
 
 ### As a VS Code devcontainer
 
 A consuming project mounts this repository at `<project>/.devcontainer/`. Each
 image directory contains its own `devcontainer.json`. Run **Dev Containers:
-Reopen in Container** and select `base`, `cloud`, `flutter`, `zephyr` or
-`zephyr-devbox`. Each configuration bind-mounts the project to `/workspace` and
+Reopen in Container** and select `base`, `cloud`, `flutter`, `embedded`,
+`hardware` or `ui`. Each configuration bind-mounts the project to `/workspace` and
 runs as the `dev` user. The configuration files are at these paths:
 
 ```
 .devcontainer/base/devcontainer.json
 .devcontainer/cloud/devcontainer.json
 .devcontainer/flutter/devcontainer.json
-.devcontainer/zephyr/devcontainer.json
-.devcontainer/zephyr-devbox/devcontainer.json
+.devcontainer/embedded/devcontainer.json
+.devcontainer/hardware/devcontainer.json
+.devcontainer/ui/devcontainer.json
 ```
 
 `cloud/devcontainer.json` carries no `postCreateCommand` and `base` does. The
@@ -190,8 +191,9 @@ case "${GOPHERSYS_DEVCONTAINER}" in
   base)          echo "running in the base image" ;;
   cloud)         echo "running in the cloud image" ;;
   flutter)       echo "running in the flutter layer" ;;
-  zephyr)        echo "running in the zephyr layer" ;;
-  zephyr-devbox) echo "running in the zephyr-devbox layer" ;;
+  embedded)      echo "running in the embedded layer" ;;
+  hardware)      echo "running in the hardware layer" ;;
+  ui)            echo "running in the ui layer" ;;
   *)             echo "not inside a gophersys devcontainer" ;;
 esac
 ```
@@ -202,14 +204,15 @@ inside a gophersys devcontainer" from inside a gophersys devcontainer. That arm
 was missing here while the same README said 45 lines higher that the pools run
 `cloud`.
 
-### The zephyr-devbox entrypoint
+### The embedded entrypoint
 
-`zephyr-devbox/devbox-entrypoint.sh` is PID 1 of the pod. Read that file for the
-full contract. sshd is the LAST thing it does, and these steps come first:
+`embedded/embedded-entrypoint.sh` is PID 1 of the pod. Read that file for the
+full contract. sshd is the LAST thing it does, and these steps come first — and
+NONE of them runs unless the mode says so:
 
 | Step | What it does | Operator knob |
 |---|---|---|
-| argv pass-through | Execs any argv you supply and stops there, so a local `docker run <image> zsh` behaves like the other layers. | — |
+| mode dispatch | Everything below runs only under `GOPHERSYS_EMBEDDED_MODE=devbox`. Any other value, absence included, is toolchain mode: it execs the argv docker hands it (the image `CMD` when you named none) as `dev`, touches nothing under `/etc/ssh`, and a local `docker run <image> zsh` behaves like the other layers. **Toolchain mode with an EMPTY argv exits 2** naming the cause — the image declares `CMD`, so reaching it means a caller replaced `CMD` with nothing, and execing nothing would fall through to the pod steps below. It writes `/run/devbox-degraded` when it can; as a non-root caller `/run` is read-only and the log line is then the whole record. | `GOPHERSYS_EMBEDDED_MODE` |
 | host keys | Generates ed25519 + rsa keys into `/etc/ssh/hostkeys` (a PVC subpath), so the box keeps its SSH identity across restarts. | — |
 | mountpoint ownership | Chowns and chmods `/home/dev` and `/workspace`, **non-recursively** — recursing a populated home on every boot is slow and tramples intentional ownership. | — |
 | authorized_keys | Takes the keys from `DEVBOX_AUTHORIZED_KEYS`, else from a mounted `/etc/devbox/authorized_keys`, else leaves the persistent home's file alone. | `DEVBOX_AUTHORIZED_KEYS` |
@@ -227,11 +230,19 @@ the pod for any peer the network admits — and the network boundary is a
 NetworkPolicy in another repository, which this file cannot see and must not
 trust as the only wall.
 
-**Every refusal writes `/run/devbox-degraded` and logs ERROR, not WARNING.**
+**Every refusal in the pod path writes `/run/devbox-degraded` and logs ERROR.**
 sshd still runs, because code-server is supplementary and a missing credential
 must not take the primary service down. A pod that reports Running while a
 declared service is absent is the failure mode this entrypoint used to have, so
 the marker file gives a probe or an operator machine-readable state to find.
+
+Two things are deliberately NOT refusals, and an earlier version of this
+paragraph said "every refusal … logs ERROR, not WARNING" while both existed.
+**The mcu slot links are best-effort by design** and log WARNING: outside k8s
+those `/dev/serial/by-path` entries do not exist, and a missing bench board must
+not abort the boot. **The empty-argv refusal is in the TOOLCHAIN path**, not the
+pod path, so it exits 2 rather than degrading a service, and its marker write is
+attempted rather than required — the caller may be unprivileged.
 
 ## Sanctioned-platform policy
 
@@ -315,7 +326,7 @@ architecture that you deploy to**, and it is the rule that removed arm64 in
 July and the rule that brought it back:
 
 - the arm64 consumer is real now. Local development on Apple Silicon runs these
-  images through the devcontainer CLI, so `base`, `cloud` and `zephyr` are
+  images through the devcontainer CLI, so `base`, `cloud` and `embedded` are
   opened on an arm64 host daily. D42 in gophersys/infrastructure
   `docs/debt-register.md` — "no arm64 consumer can be verified" — is answered.
 - it is built NATIVELY, which the old one was not. The Mac mini runs a
@@ -371,9 +382,9 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.ar
    `versions.env` is the ONE pin home of `base` and `cloud`. There is no second
    home and no `ARG NAME=value` in either file: the value arrives as a generated
    `--build-arg`, and a name you forget to add to the Dockerfile's pin gate is
-   the 1 way to lose it silently. A tool of `flutter`, `zephyr` or
-   `zephyr-devbox` still takes an `ARG MY_TOOL_VERSION=1.2.3` in that image's
-   own Dockerfile — those 3 have not moved yet, and moving them is ledger #102.
+   the 1 way to lose it silently. A tool of `flutter` or `embedded` still takes
+   an `ARG MY_TOOL_VERSION=1.2.3` in that image's
+   own Dockerfile — those 2 have not moved yet, and moving them is ledger #102.
 3. **Add a sha256 digest row per sanctioned platform beside that version**, in
    the SAME home. Each value comes from the asset you just selected, never from
    a second table:
@@ -481,9 +492,9 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.ar
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── cloud/         { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
-├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
-├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
+├── embedded/      { devcontainer.json, Dockerfile, project.json, ctl.sh, embedded-entrypoint.sh }
 ├── hardware/      { devcontainer.json, Dockerfile, project.json, ctl.sh }
+├── ui/            { devcontainer.json, Dockerfile, project.json, ctl.sh }
 └── .github/workflows/
     ├── build-and-push.yml    # publish the images
     ├── security-nightly.yml  # the nightly trivy scan + the base-OS currency probe
@@ -576,8 +587,7 @@ Run these commands from the repository root:
 # Build for the sanctioned platform (fast dev loop).
 bash ./ctl.sh build base
 bash ./ctl.sh build flutter
-bash ./ctl.sh build zephyr
-bash ./ctl.sh build zephyr-devbox
+bash ./ctl.sh build embedded
 bash ./ctl.sh build cloud
 
 # Push (guarded).

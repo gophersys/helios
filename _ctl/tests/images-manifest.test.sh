@@ -526,6 +526,144 @@ else
   fi
 fi
 
+# THE `sort -u` ABOVE IS WHAT MAKES THIS CHECK NECESSARY, and it is not a fault
+# of it. Set equality has to deduplicate, or 2 images naming `content-base`
+# would read as 2 members and fail. So the equality rule is BLIND to a repeated
+# entry INSIDE 1 image's list: `groups: [content-base, content-devbox,
+# content-devbox]` passes every check in this repository, and .ci/image-checks.sh
+# then runs that group twice in the publish smoke.
+#
+# The typo direction is covered and the duplicate direction was not. A duplicate
+# is cheap rather than fatal — it wastes a guest run, it does not fail one — so
+# nothing downstream would ever report it, and a list nobody can read is how the
+# next typo hides. Read PER IMAGE: the deduplication that hides it is the
+# cross-image one.
+duplicate_groups=""
+if [[ "$manifest_groups_status" -eq 0 && -n "$manifest_groups" ]]; then
+  per_image_groups_status=0
+  per_image_groups=""
+  per_image_groups="$(manifest_yq '.images | to_entries | .[] |
+    .key + "|" + (.value.groups | join(","))' 2>&1)" || per_image_groups_status=$?
+
+  if [[ "$per_image_groups_status" -ne 0 || -z "$per_image_groups" ]]; then
+    fail_check "no_image_names_a_check_group_twice" \
+      "reading the per-image groups of ${IMAGES_MANIFEST} exited ${per_image_groups_status}" \
+      "it printed:" "${per_image_groups:-<nothing>}"
+  else
+    while IFS='|' read -r groups_image groups_list; do
+      [[ -z "$groups_image" ]] && continue
+      repeated=""
+      repeated="$(tr ',' '\n' <<< "$groups_list" | sort | uniq -d)" || repeated=""
+      if [[ -n "$repeated" ]]; then
+        duplicate_groups="${duplicate_groups:+${duplicate_groups}
+}${groups_image}: $(tr '\n' ' ' <<< "$repeated")"
+      fi
+    done <<< "$per_image_groups"
+
+    if [[ -z "$duplicate_groups" ]]; then
+      pass_check "no_image_names_a_check_group_twice"
+    else
+      fail_check "no_image_names_a_check_group_twice" \
+        "these entries of ${IMAGES_MANIFEST} name the same check group more than once:" \
+        "$duplicate_groups" \
+        "the set-equality rule above deduplicates ACROSS images, so it cannot see this — and" \
+        ".ci/image-checks.sh would run the repeated group twice in the publish smoke, which" \
+        "costs guest time and reads to a reviewer as 2 different checks"
+    fi
+  fi
+fi
+
+# ===========================================================================
+# 3b. EVERY CONTEXT IS A DIRECTORY, AND IT HOLDS THAT IMAGE'S DOCKERFILE
+# ===========================================================================
+# `context` is the --context of the generated publish job and `dockerfile` is
+# its --file. NOTHING in this repository read the context key until this rule:
+# section 5 below opens the dockerfile, `image_input_paths` walks `paths`, and
+# the generator COPIES the string into the job without asking whether it names
+# anything.
+#
+# Measured by the verifier on 2026-08-18: set `context: zephyr` on the embedded
+# entry, regenerate, and `ctl.sh validate` + all 23 test files are GREEN. The
+# failure then arrives in the publish job, after the merge, as
+# `unable to prepare context: path "zephyr" not found` — an irreversible-action
+# path failing on a fact a static reader had in front of it.
+#
+# BOTH HALVES, because each one fails differently:
+#
+#   the context is a DIRECTORY   a key naming a deleted or renamed directory is
+#                                the fold's own failure shape, and `embedded`
+#                                is exactly the entry that just moved
+#   it CONTAINS the dockerfile   `context: .` + `dockerfile: embedded/Dockerfile`
+#                                is correct, and `context: flutter` +
+#                                `dockerfile: embedded/Dockerfile` is a job that
+#                                builds one image's file in another's context.
+#                                docker resolves --file relative to the CWD and
+#                                not to the context, so that pair BUILDS — and
+#                                ships a layer whose COPYs read the wrong tree.
+#
+# The containment test is a prefix test on the resolved paths and not a string
+# compare, because `.` is the repository root and legitimately contains every
+# Dockerfile — base and cloud both take it, and both are correct.
+context_records_status=0
+context_records=""
+context_records="$(manifest_yq '.images | to_entries | .[] |
+  [.key, .value.context, .value.dockerfile] | join("|")' 2>&1)" \
+  || context_records_status=$?
+
+if [[ "$context_records_status" -ne 0 || -z "$context_records" ]]; then
+  fail_check "every_manifest_context_is_a_directory_holding_its_dockerfile" \
+    "reading key, context and dockerfile out of ${IMAGES_MANIFEST} exited ${context_records_status}" \
+    "it printed:" "${context_records:-<nothing>}" \
+    "an empty set would pass this rule over a repository with no images in it at all"
+else
+  context_defects=""
+  contexts_seen=0
+  while IFS='|' read -r context_image context_path context_dockerfile; do
+    [[ -z "$context_image" ]] && continue
+    contexts_seen=$((contexts_seen + 1))
+
+    if [[ -z "$context_path" ]]; then
+      context_defects="${context_defects:+${context_defects}
+}${context_image}: no context key at all"
+      continue
+    fi
+    if [[ ! -d "$REPO_ROOT/$context_path" ]]; then
+      context_defects="${context_defects:+${context_defects}
+}${context_image}: context '${context_path}' is not a directory of this repository"
+      continue
+    fi
+    if [[ -z "$context_dockerfile" || ! -f "$REPO_ROOT/$context_dockerfile" ]]; then
+      # Section 5 owns the "the dockerfile exists" verdict and names it there.
+      # Skipping here keeps 1 defect from being reported by 2 rules.
+      continue
+    fi
+
+    resolved_context="$(cd "$REPO_ROOT/$context_path" && pwd)"
+    resolved_dockerfile_dir="$(cd "$(dirname "$REPO_ROOT/$context_dockerfile")" && pwd)"
+    case "$resolved_dockerfile_dir" in
+      "$resolved_context"|"$resolved_context"/*) ;;
+      *)
+        context_defects="${context_defects:+${context_defects}
+}${context_image}: dockerfile '${context_dockerfile}' is outside context '${context_path}'"
+        ;;
+    esac
+  done <<< "$context_records"
+
+  if [[ "$contexts_seen" -lt 1 ]]; then
+    fail_check "every_manifest_context_is_a_directory_holding_its_dockerfile" \
+      "the reader parsed 0 records out of ${IMAGES_MANIFEST}, so this rule judged nothing"
+  elif [[ -z "$context_defects" ]]; then
+    pass_check "every_manifest_context_is_a_directory_holding_its_dockerfile"
+  else
+    fail_check "every_manifest_context_is_a_directory_holding_its_dockerfile" \
+      "${IMAGES_MANIFEST} declares a build context these ${contexts_seen} entries cannot use:" \
+      "$context_defects" \
+      "the generator copies this string into the publish job's \`context:\` without reading it," \
+      "so a stale key is green through validate and every test file, and dies at" \
+      "'unable to prepare context' in the job that pushes — after the merge"
+  fi
+fi
+
 # ===========================================================================
 # 4. THE GENERATOR IS IDEMPOTENT, AND THE COMMITTED FILES ARE ITS OUTPUT
 # ===========================================================================

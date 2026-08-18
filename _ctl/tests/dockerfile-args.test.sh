@@ -35,25 +35,28 @@
 # Scope, deliberately narrow: only PIN-SHAPED names are checked (*_VERSION,
 # *_REF, *_CHANNEL and *_SHA256_<ARCH>). Those are the names the convention
 # governs, and they are never shell locals or inherited ENV, so the rule holds
-# with ZERO exceptions across all 7 Dockerfiles — no allowlist. That count is
-# the manifest's, read on 2026-08-18 and not incremented: images.yaml declares 7
-# images, DOCKERFILES below owes it set equality, and every one of the 7 declares
+# with ZERO exceptions across all 6 Dockerfiles — no allowlist. That count is
+# the manifest's, read on 2026-08-18 and not incremented: images.yaml declares 6
+# images, DOCKERFILES below owes it set equality, and every one of the 6 declares
 # at least 1 governed-shaped ARG — which is what the liveness check per file
 # holds, so the count cannot go stale silently. A wider rule
-# needs an allowlist, and 2 references measured on 2026-08-17 are why:
+# needs an allowlist, and 2 references measured on 2026-08-18 are why:
 # ${VERSION_CODENAME} comes from `. /etc/os-release` inside the RUN line that
-# uses it (base/Dockerfile:654, cloud/Dockerfile:573, declared by no ARG in
-# either file), and ${WEST_VENV} comes from the parent image's ENV
-# (zephyr-devbox/Dockerfile:106 and :112, declared in zephyr/Dockerfile and not
-# in the file that reads it). An allowlist is a place for a real defect to hide,
+# uses it (base/Dockerfile:707, cloud/Dockerfile:632, declared by no ARG in
+# either file), and ${WEST_VENV} comes from an ENV of the same file
+# (embedded/Dockerfile:104 declares it, 7 RUN lines read it, and no ARG anywhere
+# declares it). That second one used to be the CROSS-FILE case — the ENV was in
+# zephyr/Dockerfile and the readers were in zephyr-devbox/Dockerfile — and the
+# fold made it a 1-file case without making it an ARG, which is the half that
+# matters here. An allowlist is a place for a real defect to hide,
 # so this test does not open one.
 #
 # ${USERNAME} stood in that list as a third example, "from zsh itself", and it
 # is stale in both halves. It is not a dangling reference in any file: every
 # non-comment ${USERNAME} in the repository is in base/ or cloud/ — measured
-# 2026-08-17, 18 and 15 of them, and 0 in the other 3 files — and both declare
+# 2026-08-18, 18 and 15 of them, and 0 in the other 4 files — and both declare
 # `ARG USERNAME=dev`, so a wider rule would resolve it and never
-# flag it — flutter/, zephyr/ and zephyr-devbox/ name it only inside comments,
+# flag it — flutter/, embedded/, hardware/ and ui/ name it only inside comments,
 # which every reader here skips. And the zsh reading it described is now a GATE
 # FAILURE rather than an exemption: `ctl.sh validate` runs
 # zsh_username_run_references over each Dockerfile, and a ${USERNAME} in a RUN
@@ -138,8 +141,7 @@ TEST_NAME="dockerfile-args.test.sh"
 DOCKERFILES=(
   "base/Dockerfile"
   "flutter/Dockerfile"
-  "zephyr/Dockerfile"
-  "zephyr-devbox/Dockerfile"
+  "embedded/Dockerfile"
   "cloud/Dockerfile"
   "hardware/Dockerfile"
   "ui/Dockerfile"
@@ -203,7 +205,7 @@ function dangling_references() {
 
   while IFS= read -r text; do
     line_number=$((line_number + 1))
-    # A comment is prose, not an instruction. zephyr/Dockerfile explains a zsh
+    # A comment is prose, not an instruction. embedded/Dockerfile explains a zsh
     # parameter expansion in prose, and a detector that reads prose reports it.
     trimmed="${text#"${text%%[![:space:]]*}"}"
     case "$trimmed" in '#'*) continue ;; esac
@@ -287,7 +289,7 @@ manifest_dockerfiles="$(manifest_yq '.images | to_entries | .[] | .value.dockerf
 
 # The liveness clause first, because the equality below reads this value: an
 # unreadable manifest would compare the list against an empty set and report the
-# WRONG defect — 7 entries naming no image — while the real fault is that nothing
+# WRONG defect — 6 entries naming no image — while the real fault is that nothing
 # could open the file.
 if [[ "$manifest_status" -eq 0 && -n "$manifest_dockerfiles" ]]; then
   pass_check "the_image_manifest_is_readable"

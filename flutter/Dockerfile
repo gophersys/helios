@@ -33,7 +33,7 @@ ARG FLUTTER_SHA256_AMD64=26cd99d3d94b1367e6b50535a18aeef0282c10a535bbe3ec493534d
 # (matching the base image's invariant). An ARG USERNAME is intentionally NOT
 # used here because the parent image's SHELL is zsh-with-pipefail, and zsh
 # unconditionally auto-sets the special parameter $USERNAME to the effective
-# logname. See zephyr/Dockerfile for the full rationale. This file DID use
+# logname. See embedded/Dockerfile for the full rationale. This file DID use
 # ${USERNAME} from zsh-as-root RUN layers until 2026-08-17: both chowns below
 # resolved to `chown -R root:root`, so /opt/flutter and /opt/android-sdk shipped
 # root-owned, and `flutter --version` as `dev` exited 128 with "detected dubious

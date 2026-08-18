@@ -101,13 +101,25 @@ CLEAN_FIXTURE="$TESTS_DIR/fixtures/zsh-username/pre-switch.Dockerfile"
 # `runner/Dockerfile` was in this list and OUTSIDE validate's reach: that verb
 # walks BUILD_ORDER, which runner left when the image was retired, so for that 1
 # file this test was the only reader. The deletion wave took the directory, and
-# the entry went with it. Every file named here is in BUILD_ORDER now, so the
-# gate reads all 5 and this list is a second reader rather than a sole one.
+# the entry went with it. Every file named here is in BUILD_ORDER now, so this
+# list is a second reader rather than a sole one.
+#
+# READ THE LIST, AND READ WHAT IS NOT IN IT. It is NOT the manifest's set of
+# Dockerfiles and it never was: `hardware/Dockerfile` and `ui/Dockerfile` are
+# named here nowhere, so for the zsh-USERNAME rule this file reads 4 of the 6
+# images while `cmd_validate` reads all 6 through BUILD_ORDER. That gap is
+# PRE-EXISTING — it opened when each of those 2 images landed, not with the
+# embedded fold, which only turned 2 entries into 1 — and it is stated rather
+# than closed here because a hand-kept literal that grows outside its own
+# change is the drift this list exists to catch. It carries no set-equality
+# clause against images.yaml the way dockerfile-args.test.sh's DOCKERFILES
+# does, which is exactly why nothing went red when it shrank relative to the
+# manifest. Closing it is 2 entries plus that clause, and it is somebody's
+# decision rather than a side effect of this one.
 DOCKERFILES=(
   "base/Dockerfile"
   "flutter/Dockerfile"
-  "zephyr/Dockerfile"
-  "zephyr-devbox/Dockerfile"
+  "embedded/Dockerfile"
   "cloud/Dockerfile"
 )
 
@@ -241,7 +253,7 @@ for relative in "${DOCKERFILES[@]}"; do
       "these RUN lines read \${USERNAME} after the file switched SHELL to zsh:" \
       "${DETECTOR_OUTPUT:-<the reader exited ${DETECTOR_STATUS} and printed nothing>}" \
       "zsh auto-sets USERNAME to the EFFECTIVE user, so each one reads the layer's uid and not the ARG" \
-      "write the literal 'dev' — the pattern flutter/, zephyr/ and zephyr-devbox/ document in their headers"
+      "write the literal 'dev' — the pattern flutter/ and embedded/ document in their headers"
   fi
 done
 

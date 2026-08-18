@@ -547,9 +547,8 @@ FILE_BANNER
   cat <<'FILE_HEADER_A'
 # to the GitHub Container Registry, for every platform the env PLATFORMS key
 # names. On semver tag pushes (v*) we also publish a :v<semver> tag.
-# Flutter and zephyr consume base — and zephyr-devbox consumes zephyr — via
-# BASE_TAG build-arg set to the commit short SHA so the child layer FROMs the
-# freshly pushed parent.
+# Flutter and embedded consume base via a BASE_TAG build-arg set to the commit
+# short SHA, so the child layer FROMs the freshly pushed parent.
 #
 # Every job reads back the manifest it just pushed, at the SHA tag it pushed
 # rather than at :latest, so a concurrent run cannot make the assertion describe

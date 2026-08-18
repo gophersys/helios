@@ -146,16 +146,21 @@ VERIFIER="${SCRIPT_DIRECTORY}/fetch-verified.sh"
 # asset RUNNER_VERSION answers for is still found, by a component instead of by
 # a Dockerfile. Read the component before assuming any URL left with it.
 #
-# ui/Dockerfile is the 6th, and it answers for no digest today: its 1 fetch is
+# ui/Dockerfile is the 5th, and it answers for no digest today: its 1 fetch is
 # google's apt signing key, which takes an exemption row rather than a digest.
 # It is named here because a governed file is one that FETCHES — the day that
 # file downloads an asset, the resolver already reads it instead of answering `-`
 # for a pin that has bytes.
+#
+# embedded/Dockerfile is 1 entry where zephyr/Dockerfile and
+# zephyr-devbox/Dockerfile were 2. Both of their fetches came with it — the
+# Zephyr SDK tarball and the code-server .deb — so the assets ZEPHYR_SDK_VERSION
+# and CODE_SERVER_VERSION answer for are found in the merged file, at the same
+# URLs, under the same 2-armed `case`.
 GOVERNED_DOCKERFILES=(
   "base/Dockerfile"
   "flutter/Dockerfile"
-  "zephyr/Dockerfile"
-  "zephyr-devbox/Dockerfile"
+  "embedded/Dockerfile"
   "cloud/Dockerfile"
   "ui/Dockerfile"
 )

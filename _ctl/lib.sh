@@ -635,7 +635,7 @@ function image_pins() {
 # image_size_budget_gb <name> — the acceptance size budget in decimal GB, empty
 # for an image that declares none.
 #
-# EMPTY MEANS NO SIZE GATE. That is what 4 of the 7 images take, and it is the
+# EMPTY MEANS NO SIZE GATE. That is what 3 of the 6 images take, and it is the
 # behaviour this key generalized rather than changed: the gate was an
 # `if [[ "$IMAGE" == "cloud" ]]` branch in .ci/smoke.sh with the number spelled
 # inside it. A budget is an acceptance metric somebody SET, with the measurement
@@ -749,7 +749,7 @@ function require_base_image_current() {
 }
 
 # -------- the pin homes: the readers, and the writer --------
-# A pin is declared in exactly 1 of the 4 value homes: a `NAME=value` row in
+# A pin is declared in exactly 1 of the 3 value homes: a `NAME=value` row in
 # versions.env, or an `ARG NAME=value` at the top of a per-image Dockerfile that
 # has not moved to versions.env yet. 2 callers read those 2 shapes — the
 # coverage tests and _build/resolve-upstream.sh — so the readers live here once,
@@ -763,8 +763,11 @@ function require_base_image_current() {
 # 54 of its 55 pins were spelled in versions.env as well, and a test held the 2
 # copies to 1 value. runner/Dockerfile LEFT it too, by deletion (D2, 2026-08-18):
 # the directory is gone and RUNNER_VERSION, CICTL_VERSION and CLAUDE_CODE_VERSION
-# hold their versions.env home alone. The 3 that remain are the per-image
-# Dockerfiles, and closing them is ledger #102.
+# hold their versions.env home alone. `zephyr/Dockerfile` and
+# `zephyr-devbox/Dockerfile` left as a PAIR, and by merging rather than by
+# moving: the 2 images are 1 image now, so their 6 pins are 1 home — the 2
+# entries below became `embedded/Dockerfile` and no pin value changed. The 2
+# that remain are the per-image Dockerfiles, and closing them is ledger #102.
 #
 # Every reader takes an explicit ROOT. The resolver runs against a fixture tree
 # as readily as against this repository, and a reader that assumed REPO_ROOT
@@ -772,8 +775,7 @@ function require_base_image_current() {
 PIN_VALUE_HOMES=(
   "versions.env"
   "flutter/Dockerfile"
-  "zephyr/Dockerfile"
-  "zephyr-devbox/Dockerfile"
+  "embedded/Dockerfile"
 )
 
 # declaration_line <file> <name> — the line that declares <name> WITH a value,
@@ -1444,7 +1446,7 @@ function image_push() {
 function image_verify_published() {
   require_buildx
   require_cmd jq
-  # The set this image PUBLISHES, which is the sanctioned set for 6 of the 7 and
+  # The set this image PUBLISHES, which is the sanctioned set for 5 of the 6 and
   # the manifest's narrower list for the 1 exception. Comparing every image
   # against the sanctioned set would report flutter — correctly amd64-only,
   # because Flutter publishes no linux-arm64 SDK — as a broken publish forever.

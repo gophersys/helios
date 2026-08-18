@@ -56,11 +56,11 @@
 #   STRONG  "every job that publishes must smoke, and every smoke step must
 #           precede every publishing step."
 #           This is the rule worth having. It is red today for all 5 jobs, and
-#           4 of those reds are a separate piece of work: base, flutter, zephyr
-#           and zephyr-devbox have no smoke step in this workflow at all, which
-#           .ci/README.md already states in prose — "read a green publish of
-#           those 4 images as 'the image built', never as 'the image was
-#           checked'".
+#           4 of those reds are a separate piece of work: base, flutter and the
+#           2 images that are `embedded` now had no smoke step in this workflow
+#           at all, which .ci/README.md already states in prose — "read a green
+#           publish of those 4 images as 'the image built', never as 'the image
+#           was checked'".
 #
 # This file encodes the STRONG rule and writes the 4 known gaps down as a named
 # debt list, UNSMOKED_TODAY, rather than weakening the rule to fit them. The
@@ -244,8 +244,9 @@ REQUIRED_IMAGES=(
 # the moment its job gains a smoke step; the ratchet below fails if you do not.
 #
 # The list is EMPTY, and the 4 names that were here are the work of smoke-v2:
-# base, flutter, zephyr and zephyr-devbox. Each one publishes with 1 `push: true`
-# step and asserts nothing about the image it ships. The list is emptied FIRST,
+# base, flutter, and the 2 images that are `embedded` now. Each one published
+# with 1 `push: true`
+# step and asserted nothing about the image it shipped. The list is emptied FIRST,
 # so check 2d reports those 4 jobs in both copies of the workflow until each job
 # builds with `push: false` + `load: true`, smokes the loaded image, and then
 # publishes from the cache — the shape base-runner and cloud already use.
@@ -1254,8 +1255,7 @@ fi
 PUBLISHED_IMAGES=(
   "base"
   "flutter"
-  "zephyr"
-  "zephyr-devbox"
+  "embedded"
   "cloud"
   "hardware"
   "ui"

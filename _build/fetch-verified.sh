@@ -34,7 +34,7 @@
 #
 # It carries its own bash shebang and is EXECUTED, never sourced: base switches
 # SHELL to zsh after oh-my-zsh, so a helper that inherited the calling shell
-# would behave differently in 2 of the 7 images.
+# would behave differently in 2 of the 6 images.
 #
 # The URL scheme is deliberately not restricted. `curl --proto '=https'` would
 # harden this against a plaintext URL nobody writes, and it would blind

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/entrypoint/stat — a MODEL, and the reason it is one is
+# portability rather than safety.
+#
+# The mounted-volume ownership step of embedded/embedded-entrypoint.sh asks
+# `stat -c '%u' <dir>` whether a mountpoint is still root-owned. `-c` is GNU;
+# the mac's BSD stat spells it `-f`, so the real binary answers differently on
+# the 2 hosts this suite runs on — and on a Linux host it answers about the
+# runner's OWN /home/dev, which is a fact of the machine and not of the subject.
+#
+# Deterministic on both: this stub reports the uid a case chooses.
+#
+#   STUB_ENTRYPOINT_LOG   the file every stub of this group appends its argv to
+#   STUB_STAT_UID         what `stat -c '%u'` prints   (0 — a fresh root-owned PVC,
+#                         which is the state the ownership step exists for)
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+if [[ -n "${STUB_ENTRYPOINT_LOG:-}" ]]; then
+  ( IFS=' '; printf 'stat %s\n' "$*" ) >> "${STUB_ENTRYPOINT_LOG}"
+fi
+
+if [[ "${1:-}" != "-c" ]]; then
+  printf 'stub stat: unhandled argv: %s\n' "$*" >&2
+  exit 64
+fi
+
+printf '%s\n' "${STUB_STAT_UID:-0}"
