@@ -65,7 +65,7 @@
 #       resolves 1 pin through the datasource its _build/upstreams.txt row
 #       names, and prints ONE record on stdout:
 #
-#           <version>|<sha256>
+#           <version>|<row>=<sha256> [<row>=<sha256> ...]
 #
 #       <version>  spelled the way the pin's CURRENT value is spelled: a leading
 #                  `v` is kept when the current value carries one (cictl pins
@@ -73,12 +73,21 @@
 #                  apt version drops the epoch and the debian revision, because
 #                  that is what the tool reports about itself and what the smoke
 #                  test compares.
-#       <sha256>   the digest of the bytes the GOVERNED FILE fetches for that
-#                  new version — read out of the file that performs the
-#                  download, never out of the table, because a second URL home
-#                  lets a resolver compute a correct digest of the wrong asset.
-#                  `-` when the pin carries no digest row at all, which about 30
-#                  of the 56 real pins do not (go install, corepack, pipx).
+#       <row>=...  1 pair per `<tool>_SHA256_<ARCH>` row beside the pin: the row
+#                  NAME, and the digest of the bytes the GOVERNED FILE fetches
+#                  for that new version ON THE ARM THAT ROW ANSWERS FOR. The URL
+#                  is read out of the file that performs the download, never out
+#                  of the table, because a second URL home lets a resolver
+#                  compute a correct digest of the wrong asset. `-` when the pin
+#                  carries no digest row at all, which about 30 of the 56 real
+#                  pins do not (go install, corepack, pipx).
+#
+#       THE ROW NAME IS HALF THE RECORD, and the half a bare digest could not
+#       carry. A pin whose governed file names 2 case arms has 2 digest rows,
+#       and the writer refuses a partial set — so a record that carried 1
+#       unlabelled number could not say WHICH row it answered for, and the
+#       reader that put it somewhere would have picked the amd64 one. Every
+#       resolution case below therefore asserts the name beside the value.
 #
 #   bash _build/resolve-upstream.sh --dry-run
 #       resolves every row of the table and prints the pull request it WOULD
@@ -148,13 +157,38 @@ ASSETS="$FIXTURE_ROOT/assets"
 
 # The digest of each fixture asset, as a LITERAL. See the header: a test that
 # computes the value it checks agrees with any bytes. The guard below reads the
-# files and holds them to these 5 numbers, so an edit to a fixture asset turns
+# files and holds them to these 10 numbers, so an edit to a fixture asset turns
 # 1 named check red instead of quietly agreeing with itself.
 ASSET_DIGEST_STUBGITHUB="e9f2832e77a27bb6de567fecd8039919c51ba0ed73969ea5380cdfcf844ae0cb"
 ASSET_DIGEST_STUBGO="17a98a1b9b1274facea20e77bd164b1746ffe5ae0f91a357d7c1f24530d62f68"
 ASSET_DIGEST_STUBK8S="bccb01f0e57ae6396b3160b6c97d5222b9c8ad7f9646699b59a71efca8a5d420"
 ASSET_DIGEST_STUBTAILSCALE="cc5f45fc6feea409811c787853fbc0592749b913fbe13e6bf8fa2d1226e9cbbd"
 ASSET_DIGEST_STUBFLUTTER="25639dfbf55924ec4b153f8935d20178fa554a5b5190f8613206f7bcf67a2a5a"
+
+# The 5 per-platform assets. The 2 halves of a dual-arch pin carry DIFFERENT
+# bytes on purpose: with 1 asset serving both arms, a resolver that fetched the
+# amd64 url twice would produce 2 equal digests and every check below would
+# agree with it.
+ASSET_DIGEST_STUBDUAL_AMD64="791cfaaa8adeb264a81d1c066decb0ae744171c4e63c4b10f491a179a5d71c40"
+ASSET_DIGEST_STUBDUAL_ARM64="ee7724f82f736bf19dcb53da446d4648cbfaa0826ad77600d9dd4047ad56363d"
+ASSET_DIGEST_STUBSHARED_AMD64="f8543e6d6007e31fb6e5a9b21143db948188226eeb8be5c344cc1da40229621b"
+ASSET_DIGEST_STUBSHARED_ARM64="3d6744ee021fb02c2860638571dcab592a51eb05dbfb70b5a2c9baf2ae41e446"
+ASSET_DIGEST_STUBNOARCH="089dd314a4e23725420d06e5819b1bc1020671705cc1dabc6b0acdbec7b8250c"
+
+# The digest ROWS those assets answer for. Literals for the same reason the
+# digests are: the row name is the half of the record the old contract could not
+# express, and a check that read it out of the fixture would agree with a
+# resolver that named the sibling.
+ROW_STUBDUAL_AMD64="STUBDUAL_SHA256_AMD64"
+ROW_STUBDUAL_ARM64="STUBDUAL_SHA256_ARM64"
+ROW_STUBSHARED_AMD64="STUBSHARED_SHA256_AMD64"
+ROW_STUBSHARED_ARM64="STUBSHARED_SHA256_ARM64"
+ROW_STUBNOARCH="STUBNOARCH_SHA256_NOARCH"
+
+# The stale evidence the arm64 row of STUBDUAL carries in the fixture: an
+# upstream checksum file of the version being bumped AWAY from. After a bump no
+# row may still claim it.
+STALE_ARM64_EVIDENCE_URL="https://github.com/stubowner/stubdual/releases/download/v1.2.2/checksums.sha256"
 
 # The index digest of an OCI manifest LIST is the sha256 of its own bytes, so
 # the oci-index datasource has no separate asset: what it returns IS the digest
@@ -243,11 +277,20 @@ BASE_MAP="$WORK/map-base.txt"
   printf 'v1.35.4/bin/linux/amd64/stubk8s|200|%s\n'    "$ASSETS/stubk8s-1.35.4.bin"
   printf 'tailscale_1.96.4_amd64.tgz|200|%s\n'         "$ASSETS/stubtailscale-1.96.4.tgz"
   printf 'flutter_linux_3.41.7-stable.tar.xz|200|%s\n' "$ASSETS/stubflutter-3.41.7.tar.xz"
+  printf '# the per-platform assets — 1 row per ARM, keyed on the asset spelling\n'
+  printf 'stubdual-1.2.3-linux-x86_64.tar.gz|200|%s\n'  "$ASSETS/stubdual-1.2.3-amd64.tar.gz"
+  printf 'stubdual-1.2.3-linux-aarch64.tar.gz|200|%s\n' "$ASSETS/stubdual-1.2.3-arm64.tar.gz"
+  printf 'stubshared_Linux_amd64.tar.gz|200|%s\n'       "$ASSETS/stubshared-0.9.1-amd64.tar.gz"
+  printf 'stubshared_Linux_arm64.tar.gz|200|%s\n'       "$ASSETS/stubshared-0.9.1-arm64.tar.gz"
+  printf 'stubnoarch-7.1.0-any.tar.gz|200|%s\n'         "$ASSETS/stubnoarch-7.1.0.tar.gz"
   printf '# indexes\n'
   printf 'auth.docker.io|200|%s\n'        "$RESPONSES/oci-registry-token.json"
   printf 'stubowner/stubgithub|200|%s\n'  "$RESPONSES/github-release-stubgithub.json"
   printf 'stubowner/stubvprefix|200|%s\n' "$RESPONSES/github-release-stubvprefix.json"
   printf 'stubowner/stubcurrent|200|%s\n' "$RESPONSES/github-release-stubcurrent.json"
+  printf 'stubowner/stubdual|200|%s\n'    "$RESPONSES/github-release-stubdual.json"
+  printf 'stubowner/stubshared|200|%s\n'  "$RESPONSES/github-release-stubshared.json"
+  printf 'stubowner/stubnoarch|200|%s\n'  "$RESPONSES/github-release-stubnoarch.json"
   printf 'stub-pypi-package|200|%s\n'     "$RESPONSES/pypi-stub-pypi-package.json"
   printf 'stub-npm-package|200|%s\n'      "$RESPONSES/npm-stub-npm-package.json"
   printf 'stub-apt-package|200|%s\n'      "$RESPONSES/apt-launchpad-stub-apt-package.json"
@@ -294,7 +337,7 @@ printf '*|404|-\n' > "$ALL_404_MAP"
 #
 #   EARLY  the FIRST row of the table fails, so every mover comes after it —
 #          the run has to reach them, and report them.
-#   LATE   the 12th row of 14 fails, so 11 movers were resolved before it — the
+#   LATE   the 12th row of 17 fails, so 11 movers were resolved before it — the
 #          ordering that makes a partial write possible at all.
 # ---------------------------------------------------------------------------
 EARLY_FAILURE_MAP="$WORK/map-early-failure.txt"
@@ -662,16 +705,21 @@ else
     "failure cases below would then be green over a world in which nothing failed"
 fi
 
-# The 5 fixture assets are the bytes the 5 digest literals name. Without this
-# guard an edit to a fixture makes 5 resolution checks red and none of them says
-# why.
+# The 10 fixture assets are the bytes the 10 digest literals name. Without this
+# guard an edit to a fixture makes the resolution checks red and none of them
+# says why.
 digest_mismatches=""
 for pair in \
   "stubgithub-2.4.0.tar.gz|$ASSET_DIGEST_STUBGITHUB" \
   "stubgo-1.26.5.tar.gz|$ASSET_DIGEST_STUBGO" \
   "stubk8s-1.35.4.bin|$ASSET_DIGEST_STUBK8S" \
   "stubtailscale-1.96.4.tgz|$ASSET_DIGEST_STUBTAILSCALE" \
-  "stubflutter-3.41.7.tar.xz|$ASSET_DIGEST_STUBFLUTTER"; do
+  "stubflutter-3.41.7.tar.xz|$ASSET_DIGEST_STUBFLUTTER" \
+  "stubdual-1.2.3-amd64.tar.gz|$ASSET_DIGEST_STUBDUAL_AMD64" \
+  "stubdual-1.2.3-arm64.tar.gz|$ASSET_DIGEST_STUBDUAL_ARM64" \
+  "stubshared-0.9.1-amd64.tar.gz|$ASSET_DIGEST_STUBSHARED_AMD64" \
+  "stubshared-0.9.1-arm64.tar.gz|$ASSET_DIGEST_STUBSHARED_ARM64" \
+  "stubnoarch-7.1.0.tar.gz|$ASSET_DIGEST_STUBNOARCH"; do
   asset_name="${pair%%|*}"
   want_digest="${pair#*|}"
   if [[ ! -f "$ASSETS/$asset_name" ]]; then
@@ -726,28 +774,34 @@ fi
 # 30 of the 56 real pins have, and the resolver says so with `-` rather than
 # inventing a number nothing compares.
 #
-# The fields are: <check name>|<pin>|<version>|<digest>|<note>
+# Each of those 5 asserts a `<row>=<digest>` PAIR and not a bare number. All 5
+# are single-arm pins whose 1 row is the `_AMD64` one, so the name is the part
+# of the assertion a wrong resolver fails: a reader that answered for the
+# sibling, or that dropped the name it could not choose, is red here rather than
+# equal to a digest that happens to match.
+#
+# The fields are: <check name>|<pin>|<version>|<row>=<digest> ...|<note>
 RESOLUTION_CASES=(
-  "github_release_reads_the_newest_tag_and_the_asset_digest|STUBGITHUB_VERSION|2.4.0|${ASSET_DIGEST_STUBGITHUB}|the tag is v2.4.0 and the pin is spelled without a v, so the v is stripped; the digest is of the asset the governed file fetches for 2.4.0"
+  "github_release_reads_the_newest_tag_and_the_asset_digest|STUBGITHUB_VERSION|2.4.0|STUBGITHUB_SHA256_AMD64=${ASSET_DIGEST_STUBGITHUB}|the tag is v2.4.0 and the pin is spelled without a v, so the v is stripped; the digest is of the asset the governed file fetches for 2.4.0, and the pair names the row it answers for"
   "github_release_keeps_the_v_a_pin_is_spelled_with|STUBVPREFIX_VERSION|v0.2.0|${NO_DIGEST}|gophersys/cictl pins v0.1.0, so a resolver that always strips the v writes a version that no release matches"
   "github_release_reports_a_pin_that_is_already_current|STUBCURRENT_VERSION|6.0.0|${NO_DIGEST}|resolving is not bumping: the pin already holds the newest tag and the value is still reported"
   "pypi_reads_the_version_of_the_newest_release|STUBPYPI_VERSION|3.1.4|${NO_DIGEST}|the pypi json carries info.version; pipx installs it, so there is no asset to digest"
   "npm_reads_the_dist_tag_latest|STUBNPM_VERSION|4.2.1|${NO_DIGEST}|the registry document carries dist-tags.latest"
   "apt_reads_the_upstream_version_without_the_epoch_or_the_revision|STUBAPT_VERSION|5.9|${NO_DIGEST}|the archive publishes 1:5.9-6ubuntu2, and 5.9 is what the tool reports about itself and what the smoke test compares"
-  "go_dl_reads_the_newest_stable_release_and_the_archive_digest|STUBGO_VERSION|1.26.5|${ASSET_DIGEST_STUBGO}|the index spells it go1.26.5 and the pin is spelled 1.26.5"
+  "go_dl_reads_the_newest_stable_release_and_the_archive_digest|STUBGO_VERSION|1.26.5|STUBGO_SHA256_AMD64=${ASSET_DIGEST_STUBGO}|the index spells it go1.26.5 and the pin is spelled 1.26.5"
   "node_dist_reads_the_newest_lts_release|STUBNODE_VERSION|24.15.0|${NO_DIGEST}|v25.1.0 is newer and is not an LTS line; nvm fetches node itself, so there is no asset here"
   "oci_index_reads_the_index_digest_the_tag_holds|STUBOCI_REF|sha256:${OCI_INDEX_DIGEST}|${NO_DIGEST}|the digest of a manifest list is the sha256 of its own bytes, and a per-platform digest would pin the wrong thing"
-  "k8s_dl_reads_the_stable_channel_and_the_binary_digest|STUBK8S_VERSION|1.35.4|${ASSET_DIGEST_STUBK8S}|the channel file holds v1.35.4 and the pin is spelled 1.35.4"
-  "tailscale_pkgs_reads_the_stable_package_and_its_digest|STUBTAILSCALE_VERSION|1.96.4|${ASSET_DIGEST_STUBTAILSCALE}|the package index carries Version"
-  "flutter_releases_reads_the_stable_channel_and_the_archive_digest|STUBFLUTTER_VERSION|3.41.7|${ASSET_DIGEST_STUBFLUTTER}|the beta release is newer and is not the stable channel"
+  "k8s_dl_reads_the_stable_channel_and_the_binary_digest|STUBK8S_VERSION|1.35.4|STUBK8S_SHA256_AMD64=${ASSET_DIGEST_STUBK8S}|the channel file holds v1.35.4 and the pin is spelled 1.35.4"
+  "tailscale_pkgs_reads_the_stable_package_and_its_digest|STUBTAILSCALE_VERSION|1.96.4|STUBTAILSCALE_SHA256_AMD64=${ASSET_DIGEST_STUBTAILSCALE}|the package index carries Version"
+  "flutter_releases_reads_the_stable_channel_and_the_archive_digest|STUBFLUTTER_VERSION|3.41.7|STUBFLUTTER_SHA256_AMD64=${ASSET_DIGEST_STUBFLUTTER}|the beta release is newer and is not the stable channel"
   "eden_manifest_reads_the_value_eden_pins|STUBEDEN_VERSION|2.1.212|${NO_DIGEST}|eden is the one decision point for a harness version, so this datasource mirrors it rather than resolving the harness upstream"
 )
 
 RESOLUTION_WORLD="$(fixture_world "resolution")"
 for case_row in "${RESOLUTION_CASES[@]}"; do
-  IFS='|' read -r case_name case_pin case_version case_digest case_note <<< "$case_row"
+  IFS='|' read -r case_name case_pin case_version case_pairs case_note <<< "$case_row"
   run_resolver "$BASE_MAP" "$RESOLUTION_WORLD" -- "$case_pin"
-  assert_resolves "$case_name" "$case_pin" "${case_version}|${case_digest}" "$case_note"
+  assert_resolves "$case_name" "$case_pin" "${case_version}|${case_pairs}" "$case_note"
 done
 
 # -------- the digest is of the NEW version's asset, and it is re-proven ------
@@ -798,7 +852,279 @@ else
 fi
 
 # ===========================================================================
-# 3. AN UNREACHABLE UPSTREAM FAILS, AND NAMES THE PIN
+# 3. A PIN ANSWERS FOR 1 DIGEST PER ARM ITS GOVERNED FILE WRITES
+# ===========================================================================
+#
+# Section 2 drives 13 pins whose governed file names ONE case arm. That world
+# cannot see the defect this section exists for, and the defect shipped: a
+# reader that stopped at the first arm computed 1 digest for a pin whose rows
+# are a set of 2, so every weekly bump moved the version and the `_AMD64` row
+# and left `_ARM64` on the digest of the release it was bumping AWAY from. The
+# arm64 leg of the build then died at that download, in the bump pull request,
+# every Monday a pin moved.
+#
+# The rule the 4 cases below hold is not "2 platforms". It is THE ARMS THAT
+# EXIST: a record per `linux/<arch>)` arm in scope at the fetch, and never a
+# record per sanctioned platform. That single rule is what makes the 3 shapes
+# correct without a branch for any of them —
+#
+#   STUBDUAL     2 arms -> 2 records, 2 rows, 2 assets, 2 different digests.
+#                Its arm64 arm fetches an asset spelled `aarch64` and answers
+#                for the row spelled `_ARM64`: the row names the PLATFORM and
+#                never the upstream's asset spelling.
+#   STUBGO       1 arm -> 1 record. flutter's shape, and Flutter publishes no
+#                linux-arm64 SDK at any version, so an arm64 row here would be
+#                a row no asset can ever answer for.
+#   STUBNOARCH   no arm at all -> 1 record, and the row is `_SHA256_NOARCH`.
+#   STUBSHARED   2 arms, fetched by 2 governed files at 1 url -> still 2
+#                records. k9s and buildx have this shape in the real tree.
+#
+# A reader that consulted SANCTIONED_PLATFORMS would demand an arm64 asset from
+# STUBGO and from STUBNOARCH, and would name each row after the platform it
+# assumed rather than after the token the arm wrote.
+
+# record_pairs <record> — the pair list of a resolver record: everything after
+# the first `|`. A version can hold no `|`, which is why the grammar puts it
+# first.
+function record_pairs() {
+  printf '%s' "${1#*|}"
+}
+
+# pair_count <pair list> — how many `<row>=<digest>` pairs it holds. awk and not
+# a `wc -w`, because 0 is an answer 2 checks below read.
+function pair_count() {
+  awk '{ print NF } END { if (NR == 0) print 0 }' <<< "$1"
+}
+
+# fetches_of <url> — how many times the run under test asked for that exact url.
+# 2 is correct for a moved asset: the digest, and the re-proof through
+# _build/fetch-verified.sh.
+function fetches_of() {
+  awk -v needle="$1" '$0 == needle { total++ } END { print total + 0 }' <<< "$CURL_LOG"
+}
+
+run_resolver "$BASE_MAP" "$RESOLUTION_WORLD" -- "STUBDUAL_VERSION"
+assert_resolves "a_dual_arch_pin_resolves_one_digest_per_arm" "STUBDUAL_VERSION" \
+  "1.2.3|${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64} ${ROW_STUBDUAL_ARM64}=${ASSET_DIGEST_STUBDUAL_ARM64}" \
+  "cloud/Dockerfile names 2 arms, so this pin has 2 assets and 2 rows. The 2 fixture" \
+  "assets carry different bytes, so a resolver that fetched 1 url twice answers with 2" \
+  "equal digests and this check names both; a resolver that stopped at the first arm" \
+  "answers with 1 pair, and the row it did not compute is the one the build dies on"
+
+# The 2 urls, and the 2 spellings. `aarch64` is the ASSET and `_ARM64` is the
+# ROW, and the check above is what holds them together.
+dual_amd64_url="https://github.com/stubowner/stubdual/releases/download/v1.2.3/stubdual-1.2.3-linux-x86_64.tar.gz"
+dual_arm64_url="https://github.com/stubowner/stubdual/releases/download/v1.2.3/stubdual-1.2.3-linux-aarch64.tar.gz"
+dual_amd64_fetches="$(fetches_of "$dual_amd64_url")"
+dual_arm64_fetches="$(fetches_of "$dual_arm64_url")"
+if [[ "$dual_amd64_fetches" -ge 1 && "$dual_arm64_fetches" -ge 1 ]]; then
+  pass_check "a_dual_arch_pin_fetches_the_asset_of_each_arm_at_its_own_spelling"
+else
+  fail_check "a_dual_arch_pin_fetches_the_asset_of_each_arm_at_its_own_spelling" \
+    "the x86_64 asset was fetched ${dual_amd64_fetches} time(s) and the aarch64 asset ${dual_arm64_fetches}" \
+    "the urls it asked for:" "${CURL_LOG:-<none>}" \
+    "each arm carries the spelling ITS OWN asset uses — buf spells this platform" \
+    "aarch64 and grpcurl spells it arm64 — so a resolver that expanded 1 url per pin" \
+    "computes a correct digest of the wrong architecture's bytes"
+fi
+
+run_resolver "$BASE_MAP" "$RESOLUTION_WORLD" -- "STUBGO_VERSION"
+amd64_only_record="$RESOLVER_STDOUT"
+amd64_only_pairs="$(record_pairs "$amd64_only_record")"
+if [[ "$RESOLVER_STATUS" -eq 0 ]] \
+  && [[ "$(pair_count "$amd64_only_pairs")" -eq 1 ]] \
+  && [[ "$amd64_only_pairs" == "STUBGO_SHA256_AMD64=${ASSET_DIGEST_STUBGO}" ]]; then
+  pass_check "an_amd64_only_pin_gains_no_arm64_row"
+else
+  fail_check "an_amd64_only_pin_gains_no_arm64_row" \
+    "want: exit 0 and exactly 1 pair — STUBGO_SHA256_AMD64=${ASSET_DIGEST_STUBGO}" \
+    "got:  exit ${RESOLVER_STATUS}, and the pairs were:" "${amd64_only_pairs:-<none>}" \
+    "stderr was:" "${RESOLVER_STDERR:-<none>}" \
+    "the urls it asked for:" "${CURL_LOG:-<none>}" \
+    "base/Dockerfile names linux/amd64 alone for this pin, which is flutter's shape and" \
+    "is CORRECT rather than incomplete: no bump reaches an asset upstream does not" \
+    "publish. A reader that consulted the sanctioned set instead of the arms that exist" \
+    "either invents a row no home declares, or dies expanding a url whose \${ARCH} the" \
+    "absent arm never set"
+fi
+
+run_resolver "$BASE_MAP" "$RESOLUTION_WORLD" -- "STUBNOARCH_VERSION"
+noarch_pairs="$(record_pairs "$RESOLVER_STDOUT")"
+if [[ "$RESOLVER_STATUS" -eq 0 ]] \
+  && [[ "$(pair_count "$noarch_pairs")" -eq 1 ]] \
+  && [[ "$noarch_pairs" == "${ROW_STUBNOARCH}=${ASSET_DIGEST_STUBNOARCH}" ]]; then
+  pass_check "a_noarch_pin_keeps_its_single_row"
+else
+  fail_check "a_noarch_pin_keeps_its_single_row" \
+    "want: exit 0 and exactly 1 pair — ${ROW_STUBNOARCH}=${ASSET_DIGEST_STUBNOARCH}" \
+    "got:  exit ${RESOLVER_STATUS}, and the pairs were:" "${noarch_pairs:-<none>}" \
+    "stderr was:" "${RESOLVER_STDERR:-<none>}" \
+    "the urls it asked for:" "${CURL_LOG:-<none>}" \
+    "this asset sits in a RUN with no case at all, so it spells its pin literally and" \
+    "1 row answers for every platform. A reader that defaulted an armless fetch to" \
+    "amd64 writes the digest into a _SHA256_AMD64 row, which no home declares and no" \
+    "download reads — while _SHA256_NOARCH keeps the value it is being bumped away from"
+fi
+
+run_resolver "$BASE_MAP" "$RESOLUTION_WORLD" -- "STUBSHARED_VERSION"
+shared_pairs="$(record_pairs "$RESOLVER_STDOUT")"
+shared_amd64_url="https://github.com/stubowner/stubshared/releases/download/v0.9.1/stubshared_Linux_amd64.tar.gz"
+shared_amd64_fetches="$(fetches_of "$shared_amd64_url")"
+if [[ "$RESOLVER_STATUS" -eq 0 ]] \
+  && [[ "$(pair_count "$shared_pairs")" -eq 2 ]] \
+  && [[ "$shared_pairs" == "${ROW_STUBSHARED_AMD64}=${ASSET_DIGEST_STUBSHARED_AMD64} ${ROW_STUBSHARED_ARM64}=${ASSET_DIGEST_STUBSHARED_ARM64}" ]] \
+  && [[ "$shared_amd64_fetches" -eq 2 ]]; then
+  pass_check "a_row_two_governed_files_fetch_is_answered_once"
+else
+  fail_check "a_row_two_governed_files_fetch_is_answered_once" \
+    "want: exit 0, exactly 2 pairs, and the amd64 asset fetched exactly 2 times" \
+    "      ${ROW_STUBSHARED_AMD64}=${ASSET_DIGEST_STUBSHARED_AMD64} ${ROW_STUBSHARED_ARM64}=${ASSET_DIGEST_STUBSHARED_ARM64}" \
+    "got:  exit ${RESOLVER_STATUS}, ${shared_amd64_fetches} fetch(es) of the amd64 asset, and the pairs were:" \
+    "${shared_pairs:-<none>}" \
+    "stderr was:" "${RESOLVER_STDERR:-<none>}" \
+    "the urls it asked for:" "${CURL_LOG:-<none>}" \
+    "cloud/Dockerfile and _delta/components/stubshared.sh fetch this pin at the SAME" \
+    "url for the SAME 2 rows — the k9s and buildx shape. A row is deduplicated and" \
+    "never a url: without it each row is answered twice, the record carries 4 pairs," \
+    "and every Monday spends 2 extra whole-asset downloads per pin of that shape"
+fi
+
+# ===========================================================================
+# 4. THE WRITER TAKES THE WHOLE ROW SET, OR REFUSES AND WRITES NOTHING
+# ===========================================================================
+#
+# `bump_pin` in _ctl/lib.sh is the ONLY writer, and section 3 is only half of
+# the guarantee. Reading every arm is what makes a CORRECT call possible; what
+# makes an incorrect one impossible is the refusal here — every
+# `<tool>_SHA256_<ARCH>` row beside the pin gets a value in the SAME call, or
+# nothing is written and the message names the row that got none.
+#
+# They are not the same guarantee, and the day a `_SHA256_RISCV64` row is
+# written it is the refusal that reports every caller which does not yet compute
+# one. So these cases call the writer DIRECTLY, as the library function it is:
+# the resolver's --apply path is 1 caller, and a refusal has to be readable by
+# the caller that made the incorrect call rather than only by the run that
+# happened to make a correct one.
+
+BUMP_OUTPUT=""
+BUMP_STATUS=0
+
+# run_bump_pin <root> <pin> <version> <evidence> [<row>=<digest> ...] — the
+# writer, with its status and its message kept. stderr is folded in because
+# every refusal it makes is a log_error line, and a refusal nobody can read is
+# the `exit 1` this repository refuses to ship.
+function run_bump_pin() {
+  BUMP_STATUS=0
+  BUMP_OUTPUT="$(bump_pin "$@" 2>&1)" || BUMP_STATUS=$?
+}
+
+# row_line <world> <name> — the declaration line of 1 row of a fixture world,
+# read with the repository's own reader.
+function row_line() {
+  declaration_line "${1}/versions.env" "$2"
+}
+
+# row_value <world> <name> — the value that line carries.
+function row_value() {
+  declaration_value "$(row_line "$1" "$2")"
+}
+
+TODAY="$(date +%Y-%m-%d)"
+
+APPLY_WORLD="$(committed_fixture_world "apply-per-platform")"
+run_resolver "$BASE_MAP" "$APPLY_WORLD" -- "--apply"
+apply_status="$RESOLVER_STATUS"
+apply_stderr="$RESOLVER_STDERR"
+applied_version="$(row_value "$APPLY_WORLD" "STUBDUAL_VERSION")"
+applied_amd64="$(row_value "$APPLY_WORLD" "$ROW_STUBDUAL_AMD64")"
+applied_arm64="$(row_value "$APPLY_WORLD" "$ROW_STUBDUAL_ARM64")"
+
+if [[ "$apply_status" -eq 0 ]] \
+  && [[ "$applied_version" == "1.2.3" ]] \
+  && [[ "$applied_amd64" == "$ASSET_DIGEST_STUBDUAL_AMD64" ]] \
+  && [[ "$applied_arm64" == "$ASSET_DIGEST_STUBDUAL_ARM64" ]]; then
+  pass_check "apply_moves_every_sha256_sibling"
+else
+  fail_check "apply_moves_every_sha256_sibling" \
+    "want: exit 0, STUBDUAL_VERSION=1.2.3, and both rows on the digest of their own arm" \
+    "      ${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64}" \
+    "      ${ROW_STUBDUAL_ARM64}=${ASSET_DIGEST_STUBDUAL_ARM64}" \
+    "got:  exit ${apply_status}, STUBDUAL_VERSION=${applied_version:-<none>}" \
+    "      ${ROW_STUBDUAL_AMD64}=${applied_amd64:-<none>}" \
+    "      ${ROW_STUBDUAL_ARM64}=${applied_arm64:-<none>}" \
+    "stderr was:" "${apply_stderr:-<none>}" \
+    "the fixture holds dddd... in both rows, which is the digest of no asset at all, so" \
+    "a sibling this run did not move is a sibling still reading dddd... here — and in a" \
+    "real bump it reads the digest of the release the pin was moved away from"
+fi
+
+applied_amd64_line="$(row_line "$APPLY_WORLD" "$ROW_STUBDUAL_AMD64")"
+applied_arm64_line="$(row_line "$APPLY_WORLD" "$ROW_STUBDUAL_ARM64")"
+if [[ "$apply_status" -eq 0 ]] \
+  && [[ "$(evidence_of "$applied_amd64_line")" == "computed-at-pin" ]] \
+  && [[ "$(evidence_of "$applied_arm64_line")" == "computed-at-pin" ]] \
+  && grep -qF -- "computed-at-pin: ${TODAY}" <<< "$applied_amd64_line" \
+  && grep -qF -- "computed-at-pin: ${TODAY}" <<< "$applied_arm64_line" \
+  && ! grep -qF -- "$STALE_ARM64_EVIDENCE_URL" <<< "$applied_arm64_line"; then
+  pass_check "each_row_gets_its_own_evidence"
+else
+  fail_check "each_row_gets_its_own_evidence" \
+    "want: exit 0, and BOTH rows carrying '# computed-at-pin: ${TODAY}' — the provenance" \
+    "      of the bytes THIS run fetched for that row" \
+    "got:  exit ${apply_status}, and the 2 lines are:" \
+    "${applied_amd64_line:-<none>}" \
+    "${applied_arm64_line:-<none>}" \
+    "the fixture's arm64 row carries an upstream-published url of v1.2.2 — the release" \
+    "the pin is being bumped AWAY from. A writer that stamped the first row and left the" \
+    "sibling's comment alone leaves that url attesting bytes it is not the digest of," \
+    "and a digest a reviewer has to take on faith is not a pin"
+fi
+
+PARTIAL_WORLD="$(committed_fixture_world "partial-digest-set")"
+run_bump_pin "$PARTIAL_WORLD" "STUBDUAL_VERSION" "1.2.3" "computed-at-pin: ${TODAY}" \
+  "${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64}"
+partial_porcelain="$(git -C "$PARTIAL_WORLD" status --porcelain)"
+if [[ "$BUMP_STATUS" -ne 0 ]] \
+  && grep -qF -- "$ROW_STUBDUAL_ARM64" <<< "$BUMP_OUTPUT" \
+  && [[ -z "$partial_porcelain" ]]; then
+  pass_check "a_partial_digest_set_is_refused_naming_the_row"
+else
+  fail_check "a_partial_digest_set_is_refused_naming_the_row" \
+    "want: a non-zero status, a message naming ${ROW_STUBDUAL_ARM64}, and an empty porcelain" \
+    "got:  exit ${BUMP_STATUS}, porcelain:" "${partial_porcelain:-<empty>}" \
+    "the writer said:" "${BUMP_OUTPUT:-<nothing>}" \
+    "the diff it left behind:" "$(git -C "$PARTIAL_WORLD" diff)" \
+    "this call moves the version and answers for 1 of the 2 rows the pin declares. A" \
+    "writer that accepted it writes a pull request that reads as a correct bump and" \
+    "fails the build on the arm64 leg, after the merge, naming a pin the diff showed as" \
+    "correct. The status alone is not the check: a refusal that does not NAME the row" \
+    "leaves the caller to diff 2 files to find out which digest it owes"
+fi
+
+UNDECLARED_WORLD="$(committed_fixture_world "undeclared-digest-row")"
+run_bump_pin "$UNDECLARED_WORLD" "STUBDUAL_VERSION" "1.2.3" "computed-at-pin: ${TODAY}" \
+  "${ROW_STUBDUAL_AMD64}=${ASSET_DIGEST_STUBDUAL_AMD64}" \
+  "${ROW_STUBDUAL_ARM64}=${ASSET_DIGEST_STUBDUAL_ARM64}" \
+  "STUBDUAL_SHA256_RISCV64=${ASSET_DIGEST_STUBDUAL_AMD64}"
+undeclared_porcelain="$(git -C "$UNDECLARED_WORLD" status --porcelain)"
+if [[ "$BUMP_STATUS" -ne 0 ]] \
+  && grep -qF -- "STUBDUAL_SHA256_RISCV64" <<< "$BUMP_OUTPUT" \
+  && [[ -z "$undeclared_porcelain" ]]; then
+  pass_check "an_undeclared_digest_row_is_refused_naming_it"
+else
+  fail_check "an_undeclared_digest_row_is_refused_naming_it" \
+    "want: a non-zero status, a message naming STUBDUAL_SHA256_RISCV64, and an empty porcelain" \
+    "got:  exit ${BUMP_STATUS}, porcelain:" "${undeclared_porcelain:-<empty>}" \
+    "the writer said:" "${BUMP_OUTPUT:-<nothing>}" \
+    "the diff it left behind:" "$(git -C "$UNDECLARED_WORLD" diff)" \
+    "this call answers for both rows the pin declares AND for one no home does. The" \
+    "digest of that third row would be written NOWHERE, and a caller that computed it" \
+    "believes a platform is pinned that nothing verifies — which is the same silence as" \
+    "a missing row, wearing the shape of a complete call"
+fi
+
+# ===========================================================================
+# 5. AN UNREACHABLE UPSTREAM FAILS, AND NAMES THE PIN
 # ===========================================================================
 #
 # Loudly, and never `|| true`. A weekly run that swallowed a failed fetch would
@@ -826,7 +1152,7 @@ for sole_pin in "${SOLE_HOME_PINS[@]}"; do
 done
 
 # ===========================================================================
-# 4. THE DRY RUN COMPOSES A PULL REQUEST AND WRITES NOTHING
+# 6. THE DRY RUN COMPOSES A PULL REQUEST AND WRITES NOTHING
 # ===========================================================================
 DRY_RUN_WORLD="$(committed_fixture_world "dry-run")"
 
@@ -904,10 +1230,10 @@ assert_contains "the_dry_run_body_names_the_pin_that_moved" \
   "the whole output was:" "${RESOLVER_STDOUT:-<none>}"
 
 # ===========================================================================
-# 5. ONE FAILING ROW FAILS THE WHOLE AGGREGATE RUN, AND WRITES NOTHING
+# 7. ONE FAILING ROW FAILS THE WHOLE AGGREGATE RUN, AND WRITES NOTHING
 # ===========================================================================
 #
-# Section 3 hands the resolver 1 PIN and reads the refusal. That is the shape
+# Section 5 hands the resolver 1 PIN and reads the refusal. That is the shape
 # every failure case of this file had until now, and it is the shape that cannot
 # see the defect: with 1 pin on the argv, `fail_pin`'s `exit 1` runs at the top
 # level of the script and the status reaches the caller. The weekly workflow
@@ -1011,7 +1337,7 @@ else
     "the diff it left behind:" "${apply_failure_diff:-<none>}" \
     "stdout was:" "${RESOLVER_STDOUT:-<none>}" \
     "stderr was:" "${RESOLVER_STDERR:-<none>}" \
-    "the flutter index is the 12th row of 14 and the 11 rows ahead of it resolve, so a" \
+    "the flutter index is the 12th row of 17 and the 11 rows ahead of it resolve, so a" \
     "writer that runs before the run's verdict is known rewrites them and then dies;" \
     "the branch that leaves behind reads like a correct bump and is 1 pin short of it"
 fi
@@ -1019,7 +1345,7 @@ fi
 # The other direction of the same contract, and the reason it is COLLECT and not
 # ABORT: the row that failed is the FIRST of the table, and the run still has to
 # report the movers behind it. STUBVPREFIX is the row immediately after the
-# failure and STUBEDEN is the last resolvable row of the table, so naming both
+# failure and STUBNOARCH is the last resolvable row of the table, so naming both
 # proves the run went all the way through rather than stopping at row 1.
 COLLECT_WORLD="$(committed_fixture_world "collect-then-fail")"
 run_resolver "$EARLY_FAILURE_MAP" "$COLLECT_WORLD" -- "--dry-run"
@@ -1029,7 +1355,7 @@ collect_porcelain="$(git -C "$COLLECT_WORLD" status --porcelain)"
 collect_missing=""
 for expected in \
   "bump: STUBVPREFIX_VERSION v0.1.0 -> v0.2.0" \
-  "bump: STUBEDEN_VERSION 2.1.200 -> 2.1.212" \
+  "bump: STUBNOARCH_VERSION 7.0.0 -> 7.1.0" \
   "STUBGITHUB_VERSION"; do
   if ! grep -qF -- "$expected" <<< "$collect_output"; then
     collect_missing="${collect_missing:+${collect_missing}
@@ -1053,7 +1379,7 @@ else
 fi
 
 # ===========================================================================
-# 6. A GREEN WEEKLY DOES NOT CLOSE THE NIGHTLY ISSUE
+# 8. A GREEN WEEKLY DOES NOT CLOSE THE NIGHTLY ISSUE
 # ===========================================================================
 #
 # The notifier files under 1 label, and until this change that label is a
