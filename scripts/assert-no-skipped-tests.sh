@@ -19,7 +19,7 @@ if [[ $# -eq 0 ]]; then
   exit 2
 fi
 
-log="$(mktemp -t assert-no-skipped-tests)"
+log="$(mktemp -t assert-no-skipped-tests.XXXXXX)"
 trap 'rm -f "$log"' EXIT
 
 # tee keeps the live output; PIPESTATUS keeps the real `go test` exit code.
