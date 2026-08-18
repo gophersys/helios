@@ -1,0 +1,49 @@
+# Fixtures for scripts/mktemp-template_test.sh — they pin the precision of the matcher.
+#
+# Format: <verdict><TAB><the source line, verbatim>. A line that starts with # at column 0 is a
+# comment, and an empty line is ignored. The 3 verdicts are:
+#   none  the line holds no mktemp invocation in command position (prose, a comment, a message)
+#   ok    an mktemp invocation that passes no template, or a template with >= 3 trailing X's
+#   bad   an mktemp invocation whose template carries fewer than 3 trailing X's
+#
+# This file carries the word mktemp on purpose, including the broken forms. It is not a shell
+# script and has no shell shebang, so the repository scan of mktemp-template_test.sh never reads
+# it — the scan set is tracked shell files only.
+
+# --- not an invocation: mktemp appears as prose ---
+none	# every mktemp invocation must carry a template with at least 3 trailing X's
+none	printf 'the BSD spelling is mktemp -t prefix\n'
+none	#   bash scripts/assert-no-skipped-tests.sh -tags integration -race ./...
+none	log="$(make_temporary_file)"
+
+# --- an invocation with no template ---
+ok	mktemp
+ok	tmp="$(mktemp)"
+ok	dir="$(mktemp -d)"
+ok	if ! mktemp --version >/dev/null; then
+ok	version="$(mktemp --version 2>&1)"
+
+# --- an invocation with a portable template ---
+ok	profile="$(mktemp -t agent-runtime-cover.XXXXXX)"
+ok	work="$(mktemp -d -t eden-scan.XXXXXX)"
+ok	mktemp -p /tmp eden-scan.XXXXXX
+ok	mktemp --tmpdir=/var/tmp eden-scan.XXXXXX
+ok	mktemp "${directory}/eden-scan.XXXXXX"
+ok	mktemp -u eden-scan.XXX
+
+# --- the word mktemp also opens a variable name; only the invocation counts ---
+ok	mktemp_version="$(mktemp --version 2>&1)" && mktemp_version_status=0 || mktemp_version_status=$?
+none	mktemp_version_status=1
+none	printf 'mktemp %s\n' "$mktemp_version"
+
+# --- two invocations on one line: every one of them is judged ---
+ok	a="$(mktemp -d)"; b="$(mktemp -t eden-scan.XXXXXX)"
+bad	a="$(mktemp -d -t good.XXXXXX)"; b="$(mktemp -t bad-one)"
+
+# --- an invocation whose template GNU mktemp rejects ---
+bad	log="$(mktemp -t assert-no-skipped-tests)"
+bad	mktemp -t eden-scan
+bad	mktemp /tmp/eden-scan
+bad	mktemp -d /tmp/eden-scan.XX
+bad	mktemp -p /tmp eden-scan
+bad	dir="$(mktemp -d -t eden-scan.X)"
