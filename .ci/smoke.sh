@@ -347,10 +347,16 @@ PIN_CLASS_TABLE
 read -r -d '' PIN_CLASSES_DEVBOX <<'PIN_CLASS_TABLE' || true
 BASE_TAG|not-a-version||
 ESPTOOL_VERSION|asserted|esptool version|
-CODE_SERVER_VERSION|asserted|code-server --version|
+CODE_SERVER_VERSION|asserted|code-server --version|line:with Code
 ZSDK_EXTRA_TOOLCHAINS|not-a-version||
 PIN_CLASS_TABLE
 
+# CODE_SERVER_VERSION scopes to the line that says 'with Code' — the canonical
+# '4.133.0 <hash> with Code 1.x' line. Unscoped, the reader took the FIRST
+# number in the whole output, and in the built image that was '12.329': the
+# seconds of a timestamped warning line printed above the version. The
+# observed 'version' equalled the wall clock of the check itself
+# (02:04:12.329, failed at .338) — measured in run 32088060119.
 # CODE_SERVER_VERSION is why this table exists. It was pinned in the current
 # cycle and no class, no test and no run compared it against the image: read on
 # 2026-08-17, ghcr.io/gophersys/zephyr-devbox:latest reports 4.127.0 while
