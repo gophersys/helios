@@ -58,9 +58,10 @@ base/Dockerfile|https://download.docker.com/linux/ubuntu/gpg|unversioned-url|it 
 cloud/Dockerfile|https://download.docker.com/linux/ubuntu/gpg|unversioned-url|it is docker's apt signing key, which has no version, and apt verifies every package against the signature it makes
 
 # The claude installer. CLAUDE_CODE_VERSION is an ARGUMENT to the script, not
-# part of its URL, so the script itself is unversioned. Both call sites verify
-# the installed version afterwards and FAIL when it differs from the pin.
-runner/Dockerfile|https://claude.ai/install.sh|unversioned-url|CLAUDE_CODE_VERSION is an argument to the installer and not part of its url; the layer fails when the installed version differs from the pin
+# part of its URL, so the script itself is unversioned. The call site verifies
+# the installed version afterwards and FAILS when it differs from the pin.
+# There were 2 call sites until D2 deleted runner/Dockerfile, and its row left
+# with it: a row for a download nothing performs is red in the other direction.
 _delta/components/agents.sh|https://claude.ai/install.sh|unversioned-url|CLAUDE_CODE_VERSION is an argument to the installer and not part of its url; the script fails when the installed version differs from the pin
 
 # -------- not-installed-today --------

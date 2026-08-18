@@ -108,8 +108,9 @@
 # fail for a reason that says nothing about the document.
 #
 # In the pull request gate this always takes the host route: validate.yml runs
-# on `arc-org`, whose image is this repository's own base + runner layer, and
-# that image ships yq at exactly YQ_VERSION.
+# on `arc-org`, whose image is this repository's own `cloud` — the 1 image the
+# ARC pools run since the base+runner layer was retired and then deleted — and
+# `cloud/Dockerfile` installs yq at exactly `${YQ_VERSION}` out of versions.env.
 #
 # Usage: bash _ctl/tests/workflow-yaml.test.sh
 #
@@ -165,9 +166,10 @@ SELF_HOSTED_RUNNER_PREFIX="arc-"
 # The actions that only make sense on a GitHub-hosted image. Matched on the
 # `<owner>/<repository>` half, so a version bump does not walk around the rule.
 #
-# 1 entry is not a list nobody will extend: `runner/` and `actions/cache` are
-# the next candidates if the hosted assumptions turn up again, and the shape is
-# already here for them.
+# 1 entry is not a list nobody will extend: `actions/cache` is the next
+# candidate if the hosted assumptions turn up again, and the shape is already
+# here for it. This sentence named `runner/` beside it, which was never an
+# action and is now not a directory either.
 HOSTED_ONLY_ACTIONS=(
   "jlumbroso/free-disk-space"
 )

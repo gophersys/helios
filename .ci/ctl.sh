@@ -34,8 +34,8 @@ source "$REPO_ROOT/_ctl/lib.sh"
 # that script's array, and validate.yml's agreement step exists because the 2
 # could drift. `cloud` stands alone (FROM ubuntu): the successor image of the
 # consolidation program (ledger #94), and what all 3 ARC pools run.
-# `base-runner` was here and is RETIRED — see the note beside the other reader,
-# in the repository-root ctl.sh.
+# `base-runner` was here and is RETIRED, and `runner/` is now DELETED — see the
+# note beside the other reader, in the repository-root ctl.sh.
 BUILD_ORDER=()
 _build_order_text="$(image_names)" || exit 1
 while IFS= read -r _image; do
@@ -44,16 +44,14 @@ while IFS= read -r _image; do
 done <<< "$_build_order_text"
 unset _build_order_text _image
 
-# Image name -> source directory. 1:1 except the `+ runner` variants: one
-# directory (`runner/`) builds `<parent>-runner` for every parent. Mirrors the
-# resolver in the repo-level ctl.sh; both must agree.
-function image_dir() {
-  local name="$1"
-  case "$name" in
-    *-runner) printf '%s/runner' "$REPO_ROOT" ;;
-    *)        printf '%s/%s' "$REPO_ROOT" "$name" ;;
-  esac
-}
+# `image_dir` stood here and is DELETED with `runner/` (D2, 2026-08-18). No verb
+# of this file ever called it: it existed to MIRROR the repo-level resolver, so
+# that the 2 would agree about the `*-runner` arm whatever the image set held.
+# With the arm gone the resolver is `<root>/<name>` and there is nothing to
+# agree about, so the copy was a callerless function whose whole subject had
+# left — the same end the runner-residue mirror test reached before it died
+# with the wave. The repo-level
+# ctl.sh keeps its own, because 3 of its verbs call it.
 
 # -------- verbs --------
 

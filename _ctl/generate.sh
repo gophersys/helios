@@ -517,8 +517,8 @@ FILE_HEADER_A
 # is expected exactly once per image.
 #
 # base-runner is retired. All 3 ARC pools run `cloud` now, so nothing pulls the
-# image and no job builds it. `runner/Dockerfile` stays on disk for one more
-# change — its deletion goes with the docs sweep.
+# image and no job builds it. `runner/` is deleted (D2, 2026-08-18); the CI fold
+# it carried is `_delta/components/runner.sh`, which the cloud job builds in.
 
 on:
   push:

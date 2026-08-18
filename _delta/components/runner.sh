@@ -8,13 +8,14 @@
 # files; a CI pod overrides the container command to /home/runner/run.sh, so
 # the deployment shape is chosen by the command and never by a different image.
 #
-# Two facts carried over from the retiring runner/Dockerfile:
+# Two facts carried over from runner/Dockerfile, which this script replaced and
+# which is now deleted (D2, 2026-08-18) — read them here, not in git history:
 #   - RUNNER_ALLOW_RUNASROOT=1 is REQUIRED for a pod that runs as root; it is
 #     ENV, so the Dockerfile sets it (a script cannot set ENV).
 #   - /home/runner is where the ARC chart mounts `work` (/home/runner/_work)
 #     and `dind-externals` (/home/runner/externals), so the stock layout stays.
 #
-# Ownership differs from runner/Dockerfile ON PURPOSE, and the reason is the
+# Ownership differed from runner/Dockerfile ON PURPOSE, and the reason is the
 # fold: that image ran as root, so it needed no chown. This image defaults to
 # the `dev` user (it is a devcontainer first), and an ARC pod that keeps the
 # image default runs the runner as `dev` — so /home/runner is chowned to dev.
@@ -29,8 +30,10 @@
 #
 # cictl: CGO_ENABLED=0 for a static, cross-buildable binary; the go caches this
 # install writes are removed in the SAME script — the cache-clean discipline of
-# the retiring runner/Dockerfile cictl layer (its line 87), which is the origin
-# of the 1.6 GB gate-tools fix.
+# the runner/Dockerfile cictl layer, which is the origin of the 1.6 GB
+# gate-tools fix. That file is deleted, so this script is where the discipline
+# is stated; removing the caches in the same RUN as the install is the rule, and
+# a later `rm` in a later layer reclaims nothing.
 #
 # Idempotent: apt re-install is a no-op, the tar overwrites, go install
 # overwrites.

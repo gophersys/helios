@@ -666,7 +666,7 @@ USER root
 # The scripts have done their work; the image does not ship them.
 RUN rm -rf /opt/delta
 
-# The runner semantics, carried from the retiring runner/Dockerfile.
+# The runner semantics, carried from the deleted runner/Dockerfile.
 # RUNNER_ALLOW_RUNASROOT: without it a pod that runs as root prints "Must not
 # run interactively with sudo" and exits 1 in under a second, and ARC replaces
 # the pod in a loop with no job ever starting. Inert in a devcontainer.

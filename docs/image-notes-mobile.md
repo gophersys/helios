@@ -7,8 +7,8 @@
 > **Names this document PROPOSES, which are not in the tree:**
 > `ghcr.io/gophersys/mobile`, `mobile/`, `_delta/mobile.sh`, `mobile-runner`,
 > `matrix`, and `ARG PARENT_IMAGE`. `_delta/` holds `components/*.sh` and no
-> `mobile.sh`; `runner/Dockerfile` declares `ARG BASE_IMAGE` and no
-> `PARENT_IMAGE`.
+> `mobile.sh`; `runner/Dockerfile` declared `ARG BASE_IMAGE` and no
+> `PARENT_IMAGE`, and the file itself is deleted (D2, 2026-08-18).
 >
 > **Every pin below is the value that was current when this was written.** The
 > live pins are in `flutter/Dockerfile` and they have moved since —
@@ -43,12 +43,12 @@ work. It is a rename of today's `flutter` image.
   measured at ~1.04 GB. The category-image program supersedes it. The
   `+ runner` layer is retired: all 3 ARC pools run `cloud`, which folds the
   runner in itself, the `base-runner` package is gone from ghcr, and
-  `runner/` is on disk only until the consolidation wave deletes it. A
+  `runner/` is deleted (D2, 2026-08-18). A
   `<category>-runner` child image is therefore not the shape any more — a CI
   consumer takes a pool whose image already carries the runner. The size
   measurement is kept because it is half of why the layer was dropped.
-  `ARG PARENT_IMAGE` never existed; `runner/Dockerfile` declares
-  `ARG BASE_IMAGE`.
+  `ARG PARENT_IMAGE` never existed; `runner/Dockerfile` declared
+  `ARG BASE_IMAGE`, and there is no Dockerfile to build this child from.
 - **Out of scope for the image:** iOS. Xcode cannot run in a Linux
   container. The iOS lane runs on the mini's native macOS runner (§3.2).
 

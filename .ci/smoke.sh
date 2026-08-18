@@ -111,14 +111,10 @@ fi
 # classification table, and every rule of the versions.env home applies to it
 # unchanged — an unclassified pin refuses the run just the same.
 #
-# 2 things are deliberately outside it:
+# 1 thing is deliberately outside it. runner/Dockerfile was the other, and it is
+# DELETED (D2, 2026-08-18) rather than excluded — a class table for an image no
+# run could name would have been dead text, and so was the file:
 #
-#   - runner/Dockerfile. Nothing builds `base-runner` and nothing smokes it: it
-#     left BUILD_ORDER, so no loop of either control script reaches its
-#     Dockerfile. Its pins are still mirrored by
-#     _ctl/tests/runner-residue-mirroring.test.sh, and the directory goes in the
-#     consolidation deletion wave that .claude/rules/00-identity.md lists file by
-#     file. A class table for an image no run can name would be dead text.
 #   - the pins a child INHERITS from another child. zephyr-devbox builds FROM
 #     zephyr and carries west and the Zephyr SDK, and WEST_VERSION lives in
 #     zephyr/Dockerfile — so the devbox run asserts esptool and code-server and

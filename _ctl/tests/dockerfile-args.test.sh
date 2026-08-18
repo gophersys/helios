@@ -35,7 +35,7 @@
 # Scope, deliberately narrow: only PIN-SHAPED names are checked (*_VERSION,
 # *_REF, *_CHANNEL and *_SHA256_<ARCH>). Those are the names the convention
 # governs, and they are never shell locals or inherited ENV, so the rule holds
-# with ZERO exceptions across all 6 Dockerfiles — no allowlist. A wider rule
+# with ZERO exceptions across all 5 Dockerfiles — no allowlist. A wider rule
 # needs one, and 2 references measured on 2026-08-17 are why:
 # ${VERSION_CODENAME} comes from `. /etc/os-release` inside the RUN line that
 # uses it (base/Dockerfile:654, cloud/Dockerfile:573, declared by no ARG in
@@ -46,8 +46,9 @@
 #
 # ${USERNAME} stood in that list as a third example, "from zsh itself", and it
 # is stale in both halves. It is not a dangling reference in any file: every
-# non-comment ${USERNAME} in the repository is in base/, cloud/ or runner/, and
-# all 3 declare `ARG USERNAME=dev`, so a wider rule would resolve it and never
+# non-comment ${USERNAME} in the repository is in base/ or cloud/ — measured
+# 2026-08-17, 18 and 15 of them, and 0 in the other 3 files — and both declare
+# `ARG USERNAME=dev`, so a wider rule would resolve it and never
 # flag it — flutter/, zephyr/ and zephyr-devbox/ name it only inside comments,
 # which every reader here skips. And the zsh reading it described is now a GATE
 # FAILURE rather than an exemption: `ctl.sh validate` runs
@@ -102,7 +103,6 @@ TEST_NAME="dockerfile-args.test.sh"
 # stops matching leaves a green result that read nothing.
 DOCKERFILES=(
   "base/Dockerfile"
-  "runner/Dockerfile"
   "flutter/Dockerfile"
   "zephyr/Dockerfile"
   "zephyr-devbox/Dockerfile"

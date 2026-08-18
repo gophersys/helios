@@ -42,9 +42,8 @@ source "$PROJECT_ROOT/_ctl/lib.sh"
 # `base-runner` was here and is RETIRED. The `+ runner` layer existed to make an
 # ARC pool image out of `base`; the pools run `cloud` now (gophersys/
 # infrastructure #184, all 3 pinned to the cloud digest), so the image has no
-# consumer and nothing builds it. `runner/` still holds the Dockerfile for one
-# more change — deleting the directory goes with the docs sweep — and no verb of
-# this repository reaches it any more, because every loop here walks BUILD_ORDER.
+# consumer. `runner/` is DELETED (D2, 2026-08-18) — the CI fold lives in `cloud`
+# through `_delta/components/runner.sh`, which carries the same 2 downloads.
 #
 # Filled at SOURCE time, not lazily: _ctl/tests/publish-order.test.sh and
 # _ctl/tests/scheduled-workflows.test.sh read this array out of a shell that has
@@ -59,21 +58,15 @@ done <<< "$_build_order_text"
 unset _build_order_text _image
 
 # -------- helpers --------
-# Image name -> source directory. These are 1:1 except for the `+ runner`
-# variants: one directory (`runner/`) builds `<parent>-runner` for every parent,
-# so `base-runner` resolves to `runner`. Keeping one directory is the point —
-# a second runner Dockerfile would drift from the first.
+# Image name -> source directory. 1:1 for every image of the set. The `+ runner`
+# variants were the 1 exception — one directory (`runner/`) built
+# `<parent>-runner` for every parent, so `base-runner` resolved to `runner` — and
+# they went with the directory (D2, 2026-08-18). `runner_parent` and the
+# RUNNER_PARENT thread in image_ctl went in the same edit: with no name reaching
+# the arm, both were code no invocation could enter.
 function image_dir() {
   local name="$1"
-  case "$name" in
-    *-runner) printf '%s/runner' "$PROJECT_ROOT" ;;
-    *)        printf '%s/%s' "$PROJECT_ROOT" "$name" ;;
-  esac
-}
-
-# Image name -> the RUNNER_PARENT its ctl.sh expects (runner variants only).
-function runner_parent() {
-  printf '%s' "${1%-runner}"
+  printf '%s/%s' "$PROJECT_ROOT" "$name"
 }
 
 function image_ctl() {
@@ -85,12 +78,7 @@ function image_ctl() {
     log_error "missing or non-executable: $dir/ctl.sh"
     return 1
   fi
-  # Runner variants share one directory, so the parent is passed in rather than
-  # baked into the image's own ctl.sh.
-  case "$name" in
-    *-runner) (cd "$dir" && RUNNER_PARENT="$(runner_parent "$name")" bash ./ctl.sh "$@") ;;
-    *)        (cd "$dir" && bash ./ctl.sh "$@") ;;
-  esac
+  (cd "$dir" && bash ./ctl.sh "$@")
 }
 
 # -------- commands --------
@@ -282,8 +270,9 @@ function zsh_username_run_references() {
 }
 
 # Every devcontainer.json of an image directory, 1 per line. Found by the glob
-# and not by BUILD_ORDER: `runner/` is out of BUILD_ORDER and would take a
-# devcontainer.json with no check at all on the day somebody added one.
+# and not by BUILD_ORDER: a directory outside BUILD_ORDER would otherwise take a
+# devcontainer.json with no check at all on the day somebody added one, which is
+# what `runner/` would have done for as long as it sat on disk retired.
 function devcontainer_files() {
   local file
   for file in "$PROJECT_ROOT"/*/devcontainer.json; do
