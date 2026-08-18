@@ -83,7 +83,7 @@
 # and the 2 branches that added them each took field 8 while it was alone.
 #
 #   platforms   OPTIONAL. The platforms THIS image publishes. Absent means
-#               SANCTIONED_PLATFORMS, which is what 5 of the 6 take — so the key
+#               SANCTIONED_PLATFORMS, which is what 6 of the 7 take — so the key
 #               appears only where an image is measurably NARROWER, and reading
 #               the manifest tells you which one that is. It may never be WIDER:
 #               image_platforms refuses an entry outside the sanctioned set,
@@ -102,7 +102,7 @@
 #               the unit every census figure in this repository uses. .ci/
 #               smoke.sh reads it and gates the LOADED image on it before the
 #               push, so an oversize image never reaches a consumer. Absent means
-#               NO size gate, which is what 4 of the 6 images take — the budget
+#               NO size gate, which is what 4 of the 7 images take — the budget
 #               is an acceptance metric somebody set, not a number every image
 #               owes. A budget that is present and unreadable is a FAILURE and
 #               never a skip. The comment beside each key carries the
@@ -397,7 +397,7 @@ images:
     pins: versions.env
     # versions.env is an input of this image ITSELF and not only of its parent:
     # NODE_VERSION is IN the path its toolchain-exposure layer links from, and
-    # CHROME_MAJOR_VERSION is what its smoke asserts the browser against.
+    # CHROME_MAJOR_VERSION is what its amd64 smoke asserts the browser against.
     paths:
       - ui/
       - versions.env
@@ -432,9 +432,9 @@ images:
     # one package version serves both architectures. Narrowing this image later
     # is a human decision with a measurement beside it, exactly like flutter's.
 
-    # The size budget below is PROVISIONAL, and computed from 2 MEASURED images
-    # rather than chosen — hardware's method, read the same way on 2026-08-18
-    # through the ghcr.io registry API:
+    # The size budget below is PROVISIONAL, and computed from MEASURED images
+    # rather than chosen — hardware's method, read on 2026-08-18 through the
+    # ghcr.io registry API:
     #
     #   cloud:latest (amd64) — the per-layer gzip ISIZE trailers of its 38
     #   layers sum to 5,063,539,712 bytes. Against its declared 5.75 GB budget
@@ -442,19 +442,48 @@ images:
     #   accounting runs ~1.12x the tar-stream sum for this image family.
     #
     #   research-ui-ci:latest — the image this one replaces. Its chrome+fonts
-    #   layer is 463,258,112 uncompressed bytes = 0.463 GB, and that layer is
-    #   the whole delta this image adds: the 2 layers beside it in that image
-    #   (Node 22 at 201,604,608 bytes, uv at 59,372,544) are NOT re-installed
-    #   here, because ui exposes cloud's own Node and uv at /usr/local/bin
-    #   instead of carrying a second copy of each.
+    #   layer is 463,258,112 uncompressed bytes = 0.463 GB.
     #
-    #   5.75 + 0.463 x 1.12 = 6.27, rounded to 6.3
+    # THAT LAYER IS NOT THE WHOLE DELTA, and an earlier version of this note said
+    # it was. research-ui-ci builds FROM `base`, which installs the GTK/webkit
+    # stack; `cloud` installs NONE of it. Checked both ways: a scan of all 38
+    # cloud layers finds zero hits for libgtk-3, libnss3, libcups, libasound,
+    # libatk, libgbm, libvulkan, libatspi, libpango and libcairo against positive
+    # controls, and cloud/Dockerfile plus all 12 _delta/components/*.sh name none
+    # of them while base/Dockerfile names libgtk-3-dev and libwebkit2gtk twice.
+    # So on THIS parent the chrome install also drags its whole dependency
+    # closure in, and ubuntu noble's Installed-Size for that closure is ~0.045 GB
+    # — bytes the 0.463 GB figure never contained.
     #
-    # It is an ESTIMATE of a number nothing here has built yet. The first green
-    # build measures the real size, and the budget is reset to that measurement
-    # + 5% in the same pull request. Until then a red here means "re-measure",
-    # not "drop a tool".
-    size_budget_gb: 6.3
+    #   5.75 + (0.463 + 0.045) x 1.12 = 6.32
+    #
+    # The 2 layers beside chrome in research-ui-ci (Node 22 at 201,604,608 bytes,
+    # uv at 59,372,544) are still NOT re-installed here: ui exposes cloud's own
+    # Node and uv at /usr/local/bin instead of carrying a second copy of each.
+    #
+    # THE REHEARSAL AGREES, AND ITS OWN NUMBER IS IN A DIFFERENT UNIT. Run
+    # 32151769443 (job 95767727252, 2026-08-18T15:49:14Z) is the first build of
+    # this image, and its size gate read 1,934,245,460 bytes against cloud's
+    # 1,647,731,708 in the same run — a delta of 286,513,752. That is a
+    # COMPRESSED reading: cloud's registry blobs plus its config sum to
+    # 1,647,719,707 bytes, which is the gate's figure to within 12,001 bytes of
+    # 2 builds' metadata, and it is ~3.4x under the docker-Size basis every
+    # budget in this file was set from. So it cannot be used as
+    # "measured size + 5%" — that would put this image's budget in a unit its
+    # siblings do not share. Converted at the chrome layer's own measured
+    # compression ratio (463,258,112 / 207,293,833 = 2.235), the delta is
+    # ~0.640 GB and the same arithmetic gives 5.75 + 0.640 x 1.12 = 6.47.
+    #
+    # 2 independent derivations, 6.32 and 6.47, so the budget is 6.5 and the
+    # slack over the larger one is 0.03 GB. It is still an ESTIMATE: the first
+    # build to be measured on the SAME basis as cloud's and hardware's budgets
+    # resets this row to that measurement + 5% in the same pull request. A red
+    # here means "re-measure", not "drop a tool".
+    #
+    # The gate that reads compressed bytes against uncompressed budgets is not
+    # this image's defect to fix — it makes cloud's 5.75 GB acceptance metric
+    # unfailable too — and it is reported rather than papered over here.
+    size_budget_gb: 6.5
     notes:
       job: |
         The ui image: cloud + headless Chrome and the DejaVu fallback font. Its
@@ -472,7 +501,11 @@ images:
       smoke: |
         ui inherits every tool of cloud, so the pins of versions.env are compared
         here too, and the browser major is compared through the baked
-        DENSUI_CHROME on top of them. The content group is where the rest lives:
-        the font a computed layout measures with, and node/npm/uv resolving as
-        BOTH root and dev — the check that fails if the /usr/local/bin exposure
-        is ever dropped, which no version comparison could see.
+        DENSUI_CHROME on top of them. This step runs ONE container, on
+        SMOKE_PLATFORM, so that browser comparison is about the AMD64 variant
+        alone — and unlike every other pin, the arm64 leg re-resolves this one
+        from an unpinned apt repo at publish time, so nothing compares it. The
+        content group is where the rest lives: the font a computed layout
+        measures with, and node/npm/uv resolving as BOTH root and dev — the check
+        that fails if the /usr/local/bin exposure is ever dropped, which no
+        version comparison could see.

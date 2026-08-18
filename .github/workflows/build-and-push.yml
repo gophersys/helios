@@ -1296,10 +1296,14 @@ jobs:
       - name: smoke test (native amd64)
         # ui inherits every tool of cloud, so the pins of versions.env are compared
         # here too, and the browser major is compared through the baked
-        # DENSUI_CHROME on top of them. The content group is where the rest lives:
-        # the font a computed layout measures with, and node/npm/uv resolving as
-        # BOTH root and dev — the check that fails if the /usr/local/bin exposure
-        # is ever dropped, which no version comparison could see.
+        # DENSUI_CHROME on top of them. This step runs ONE container, on
+        # SMOKE_PLATFORM, so that browser comparison is about the AMD64 variant
+        # alone — and unlike every other pin, the arm64 leg re-resolves this one
+        # from an unpinned apt repo at publish time, so nothing compares it. The
+        # content group is where the rest lives: the font a computed layout
+        # measures with, and node/npm/uv resolving as BOTH root and dev — the check
+        # that fails if the /usr/local/bin exposure is ever dropped, which no
+        # version comparison could see.
         if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/smoke.sh ui ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed

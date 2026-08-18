@@ -467,6 +467,17 @@ PIN_CLASS_TABLE
 # reads exactly that variable, and an empty value there makes it fall through to
 # its own candidate search, which passes while proving nothing about the image.
 # So this 1 row compares the version AND proves the entry point the gates use.
+#
+# WHAT IT DOES NOT COVER: the arm64 variant. This driver runs ONE container, on
+# the platform `resolve_smoke_platform` chose — `SMOKE_PLATFORM`, linux/amd64, in
+# every CI run — so every `asserted` row of every table here is a statement about
+# that variant alone. For the other images that is a small claim: both legs
+# install the same pinned tarball at the same digest. For `ui` it is not, because
+# `google-chrome-stable` is an UNPINNED apt install that the publish step
+# re-resolves for arm64 at build time. Reading the arm64 browser needs the
+# recorded follow-up in the sanctioned-platform section of
+# .claude/rules/00-identity.md — smoking arm64 out of the registry after the
+# push — and no row of this file can stand in for it.
 
 # ---------------------------------------------------------------------------
 # The child tables, 1 per child image, over that image's OWN Dockerfile.
@@ -1107,7 +1118,7 @@ fi
 # which is where a reader tempted to raise one will be standing. cloud's R4
 # history moved there whole.
 #
-# An image that declares no budget takes no gate, which is what 4 of the 6
+# An image that declares no budget takes no gate, which is what 4 of the 7
 # declare. The 2 refusals are unchanged and both are FAILURES and never skips: a
 # budget that cannot be READ, and an image whose size the daemon will not report.
 SIZE_BUDGET_BYTES="$(image_size_budget_bytes "$IMAGE")" || exit 1

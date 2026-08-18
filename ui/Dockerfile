@@ -48,9 +48,16 @@ ARG NODE_VERSION
 # consume it: google-chrome-stable is installed UNPINNED, because Google's apt
 # repo publishes only the current stable — an `=${major}.*` constraint would fail
 # the build the day the major moves rather than report the move. The row lives in
-# versions.env and .ci/smoke.sh asserts it against `${DENSUI_CHROME} --version`,
-# so a browser bump is a red smoke naming the pin and never a silent content
-# change. The full account is beside the row.
+# versions.env, and `.ci/smoke.sh` asserts it against `${DENSUI_CHROME} --version`
+# in the AMD64 container the gate build loaded — so on that architecture a browser
+# bump is a red smoke naming the pin and never a silent content change.
+#
+# ON ARM64 NOTHING COMPARES IT. That leg is built by the publish step, from this
+# same unpinned install re-resolved at that moment, and no run reads its browser
+# version. The gap is the one the sanctioned-platform section of
+# .claude/rules/00-identity.md records for every image, and its recorded
+# follow-up — smoking arm64 out of the registry after the push — is what closes
+# it. The full account is beside the versions.env row.
 
 # -------------------------------------------------------------------------
 # The pin gate. Every version above must have arrived from versions.env; an
@@ -76,7 +83,8 @@ USER root
 # time, so a version constraint would not hold an old browser: it would fail the
 # build with "Version '151.*' not found" about 4 weeks after it was written. The
 # pin that MEANS something is CHROME_MAJOR_VERSION in versions.env, which the
-# smoke compares against the browser this layer installed.
+# amd64 smoke compares against the browser this layer installed — on the arm64
+# leg this line resolves a browser that nothing afterwards reads.
 #
 # The signing key takes the shape base and cloud already use for docker's:
 # fetched to /etc/apt/keyrings as armored .asc and named by `signed-by`, so apt
