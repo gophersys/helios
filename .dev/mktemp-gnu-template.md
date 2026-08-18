@@ -1,6 +1,6 @@
 # mktemp-gnu-template
 
-phase:    wait
+phase:    submit
 repo:     gophersys/eden
 branch:   fix/mktemp-gnu-template
 worktree: ~/code/.worktrees/eden-mktemp-gnu-template
@@ -116,7 +116,16 @@ check on this PR (harness-conformance paths do not match this diff; the run was 
 manual dispatch). It becomes PR-2's input. R2-3/R2-4 (scope sentences, stricter-than-
 GNU note) + the 4x-retold narrative trim land in the post-review cleanup pass.
 
+## Final state
+PR #11. Checks on pre-cleanup head: fast PASS 3m32s (log read: repository-scripts:test
++ :lint executed), substrate PASS 7m17s. No pr-review workflow exists in eden — stated,
+not blank. Cleanup pass landed (213bc77): R2-3 leader walk fixed + env/timeout leaders
+(verifier's timeout-probe now caught, proven), R2-4 `bad` restated as the house rule,
+narrative trimmed; 67 fixture rows, 13/13 new mutants killed; scan+behaviour+shellcheck
+re-proven rc=0 in-image. Merge conditions: green checks on FINAL head + logs read.
+The harness-conformance dispatch red (TestIntegration_LiveOmp_Gated 68.6s, ledger #30,
+pre-existing, not a check on this PR) is recorded in the PR body and the program board.
+
 ## Next
-Phase 6: watch PR #11 checks (read logs, fast-green-is-not-green); pr-review verdict as
-its own read; post-review cleanup pass (R2-3, R2-4, narrative trim in test header);
-re-run gates; delete this file in the last commit; merge --merge; worktree remove.
+Delete this file (last commit), watch final-head checks, merge --merge, remove worktree,
+prove .dev gone from main.
