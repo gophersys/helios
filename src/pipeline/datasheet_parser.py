@@ -1,8 +1,13 @@
 """Datasheet PDF parser — extracts structured pin data using Claude.
 
-Uses the Claude CLI (available at /home/mateo/.local/bin/claude) with OAuth
-authentication to read PDF datasheets and extract pin tables, power
-requirements, and reference circuit information.
+Uses the Claude CLI, resolved from PATH and never a hardcoded location (the same
+rule as kicad-cli), with OAuth authentication to read PDF datasheets and extract
+pin tables, power requirements, and reference circuit information.
+
+Presence of the binary does not imply it can answer: CI's image carries the CLI
+without credentials. `_extract_via_claude` therefore returns None on any failure
+and callers fall back or raise; tests gate on the `requires_claude` marker,
+which probes usability rather than presence.
 
 Designed for Espressif chips first, extensible to any manufacturer.
 """

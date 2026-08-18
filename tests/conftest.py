@@ -4,7 +4,9 @@ Provides paths to pilot project data in ~/hardware/data/raw/.
 All paths are absolute and resolved from this file's location.
 """
 
+import functools
 import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -19,7 +21,7 @@ if str(TOOLS_DIR) not in sys.path:
 # kicad-cli (ERC, DRC, netlist export, Gerber/STEP generation) are marked
 # `requires_kicad` and skip when it is absent, rather than failing with a
 # subprocess error that looks like a code defect. CI runs them for real inside
-# ghcr.io/gophersys/research-hardware-ci — see docs/ci.md.
+# ghcr.io/gophersys/hardware — see docs/ci.md.
 HAS_KICAD = shutil.which("kicad-cli") is not None
 
 # Derived pattern data (data/patterns/*.json) is produced by the extraction
@@ -31,6 +33,46 @@ PATTERNS_DIR = Path(__file__).resolve().parent.parent / "data" / "patterns"
 HAS_PATTERNS = (PATTERNS_DIR / "subcircuit_clusters.json").is_file() and \
                (PATTERNS_DIR / "decoupling_rules.json").is_file()
 
+# Tests that shell out to the Claude CLI (live datasheet extraction, cluster
+# labelling) are marked `requires_claude` and gated on the probe below.
+#
+# Presence is NOT capability. The CI image ships the Claude CLI at
+# /home/dev/.local/bin/claude with no credentials, so `shutil.which("claude")`
+# reports a tool that answers "Not logged in · Please run /login" and exits 1.
+# The retired CI image carried no Claude CLI at all, so these tests had always
+# skipped; a `which`-only guard turned them into failures the moment CI moved to
+# the org image. That is a capability-detection bug, fixed here rather than by
+# marking the tests (.claude/rules/20-autonomous-loop.md).
+_CLAUDE_PROBE_TIMEOUT_S = 60
+
+
+@functools.lru_cache(maxsize=1)
+def claude_capability() -> tuple[bool, str]:
+    """Whether the Claude CLI can actually answer here, and why not when it cannot.
+
+    Probed at most once per session, and only when a `requires_claude` test is
+    collected — the probe is a real (tiny) CLI call, so unrelated runs must not
+    pay for it.
+    """
+    exe = shutil.which("claude")
+    if exe is None:
+        return False, "claude is not on PATH"
+    try:
+        proc = subprocess.run(
+            [exe, "--print", "1"],
+            capture_output=True,
+            text=True,
+            timeout=_CLAUDE_PROBE_TIMEOUT_S,
+            stdin=subprocess.DEVNULL,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return False, f"{exe} did not answer ({exc})"
+    if proc.returncode != 0:
+        said = (proc.stdout + proc.stderr).strip().splitlines()
+        return False, f"{exe} exited {proc.returncode}: {said[0] if said else 'no output'}"
+    return True, ""
+
 
 def pytest_configure(config):
     config.addinivalue_line(
@@ -40,6 +82,11 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers",
         "requires_patterns: needs extracted data/patterns/*.json (not yet in CI)",
+    )
+    config.addinivalue_line(
+        "markers",
+        "requires_claude: needs an AUTHENTICATED claude CLI (never runs in CI: "
+        "the image ships the CLI without credentials)",
     )
 
 
@@ -57,6 +104,21 @@ def pytest_collection_modifyitems(config, items):
             item.add_marker(skip_kicad)
         if not HAS_PATTERNS and "requires_patterns" in item.keywords:
             item.add_marker(skip_patterns)
+
+    # Probe the Claude CLI only when such a test is actually selected, and skip
+    # with the probe's own words so the log says WHY, never a bare "not
+    # available" that could equally mean "absent" or "unauthenticated".
+    claude_items = [item for item in items if "requires_claude" in item.keywords]
+    if claude_items:
+        usable, reason = claude_capability()
+        if not usable:
+            skip_claude = pytest.mark.skip(
+                reason=f"Claude CLI unusable here — {reason}. These tests make "
+                       "live CLI calls; CI has no credentials, so they skip "
+                       "there (see docs/ci.md 'Known gaps')."
+            )
+            for item in claude_items:
+                item.add_marker(skip_claude)
 
 # Root of all pilot project data
 DATA_RAW = Path(__file__).resolve().parent.parent / "data" / "raw"

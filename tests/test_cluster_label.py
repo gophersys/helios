@@ -1,17 +1,18 @@
 """Tests for cluster_label module."""
 
 import json
-import shutil
+
 import pytest
-from pathlib import Path
 
-from src.pipeline.cluster_label import label_cluster, label_all_clusters
+from src.pipeline.cluster_label import label_all_clusters, label_cluster
 
-CLAUDE_CLI = "/home/mateo/.local/bin/claude"
-has_claude = shutil.which(CLAUDE_CLI) is not None or Path(CLAUDE_CLI).exists()
+# Gated by the `requires_claude` marker (tests/conftest.py), which probes whether
+# the CLI can actually answer. The previous guard hardcoded
+# /home/mateo/.local/bin/claude, so it was false on every machine but one — and
+# it could not tell an absent CLI from an unauthenticated one.
 
 
-@pytest.mark.skipif(not has_claude, reason="Claude CLI not available")
+@pytest.mark.requires_claude
 def test_label_cluster_returns_nonempty_string():
     cluster = {
         "canonical_components": ["Package_SO:TSSOP-16_4.4x5mm_P0.65mm", "C", "R"],
@@ -22,7 +23,7 @@ def test_label_cluster_returns_nonempty_string():
     assert len(label) > 0
 
 
-@pytest.mark.skipif(not has_claude, reason="Claude CLI not available")
+@pytest.mark.requires_claude
 def test_label_all_clusters_produces_output(tmp_path):
     clusters = {
         "total_subcircuits": 1,
@@ -49,7 +50,7 @@ def test_label_all_clusters_produces_output(tmp_path):
     assert len(result["top_clusters"][0]["label"]) > 0
 
 
-@pytest.mark.skipif(not has_claude, reason="Claude CLI not available")
+@pytest.mark.requires_claude
 def test_label_all_clusters_caches_results(tmp_path):
     """Re-running should use cached labels, not re-query Claude."""
     clusters = {

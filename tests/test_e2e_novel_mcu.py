@@ -26,10 +26,7 @@ from src.pipeline.datasheet_parser import parse_datasheet
 from src.pipeline.symbol_gen import generate_symbol_file
 from src.pipeline.validate import run_erc
 
-CLAUDE_CLI = shutil.which("claude")
-
-
-@pytest.mark.skipif(not CLAUDE_CLI, reason="Claude CLI not available")
+@pytest.mark.requires_claude
 class TestNovelMCUE2E:
     """Full pipeline: datasheet PDF -> parsed pins -> symbol -> project -> ERC."""
 

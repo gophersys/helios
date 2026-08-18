@@ -39,7 +39,7 @@ def require_kicad_cli() -> str:
     if path is None:
         raise FileNotFoundError(
             "kicad-cli not found on PATH. Install KiCad 10 (see docs/ci.md), "
-            "use the devcontainer, or run inside ghcr.io/gophersys/research-hardware-ci."
+            "use the devcontainer, or run inside ghcr.io/gophersys/hardware."
         )
     return path
 
