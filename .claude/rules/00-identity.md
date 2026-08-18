@@ -112,7 +112,9 @@ that it runs inside.
    `images.yaml` like every other loop in `cmd_validate`, so a directory that is
    not an image of the manifest is not held to it —
    `_ctl/tests/fixtures/no-platform-list/ctl.sh` is a dispatcher-shaped fixture
-   and not an image.
+   and not an image. The rule's holder is `_ctl/tests/dispatcher-mode.test.sh`,
+   which proves in a staged tree that the check fires, names the file, and does
+   not hold a dispatcher outside the manifest.
 
    **`runner/` was the 1 exception, and it is DELETED.** See "The `+ runner`
    layer is retired" below. There is no exception to this rule any more: every
