@@ -26,7 +26,7 @@
 # LOUD, and never about the presence of the mechanism.
 #
 # ============================================================================
-# THE 7 RULES
+# THE 9 RULES
 # ============================================================================
 #
 #   1. scheduled_workflow_declares_a_failure_notification
@@ -91,6 +91,31 @@
 #      asked to judge — and it takes every other pod on that node with it,
 #      including the `validate` job of an unrelated repository. The blast
 #      radius of a missing integer is the cluster.
+#
+#   9. the_scan_deadline_fires_before_the_job_ceiling
+#      A trivy invocation names an explicit --timeout whose VALUE parses as a
+#      positive Go duration, and the job that holds it declares a
+#      timeout-minutes that clears that duration by SCAN_TIMEOUT_MARGIN_MINUTES.
+#
+#      The reason it is a rule: the DEFAULT shipped the failure. Trivy defaults
+#      to 5m, and on 2026-08-18 all 5 legs of run 32121496607 died against it
+#      with `context deadline exceeded` and trivy's own "Provide a higher
+#      timeout value" WARN. No CVE was involved — the CRITICAL gate of rule 2
+#      never got to run — and every other check in this file was green, because
+#      a flag that is absent is a flag no reader here was looking for. The first
+#      dual-arch publish rebuilt every image with new layer digests, so every
+#      scan ran COLD; the default had only ever survived warm ones.
+#
+#      The VALUE is parsed and not grepped, because `--timeout 0m` reads as a
+#      fix in a diff and behaves worse than the default, and `--timeout 20` is
+#      not a Go duration at all.
+#
+#      The margin is the ORDER, and the order is the whole point. Trivy's own
+#      deadline has to fire FIRST: it fails naming the deadline and prints the
+#      WARN that says to raise it, where a job timeout kills the step with a log
+#      that diagnoses nothing. A job with no timeout-minutes at all is reported
+#      too — it inherits GitHub's 360-minute default, so a hung scan holds a
+#      slot of the pool for 6 hours and the margin is a number nobody wrote.
 #
 # ============================================================================
 # WHY THE FIELD NAMES IN RULE 3 ARE THESE FIELD NAMES
@@ -173,6 +198,22 @@ NOTIFIER=".ci/notify-failure.sh"
 
 # The waiver file, and the 4 sections trivy allows in it.
 WAIVER_FILE=".ci/trivyignore.yaml"
+
+# How far a scanning job's own ceiling must sit ABOVE the scan deadline it
+# gives trivy, in minutes. Rule 9 below is about the ORDER of the 2 deadlines,
+# and this integer is what makes "above" checkable.
+#
+# 5 is sized from the run the rule exists for. Worst of the 5 jobs of run
+# 32121496607, everything the job does that is NOT the scan: 50s of setup +
+# checkout + login + trivy install, 47s to download the 108 MiB vulnerability
+# database, and 48s for trivy to unwind and print its FATAL — ~2m25s. 5 minutes
+# is that measured overhead with room, and it is a FLOOR rather than the
+# nightly's own margin, which is 10.
+#
+# It is a literal here on purpose. A test that read this number out of the
+# workflow it judges would agree with any pair of numbers, including the pair
+# that shipped the failure.
+SCAN_TIMEOUT_MARGIN_MINUTES=5
 
 # The counter-stimulus. A detector that has only ever seen correct input has
 # never been observed to fire.
@@ -332,14 +373,33 @@ function guarded_notifier_total() {
 # that means something else does not match.
 # ---------------------------------------------------------------------------
 
-# invokes_trivy <file> — 1 when the workflow really runs a scan.
+# trivy_invocation_lines <file> — the line number of every non-comment line that
+# really runs a scan, 1 per line. Silent when the file runs none.
 #
 # The binary with a subcommand, or the action. Not the bare word: the waiver
 # path .ci/trivyignore.yaml holds the string "trivy", so a looser detector reads
 # a workflow that merely mentions the waiver file as a workflow that scans, and
-# every clause below then passes over a scan that does not exist.
+# every clause below then passes over a scan that does not exist. A pinned
+# `uses: aquasecurity/setup-trivy@<sha>` is not a scan either — it INSTALLS the
+# scanner — and the subcommand list is what tells the 2 apart.
+#
+# It answers with LINES and not with a verdict, because rule 9 has to reach the
+# step that holds each invocation and then the job that holds that step.
+function trivy_invocation_lines() {
+  awk '
+    /^[[:space:]]*#/ { next }
+    /(aquasecurity\/trivy-action|(^|[[:space:]])trivy[[:space:]]+(image|fs|filesystem|repo|repository|rootfs|config|sbom))/ { print NR }
+  ' "$1"
+}
+
+# invokes_trivy <file> — 1 when the workflow really runs a scan.
+#
+# Built on the reader above, so the answer to "what is a scan" is written once.
+# Two spellings of that question in 1 file is the second declaration this
+# repository keeps deleting: they agree on the day they are written and the
+# disagreement is silent.
 function invokes_trivy() {
-  if uncommented "$1" | grep -qE '(aquasecurity/trivy-action|(^|[[:space:]])trivy[[:space:]]+(image|fs|filesystem|repo|repository|rootfs|config|sbom))'; then
+  if [[ -n "$(trivy_invocation_lines "$1")" ]]; then
     printf '1'
   else
     printf '0'
@@ -1138,6 +1198,155 @@ function image_set_defects() {
     fi
   done <<< "$expected"
 
+  printf '%s' "$out"
+}
+
+# ---------------------------------------------------------------------------
+# The scan-deadline readers (rule 9).
+#
+# 2 deadlines govern a scan and they are not the same deadline. Trivy's own
+# --timeout bounds the SCAN; a job's timeout-minutes bounds the JOB. The rule is
+# about the order between them, so both numbers have to be read as NUMBERS —
+# a reader that grepped for the flag would pass `--timeout 0m`, which is the
+# shape of a fix and the behaviour of the default.
+# ---------------------------------------------------------------------------
+
+# duration_seconds <value> — the value read as a Go duration, in seconds, and
+# EMPTY when it is not a well-formed POSITIVE one.
+#
+# Trivy parses this argument with time.ParseDuration, which takes h, m and s and
+# rejects a unitless number. Empty is the answer for `0m` as well: a deadline of
+# zero is not an explicit deadline, it is a context that has already expired,
+# and it would satisfy every reader that only looks for the flag.
+#
+# 10#0 in front of each component and not the bare value: bash reads a leading
+# zero as octal, so `08m` would be an arithmetic error rather than 8 minutes.
+function duration_seconds() {
+  local value="$1" hours minutes seconds total
+  [[ -z "$value" ]] && { printf ''; return 0; }
+  [[ "$value" =~ ^([0-9]+h)?([0-9]+m)?([0-9]+s)?$ ]] || { printf ''; return 0; }
+  hours="${BASH_REMATCH[1]:-}";   hours="${hours%h}"
+  minutes="${BASH_REMATCH[2]:-}"; minutes="${minutes%m}"
+  seconds="${BASH_REMATCH[3]:-}"; seconds="${seconds%s}"
+  total=$(( 10#0${hours} * 3600 + 10#0${minutes} * 60 + 10#0${seconds} ))
+  [[ "$total" -le 0 ]] && { printf ''; return 0; }
+  printf '%s' "$total"
+}
+
+# step_timeout_value <step slice> — the scan deadline that step declares, in
+# both spellings the policy takes: the CLI flag (`--timeout 20m`, `--timeout=20m`)
+# and the action input (`timeout: 20m`). Empty when the step declares neither,
+# and `<empty>` when it names the flag and hands it nothing.
+#
+# `timeout-minutes:` never matches: the colon has to follow the word, so a job
+# ceiling is not mistaken for a scan deadline. That confusion IS the defect one
+# level up, and a reader that made it would report the wrong number as the fix.
+function step_timeout_value() {
+  awk '
+    /^[[:space:]]*#/ { next }
+    {
+      if (match($0, /--timeout([[:space:]]*=[[:space:]]*|[[:space:]]+)/)) {
+        value = substr($0, RSTART + RLENGTH)
+        sub(/[[:space:]].*$/, "", value)
+        sub(/\\$/, "", value)
+        gsub(/^["'"'"']|["'"'"']$/, "", value)
+        print (value == "" ? "<empty>" : value)
+        exit
+      }
+      if (match($0, /^[[:space:]]*timeout:[[:space:]]*/)) {
+        value = substr($0, RSTART + RLENGTH)
+        sub(/[[:space:]]*#.*$/, "", value)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+        gsub(/^["'"'"']|["'"'"']$/, "", value)
+        print (value == "" ? "<empty>" : value)
+        exit
+      }
+    }
+  ' <<< "$1"
+}
+
+# job_of_line <file> <line> — the name of the top-level job whose block holds
+# that line, empty when no job does.
+function job_of_line() {
+  local file="$1" want="$2"
+  local name span first last
+  while IFS= read -r name; do
+    [[ -z "$name" ]] && continue
+    span="$(job_span "$file" "$name")"
+    [[ "$span" == "0:0" ]] && continue
+    first="${span%%:*}"
+    last="${span##*:}"
+    if [[ "$want" -ge "$first" && "$want" -le "$last" ]]; then
+      printf '%s' "$name"
+      return 0
+    fi
+  done < <(job_names "$file")
+  printf ''
+}
+
+# scan_deadline_defects <file> — 1 line per scan that takes no explicit,
+# well-formed deadline. Silent when every scan names one, and silent on a file
+# that runs no scan at all.
+function scan_deadline_defects() {
+  local file="$1"
+  local line slice value out=""
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    slice="$(step_slice "$file" "$line")"
+    value="$(step_timeout_value "$slice")"
+    if [[ -z "$value" ]]; then
+      out="${out:+${out}
+}line ${line}: the scan names no --timeout, so trivy takes its 5m default"
+      continue
+    fi
+    if [[ -z "$(duration_seconds "$value")" ]]; then
+      out="${out:+${out}
+}line ${line}: --timeout ${value} is not a positive Go duration"
+    fi
+  done < <(trivy_invocation_lines "$file")
+  printf '%s' "$out"
+}
+
+# scan_margin_defects <file> — 1 line per scanning job whose own ceiling does
+# not clear the deadline it gives trivy by SCAN_TIMEOUT_MARGIN_MINUTES.
+#
+# A scan with no readable deadline is NOT reported here. That defect belongs to
+# the reader above, and reporting it twice would make 1 missing flag read as 2
+# unrelated failures.
+function scan_margin_defects() {
+  local file="$1"
+  local line slice value seconds job span record minutes gap floor out=""
+  floor=$(( SCAN_TIMEOUT_MARGIN_MINUTES * 60 ))
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    slice="$(step_slice "$file" "$line")"
+    value="$(step_timeout_value "$slice")"
+    seconds="$(duration_seconds "$value")"
+    [[ -z "$seconds" ]] && continue
+
+    job="$(job_of_line "$file" "$line")"
+    if [[ -z "$job" ]]; then
+      out="${out:+${out}
+}line ${line}: this scan sits in no top-level job, so it has no ceiling to read"
+      continue
+    fi
+
+    span="$(job_span "$file" "$job")"
+    record="$(job_property_record "$file" "${span%%:*}" "${span##*:}" "timeout-minutes")"
+    minutes="${record#*$'\t'}"
+    [[ -z "$record" ]] && minutes=""
+    if [[ ! "$minutes" =~ ^[0-9]+$ ]]; then
+      out="${out:+${out}
+}job ${job}: --timeout ${value} and no timeout-minutes of its own — it inherits GitHub's 360-minute default"
+      continue
+    fi
+
+    gap=$(( 10#$minutes * 60 - seconds ))
+    if [[ "$gap" -lt "$floor" ]]; then
+      out="${out:+${out}
+}job ${job}: timeout-minutes ${minutes} does not clear --timeout ${value} by ${SCAN_TIMEOUT_MARGIN_MINUTES} minutes — the gap is ${gap}s and the floor is ${floor}s"
+    fi
+  done < <(trivy_invocation_lines "$file")
   printf '%s' "$out"
 }
 
@@ -2247,5 +2456,151 @@ while IFS= read -r relative; do
       "a scheduled run has no author watching it, so nobody is there to cancel the fan-out"
   fi
 done <<< "$scheduled"
+
+# ===========================================================================
+# 10. THE SCAN DEADLINE — trivy's own timeout fires first
+# ===========================================================================
+DEADLINE_GOOD_FIXTURE="$WORKFLOW_FIXTURES/scan-deadline-good.yml"
+DEADLINE_DEFAULT_FIXTURE="$WORKFLOW_FIXTURES/scan-deadline-default.yml"
+DEADLINE_MALFORMED_FIXTURE="$WORKFLOW_FIXTURES/scan-deadline-malformed.yml"
+DEADLINE_SHORT_JOB_FIXTURE="$WORKFLOW_FIXTURES/scan-deadline-short-job.yml"
+
+missing_fixtures=""
+for fixture in \
+  "$DEADLINE_GOOD_FIXTURE" \
+  "$DEADLINE_DEFAULT_FIXTURE" \
+  "$DEADLINE_MALFORMED_FIXTURE" \
+  "$DEADLINE_SHORT_JOB_FIXTURE"; do
+  [[ -f "$fixture" ]] || missing_fixtures="${missing_fixtures:+${missing_fixtures}
+}${fixture}"
+done
+
+if [[ -n "$missing_fixtures" ]]; then
+  fail_check "counter_stimulus_scan_deadline_fixtures_exist" \
+    "the fixtures this test proves its deadline readers with are absent:" \
+    "$missing_fixtures"
+else
+  pass_check "counter_stimulus_scan_deadline_fixtures_exist"
+
+  # -- the duration reader, in both directions --
+  assert_equal "counter_stimulus_reads_a_go_duration_as_seconds" \
+    "1200" "$(duration_seconds "20m")"
+  assert_equal "counter_stimulus_reads_a_compound_go_duration" \
+    "5400" "$(duration_seconds "1h30m")"
+  assert_equal "counter_stimulus_refuses_a_zero_deadline" \
+    "" "$(duration_seconds "0m")" \
+    "a deadline of 0 is a context that has already expired, and it satisfies every reader that only greps the flag"
+  assert_equal "counter_stimulus_refuses_a_unitless_number" \
+    "" "$(duration_seconds "20")" \
+    "trivy parses this argument with time.ParseDuration, which rejects a number with no unit"
+  assert_equal "counter_stimulus_refuses_a_word_that_is_not_a_duration" \
+    "" "$(duration_seconds "20min")"
+  assert_equal "counter_stimulus_refuses_an_absent_duration" \
+    "" "$(duration_seconds "")"
+
+  # -- the value reader finds the shape it claims to read, in both spellings --
+  deadline_good_lines="$(trivy_invocation_lines "$DEADLINE_GOOD_FIXTURE")"
+  assert_equal "counter_stimulus_finds_both_scans_of_the_good_deadline_fixture" \
+    "2" "$(printf '%s\n' "$deadline_good_lines" | grep -c .)" \
+    "one runs the binary and one uses the action; a reader that saw 1 would judge half the file"
+
+  assert_equal "counter_stimulus_reads_the_flag_spelling" \
+    "20m" "$(step_timeout_value "$(step_slice "$DEADLINE_GOOD_FIXTURE" "$(printf '%s\n' "$deadline_good_lines" | sed -n 1p)")")"
+  assert_equal "counter_stimulus_reads_the_action_input_spelling" \
+    "20m" "$(step_timeout_value "$(step_slice "$DEADLINE_GOOD_FIXTURE" "$(printf '%s\n' "$deadline_good_lines" | sed -n 2p)")")" \
+    "the action takes 'timeout: 20m'; a reader of the CLI flag alone calls that job undeadlined"
+
+  # -- THE DEADLINE detector, both directions --
+  assert_equal "counter_stimulus_leaves_a_scan_that_names_its_deadline_alone" \
+    "" "$(scan_deadline_defects "$DEADLINE_GOOD_FIXTURE")" \
+    "both jobs name an explicit positive deadline; a detector that reports them forbids its own fix"
+
+  deadline_default_report="$(scan_deadline_defects "$DEADLINE_DEFAULT_FIXTURE")"
+  assert_contains "counter_stimulus_reports_the_scan_that_takes_the_5m_default" \
+    "$deadline_default_report" "the scan names no --timeout" \
+    "that fixture carries --timeout in a COMMENT only, so a reader of prose calls it deadlined"
+
+  deadline_malformed_report="$(scan_deadline_defects "$DEADLINE_MALFORMED_FIXTURE")"
+  assert_contains "counter_stimulus_reports_the_zero_deadline" \
+    "$deadline_malformed_report" "--timeout 0m is not a positive Go duration"
+  assert_contains "counter_stimulus_reports_the_unitless_deadline" \
+    "$deadline_malformed_report" "--timeout 20 is not a positive Go duration" \
+    "the flag is present in both, which is why this rule parses the value instead of grepping the flag"
+
+  assert_equal "counter_stimulus_leaves_a_valid_deadline_under_a_short_ceiling_alone" \
+    "" "$(scan_deadline_defects "$DEADLINE_SHORT_JOB_FIXTURE")" \
+    "both scans there name 20m; the ceiling is the other rule's defect, and reporting it twice reads as 2 failures"
+
+  # -- THE MARGIN detector, both directions --
+  assert_equal "counter_stimulus_leaves_a_ceiling_that_clears_the_deadline_alone" \
+    "" "$(scan_margin_defects "$DEADLINE_GOOD_FIXTURE")" \
+    "30 clears 20m by 10 minutes, and the notify job runs no scan and must never be asked for either number"
+
+  margin_report="$(scan_margin_defects "$DEADLINE_SHORT_JOB_FIXTURE")"
+  assert_contains "counter_stimulus_reports_the_ceiling_below_the_deadline" \
+    "$margin_report" "job under-cut: timeout-minutes 15 does not clear --timeout 20m" \
+    "the runner kills that scan 5 minutes before trivy would have said why"
+  assert_contains "counter_stimulus_reports_the_job_with_no_ceiling_at_all" \
+    "$margin_report" "job no-ceiling: --timeout 20m and no timeout-minutes of its own" \
+    "an absent ceiling is 360 minutes, and a margin nobody wrote down is not a margin"
+
+  assert_equal "counter_stimulus_leaves_a_malformed_deadline_to_the_other_rule" \
+    "" "$(scan_margin_defects "$DEADLINE_MALFORMED_FIXTURE")" \
+    "there is no number to compare against there, and inventing one would report 1 defect as 2"
+fi
+
+# THE LIVENESS CLAUSE. Both rules below are keyed on "this line runs a scan", so
+# over a file the invocation reader cannot see they are green — including a file
+# whose scan step was deleted. `scanning` holds both copies of the nightly: the
+# provider file is the source of truth and .github/workflows/ holds a byte copy
+# (platform-policy.test.sh compares the pair with cmp). Both are read here for
+# the reason the header of this file gives — a test that only holds while
+# another test file is healthy is a test with an undeclared dependency.
+for directory in "${WORKFLOW_DIRECTORIES[@]}"; do
+  expected="${directory}/${NIGHTLY_WORKFLOW}"
+  scan_lines=""
+  [[ -f "$REPO_ROOT/$expected" ]] && scan_lines="$(trivy_invocation_lines "$REPO_ROOT/$expected")"
+  if [[ -n "$scan_lines" ]]; then
+    pass_check "${expected}_holds_a_scan_line_the_deadline_rules_can_read"
+  else
+    fail_check "${expected}_holds_a_scan_line_the_deadline_rules_can_read" \
+      "this file is absent, or no line of it invokes a trivy scan" \
+      "the 2 rules below are keyed on that set, so with none they pass over nothing"
+  fi
+done
+
+# THE RULE. Keyed on "this workflow scans", like rule 2.
+while IFS= read -r relative; do
+  [[ -z "$relative" ]] && continue
+  file="$REPO_ROOT/$relative"
+
+  deadline_defects="$(scan_deadline_defects "$file")"
+  if [[ -z "$deadline_defects" ]]; then
+    pass_check "${relative}_names_an_explicit_scan_deadline"
+  else
+    fail_check "${relative}_names_an_explicit_scan_deadline" \
+      "$deadline_defects" \
+      "trivy's default is 5m, and on 2026-08-18 all 5 legs of run 32121496607 died against it" \
+      "with 'context deadline exceeded' — no CVE was involved, the CRITICAL gate never got to run" \
+      "the first dual-arch publish gave every image new layer digests, so every scan ran COLD;" \
+      "the default had only ever survived warm ones, which is how a budget this tight looked healthy" \
+      "fix: give the scan '--timeout <duration>' with a positive Go duration, and raise the job" \
+      "ceiling with it — the VALUE is parsed here, so '--timeout 0m' is not a fix"
+
+  fi
+
+  margin_defects="$(scan_margin_defects "$file")"
+  if [[ -z "$margin_defects" ]]; then
+    pass_check "${relative}_job_ceiling_clears_the_scan_deadline"
+  else
+    fail_check "${relative}_job_ceiling_clears_the_scan_deadline" \
+      "$margin_defects" \
+      "the ORDER is the point, not either number: trivy's own timeout has to fire FIRST" \
+      "it fails naming the deadline and prints the WARN that says to raise it, where a job" \
+      "timeout kills the step with a log that diagnoses nothing — and a scheduled run has no" \
+      "author watching it, so nobody is there to guess" \
+      "fix: raise this job's timeout-minutes to at least ${SCAN_TIMEOUT_MARGIN_MINUTES} minutes above the scan deadline"
+  fi
+done <<< "$scanning"
 
 test_summary "$TEST_NAME"

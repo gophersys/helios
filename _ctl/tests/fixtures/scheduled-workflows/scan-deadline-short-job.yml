@@ -1,0 +1,49 @@
+name: fixture-scan-deadline-short-job
+
+# A FIXTURE, not a workflow. See good-nightly.yml.
+#
+# The ORDER is the rule, not either number on its own. Trivy's own timeout has
+# to fire FIRST: it fails naming the deadline and prints the WARN that says to
+# raise it, where a job timeout kills the step with a log that diagnoses
+# nothing — and at 09:00 UTC nobody is there to guess.
+#
+# Both jobs name a valid --timeout 20m, so the deadline rule is silent here and
+# only the margin rule speaks. They break the order in the 2 ways it can break:
+#
+#   under-cut    a job ceiling BELOW the scan deadline. The scan is killed at 15
+#                minutes by the runner, 5 minutes before trivy would have said
+#                why.
+#   no-ceiling   no job ceiling at all. It inherits GitHub's 360-minute default,
+#                so a hung scan holds a slot of the pool for 6 hours every
+#                night — and the margin is a number nobody wrote down.
+#
+# The single-line `run:` and the `--timeout=` spelling are here on purpose: the
+# reader must find the value in both, or the fix for a red would be to reformat
+# the line.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  under-cut:
+    timeout-minutes: 15
+    runs-on: arc-build
+    steps:
+      - name: scan the image
+        run: |
+          trivy image \
+            --timeout 20m \
+            --severity CRITICAL \
+            --exit-code 1 \
+            ghcr.io/gophersys/base:latest
+
+  no-ceiling:
+    runs-on: arc-build
+    steps:
+      - name: scan the image
+        run: trivy image --timeout=20m --severity CRITICAL --exit-code 1 ghcr.io/gophersys/base:latest
