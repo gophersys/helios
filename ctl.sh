@@ -216,6 +216,57 @@ function shell_scripts() {
   done < <(find "$PROJECT_ROOT" -type f -not -path '*/.git/*' | sort)
 }
 
+# zsh_username_run_references <dockerfile> — every RUN line that reads
+# ${USERNAME} or $USERNAME AFTER the file switches SHELL to zsh, as
+# `<line number>: <line>`. Prints nothing for a file that never makes that
+# switch, and nothing for a reference made BEFORE it.
+#
+# THE TRAP (ledger #105). zsh sets USERNAME itself: it is a special parameter
+# tied to the EFFECTIVE user, and zsh overwrites whatever the environment held
+# at startup. Docker does not expand a RUN line — it hands the string to the
+# shell — so under `SHELL ["/usr/bin/zsh", ...]` a `chown ${USERNAME}` means the
+# user the layer happens to be running as, and NOT `ARG USERNAME=dev`. In a root
+# layer it silently means `chown root`.
+#
+# The failure is silent by construction: the build succeeds, the image ships,
+# and the wrong ownership surfaces at RUNTIME in another image. It has already
+# happened here. flutter/Dockerfile chowned /opt/flutter and /opt/android-sdk
+# through ${USERNAME} from zsh-as-root layers, so both shipped root-owned, and
+# `flutter --version` as `dev` exited 128 with "detected dubious ownership in
+# repository at '/opt/flutter'" — found by the first smoke run that ever
+# executed it, not by a build.
+#
+# An ENV, a USER or a LABEL line is NOT a reference this reports, and that is
+# not an omission: the Dockerfile PARSER expands those, out of the build args,
+# and no shell is involved. Only RUN reaches zsh.
+#
+# THE HOLE, stated rather than left for a reader to find: the trigger is the
+# SHELL line in THIS file. flutter, zephyr and zephyr-devbox declare no SHELL of
+# their own and INHERIT zsh through their FROM, so their RUN layers run under
+# exactly the same shell and this reader stays silent on them. All 3 hardcode
+# `dev` today, and each says so in a header comment, so the hole costs nothing
+# at the moment — closing it means resolving the FROM graph here, which is a
+# design decision and not a widened regex.
+function zsh_username_run_references() {
+  local file="$1"
+  [[ -f "$file" ]] || return 0
+  awk '
+    /^[[:space:]]*SHELL[[:space:]].*zsh/ { zsh = 1; in_run = 0; next }
+    {
+      if (!in_run) {
+        if ($0 ~ /^[[:space:]]*RUN[[:space:]]/) { in_run = 1 } else { next }
+      }
+      # A Dockerfile comment line inside a RUN continuation is stripped by the
+      # parser and never reaches the shell, so it is not a reference.
+      if (zsh && $0 !~ /^[[:space:]]*#/ &&
+          (($0 ~ /\$USERNAME([^A-Za-z0-9_]|$)/) || ($0 ~ /\$\{USERNAME[^A-Za-z0-9_]/))) {
+        printf "%d: %s\n", NR, $0
+      }
+      if ($0 !~ /\\[[:space:]]*$/) { in_run = 0 }
+    }
+  ' "$file"
+}
+
 # Every devcontainer.json of an image directory, 1 per line. Found by the glob
 # and not by BUILD_ORDER: `runner/` is out of BUILD_ORDER and would take a
 # devcontainer.json with no check at all on the day somebody added one.
@@ -314,9 +365,10 @@ function cmd_test() {
 }
 
 # Validate: shellcheck every shell script, jq every project.json, hold every
-# devcontainer.json to its 4 contract properties, hadolint every Dockerfile, and
+# devcontainer.json to its 4 contract properties, hadolint every Dockerfile,
 # refuse Dockerfiles that hardcode a semver-shaped version inside a RUN line
-# instead of threading an ARG.
+# instead of threading an ARG, and refuse a ${USERNAME} that a zsh RUN layer
+# would read as the effective user.
 function cmd_validate() {
   require_cmd shellcheck jq
   local rc=0
@@ -366,6 +418,18 @@ function cmd_validate() {
     if [[ -n "$bad" ]]; then
       log_error "${name}/Dockerfile: hardcoded version(s) in RUN lines — use ARGs"
       printf '%s\n' "$bad" >&2
+      rc=1
+    fi
+
+    # The zsh-$USERNAME trap. See zsh_username_run_references: under a zsh
+    # SHELL, ${USERNAME} in a RUN is the EFFECTIVE user and never the ARG.
+    local trapped
+    trapped="$(zsh_username_run_references "$dir/Dockerfile")"
+    if [[ -n "$trapped" ]]; then
+      log_error "${name}/Dockerfile: \${USERNAME} in a RUN after the SHELL switched to zsh"
+      log_error "zsh auto-sets USERNAME to the EFFECTIVE user, so this reads the layer's uid and not the ARG"
+      log_error "write the literal 'dev' — the pattern flutter/, zephyr/ and zephyr-devbox/ document in their headers"
+      printf '%s\n' "$trapped" >&2
       rc=1
     fi
   done
@@ -435,7 +499,8 @@ Repo-wide commands:
                                    UBUNTU_BASE_REF pins (default ubuntu:24.04)
   list                             Print managed image refs
   validate                         shellcheck, jq, devcontainer.json contract,
-                                   hadolint, ARG-discipline checks
+                                   hadolint, ARG-discipline checks, the
+                                   zsh-\$USERNAME trap
   test                             Run every _ctl/tests/*.test.sh
   help                             Show this message
 EOF

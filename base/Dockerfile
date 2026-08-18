@@ -158,8 +158,17 @@ ARG GITLEAKS_SHA256_AMD64
 
 # Non-root dev user identity. These 3 are build parameters and not pins: no
 # upstream publishes a uid, so they keep their values here.
+#
+# THE ARG IS READ BY THE PARSER AND NOT BY A SHELL. Every use of ${USERNAME}
+# below is an ENV, a USER or a RUN that runs BEFORE the SHELL switches to zsh,
+# and that is now a rule the gate holds rather than a habit: zsh auto-sets
+# USERNAME to the effective user, so a ${USERNAME} in a RUN under zsh reads the
+# layer's uid and never this value. `zsh_username_run_references` in ctl.sh
+# fails `validate` naming the file and the line (ledger #105). The 9 RUN uses
+# that stood below the switch are the literal `dev` now.
+#
 # DL3064's secret-name heuristic fires on 'USERNAME'. This is a username
-# LITERAL, not a credential. Ledger #105 owns the deeper zsh-$USERNAME trap.
+# LITERAL, not a credential.
 # hadolint ignore=DL3064
 ARG USERNAME=dev
 ARG USER_UID=1000
@@ -360,16 +369,16 @@ SHELL ["/usr/bin/zsh", "-o", "pipefail", "-c"]
 # yq — multi-arch binary from Mike Farah's releases. Pinned to match the jq
 # ecosystem; installed under /home/dev/.local/bin to stay out of /usr. Its 2
 # ARGs are in the block at the top, with every other pin.
-RUN mkdir -p "/home/${USERNAME}/.local/bin" \
+RUN mkdir -p "/home/dev/.local/bin" \
  && case "${TARGETPLATFORM}" in \
       linux/amd64) ARCH=amd64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${ARCH}" \
-      "/home/${USERNAME}/.local/bin/yq" \
+      "/home/dev/.local/bin/yq" \
       "${YQ_SHA256_AMD64}" YQ_SHA256_AMD64 \
- && chmod +x "/home/${USERNAME}/.local/bin/yq"
+ && chmod +x "/home/dev/.local/bin/yq"
 # NOTE: no --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 # nvm + Node LTS + corepack (yarn, pnpm). The nvm installer inspects $SHELL
@@ -399,7 +408,7 @@ RUN /usr/local/lib/gophersys/fetch-verified.sh \
       "${UV_SHA256_NOARCH}" UV_SHA256_NOARCH \
  && sh /tmp/uv-install.sh \
  && rm -f /tmp/uv-install.sh \
- && "/home/${USERNAME}/.local/bin/uv" --version
+ && "/home/dev/.local/bin/uv" --version
 
 # Go — official tarball, TARGETPLATFORM-aware. Installed under /home/dev/go
 # so /usr is not touched.
@@ -443,7 +452,7 @@ RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install m
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/gophersys/hnslint/cmd/hnslint@v${HNSLINT_VERSION}" \
  && go clean -modcache \
  && go clean -cache \
- && rm -rf "${GOPATH}/pkg/mod" "/home/${USERNAME}/.cache/go-build"
+ && rm -rf "${GOPATH}/pkg/mod" "/home/dev/.cache/go-build"
 # NOTE: no --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 USER root
 
@@ -705,12 +714,12 @@ RUN case "${TARGETPLATFORM}" in \
 # duplicate of that same file.
 USER ${USERNAME}
 # hadolint ignore=DL3013
-RUN "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" \
+RUN "/home/dev/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" \
       --with "ansible==${ANSIBLE_VERSION}" \
       "ansible-core==${ANSIBLE_CORE_VERSION}" \
- && "/home/${USERNAME}/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" "oci-cli==${OCI_CLI_VERSION}" \
- && "/home/${USERNAME}/.local/bin/uv" cache clean \
- && rm -rf "/home/${USERNAME}/.cache/uv"
+ && "/home/dev/.local/bin/uv" tool install --python "${PYTHON_PACKAGE}" "oci-cli==${OCI_CLI_VERSION}" \
+ && "/home/dev/.local/bin/uv" cache clean \
+ && rm -rf "/home/dev/.cache/uv"
 # NOTE: no ansible/oci --version smoke here — fails under QEMU cross-arch build; verify in post-build smoke test
 
 # Convenience: path shims for zsh so interactive logins see all of the

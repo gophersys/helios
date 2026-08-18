@@ -36,9 +36,25 @@
 # *_REF, *_CHANNEL and *_SHA256_<ARCH>). Those are the names the convention
 # governs, and they are never shell locals or inherited ENV, so the rule holds
 # with ZERO exceptions across all 6 Dockerfiles — no allowlist. A wider rule
-# needs one: ${VERSION_CODENAME} comes from `. /etc/os-release`, ${WEST_VENV}
-# from the parent image's ENV, ${USERNAME} from zsh itself. An allowlist is a
-# place for a real defect to hide, so this test does not open one.
+# needs one, and 2 references measured on 2026-08-17 are why:
+# ${VERSION_CODENAME} comes from `. /etc/os-release` inside the RUN line that
+# uses it (base/Dockerfile:654, cloud/Dockerfile:573, declared by no ARG in
+# either file), and ${WEST_VENV} comes from the parent image's ENV
+# (zephyr-devbox/Dockerfile:106 and :112, declared in zephyr/Dockerfile and not
+# in the file that reads it). An allowlist is a place for a real defect to hide,
+# so this test does not open one.
+#
+# ${USERNAME} stood in that list as a third example, "from zsh itself", and it
+# is stale in both halves. It is not a dangling reference in any file: every
+# non-comment ${USERNAME} in the repository is in base/, cloud/ or runner/, and
+# all 3 declare `ARG USERNAME=dev`, so a wider rule would resolve it and never
+# flag it — flutter/, zephyr/ and zephyr-devbox/ name it only inside comments,
+# which every reader here skips. And the zsh reading it described is now a GATE
+# FAILURE rather than an exemption: `ctl.sh validate` runs
+# zsh_username_run_references over each Dockerfile, and a ${USERNAME} in a RUN
+# line after the file switches SHELL to zsh fails the build naming the file and
+# the line (_ctl/tests/zsh-username.test.sh holds that reader from both sides).
+# A name to allowlist and a name the gate refuses are not the same kind of name.
 #
 # *_SHA256_<ARCH> joined the governed shape with the download-checksums change,
 # and it belongs here for exactly the reason a version does. A digest ARG is a

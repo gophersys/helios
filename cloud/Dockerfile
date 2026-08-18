@@ -137,8 +137,16 @@ ARG OMP_VERSION
 ARG CODEX_VERSION
 
 # Non-root dev user identity.
+# THE ARG IS READ BY THE PARSER AND NOT BY A SHELL. Every use of ${USERNAME}
+# below is an ENV, a USER or a RUN that runs BEFORE the SHELL switches to zsh,
+# and that is now a rule the gate holds rather than a habit: zsh auto-sets
+# USERNAME to the effective user, so a ${USERNAME} in a RUN under zsh reads the
+# layer's uid and never this value. `zsh_username_run_references` in ctl.sh
+# fails `validate` naming the file and the line (ledger #105). The 5 RUN uses
+# that stood below the switch are the literal `dev` now.
+#
 # DL3064's secret-name heuristic fires on 'USERNAME'. This is a username
-# LITERAL, not a credential. Ledger #105 owns the deeper zsh-$USERNAME trap.
+# LITERAL, not a credential.
 # hadolint ignore=DL3064
 ARG USERNAME=dev
 ARG USER_UID=1000
@@ -318,16 +326,16 @@ SHELL ["/usr/bin/zsh", "-o", "pipefail", "-c"]
 
 # yq — multi-arch binary from Mike Farah's releases. Installed under
 # /home/dev/.local/bin to stay out of /usr.
-RUN mkdir -p "/home/${USERNAME}/.local/bin" \
+RUN mkdir -p "/home/dev/.local/bin" \
  && case "${TARGETPLATFORM}" in \
       linux/amd64) ARCH=amd64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${ARCH}" \
-      "/home/${USERNAME}/.local/bin/yq" \
+      "/home/dev/.local/bin/yq" \
       "${YQ_SHA256_AMD64}" YQ_SHA256_AMD64 \
- && chmod +x "/home/${USERNAME}/.local/bin/yq"
+ && chmod +x "/home/dev/.local/bin/yq"
 
 # nvm + Node LTS + corepack (yarn, pnpm). The nvm installer inspects $SHELL
 # and refuses to run when it sees zsh, so we override $SHELL for this RUN
@@ -365,7 +373,7 @@ RUN /usr/local/lib/gophersys/fetch-verified.sh \
       "${UV_SHA256_NOARCH}" UV_SHA256_NOARCH \
  && sh /tmp/uv-install.sh \
  && rm -f /tmp/uv-install.sh \
- && "/home/${USERNAME}/.local/bin/uv" --version
+ && "/home/dev/.local/bin/uv" --version
 
 # Go — official tarball, TARGETPLATFORM-aware. Installed under /home/dev/go
 # so /usr is not touched.
@@ -407,7 +415,7 @@ RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "github.com/gophersys/hnslint/cmd/hnslint@v${HNSLINT_VERSION}" \
  && go clean -modcache \
  && go clean -cache \
- && rm -rf "${GOPATH}/pkg/mod" "/home/${USERNAME}/.cache/go-build"
+ && rm -rf "${GOPATH}/pkg/mod" "/home/dev/.cache/go-build"
 USER root
 
 # -------------------------------------------------------------------------
