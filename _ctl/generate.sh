@@ -266,6 +266,18 @@ JOB_RUNNER
       # of quietly asserting against the last image that was published.
 JOB_ENV
   printf '      SMOKE_REF: %s\n' "$smoke_ref"
+  # A job-level key OVERRIDES the workflow-level one for this job only, so the
+  # narrower image carries its exception where it applies and the other 4 read
+  # the sanctioned set. It is emitted only where the 2 differ: a key repeating
+  # the value above it is a second declaration waiting to drift.
+  local platforms
+  platforms="$(image_platforms "$name")" || return 1
+  if [[ "$platforms" != "$SANCTIONED_PLATFORMS" ]]; then
+    printf '      # This image publishes a NARROWER set than the sanctioned one, and\n'
+    printf '      # images.yaml carries the measurement that justifies it. Never wider:\n'
+    printf '      # image_platforms refuses an entry outside SANCTIONED_PLATFORMS.\n'
+    printf '      PLATFORMS: %s\n' "$platforms"
+  fi
   if [[ -n "$parent" ]]; then
     emit_note '      ' "$name" base_tag
     printf "      BASE_TAG: \${{ needs.%s.outputs.built == 'true' && needs.%s.outputs.short || 'latest' }}\n" \
@@ -354,17 +366,17 @@ JOB_VERSIONS
         # ship the same build. The second build reads the cache this one writes,
         # so publishing costs a layer copy rather than a rebuild.
         #
-        # `load: true` takes 1 platform: buildx writes a manifest LIST for 2 and
-        # the image store holds a single image. That holds for as long as
-        # PLATFORMS names 1 platform — read the arm64 note at the top of
-        # _ctl/tests/publish-order.test.sh before widening it.
+        # SMOKE_PLATFORM and not PLATFORMS: `load: true` takes 1 platform, and
+        # the arm64 half of the publish below is therefore NOT gated by a smoke
+        # run in this phase. The env block at the top of this file states that
+        # in full.
 JOB_BUILD_HEAD
   printf '        if: %s\n' "$BUILD_GATE"
   printf '        uses: %s\n' "$ACTION_BUILD_PUSH"
   printf '        with:\n'
   printf '          context: %s\n' "$context"
   printf '          file: %s\n' "$dockerfile"
-  printf '          platforms: ${{ env.PLATFORMS }}\n'
+  printf '          platforms: ${{ env.SMOKE_PLATFORM }}\n'
   printf '          push: false\n'
   printf '          load: true\n'
   printf '%s\n' "$build_args_block"
@@ -380,9 +392,14 @@ JOB_BUILD_HEAD
   cat <<'JOB_PUBLISH_HEAD'
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
-        # build-args, same platform — so buildx resolves every layer from the
-        # cache that step wrote and this one only uploads. It writes no cache of
-        # its own for that reason.
+        # build-args — so buildx resolves every amd64 layer from the cache that
+        # step wrote and uploads it. It writes no cache of its own for that
+        # reason.
+        #
+        # The platform list is WIDER here than in the gate step: the amd64 leg
+        # comes from that cache, and every other leg is built now, on the node
+        # buildx appended for it. So this step is the one that runs the arm64
+        # build, and an arm64 failure surfaces HERE rather than in the gate.
 JOB_PUBLISH_HEAD
   printf '        if: %s\n' "$BUILD_GATE"
   printf '        uses: %s\n' "$ACTION_BUILD_PUSH"
@@ -438,8 +455,8 @@ FILE_BANNER
 
   printf '# Publishes the IDP image set (%s)\n' "$set_phrase"
   cat <<'FILE_HEADER_A'
-# to the GitHub Container Registry. Every image is built for linux/amd64. On
-# semver tag pushes (v*) we also publish a :v<semver> tag.
+# to the GitHub Container Registry, for every platform the env PLATFORMS key
+# names. On semver tag pushes (v*) we also publish a :v<semver> tag.
 # Flutter and zephyr consume base — and zephyr-devbox consumes zephyr — via
 # BASE_TAG build-arg set to the commit short SHA so the child layer FROMs the
 # freshly pushed parent.
@@ -535,18 +552,40 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   OWNER: gophersys
-  # 1 platform for every image in this workflow. There were 3 keys here, and the
-  # 2 narrow ones each carried a measurement: the ARC nodes are amd64, and the 3
-  # live zephyr-devbox pods sit on amd64 nodes. The wide one had no such
-  # measurement. No arm64 consumer can be verified for any image
-  # (gophersys/infrastructure docs/debt-register.md D42), and the arm64 base that
-  # was published was an amd64 Ubuntu userland carrying aarch64 Go binaries.
-  # This value is SANCTIONED_PLATFORMS in _ctl/lib.sh, written in by the
-  # generator, and the verify-published step in each job is what proves the
-  # registry agrees.
+  # The platforms an image of this workflow PUBLISHES by default. This value is
+  # SANCTIONED_PLATFORMS in _ctl/lib.sh, written in by the generator, and the
+  # verify-published step in each job is what proves the registry agrees. It is
+  # not a key to edit here: edit the library and regenerate.
+  #
+  # A job may carry a PLATFORMS key of its OWN, which overrides this one for that
+  # job. It comes from the image's `platforms` key in images.yaml, it may only be
+  # NARROWER, and the manifest carries the measurement beside it. flutter is the
+  # 1 image that declares one today: Flutter publishes no linux-arm64 SDK.
 FILE_HEADER_B
 
   printf '  PLATFORMS: %s\n' "$SANCTIONED_PLATFORMS"
+  cat <<'FILE_HEADER_C'
+  # The platform the SMOKE step builds and asserts, and the ONE architecture
+  # this workflow gates content on.
+  #
+  # `load: true` takes 1 platform — buildx writes a manifest LIST for 2 and the
+  # docker image store holds a single image — so the gate build names 1, and
+  # this is the one the arc-build pool runs NATIVELY. The version checks the
+  # Dockerfiles dropped are the reason it has to be native: they cannot run
+  # under emulation.
+  #
+  # SAY IT PLAINLY: the arm64 content of every image is NOT smoke-gated at
+  # publish time in this phase. The amd64 smoke gates the publish for both
+  # variants, and the arm64 variant ships on the strength of the same build
+  # definition, the same pins and the per-download digest comparison. Smoking
+  # arm64 out of the registry after the push is the recorded follow-up, and it
+  # is a decision about what "publish" means to this repository — read the arm64
+  # note at the top of _ctl/tests/publish-order.test.sh before taking it.
+  #
+  # .ci/smoke.sh reads this same name: it is a choice WITHIN the sanctioned set
+  # and never a way around it, so a value outside PLATFORMS fails there.
+  SMOKE_PLATFORM: linux/amd64
+FILE_HEADER_C
   printf '\njobs:\n'
 
   local leading_blank=""

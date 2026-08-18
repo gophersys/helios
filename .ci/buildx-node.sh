@@ -30,11 +30,12 @@
 # at /etc/buildkit-certs/. A native arm64 build there measured 3.44x faster than
 # the same build emulated on an amd64 node.
 #
-# It is wired and it does not run. SANCTIONED_PLATFORMS in _ctl/lib.sh is
-# `linux/amd64` alone (debt D42 — no arm64 consumer can be verified for any
-# image), so this file appends nothing today. The day that list widens, the
-# builder gains the node with no edit here: the switch below reads the library
-# rather than repeating its value.
+# It is wired AND IT RUNS. SANCTIONED_PLATFORMS in _ctl/lib.sh names
+# `linux/arm64`, so the switch below appends the node on every build — and it
+# took no edit here, because that switch reads the library rather than repeating
+# its value. The first dual-arch build is therefore the mini's first real work:
+# an unreachable mini, an expired client PEM or a stopped buildkitd all surface
+# at `--bootstrap` below, in a step that names them.
 #
 # THIS FILE NAMES linux/arm64 ON PURPOSE, and it must therefore stay out of
 # BUILD_PATH_FILES in _ctl/tests/platform-policy.test.sh. That test forbids the

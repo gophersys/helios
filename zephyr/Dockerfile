@@ -25,6 +25,7 @@ ARG BUILDPLATFORM
 ARG WEST_VERSION=1.5.0                                                 # latest LTS as of 2026-04-19
 ARG ZEPHYR_SDK_VERSION=1.0.1                                           # latest LTS as of 2026-04-19
 ARG ZEPHYR_SDK_SHA256_AMD64=ca9bc0ff66fafca1dac9d592a36d953cf16d096a9d09b1c0357f021cf9f6a7eb  # upstream-published: https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v1.0.1/sha256.sum
+ARG ZEPHYR_SDK_SHA256_ARM64=d79c5bfc68e679488659bea289a4026e52a64f03338875c8c9c850fff13cee30  # upstream-published: https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v1.0.1/sha256.sum
 ARG ZSDK_TOOLCHAINS=arm-zephyr-eabi,riscv64-zephyr-elf                 # latest LTS as of 2026-04-19
 
 # NOTE: the non-root user is hardcoded as `dev` throughout this Dockerfile
@@ -94,14 +95,15 @@ ENV ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk \
 
 # hadolint ignore=DL4006,DL3003,SC2086
 RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=x86_64 ;; \
+      linux/amd64) ARCH=x86_64; SHA256="${ZEPHYR_SDK_SHA256_AMD64}"; SHA256_PIN=ZEPHYR_SDK_SHA256_AMD64 ;; \
+      linux/arm64) ARCH=aarch64; SHA256="${ZEPHYR_SDK_SHA256_ARM64}"; SHA256_PIN=ZEPHYR_SDK_SHA256_ARM64 ;; \
       *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
     esac \
  && mkdir -p "${ZEPHYR_SDK_INSTALL_DIR}" \
  && /usr/local/lib/gophersys/fetch-verified.sh \
       "https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v${ZEPHYR_SDK_VERSION}/zephyr-sdk-${ZEPHYR_SDK_VERSION}_linux-${ARCH}_minimal.tar.xz" \
       /tmp/zsdk.tar.xz \
-      "${ZEPHYR_SDK_SHA256_AMD64}" ZEPHYR_SDK_SHA256_AMD64 \
+      "${SHA256}" "${SHA256_PIN}" \
  && tar -C "${ZEPHYR_SDK_INSTALL_DIR}" --strip-components=1 -xJf /tmp/zsdk.tar.xz \
  && rm /tmp/zsdk.tar.xz \
  && ( cd "${ZEPHYR_SDK_INSTALL_DIR}" \
@@ -121,10 +123,22 @@ RUN case "${TARGETPLATFORM}" in \
 # otherwise a minimal fallback rule allowing `plugdev` members raw access to
 # typical USB CMSIS-DAP descriptors.
 # -------------------------------------------------------------------------
+# The guard matched the sysroot by its ARCH and the copy beside it matched by a
+# glob. The 2 agreed on amd64 and disagreed silently on arm64: the aarch64 SDK
+# ships the same 60-openocd.rules under aarch64-pokysdk-linux, so the guard was
+# false, the layer wrote only the fallback rules below, and nothing said so. A
+# skip nobody is told about is the failure class this repository refuses
+# everywhere else.
+#
+# `find` and not a shell glob: this file inherits zsh through its FROM, and zsh
+# treats a glob that matches nothing as an ERROR rather than as a literal, so a
+# glob is only safe here while something guarantees the match. find does its own
+# matching and behaves identically under every shell.
 RUN mkdir -p /etc/udev/rules.d \
- && if [ -d "${ZEPHYR_SDK_INSTALL_DIR}/sysroots/x86_64-pokysdk-linux/usr/share/openocd/contrib" ]; then \
-      cp -v "${ZEPHYR_SDK_INSTALL_DIR}"/sysroots/*-pokysdk-linux/usr/share/openocd/contrib/60-openocd.rules \
-        /etc/udev/rules.d/ || true; \
+ && OPENOCD_RULES="$(find "${ZEPHYR_SDK_INSTALL_DIR}/sysroots" \
+      -path '*/usr/share/openocd/contrib/60-openocd.rules' -print -quit)" \
+ && if [ -n "${OPENOCD_RULES}" ]; then \
+      cp -v "${OPENOCD_RULES}" /etc/udev/rules.d/; \
     fi \
  && { \
       echo '# gophersys/zephyr — common dev board udev rules.'; \

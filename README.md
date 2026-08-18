@@ -231,14 +231,21 @@ the marker file gives a probe or an operator machine-readable state to find.
 
 ## Sanctioned-platform policy
 
-Every image here publishes **1** platform: `linux/amd64`. `SANCTIONED_PLATFORMS`
-in `_ctl/lib.sh` declares it, and it is the only place a platform is named. A
-platform outside that set fails the guard and names itself, so a future edit that
-re-adds one fails loudly instead of quietly restoring an emulated build.
+The sanctioned set is **2** platforms: `linux/amd64` and `linux/arm64`.
+`SANCTIONED_PLATFORMS` in `_ctl/lib.sh` declares them, and it is the only place a
+platform is named. A platform outside that set fails the guard and names itself,
+so an edit that adds a third fails loudly instead of quietly restoring an
+emulated build.
+
+4 of the 5 images publish both. **`flutter` publishes `linux/amd64` alone**, and
+that exception is DATA: a `platforms` key on its entry in `images.yaml`, with the
+measurement beside it. An image with no such key takes the sanctioned set, and a
+key that named a platform outside the set is refused — narrower is an exception
+WITHIN the policy, wider would replace it.
 
 | Verb | Behavior |
 |---|---|
-| `build` | `docker build --platform "$IMAGE_PLATFORMS"`. The `--platform` is explicit: a bare `docker build` targets the HOST, which on an Apple Silicon Mac is not the platform that gets published. |
+| `build` | `docker build --platform "$IMAGE_PLATFORMS"`. The `--platform` is explicit: a bare `docker build` targets the HOST, which on an Apple Silicon Mac is not the platform that gets published. It takes 1 platform, so with 2 sanctioned the local loop names the one it wants: `IMAGE_PLATFORMS=linux/arm64 bash ./ctl.sh build base`. |
 | `push` | `docker buildx build --platform "$IMAGE_PLATFORMS" --push`. The guard `require_buildx_and_platforms` runs at the start of the verb. |
 | `verify-published [tag]` | Read the manifest the registry holds and assert it carries exactly the sanctioned set. |
 
@@ -246,8 +253,13 @@ The guard is in `_ctl/lib.sh`, 1 time only, and each per-image `push` calls it.
 It fails closed in 5 conditions: a platform outside the sanctioned set, an empty
 platform list, buildx absent, no buildx builder active, or the active builder
 unable to build 1 of the required platforms. The list an image builds is
-`IMAGE_PLATFORMS`; it defaults to the sanctioned set, and an image may declare a
-measured NARROWER list but never a wider one.
+`IMAGE_PLATFORMS`, resolved from 3 sources in falling precedence: the
+environment, the image's `platforms` key in `images.yaml`, and the sanctioned
+set. An image may declare a measured NARROWER list but never a wider one.
+
+`verify-published` asserts the set the IMAGE publishes, not the sanctioned set.
+Against the sanctioned set, flutter's correct amd64-only manifest would read as
+a broken publish on every run.
 
 The repository-root `ctl.sh` does **not** call the guard. It sends `push` to
 the per-image `ctl.sh`, which calls the guard with its own list of platforms.
@@ -258,33 +270,64 @@ The CI workflow `.github/workflows/build-and-push.yml` enforces the same policy
 on every push to `main` and on every semver tag (`v*`), and each of its jobs runs
 `verify-published` against the SHA tag it just pushed.
 
-### Why there is no arm64 variant
+Each job builds **twice**, and the 2 builds name different platform lists:
 
-Every image runs where its consumers are, and every consumer that could be
-verified is amd64:
+- the **gate** build takes `SMOKE_PLATFORM` (`linux/amd64`), sets
+  `push: false` + `load: true`, and `.ci/smoke.sh` asserts the content of the
+  image it loaded. `load: true` takes 1 platform, because buildx writes a
+  manifest LIST for 2 and the docker image store holds a single image.
+- the **publish** build takes the whole `PLATFORMS`. Its amd64 layers come from
+  the cache the gate wrote; the arm64 leg is built here, on the mini.
 
-- `cloud` runs only as an ARC pod, and every node in that cluster is amd64. So
-  did `base-runner`, which it replaced.
-- `zephyr-devbox` runs only as a kubernetes pod. Its 3 live pods sat on
-  `k3s-w-1`, `k3s-w-3` and `k3s-w-4`, and all 3 are amd64.
-- `base`, `flutter` and `zephyr` published an arm64 variant until it was measured.
-  The published `base` arm64 image was an amd64 Ubuntu userland carrying aarch64
-  Go binaries: the `FROM` line pinned the userland to the BUILD host while buildx
-  labelled the result with the TARGET platform. It was mislabelled rather than
-  native, and on an Apple Silicon host Docker Desktop emulates that userland
-  anyway, which is why nobody noticed. It gave none of the benefit of a native
-  image and cost the larger half of a 41.7-minute build.
+**The arm64 content is therefore not smoke-gated at publish time.** The amd64
+smoke gates the publish for both variants, the digest comparison on every
+download covers the arm64 bytes, and `verify-published` asserts the manifest
+carries both. Smoking arm64 out of the registry after the push is the recorded
+follow-up.
 
-This command shows the architecture of each node:
+### Why there IS an arm64 variant
+
+Every image runs where its consumers are. The rule is **build only the
+architecture that you deploy to**, and it is the rule that removed arm64 in
+July and the rule that brought it back:
+
+- the arm64 consumer is real now. Local development on Apple Silicon runs these
+  images through the devcontainer CLI, so `base`, `cloud` and `zephyr` are
+  opened on an arm64 host daily. D42 in gophersys/infrastructure
+  `docs/debt-register.md` — "no arm64 consumer can be verified" — is answered.
+- it is built NATIVELY, which the old one was not. The Mac mini runs a
+  standalone buildkitd and buildx appends it as an arm64 node
+  (`.ci/buildx-node.sh`); a native build there measured 3.44x faster than the
+  same build emulated on an amd64 node. No job installs QEMU.
+- the old arm64 variant was mislabelled rather than native: the published `base`
+  arm64 image was an amd64 Ubuntu userland carrying aarch64 Go binaries, because
+  the `FROM` line pinned the userland to the BUILD host while buildx labelled
+  the result with the TARGET platform. On an Apple Silicon host Docker Desktop
+  emulates that userland anyway, which is why nobody noticed. No Dockerfile here
+  writes `FROM --platform=` now, and `_ctl/tests/platform-policy.test.sh` fails
+  one that does.
+
+### Why flutter is the exception
+
+**Flutter publishes no linux-arm64 SDK, at any version.** Read on 2026-08-17,
+`https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json`
+(264191 bytes) lists every Linux release ever published and
+`[.releases[].dart_sdk_arch] | unique` is exactly `["x64"]`. The pinned 3.47.0
+stable carries 1 archive, and its filename holds no architecture — so an HTTP
+probe of it returns 200 and proves nothing. **Read the JSON, never the 200.**
+
+No bump reaches an asset upstream does not publish, so this does not expire on
+its own. `flutter/Dockerfile` keeps amd64-only `case` arms and they are correct,
+not incomplete. On the day Flutter ships an arm64 Linux SDK, delete the
+`platforms` key from `images.yaml` and add the arm64 arms and their
+`_SHA256_ARM64` rows in the same change.
+
+The amd64 half of every measurement stands unchanged: the ARC nodes are amd64,
+and this command shows the architecture of each node.
 
 ```sh
 kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.architecture
 ```
-
-The rule is: **build only the architecture that you deploy to.** No arm64
-consumer can be verified for any image today, which is open in
-gophersys/infrastructure `docs/debt-register.md` as D42. Widen
-`SANCTIONED_PLATFORMS` on the day a consumer exists, and not before.
 
 ## How to add a tool
 
@@ -305,14 +348,18 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
    the 1 way to lose it silently. A tool of `flutter`, `zephyr` or
    `zephyr-devbox` still takes an `ARG MY_TOOL_VERSION=1.2.3` in that image's
    own Dockerfile — those 3 have not moved yet, and moving them is ledger #102.
-3. **Add its sha256 digest row beside that version**, in the SAME home. The
-   value comes from the asset you just selected, never from a second table:
+3. **Add a sha256 digest row per sanctioned platform beside that version**, in
+   the SAME home. Each value comes from the asset you just selected, never from
+   a second table:
    ```
    MY_TOOL_VERSION=1.2.3  # latest LTS as of YYYY-MM-DD
    MY_TOOL_SHA256_AMD64=<64 lowercase hex>  # upstream-published: <checksum file url>
+   MY_TOOL_SHA256_ARM64=<64 lowercase hex>  # upstream-published: <checksum file url>
    ```
-   The vocabulary is `_SHA256_AMD64`, or `_SHA256_NOARCH` when 1 asset serves
-   every platform. Write `# upstream-published: <url>` when the release ships a
+   The vocabulary is `_SHA256_AMD64` and `_SHA256_ARM64`, or `_SHA256_NOARCH`
+   when 1 asset serves every platform — a sanctioned platform with no row is an
+   empty digest reaching that leg of the build. Write
+   `# upstream-published: <url>` when the release ships a
    checksum file and the 2 values agree; write `# computed-at-pin: YYYY-MM-DD`
    when it does not. Both spellings are read by
    `_ctl/tests/download-coverage.test.sh`, which fails a digest with neither.
@@ -324,10 +371,11 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
    /usr/local/lib/gophersys/fetch-verified.sh \
      "https://example.com/my-tool-${MY_TOOL_VERSION}-linux-${ARCH}.tar.gz" \
      /tmp/my-tool.tar.gz \
-     "${MY_TOOL_SHA256_AMD64}" MY_TOOL_SHA256_AMD64
+     "${SHA256}" "${SHA256_PIN}"
    ```
-   The digest name is passed twice on purpose: once for its value, once as the
-   name the failure message prints. `base` and `cloud` COPY the helper from
+   Both locals come from the `case` arm in step 7: the digest is passed once for
+   its value and once as the name the failure message prints, and with 2
+   platforms the arm is what chooses which row is in play. `base` and `cloud` COPY the helper from
    `_build/`; the other 4 images inherit it through their `FROM`. When a
    download cannot carry a digest, add 1 row to `_build/download-exemptions.txt`
    naming its class and the reason. Those are the only 2 answers.
@@ -348,18 +396,28 @@ gophersys/infrastructure `docs/debt-register.md` as D42. Widen
    chain at the top as well — a value-less ARG that nothing feeds expands to the
    empty string, and the build would otherwise reach a download URL with no
    version in it.
-7. **Make every binary installation read `TARGETPLATFORM`**:
+7. **Make every binary installation read `TARGETPLATFORM`**, 1 arm per
+   sanctioned platform, each arm on 1 line:
    ```sh
    case "$TARGETPLATFORM" in
-     linux/amd64) ARCH=amd64 ;;
+     linux/amd64) ARCH=amd64; SHA256="${MY_TOOL_SHA256_AMD64}"; SHA256_PIN=MY_TOOL_SHA256_AMD64 ;;
+     linux/arm64) ARCH=arm64; SHA256="${MY_TOOL_SHA256_ARM64}"; SHA256_PIN=MY_TOOL_SHA256_ARM64 ;;
      *) echo "unsupported platform: $TARGETPLATFORM"; exit 1 ;;
    esac
    ```
-   Write the amd64 arm only. `SANCTIONED_PLATFORMS` is `linux/amd64` alone, and
-   an arm64 arm needs an arm64 digest that no build ever compares — a check that
-   cannot fail. The `*)` arm is what makes an unsanctioned platform stop the
-   build instead of installing the wrong binary. Restore both the arm and its
-   `_SHA256_ARM64` row together, on the day `SANCTIONED_PLATFORMS` widens.
+   The arm carries the ASSET spelling (`x64`, `x86_64`, `aarch64` — whatever
+   upstream names it) and the digest ROW of its own platform; the fetch then
+   reads `"${SHA256}" "${SHA256_PIN}"`. Both rows are verified before the edit:
+   the arm64 asset must exist AT THE PINNED VERSION, and a pin where it does not
+   is a blocker to report rather than a bump to improvise. The `*)` arm is what
+   makes an unsanctioned platform stop the build instead of installing the wrong
+   binary.
+
+   2 traps, both measured: an arm broken across lines reads as an arm that
+   assigns nothing (`fetch_urls` in `_ctl/lib.sh` reads to the `;;` on the same
+   logical line), and a pin-name local spelled `MY_TOOL_SHA256_PIN` reads as a
+   digest ROW to every reader of the vocabulary. Keep `SHA256_PIN` bare, or use
+   `MY_TOOL_PIN` where 1 arm feeds 2 fetches.
 8. **Remove the temporary files in the same layer.** For apt, use
    `rm -rf /var/lib/apt/lists/*`.
 9. **You must get approval.** A new tool and a version change need Mateo's
@@ -553,9 +611,11 @@ which 5 images at `mode=max` do not fit.
 **The builder comes from `bash .ci/buildx-node.sh`** and not from
 `docker/setup-buildx-action`. It makes the same `docker-container` builder — the
 default `docker` driver can neither read nor write a registry cache — and it
-owns the switch that appends the Mac mini as a native arm64 node the day
-`SANCTIONED_PLATFORMS` names `linux/arm64`. That switch reads the library, so
-widening the set is still 1 edit.
+owns the switch that appends the Mac mini as a native arm64 node when
+`SANCTIONED_PLATFORMS` names `linux/arm64`. That switch reads the library, so it
+needed no edit when the set widened, and it is LIVE: the first dual-arch build
+is the mini's first real work, and an unreachable mini or an expired client PEM
+fails at the `--bootstrap` that step ends with.
 
 **Every job runs on `arc-build`**, the homelab ARC pool, and so do the nightly
 scan and the weekly bump. Nothing in this repository runs on a GitHub-hosted
