@@ -519,9 +519,22 @@ release was.
   `<platform>|<digest pin>|<url>|<case arm>` — and `_build/resolve-upstream.sh`
   fetches one asset per record, so each row's digest is of the asset for the arm
   that row answers for. That is also the whole handling of the 2 shapes that are
-  not 2-armed: `flutter`'s guard names `linux/amd64` alone and a `_NOARCH` asset
-  sits in a RUN with no case at all, so each takes 1 record and 1 row. A reader
-  that consulted the sanctioned set would demand an arm64 asset from both.
+  not 2-armed, and `flutter/Dockerfile` holds one of each. **Read that file
+  before repeating the pairing: it is the opposite of the intuitive one.** The
+  Android cmdline-tools download sits under a `linux/amd64) : ;;` guard that
+  assigns nothing, so its record carries platform `linux/amd64` and its row is
+  `ANDROID_CMDLINE_TOOLS_SHA256_NOARCH`; flutter's OWN SDK download sits in a
+  later RUN with no case at all, so its record carries platform `-` while its
+  row is `FLUTTER_SHA256_AMD64`. Nothing in that second RUN names a platform —
+  the `exit 1` in the guard RUN above is what makes the image amd64-only. A
+  reader that consulted the sanctioned set would demand an arm64 asset from both.
+- **A digest row that answers for 2 different assets is REFUSED**, naming the row
+  and both URLs. 2 records may share a row: same asset means a duplicate READING
+  of it — `base/Dockerfile` and a component under `_delta/` both fetch `k9s` and
+  `docker buildx` at one URL — and is deduplicated, while 2 assets under 1 row
+  can be correct for at most one arch. The identity compared is the URL with the
+  ARM resolved into it, because 2 arms of one RUN usually share the URL template
+  and differ only in what they assign `ARCH`.
 - **The pull request is opened, never merged.** `--dry-run` composes it and
   writes nothing TO THE REPOSITORY — it still writes temporary files and
   downloads every moved asset twice; `--apply` writes and leaves git and gh to
@@ -618,6 +631,19 @@ evidence, each verified against the asset the SAME pinned version publishes.
 Widening again means doing that fact-finding again, per pin, before an edit —
 and a pin whose new platform has no asset at the pinned version is a BLOCKER to
 report, never a bump to improvise.
+
+**Count the rows, never quote a count.** Every number in the paragraph above is a
+measurement of a tree that changes, and the arch suffixes do not divide evenly —
+read on 2026-08-18 the 4 value homes hold **48** declaration rows, 23 `_AMD64`
++ 22 `_ARM64` + 3 `_NOARCH`, because 3 downloads are `_NOARCH` and `flutter`'s
+own SDK row has no `_ARM64` sibling to pair with. A count that assumes the rows
+come in pairs is wrong by exactly those 4. Re-derive it rather than trusting this
+sentence:
+
+```sh
+grep -hcE '^[[:space:]]*(ARG[[:space:]]+)?[A-Z0-9_]+_SHA256_[A-Z0-9_]+=' \
+  versions.env flutter/Dockerfile zephyr/Dockerfile zephyr-devbox/Dockerfile
+```
 
 ### flutter is amd64-only, and the manifest says so
 

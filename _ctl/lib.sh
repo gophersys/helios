@@ -871,10 +871,20 @@ function evidence_of() {
 #
 # The arms are read AS WRITTEN, and never against SANCTIONED_PLATFORMS. That is
 # what keeps the 2 shapes that are not 2-armed correct without a branch for
-# either: flutter's guard names `linux/amd64` alone, so its downloads take 1
-# record, and a _NOARCH asset sits in a RUN with no case at all, so it takes 1
-# record whose platform field is `-`. A reader that consulted the sanctioned set
-# would demand an arm64 asset from both of them.
+# either, and flutter/Dockerfile happens to hold one of each — read that file
+# before repeating the pairing, because it is the opposite of the intuitive one:
+#
+#   1 arm      the ANDROID cmdline-tools download. Its RUN opens with a
+#              `linux/amd64) : ;;` guard that assigns nothing, so the record
+#              carries platform `linux/amd64` and the row is _NOARCH.
+#   no arm     flutter's OWN SDK download. It sits in a later RUN with no case
+#              at all, so its record carries platform `-` — while the row is
+#              FLUTTER_SHA256_AMD64. Nothing in that RUN says amd64; the
+#              `exit 1` in the guard RUN above is what makes the image
+#              amd64-only.
+#
+# So the _NOARCH row is the armed one and the _AMD64 row is the unarmed one. A
+# reader that consulted the sanctioned set would demand an arm64 asset from both.
 #
 # There was a SECOND shape of that same question and it is gone with its only
 # caller: `ARCH="$(dpkg --print-architecture)"`, which zephyr-devbox used until a
@@ -1058,11 +1068,25 @@ function bump_pin() {
     return 1
   fi
 
+  # A comment holds neither of these, and awk is handed both as -v assignments:
+  # an evidence string carrying a newline aborts awk in the MIDDLE of the write
+  # loop, which used to leave the version moved and its digest rows stale — the
+  # exact state this writer exists to prevent. Refusing up front is what makes
+  # the staging below the only thing left to get right.
+  if [[ "$version" == *$'\n'* || "$version" == *"|"* ]]; then
+    log_error "bump_pin: ${pin}: the version carries a newline or a pipe, and a declaration holds neither"
+    return 1
+  fi
+  if [[ "$evidence" == *$'\n'* || "$evidence" == *"|"* ]]; then
+    log_error "bump_pin: ${pin}: the evidence carries a newline or a pipe, and a comment holds neither"
+    return 1
+  fi
+
   # pin_rows and not rows: shellcheck runs with -x, so an array declared here is
   # an array in every file that sources this one, and 2 test files hold a
   # `local rows="$1"` that then reads as an array expanded without an index.
   local -a pin_rows=() pin_digests=()
-  local pair row digest given=""
+  local pair row digest given="" seen_index found
   for pair in "$@"; do
     if [[ "$pair" != *=* ]]; then
       log_error "bump_pin: ${pin}: '${pair}' is not a <row>=<digest> pair"
@@ -1070,9 +1094,33 @@ function bump_pin() {
     fi
     row="${pair%%=*}"
     digest="${pair#*=}"
+    if [[ -z "$row" ]]; then
+      log_error "bump_pin: ${pin}: '${pair}' names no row before its '=', so that digest answers for nothing"
+      return 1
+    fi
     if [[ ! "$digest" =~ ^[0-9a-f]{64}$ ]]; then
       log_error "bump_pin: ${pin}: the digest '${digest}' given for ${row} is not 64 lowercase hex"
       return 1
+    fi
+    # One row named twice is 2 answers to 1 question. Identical answers are a
+    # caller repeating itself and cost nothing; different ones mean the call
+    # cannot say which asset the row attests, and last-wins would pick by
+    # argument order.
+    found=-1
+    for ((seen_index = 0; seen_index < ${#pin_rows[@]}; seen_index++)); do
+      if [[ "${pin_rows[seen_index]}" == "$row" ]]; then
+        found="$seen_index"
+        break
+      fi
+    done
+    if [[ "$found" -ge 0 ]]; then
+      if [[ "${pin_digests[found]}" != "$digest" ]]; then
+        log_error "bump_pin: ${pin}: ${row} was given 2 different digests in the same call:"
+        log_error "  ${pin_digests[found]}"
+        log_error "  ${digest}"
+        return 1
+      fi
+      continue
     fi
     pin_rows+=("$row")
     pin_digests+=("$digest")
@@ -1115,16 +1163,74 @@ function bump_pin() {
     return 1
   fi
 
-  local today home index
+  # ===========================================================================
+  # STAGE EVERY HOME, THEN COMMIT: A HALF-WRITTEN BUMP IS THE DEFECT ITSELF
+  # ===========================================================================
+  #
+  # A pin's version row and its digest rows are 1 edit in n places. Rewriting
+  # them one at a time against the real files means every failure between the
+  # first and the last leaves the tree in the state this feature exists to make
+  # impossible — version moved, digests stale — and it is the state a build
+  # cannot detect until the download fails after the merge.
+  #
+  # So phase 1 applies EVERY rewrite to a COPY of each home and verifies the
+  # result, and phase 2 writes the copies back. A refusal in phase 1 has touched
+  # no tracked file at all.
+  local today home index staged real
+  local -a staged_files=() real_files=()
   today="$(date +%Y-%m-%d)"
+
   while IFS= read -r home; do
     [[ -z "$home" ]] && continue
-    rewrite_declaration "${root}/${home}" "$pin" "$version" "version" "$today" || return 1
+    real="${root}/${home}"
+    staged="$(mktemp)" || staged=""
+    if [[ -z "$staged" || ! -f "$staged" ]]; then
+      log_error "bump_pin: ${pin}: mktemp gave no temporary file, so no edit could be staged"
+      rm -f ${staged_files[@]+"${staged_files[@]}"}
+      return 1
+    fi
+    staged_files+=("$staged")
+    real_files+=("$real")
+    if ! cat "$real" > "$staged"; then
+      log_error "bump_pin: ${pin}: could not copy ${real} for staging"
+      rm -f ${staged_files[@]+"${staged_files[@]}"}
+      return 1
+    fi
+    if ! rewrite_declaration "$staged" "$pin" "$version" "version" "$today"; then
+      rm -f ${staged_files[@]+"${staged_files[@]}"}
+      return 1
+    fi
     for ((index = 0; index < ${#pin_rows[@]}; index++)); do
-      [[ -n "$(declaration_line "${root}/${home}" "${pin_rows[index]}")" ]] || continue
-      rewrite_declaration "${root}/${home}" "${pin_rows[index]}" "${pin_digests[index]}" "digest" "$evidence" || return 1
+      [[ -n "$(declaration_line "$real" "${pin_rows[index]}")" ]] || continue
+      if ! rewrite_declaration "$staged" "${pin_rows[index]}" "${pin_digests[index]}" "digest" "$evidence"; then
+        rm -f ${staged_files[@]+"${staged_files[@]}"}
+        return 1
+      fi
     done
+    # A rewrite replaces values and never adds or drops a line, so an equal line
+    # count is what "this file survived every edit" looks like. An awk that died
+    # mid-stream leaves a short file, and a short file is the one shape that
+    # would otherwise reach the tree looking plausible.
+    if [[ ! -s "$staged" ]] || [[ "$(wc -l < "$staged")" -ne "$(wc -l < "$real")" ]]; then
+      log_error "bump_pin: ${pin}: the staged rewrite of ${home} is empty or lost lines, so nothing was written"
+      rm -f ${staged_files[@]+"${staged_files[@]}"}
+      return 1
+    fi
   done <<< "$homes"
+
+  # Written back THROUGH the existing files, never moved over them: a mv from
+  # the temporary directory would carry mktemp's 0600 mode onto a tracked file.
+  # Each write is checked — an unchecked one here is the disk-full path back to
+  # the half-written state phase 1 exists to prevent.
+  for ((index = 0; index < ${#staged_files[@]}; index++)); do
+    if ! cat "${staged_files[index]}" > "${real_files[index]}"; then
+      log_error "bump_pin: ${pin}: the write to ${real_files[index]} failed"
+      log_error "every home before it in ${homes//$'\n'/, } is already written: check the tree before rerunning"
+      rm -f ${staged_files[@]+"${staged_files[@]}"}
+      return 1
+    fi
+  done
+  rm -f ${staged_files[@]+"${staged_files[@]}"}
   return 0
 }
 
@@ -1148,7 +1254,11 @@ function rewrite_declaration() {
     return 1
   fi
   local staged
-  staged="$(mktemp)"
+  staged="$(mktemp)" || staged=""
+  if [[ -z "$staged" || ! -f "$staged" ]]; then
+    log_error "rewrite_declaration: mktemp gave no temporary file for ${file}"
+    return 1
+  fi
   if ! awk -v name="$name" -v value="$value" -v mode="$mode" -v extra="$extra" '
     function is_declaration(line) {
       return (line ~ ("^[[:space:]]*ARG[[:space:]]+" name "=")) || (line ~ ("^" name "="))
@@ -1181,7 +1291,14 @@ function rewrite_declaration() {
   fi
   # Written back through the existing file rather than moved over it: a mv from
   # the temporary directory would carry mktemp's 0600 mode onto a tracked file.
-  cat "$staged" > "$file"
+  # The write is CHECKED: bump_pin hands this function a staged copy and reads
+  # its status, and an unchecked write here would report a rewrite that a full
+  # disk had truncated.
+  if ! cat "$staged" > "$file"; then
+    log_error "rewrite_declaration: could not write ${name} back to ${file}"
+    rm -f "$staged"
+    return 1
+  fi
   rm -f "$staged"
 }
 

@@ -599,16 +599,55 @@ function governed_files() {
 # its own digest row, and a resolver that stopped at the first computed 1 digest
 # for a set of 2.
 #
-# A row is reported ONCE, by the first file that fetches it. `k9s` and
-# `docker buildx` are each fetched by base/Dockerfile AND by a component under
-# _delta/, at the same URL — the second reading would digest identical bytes a
-# second time, and the asset downloads are what the weekly's timeout budget is
-# made of. A row is deduplicated and never a URL: 2 rows fetching the same URL
-# is what a _NOARCH asset inside an armed RUN would be, and both rows have to
-# move.
+# ===========================================================================
+# THE KEY IS row|url, AND ONE ROW OVER TWO URLS IS A FAILURE
+# ===========================================================================
+#
+# 2 records may agree on the row, and what that means depends entirely on the
+# URL, so the row alone cannot be the key:
+#
+#   SAME row, SAME url    a duplicate READING of one asset. base/Dockerfile and
+#                         a component under _delta/ both fetch k9s and docker
+#                         buildx, at the same URL — digesting those bytes twice
+#                         buys nothing and the asset downloads are what the
+#                         weekly's timeout budget is made of. Deduplicated.
+#   SAME row, 2 urls      a defect, always. A digest row attests ONE asset; a
+#                         row named by 2 arms that build different URLs can be
+#                         correct for at most one of them, and the other arch
+#                         installs bytes no row answers for. Keying on the row
+#                         alone SILENTLY dropped the second URL here — the
+#                         writer was then satisfied by a set it had only half
+#                         resolved, which is the stale-row defect wearing the
+#                         sibling's name.
+#
+# So the second shape FAILS naming the row and both URLs. It is reachable from
+# the tree as it stands: ANDROID_CMDLINE_TOOLS_SHA256_NOARCH is a _NOARCH row
+# emitted under flutter's `linux/amd64)` guard arm, and the day that RUN gains
+# an arm64 arm it becomes 2 records of 1 row. Whoever writes that arm gets this
+# failure and has to choose — 2 rows for 2 assets, or 1 asset for both arms —
+# rather than shipping a green half-resolution.
+#
+# The URL alone cannot be that key, and the fixture that proves it holds ONE
+# url: 2 arms of one RUN share the template `.../tool-${TOOL_VERSION}-${ARCH}`
+# and differ only in what the arm assigns ARCH. The identity of an asset is
+# therefore the url with the ARM resolved into it, which is what arm_asset_key
+# below returns.
+function arm_asset_key() {
+  local url="$1" scope="$2"
+  local -a assignments=()
+  local assignment name
+  IFS=' ' read -r -a assignments <<< "$scope"
+  for assignment in ${assignments[@]+"${assignments[@]}"}; do
+    name="${assignment%%=*}"
+    [[ -z "$name" || "$name" == "$assignment" ]] && continue
+    url="${url//"\${${name}}"/${assignment#*=}}"
+  done
+  printf '%s' "$url"
+}
+
 function asset_records() {
   local pin="$1"
-  local file record url row seen=""
+  local file record url row asset seen="" first=""
   while IFS= read -r file; do
     [[ -z "$file" ]] && continue
     while IFS= read -r record; do
@@ -616,11 +655,19 @@ function asset_records() {
       url="$(row_field "$record" 3)"
       [[ "$url" == *"\${${pin}}"* ]] || continue
       row="$(row_field "$record" 2)"
+      asset="$(arm_asset_key "$url" "$(row_field "$record" 4)")"
       case $'\n'"${seen}"$'\n' in
-        *$'\n'"${row}"$'\n'*) continue ;;
+        *$'\n'"${row} ${asset}"$'\n'*) continue ;;
       esac
+      first="$(awk -v want="$row" '$1 == want { sub(/^[^ ]* /, ""); print; exit }' <<< "$seen")"
+      if [[ -n "$first" && "$first" != "$asset" ]]; then
+        fail_pin "$pin" "the digest row ${row} answers for 2 different assets, and can attest only 1:
+  ${first}
+  ${asset}
+give each asset its own <tool>_SHA256_<ARCH> row, or make both arms fetch one asset"
+      fi
       seen="${seen:+${seen}
-}${row}"
+}${row} ${asset}"
       printf '%s\n' "$record"
     done <<< "$(fetch_urls "$file")"
   done <<< "$(governed_files)"

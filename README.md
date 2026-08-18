@@ -683,10 +683,18 @@ one asset per arm — buf spells its arm64 asset `aarch64` where grpcurl spells 
 same platform `arm64`, and each arm carries the spelling its own asset uses. The
 durable half is the writer: `bump_pin` refuses a call that leaves a declared row
 unnamed, and says which row. A row left on the old digest is invisible in the
-diff and fails the build on the leg it answers for. Because the arms are read as
-WRITTEN and never against `SANCTIONED_PLATFORMS`, `flutter`'s amd64-only arm and
-a `_NOARCH` asset with no arm at all each take exactly one row with no special
-case for either.
+diff and fails the build on the leg it answers for. A row named by two arms that
+build two different asset URLs is refused too, naming both: a digest row attests
+one asset, so that shape is a defect and not a bump.
+
+Because the arms are read as WRITTEN and never against `SANCTIONED_PLATFORMS`,
+a download with one arm and a download with no arm each take exactly one row with
+no special case for either. `flutter/Dockerfile` holds one of each, and the
+pairing is the opposite of the intuitive one: the Android cmdline-tools download
+sits under a `linux/amd64) : ;;` guard and carries a `_NOARCH` row, while
+flutter's own SDK download sits in a RUN with no case at all and carries the
+`_AMD64` row — nothing in that RUN names a platform, and the `exit 1` in the
+guard above is what makes the image amd64-only.
 
 **One unreadable upstream fails the whole run.** It resolves every row first,
 reports every pin that moved AND every pin it could not read, writes nothing and
