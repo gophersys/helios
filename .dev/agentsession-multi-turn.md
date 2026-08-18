@@ -106,6 +106,18 @@ ev.Terminal != nil. (2) 13 lint issues in test files (9 misspell, 3 gocritic,
 under R1); LedgerFold default-arm does not fold turn boundaries (real design question,
 not Round B's).
 
+## Final test round (5739775) — ALL GATES GREEN
+Sample-stream re-pin counts ev.Terminal != nil + non-terminal + token render; proven
+able to fail via scratch revert probe (FAIL with the old mapping). Lint 13→0, no
+suppressions (token shadow renamed; ctx reordered to the package's own convention).
+Phase gates 6/6 EXIT=0: implementation/testing/qa in BOTH libs, zero FAIL, zero
+REQUIRED-BUT-ABSENT, docker-enabled runs. CORRECTIONS: live-skip count is SIX (adds
+TestIntegration_LiveAdvisor_AllowsLowRiskRead). FOUND+TRACKED (not fixed, outside
+ownership): _ctl/lib.sh integration dimension has no --- SKIP: assertion — a
+substrate-unreachable skip printed PASS (proven via socket-denied NATS test) — task
+opened, fold into PR-1c lane work. Machine note: docker VM disk hit 100% mid-run,
+resolved non-destructively via bind-mount caches; the 9.35GB "dangling" image is the
+LIVE devcontainer's (do not prune); 77 orphan volumes ~3.9GB = future cleanup.
+
 ## Next
-Test-author final round: re-pin TestNormalize_SampleStream + fix the 13 test-file lint
-issues; full phase-gates both libs to green. Then dev-verifier, cleanup pass, PR.
+Phase 4: dev-verifier adversarial refutation. Then cleanup pass, PR.
