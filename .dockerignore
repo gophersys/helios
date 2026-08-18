@@ -9,7 +9,7 @@
 # a NEW COPY source in base/ or cloud's Dockerfile must be added HERE or the
 # build fails loudly at that COPY — which is the review moment working.
 #
-# The child images (flutter, zephyr, zephyr-devbox) build from their own
+# The child images (flutter, embedded) build from their own
 # directories; this file does not apply to their contexts. versions.env is
 # deliberately absent: its values arrive as generated --build-arg, never COPY.
 *

@@ -1,6 +1,6 @@
 {
-  "name": "zephyr",
-  "image": "ghcr.io/gophersys/zephyr:latest",
+  "name": "embedded",
+  "image": "ghcr.io/gophersys/embedded:latest",
   "remoteUser": "dev",
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",

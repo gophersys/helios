@@ -30,10 +30,10 @@ that it runs inside.
 |---|---|---|
 | `ghcr.io/gophersys/base`          | `base`          | Everything that most projects need: shells (zsh+oh-my-zsh), git/gh, languages (Node LTS, Python 3.12, Go, Rust), infra CLIs (kubectl/helm/k9s/tailscale/docker-cli/docker-compose/bw/nats), desktop libs (Tauri/GTK/webkit), USB/BLE libs (libusb, libudev, libbluetooth, bluez), data clients (psql, sqlite3, redis-cli), parsing (jq, yq, httpie, rg, fd, bat), QA (shellcheck, hadolint). |
 | `ghcr.io/gophersys/flutter`       | `flutter`       | Base + OpenJDK 21 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
-| `ghcr.io/gophersys/zephyr`        | `zephyr`        | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards. |
-| `ghcr.io/gophersys/zephyr-devbox` | `zephyr-devbox` | Zephyr + sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules + clangd and code-server on `:8443` (browser VS Code, `EXPOSE 8443`, the clangd extension seeded into `/opt/code-server-extensions` at build time). It is an embedded development box for a k8s pod. It has 2 access paths: SSH as `dev`, and the browser at `:8443`. |
+| `ghcr.io/gophersys/embedded`      | `embedded`      | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards, AND the pod half on top of it: sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules + clangd and code-server on `:8443` (browser VS Code, `EXPOSE 8443`, the clangd extension seeded into `/opt/code-server-extensions` at build time). **It was 2 images**, `zephyr` and `zephyr-devbox`; see "The embedded fold" below for what the split cost and what the mode dispatch replaces it with. |
 | `ghcr.io/gophersys/cloud`         | `cloud`         | The successor image of the consolidation program (ledger #94), ADDITIVE today: the reduced base (no clang/cmake, no desktop/Tauri libs, no USB-BLE libs, no Rust, no ansible + oci-cli, no speedtest-cli/ncat/net-tools, Go caches removed — terraform and the AWS CLI are NOT in this list, because they left `base` itself and are ready components nothing installs; db clients and the comfort TUIs are not in it either, because cloud re-adds them through `_delta/components/`) + delve/buf/grpcurl + the CI fold (Actions runner, cictl, claude/omp/codex at the versions.env pins). ONE image for dev and CI: the default command is zsh, and a CI pod overrides the command to `/home/runner/run.sh`. Every pin lives in `versions.env` at the repository root — the same 1 home `base` reads since the 2 Dockerfile mechanisms collapsed onto it; the build feeds it in as generated `--build-arg`s, and `_delta/components/*.sh` install the folded tool groups. Its smoke gates publish (build → smoke → push) and enforces the ≤ 5.75 GB size budget (raised from 5.5 GB by Mateo, 2026-08-16: the measured floor after the R4 levers with every tool kept is ~5.63–5.67 GB). That budget is DATA now — `size_budget_gb` on its `images.yaml` entry, with the R4 measurement beside the key — and `.ci/smoke.sh` runs 1 shared gate for every image that declares one. |
-| `ghcr.io/gophersys/hardware`      | `hardware`      | Cloud + the KiCad 10 ECAD toolchain, for `gophersys/research-hardware`. It installs `kicad`, `kicad-symbols`, `kicad-footprints` and `kicad-packages3d` from `ppa:kicad/kicad-10.0-releases`, and the python stack that repository's suite imports and runs (`kiutils`, `sexpdata`, `pytest`, `ruff`) into the SYSTEM interpreter, because `python3 -m pytest` cannot import from a `uv tool` venv. The library packages are named explicitly: `kicad` does not pull them in under `--no-install-recommends`, and without them `/usr/share/kicad` exists and is EMPTY, so the consumer's resolver suite fails on `assert 0 > 10000` — which reads like a code bug. `checks_content_hardware` holds the 3 floors that keep it true. **It is the 1 CHILD image whose pins live in `versions.env`**: its ARGs are value-less like cloud's, and `pins: versions.env` on its manifest entry is what generates the build args, so no 4th `PIN_VALUE_HOME` is minted. Its `size_budget_gb` is 11.0 and PROVISIONAL — computed from 2 measured images, and reset to the first green build + 5%. |
+| `ghcr.io/gophersys/hardware`      | `hardware`      | Cloud + the KiCad 10 ECAD toolchain, for `gophersys/research-hardware`. It installs `kicad`, `kicad-symbols`, `kicad-footprints` and `kicad-packages3d` from `ppa:kicad/kicad-10.0-releases`, and the python stack that repository's suite imports and runs (`kiutils`, `sexpdata`, `pytest`, `ruff`) into the SYSTEM interpreter, because `python3 -m pytest` cannot import from a `uv tool` venv. The library packages are named explicitly: `kicad` does not pull them in under `--no-install-recommends`, and without them `/usr/share/kicad` exists and is EMPTY, so the consumer's resolver suite fails on `assert 0 > 10000` — which reads like a code bug. `checks_content_hardware` holds the 3 floors that keep it true. **It is 1 of the 2 CHILD images whose pins live in `versions.env`** (`ui` is the other): its ARGs are value-less like cloud's, and `pins: versions.env` on its manifest entry is what generates the build args, so no extra `PIN_VALUE_HOME` is minted. Its `size_budget_gb` is 11.0 and PROVISIONAL — computed from 2 measured images, and reset to the first green build + 5%. |
+| `ghcr.io/gophersys/ui`            | `ui`            | Cloud + headless Chrome and the DejaVu fallback font, for `gophersys/research-ui`. Its ARGs are value-less and it takes `pins: versions.env` the way `hardware` does. It exposes cloud's own Node and uv at `/usr/local/bin` rather than carrying a second copy of each, so the content group asserts `node`/`npm`/`uv` resolving as BOTH root and dev. Its `size_budget_gb` is 6.5 and PROVISIONAL, from 2 independent derivations (6.32 and 6.47) recorded beside the key. **This row arrived late.** The image landed in `images.yaml` on 2026-08-18 and reached no sentence of this document, so every count here read 6 while the set was 7 — measure the manifest, never a count in this file. |
 
 ## Structure
 
@@ -63,9 +63,9 @@ that it runs inside.
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── cloud/         { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
-├── zephyr/        { devcontainer.json, Dockerfile, project.json, ctl.sh }
-├── zephyr-devbox/ { devcontainer.json, Dockerfile, project.json, ctl.sh, devbox-entrypoint.sh }
+├── embedded/      { devcontainer.json, Dockerfile, project.json, ctl.sh, embedded-entrypoint.sh }
 ├── hardware/      { devcontainer.json, Dockerfile, project.json, ctl.sh }
+├── ui/            { devcontainer.json, Dockerfile, project.json, ctl.sh }
 └── .github/workflows/
     ├── build-and-push.yml    # publish the images
     ├── security-nightly.yml  # the nightly trivy scan + the base-OS currency probe
@@ -79,8 +79,8 @@ that it runs inside.
 1. **This repository has no Nx workspace of its own.** You must be able to run
    every operation as plain `bash ./ctl.sh <cmd>` from within this repository.
 2. **Per-image file rule.** Each devcontainer image directory at the repository
-   root (`base/`, `cloud/`, `flutter/`, `zephyr/`, `zephyr-devbox/`,
-   `hardware/`) contains
+   root (`base/`, `cloud/`, `flutter/`, `embedded/`, `hardware/`, `ui/`)
+   contains
    `devcontainer.json` + `Dockerfile` + `project.json` + `ctl.sh`. It also
    contains each script that the image COPYs in, for example an entrypoint.
    `validate` runs `shellcheck -x -S style` on every shell script in the
@@ -134,10 +134,12 @@ that it runs inside.
    before you call it inert.
 
    **Those 2 lists hold different members, and different lengths.** Read
-   each list, never a count beside it. `PIN_VALUE_HOMES` is 4: `base/Dockerfile`
-   left it when it went value-less and `runner/Dockerfile` left it by deletion,
-   so it is `versions.env` plus the 3 Dockerfiles that still spell their own
-   pins. `GOVERNED_DOCKERFILES` is 5 and holds `base/Dockerfile` AND
+   each list, never a count beside it. `PIN_VALUE_HOMES` is 3: `base/Dockerfile`
+   left it when it went value-less, `runner/Dockerfile` left it by deletion, and
+   `zephyr/Dockerfile` + `zephyr-devbox/Dockerfile` left it as a PAIR when the 2
+   images became `embedded/Dockerfile` — so it is `versions.env` plus the 2
+   Dockerfiles that still spell their own pins.
+   `GOVERNED_DOCKERFILES` is 5 and holds `base/Dockerfile` AND
    `cloud/Dockerfile`, because a governed file is one that FETCHES and base
    still fetches every download it always did. It stopped declaring the VALUES,
    not the URLs.
@@ -216,10 +218,12 @@ split: 6 pin homes, a family branch in `.ci/smoke.sh`, an admitted over-build in
 have done to it is a doubling of 1 file.
 
 **The 3 per-image Dockerfiles still carry inline pins, and that is the open
-half.** `flutter/`, `zephyr/` and `zephyr-devbox/` declare their own
+half.** `flutter/` and `embedded/` declare their own
 `ARG NAME=value` blocks and consume no build arg from `versions.env`. `runner/`
 was a 4th and is deleted, which closed its share of the debt by removing the
-file rather than by moving it. Read "the pin value is in `versions.env`" as true
+file rather than by moving it; `zephyr/` and `zephyr-devbox/` were 2 of the 3
+that remained and are 1 now, which closed a home the same way — by removing a
+file, not by moving a pin into `versions.env`. Read "the pin value is in `versions.env`" as true
 of `base`, `cloud` and `hardware`, and of nothing else. `hardware` is a CHILD
 that reads the one home, which is what the `pins` key of `images.yaml` exists
 for: without it a child has to spell its own pins, and a 4th `PIN_VALUE_HOME`
@@ -331,7 +335,7 @@ the 3 open ones are the 3 child images.
 - **The download itself goes through `_build/fetch-verified.sh`.** It is 1 file
   by the same rule that puts a verb body in `_ctl/lib.sh` once. `base` and
   `cloud` COPY `_build/` to `/usr/local/lib/gophersys/` above their first
-  download; `flutter`, `zephyr`, `zephyr-devbox` and `hardware` inherit it
+  download; `flutter`, `embedded`, `hardware` and `ui` inherit it
   through their `FROM` and add no COPY. `hardware` fetches nothing of its own —
   apt over the PPA and pip are its 2 installers, and each is answered by its own
   ecosystem — so it is deliberately NOT a governed download file. **Because base COPYs it, base's docker
@@ -537,8 +541,8 @@ release was.
   `homes_of` rather than assuming any of them, which is why dropping
   `base/Dockerfile` from `PIN_VALUE_HOMES` changed nothing about it: a pin of
   `versions.env` alone now has 1 home, and the writer edits the 1 it finds. The
-  multi-home path is still live for the 3 per-image Dockerfiles that spell their
-  own pins — `flutter`, `zephyr` and `zephyr-devbox`, which is what
+  multi-home path is still live for the 2 per-image Dockerfiles that spell their
+  own pins — `flutter` and `embedded`, which is what
   `PIN_VALUE_HOMES` holds beside `versions.env`.
 - **A pin's digest rows are a SET, and the writer REFUSES a partial one.** It
   takes `<row>=<digest>` pairs and fails naming the row that got no value, so a
@@ -613,9 +617,11 @@ they are why the arm64 half has to be NATIVE rather than merely present:
   Its arm64 half compiled Go under QEMU for an architecture that no node runs,
   and it took ~13 minutes on a thin layer. The image is retired; the measurement
   is kept because it is half of why the set narrowed.
-- `zephyr-devbox` runs only as a kubernetes pod (commit `c7e8e94`). Its 3 running
-  pods sat on `k3s-w-1`, `k3s-w-3` and `k3s-w-4`, and all 3 are amd64. Nobody
-  opens it locally; `zephyr` is the image for that.
+- `zephyr-devbox` ran only as a kubernetes pod (commit `c7e8e94`). Its 3 running
+  pods sat on `k3s-w-1`, `k3s-w-3` and `k3s-w-4`, and all 3 are amd64. That
+  image is `embedded` now, and the measurement no longer narrows anything: the
+  same image is what a developer opens locally, in its default mode, so it
+  publishes both platforms like every other non-flutter image.
 - `base`, `flutter` and `zephyr` were published for 2 architectures until the
   arm64 half was measured: the published `base` arm64 variant was an amd64 Ubuntu
   userland carrying aarch64 Go binaries, because the `FROM` line pinned the
@@ -678,7 +684,7 @@ sentence:
 
 ```sh
 grep -hcE '^[[:space:]]*(ARG[[:space:]]+)?[A-Z0-9_]+_SHA256_[A-Z0-9_]+=' \
-  versions.env flutter/Dockerfile zephyr/Dockerfile zephyr-devbox/Dockerfile
+  versions.env flutter/Dockerfile embedded/Dockerfile
 ```
 
 ### flutter is amd64-only, and the manifest says so
@@ -856,7 +862,7 @@ no classification, so a new pin there cannot stay silent.
 
 **3 classification TABLES read `versions.env`**, and the branch that chooses
 between them is all that is left of the family split: `cloud` takes the table
-that asserts the CI fold, `base`/`flutter`/`zephyr`/`zephyr-devbox` take the
+that asserts the CI fold, `base`/`flutter`/`embedded` take the
 table that asserts what `base` installs, and `hardware` takes
 `PIN_CLASSES_HARDWARE` — the cloud table with the 5 KiCad rows flipped to
 `asserted`, because it inherits every tool of cloud through its `FROM`. A pin one image does not carry takes
@@ -865,9 +871,9 @@ table that asserts what `base` installs, and `hardware` takes
 **A CHILD image reads a second home: its own Dockerfile — except `hardware`,
 which has no second home to read.** Its Dockerfile declares every pin
 value-less, so there is no value in it for any reader to find, and 1 home is the
-whole of it. `flutter`, `zephyr`
-and `zephyr-devbox` each carry a class table of their own — `PIN_CLASSES_FLUTTER`,
-`PIN_CLASSES_ZEPHYR`, `PIN_CLASSES_DEVBOX` — over the value-ful `ARG`s of their
+whole of it. `flutter` and `embedded`
+each carry a class table of their own — `PIN_CLASSES_FLUTTER` and
+`PIN_CLASSES_EMBEDDED` — over the value-ful `ARG`s of their
 own file, and every rule of the `versions.env` home applies there unchanged: an
 unclassified pin refuses the run before a container starts. `home_pin_names` in
 `.ci/smoke.sh` therefore holds 2 readers again, and this pair is not the pair
@@ -881,9 +887,12 @@ class, no test and no run in this repository could say so.
 driver. `runner/Dockerfile` was the other, and it is deleted rather than
 excluded: a table for an image no run can name would have been dead text, and so
 was the file. What is left is the pins a child inherits
-from ANOTHER child — `zephyr-devbox` builds `FROM zephyr` and carries west and
-the Zephyr SDK, but `WEST_VERSION` lives in `zephyr/Dockerfile`, so the devbox
-run asserts esptool and code-server and not those 2. Closing that needs the
+from ANOTHER child. `zephyr-devbox` built `FROM zephyr` and carried west and
+the Zephyr SDK while `WEST_VERSION` lived in `zephyr/Dockerfile`, so the devbox
+run asserted esptool and code-server and NOT those 2 — and that instance is gone
+by CONSTRUCTION rather than by a fix: the 2 images are `embedded`, so 1 home and
+1 table cover every pin either of them declared. **The hole itself is open**, and a child of a
+child would meet it again. Closing it needs the
 `FROM` graph walked in the driver, and it is what is left of ledger #102 beside
 the value-home half.
 
@@ -920,8 +929,8 @@ script and a project CI job can detect the image that they run inside.
 Each image directory contains a `devcontainer.json` that pins its published
 image. A consuming project mounts the file at
 `.devcontainer/<image>/devcontainer.json`. The VS Code command "Reopen in
-Container" then lists `base`, `cloud`, `flutter`, `zephyr`, `zephyr-devbox` and
-`hardware` as configurations that you can select — 6 files, 1 for each image. Each
+Container" then lists `base`, `cloud`, `flutter`, `embedded`, `hardware` and
+`ui` as configurations that you can select — 6 files, 1 for each image. Each
 configuration bind-mounts the project to `/workspace` and runs as the `dev`
 user.
 
@@ -951,23 +960,28 @@ whether an image needs an install at create time.
   `_delta/components/agents.sh` at the `versions.env` pins, so an agent pod does
   zero network installs at start. Adding a post-create step would install over
   the bake on every container create.
-- **`flutter`, `zephyr`, `zephyr-devbox` and `hardware` must not either**, and
+- **`flutter`, `embedded`, `hardware` and `ui` must not either**, and
   for a different reason: each one is a thin dispatcher that sends every verb to
   `image_main`, and `_ctl/lib.sh` has no `post-create`. A `postCreateCommand`
-  in one of those 3 files would name a verb that nothing answers — the dead-path
+  in one of those 4 files would name a verb that nothing answers — the dead-path
   class this document opens with. Their toolchains are baked, which is what an
   image is for.
 
 Adding a `postCreateCommand` to an image is therefore 2 edits and not 1: the
 `devcontainer.json` line, and the verb that answers it.
 
-You can also deploy `zephyr-devbox` as a k8s pod, connect to it over VS Code
+You can also deploy `embedded` as a k8s pod, connect to it over VS Code
 Remote-SSH, or open it in a browser at `:8443`. Read
-`zephyr-devbox/devbox-entrypoint.sh` for its full contract; sshd is the last
+`embedded/embedded-entrypoint.sh` for its full contract; sshd is the last
 thing it does, and 5 operator-facing steps come first:
 
-1. It execs any argv you supply and does nothing else. Local devcontainer use
-   therefore behaves like the other layers.
+1. **It runs the pod half only when `GOPHERSYS_EMBEDDED_MODE=devbox`.** Any
+   other value, absence included, is TOOLCHAIN mode: it execs the argv docker
+   hands it — the image `CMD` when the caller named none — as `dev`, and
+   touches nothing under `/etc/ssh`. So `docker run embedded id` is `dev`
+   exactly as the `zephyr` image was, and the pod OPTS IN. The default arm is
+   the one that has to be safe by absence: an entrypoint that fell through to
+   sshd on a missing env would start a listener for every `docker run`.
 2. It generates persistent ed25519 and rsa host keys into `/etc/ssh/hostkeys`,
    so the box keeps its SSH identity across pod restarts.
 3. It takes `authorized_keys` from `DEVBOX_AUTHORIZED_KEYS` (a pod env, usually
@@ -1034,11 +1048,10 @@ verb catalog is what a reader trusts.
 ## Dependency graph
 
 ```
-        base               cloud
-     ┌───┴───┐         (FROM ubuntu)
- flutter   zephyr            │
-              │           hardware
-        zephyr-devbox
+        base                cloud
+     ┌───┴────┐         (FROM ubuntu)
+ flutter   embedded     ┌────┴────┐
+                     hardware    ui
 ```
 
 That drawing is prose. `images.yaml` is the graph, and this is what the machine
@@ -1048,10 +1061,10 @@ reads:
 images:
   base:          { parent: "",       paths: [...], groups: [...] }
   flutter:       { parent: base,     platforms: [linux/amd64], ... }
-  zephyr:        { parent: base,     ... }
-  zephyr-devbox: { parent: zephyr,   ... }
+  embedded:      { parent: base,     ... }
   cloud:         { parent: "",       size_budget_gb: 5.75, ... }
   hardware:      { parent: cloud,    pins: versions.env, size_budget_gb: 11.0, ... }
+  ui:            { parent: cloud,    pins: versions.env, size_budget_gb: 6.5, ... }
 ```
 
 **3 keys are OPTIONAL, and for each one ABSENT IS A DECISION.** `platforms`
@@ -1134,6 +1147,48 @@ directory — **add or rename a provider file and you edit
 `EXPECTED_PROVIDER_FILES` in `_ctl/tests/platform-policy.test.sh` in the same
 change.** The direction is provider → workflow: `validate.yml` and `pr-review.yml`
 are provider-native and have no source-of-truth copy.
+
+## The embedded fold
+
+`zephyr` and `zephyr-devbox` are 1 image, `embedded`. The devbox was the
+toolchain plus 9 layers, so the split carried ~1.5 GB of delta at the cost of a
+second publish job, a second pin home, a second class table and a second nightly
+scan — measured on 2026-08-18 through the ghcr.io registry API, amd64, summing
+the per-layer gzip ISIZE trailers: `zephyr` 6,741,148,672 bytes and
+`zephyr-devbox` 8,244,974,080.
+
+**It also cost a CHECK, and that is the reason the fold happened rather than the
+saving.** `.ci/smoke.sh` reads a child image's OWN Dockerfile as its second pin
+home, and `zephyr-devbox` declared esptool and code-server there while west and
+the Zephyr SDK lived in the PARENT's file. So the devbox run compared 2 of the 4
+pins its image carried, and nothing in this repository could say so — the
+inherited-pin half of ledger #102. 1 home and 1 table now carry all 7 rows, and
+the 4 `asserted` ones are compared in a single run. **This
+closes #102 for this family and for no other**: `flutter` inherits base's pins
+the same way, and the general fix is a `FROM`-graph walker in the driver, which
+is still open.
+
+**1 image cannot carry 2 users, so the identity moved out of the Dockerfile.**
+`embedded` ships `USER root`, because the pod half binds sshd and manages host
+keys, and `embedded/embedded-entrypoint.sh` drops to `dev` in its default mode
+before it execs the command. That is a CONTRACT CHANGE with a stated shape:
+`docker run embedded id` prints `dev` as it always did, `docker run --user dev
+embedded` must NOT reach `runuser` (it is unprivileged there and would refuse),
+and `.ci/smoke.sh` takes the second of those 2 paths. The euid test in the
+entrypoint is what makes both callers work, and
+`_ctl/tests/embedded-entrypoint.test.sh` is where both arms are proven — on the
+host, because the smoke's own argv bypasses the dispatch entirely.
+
+**`DEVBOX_*` keeps its spelling**, and so do the `content-zephyr` and
+`content-devbox` check groups. Those names describe the pod's env contract and
+the CONTENT a group exercises; neither moved, and renaming them would have
+reached into running pods and into `.ci/image-checks.sh` for nothing.
+
+**`ghcr.io/gophersys/zephyr` and `ghcr.io/gophersys/zephyr-devbox` are the
+rollback anchors.** Their `:latest` freezes at the last publish before this
+merge, and the nightly stops scanning them the moment the matrix regenerates —
+so an unscanned image stays pullable, on purpose, until a green `embedded` has
+run in the cluster. Deleting either package is Mateo's decision alone.
 
 ## The `+ runner` layer is retired and deleted
 

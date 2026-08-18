@@ -5,9 +5,9 @@
 #
 # Thin dispatcher. The body of every verb is in _ctl/lib.sh, 1 time only.
 #
-# One thing makes this image different from the other 3 children, and it is
+# One thing makes this image different from the other children, and it is
 # data set here rather than a verb written here: it is a CHILD that reads
-# versions.env. flutter, zephyr and zephyr-devbox spell their own pins inline;
+# versions.env. flutter and embedded spell their own pins inline;
 # this one declares value-less ARGs and takes the values from the one pin home,
 # the way cloud does. `pins: versions.env` on its images.yaml entry is what
 # makes the CI job generate the same list.

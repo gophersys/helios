@@ -39,7 +39,7 @@
 # WHY A CHILD DECLARES ITS PARENT'S INPUTS
 # ============================================================================
 #
-# flutter, zephyr and zephyr-devbox FROM an image this repository publishes. If
+# flutter and embedded FROM an image this repository publishes. If
 # base rebuilds and flutter does not, the published flutter is a layer on an
 # image that no longer exists at that tag. So a child's input set CONTAINS its
 # parent's, and `parent built => child builds` holds by construction —

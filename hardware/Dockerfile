@@ -25,7 +25,7 @@
 #     content-hardware group of .ci/image-checks.sh.
 #   - The non-root user is the literal `dev`. The parent's SHELL is zsh, which
 #     auto-sets $USERNAME to the EFFECTIVE user, so ${USERNAME} in a RUN here
-#     would read the layer's uid — see zephyr/Dockerfile for the full account.
+#     would read the layer's uid — see embedded/Dockerfile for the full account.
 
 ARG BASE_TAG=latest
 FROM ghcr.io/gophersys/cloud:${BASE_TAG}

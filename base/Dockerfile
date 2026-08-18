@@ -17,7 +17,7 @@
 # Single "pick up and work" image for the brain ecosystem: shells, languages
 # (Node, Python, Go, Rust), infra CLIs (kubectl/helm/tailscale/gh),
 # desktop/Tauri system libs, USB/BLE system libs, and the data/parsing tools
-# every consuming project reaches for. Child images (flutter, zephyr) add
+# every consuming project reaches for. Child images (flutter, embedded) add
 # domain-specific toolchains on top.
 #
 # Conventions enforced by this Dockerfile:
@@ -371,10 +371,10 @@ RUN if id ubuntu >/dev/null 2>&1; then userdel --remove ubuntu 2>/dev/null || us
  && chown -R "${USERNAME}:${USERNAME}" /workspace "/home/${USERNAME}"
 
 # -------------------------------------------------------------------------
-# The verified fetcher, above every download layer that uses it. flutter,
-# zephyr, zephyr-devbox and base-runner inherit it through their FROM and add
-# no COPY of their own — the body of a verb lives 1 time, and this is that
-# rule applied to the fetch-and-compare body.
+# The verified fetcher, above every download layer that uses it. flutter and
+# embedded inherit it through their FROM and add no COPY of their own — the
+# body of a verb lives 1 time, and this is that rule applied to the
+# fetch-and-compare body.
 #
 # Editing the helper therefore rebuilds this image from here down. It changes
 # rarely, and the alternative — a copy per image — is the defect.

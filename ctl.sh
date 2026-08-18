@@ -34,8 +34,10 @@ source "$PROJECT_ROOT/_ctl/lib.sh"
 # parent. This array was a literal here and a second literal in .ci/ctl.sh, and
 # holding the 2 to each other is what validate.yml's agreement step is for.
 #
-# `base` is the root of the dev-image family; `flutter` and `zephyr` layer on
-# top of `base`, and `zephyr-devbox` layers on top of `zephyr`. `cloud` is the
+# `base` is the root of the dev-image family; `flutter` and `embedded` layer on
+# top of `base`. `embedded` was 2 images — `zephyr` and `zephyr-devbox` on top
+# of it — and the fold made the toolchain and the pod box 1 image with 1 pin
+# home, whose 2 identities are a mode of its entrypoint. `cloud` is the
 # successor image of the consolidation program (ledger #94): the reduced base +
 # the CI fold, built FROM ubuntu directly. It is what all 3 ARC pools run.
 #
@@ -243,9 +245,9 @@ function shell_scripts() {
 # and no shell is involved. Only RUN reaches zsh.
 #
 # THE HOLE, stated rather than left for a reader to find: the trigger is the
-# SHELL line in THIS file. flutter, zephyr and zephyr-devbox declare no SHELL of
-# their own and INHERIT zsh through their FROM, so their RUN layers run under
-# exactly the same shell and this reader stays silent on them. All 3 hardcode
+# SHELL line in THIS file. flutter and embedded declare no SHELL of their own
+# and INHERIT zsh through their FROM, so their RUN layers run under exactly the
+# same shell and this reader stays silent on them. Both hardcode
 # `dev` today, and each says so in a header comment, so the hole costs nothing
 # at the moment — closing it means resolving the FROM graph here, which is a
 # design decision and not a widened regex.
@@ -288,7 +290,7 @@ function devcontainer_files() {
 # The 4 are the contract .claude/rules/00-identity.md states — the published ref,
 # the `dev` user (uid 1000, sudo-nopasswd), and /workspace, which is Eden's
 # bind-mount convention. postCreateCommand is deliberately NOT a 5th: exactly 1
-# of the 7 files declares it and the other 6 must not, so agreement is the wrong
+# of the 6 files declares it and the other 5 must not, so agreement is the wrong
 # property here. That document's dev-in-container section gives the reason per
 # image.
 function check_devcontainer_json() {
@@ -444,7 +446,7 @@ function cmd_validate() {
     if [[ -n "$trapped" ]]; then
       log_error "${name}/Dockerfile: \${USERNAME} in a RUN after the SHELL switched to zsh"
       log_error "zsh auto-sets USERNAME to the EFFECTIVE user, so this reads the layer's uid and not the ARG"
-      log_error "write the literal 'dev' — the pattern flutter/, zephyr/ and zephyr-devbox/ document in their headers"
+      log_error "write the literal 'dev' — the pattern flutter/ and embedded/ document in their headers"
       printf '%s\n' "$trapped" >&2
       rc=1
     fi

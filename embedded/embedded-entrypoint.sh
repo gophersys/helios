@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
 #
-# devbox-entrypoint.sh — PID 1 for the zephyr-devbox pod.
+# embedded-entrypoint.sh — PID 1 of the embedded image, in both of its modes.
 #
-# Runs as root: prepares persistent SSH host keys, the `dev` user's
-# authorized_keys, and mounted-volume ownership, starts code-server (as
-# `dev`, backgrounded, supplementary), then execs sshd in the foreground.
-# Interactive work happens over SSH as `dev` or in the browser via
-# code-server on :8443.
+# The image is `zephyr` and `zephyr-devbox` folded into 1, and 1 image cannot
+# carry 2 users: the pod half needs root for sshd, the toolchain half is `dev`.
+# So the image ships `USER root` and this file picks the identity, keyed on
+# GOPHERSYS_EMBEDDED_MODE:
 #
-# Pass-through: any argv (e.g. `docker run <image> zsh`, or a devcontainer
-# override command) is exec'd instead of sshd, preserving local-devcontainer
-# parity with the other image layers.
+#   devbox           the pod. Runs as root: prepares persistent SSH host keys,
+#                    the `dev` user's authorized_keys, and mounted-volume
+#                    ownership, starts code-server (as `dev`, backgrounded,
+#                    supplementary), then execs sshd in the foreground.
+#                    Interactive work happens over SSH as `dev` or in the
+#                    browser via code-server on :8443.
+#   anything else,   the toolchain. Execs the argv docker hands us — the image
+#   unset included   CMD when the caller named none — as `dev`, which is what
+#                    the zephyr image did through `USER dev` and what every
+#                    other layer of this repository still does.
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -35,8 +41,37 @@ function degraded() {
   printf '%s\n' "$*" >>"${DEGRADED_MARKER}"
 }
 
-# -------- argv pass-through --------
-if [[ $# -gt 0 ]]; then
+# -------- mode dispatch --------
+# `devbox` is the ONLY value that reaches the pod preparation below. Anything
+# else — unset included — is the toolchain, so a caller who names no mode gets
+# exactly the behaviour the zephyr image had, and the pod opts IN.
+#
+# The DEFAULT arm and not the devbox arm is the one that must be safe by
+# absence: an image whose entrypoint fell through to sshd whenever an env was
+# missing would start a listener for every `docker run`.
+#
+# runuser is correct at euid 0 and WRONG below it — under `docker run --user
+# dev` (which .ci/smoke.sh does) the binary is there and unprivileged, and it
+# would refuse with "may not be used by non-root users", turning a working
+# invocation into an error. The euid test is what makes both callers work.
+#
+# Plain `runuser -u dev --`, deliberately NOT `--preserve-environment`.
+# Measured on ubuntu:24.04: it PRESERVES PATH and every exported variable, and
+# sets HOME=/home/dev, USER=dev and LOGNAME=dev — which is the environment
+# `USER dev` in a Dockerfile produces. --preserve-environment would keep
+# HOME=/root, and the toolchain's caches and oh-my-zsh live in /home/dev.
+if [[ "${GOPHERSYS_EMBEDDED_MODE:-}" != "devbox" ]]; then
+  # An empty argv here would `exec` nothing and fall THROUGH to the pod
+  # preparation, which is the silent wrong branch this dispatch exists to
+  # prevent. The image declares CMD, so reaching this needs a caller that
+  # replaced it with nothing.
+  if [[ $# -eq 0 ]]; then
+    log "ERROR: no command to exec — the image CMD is /usr/bin/zsh and this caller replaced it with an empty argv"
+    exit 2
+  fi
+  if [[ "$(id -u)" -eq 0 ]]; then
+    exec runuser -u dev -- "$@"
+  fi
   exec "$@"
 fi
 

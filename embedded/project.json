@@ -1,5 +1,5 @@
 {
-  "name": "images-zephyr-devbox",
+  "name": "images-embedded",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "tags": ["scope:shared", "type:container-image"],
@@ -12,7 +12,7 @@
       },
       "cache": false,
       "dependsOn": [
-        { "projects": ["images-zephyr"], "target": "build" }
+        { "projects": ["images-base"], "target": "build" }
       ]
     },
     "push": {

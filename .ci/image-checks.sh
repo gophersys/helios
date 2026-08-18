@@ -699,7 +699,7 @@ function checks_content_devbox() {
   run_step "sshd host keys" sudo mkdir -p /etc/ssh/hostkeys
   run_step "sshd host key ed25519" sudo ssh-keygen -q -N '' -t ed25519 -f /etc/ssh/hostkeys/ssh_host_ed25519_key
   run_step "sshd host key rsa" sudo ssh-keygen -q -N '' -t rsa -f /etc/ssh/hostkeys/ssh_host_rsa_key
-  # /run/sshd is a RUNTIME prerequisite that PID 1 supplies — devbox-entrypoint.sh
+  # /run/sshd is a RUNTIME prerequisite that PID 1 supplies — embedded-entrypoint.sh
   # creates it just before it execs sshd — and `sshd -t` refuses to read the
   # config at all without it ("Missing privilege separation directory"). The
   # smoke sends its own argv, which the entrypoint execs INSTEAD of running that

@@ -83,7 +83,7 @@
 # and the 2 branches that added them each took field 8 while it was alone.
 #
 #   platforms   OPTIONAL. The platforms THIS image publishes. Absent means
-#               SANCTIONED_PLATFORMS, which is what 6 of the 7 take — so the key
+#               SANCTIONED_PLATFORMS, which is what 5 of the 6 take — so the key
 #               appears only where an image is measurably NARROWER, and reading
 #               the manifest tells you which one that is. It may never be WIDER:
 #               image_platforms refuses an entry outside the sanctioned set,
@@ -102,7 +102,7 @@
 #               the unit every census figure in this repository uses. .ci/
 #               smoke.sh reads it and gates the LOADED image on it before the
 #               push, so an oversize image never reaches a consumer. Absent means
-#               NO size gate, which is what 4 of the 7 images take — the budget
+#               NO size gate, which is what 3 of the 6 images take — the budget
 #               is an acceptance metric somebody set, not a number every image
 #               owes. A budget that is present and unreadable is a FAILURE and
 #               never a skip. The comment beside each key carries the
@@ -211,41 +211,18 @@ images:
         flutter inherits every tool of base, so the pins of versions.env are
         compared here too, and the flutter SDK is checked on top of them.
 
-  zephyr:
+  embedded:
     parent: base
-    context: zephyr
-    dockerfile: zephyr/Dockerfile
-    smoke_ref: zephyr:smoke
+    context: embedded
+    dockerfile: embedded/Dockerfile
+    smoke_ref: embedded:smoke
     paths:
-      - zephyr/
-    groups:
-      - content-base
-      - content-zephyr
-      - go-gate
-      - dockerfile-lint
-      - compose
-    notes:
-      outputs: |
-        zephyr-devbox FROMs zephyr, and reads this for the same reason the
-        children of base read base's: a job that did not build pushed no :<sha>.
-      base_tag: |
-        The parent this layer FROMs. base publishes a :<sha> tag only on a
-        commit that changed it, so when base did not build there is no such tag
-        and the only correct parent is the :latest that is still current.
-      filter: |
-        zephyr's input set contains base's, so base building implies this job
-        building. The reverse does not hold, which is what BASE_TAG answers.
-      smoke: |
-        zephyr inherits every tool of base, so the pins of versions.env are
-        compared here too, and west is checked on top of them.
-
-  zephyr-devbox:
-    parent: zephyr
-    context: zephyr-devbox
-    dockerfile: zephyr-devbox/Dockerfile
-    smoke_ref: zephyr-devbox:smoke
-    paths:
-      - zephyr-devbox/
+      - embedded/
+    # content-zephyr and content-devbox are BOTH here, and neither name moved.
+    # A group names the CONTENT it exercises — west, and the flash/debug stack
+    # — and that content is what it always was; it is the 2 IMAGES that became
+    # 1. Renaming the groups would have made this fold reach into
+    # .ci/image-checks.sh for nothing.
     groups:
       - content-base
       - content-zephyr
@@ -253,23 +230,41 @@ images:
       - go-gate
       - dockerfile-lint
       - compose
+    # NO size_budget_gb, and the absence is a DECISION rather than a hole.
+    # Measured on 2026-08-18 through the ghcr.io registry API, amd64, summing
+    # the per-layer gzip ISIZE trailers: zephyr:latest 6,741,148,672 bytes and
+    # zephyr-devbox:latest 8,244,974,080, so the devbox delta is 1.504 GB and
+    # this image's docker-Size basis is ~9.23 GB.
+    #
+    # That number is NOT written as a budget, because the gate that would read
+    # it compares COMPRESSED bytes against an uncompressed budget — the finding
+    # the ui entry records below, which makes cloud's 5.75 GB acceptance metric
+    # unfailable too (#119). A budget that cannot fail is the believed-and-empty
+    # check this repository refuses elsewhere, so the key arrives with the unit
+    # fix and not before.
     notes:
-      needs: |
-        Layers on zephyr the same way zephyr layers on base, so it FROMs the
-        zephyr this run just pushed. It needs base as well, for the one short SHA
-        every job of the run tags with.
       base_tag: |
-        The parent is zephyr, so it is ZEPHYR's verdict that decides whether a
-        :<sha> tag exists to FROM. base's short sha is still the tag zephyr
-        pushed under, because every job of a run shares one commit.
+        The parent this layer FROMs. base publishes a :<sha> tag only on a
+        commit that changed it, so when base did not build there is no such tag
+        and the only correct parent is the :latest that is still current.
       filter: |
-        This image's input set contains zephyr's, which contains base's, so a
-        parent that builds always brings its children with it.
+        embedded's input set contains base's, so base building implies this job
+        building. The reverse does not hold, which is what BASE_TAG answers.
       smoke: |
-        The devbox image defaults to root for sshd, and the smoke forces the
-        dev user so the base checks run in the identity the other images use.
-        The flash/debug stack, the SDK toolchains and `sshd -t` are checked on
-        top of every pin of versions.env.
+        embedded inherits every tool of base, so the pins of versions.env are
+        compared here too. Its own home adds 7 rows on top of them, of which 4
+        are `asserted` — WEST_VERSION, ZEPHYR_SDK_VERSION, ESPTOOL_VERSION and
+        CODE_SERVER_VERSION; BASE_TAG and the 2 toolchain LISTS name no version
+        to compare. That is the check the 2-image split cost: west and the
+        Zephyr SDK lived in the parent's file, so the devbox run asserted 2 of
+        the 4 its image carried (the inherited-pin half of ledger #102).
+
+        The image ships USER root for sshd, and the run forces the dev user so
+        the base checks run in the identity every other image uses. The
+        flash/debug stack, the SDK toolchains and `sshd -t` are checked on top.
+        The argv this step sends BYPASSES the entrypoint's mode dispatch, so
+        nothing here exercises it — _ctl/tests/embedded-entrypoint.test.sh is
+        that coverage, on the host.
 
   cloud:
     parent: ""
