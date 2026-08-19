@@ -77,11 +77,14 @@ jobs:
       # The warmer keeps runner images hot by declaring them as initContainers
       # — the kubelet pulls, no privilege. Its pinned ref is a 4th home of the
       # cloud digest the 3 scale-set files pin, and this holds all 4 to one
-      # value, and holds the warmer to zero hostPath. Manifest-only, CI-safe.
+      # value, and holds the warmer to zero hostPath. It also derives the
+      # control-plane set from the node identity files and fails when the warmer
+      # or a runner pool can still schedule there — the pin that took k3s-cp-0
+      # to 93% (debt-register D45). Manifest-only, CI-safe.
       - name: warmer pins match the pools, warmer stays unprivileged
         run: bash scripts/verify-warmer-pins.sh
 
-      # Both suites below drive the REAL script against a mktemp fixture tree —
+      # The suites below drive the REAL script against a mktemp fixture tree —
       # a fake kubectl first on PATH for one, a symlink that relocates the
       # script's ROOT for the other. Neither contacts a cluster and neither
       # writes into the tree. They are here for the reason the queue step is: a
@@ -91,6 +94,9 @@ jobs:
 
       - name: runner-image rule — fixture tests
         run: bash scripts/test-verify-runner-image.sh
+
+      - name: warmer-pins rule — fixture tests
+        run: bash scripts/test-verify-warmer-pins.sh
 
       # The queue rule reads its own fixtures, so it needs no network and no
       # token. It ran nowhere before this step existed, and a suite that nothing

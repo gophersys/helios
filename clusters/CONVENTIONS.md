@@ -133,6 +133,10 @@ labels and the taints to the k8s node at k3s-join time. For a managed cluster,
 the Terraform module of the provider sets them through the labels and taints
 configuration of the node group.
 
+**That role does not exist yet, so on the homelab cluster nothing applies these
+labels or taints — every node answers `<none>` for both.** See
+`docs/debt-register.md` D45; scheduling there is governed by manifest affinity.
+
 ## Platform component opt-in
 
 Every cluster always installs `platform/core/*`. See the install order in
@@ -191,7 +195,8 @@ If a cluster must genuinely be retired:
   `providers/kubernetes-manual/ansible/` calls for cluster members.
 - **The Kubernetes control plane, the node registration, and the labels and
   taints** → the k3s or provider install step, plus the `cluster-node-labels`
-  Ansible role.
+  Ansible role — which is declared everywhere and written nowhere, so the
+  declared labels and taints are unapplied today (`docs/debt-register.md` D45).
 - **Cluster-wide resources (NetworkPolicy baselines, PSS labels, Kyverno CRs)** →
   `platform/core/*`.
 - **Cluster-wide shared services (observability, databases, messaging)** →

@@ -32,9 +32,16 @@
 # in time for the day's first build and a bumped pin is warm before the first
 # job needs it.
 #
-# Scheduling mirrors the runner pools exactly (NotIn k3s-w-4): warm precisely
-# the nodes a runner can land on. No tolerations — if control-plane nodes are
-# tainted away from runners they are tainted away from the warmer too.
+# SCHEDULING: NotIn k3s-w-4 — the embedded lab, mirroring the runner pools — and
+# NotIn the 3 control planes. The control planes are excluded EXPLICITLY, by
+# hostname, because nothing else excludes them: zero taints exist cluster-wide
+# (verified live 2026-08-18; the taints declared in
+# clusters/instances/homelab/nodes/*/identity.yaml were never applied — see
+# docs/debt-register.md D45). They are 38GB VMs running etcd, and a warmer pod
+# holds ~3.86GB of images there that image GC cannot reclaim while it runs;
+# k3s-cp-0 reached 93% used / 2.7GB free on 2026-08-18.
+# scripts/verify-warmer-pins.sh derives the control-plane set from those identity
+# files and FAILS validate when one of them is missing from the list below.
 apiVersion: apps/v1
 kind: DaemonSet
 metadata:
@@ -60,7 +67,7 @@ spec:
               - matchExpressions:
                   - key: kubernetes.io/hostname
                     operator: NotIn
-                    values: ["k3s-w-4"]
+                    values: ["k3s-w-4", "k3s-cp-0", "k3s-cp-1", "k3s-cp-2"]
       initContainers:
         # The ref every ARC pool pins — verify-warmer-pins.sh holds this line
         # to the same digest as the 3 app-arc-runners-*.yaml files.

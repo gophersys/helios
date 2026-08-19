@@ -974,6 +974,45 @@ call, not a fix to apply quietly. A control case would settle it first: 1
 match git, so a blanket ignore would hide a real drift without fixing anything.
 
 
+### D45 🟠 Node labels and taints exist in git and on no node — OPEN
+
+**Every homelab node declares labels that nothing applies, and half of them
+declare taints that nothing applies either.** All 8
+`clusters/instances/homelab/nodes/<node>/identity.yaml` files carry
+`kubernetes.labels.role` (`devops` on k3s-cp-0/1/2 and k3s-w-0, `apps` on
+k3s-w-1..4). Only those same 4 declare a taint —
+`devops=true:PreferNoSchedule` — and the other 4 declare `taints: []`, so the
+gap is the labels on all 8 and the taints on 4. Every one of them lists
+`cluster-node-labels` in its `roles:`, and `clusters/CONVENTIONS.md` names that
+Ansible role as the applier. It does not exist: `machines/roles/` holds 10 roles
+and none of them is it.
+
+Measured live on 2026-08-18, all 8 nodes:
+
+```
+kubectl get nodes -o custom-columns='NAME:.metadata.name,TAINTS:.spec.taints,ROLE:.metadata.labels.role'
+```
+
+Every node answers `<none>` in both columns. Zero taints, zero `role=` labels.
+
+**The cost is that a manifest can believe them.** `42-image-warmer-daemonset.yaml`
+did: it carried no tolerations and a comment saying control planes tainted away
+from runners are tainted away from the warmer too. The premise was false, so the
+DaemonSet ran on the 3 control planes and held ~3.86GB of images there that
+image GC cannot reclaim while its initContainers hold them. `k3s-cp-0` reached
+93% used / 2.7GB free at 22:31Z on 2026-08-18 while serving etcd on a 38GB disk.
+
+Until this entry is resolved, **scheduling is governed by manifest affinity
+only**. The warmer, the refresh CronJob and both NotIn runner pools now exclude
+the control planes by hostname, and `scripts/verify-warmer-pins.sh` derives that
+set from the identity files, so a 4th control plane fails validate the day it is
+declared. That is a guard, not the fix.
+
+The fix is a choice, and it is Mateo's: write `cluster-node-labels` and apply
+what the identity files declare, or delete the declarations. Do not leave the
+third state — a declaration that reads like enforcement and enforces nothing.
+
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR or the date that
