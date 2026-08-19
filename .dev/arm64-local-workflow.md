@@ -1,6 +1,6 @@
 # arm64-local-workflow
 
-phase:    verify
+phase:    pr
 repo:     gophersys/.devcontainer
 branch:   feat/arm64-local-workflow
 worktree: ~/code/.worktrees/devcontainer-arm64-workflow
@@ -46,5 +46,15 @@ orders §4). As produced by dev-planner:
 ## Blocked
 - Nothing.
 
+## Proven (verify round)
+- Verifier REFUTED on 3 evidence counts, all fixed: state tallies corrected
+  to reproduced 879/822 (53fde94); exception check tightened to code-span
+  name-as-a-name with the prose counter-stimulus pinned (6aee97a, 35→36
+  checks); README mobile paragraph made time-true vs the not-yet-existing
+  ref (8ab55a6). Enforcement itself survived all 7 break-tests.
+- Final gates on the combined tree (orchestrator-run): test rc=0 (24 files),
+  validate rc=0.
+
 ## Next
-dev-verifier refutation pass; then PR.
+Push, PR, reviewer, merge under authority; delete this file in the final
+commit before merge.
