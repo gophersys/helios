@@ -46,10 +46,35 @@
 #   STUB_DAEMON_PLATFORM        what `docker version --format` answers   (linux/amd64)
 #   STUB_IMAGE_INSPECT_STATUS   exit status of `docker image inspect`    (0)
 #   STUB_IMAGE_PLATFORM         the Os/Architecture of the stored image  (linux/amd64)
-#   STUB_IMAGE_SIZE             the Size of the stored image, in bytes   (4000000000)
+#   STUB_IMAGE_SIZE             the UNPACKED size of the stored image,
+#                               in bytes — the sum `docker history` reports
+#                               and the number the size gate compares
+#                                                                        (4000000000)
+#   STUB_IMAGE_LAYER_SIZES      the exact lines `docker history` prints, 1 per
+#                               layer; the default is the single line
+#                               STUB_IMAGE_SIZE
+#   STUB_IMAGE_CONTENT_SIZE     what `docker image inspect --format
+#                               '{{.Size}}'` answers                     (1647731708)
+#   STUB_HISTORY_STATUS         exit status of `docker history`          (0)
 #   STUB_PULL_STATUS            exit status of `docker pull`             (0)
 #   STUB_RUN_STATUS             exit status of `docker run`              (0)
 #   STUB_DOCKER_STDIN           write the stdin of `docker run` to this file
+#
+# THE 2 SIZES ARE DIFFERENT NUMBERS, AND THAT IS THE POINT (ledger #119).
+#
+# A real daemon running the CONTAINERD image store — the default of Docker 29,
+# which is what the daemon the CI smoke talks to runs — answers
+# `docker image inspect --format '{{.Size}}'` with the CONTENT size: the sum of
+# the COMPRESSED layer blobs. `docker history --human=false` answers the
+# UNPACKED size of each layer. Measured on this mac (docker 29.5.3, containerd
+# store) against an image holding 400,000,000 bytes of zeros: inspect said
+# 4,483,568 and the history lines summed to 409,493,504.
+#
+# So the default of STUB_IMAGE_CONTENT_SIZE is 1,647,731,708 — the compressed
+# figure cloud's gate really read in run 32151769443 — and it is deliberately
+# NOT derived from STUB_IMAGE_SIZE. A gate that goes back to reading the inspect
+# template gets a number no budget in images.yaml can fail, and every size case
+# of this suite turns red instead of quietly agreeing.
 #
 # STUB_DOCKER_STDIN is the one that matters for the smoke contract. The host
 # driver feeds the guest script to the container on stdin, so the payload is
@@ -79,6 +104,23 @@ function stub_format() {
     previous="$argument"
   done
   printf ''
+}
+
+# stub_has_argument <needle> <argv...> — whether the argv carries this exact
+# word. `docker history` prints HUMAN-READABLE sizes unless `--human=false` is
+# given, so the stub has to read the flag rather than assume the caller passed
+# it: a reader that drops the flag must get "4GB" here, exactly as it would from
+# a daemon, and fail on it.
+function stub_has_argument() {
+  local needle="$1"
+  shift
+  local argument
+  for argument in "$@"; do
+    if [[ "$argument" == "$needle" ]]; then
+      return 0
+    fi
+  done
+  return 1
 }
 
 # stub_registry_read_failed — the 1 gate every registry reader passes through.
@@ -205,7 +247,7 @@ case "${1:-}" in
       fi
       STUB_TEMPLATE="$(stub_format "$@")"
       case "$STUB_TEMPLATE" in
-        *Size*)         printf '%s\n' "${STUB_IMAGE_SIZE:-4000000000}" ;;
+        *Size*)         printf '%s\n' "${STUB_IMAGE_CONTENT_SIZE:-1647731708}" ;;
         *Architecture*) printf '%s\n' "${STUB_IMAGE_PLATFORM:-linux/amd64}" ;;
         *RepoDigests*)
           if [[ -z "${STUB_REGISTRY_DIGEST:-}" ]]; then
@@ -223,6 +265,22 @@ case "${1:-}" in
     fi
     printf 'stub docker: unhandled image subcommand: %s\n' "${2:-}" >&2
     exit 64
+    ;;
+  history)
+    if [[ "${STUB_HISTORY_STATUS:-0}" -ne 0 ]]; then
+      printf 'Error response from daemon: No such image: %s\n' "${*: -1}" >&2
+      exit "${STUB_HISTORY_STATUS}"
+    fi
+    if ! stub_has_argument "--human=false" "$@"; then
+      # What a daemon answers a caller that did not ask for bytes.
+      printf '4GB\n'
+      exit 0
+    fi
+    # `-` and not `:-`: an explicitly EMPTY value is the image whose history
+    # reports no layer at all, which is a world a test has to be able to state.
+    # A sum over nothing is 0, and 0 is under every budget ever written.
+    printf '%s\n' "${STUB_IMAGE_LAYER_SIZES-${STUB_IMAGE_SIZE:-4000000000}}"
+    exit 0
     ;;
   pull)
     if [[ "${STUB_PULL_STATUS:-0}" -ne 0 ]]; then
