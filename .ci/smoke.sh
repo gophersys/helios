@@ -1118,8 +1118,12 @@ fi
 #
 #   - under the CLASSIC (graphdriver) image store it answers the UNPACKED size,
 #     which is the basis every size_budget_gb in images.yaml was set on;
-#   - under the CONTAINERD image store — the DEFAULT of Docker 29 — it answers
-#     the CONTENT size instead: the sum of the COMPRESSED layer blobs.
+#   - under the CONTAINERD image store it answers the CONTENT size instead: the
+#     sum of the COMPRESSED layer blobs.
+#
+# WHICH STORE A DAEMON RUNS IS NOT THIS REPOSITORY'S TO CHOOSE. The dind the
+# arc-build pods talk to answers the second way, and the numbers below are how
+# that was found rather than a claim about a docker version.
 #
 # The daemon under this smoke changed basis without a commit here. cloud read
 # 5,627,002,516 bytes in run 32039450157 (2026-08-17T14:33Z) and 2,059,410,281
@@ -1133,12 +1137,17 @@ fi
 # 400,000,000 bytes of zeros: `image inspect --format '{{.Size}}'` said
 # 4,483,568 and the history lines summed to 409,493,504.
 #
-# 3 things are refusals here rather than a number, because each one would
-# otherwise sum to 0 and 0 is under every budget anybody will ever write: a
-# history that cannot be read, a history with no layer in it, and a line that is
-# not a count of bytes. The third is the defect's own class one flag away —
-# without `--human=false` docker prints `4GB`, and `$((total + 4GB))` is a
-# syntax error at best and 0 at worst.
+# 3 readings are refusals here rather than a number:
+#
+#   - a history that cannot be READ. There is no size, so there is no gate.
+#   - a history with NO LAYER in it. It sums to 0, and 0 is under every budget
+#     anybody will ever write — the believed-and-empty check again.
+#   - a line that is NOT A COUNT OF BYTES. This is the defect's own class one
+#     flag away: without `--human=false` docker prints `4GB`. Measured —
+#     `t=$((t + 4GB))` under `set -Eeuo pipefail` aborts with
+#     `value too great for base (error token is "4GB")`, which names neither
+#     this gate nor the image, and it would abort the smoke of an image nobody
+#     had measured. The refusal below names both.
 function image_unpacked_size_bytes() {
   local reference="$1"
   local lines

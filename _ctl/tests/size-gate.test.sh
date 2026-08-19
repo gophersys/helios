@@ -22,8 +22,8 @@
 # read 5,626,948,253 bytes, which is 2.1% of headroom.
 #
 # The gate read that number with `docker image inspect --format '{{.Size}}'`,
-# and that template is NOT store-invariant. Under the CONTAINERD image store —
-# the default of Docker 29 — it answers the CONTENT size instead: the sum of the
+# and that template is NOT store-invariant. Under the CONTAINERD image store it
+# answers the CONTENT size instead: the sum of the
 # COMPRESSED layer blobs. The daemon the CI smoke talks to changed basis under
 # the gate between 2026-08-17T14:33Z (run 32039450157, 5,627,002,516 bytes) and
 # 2026-08-17T18:32Z (run 32055368934, 2,059,410,281 bytes). Nothing failed,

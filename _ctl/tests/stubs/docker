@@ -62,13 +62,15 @@
 #
 # THE 2 SIZES ARE DIFFERENT NUMBERS, AND THAT IS THE POINT (ledger #119).
 #
-# A real daemon running the CONTAINERD image store — the default of Docker 29,
-# which is what the daemon the CI smoke talks to runs — answers
+# A real daemon running the CONTAINERD image store — which is what the daemon
+# the CI smoke talks to runs — answers
 # `docker image inspect --format '{{.Size}}'` with the CONTENT size: the sum of
 # the COMPRESSED layer blobs. `docker history --human=false` answers the
 # UNPACKED size of each layer. Measured on this mac (docker 29.5.3, containerd
 # store) against an image holding 400,000,000 bytes of zeros: inspect said
-# 4,483,568 and the history lines summed to 409,493,504.
+# 4,483,568 and the history lines summed to 409,493,504. The same 2 answers come
+# back from an image that was `docker image load`ed and never run, which is the
+# shape the CI smoke meets after a buildx `load: true`.
 #
 # So the default of STUB_IMAGE_CONTENT_SIZE is 1,647,731,708 — the compressed
 # figure cloud's gate really read in run 32151769443 — and it is deliberately
