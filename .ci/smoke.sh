@@ -1182,10 +1182,11 @@ function image_unpacked_size_bytes() {
 # A log line from before 2026-08-18 carries the other basis for the same image,
 # so the lines below name the basis rather than only the number.
 #
-# An image that declares no budget takes no gate, which is what 4 of the 7
-# declare. The refusals are all FAILURES and never skips: a budget that cannot
-# be READ, and — inside the reader — a size the daemon will not report, a size
-# with no layer behind it, and a size that is not in bytes.
+# An image that declares no budget takes no gate. Read images.yaml for which
+# ones: a count written here is a count that goes stale, and this file has done
+# that twice already. The refusals are all FAILURES and never skips: a budget
+# that cannot be READ, and — inside the reader — a size the daemon will not
+# report, a size with no layer behind it, and a size that is not in bytes.
 SIZE_BUDGET_BYTES="$(image_size_budget_bytes "$IMAGE")" || exit 1
 if [[ -n "$SIZE_BUDGET_BYTES" ]]; then
   SIZE_BUDGET_GB="$(image_size_budget_gb "$IMAGE")"

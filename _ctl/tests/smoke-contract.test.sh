@@ -111,10 +111,12 @@ SMOKE_REF="cloud:smoke"
 # asserts the wrong image, and every check above would still pass, because they
 # read cloud.
 #
-# Read on 2026-08-18 rather than incremented: `.ci/smoke.sh` declares 7 class
-# tables, 4 of them over versions.env (CLOUD, BASE, HARDWARE, UI) and 3 over a
-# child Dockerfile; images.yaml declares 7 images and 3 of them carry
-# `size_budget_gb` (cloud, hardware, ui), so 4 do not; and KICAD_PPA_VERSION is
+# Read on 2026-08-19 rather than incremented — and it had been incremented, by
+# a paragraph written before the embedded fold made 2 images 1: `.ci/smoke.sh`
+# declares 6 class tables, 4 of them over versions.env (CLOUD, BASE, HARDWARE,
+# UI) and 2 over a child Dockerfile (MOBILE, EMBEDDED); images.yaml declares 6
+# images and 3 of them carry
+# `size_budget_gb` (cloud, hardware, ui), so 3 do not; and KICAD_PPA_VERSION is
 # `asserted` in PIN_CLASSES_HARDWARE and `not-in-this-image:kicad-cli` in the
 # other 3 tables over that home.
 #
@@ -399,9 +401,9 @@ function docker_run_lines() {
 #
 # THE SECOND CHECK THAT COULD NOT FAIL, and the rule it repairs is "the driver
 # smokes the ref it was given". That rule read the WHOLE argv log, and the driver
-# calls `docker image inspect` on the same ref twice before it runs anything — for
-# the platform and for the size. So the ref was always in the log, whatever
-# container was started. Measured 2026-08-18 by rewriting the last line of
+# reads the same ref twice before it runs anything — `docker image inspect` for
+# the platform and `docker history` for the size. So the ref was always in the
+# log, whatever container was started. Measured 2026-08-18 by rewriting the last line of
 # .ci/smoke.sh to `docker run ... "cloud:latest"`: all 3 ref checks stayed GREEN
 # while every smoke in this file asserted about an image nobody built.
 #
@@ -589,8 +591,14 @@ assert_refused_without_running "an_empty_pin_fails_the_run_and_starts_no_contain
 # still orders correctly, so the pair below is chosen so that ONLY the boundary
 # itself separates them.
 #
-# The stub answers `docker image inspect --format '{{.Size}}'` with
-# STUB_IMAGE_SIZE, so no image of any size is ever built.
+# The stub answers `docker history` with STUB_IMAGE_SIZE, so no image of any
+# size is ever built.
+#
+# THE 3 PAIRS BELOW ARE THE COMPARISON AND NOT THE BASIS, and each one stayed
+# correctly green while the gate compared the wrong number entirely. What the
+# driver ASKS THE DAEMON FOR is held in _ctl/tests/size-gate.test.sh (ledger
+# #119); a stub that answers one number to every question cannot express that
+# difference, which is why the file is a second one and not 3 more cases here.
 CLOUD_SIZE_BUDGET="5750000000"
 
 run_smoke "$SMOKE" "$IMAGE" "$SMOKE_REF" "STUB_IMAGE_SIZE=$((CLOUD_SIZE_BUDGET + 1))"
