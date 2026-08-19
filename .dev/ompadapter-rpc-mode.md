@@ -1,6 +1,6 @@
 # ompadapter-rpc-mode
 
-phase:    fix
+phase:    submit
 repo:     gophersys/libs
 branch:   feat/ompadapter-rpc-mode
 worktree: ~/code/.worktrees/libs-ompadapter-rpc-mode
@@ -155,3 +155,9 @@ the eden:permission steer to the wire (Allow→Approve label, Deny→Deny), canc
 2nd Prompt isn't refused; verifyOmpBinary rejects oh-my-posh, Spawn probes --version.
 grantedTools/isGranted DELETED (no self-decision path survives; dialogTool remains ONLY as the title parser feeding the ask). Gates 5/5+11/11+6/6 green in-container;
 apidiff byte-identical; cover-floor 84.4%; 2 credential-gated live SKIPs in integration_test.go (live token, real-omp binary) + 1 unrelated rapid Skip; the earlier '5/6' counts were stale (LiveAdvisor_AllowsLowRiskRead no longer exists).
+
+
+## Fix round 1 CLOSED (fbbe326): F8 comments trimmed to rpc truth; fold-pin note added.
+Verify round 2 READY. Flake ticketed (TurnOrdinalIncrements under parallel gates, not PR-1b's).
+Ready to submit: routing security fix (library decides, adapter routes; rm-rf DENY reaches
+the wire, human Allow reaches the wire, CapPermissionPrompt:Full honest) survived break-tests.
