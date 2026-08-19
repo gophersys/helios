@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/internal/controlframe"
@@ -64,14 +65,24 @@ type rpcConn struct {
 	hostTools  *hostToolRouter
 	digest     digester
 
-	// granted is the tool set this session launched with (the same names that ride --tools).
-	// It is the standing authorization the approval dialog is answered from.
-	granted map[string]struct{}
+	// fallback bounds how long a surfaced dialog waits for the library to resolve it before the
+	// adapter answers Deny itself, so omp's timerless `select` (rpc-mode.ts:640) cannot stall.
+	fallback time.Duration
 
 	events chan agentsession.Event
 
 	writeMu sync.Mutex   // serializes whole NDJSON frames onto omp's stdin
 	frameID atomic.Int64 // the host-chosen correlation ids ("1", "2", "3", ... as captured)
+
+	// dialogMu guards the pending-dialog set: the ask surfaced for each open select, keyed by its
+	// frame id, with the options the wire answer must name and the deny-on-timeout timer.
+	dialogMu sync.Mutex
+	dialogs  map[string]*pendingDialog
+
+	// resolved carries the EventPermissionResolved a settled dialog produces, from resolveDialog
+	// (the library's Send goroutine, or the fallback timer) to the pump — the ONE events sender.
+	// Buffered so a resolution never blocks its caller; the pump is the only reader.
+	resolved chan agentsession.Event
 
 	mu      sync.Mutex
 	closed  bool
@@ -83,37 +94,59 @@ type rpcConn struct {
 	reapOnce  sync.Once
 }
 
-// newRPCConn builds the conn over an already-open transport and starts pumping immediately, so
-// omp's `ready` frame is read the moment it arrives. toOMP is a WriteCloser because the stdin
-// EOF is load-bearing rather than incidental: closing it is what makes omp reject its pending
-// requests, drain the accepted commands, dispose the session and exit 0.
+// pendingDialog is one surfaced approval dialog awaiting a resolution. options are the labels the
+// wire answer must name (omp matches the answer's value against them); timer is the deny-on-timeout
+// fallback; resolved is the first-wins guard so a library decision and the fallback cannot both
+// answer the same dialog.
+type pendingDialog struct {
+	options  []string
+	timer    *time.Timer
+	resolved bool
+}
+
+// dialogResolveBuffer bounds the resolution hand-off channel. A session has at most one open
+// approval dialog at a time in plain rpc, but the buffer is generous so a burst never blocks the
+// library's decision goroutine on the pump.
+const dialogResolveBuffer = 8
+
+// defaultDialogFallback is the production deny-on-timeout window. It is longer than the library's
+// own default permission window (agentsession defaultPermissionTimeout, 5 minutes) on purpose: in
+// normal operation the library ALWAYS resolves first — grant, advisor, or its own timeout->deny —
+// and that decision reaches the wire. This blunt adapter deny is the last-resort safety net for a
+// library that never forwards at all (the session torn down mid-flight, the decision Send dropped),
+// so it must not pre-empt the library's own richer resolution.
+const defaultDialogFallback = 6 * time.Minute
+
+// newRPCConn builds the conn with the production deny-on-timeout window.
+//
+//nolint:gocritic,ireturn // contract §2: Spec is the frozen copyable session input; the seam mirrors Spawn's by-value port.
+func newRPCConn(spec agentsession.Spec, fromOMP io.Reader, toOMP io.WriteCloser) *rpcConn {
+	return newRPCConnWithFallback(spec, fromOMP, toOMP, defaultDialogFallback)
+}
+
+// newRPCConnWithFallback builds the conn over an already-open transport and starts pumping
+// immediately, so omp's `ready` frame is read the moment it arrives. toOMP is a WriteCloser because
+// the stdin EOF is load-bearing rather than incidental: closing it is what makes omp reject its
+// pending requests, drain the accepted commands, dispose the session and exit 0. fallback is the
+// deny-on-timeout window (the test injects a short one; production uses defaultDialogFallback).
 //
 //nolint:gocritic // contract §2: Spec is the frozen copyable session input; the seam mirrors Spawn's by-value port.
-func newRPCConn(spec agentsession.Spec, fromOMP io.Reader, toOMP io.WriteCloser) *rpcConn {
+func newRPCConnWithFallback(spec agentsession.Spec, fromOMP io.Reader, toOMP io.WriteCloser, fallback time.Duration) *rpcConn {
 	conn := &rpcConn{
 		fromOMP:    fromOMP,
 		toOMP:      toOMP,
 		normalizer: newNormalizer(),
 		digest:     defaultDigester,
-		granted:    grantedTools(spec.Grants),
+		fallback:   fallback,
 		events:     make(chan agentsession.Event),
+		dialogs:    make(map[string]*pendingDialog),
+		resolved:   make(chan agentsession.Event, dialogResolveBuffer),
 		done:       make(chan struct{}),
 		drained:    make(chan struct{}),
 	}
 	conn.hostTools = newHostToolRouter(spec.HostTools, conn.writeFrame)
 	go conn.pump()
 	return conn
-}
-
-// grantedTools indexes the tool names the session launched with — the same set toolArguments
-// renders into --tools, so the approval dialog and the tool allowlist cannot disagree.
-func grantedTools(grants []agentsession.ToolGrant) map[string]struct{} {
-	names := toolNames(grants)
-	index := make(map[string]struct{}, len(names))
-	for _, name := range names {
-		index[name] = struct{}{}
-	}
-	return index
 }
 
 // Events returns the normalized, pre-Seq event channel the library pumps.
@@ -133,13 +166,13 @@ func (c *rpcConn) Send(ctx context.Context, command agentsession.Command) error 
 	case agentsession.CommandAbort:
 		return c.writeFrame(map[string]any{"id": c.nextFrameID(), "type": "abort"})
 	case agentsession.CommandSteer:
-		if _, _, _, _, isDecision := controlframe.DecodePermission(command.Text); isDecision {
-			// A resolved permission decision, tunneled as a steer by the library. The dialog it
-			// answers was resolved on the wire the instant it arrived — omp arms no timer on a
-			// `select` (rpc-mode.ts:640), so a dialog held open for an out-of-band decision stalls
-			// the turn forever, and an answer to a dialog omp has already resolved matches nothing.
-			// The decision is the library's record; what must never happen is this internal frame
-			// reaching omp as conversation text, which the steer below would do.
+		if requestID, allow, by, _, isDecision := controlframe.DecodePermission(command.Text); isDecision {
+			// A resolved permission decision, tunneled as a steer by the library (forwardDecision).
+			// It answers a surfaced dialog on the WIRE — mapped to that dialog's own options and
+			// correlated by id — never as conversation text: omp would read the internal
+			// eden:permission frame as user input. The F2 guard is exactly this early return; the
+			// genuine-steer path below never sees a decision.
+			c.resolveDialog(requestID, allow, by)
 			return nil
 		}
 		return c.writeFrame(map[string]any{"id": c.nextFrameID(), "type": "steer", "message": command.Text})
@@ -160,6 +193,7 @@ func (c *rpcConn) Close(ctx context.Context) error {
 		c.mu.Lock()
 		c.closed = true
 		c.mu.Unlock()
+		c.cancelDialogs()
 		c.hostTools.closeAll()
 		close(c.done)
 		_ = c.toOMP.Close() //nolint:errcheck // the EOF is the signal; an already-closed stdin is the desired state.
@@ -168,21 +202,64 @@ func (c *rpcConn) Close(ctx context.Context) error {
 	return nil
 }
 
-// pump reads omp's stdout frame by frame for the whole session: each line is serviced (the rpc
-// control plane — readiness, host tools, dialogs) and then normalized onto the Event taxonomy,
-// so a frame the adapter acts on is still surfaced rather than swallowed. On EOF it closes the
-// events channel: the library reads a closed channel with no terminal as a transport failure,
-// and one with no Ready as the silent-bad-token trap.
+// pump is the SOLE sender on the events channel. It reads omp's stdout frames off a reader
+// goroutine and interleaves them with the permission RESOLUTIONS the library hands back through
+// resolveDialog: each omp line is serviced (the rpc control plane — readiness, host tools, the
+// dialog ask) and then normalized onto the taxonomy, while a resolved dialog publishes the
+// EventPermissionResolved that moves the session out of StateAwaitingPermission. omp emits no
+// resolved frame of its own (it just proceeds with the tool), so the adapter is the harness that
+// "emits the EventPermissionResolved record" the library's state machine waits for. On EOF it
+// closes the events channel: the library reads a closed channel with no terminal as a transport
+// failure, and one with no Ready as the silent-bad-token trap.
 func (c *rpcConn) pump() {
 	defer c.finish()
+	lines := make(chan []byte)
+	go c.readLines(lines)
+	for {
+		// A ready resolution goes out FIRST, so the session leaves StateAwaitingPermission before
+		// the tool frames that follow the answer — a turn_end reached while still awaiting a
+		// permission would strand the session there.
+		select {
+		case resolved := <-c.resolved:
+			if !c.publish([]agentsession.Event{resolved}) {
+				return
+			}
+			continue
+		default:
+		}
+		select {
+		case resolved := <-c.resolved:
+			if !c.publish([]agentsession.Event{resolved}) {
+				return
+			}
+		case line, ok := <-lines:
+			if !ok {
+				return
+			}
+			if !c.publish(c.service(line)) {
+				return
+			}
+			if !c.publish(c.normalizer.normalize(line)) {
+				return
+			}
+		case <-c.done:
+			return
+		}
+	}
+}
+
+// readLines scans omp's stdout into whole NDJSON lines and hands COPIES to the pump (the scanner
+// reuses its buffer), closing the channel on EOF so the pump ends the session.
+func (c *rpcConn) readLines(lines chan<- []byte) {
+	defer close(lines)
 	scanner := bufio.NewScanner(c.fromOMP)
 	scanner.Buffer(make([]byte, 0, 64*1024), maxLineBytes)
 	for scanner.Scan() {
-		line := scanner.Bytes()
-		if !c.publish(c.service(line)) {
-			return
-		}
-		if !c.publish(c.normalizer.normalize(line)) {
+		line := make([]byte, len(scanner.Bytes()))
+		copy(line, scanner.Bytes())
+		select {
+		case lines <- line:
+		case <-c.done:
 			return
 		}
 	}
@@ -236,76 +313,135 @@ func (c *rpcConn) handshake() []agentsession.Event {
 	}}
 }
 
-// dialog answers an extension_ui_request and surfaces the round trip as the ask AND its
-// resolution, in that order.
+// dialog SURFACES an approval `select` as an EventPermissionRequest and routes it through the
+// library's permission chain — it does NOT decide. Mateo's ruling (2026-08-19): the adapter is
+// not a permission authority; it hands the library what the library needs to decide and writes
+// back whatever the library resolved (resolveDialog, driven by the tunneled decision in Send).
 //
-// Answering is not a courtesy. A `select` carries no timeout field and requestRpcDialog arms a
-// timer only when opts.timeout is set (rpc-mode.ts:640), so an unanswered dialog waits FOREVER:
-// q3-probe5 measured 45 seconds of wall clock with no agent_end and had to kill the child. The
-// answer is therefore written on arrival, from the only authorization the session holds — its
-// standing grant, the same tool set that rides --tools. A tool outside it is refused, so an
-// unattended session can never authorize what nobody granted.
+// The command is load-bearing. omp folds the tool onto the title's first line ("Allow tool: bash")
+// and the command onto its second ("Command: rm -rf /"). The command is the only thing that
+// distinguishes `bash ls` from `bash rm -rf /`, so the adapter folds it into Permission.Tool as
+// the "Tool(scope)" shape the library's grant-match and risk-class machinery already consume
+// (baseToolName + scopesFromTool) — without it the whole chain is blind and a scoped grant would
+// auto-approve a destructive command.
 //
-// Both events are published because the answer has ALREADY happened: the ask alone would park
-// the session at StateAwaitingPermission waiting for a resolution that is on the wire, and the
-// resolution alone would hide the ask from the audit record.
+// A pending entry is recorded BEFORE the ask is published, because the autonomous chain resolves
+// synchronously on receipt: the decision Send arrives while this call's event is still being
+// delivered, and resolveDialog must find the entry. The deny-on-timeout timer is armed here so
+// omp's timerless `select` (rpc-mode.ts:640) cannot stall the turn if the library never resolves.
 //
-// The widget/status/notify verbs are fire-and-forget (rpc-mode.ts:824) and are NOT answered:
-// omp never waits for them, and an answer to one would be a frame nobody asked for.
+// Only `select` — the approval gate — is routed. The widget/status/notify verbs are fire-and-forget
+// (rpc-mode.ts:824): omp never waits for them, and answering one would be a frame nobody asked for.
 func (c *rpcConn) dialog(frame *rpcFrame) []agentsession.Event {
-	tool := dialogTool(frame.Title)
-	allowed := c.isGranted(tool)
-	answer, isDialog := dialogAnswer(frame, allowed)
-	if !isDialog {
+	if frame.Method != "select" {
 		return nil
 	}
-	_ = c.writeFrame(answer) //nolint:errcheck // best-effort: a transport that cannot take the answer has already ended the session, and the stall it would otherwise cause is what this write exists to prevent.
-	ask := agentsession.PermissionPayload{
-		RequestID: frame.ID,
-		Tool:      tool,
-		Reason:    c.digest([]byte(frame.Title)),
+	c.recordDialog(frame.ID, frame.Options)
+	return []agentsession.Event{{
+		Kind: agentsession.EventPermissionRequest,
+		Permission: &agentsession.PermissionPayload{
+			RequestID: frame.ID,
+			Tool:      foldToolScope(dialogTool(frame.Title), dialogCommand(frame.Title)),
+			Reason:    c.digest([]byte(frame.Title)),
+		},
+	}}
+}
+
+// fallbackDenyBy is the deciding identity the adapter stamps on a deny-on-timeout resolution — the
+// last-resort safety net, distinct from any library verdict so the audit record shows the library
+// never resolved this one.
+const fallbackDenyBy = "policy:adapter-timeout-deny"
+
+// recordDialog registers a surfaced dialog and arms its deny-on-timeout fallback. A conn already
+// closed records nothing (its dialogs were canceled and no answer can go out).
+func (c *rpcConn) recordDialog(id string, options []string) {
+	c.dialogMu.Lock()
+	defer c.dialogMu.Unlock()
+	if c.dialogs == nil {
+		return
 	}
-	resolved := ask
-	resolved.Decision, resolved.By = agentsession.GrantDenied, "policy:default-deny"
-	if allowed {
-		resolved.Decision, resolved.By = agentsession.GrantAllowed, "grant:session"
+	entry := &pendingDialog{options: options}
+	entry.timer = time.AfterFunc(c.fallback, func() { c.resolveDialog(id, false, fallbackDenyBy) })
+	c.dialogs[id] = entry
+}
+
+// resolveDialog answers a surfaced dialog once — first writer wins between the library's tunneled
+// decision and the deny-on-timeout fallback. It marks the dialog resolved under the lock, stops the
+// timer, writes the wire answer mapped to the dialog's own options, and hands the pump the
+// EventPermissionResolved that moves the session out of StateAwaitingPermission. A decision for an
+// id with no pending dialog (one that raced Close, or one for a dialog this conn never surfaced)
+// does nothing — there is no ask to resolve and no state to recover.
+func (c *rpcConn) resolveDialog(id string, allow bool, by string) {
+	c.dialogMu.Lock()
+	entry, ok := c.dialogs[id]
+	if !ok || entry.resolved {
+		c.dialogMu.Unlock()
+		return
 	}
-	return []agentsession.Event{
-		{Kind: agentsession.EventPermissionRequest, Permission: &ask},
-		{Kind: agentsession.EventPermissionResolved, Permission: &resolved},
+	entry.resolved = true
+	if entry.timer != nil {
+		entry.timer.Stop()
+	}
+	options := entry.options
+	delete(c.dialogs, id)
+	c.dialogMu.Unlock()
+
+	_ = c.writeFrame(wireAnswer(id, options, allow)) //nolint:errcheck // best-effort: a transport that cannot take the answer has already ended the session, and the stall it would otherwise cause is what this write exists to prevent.
+	c.publishResolved(id, allow, by)
+}
+
+// publishResolved hands the pump the resolution record. It is buffered and done-guarded so the
+// library's decision goroutine never blocks on the pump, and a resolution that lands after Close
+// (the pump already gone) is harmlessly dropped.
+func (c *rpcConn) publishResolved(id string, allow bool, by string) {
+	decision := agentsession.GrantDenied
+	if allow {
+		decision = agentsession.GrantAllowed
+	}
+	event := agentsession.Event{
+		Kind: agentsession.EventPermissionResolved,
+		Permission: &agentsession.PermissionPayload{
+			RequestID: id,
+			Decision:  decision,
+			By:        by,
+		},
+	}
+	select {
+	case c.resolved <- event:
+	case <-c.done:
 	}
 }
 
-// dialogAnswer renders the RpcExtensionUIResponse for one dialog (rpc-types.ts:535): a value
-// naming one of the dialog's own options for select, a confirmed boolean for confirm, and the
-// cancel variant for anything else — including a select whose options this host does not
-// recognize, where canceling is the only answer that cannot invent a verdict. isDialog is
-// false for the fire-and-forget verbs, which carry no response at all.
-func dialogAnswer(frame *rpcFrame, approve bool) (map[string]any, bool) {
-	answer := map[string]any{"type": "extension_ui_response", "id": frame.ID}
-	switch frame.Method {
-	case "select":
-		verdict := denyOption
-		if approve {
-			verdict = approveOption
+// cancelDialogs stops every pending fallback timer at Close and drops the set, so no timer fires
+// after the transport is gone and no dialog goroutine outlives the session (goleak).
+func (c *rpcConn) cancelDialogs() {
+	c.dialogMu.Lock()
+	defer c.dialogMu.Unlock()
+	for _, entry := range c.dialogs {
+		entry.resolved = true
+		if entry.timer != nil {
+			entry.timer.Stop()
 		}
-		option, found := optionLabeled(frame.Options, verdict)
-		if !found {
-			answer[answerCancelField] = true
-			return answer, true
-		}
-		answer["value"] = option
-		return answer, true
-	case "confirm":
-		answer["confirmed"] = approve
-		return answer, true
-	case "input", "editor":
-		// A free-text dialog has no verdict to give: an unattended host has nothing to type.
-		answer[answerCancelField] = true
-		return answer, true
-	default:
-		return nil, false
 	}
+	c.dialogs = nil
+}
+
+// wireAnswer renders the RpcExtensionUIResponse for a resolved select (rpc-types.ts:535): the
+// library's verdict mapped to the dialog's OWN option label (omp matches the answer's value against
+// its options array). When the expected label is absent the answer is the dismissal variant, which
+// fails safe — a dismissed dialog is a denial, never a fabricated approval.
+func wireAnswer(id string, options []string, allow bool) map[string]any {
+	answer := map[string]any{"type": "extension_ui_response", "id": id}
+	want := denyOption
+	if allow {
+		want = approveOption
+	}
+	if option, found := optionLabeled(options, want); found {
+		answer["value"] = option
+		return answer
+	}
+	answer[answerDismissField] = true
+	return answer
 }
 
 // The two option labels omp's approval dialog offers, matched case-insensitively against the
@@ -315,11 +451,11 @@ const (
 	denyOption    = "deny"
 )
 
-// answerCancelField is the cancel variant's field name, spelled as omp spells it on the wire
+// answerDismissField is the dismissal variant's field name, spelled as omp spells it on the wire
 // (rpc-types.ts:535). An answer whose key does not match resolves no dialog.
 //
 //nolint:misspell // the double-L is omp's wire spelling of this field, not this repository's prose; the US-locale linter flags the only spelling that resolves the dialog.
-const answerCancelField = "cancelled"
+const answerDismissField = "cancelled"
 
 // optionLabeled finds the dialog option carrying the wanted verdict, returning it verbatim (the
 // label is matched against the options array, so the exact spelling is what must ride back).
@@ -332,9 +468,18 @@ func optionLabeled(options []string, want string) (string, bool) {
 	return "", false
 }
 
-// dialogTool reads the tool name out of an approval dialog's title. omp writes it on the first
-// line ("Allow tool: bash", with the command on the next), which is the only place it appears
-// on this frame family.
+// foldToolScope renders the "Tool(scope)" shape the library's grant-match/risk-class machinery
+// consumes: the command as the tool's scope (e.g. bash + "rm -rf /" -> "bash(rm -rf /)"). A dialog
+// with no command line yields the bare tool name, which for a shell the library already treats as
+// unbounded (RiskHigh).
+func foldToolScope(tool, command string) string {
+	if command == "" {
+		return tool
+	}
+	return tool + "(" + command + ")"
+}
+
+// dialogTool reads the tool name from an approval dialog's title first line ("Allow tool: bash").
 func dialogTool(title string) string {
 	first, _, _ := strings.Cut(title, "\n")
 	if _, name, found := strings.Cut(first, ":"); found {
@@ -343,10 +488,18 @@ func dialogTool(title string) string {
 	return strings.TrimSpace(first)
 }
 
-// isGranted reports whether a tool is in the set this session launched with.
-func (c *rpcConn) isGranted(tool string) bool {
-	_, found := c.granted[tool]
-	return found
+// dialogCommand reads the command from an approval dialog's title second line ("Command: rm -rf /").
+// A title with no second line (a dialog that names only a tool) yields "".
+func dialogCommand(title string) string {
+	_, rest, found := strings.Cut(title, "\n")
+	if !found {
+		return ""
+	}
+	line, _, _ := strings.Cut(rest, "\n")
+	if _, command, ok := strings.Cut(line, ":"); ok {
+		return strings.TrimSpace(command)
+	}
+	return strings.TrimSpace(line)
 }
 
 // writeFrame marshals one command frame and writes it as a single NDJSON line. A write that

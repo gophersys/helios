@@ -48,7 +48,15 @@ const emitPace = 2 * time.Millisecond
 // commandQueue buffers commands that arrive while a turn is being served.
 const commandQueue = 16
 
+// stubVersion is the coding-agent version line the adapter's binary-identity guard accepts
+// (`omp/<semver>`), so the stub passes the same `--version` check the real omp does.
+const stubVersion = "omp/17.3.7"
+
 func main() {
+	if wantsVersion(os.Args[1:]) {
+		fmt.Println(stubVersion)
+		return
+	}
 	agent := newAgent()
 	agent.emit(`{"type":"ready","protocolVersion":1,"supportedProtocolVersions":[1,2],"maxFrameBytes":1048576,"maxReassembledFrameBytes":67108864}`)
 	commands := make(chan frame, commandQueue)
@@ -56,6 +64,17 @@ func main() {
 	for command := range commands {
 		agent.serve(&command)
 	}
+}
+
+// wantsVersion reports whether the adapter invoked the stub for its version line (Spawn's
+// binary-identity probe) rather than to run a session.
+func wantsVersion(args []string) bool {
+	for _, arg := range args {
+		if arg == "--version" {
+			return true
+		}
+	}
+	return false
 }
 
 // frame is the decoded stdin command envelope. The stub reads only the fields it acts on: an

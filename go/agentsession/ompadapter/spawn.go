@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"time"
 
@@ -21,6 +22,12 @@ const maxLineBytes = 4 << 20
 // that has not done so within this window is killed, so Close never hangs on a wedged harness.
 const reapGrace = 10 * time.Second
 
+// ompCodingAgentVersion matches the coding agent's `--version` line: the coding agent prints
+// `omp/<semver>` (q1-install-verify.txt:15, `omp/17.3.7`), while oh-my-posh — whose CLI is ALSO
+// named `omp` and to which a bare LookPath("omp") resolves on this host — prints a BARE semver
+// ("15.10.0"). The `omp/` prefix is the discriminator.
+var ompCodingAgentVersion = regexp.MustCompile(`(?m)(^|\s)omp/\d+\.\d+\.\d+`)
+
 // Spawn launches ONE long-lived `omp --mode rpc` process for spec.Workspace with the resolved
 // Route and the OpenRouter key injected onto the CHILD env ONLY. The key crosses the boundary
 // EXACTLY at Secret.Use(fn) here — it never enters the Spec, an Event, a log, or a retained
@@ -35,6 +42,12 @@ const reapGrace = 10 * time.Second
 //nolint:gocritic,ireturn // contract §2: Spec is the frozen copyable input and Spawn returns the HarnessConn port — the frozen lower seam.
 func (a *Adapter) Spawn(ctx context.Context, spec agentsession.Spec, route agentsession.Route, cred agentsession.InjectedCredential) (agentsession.HarnessConn, error) {
 	if err := errors.FromContext(ctx); err != nil {
+		return nil, err
+	}
+	// Reject the WRONG `omp` BEFORE launching the long-lived session: `omp` is also oh-my-posh's
+	// binary name, and driving a prompt theme engine as the coding agent hangs on a handshake that
+	// never comes. The check is one short `--version` child, reaped before the session starts.
+	if err := verifyBinary(ctx, a.binary); err != nil {
 		return nil, err
 	}
 	env, err := sessionEnvironment(os.Environ(), spec.Workspace, cred)
@@ -63,6 +76,29 @@ func (a *Adapter) Spawn(ctx context.Context, spec agentsession.Spec, route agent
 	conn := newRPCConn(spec, stdout, stdin)
 	conn.attach(command)
 	return conn, nil
+}
+
+// verifyBinary runs the candidate binary's `--version` and confirms it is the omp CODING AGENT,
+// not oh-my-posh. A binary that cannot be probed, or one whose version is not the coding agent's,
+// is a SpawnError — the session is never started against the wrong process.
+func verifyBinary(ctx context.Context, binary string) error {
+	out, err := exec.CommandContext(ctx, binary, "--version").Output() // #nosec G204 -- binary is Eden-configured; `--version` is a fixed literal, never user input.
+	if err != nil {
+		return errors.Wrap(errors.KindUnavailable, "ompadapter: probe omp --version",
+			agentsession.SpawnError{Harness: harnessName})
+	}
+	return verifyOmpBinary(string(out))
+}
+
+// verifyOmpBinary is the pure binary-identity classifier: it accepts ONLY the omp coding agent's
+// `omp/<semver>` version line and rejects a bare semver (oh-my-posh), a named oh-my-posh line, or
+// empty output. It is pure so it is unit-tested directly without a process.
+func verifyOmpBinary(versionOutput string) error {
+	if ompCodingAgentVersion.MatchString(versionOutput) {
+		return nil
+	}
+	return errors.Wrap(errors.KindUnavailable, "ompadapter: binary is not the omp coding agent (want omp/<semver>)",
+		agentsession.SpawnError{Harness: harnessName})
 }
 
 // sessionEnvironment assembles the child environment for one rpc session: the scrubbed base
