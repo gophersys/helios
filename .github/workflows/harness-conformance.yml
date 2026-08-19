@@ -1,15 +1,19 @@
 name: harness-conformance
 
 # ADR-0021 — proves the PINNED harness versions are conformant with the adapters. Triggered when
-# the version manifest or any agentsession adapter changes (a pin bump or an adapter edit). Runs
-# inside the base devcontainer image (which carries bun + the Go gate toolchain), installs the
-# EXACT pinned harnesses via post-create, then runs the per-adapter conformance + the live gated
-# tests (real harness + real provider) against them. A protocol drift fails HERE, in the PR.
+# the version manifest changes, when the libs POINTER moves (an adapter edit reaches this
+# repository only as a submodule bump) or when one of the 2 asserts below changes. Runs inside the
+# base devcontainer image (which carries bun + the Go gate toolchain), installs the EXACT pinned
+# harnesses via post-create, then runs the per-adapter conformance + the live gated tests (real
+# harness + real provider) against them. A protocol drift fails HERE, in the PR.
 #
 # THE JOB NEVER RUNS IN A DEGRADED MODE. Its whole value is the claim "this pin is safe to merge",
 # so an input it cannot verify is a FAILURE, never a skip:
 #   - assert-harness-conformance-preconditions.sh stops the run when a live credential is absent
 #     or when an installed harness does not carry its pin from harnesses/versions.env;
+#   - assert-peer-messaging-available.sh stops the run when a `claude -p` session of the installed
+#     version cannot reach the cross-session messaging socket, with a named cause here instead of
+#     "no message received" much later;
 #   - assert-no-skipped-tests.sh stops the run when any test skipped, so a test that quietly
 #     opts out can no longer report success.
 # There are no outside contributors: every credential this job needs is available to every run.
@@ -18,7 +22,16 @@ on:
   pull_request:
     paths:
       - "harnesses/versions.env"
-      - "libs/go/agentsession/**"
+      # The libs POINTER, not its content. libs is a submodule, so a superproject diff carries the
+      # gitlink path `libs` and never a path inside it: the filter this replaces —
+      # libs/go/agentsession/** — matched nothing, ever, and this job has never run on an adapter
+      # change. The cost is accepted deliberately: a pointer bump that touches no adapter also runs
+      # the live suite, because a superproject cannot filter submodule content.
+      - "libs"
+      # The 2 asserts that decide whether this job may run at all. A change to either one is a
+      # change to the job's own honesty, so it is proven by the job it guards.
+      - "scripts/assert-harness-conformance-preconditions.sh"
+      - "scripts/assert-peer-messaging-available.sh"
   workflow_dispatch:
 
 concurrency:
@@ -84,6 +97,22 @@ jobs:
           # Read the in-repo manifest rather than the /workspace default (CI checks out elsewhere).
           HARNESS_VERSIONS_FILE: ${{ github.workspace }}/harnesses/versions.env
         run: bash scripts/assert-harness-conformance-preconditions.sh
+
+      # The messaging preflight. The fleet program depends on one session reaching another over the
+      # same-host socket, and a session that cannot reach it fails at the far end of the suite as
+      # "no message received", which names no cause. This step names it here. Below claude 2.1.224
+      # the capability does not exist: the step prints UNEXERCISED, starts no session and passes.
+      - name: Assert peer messaging is available to a claude -p session
+        env:
+          # Above the band flip the step starts one real `claude -p` turn, so it needs the same
+          # bootstrap credential as the live arm. Absent there -> a named failure, never a skip.
+          CLAUDEADAPTER_LIVE_TOKEN: ${{ secrets.CLAUDEADAPTER_LIVE_TOKEN }}
+          # Every step of this job reads the in-repo manifest rather than the /workspace default
+          # (CI checks out elsewhere), so a step that grows a manifest read cannot pick up the wrong
+          # file silently. This preflight does not read it today: the band it judges is a property
+          # of the INSTALLED binary that will run the turn, never of the pin.
+          HARNESS_VERSIONS_FILE: ${{ github.workspace }}/harnesses/versions.env
+        run: bash scripts/assert-peer-messaging-available.sh
 
       - name: Adapter conformance + live gated tests against the pinned versions
         env:
