@@ -266,9 +266,10 @@ images:
     #
     #   8,543,752,192 unpacked bytes x 1.05 = 8,970,939,802
     #
-    # so the row is 8.98 and the slack over measured+5% is 9,060,198 bytes. The
-    # budget stands 5.11% over the image as it is published today, and the
-    # ISIZE estimate this replaces was 8.1% high.
+    # so the row WAS 8.98 — the pre-deletion ceiling, with 9,060,198 bytes of
+    # slack over measured+5%, 5.11% over the image as published THAT day. The
+    # ISIZE estimate it replaced was 8.1% high. The row below supersedes it;
+    # this record stays because it is what qualified the method.
     #
     # THE SUBJECT IS THE PUBLISHED IMAGE, and that is the 1 way this
     # measurement differs from hardware's and ui's, which were read off a
@@ -321,23 +322,20 @@ images:
     # The number in this row is amd64 because that is the platform the gate
     # smokes, and it is also the larger of the 2.
     #
-    # THIS ROW IS NOW A CEILING OVER AN IMAGE THAT NO LONGER EXISTS, AND IT IS
-    # DELIBERATELY NOT GUESSED DOWN. The devbox deletion (Mateo, 2026-08-19)
-    # removes code-server, its seeded extension set and openssh-server from
-    # this image; the pre-fold measurement of the whole devbox delta was 1.504
-    # GB, but that delta ALSO held esptool, the Xtensa toolchains, the
-    # flash/debug stack and the udev rules, every one of which stays. So the
-    # saving is a FRACTION of 1.504 GB that no measurement in this repository
-    # answers for, and a budget written from arithmetic on a number that
-    # measured something else is exactly the stale row #119 was about.
+    # THIS ROW IS THE FIRST POST-DEVBOX MEASUREMENT + 5%, and it closes the
+    # one-publish carry the devbox deletion left here. That deletion (Mateo,
+    # 2026-08-19) removed code-server, its seeded extension set and
+    # openssh-server; the 8.98 ceiling was set against the image WITH those
+    # layers and deliberately not guessed down, because the measured 1.504 GB
+    # devbox delta also held toolchain content that stayed.
     #
-    # 8.98 therefore stands until the first publish after this merge, whose
-    # gate prints the new unpacked byte count; the follow-up is to reset this
-    # row to that measurement + 5%, by the method the comment above states, in
-    # a change of its own. A budget that is too HIGH cannot pass a broken
-    # image — it can only fail to catch a bloated one — so carrying it for one
-    # publish costs a delay and not a gate.
-    size_budget_gb: 8.98
+    # The first publish of the stripped image is run 32231070482 (main,
+    # 2026-08-19), whose gate printed 7,760,642,048 unpacked bytes — so the
+    # deletion returned 0.78 GB, roughly half of the old delta, which is why
+    # arithmetic on the pre-fold number was refused. 7,760,642,048 x 1.05 =
+    # 8,148,674,150, rounded UP at 2 decimals so the row stays >= the +5%.
+    # The basis is the gate's own amd64 reading, per the comment above.
+    size_budget_gb: 8.15
     notes:
       base_tag: |
         The parent this layer FROMs. base publishes a :<sha> tag only on a

@@ -121,9 +121,11 @@ SMOKE_REF="cloud:smoke"
 # `asserted` in PIN_CLASSES_HARDWARE and `not-in-this-image:kicad-cli` in the
 # other 3 tables over that home.
 #
-# `embedded` joined the budgeted set on 2026-08-19 at 8.98 GB, the first row of
+# `embedded` joined the budgeted set on 2026-08-19 at 8.98 GB — the
+# pre-deletion ceiling, reset to 8.15 the same day from the first post-devbox
+# publish (run 32231070482) — the first row of
 # the 4 measured off a PUBLISHED image rather than a rehearsal job — its
-# measurement and the proxy drift that qualifies it are beside the key in
+# measurement record is beside the key in
 # images.yaml. It is also the 1 budgeted image with no hand-kept literal in
 # this file: the gate is 1 shared data-driven path whose 2 boundaries are held
 # below for 3 images and whose BASIS is held by size-gate.test.sh, so a 4th
