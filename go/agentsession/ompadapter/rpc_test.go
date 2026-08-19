@@ -177,43 +177,12 @@ func TestRPC_HostToolResultCorrelatesOnTheFrameID(t *testing.T) {
 	}
 }
 
-// TestRPC_SelectDialogIsAnsweredWithoutATimeout is the stall-deadlock regression pin.
-//
-// The captured `select` dialog carries NO timeout field, and requestRpcDialog arms a timer only
-// when opts.timeout !== undefined (rpc-mode.ts:640) — so omp waits forever. q3-probe5 measured
-// exactly that: 45 seconds of wall clock, no agent_end, the child killed by the driver. There is
-// no deciding policy on this Spec and nobody will Resolve, and the answer must arrive ANYWAY:
-// unconditional is the only rule that cannot deadlock.
-//
-// It must also not be an approval. An unattended session that answers "Approve" to a dialog
-// nobody decided has invented an authorization — the ungated-bash defect with extra steps.
-//
-// The setWidget frame ahead of it is fire-and-forget (rpc-mode.ts:824): omp never waits for it.
-// Answering it too is permitted; BLOCKING on it is not, and this test would starve if the conn
-// did — the select behind it would never be read.
-func TestRPC_SelectDialogIsAnsweredWithoutATimeout(t *testing.T) {
-	t.Parallel()
-	harness := newRPCHarness(t, agentsession.Spec{}) // no OnPermission: nobody is deciding
-	harness.completeHandshake()
-	frames := rpcFixture(t, approvalFixture)
-
-	harness.emit(frames[0], frames[1]) // fire-and-forget setWidget, then the no-timeout select
-
-	answer := harness.waitFrame("extension_ui_response", hasType("extension_ui_response"))
-	if id := stringField(answer, "id"); id != selectFrameID {
-		t.Errorf("extension_ui_response id = %q, want %q — omp resolves the dialog by id and ignores an answer to anything else", id, selectFrameID)
-	}
-	assertLegalDialogAnswer(t, answer)
-	if value := stringField(answer, "value"); strings.EqualFold(value, "approve") {
-		t.Errorf("a dialog nobody decided was answered %q: an unattended session must never authorize the tool it was asked about", value)
-	}
-
-	// The turn proceeds past the answered dialog rather than stalling on it.
-	harness.emit(frames[2], frames[3])
-	harness.waitEvent("the tool outcome past the dialog", func(event *agentsession.Event) bool {
-		return event.Kind == agentsession.EventToolEnd
-	})
-}
+// The stall-deadlock/no-inline-answer contract moved to permission_fallback_test.go
+// (TestRPC_DenyOnAdapterTimeoutWhenNobodyResolves): the old test here asserted the adapter
+// answers the dialog itself, unconditionally, from its standing grant — exactly the
+// grant-deciding behaviour Mateo's ruling DELETES. The dialog is no longer answered inline; it is
+// routed through the library, and the adapter's own bounded fallback answers Deny only when no
+// resolution arrives (so omp's timerless select can never stall).
 
 // TestRPC_CloseFailsEveryCallerWithOneTypedError proves the close contract on both sides of the
 // boundary: the caller blocked in flight when Close lands, and every caller after it, get the
@@ -292,14 +261,20 @@ func TestRPC_ManifestPromotionsAreMeasuredNotDeclared(t *testing.T) {
 	}
 	assertContentIsAnArray(t, answer, "pong from eden host")
 
-	// (2) the permission round trip, earning CapPermissionPrompt: it is SURFACED and ANSWERED.
-	approval := rpcFixture(t, approvalFixture)
-	harness.emit(approval[1])
+	// (2) the permission round trip, earning CapPermissionPrompt: the dialog SURFACES as an
+	// actionable ask carrying the command, routed to the library rather than decided inline. The
+	// answer that reaches the wire is the library's resolution, proven in permission_test.go
+	// (WireAnswerFollowsLibraryDeny/Allow); here the claim rides the ask that makes routing
+	// possible, so the manifest cannot claim Full without the ask being wired.
+	harness.emit(selectDialogFrame(t, dialogID, "bash", "rm -rf /"))
 	ask := harness.waitEvent("an EventPermissionRequest for the approval dialog", func(event *agentsession.Event) bool {
 		return event.Kind == agentsession.EventPermissionRequest
 	})
 	assertAskIsActionable(t, ask)
-	harness.waitFrame("extension_ui_response", hasType("extension_ui_response"))
+	if _, scope := toolBaseAndScope(ask.Permission.Tool); scope != "rm -rf /" {
+		t.Errorf("the ask does not carry the command as a routable scope (Tool=%q): CapPermissionPrompt cannot be Full if the library never sees what it must decide",
+			ask.Permission.Tool)
+	}
 
 	// (3) only now, the claim.
 	manifest := ompadapter.MustNewForTest(t, ompadapter.Config{}).Manifest()

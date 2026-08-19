@@ -3,6 +3,7 @@ package ompadapter
 import (
 	"io"
 	"testing"
+	"time"
 
 	"github.com/gophersys/libs/go/agentsession"
 )
@@ -63,6 +64,25 @@ func ChildEnvironmentForTest(base []string, envName, key string) []string {
 //nolint:gocritic,ireturn // contract §2: Spec is the frozen copyable session input and the seam returns the frozen HarnessConn port — exactly the shapes Spawn takes and returns.
 func RPCConnForTest(spec agentsession.Spec, fromOMP io.Reader, toOMP io.WriteCloser) agentsession.HarnessConn {
 	return newRPCConn(spec, fromOMP, toOMP)
+}
+
+// RPCConnWithFallbackForTest builds the rpc conn with an explicit deny-on-timeout fallback: when
+// a surfaced permission dialog is not resolved through the library within `fallback`, the adapter
+// answers Deny itself so omp's timerless `select` (rpc-mode.ts:640) cannot stall the turn forever.
+// The test injects a short window; production uses its own default. Compiled only in tests.
+//
+//nolint:gocritic,ireturn // contract §2: Spec is the frozen copyable input and the seam returns the frozen HarnessConn port — the shapes Spawn takes and returns.
+func RPCConnWithFallbackForTest(spec agentsession.Spec, fromOMP io.Reader, toOMP io.WriteCloser, fallback time.Duration) agentsession.HarnessConn {
+	return newRPCConnWithFallback(spec, fromOMP, toOMP, fallback)
+}
+
+// VerifyOmpBinaryForTest exposes the pure binary-identity classifier: given the `--version` line a
+// candidate binary printed, it reports whether that binary is the omp CODING AGENT rather than
+// oh-my-posh, whose CLI is ALSO named `omp` (a bare `LookPath("omp")` on this host resolves to
+// oh-my-posh). Driving oh-my-posh as the coding agent hangs on a handshake that never comes, so
+// the spawn path rejects a binary this does not accept. Compiled only in tests.
+func VerifyOmpBinaryForTest(versionOutput string) error {
+	return verifyOmpBinary(versionOutput)
 }
 
 // SessionEnvironmentForTest exposes the rpc child-environment assembly: the scrubbed base, the
