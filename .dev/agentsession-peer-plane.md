@@ -86,7 +86,30 @@ export_test.go recordedUndelivered, internal/planepeer/main.go stub. _ctl/lib.sh
 verb (cmd_harness + require_env; additive — shared by 16 libs). apidiff-record + the
 docs/architecture R1 contract revision in THIS PR.
 
+## GREEN (implementer, 8395a67..7a9fb1e) — production complete, apidiff additive 27/0/0
+Whole seam built: controlframe scalar peer codec; agentsession contract (peer.go,
+Spec.Name/Parent, Deps.Peer, Event.Peer/.Subagent, 3 kinds + 2 caps + tokens); pool/pump/
+session wiring (deliver goroutine reaped on Close, 256-id ring, Received-after-emit,
+suppress when no plane); peerplane package (orchestrator registry/tree/router/ledger/
+AfterFunc-reconciler/bounce; Listen SO_PEERCRED-Linux / fail-closed-elsewhere; Dial/
+Client; length-prefixed wire; planepeer stub); agentsessiontest NewPeerPlane+builders;
+_ctl/lib.sh cmd_harness+require_env; apidiff-record baseline. PROVEN green by name:
+reconciler bounce, Open validation, send-reject, subagent non-conflation, token totality,
+name grammar; load N-mesh -race+goleak clean; SOCKET INTEGRATION real-UDS/real-process
+kill→bounce/roster-drop/higher-Generation PASS in golang:1.26. Decisions: bounce = an
+in-band PeerMessage from <mesh>.root ReplyTo=orig Accepted=false (the bounce IS the
+record); Generation counter never reset on leave; DeliveryDeadline default 60s as one
+AfterFunc/row Stopped on receipt (goleak-forced); EncodePeer renders eden:peer: frame
+(the <eden-peer-message> envelope is PR-1c-ii's adapter job).
+HANDBACK — 7 issues ALL in test files (implementer correctly refused to edit them):
+the peer test SCRIPTS lack a terminal Event, so under R1 the session parks in
+AwaitingInput and drainPeerSession blocks — TestPeer_NoPlaneNoNameOpensCleanly HANGS
+(no-deadline drain), the dedupe property runs 5.1s/iter → ~83min at RAPID_CHECKS=1000,
+subagent test waits 5s. Fix: append agentsessiontest.Result(...) to each peer script
+(or Close to synthesize the R1 clean terminal). Plus 4 test-file lints: reconciler_test
+testpackage/cyclop16/errorlint:79; subagent_test QF1011 on the intentional
+var _ func=link.Send compile-assert (needs //nolint:staticcheck).
+
 ## Next
-Phase 3: implementer builds the whole seam list; all 8 libs tests green (incl. the real-
-UDS socket integration + N-mesh load -race); phase-gate all + apidiff-record; harness
-bodies type-check (authored-not-run in libs). Big round — logical commits.
+Phase 2 handback: test author fixes the 7 test-file items → phase-gate all green →
+verify → PR-1c-i.
