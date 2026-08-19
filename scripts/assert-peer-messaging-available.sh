@@ -42,6 +42,12 @@ PEER_MESSAGING_CREDENTIAL='CLAUDEADAPTER_LIVE_TOKEN'
 # where the job runs, and a check that ran somewhere else proves nothing about the job's own session.
 PEER_MESSAGING_OPERATING_SYSTEM='Linux'
 
+# The probe's scratch directory. It is script-scope, and not a `local` in the function that makes
+# it, because the EXIT trap runs at top level after that function has returned: a `local` is gone by
+# then, `set -u` turns the cleanup into "work: unbound variable", and the SUCCESS path — the only
+# path that returns instead of exiting inside the function — ends 1 with the directory left behind.
+PEER_MESSAGING_WORK=''
+
 # peer_messaging_kill_switch_names — the environment variables that disable cross-session messaging
 # entirely, one per line. Each one makes the socket absent for a reason that is configuration and
 # not a defect, so all 4 are read and the one that is set is named. The list is execution-proven
@@ -155,12 +161,12 @@ peer_messaging_probe() {
       "timeout is not installed — an unbounded 'claude -p' turn would hang this job instead of failing it"
   fi
 
-  local work receipt hook settings
-  work="$(mktemp -d "${TMPDIR:-/tmp}/assert-peer-messaging-available.XXXXXX")"
-  trap 'rm -rf "$work"' EXIT
-  receipt="${work}/receipt.txt"
-  hook="${work}/write-receipt.sh"
-  settings="${work}/settings.json"
+  local receipt hook settings
+  PEER_MESSAGING_WORK="$(mktemp -d "${TMPDIR:-/tmp}/assert-peer-messaging-available.XXXXXX")"
+  trap 'rm -rf "$PEER_MESSAGING_WORK"' EXIT
+  receipt="${PEER_MESSAGING_WORK}/receipt.txt"
+  hook="${PEER_MESSAGING_WORK}/write-receipt.sh"
+  settings="${PEER_MESSAGING_WORK}/settings.json"
 
   cat >"$hook" <<HOOK
 #!/usr/bin/env bash
