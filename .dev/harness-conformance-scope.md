@@ -69,11 +69,19 @@ matches ever) — item 1 is a REPAIR, the job has never fired on an adapter chan
 ## Blocked
 -
 
-## Blocked
--
+## Verify round 2 (final): READY
+All six closed with independent re-breaks (trap revert = 5 FAILs; PATH revert = the
+round-1 failure verbatim; twins guard re-broken at byte level; F6's 12-18m claim
+verified against the 10-run history; RC_LINT transient = NOISE with a reproduced
+mechanism — a stray .sh in scripts/ mid-session). Live pre-read: this PR triggers the
+job; the low band prints UNEXERCISED and exits 0 against the real pinned binary.
+Cleanup remnants: R1 turn_status branch unproven (M2 survivor — code proven correct
+by hand-driving the real scenario; one stub mode closes the gap); R2 this file's
+duplicate heading (fixed in this commit); R3 the probe stub rm -f's the REAL
+/tmp/cc-socks/$$.sock (PID collision would kill a live session's socket — stub-side
+fix, no subject change). Incompleteness stated: affected-check leaf run directly
+(EXIT 0 both) not via nx; the high band stays stub-proven until the pin flips.
 
 ## Next
-Fix round 1: author F2 (probe-body stub cases: success/no-receipt/timeout-124) + F3
-(clean PATH per the sibling suite's pattern); implementer F1 (trap owns its path —
-not a local), F5 (remove inert env + comment, both twins), F6 (timeout -k 30 120 +
-timeout-minutes on the job). Then re-verify (round 2, bounded), PR.
+Author cleanup (R1 stub mode + R3 bind-without-delete), suites re-green, open the PR;
+the job's live low-band run on this PR is part of the check set to read.
