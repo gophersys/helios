@@ -21,17 +21,40 @@ the kube-prometheus views, Node Exporter Full and the Loki logs dashboard.
 
 ## Install
 
-```bash
-helm dependency build
-kubectl create namespace observability
+**On the homelab, Argo owns this chart.** Do not run helm by hand there. The
+Application is `platform/services/gitops/registry/app-observability.yaml`
+(release `obs`, namespace `observability`, values `values-homelab.yaml`); it is
+automated with `selfHeal`, so a hand-run `helm upgrade` is drift that Argo
+reverts with no message. That is exactly how the previous install died: it sat in
+`failed` helm state at revision 8 from 2026-06-18 until it was uninstalled on
+2026-08-09, and nothing reconciled it because nothing owned it.
 
-# Grafana admin secret (the chart reads admin.existingSecret=grafana-admin)
+**One imperative step first, on any cluster.** The chart reads
+`admin.existingSecret=grafana-admin`, and there is no ExternalSecret for it: no
+vault item exists, and the `vaultwarden` ClusterSecretStore returns only an
+item's `notes` field, which does not fit a 2-key login. Grafana sits in
+`CreateContainerConfigError` until the Secret exists — visible, not silent.
+
+```bash
+kubectl create namespace observability
 kubectl -n observability create secret generic grafana-admin \
   --from-literal=admin-user=admin --from-literal=admin-password="$(openssl rand -base64 18)"
+```
 
-# Homelab (Grafana on a MetalLB LoadBalancer). READ THE HEADER OF
-# values-homelab.yaml FIRST: it still pins the `longhorn` StorageClass, which was
-# removed from the cluster on 2026-08-19, so this command leaves 4 PVCs Pending.
+The password is generated here and nowhere else. Read it back with:
+
+```bash
+kubectl -n observability get secret grafana-admin \
+  -o jsonpath='{.data.admin-password}' | base64 -d
+```
+
+Direct helm, for a cluster Argo does not manage (and for authoring):
+
+```bash
+helm dependency build
+
+# Homelab shape (local-path PVCs, Grafana on a MetalLB LoadBalancer, no Ingress —
+# read the values-homelab.yaml header for why the hostname is off and how to restore it):
 helm upgrade --install obs . -f values.yaml -f values-homelab.yaml -n observability
 
 # Cloud (S3-backed Loki/Tempo — see values-cloud.yaml header for the obs-s3 secret + bucket):
@@ -59,6 +82,11 @@ All of them are visible in Grafana, and the Tempo datasource links them together
 
 ## Notes
 
+- **Storage on the homelab is `local-path`** (decided 2026-08-19; the 4 pins are
+  in `values-homelab.yaml`, and its header carries the durability trade). The
+  volumes are node-local and not replicated, and `local-path` is
+  WaitForFirstConsumer, so each PVC binds on the node its pod first lands on and
+  the pod is pinned there afterwards.
 - **Grafana uses an RWO PVC.** The chart sets `deploymentStrategy: Recreate`, so
   an upgrade cannot block on the volume.
 - Grafana provisions the datasources at **startup**. A change to a datasource URL

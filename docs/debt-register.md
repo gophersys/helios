@@ -205,6 +205,9 @@ for each pinned version:
 **Longhorn left this table by removal, not by resolution (2026-08-19).** It was
 the 4th raw-manifest component and the most privileged one. It held 0 volumes:
 its only consumer, the `observability` stack, was itself removed on 2026-08-09.
+(That stack returned on 2026-08-19 as an Argo Application, on `local-path` — the
+node-local trade is stated in `platform/core/storage/README.md`. It is not a
+reason to bring Longhorn back.)
 Mateo's decision was to delete it rather than carry 8 untracked controllers
 against a future need. `local-path` is now the only StorageClass on the cluster.
 `docs/runbooks/longhorn-upgrade.md` was deleted with it — a runbook for a
@@ -216,8 +219,11 @@ stayed up; all 7 ingress-nginx routes stayed up. **Follow-up:** move the 3
 remaining raw-manifest components into Argo Applications, as done for
 cloudflared, or accept them as imperative through this pin table.
 - ⬜ **Tempo** 2.9→3.0 and the observability minor upgrades live in the
-  **eden-observability Helm chart** (the `obs` release, in **failed** helm
-  state). That is the Eden agent's domain, not this one.
+  **eden-observability Helm chart** (the `obs` release). The `failed` helm state
+  that stalled them is gone: the release was uninstalled on 2026-08-09 and
+  reinstalled on 2026-08-19 as the Argo Application `observability`, on
+  `local-path` storage. A subchart bump is now an ordinary PR against
+  `platform/services/observability/chart/Chart.yaml` + `Chart.lock`.
 
 ### D10 ✅ cert-manager DNS-01 cleanup — RESOLVED
 The 5 orphaned `_acme-challenge` TXT records were deleted from Cloudflare, and

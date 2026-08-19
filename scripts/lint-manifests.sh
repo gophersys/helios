@@ -81,8 +81,43 @@ done < <(
     -print0 | sort -zu
 )
 
+# A HELM CHART DIRECTORY IS NOT A RAW MANIFEST TREE.
+# `platform/services/observability/chart` is an in-repo chart that an Argo
+# Application deploys by `path:`, so the registry scan above discovers it as a
+# root. Its Chart.yaml and its 3 values files carry no `kind`, and a template
+# carries `{{ }}` where a value belongs, so kubeconform errors on every one of
+# them: 4 red findings for 4 files that were never manifests. Anchor on the file
+# that DEFINES a chart — a Chart.yaml at or above the file — rather than on the
+# one path this repo has today, so the next in-repo chart needs no edit here.
+#
+# WHAT THIS COSTS, STATED: an in-repo chart's RENDERED output is validated by
+# nothing in CI. That is the same coverage every `chart:`-sourced Application
+# already has (external-secrets, tailscale-operator, arc-runners), so this adds
+# no new blind spot — but it is a real gap, and closing it needs `helm template`
+# with the dependencies built, which needs network and a helm binary the runner
+# image does not promise. The skipped count below is printed so the exemption
+# cannot quietly grow to swallow a real manifest tree.
+kept=()
+skipped=0
+for f in ${files[@]+"${files[@]}"}; do
+  d="$(dirname "$f")"
+  in_chart=0
+  while [ "$d" != "." ] && [ "$d" != "/" ]; do
+    if [ -f "$d/Chart.yaml" ]; then in_chart=1; break; fi
+    d="$(dirname "$d")"
+  done
+  if [ "$in_chart" -eq 1 ]; then
+    skipped=$((skipped + 1))
+    continue
+  fi
+  kept+=("$f")
+done
+files=(${kept[@]+"${kept[@]}"})
+
 # THE FLOOR, part two. Zero manifests means the gate measured nothing — the one
-# false green this whole change exists to kill.
+# false green this whole change exists to kill. It sits AFTER the chart filter on
+# purpose: a discovery set that is entirely chart source has checked nothing, and
+# that must read the same as finding nothing at all.
 if [ "${#files[@]}" -eq 0 ]; then
   echo "lint-manifests: no manifests found under $DIR" >&2
   exit 1
@@ -93,4 +128,5 @@ fi
 # kubeconform RAN rather than merely counting files.
 kubeconform -strict -ignore-missing-schemas -summary "${files[@]}"
 
+echo "lint-manifests: skipped $skipped file(s) inside a Helm chart"
 echo "lint-manifests: checked ${#files[@]} manifest(s)"
