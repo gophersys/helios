@@ -22,7 +22,7 @@ import (
 // missing resolution fails SAFE rather than hanging omp.
 //
 // Two properties, together: the adapter must NOT answer before the window (it is waiting, not
-// deciding inline — the deleted grant-derived behaviour), and it MUST answer Deny after it.
+// deciding inline — the deleted grant-derived behavior), and it MUST answer Deny after it.
 //
 // Today the adapter answers inline the instant the dialog arrives, so the "no answer before the
 // window" half is RED, and there is no fallback path at all.

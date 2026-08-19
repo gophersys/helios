@@ -180,7 +180,7 @@ func TestRPC_HostToolResultCorrelatesOnTheFrameID(t *testing.T) {
 // The stall-deadlock/no-inline-answer contract moved to permission_fallback_test.go
 // (TestRPC_DenyOnAdapterTimeoutWhenNobodyResolves): the old test here asserted the adapter
 // answers the dialog itself, unconditionally, from its standing grant — exactly the
-// grant-deciding behaviour Mateo's ruling DELETES. The dialog is no longer answered inline; it is
+// grant-deciding behavior Mateo's ruling DELETES. The dialog is no longer answered inline; it is
 // routed through the library, and the adapter's own bounded fallback answers Deny only when no
 // resolution arrives (so omp's timerless select can never stall).
 
@@ -389,6 +389,7 @@ func assertSameSentinel(t *testing.T, pendingErr, postErr error) {
 	t.Helper()
 	contractTypedCause(t, pendingErr, "the Send pending at Close")
 	contractTypedCause(t, postErr, "the Send after Close")
+	//nolint:errorlint // deliberate IDENTITY check: the sentinel is ONE sticky value, so pointer equality is the contract — not errors.Is chain equality, which a per-call wrap would satisfy.
 	if pendingErr != postErr {
 		t.Errorf("the close error is not ONE sticky sentinel by identity: pending caller got %#v, later caller got %#v — a per-call constructed error, even one whose typed cause is value-equal, is not the shared sentinel omp's bridge model requires (q4 §5)",
 			pendingErr, postErr)
