@@ -122,9 +122,17 @@ data:
             icon: mdi-drum
 
     - Monitoring:
+        # The observability stack is back under Argo as of 2026-08-19, so both
+        # siteMonitors below resolve again. Grafana has NO hostname: its
+        # dedicated A record was deleted on 2026-08-09 and the
+        # `*.mateosegura.com` wildcard sends the name to the cloud cluster, so
+        # `https://grafana.mateosegura.com` was a dead link. The href is the
+        # MetalLB LoadBalancer instead — tailnet, plain HTTP. Put the hostname
+        # back here in the same PR that restores the A record and the Ingress
+        # (platform/services/observability/chart/values-homelab.yaml header).
         - Grafana:
-            href: https://grafana.mateosegura.com
-            description: Metrics & dashboards
+            href: http://10.168.0.241
+            description: Metrics & dashboards · tailnet LB
             icon: grafana
             siteMonitor: http://grafana.observability.svc.cluster.local
         - Prometheus:

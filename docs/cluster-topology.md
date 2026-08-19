@@ -30,15 +30,25 @@ are on the Tailscale mesh.
   Homepage cards read
   offline when the laptop sleeps. That is correct, not a fault. See
   `music-studio/docs/architecture.md` → "The studio dashboard".
-- **Grafana** — `grafana.` is **tailnet-private with a real certificate** as of
-  2026-08-09. Before that it was *publicly reachable through the Cloudflare
-  tunnel* behind nothing but Grafana's own login, and the admin password was
-  generated but never stored in the vault, while this document stated the
-  opposite. DNS is now an A record to the nginx VIP `10.168.0.240`, and the
-  Ingress carries cert-manager and a `tls:` block like every other tailnet host.
-  Its own MetalLB LoadBalancer at `10.168.0.241` (plain HTTP) still exists as a
-  second path. `contracts/exposure.yaml` declares it, and
-  `bash ctl.sh verify-exposure` enforces it.
+- **Grafana** — **no hostname at all** since the stack came back on 2026-08-19.
+  Reach it at the MetalLB LoadBalancer `10.168.0.241`, plain HTTP, tailnet only.
+  Before 2026-08-09 it was *publicly reachable through the Cloudflare tunnel*
+  behind nothing but Grafana's own login, with an admin password that was
+  generated and never stored in the vault, while this document stated the
+  opposite. That is the incident `contracts/exposure.yaml` exists for.
+  An earlier revision of this document said `grafana.mateosegura.com` "no longer
+  resolves to anything". **That was wrong.** Its dedicated A record was deleted,
+  but `*.mateosegura.com` is a wildcard to `144.24.23.2` — the OCI cloud
+  cluster's public IP — so the name still resolves publicly, to a different
+  cluster, and nothing serves it (`dig` → `144.24.23.2`, `curl` → `000`,
+  measured 2026-08-19). An Ingress on the homelab for that name could therefore
+  never receive a request, so the reinstall ships without one. The restore order
+  is written in the header of
+  `platform/services/observability/chart/values-homelab.yaml`: explicit A record
+  first, then the Ingress, then the `contracts/exposure.yaml` declaration in the
+  same PR.
+  **The wildcard is a standing property of the zone, not a Grafana quirk:** every
+  undeclared `*.mateosegura.com` name resolves publicly to the cloud cluster.
 
 ---
 
@@ -103,14 +113,37 @@ It is network-isolated: `ingress-nginx` may reach `:9000`, and the
 `allow-longhorn-backups` rule in `apps/minio/25-networkpolicy.yaml` now selects a
 namespace that no longer exists. See `apps/minio/README.md`.
 
-### `observability` — REMOVED 2026-08-09
-The `obs` Helm release (kube-prometheus-stack plus Grafana, Loki, Tempo and
-Alloy) had been in `failed` state at revision 8 since 2026-06-18, and Argo never
-managed it. Nothing reconciled it, and every hand-applied fix reverted with no
-message. It was uninstalled instead of left in a broken half state.
-`grafana.mateosegura.com` no longer resolves to anything. The namespace and its
-`storage-tempo-0` PVC were reclaimed on 2026-08-09. Nothing remains. The
-observability of the cloud cluster (`obsv.mateosegura.com`) is not affected.
+### `observability` — REMOVED 2026-08-09, REINSTALLED under Argo
+Prometheus, Loki, Tempo, Grafana and 2 Grafana Alloy collectors (an OTLP gateway
+Deployment and a log-tailing DaemonSet), from the in-repo `eden-observability`
+chart at `platform/services/observability/chart`, release `obs`.
+
+**Why it was removed.** The `obs` release had been in `failed` helm state at
+revision 8 since 2026-06-18, and Argo never managed it. Nothing reconciled it,
+and every hand-applied fix reverted with no message. It was uninstalled on
+2026-08-09 instead of left in a broken half state, and the namespace with its
+`storage-tempo-0` PVC was reclaimed.
+
+**What is different now.** It is an Argo Application
+(`registry/app-observability.yaml`, project `platform`, automated + `selfHeal`),
+so nothing reconciles it by hand and drift cannot survive. Its 4 PVCs — Loki
+10Gi, Tempo 10Gi, Prometheus 20Gi, Grafana 5Gi — are on **`local-path`**, decided
+2026-08-19: node-local, no replication, on the stated ground that telemetry is
+re-derivable and none of it is a system of record.
+
+**Grafana has no hostname.** The reinstall ships the MetalLB LoadBalancer
+(`10.168.0.241`, plain HTTP, tailnet) and **no Ingress**: the dedicated
+`grafana` A record was deleted on 2026-08-09, and `*.mateosegura.com` sends the
+name to the cloud cluster's public IP instead, so a homelab Ingress for it could
+never be reached. See the exposure model above and the restore order in
+`platform/services/observability/chart/values-homelab.yaml`.
+`contracts/exposure.yaml` declares no `grafana` host, and that is correct: there
+is no hostname to declare.
+
+**One imperative secret.** `grafana-admin` is created by hand
+(`docs/runtime-secrets.md`); Grafana does not start until it exists. The
+observability of the cloud cluster (`obsv.mateosegura.com`) is a separate,
+unaffected install.
 
 ## Platform — edge
 

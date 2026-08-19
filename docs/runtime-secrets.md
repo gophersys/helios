@@ -94,13 +94,38 @@ kubectl -n cert-manager create secret generic cloudflare-api-token \
 ```
 
 ### `grafana-admin` (namespace `observability`) — the Grafana admin login
-The `obs` Helm release consumes it (`admin.existingSecret=grafana-admin`, keys
-`admin-user` and `admin-password`). The password is **generated at creation**
-with `openssl rand`, and it is not in the vault. If you recreate the Secret you
-only mint a new password. Read the current one with
+The `obs` release consumes it (`admin.existingSecret=grafana-admin`, keys
+`admin-user` and `admin-password`). The release is an Argo Application again as
+of 2026-08-19 (`registry/app-observability.yaml`), and this Secret is the one
+thing in that stack Argo does not create: **Grafana stays in
+`CreateContainerConfigError` until it exists.**
+
+The password is **generated at creation** with `openssl rand`, and **it is not in
+the vault**. If you recreate the Secret you only mint a new password. Read the
+current one with
 `kubectl -n observability get secret grafana-admin -o jsonpath='{.data.admin-password}' | base64 -d`.
-The recreation procedure is in
-`platform/services/observability/chart/README.md`.
+
+```sh
+kubectl -n observability create secret generic grafana-admin \
+  --from-literal=admin-user=admin \
+  --from-literal=admin-password="$(openssl rand -base64 18)"
+```
+
+**Why there is no ExternalSecret, and what would change that.** Two independent
+reasons, and both have to fall before this becomes declarative:
+
+1. **No vault item exists.** An `ExternalSecret` naming an absent item is a
+   permanent `SecretSyncedError` in the cluster *and* a red
+   `bash ctl.sh verify-vault-refs`, which fails on 0 matches by design. Shipping
+   one would be shipping a broken gate as configuration.
+2. **The store returns one field.** The `vaultwarden` ClusterSecretStore reads
+   `$.data.data[0].notes`, so it delivers a single blob and cannot address the 2
+   keys a login needs — the same reason every single-value credential on this
+   cluster is imperative (see the note at the top of this document).
+
+**NEEDS MATEO:** create vault item `shared/grafana/admin` with both values in the
+**notes** field, in the shape the webhook store can return. Then the
+ExternalSecret is a separate, small PR, and this section becomes history.
 
 ### `minio-creds` (namespace `minio`) — the MinIO root credentials
 The root credentials of the in-cluster S3 target (`apps/minio/`). Vault item:
