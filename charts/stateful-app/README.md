@@ -37,18 +37,27 @@ Every PVC rendered by this chart carries:
 ```yaml
 metadata:
   labels:
-    platform.gophersys/retain: "true"        # Kyverno blocks delete without override
-    platform.gophersys/backup: "velero-daily"
+    platform.gophersys/retain: "true"        # ENFORCED: see below
+    platform.gophersys/backup: "velero-daily"  # UNENFORCED: no Velero exists
   annotations:
-    platform.gophersys/backup-schedule: "0 2 * * *"
+    platform.gophersys/backup-schedule: "0 2 * * *"   # UNENFORCED
 ```
 
-`platform/core/policy/` refuses the deletion of a `PersistentVolumeClaim` when
-`platform.gophersys/retain=true`, unless the PVC carries the annotation
-`platform.gophersys/allow-delete: "<reason>"`.
+**`retain` is real.** On a cluster running `platform/core/policy/`, the apiserver
+refuses `DELETE` on a `PersistentVolumeClaim` labelled
+`platform.gophersys/retain=true` — `enforced-at-admission` by the
+`storage-delete-guard` ValidatingAdmissionPolicy, whose binding is
+`validationActions: [Deny]`. The escape hatch is the annotation
+`platform.gophersys/allow-delete: "<reason>"` on the PVC. The same guard also
+fires on every PVC in a namespace labelled
+`platform.gophersys/protected-storage=true`, which is how PVCs from
+`volumeClaimTemplates` are covered: that field is immutable on a live
+StatefulSet, so those PVCs cannot be labelled individually.
 
-`platform/services/backup/` (Velero) runs the declared schedule and copies the
-snapshots to the object store that the cluster configured.
+**`backup` and `backup-schedule` are not.** They are
+`applied-per-workload-unenforced` labels: `platform/services/backup/` does not
+exist, no Velero runs on any cluster here, and nothing reads either value. They
+render, and that is all they do.
 
 ## Opinionated defaults
 

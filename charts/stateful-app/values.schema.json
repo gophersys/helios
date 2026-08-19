@@ -26,7 +26,7 @@
         "class":      { "type": "string", "enum": ["standard", "fast", "replicated"] },
         "size":       { "type": "string", "pattern": "^[0-9]+(Mi|Gi|Ti)$" },
         "accessMode": { "type": "string", "enum": ["ReadWriteOnce", "ReadWriteMany", "ReadOnlyMany"] },
-        "retain":     { "type": "boolean", "default": true, "description": "Emit platform.gophersys/retain=true; PVC delete is gated by Kyverno." }
+        "retain":     { "type": "boolean", "default": true, "description": "Emit platform.gophersys/retain=true. On a cluster running platform/core/policy, the apiserver REFUSES a DELETE of that PVC unless it is annotated platform.gophersys/allow-delete. On a cluster without it, the label is inert metadata." }
       }
     },
 

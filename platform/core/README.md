@@ -11,7 +11,7 @@ during bring-up, at the pinned version that this tree records.
 | `edge/`                   | Pluggable ingress stack — tunnel + ingress-controller + DNS + TLS         |
 | `metrics-server/`         | Node/pod metrics for HPA + `kubectl top`                                  |
 | `network-policies/`       | Default-deny baselines per namespace                                      |
-| `policy/`                 | Kyverno — admission control + cluster-wide safety rails                   |
+| `policy/`                 | 2 in-tree ValidatingAdmissionPolicies — deletion guards. No engine, 0 pods |
 | `namespace-provisioner/`  | Auto-provisioning of labels, NetPols, Quotas on new namespaces            |
 
 ## The edge layer
@@ -42,12 +42,15 @@ combinations that are known to work.
    cloud-loadbalancer or tailscale-funnel.
 9. `metrics-server` — the HPA and `kubectl top`.
 10. `network-policies` — the baseline NetworkPolicy manifests.
-11. `policy` — the Kyverno install and the ClusterPolicies. It comes after the
-    steps above, so that a validating policy does not reject the install of a
-    component that is still in progress.
-12. `namespace-provisioner` — the Kyverno generators. It needs Kyverno, step 11.
+11. `policy` — the 2 `ValidatingAdmissionPolicy` objects and their Deny bindings.
+    Nothing is installed: the apiserver's own in-tree plugin evaluates them, so
+    this step has no dependency of its own. It is last only so that a Deny policy
+    cannot refuse part of a bring-up that is still in progress.
+12. `namespace-provisioner` — STUB. It has no implementation and no longer has a
+    generator engine to depend on; see its README.
 
 ## Status
 
-Every component is a stub. An implementation lands as `prod` bootstraps through
-this tree.
+Every component is a stub except `policy/`, which is live: 2 hand-written
+`ValidatingAdmissionPolicy` objects applied by the `policy` Argo Application.
+The rest lands as `prod` bootstraps through this tree.

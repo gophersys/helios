@@ -31,7 +31,12 @@ STUB.
 
 ## TODO, when we populate this component
 - Write the base kustomize set.
-- Wire an admission webhook for namespaces, with Kyverno or Gatekeeper. It must
-  reject a namespace created without these policies. The choice of tool is open.
+- Refuse a namespace created without these policies. **Not with Kyverno or
+  Gatekeeper** — neither is coming back (`.claude/rules/50-cluster-architecture.md`
+  §4). The in-tree shape is a `ValidatingAdmissionPolicy` on `CREATE namespaces`,
+  alongside the 2 in `platform/core/policy/`. Note the limit before you write it:
+  a VAP cannot look up another object, so it cannot ask whether the NetworkPolicy
+  exists — it can only require the label or annotation that the provisioner would
+  key on. Unbuilt.
 - Document how an app requests an exception. An example is a Postgres namespace
   that needs ingress from several app namespaces.

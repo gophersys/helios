@@ -57,9 +57,11 @@ for a given env share one namespace. For example, `codectl-prod` holds both
 `<project>-<app.name>`, for example
 `helm install codectl-api ./stateless-app -n codectl-prod`.
 
-`platform/core/policy/` enforces the labels: admission rejects an object that
-lacks a canonical label. The composite `<project>-<app>` guarantees that
-`app.kubernetes.io/name` is unique across the cluster.
+**Nothing enforces the canonical labels.** The archetype renders them, and that
+is all — `applied-per-workload-unenforced`. `platform/core/policy/` holds 2
+deletion guards and never looks at a label set. The composite `<project>-<app>`
+still guarantees that `app.kubernetes.io/name` is unique across the cluster,
+because the release-name convention produces it.
 
 ## 3. The security context is non-negotiable
 
@@ -86,8 +88,10 @@ securityContext:
 
 An app that must write to the root filesystem declares a `volumeMounts.tmpfs:`
 entry in its values, and the archetype emits an `emptyDir{medium: Memory}`
-volume. Kyverno and the schema both reject
-`securityContext.privileged: true`.
+volume. `securityContext.privileged: true` is rejected by the schema alone —
+`enforced-at-render`, because `helm template` refuses a values file that violates
+`values.schema.json`. No admission policy checks it: nothing in the cluster stops
+a hand-written manifest with `privileged: true`.
 
 ## 4. Resource requests and limits are required
 
@@ -194,8 +198,10 @@ archetype will emit a `Canary` or a `Rollout` resource instead, when
 Every long-running archetype emits a `PodDisruptionBudget`:
 
 - 1 replica: `minAvailable: 1`. This blocks a voluntary eviction, so an operator
-  must drain the node explicitly, with the override annotation from
-  `platform/core/policy/`.
+  must drain the node explicitly. There is no override annotation for this and
+  never was: `platform/core/policy/` guards deletion of PVCs and namespaces, not
+  evictions. `kubectl drain --disable-eviction` or deleting the PDB is the real
+  escape hatch.
 - 2 or more replicas: `maxUnavailable: 25%`, rounded down.
 
 ## 12. One ServiceAccount per release, with minimal RBAC

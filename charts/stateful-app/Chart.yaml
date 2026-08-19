@@ -5,8 +5,9 @@ description: |
   persistent storage. Emits StatefulSet + headless Service + PVC template
   + PDB + ServiceMonitor + ExternalSecret + NetworkPolicy + PrometheusRule.
 
-  PVCs carry platform.gophersys/retain=true; deletion is blocked by
-  platform/core/policy/ without an explicit override.
+  PVCs carry platform.gophersys/retain=true. On a cluster running
+  platform/core/policy/, the apiserver REFUSES to delete them unless the PVC is
+  annotated platform.gophersys/allow-delete.
 
 type: application
 version: 0.1.0

@@ -1,0 +1,85 @@
+# storage-delete-guard — refuse the DELETE of a protected PersistentVolumeClaim.
+#
+# THE THREAT THIS CLOSES (measured on the live cluster, 2026-08-18):
+#   storageclass/local-path is the only StorageClass, it is the default, and its
+#   reclaimPolicy is Delete. All 6 PVs carry reclaimPolicy=Delete.
+#   cm/local-path-config .data.teardown is `#!/bin/sh … rm -rf "${VOL_DIR}"`.
+#   The `eden` namespace has NO backup: apps/music/config-backup covers
+#   `*_media_*` on k3s-w-1 only, and Longhorn was removed 2026-08-19.
+#   So `kubectl delete pvc -n eden data-vault-0` destroys the root of trust, and
+#   `apps/eden/06-nats.yaml` declares a bare PVC inside an Argo Application with
+#   prune:true + selfHeal:true — deleting or renaming that file in a MERGED PR
+#   prunes the PVC with no human in the loop.
+#
+# WHY ADMISSION AND NOT CI: a deletion is not a manifest. kubeconform validates
+# what you ADD. Nothing at PR time sees a `kubectl delete`, and Argo's prune runs
+# AFTER merge. The PR gate is structurally blind to this class.
+#
+# WHY A LABEL AND NOT A LOOKUP: a ValidatingAdmissionPolicy cannot read another
+# object, so it cannot condition on the PV's reclaimPolicy. It cannot reach it
+# through paramRef either: paramRef binds a fixed name or a selector, and with a
+# selector EVERY matched param is evaluated as its own (policy, binding, param)
+# combination — there is no way to select the param matching this PVC's
+# storageClassName. KEP-3488 lists external lookups as a permanent non-goal.
+# The label carrying the intent is therefore the ONLY in-tree shape, not a
+# shortcut. See platform/core/policy/README.md for the citations.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: storage-delete-guard
+spec:
+  # FAIL-CLOSED, deliberately. There is no webhook here that could be "down":
+  # the only way this policy fails to evaluate is a broken CEL expression, and a
+  # data-loss guard that silently stops guarding is the exact bug this component
+  # exists to end. Fail is loud (FAIL-NOT-SKIP). The expressions below are built
+  # so they cannot error — see the optional-chaining note in the README.
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["DELETE"]
+        resources: ["persistentvolumeclaims"]
+  matchConditions:
+    # Namespace garbage collection deletes a namespace's CONTENTS after the
+    # Namespace object is already gone. 10-namespace-delete-guard refuses the
+    # Namespace DELETE up front, so anything that reaches here is a deliberate
+    # teardown of an already-unprotected namespace. Denying the GC controller
+    # instead would wedge the namespace in Terminating forever.
+    - name: not-namespace-gc
+      expression: 'request.userInfo.username != "system:serviceaccount:kube-system:namespace-controller"'
+  variables:
+    # Protect at the NAMESPACE, not at the PVC. Two of the three eden PVCs come
+    # from volumeClaimTemplates, which is immutable on a live StatefulSet — they
+    # could not be labelled without a cascade-orphan recreate. One label on
+    # apps/eden/00-namespace.yaml covers all three, through GitOps, with no
+    # imperative step.
+    - name: protectedNs
+      expression: "namespaceObject.metadata.?labels['platform.gophersys/protected-storage'].orValue('') == 'true'"
+    # The per-PVC opt-in still works, so the stateful-app chart contract keeps a
+    # real meaning outside a protected namespace.
+    - name: retained
+      expression: "oldObject.metadata.?labels['platform.gophersys/retain'].orValue('') == 'true'"
+    - name: override
+      expression: "oldObject.metadata.?annotations['platform.gophersys/allow-delete'].orValue('')"
+  validations:
+    - expression: '!(variables.protectedNs || variables.retained) || variables.override != ""'
+      reason: Forbidden
+      messageExpression: >-
+        'PVC ' + oldObject.metadata.namespace + '/' + oldObject.metadata.name +
+        ' is protected. Its PV reclaim policy is Delete, so this runs the local-path' +
+        ' teardown (rm -rf) on the only copy — there is no backup. To proceed, first:' +
+        ' kubectl annotate pvc -n ' + oldObject.metadata.namespace + ' ' +
+        oldObject.metadata.name + ' platform.gophersys/allow-delete="<reason>"'
+---
+# ENFORCE, not audit. `validationActions: [Deny]` is the whole point of this
+# component: an audit-only policy is the Kyverno failure repeated with fewer
+# pods. The binding is cluster-wide on purpose — the policy itself is gated on
+# labels, so protecting a new namespace is one label in git, not a binding edit.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: storage-delete-guard
+spec:
+  policyName: storage-delete-guard
+  validationActions: [Deny]

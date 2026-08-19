@@ -69,6 +69,16 @@ metadata:
 spec:
   serviceName: eden-postgres
   replicas: 1
+  # PINNED EXPLICITLY, not left to the default. `Retain`/`Retain` IS the default
+  # (GA since 1.32), so this is a no-op today — that is the point. When the field
+  # is set to `Delete`, the controller puts an ownerReference on the PVCs, and
+  # garbage collection then removes them BELOW the level any admission policy can
+  # see: `platform/core/policy/storage-delete-guard` never gets a DELETE request
+  # to refuse. Writing the safe value here means flipping it becomes a visible
+  # one-line diff in a pull request instead of an invisible default change.
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
   selector:
     matchLabels:
       app.kubernetes.io/name: eden-postgres

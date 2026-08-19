@@ -30,8 +30,13 @@ node_role_assignments: {}
   # agent-00:  apps
 
 # Admission policy profile installed on this cluster.
-# baseline | strict | audit-only
-policy_profile: baseline
+# none | delete-protection
+#   delete-protection — platform/core/policy/: 2 in-tree ValidatingAdmissionPolicies
+#     that refuse DELETE of a protected PVC and of a protected Namespace. 0 pods.
+#   none — the cluster has no Argo root from this repo to apply them.
+# The old enum (baseline | strict | audit-only) named a Kyverno profile catalog
+# that never existed. See .claude/rules/50-cluster-architecture.md §4.
+policy_profile: delete-protection
 
 # Projects hosted on this cluster. Every <project>-<env> namespace
 # created on this cluster must have <project> listed here.

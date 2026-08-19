@@ -44,7 +44,12 @@ network:
 node_role_assignments:                    # hostname → cluster_role
   <hostname>: apps | data | devops | build | batch
 
-policy_profile: baseline | strict | audit-only
+policy_profile: none | delete-protection   # what platform/core/policy installs
+                                           # here. `delete-protection` = the 2
+                                           # in-tree ValidatingAdmissionPolicies.
+                                           # There is no baseline/strict/audit-only
+                                           # catalog: those named Kyverno profiles
+                                           # that never existed.
 
 # Projects hosted on this cluster — source of truth for namespace naming.
 # Every <project>-<env> namespace created must have <project> listed here;
@@ -177,8 +182,13 @@ verb of the platform merges them on top of the baseline of the archetype.
 ### Teardown
 
 **This is never a routine operation.** Terraform `prevent_destroy` protects the
-`irreplaceable_nodes:`. `platform/core/policy/` protects the namespaces and the
-PVCs. See `CATALOG.md`.
+`irreplaceable_nodes:`. On a cluster where `platform/core/policy/` is installed,
+the apiserver **refuses** `DELETE` on a namespace labelled
+`platform.gophersys/protected=true` and on a PVC in a namespace labelled
+`platform.gophersys/protected-storage=true`, until the object is annotated
+`platform.gophersys/allow-delete: "<reason>"`. That is enforcement, not
+documentation — see `.claude/rules/50-cluster-architecture.md` §4. See
+`CATALOG.md`.
 
 If a cluster must genuinely be retired:
 
@@ -197,8 +207,8 @@ If a cluster must genuinely be retired:
   taints** → the k3s or provider install step, plus the `cluster-node-labels`
   Ansible role — which is declared everywhere and written nowhere, so the
   declared labels and taints are unapplied today (`docs/debt-register.md` D45).
-- **Cluster-wide resources (NetworkPolicy baselines, PSS labels, Kyverno CRs)** →
-  `platform/core/*`.
+- **Cluster-wide resources (NetworkPolicy baselines, PodSecurity labels,
+  ValidatingAdmissionPolicies)** → `platform/core/*`.
 - **Cluster-wide shared services (observability, databases, messaging)** →
   `platform/services/*`, which this cluster opts into.
 - **Tuning for one cluster (chart values, quotas, routes)** → the `overlays/`

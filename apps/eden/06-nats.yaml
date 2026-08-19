@@ -17,6 +17,15 @@ metadata:
   labels:
     app.kubernetes.io/name: eden-nats
     app.kubernetes.io/part-of: eden
+    # This is the ARMED path #40 was opened for. This PVC is a bare object inside
+    # an Argo Application with prune:true + selfHeal:true, so deleting or renaming
+    # this file in a MERGED pull request prunes the PVC, the PV reclaims with
+    # Delete, and the local-path teardown runs `rm -rf` on the only copy of the
+    # JetStream store. The retain label makes `platform/core/policy/`'s
+    # storage-delete-guard refuse that DELETE at the apiserver. It is redundant
+    # today with the namespace label on 00-namespace.yaml, and deliberately so:
+    # the PVC keeps its own guard if the namespace label is ever removed.
+    platform.gophersys/retain: "true"
 spec:
   accessModes: ["ReadWriteOnce"]
   storageClassName: local-path
@@ -54,6 +63,11 @@ metadata:
 spec:
   serviceName: nats
   replicas: 1
+  # No `persistentVolumeClaimRetentionPolicy` here, deliberately, unlike
+  # 05-postgres.yaml and 07-vault.yaml. This StatefulSet has no
+  # volumeClaimTemplates — it mounts the bare `eden-nats-data` PVC declared above
+  # — so the field would govern nothing. The guard for that PVC is its
+  # `platform.gophersys/retain` label plus the namespace label.
   selector:
     matchLabels:
       app.kubernetes.io/name: eden-nats
