@@ -1,11 +1,11 @@
 # ompadapter-rpc-mode
 
-phase:    verify (HELD — frame-contract decision for Mateo)
+phase:    fix
 repo:     gophersys/libs
 branch:   feat/ompadapter-rpc-mode
 worktree: ~/code/.worktrees/libs-ompadapter-rpc-mode
 pr:       -
-attempt:  0/2
+attempt:  1/2
 
 ## Goal
 PR-1b/S3 of the approved program: rewrite ompadapter from one-process-per-turn
@@ -121,8 +121,23 @@ proven no-wedge; close ladder/goroutines/fixtures all clean.
   of diff — ticket). F8 stale doc comments (per-turn-process model) in 5 test files.
   F9 capitalized-grant vocabulary denies all tools (PR-2 real-omp lane).
 
+## DECISION (Mateo, 2026-08-19): route omp dialogs THROUGH the library permission
+chain; CapPermissionPrompt:Full stays (honest once F1 routes). F5 closed by F1's fix.
+
 ## Next
-BLOCKED ON MATEO: the F1/F5 frame-contract decision (route omp dialogs through the
-library permission chain vs adapter-side scope+risk check). On his answer: phase-3
-rewrite of the dialog path + phase-2 pins F2/F3/F4/F6, re-verify, PR. Independent of
-the merged PR-1a and the infra program; PR-1c/PR-2 wait on this.
+Fix round 1, TDD order:
+- phase 2 (test author): pin RED — (F1) an omp select dialog surfaces as
+  EventPermissionRequest carrying the COMMAND TEXT (title 2nd line), and the wire
+  answer equals what Session.Resolve returns (Allow→Approve, Deny→Deny), NOT what
+  bare-name grant membership would say — the scoped-grant-vs-rm-rf case must show the
+  library DENY reaching the wire; deny-on-timeout when no Resolve arrives before omp's
+  (absent) deadline → adapter's own bounded fallback. (F2) the tunneled-steer guard has
+  a test (disabled → a decision frame reaches omp as conversation text). (F3) positive
+  arm: a Resolve(Allow) yields wire Approve. (F4) assertSameSentinel by identity not
+  value. (F6) the real-omp #15 lane exists with a binary-identity assert (oh-my-posh
+  collision) OR the plan+PR body state plainly it lands at PR-2 — decide and pin.
+- phase 3 (implementer): rewrite the dialog path — no grant-derived answer; surface
+  EventPermissionRequest, await the library verdict, map Resolve→wire answer async,
+  bounded deny-on-timeout; delete grantedTools/isGranted/dialogTool self-decision.
+- then re-verify (round 2), PR. Also fix F8 stale doc comments; F7 bench-GOMAXPROCS is
+  an out-of-diff ticket (lib.sh).
