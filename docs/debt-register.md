@@ -1013,6 +1013,78 @@ what the identity files declare, or delete the declarations. Do not leave the
 third state — a declaration that reads like enforcement and enforces nothing.
 
 
+### D45 🔴 Argo's first sync after a values-only change can apply the OLD render — OPEN, guarded
+
+**Argo CD reported a sync Succeeded at the correct revision pair while applying
+the previous rendered config. Twice on 2026-08-18, on the `argocd` app itself.**
+
+The app is multi-source: source 1 is the pinned chart `argo-cd 10.1.2`, source 2
+is this repo supplying the values file through `$values` / `ref: values`. After a
+commit that changed ONLY `platform/services/gitops/bootstrap/values.yaml`, the
+first deliberate sync applied the pre-commit render.
+
+**It was proven, not inferred.** The `last-applied-configuration` annotation on
+the applied objects carried a fresh timestamp and the OLD content. So the write
+really happened, at that moment, with stale input. A sync that reports the right
+revision and writes the wrong bytes is worse than a failed sync: the alarm that
+would say "this did not land" says Succeeded instead.
+
+**Both occurrences were the FIRST sync after the change.** A hard refresh
+followed by a sync was always correct.
+
+**Mechanism — what is verified upstream, and what is ours.**
+
+Verified against the Argo CD sources and docs at `v3.4.4`:
+
+| fact | source |
+| --- | --- |
+| The repo-server resolves a `ref:` source's revision itself, in `runRepoOperation` → `repoRefs`, separately from the controller | root-cause text of [argo-cd#29185](https://github.com/argoproj/argo-cd/pull/29185) |
+| `argocd-repo-server --revision-cache-expiration` defaults to `3m0s` | `docs/operator-manual/server-commands/argocd-repo-server.md` @ v3.4.4 |
+| That flag has NO `argocd-cmd-params-cm` key — `extraArgs` is the only route | `docs/operator-manual/argocd-cmd-params-cm.yaml` @ v3.4.4 |
+| A hard refresh sets `noRevisionCache`, bypassing that cache | Argo CD refresh semantics |
+
+Ours, and labelled as a hypothesis because it was not reproduced in a control
+experiment: a sync raised inside the 3-minute window renders against the
+repo-server's cached resolution of `main`, which still points at the previous
+commit. That fits every observation — first sync only, hard refresh always
+correct, correct revision pair reported (the controller resolved it; the
+repo-server did not). **It is not proven.** Proving it needs a deliberate
+reproduction: commit, sync within 3 minutes, diff the applied annotation.
+
+**Upstream has no fix. This was checked, not assumed.**
+
+| issue | state | relevance |
+| --- | --- | --- |
+| [#28956](https://github.com/argoproj/argo-cd/issues/28956) | OPEN, `bug/severity:major`, `feature:multi-source`, `component:repo-server` | The closest match: a `$values`/ref-source cache not invalidated, and a hard refresh not clearing it |
+| [#29185](https://github.com/argoproj/argo-cd/pull/29185) | OPEN, unmerged | The fix for #28956 |
+| [#25942](https://github.com/argoproj/argo-cd/issues/25942) | OPEN since 2026-01 | Multi-source renders new values against old chart templates |
+| [#28677](https://github.com/argoproj/argo-cd/issues/28677) | OPEN | Repo-server renders stale content across revisions, a v3.4.0 regression |
+| [#28074](https://github.com/argoproj/argo-cd/pull/28074) / [#29049](https://github.com/argoproj/argo-cd/pull/29049) | MERGED, shipped in **v3.5.1** | The one cache-key fix that shipped. Scoped to `manifest-generate-paths`, which this repo uses NOWHERE (`grep -rn manifest-generate-paths` is empty). **Not our bug.** |
+
+So there is no version to upgrade to. `v3.4.7` and `v3.5.1` both still carry
+this. The chart pin stays at `10.1.2` deliberately: a bump buys nothing here, and
+`v3.5.x` carries the Helm 3 → Helm 4 migration (argo-cd#29068), which is real
+rendering risk taken for no gain.
+
+**The guard, and what it is worth.**
+
+1. `--revision-cache-expiration=10s` via `repoServer.extraArgs` in
+   `bootstrap/values.yaml`. This narrows the window from 3 minutes to 10 seconds.
+   It does **not** close it.
+2. The hard-refresh requirement, written into the header of
+   `registry/argocd-self.yaml` — the file anyone reads before syncing this app.
+
+**Residual risk, stated plainly.** A sync raised within 10 seconds of a push can
+still apply a stale render, and it will still report Succeeded. The hard refresh
+remains mandatory and remains a human step: nothing in this repo enforces it.
+Every other multi-source app with a `$values` ref source carries the same defect;
+`argocd` is simply the one where it was caught, because it is synced by hand.
+
+**What closes this entry:** #29185 merging and reaching a release, then the chart
+bump that carries it. Until then D45 stays 🔴 — the failure mode is silent, and a
+guard that depends on a person remembering is not a fix.
+
+
 ## Resolved
 
 Resolved items stay in the ledger above, marked ✅ with the PR or the date that

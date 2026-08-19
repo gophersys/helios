@@ -6,6 +6,35 @@
 # helm-installed with these exact values, so this should adopt as a no-op. We
 # review the diff and sync deliberately before enabling auto-sync (prune stays
 # OFF for Argo itself, always).
+#
+# ---------------------------------------------------------------------------
+# MANDATORY: HARD-REFRESH BEFORE EVERY DELIBERATE SYNC OF THIS APP.
+#
+#   kubectl -n argocd annotate app argocd argocd.argoproj.io/refresh=hard \
+#     --overwrite
+#   # wait for status.reconciledAt to move, THEN sync
+#
+# Why: this is a multi-source app, and the repo-server resolves the revision of
+# the `ref: values` source ITSELF, then caches that resolution
+# (--revision-cache-expiration, upstream default 3m0s). A sync inside that
+# window can render the PREVIOUS `$values` commit while reporting the NEW
+# revision pair as Succeeded. Twice on 2026-08-18 this app applied the old
+# rendered config and reported success; it was proven by the freshly-stamped
+# last-applied-configuration annotation carrying the old content.
+#
+# A hard refresh sets noRevisionCache, which bypasses that cache. It is the only
+# reliable guard.
+#
+# Upstream has NO fix. The matching issue is argoproj/argo-cd#28956 (open,
+# bug/severity:major, feature:multi-source, component:repo-server); its fix PR
+# #29185 is unmerged. Related and also open: #25942. The one cache-key fix that
+# DID ship (v3.5.1, PR #28074/#29049) is scoped to `manifest-generate-paths`,
+# an annotation this repo does not use anywhere.
+#
+# values.yaml narrows the window to 10s with --revision-cache-expiration. That
+# is a mitigation, not a fix. Do not drop the hard refresh because of it.
+# Full record: docs/debt-register.md D45.
+# ---------------------------------------------------------------------------
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

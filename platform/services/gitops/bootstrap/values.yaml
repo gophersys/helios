@@ -82,6 +82,29 @@ configs:
   params:
     server.insecure: true
 
+# --- Stale-render guard (incident 2026-08-18, debt-register D45) ---------------
+# The repo-server resolves the revision of a `ref:` source (our `$values` source)
+# ITSELF, and it caches that resolution for `--revision-cache-expiration`
+# (upstream default 3m0s). A values-only commit followed by a sync inside that
+# window can therefore be rendered against the PREVIOUS `$values` commit, while
+# the sync result still reports the new revision pair. That happened twice on
+# 2026-08-18.
+#
+# 10s shrinks the window from 3 minutes to 10 seconds. It does NOT close it, and
+# it is NOT an upstream fix — upstream has none (argoproj/argo-cd#28956, open,
+# severity major; its fix PR #29185 is unmerged). The guarantee is still the
+# hard refresh documented in registry/argocd-self.yaml. Read that file before
+# syncing this app.
+#
+# Cost: one `git ls-remote` per app per refresh instead of one per 3 minutes. At
+# this cluster's app count that is negligible.
+#
+# This flag is NOT settable through `configs.params` — it has no
+# argocd-cmd-params-cm key. `repoServer.extraArgs` is the only route.
+repoServer:
+  extraArgs:
+    - --revision-cache-expiration=10s
+
 # Not using Dex now — admin plane is tailnet-private. Cloudflare Access/OIDC is a
 # later phase if SSO in front of Argo is wanted.
 dex:
