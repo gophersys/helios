@@ -1,6 +1,6 @@
 # arm64-local-workflow
 
-phase:    green
+phase:    verify
 repo:     gophersys/.devcontainer
 branch:   feat/arm64-local-workflow
 worktree: ~/code/.worktrees/devcontainer-arm64-workflow
@@ -35,11 +35,14 @@ orders §4). As produced by dev-planner:
   files never edited during break-tests (shasum-identical).
 - Refusal wording is pinned by format constants in the test (ABSENT_FORMAT,
   UNDECLARED_FORMAT, SELF_REFERENCE_FORMAT) — the implementer copies them.
+- GREEN (commit 73bfa90): `bash ./ctl.sh test` rc=0 — 24 files, 853 checks,
+  0 failed (devcontainer-contract 22/0, platform-policy 35/0, others 796/0).
+  `bash ./ctl.sh validate` rc=0; `shellcheck -x -S style ctl.sh` rc=0.
+  3 files changed: ctl.sh (+2 properties via BUILD_ORDER, no second yaml
+  reader), README 1:1 section naming mobile, 00-identity 4→6 enumeration.
 
 ## Blocked
 - Nothing.
 
 ## Next
-dev-implementer closes G1-G4 (ctl.sh two properties with the exact refusal
-strings; README section naming mobile; 00-identity invariant); suite green;
-verifier; PR.
+dev-verifier refutation pass; then PR.
