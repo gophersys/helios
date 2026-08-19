@@ -193,10 +193,16 @@ names cloud's ref matches the shape rule exactly, and it gives the developer a
 container that no CI job of `ui/` has ever run.
 
 **`mobile` is the exception, and it is the only one.** That image publishes
-`linux/amd64` alone, because Flutter publishes no linux-arm64 SDK. An arm64 host
-therefore emulates the amd64 variant, or it does not use `mobile` locally. The
-developer's `uname -m` then disagrees with every CI job of that image. Read "Why
-mobile is the exception" below for the measurement.
+`linux/amd64` alone, because Flutter publishes no linux-arm64 SDK.
+
+**The ref is younger than this section, so read it in that order.**
+`ghcr.io/gophersys/flutter` holds the frozen rollback anchor, and the first
+publish after the rename merge CREATES `ghcr.io/gophersys/mobile` — the image
+inventory above says the same. A pull of that ref fails until then, and it fails
+for both architectures. ONCE the package exists, an arm64 host emulates the
+amd64 variant, or it does not use `mobile` locally. The developer's `uname -m`
+then disagrees with every CI job of that image. Read "Why mobile is the
+exception" below for the measurement.
 `_ctl/tests/platform-policy.test.sh` holds this paragraph to the manifest: an
 image that loses its arm64 variant, and takes no name here, turns that file red.
 
