@@ -45,13 +45,16 @@
 # end-to-end read: a check written against a helper would still be green on the
 # day the helper stopped being called.
 #
-# `validate` reaches for 4 tools, and 3 of them are real here. shellcheck and jq
-# it refuses to run without, and yq answers the manifest — the position
+# `validate` reaches for 5 tools, and 3 of them are real here. jq it refuses to
+# run without, yq answers the manifest — the position
 # _ctl/tests/images-manifest.test.sh already takes, where a missing parser is a
-# FAILURE and never a skip. hadolint is the 4th and is STUBBED, because it is
-# the 1 tool whose resolution can leave the machine: a host whose hadolint is a
-# point release off the pin sends the verb to `docker run`, and this suite
-# promises no daemon. _ctl/tests/stubs/validate/hadolint carries the reason.
+# FAILURE and never a skip — and docker is reached by neither stubbed linter.
+# BOTH LINTERS ARE STUBBED, because both can leave the machine or judge
+# differently on 2 hosts: a host whose hadolint is a point release off the pin
+# sends the verb to `docker run`, and since ledger #117 a host whose shellcheck
+# is off the pin is REFUSED outright. Either one would make this file report a
+# verdict about the operator's toolchain rather than about the property under
+# test. _ctl/tests/stubs/validate/ carries the reason beside each stub.
 #
 # The staged tree is COPIES and never symlinks, the rule
 # _ctl/tests/images-manifest.test.sh states: nothing here writes to the
@@ -246,13 +249,18 @@ else
     "$missing_fixtures"
 fi
 
-if [[ -x "${STUB_BIN}/hadolint" ]]; then
-  pass_check "the_hadolint_stub_is_executable"
+missing_stubs=""
+for stub in "shellcheck" "hadolint"; do
+  [[ -x "${STUB_BIN}/${stub}" ]] || missing_stubs="${missing_stubs:+${missing_stubs} }${stub}"
+done
+if [[ -z "$missing_stubs" ]]; then
+  pass_check "both_validate_stubs_are_executable"
 else
-  fail_check "the_hadolint_stub_is_executable" \
-    "not executable: ${STUB_BIN}/hadolint" \
-    "without it hadolint_resolve reaches for the host binary and then for docker, and this" \
-    "file stops being hermetic on every machine whose hadolint is a point release off the pin"
+  fail_check "both_validate_stubs_are_executable" \
+    "not executable under ${STUB_BIN}: ${missing_stubs}" \
+    "without the hadolint stub, hadolint_resolve reaches for the host binary and then for docker;" \
+    "without the shellcheck stub, the version gate refuses every staged run on a host off the pin," \
+    "and this file then reports a verdict about the operator's toolchain and not about its own rule"
 fi
 
 # ===========================================================================

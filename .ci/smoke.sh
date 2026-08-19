@@ -202,6 +202,7 @@ GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
 BENCHSTAT_REF|not-a-version||
 RUST_CHANNEL|not-in-this-image:rustc,cargo||
 DELVE_VERSION|asserted|dlv version|
+SHELLCHECK_VERSION|asserted|shellcheck --version|
 YQ_VERSION|asserted|yq --version|
 HADOLINT_VERSION|asserted|hadolint --version|
 KUBECONFORM_VERSION|asserted|kubeconform -v|
@@ -274,6 +275,7 @@ GOSEC_VERSION|asserted|go version -m ${GOPATH}/bin/gosec|line:mod
 HNSLINT_VERSION|asserted|go version -m ${GOPATH}/bin/hnslint|line:mod
 GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
 BENCHSTAT_REF|not-a-version||
+SHELLCHECK_VERSION|asserted|shellcheck --version|
 YQ_VERSION|asserted|yq --version|
 HADOLINT_VERSION|asserted|hadolint --version|
 KUBECONFORM_VERSION|asserted|kubeconform -v|
@@ -345,6 +347,7 @@ GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
 BENCHSTAT_REF|not-a-version||
 RUST_CHANNEL|not-in-this-image:rustc,cargo||
 DELVE_VERSION|asserted|dlv version|
+SHELLCHECK_VERSION|asserted|shellcheck --version|
 YQ_VERSION|asserted|yq --version|
 HADOLINT_VERSION|asserted|hadolint --version|
 KUBECONFORM_VERSION|asserted|kubeconform -v|
@@ -420,6 +423,7 @@ GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
 BENCHSTAT_REF|not-a-version||
 RUST_CHANNEL|not-in-this-image:rustc,cargo||
 DELVE_VERSION|asserted|dlv version|
+SHELLCHECK_VERSION|asserted|shellcheck --version|
 YQ_VERSION|asserted|yq --version|
 HADOLINT_VERSION|asserted|hadolint --version|
 KUBECONFORM_VERSION|asserted|kubeconform -v|
