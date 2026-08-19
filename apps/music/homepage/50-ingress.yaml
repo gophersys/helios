@@ -6,7 +6,7 @@
 # Out-of-band (Cloudflare console): add tunnel public hostname
 #   home.mateosegura.com -> HTTP ingress-nginx-controller.ingress-nginx.svc:80
 # then an Access self-hosted app for home.mateosegura.com (Google IdP, allow
-# your email) — same runbook as workspaces, second hostname.
+# your email). The full procedure is docs/runbooks/expose-a-service.md.
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:

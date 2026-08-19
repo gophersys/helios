@@ -29,10 +29,12 @@ The live homelab edge is **not** the design based on an operator that the
   single catch-all rule forwards to `ingress-nginx:80`. The route for each
   hostname and the Cloudflare Access apps for Google SSO are configured in the
   Cloudflare Zero Trust dashboard. That is outside this repo by design, because
-  this is a token tunnel. Only `home.` and `workspaces.` are public through the
-  tunnel. Everything else (`argocd.`, `files.`, `prowlarr.`, `torrent.` and
-  `grafana.`) is tailnet-private through the MetalLB nginx VIP. The authoritative
-  map is **`docs/cluster-topology.md` → "The exposure model."**
+  this is a token tunnel. Only `home.` is public through the tunnel:
+  `workspaces.` was removed on 2026-08-19, and its dashboard rule, CNAME and
+  Access app outlived it because nothing in git reaches them
+  (`docs/runbooks/expose-a-service.md`). Everything else (`argocd.`, `files.`,
+  `prowlarr.`, `torrent.`) is tailnet-private through the MetalLB nginx VIP. The
+  authoritative map is **`docs/cluster-topology.md` → "The exposure model."**
 
 There is **no** `cloudflare-operator` and no `cloudflare-api-token`, and TLS is
 **not** terminated here, because the tunnel enters nginx on `:80`.

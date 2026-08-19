@@ -48,7 +48,7 @@ the tunnel.
 | **media stack** (qBittorrent, Prowlarr, filebrowser, homepage) | 8 TB NVMe, and a residential IP for torrent egress |
 | **MinIO** | bulk backup storage on local NVMe, free |
 | **Argo CD** | reconciles the homelab from git |
-| **eden**, **workspaces** | the platform being built; free compute |
+| **eden** | the platform being built; free compute |
 
 ## How to decide for something new
 

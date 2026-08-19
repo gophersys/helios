@@ -9,7 +9,8 @@ cluster. An app declares an `Ingress` resource to become reachable.
 
 **`ingress-nginx`** is the live controller, and it holds the single
 `IngressClass: nginx`. All HTTP enters here: from the Cloudflare tunnel, for the
-public `home.` and `workspaces.` hosts on `:80`, or from the MetalLB VIP
+public `home.` host on `:80` (`workspaces.` was removed 2026-08-19, so `home.` is
+now the only one), or from the MetalLB VIP
 `10.168.0.240`, for the tailnet-private hostnames with TLS from cert-manager
 DNS-01. It is installed from the **raw upstream manifests with `kubectl
 apply`**, not with Helm, and Argo does not manage it today.

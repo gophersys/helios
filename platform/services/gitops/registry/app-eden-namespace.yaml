@@ -1,6 +1,7 @@
-# Owns the long-lived `eden` Namespace (platform project — same rationale as
-# app-workspaces-namespace.yaml: a namespace-scoped project cannot create the
-# cluster-scoped Namespace object, so a platform-project Application does).
+# Owns the long-lived `eden` Namespace. It sits in the PLATFORM project, not in
+# `apps`, because a namespace-scoped AppProject cannot create the cluster-scoped
+# Namespace object — so the Namespace and the workloads inside it are split
+# across 2 Applications on purpose (app-eden owns the namespaced objects).
 # prune:false so a bad sync can never delete the namespace.
 apiVersion: argoproj.io/v1alpha1
 kind: Application

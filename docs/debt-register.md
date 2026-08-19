@@ -124,8 +124,10 @@ documented in each README.
 
 ### D4 ✅ Secrets created imperatively — DOCUMENTED (PR #32)
 **Resolved as a document:** `docs/runtime-secrets.md` is the **live inventory** of
-every imperative k8s Secret. It covers `media`, `workspaces-prod`, `arc-runners`,
-`minio`, `longhorn-system` and `cloudflare-tunnel`. Each entry names its
+every imperative k8s Secret. It covers `media`, `arc-runners`, `minio` and
+`cloudflare-tunnel`. (`workspaces-prod` and `longhorn-system` were in that list
+until 2026-08-19; both namespaces were removed and their Secrets went with
+them.) Each entry names its
 Vaultwarden source and the exact command to recreate it, and the document
 explains why single-value logins stay imperative: the ESO store returns the
 `notes` blob of an item, not the individual fields. Read that file for the
@@ -150,13 +152,26 @@ or removes `apps/embedded/envs/<name>/`. The `zephyr-envs` ApplicationSet deploy
 or prunes on merge. Name validation is safe against path traversal. The manager
 is gated by a token: with no token it is read-only and returns 503. Live wiring:
 the `workspaces-github` bot-PAT Secret (optional, `docs/runtime-secrets.md`).
-**2026-08-18: the managed surface was removed** — Mateo retired the devboxes and
-the whole `embedded-lab` stack, so the mechanism this entry records no longer
-has a target. The workspaces app itself stays deployed pending Mateo's
-remove-or-repurpose call.
 Creating the PAT is a one-time step in the GitHub UI, and it is the only part
 that no headless process can do. VERIFIED: the new binary is live (it logs
 `gitops env management disabled … 503`, so the token gate works).
+
+**Closed by removal, 2026-08-19.** The text above is HISTORY, kept because the
+mechanism was real and the number must not dangle. What happened since:
+- **2026-08-18** — Mateo retired the devboxes and the whole `embedded-lab` stack,
+  so the surface this mechanism managed stopped existing.
+- **2026-08-19** — Mateo's decision: remove the app rather than repurpose it. By
+  then it was 403-looping and 0/1 Ready. `apps/workspaces/`, both registry
+  Applications, the `workspaces` AppProject, the `workspaces-prod` destination on
+  the platform AppProject, the `workspaces` entry in the homelab
+  `projects_hosted:`, the portal tile and the `contracts/exposure.yaml`
+  declaration are all deleted.
+
+Nothing in this repo deploys `workspaces-api` anymore. The `gophersys/workspaces`
+SOURCE repository is untouched and still builds on `arc-org`; so is the
+`ghcr.io/gophersys/workspaces-api` package and the weekly
+`.github/workflows/ghcr-retention.yml` that prunes it. Retiring those is a
+separate, deliberate decision.
 
 ### D7 ✅ Documentation drift — RESOLVED (PR #34)
 `docs/cluster-topology.md` is the authoritative reference, namespace by namespace
@@ -171,7 +186,7 @@ identity.yaml and from the READMEs now resolve.
 ---
 
 ### D9 🟠 Version drift on imperative platform components — OPEN (reproducibility)
-Every version from the 2026-07 audit was upgraded without an outage, but **4
+Every version from the 2026-07 audit was upgraded without an outage, but **3
 components are still installed by a raw `kubectl apply` of the upstream
 manifests, and Argo does not manage them**. The running versions therefore exist
 only in prose, not reproducibly in git. The versions are current. The open gap is
@@ -185,14 +200,21 @@ for each pinned version:
 | cert-manager | v1.20.3 | ❌ raw manifest | `.../cert-manager/releases/download/v1.20.3/cert-manager.yaml` |
 | ingress-nginx | v1.15.1 | ❌ raw manifest | `ingress-nginx` tag `controller-v1.15.1`, `deploy/static/provider/cloud` (MetalLB-backed LB) |
 | MetalLB | v0.16.1 | ❌ raw manifest | `metallb` v0.16.1 `config/manifests/metallb-native.yaml` |
-| Longhorn | v1.12.0 | ❌ raw manifest | staged — `docs/runbooks/longhorn-upgrade.md` (client-side CRDs) |
+| ~~Longhorn~~ | ~~v1.12.0~~ | **REMOVED 2026-08-19** | not reinstalled — see below |
+
+**Longhorn left this table by removal, not by resolution (2026-08-19).** It was
+the 4th raw-manifest component and the most privileged one. It held 0 volumes:
+its only consumer, the `observability` stack, was itself removed on 2026-08-09.
+Mateo's decision was to delete it rather than carry 8 untracked controllers
+against a future need. `local-path` is now the only StorageClass on the cluster.
+`docs/runbooks/longhorn-upgrade.md` was deleted with it — a runbook for a
+component that does not exist is a trap, and git history keeps the text. See
+`platform/core/storage/README.md` for the removal rationale and what replaces it.
 
 Upgrade notes: cert-manager ships the DNS-01 cleanup fix (D10); the MetalLB VIP
-stayed up; all 7 ingress-nginx routes stayed up; Longhorn left EOL through a
-staged upgrade of 5 minor versions, with no data loss (the backup target was the
-in-cluster MinIO, `apps/minio/`). **Follow-up:** move the 4 raw-manifest
-components into Argo Applications, as done for cloudflared, or accept them as
-imperative through this pin table.
+stayed up; all 7 ingress-nginx routes stayed up. **Follow-up:** move the 3
+remaining raw-manifest components into Argo Applications, as done for
+cloudflared, or accept them as imperative through this pin table.
 - ⬜ **Tempo** 2.9→3.0 and the observability minor upgrades live in the
   **eden-observability Helm chart** (the `obs` release, in **failed** helm
   state). That is the Eden agent's domain, not this one.
@@ -213,8 +235,10 @@ non-root bitwarden-cli image. Accepted as the current limit.
 writable root filesystem. It writes the hostPath NVMe as root. Full non-root and
 read-only-rootfs operation needs a chown of `/mnt/media/minio` first and a
 writable `/tmp`. That work is deferred. It is accepted for a homelab backup sink
-that is network-isolated to `longhorn-system` (the NetworkPolicy is in
-`apps/minio/`).
+whose ingress is default-denied (the NetworkPolicy is in `apps/minio/`). Note
+that the isolation narrowed on 2026-08-19: with Longhorn removed, the only live
+allow-rule is `ingress-nginx` for the tailnet-private `s3.` host, and
+`allow-longhorn-backups` now selects a namespace that does not exist.
 
 ### D13 🟡 arc-runners egress is unrestricted (ingress is now default-denied)
 The privileged dind CI runners can reach anything: the cluster pod network and
@@ -354,13 +378,29 @@ re-provision of pve-00, or one `tailscale up --accept-routes`, silently restores
 the black-hole, and the only symptom is that `proxmox.mateosegura.com` starts
 timing out. Declaring pve-00 (gap 2) is what makes the pref reproducible.
 
-**Open decision for Mateo — dual subnet routers.** pve-00 still advertises
-`10.168.0.0/24` alongside pve-01, so 2 nodes advertise the same subnet. Keep both
-(failover if one hypervisor is down) or single-home the advertisement on pve-01
-(one path, no ambiguity)? Nothing is broken either way today — `accept-routes=false`
-on pve-00 is what stops the advertisement from turning back on itself — but the
-choice belongs with the pve-00 declaration, not before it. Consumer to check when
-it changes: `apps/proxmox` reaches `10.168.0.201:8006` from the ingress pod.
+**DECIDED and EXECUTED 2026-08-19 — the subnet is single-homed on pve-01.** The
+open question was whether pve-00 should keep advertising `10.168.0.0/24` beside
+pve-01 (failover) or stop (one path, no ambiguity). Mateo chose single-home.
+Executed live on pve-00:
+
+```
+tailscale set --advertise-routes=          # empty list — advertise nothing
+```
+
+pve-00 is now a host-only tailnet node. **pve-01 is the sole subnet router for
+`10.168.0.0/24`** (`clusters/instances/homelab/hypervisors/pve-01/`, which is the
+one declared hypervisor and the one with the bootstrap script). Verified after
+the change: `bash ctl.sh verify-access` is **15/15**.
+
+**The silent-return caveat moved with the advertisement — it now applies to
+pve-01.** pve-00's `accept-routes=false` is still the fix that keeps its own LAN
+reachable, and is still unreproducible for the reason above. But the new single
+point is pve-01: if its advertisement stops (a re-provision, a `tailscale up`
+without `--advertise-routes`, or the route left unapproved in the admin console),
+nothing else advertises the subnet and every tailnet client loses the LAN with no
+alert. pve-01's README records the command; nothing asserts it is in effect.
+Consumers to check when it changes: `apps/proxmox` reaches `10.168.0.201:8006`
+from the ingress pod, and every `10.168.0.x` address used from off-LAN.
 
 ### D23 ➡️ Backups have no alerting — MERGED into D16 (2026-08-12)
 This was D16 written a second time. Both entries said the same 2 things: the

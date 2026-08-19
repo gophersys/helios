@@ -1,6 +1,10 @@
-# MinIO holds the ONLY off-cluster-ish backup copy (Longhorn's S3 target). It had
-# zero network isolation. Lock ingress to who actually needs it:
-#   - longhorn-system  -> :9000  (the backup/restore traffic)
+# MinIO holds the ONLY off-cluster-ish backup copy. It had zero network
+# isolation. Lock ingress to who actually needs it:
+#   - longhorn-system  -> :9000  DEAD since 2026-08-19 — Longhorn was removed and
+#                                 the namespace is gone, so this rule admits
+#                                 nothing. Kept until the follow-up that reclaims
+#                                 the longhorn-backups bucket; narrowing a live
+#                                 NetworkPolicy belongs with that live step.
 #   - ingress-nginx    -> :9000  (tailnet-private s3.mateosegura.com for off-cluster
 #                                 restic clients; see 30-ingress.yaml)
 #   - same namespace   -> any    (an ad-hoc `mc` admin pod; see apps/minio/README.md)

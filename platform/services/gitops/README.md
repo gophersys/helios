@@ -18,9 +18,9 @@ bootstrap/
   ingress.yaml    # argocd.mateosegura.com — tailnet-private, LE DNS-01 TLS
   root-app.yaml   # the ONE hand-applied app-of-apps entrypoint
 registry/
-  projects/       # AppProjects: platform, media, ci, workspaces, embedded, apps, argocd (tenancy limits)
+  projects/       # AppProjects: platform, media, ci, apps, argocd (tenancy limits)
   argocd-self.yaml    # Argo manages its own Helm install
-  app-*.yaml          # child Applications (media stack, minio, ARC, workspaces, eden, cloudflared, ...)
+  app-*.yaml          # child Applications (media stack, minio, ARC, eden, proxmox, cloudflared, ...)
 ```
 
 ## Decisions — see docs/migration-homelab-to-idp.md

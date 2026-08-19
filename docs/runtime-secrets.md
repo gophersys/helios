@@ -46,26 +46,21 @@ to 0 before you run the job.
 Vault item: `shared/tailscale/oauth-k8s-operator`. The recreation procedure is in
 `platform/services/networking/tailscale-operator/README.md`.
 
-### `workspaces-github-app` (namespace `workspaces-prod`) — GitHub App auth for create and destroy
-workspaces-api authenticates to GitHub as the **gophersys-arc** App and mints
-short-lived installation tokens at runtime. The personal PAT
-(`workspaces-github`) is **retired**. Recreate the Secret from the App key at
-`shared/github/arc-app`:
-```sh
-kubectl -n workspaces-prod create secret generic workspaces-github-app \
-  --from-literal=github_app_id=4235192 \
-  --from-literal=github_app_installation_id=144912786 \
-  --from-file=github_app_private_key=<key.pem>   # bw: shared/github/arc-app
-```
-This Secret is optional, because the deployment mounts it with `optional: true`.
-Without it the API is read-only.
+### `workspaces-github-app` (namespace `workspaces-prod`) — REMOVED 2026-08-19
+Both the Secret and its namespace are gone with `apps/workspaces/`. It gave
+workspaces-api a **gophersys-arc** App identity so it could open GitOps PRs. Do
+not recreate it. The App key it came from (`shared/github/arc-app`) is still live
+and still in use — see `arc-github-app` below. The personal PAT
+(`workspaces-github`) was already retired before the removal.
 
 
 ### `arc-github-app` (namespace `arc-runners`) — GitHub App for self-hosted CI and CD promotion
 The **gophersys-arc** GitHub App authenticates the org self-hosted runner pool
-(`arc-org`, ARC) and the image promotion from workspaces into infrastructure.
-Vault item: **`shared/github/arc-app`** (App ID, Client ID, Installation ID and
-the private key).
+(`arc-org`, ARC). It also authenticated the image promotion from the
+`gophersys/workspaces` repo into this one; that deployment was removed on
+2026-08-19, so the promotion has no target here, while the App and the pool are
+unaffected. Vault item: **`shared/github/arc-app`** (App ID, Client ID,
+Installation ID and the private key).
 ```sh
 kubectl -n arc-runners create secret generic arc-github-app \
   --from-literal=github_app_id=4235192 \
@@ -73,8 +68,8 @@ kubectl -n arc-runners create secret generic arc-github-app \
   --from-file=github_app_private_key=<key.pem>   # from bw: shared/github/arc-app
 ```
 The same App key is also set as repository secrets on `gophersys/workspaces`
-(`ARC_APP_ID`, `ARC_APP_PRIVATE_KEY`), so that its build can promote the
-deployment.
+(`ARC_APP_ID`, `ARC_APP_PRIVATE_KEY`). Those repository secrets are untouched;
+the deployment they promoted into is what was removed.
 
 ## Secrets for the platform, the backups and the edge
 
@@ -108,8 +103,12 @@ The recreation procedure is in
 `platform/services/observability/chart/README.md`.
 
 ### `minio-creds` (namespace `minio`) — the MinIO root credentials
-They back the Longhorn S3 backup target (`apps/minio/`). Vault item:
-`shared/minio/longhorn-backups`.
+The root credentials of the in-cluster S3 target (`apps/minio/`). Vault item:
+`shared/minio/longhorn-backups` — a **historical item name**: it was created for
+the Longhorn backup target, which was removed on 2026-08-19, and it now holds the
+MinIO root credential for a server whose only consumer is the `music-backups`
+restic repository. Renaming the vault item means changing every reference here
+and in `apps/minio/README.md`; it has not been done.
 ```sh
 kubectl -n minio create secret generic minio-creds \
   --from-literal=MINIO_ROOT_USER="$(bw get username shared/minio/longhorn-backups)" \
@@ -128,17 +127,11 @@ through the tailnet-private `s3.mateosegura.com`. Vault items:
 After a MinIO rebuild, recreate this state with `mc admin user add`,
 `policy create` and `policy attach`.
 
-### `longhorn-minio-backup` (namespace `longhorn-system`) — Longhorn to MinIO S3 credentials
-These are the S3 credentials that Longhorn's `BackupTarget/default` uses to reach
-MinIO. They come from the same vault item: the access key is the MinIO root user,
-and the secret is the root password.
-```sh
-kubectl -n longhorn-system create secret generic longhorn-minio-backup \
-  --from-literal=AWS_ACCESS_KEY_ID="$(bw get username shared/minio/longhorn-backups)" \
-  --from-literal=AWS_SECRET_ACCESS_KEY="$(bw get password shared/minio/longhorn-backups)" \
-  --from-literal=AWS_ENDPOINTS="http://minio.minio.svc.cluster.local:9000" \
-  --dry-run=client -o yaml | kubectl apply -f -
-```
+### `longhorn-minio-backup` (namespace `longhorn-system`) — REMOVED 2026-08-19
+Both the Secret and its namespace are gone with Longhorn. It held the S3
+credentials that `BackupTarget/default` used to reach MinIO. Do not recreate it.
+The vault item it read (`shared/minio/longhorn-backups`) still backs `minio-creds`
+above and must stay.
 
 ### `tunnel-token` (namespace `cloudflare-tunnel`) — the Cloudflare tunnel token
 The token of the `eden-home` Zero Trust tunnel, issued in the Cloudflare

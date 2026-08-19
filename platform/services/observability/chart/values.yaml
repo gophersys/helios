@@ -1,5 +1,7 @@
 # eden-observability — base defaults (cross-cluster).
-# Override per cluster with values-homelab.yaml (Longhorn) or values-cloud.yaml (S3 + reuse Grafana).
+# Override per cluster with values-homelab.yaml (see its header — its StorageClass
+# pins are stale since the 2026-08-19 Longhorn removal) or values-cloud.yaml
+# (S3 + reuse Grafana).
 # Service names are pinned via fullnameOverride so the Alloy river + Grafana datasources
 # can reference them as stable in-namespace DNS. Install into namespace `observability`.
 
