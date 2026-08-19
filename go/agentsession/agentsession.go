@@ -120,6 +120,23 @@ type Spec struct {
 	// (defaultPermissionTimeout). It is meaningful only for ResolveChatHumanThenAdvisor;
 	// the autonomous chain consults the advisor immediately.
 	PermissionTimeout time.Duration
+
+	// Name is this session's stable peer address AND the harness-native session name. It is
+	// assigned by the CALLER (the orchestrator), never minted by the library, because a peer
+	// must be addressable BEFORE it is opened. It MUST match ^[a-z][a-z0-9-]{1,61}[a-z0-9]$
+	// so it is safe as a CLI argument, a unix-socket filename, and a roster entry.
+	//
+	//	Deps.Peer != nil && Name == ""  ==> ConfigError at Open (a session that believes it is
+	//	                                    reachable and is not is the silent failure this
+	//	                                    design exists to remove).
+	//	Deps.Peer == nil && Name == ""  ==> opens cleanly; no peer event is ever emitted.
+	//	invalid non-empty               ==> ConfigError, never a mangled argv.
+	Name string
+
+	// Parent is the opener's Name ("" == a root session, whose parent is the orchestrator).
+	// It is the TREE edge, reported as Peer.Parent. The tree is the registry, parentage,
+	// authorization and audit structure — NEVER a reachability restriction.
+	Parent string
 }
 
 // RouteKey is the opaque key agentconfiguration resolves to a concrete (harness,
@@ -207,6 +224,14 @@ type Deps struct {
 	// regression. The advisor's verdict is CLAMPED by the risk class in agentsession, so
 	// it can never auto-allow a high-risk tool regardless of the advisor impl.
 	Advisor PermissionAdvisor
+
+	// Peer is the OPTIONAL inter-session message plane. agentsession opens NO socket — it
+	// CALLS this port. peerplane.Orchestrator (the tree root) and peerplane.Client (a member
+	// process) both implement it, so a session cannot tell whether its plane is in-process or
+	// across the socket. nil == no peer plane: Spec.Name must be empty, CapPeerMessaging
+	// degrades to CapAbsent, no peer event is ever emitted, and every existing consumer
+	// compiles and behaves identically (no regression).
+	Peer PeerPlane
 }
 
 // Transcript is the durable, append-only replay log seam (the 02 §2 / P9 object,
@@ -303,6 +328,8 @@ const (
 	CapNativeBudget                         // honors a harness-native budget cap (Claude --max-budget-usd)
 	CapPermissionPrompt                     // supports the out-of-grant permission round-trip
 	CapPartialToolResults                   // streams EventToolUpdate (OMP partial results)
+	CapPeerMessaging                        // session<->session messaging ACROSS processes (claude: CapPartial, host roster not containable; omp: CapFull, library-owned)
+	CapSubagentMessaging                    // parent<->child messaging INSIDE one harness process — a DISTINCT function from peer messaging
 )
 
 // capabilityTokens holds the stable lower-kebab token for each Capability.
@@ -314,6 +341,8 @@ var capabilityTokens = [...]string{
 	CapNativeBudget:       "native-budget",
 	CapPermissionPrompt:   "permission-prompt",
 	CapPartialToolResults: "partial-tool-results",
+	CapPeerMessaging:      "peer-messaging",
+	CapSubagentMessaging:  "subagent-messaging",
 }
 
 // String returns the stable lower-kebab token (e.g. "steer"). Total: returns

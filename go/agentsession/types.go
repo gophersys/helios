@@ -258,6 +258,9 @@ const (
 	EventExtension                           // a harness event with no normalized kind — preserved VERBATIM, NEVER dropped
 	EventThinkingProgress                    // a pre-message reasoning HEARTBEAT (no content yet): a running estimated thinking-token count, for a live "thinking…" status indicator
 	EventTurnEnd                             // a TURN reached a clean end: carries that turn's authoritative TokenLedger and final text, and parks the session in StateAwaitingInput — NOT a session terminal
+	EventPeerMessage                         // an inter-session message ARRIVED (UNTRUSTED foreign prose): carries *PeerMessage keyed by MsgID, emitted EXACTLY ONCE per message (a bounded dedupe ring), produced only by an adapter normalizer
+	EventPeerSent                            // this session SENT an inter-session message: carries *PeerMessage; Accepted==false means accepted-for-routing but never delivered (the root reconciler's bounce)
+	EventSubagentMessage                     // a message crossed the parent<->child boundary INSIDE one harness process: carries *SubagentMessage — a DISTINCT function from peer messaging, never in the tree roster
 )
 
 // eventKindTokens holds the stable lower-kebab token for each EventKind, indexed
@@ -280,6 +283,9 @@ var eventKindTokens = [...]string{
 	EventExtension:          "extension",
 	EventThinkingProgress:   "thinking-progress",
 	EventTurnEnd:            "turn-end",
+	EventPeerMessage:        "peer-message",
+	EventPeerSent:           "peer-sent",
+	EventSubagentMessage:    "subagent-message",
 }
 
 // String returns the stable lower-kebab token (e.g. "tool-start"). Total: returns
@@ -312,6 +318,8 @@ type Event struct {
 	Permission *PermissionPayload // EventPermissionRequest/PermissionResolved
 	Usage      *UsageMeter        // EventUsage (the running prefix of the terminal ledger)
 	Terminal   *TerminalPayload   // EventResult/Failed/Aborted/TurnEnd (carries the authoritative TokenLedger)
+	Peer       *PeerMessage       // EventPeerMessage/EventPeerSent (an inter-session message)
+	Subagent   *SubagentMessage   // EventSubagentMessage (a parent<->child message inside one harness process)
 
 	// Extension is the opaque escape hatch: the raw harness frame (or the part Eden
 	// did not normalize) as bytes. ALWAYS present for EventExtension; MAY ride
