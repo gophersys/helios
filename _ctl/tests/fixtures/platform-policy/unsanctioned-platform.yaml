@@ -24,15 +24,15 @@ images:
     groups:
       - content-base
 
-  flutter:
+  mobile:
     parent: base
-    context: flutter
-    dockerfile: flutter/Dockerfile
-    smoke_ref: flutter:smoke
+    context: mobile
+    dockerfile: mobile/Dockerfile
+    smoke_ref: mobile:smoke
     platforms:
       - linux/amd64
       - linux/riscv64
     paths:
-      - flutter/
+      - mobile/
     groups:
       - content-flutter

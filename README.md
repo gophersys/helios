@@ -5,7 +5,7 @@ Eden. `gophersys/eden` uses it as a submodule at `.devcontainer/`. The
 repository builds **6** container images:
 
 - 1 base image with many tools. Most projects can use it directly.
-- 2 domain-specific layers on top of the base image: flutter, and embedded —
+- 2 domain-specific layers on top of the base image: mobile, and embedded —
   the Zephyr toolchain AND the remote development box, in 1 image whose 2
   identities are a mode of its entrypoint.
 - 1 cloud image, built from ubuntu directly rather than from base: the reduced
@@ -43,25 +43,35 @@ every image has it. See "The shared ctl library" below.
 | Image | Intent | `GOPHERSYS_DEVCONTAINER` |
 |---|---|---|
 | `ghcr.io/gophersys/base` | The general-purpose image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. Every pin comes from `versions.env`. | `base` |
-| `ghcr.io/gophersys/flutter` | Base + OpenJDK 21 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. The targets are Linux desktop and Android. iOS is not in the scope. | `flutter` |
+| `ghcr.io/gophersys/mobile` | Base + OpenJDK 21 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. The targets are Linux desktop and Android. iOS is not in the scope. | `mobile` |
 | `ghcr.io/gophersys/embedded` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif), plus the pod half: sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules + clangd and **code-server on `:8443`** (browser VS Code, with the clangd extension seeded at build time). **It was 2 images**, `zephyr` and `zephyr-devbox`. It ships `USER root` and its entrypoint picks the identity: `GOPHERSYS_EMBEDDED_MODE=devbox` is the k8s pod (VS Code Remote-SSH, and the browser at `:8443`, code-server as `dev` and **needing a credential**); anything else, absence included, execs your command as `dev` the way the toolchain layer always did — see "The embedded entrypoint" below. | `embedded` |
 | `ghcr.io/gophersys/cloud` | The reduced base + the CI fold (the Actions runner, cictl, buildx, the harnesses), built `FROM ubuntu` directly rather than from `base`, so it is a reduction and not a layer. **Every ARC pool runs it**, and the same image is a devcontainer: the default command is zsh and a CI pod overrides it. Every pin comes from `versions.env`. | `cloud` |
 | `ghcr.io/gophersys/hardware` | Cloud + the KiCad 10 ECAD toolchain from the project's own PPA (`kicad`, `kicad-symbols`, `kicad-footprints`, `kicad-packages3d`) + the python stack the consumer's suite imports and runs (`kiutils`, `sexpdata`, `pytest`, `ruff`). `kicad-cli` drives headless ERC, DRC, netlist export and Gerber generation. The consumer is `gophersys/research-hardware`. It is 1 of the 2 CHILD images whose pins come from `versions.env`: its ARGs are value-less like cloud's, and `pins: versions.env` on its manifest entry generates the build args. Size budget 11.0 GB, PROVISIONAL — see the note beside the key in `images.yaml`. | `hardware` |
 | `ghcr.io/gophersys/ui` | Cloud + headless Chrome and the DejaVu fallback font. The consumer is `gophersys/research-ui`. It exposes cloud's own Node and uv at `/usr/local/bin` rather than installing a second copy of each, and its content group asserts `node`/`npm`/`uv` resolving as BOTH root and dev. It is the other CHILD whose pins come from `versions.env`. Size budget 6.5 GB, PROVISIONAL — see the note beside the key in `images.yaml`. | `ui` |
+
+**`mobile` was `flutter` until 2026-08-18**, and the rename reached the IMAGE
+alone: one name per category, the last naming step of the consolidation
+program. The Flutter SDK keeps its own name everywhere it appears —
+`FLUTTER_VERSION`, `/opt/flutter`, the `flutter` binary, the `flutter-releases`
+datasource and the `content-flutter` check group all read the same as before,
+because each one names the SDK and not the image that carries it.
+`ghcr.io/gophersys/flutter` stays in the registry as the rollback anchor,
+frozen at its last publish; `ghcr.io/gophersys/mobile` is created by the first
+publish after the merge.
 
 ## Dependency graph
 
 ```
         base                cloud
      ┌───┴────┐         (FROM ubuntu)
- flutter   embedded     ┌────┴────┐
+ mobile   embedded     ┌────┴────┐
                      hardware    ui
 ```
 
 Build in this order:
 
 1. `base`, and `cloud` beside it — `cloud` depends on nothing here.
-2. `flutter` and `embedded`. Both layer on `base`.
+2. `mobile` and `embedded`. Both layer on `base`.
 3. `hardware` and `ui`. Both layer on `cloud`.
 
 **That drawing is prose. `images.yaml` is the graph**, and it is the only place
@@ -127,7 +137,7 @@ Pull an image directly:
 ```sh
 docker pull ghcr.io/gophersys/base:latest
 docker pull ghcr.io/gophersys/cloud:latest
-docker pull ghcr.io/gophersys/flutter:latest
+docker pull ghcr.io/gophersys/mobile:latest
 docker pull ghcr.io/gophersys/embedded:latest
 docker pull ghcr.io/gophersys/hardware:latest
 docker pull ghcr.io/gophersys/ui:latest
@@ -137,14 +147,14 @@ docker pull ghcr.io/gophersys/ui:latest
 
 A consuming project mounts this repository at `<project>/.devcontainer/`. Each
 image directory contains its own `devcontainer.json`. Run **Dev Containers:
-Reopen in Container** and select `base`, `cloud`, `flutter`, `embedded`,
+Reopen in Container** and select `base`, `cloud`, `mobile`, `embedded`,
 `hardware` or `ui`. Each configuration bind-mounts the project to `/workspace` and
 runs as the `dev` user. The configuration files are at these paths:
 
 ```
 .devcontainer/base/devcontainer.json
 .devcontainer/cloud/devcontainer.json
-.devcontainer/flutter/devcontainer.json
+.devcontainer/mobile/devcontainer.json
 .devcontainer/embedded/devcontainer.json
 .devcontainer/hardware/devcontainer.json
 .devcontainer/ui/devcontainer.json
@@ -190,7 +200,7 @@ Use this code in a script or in CI:
 case "${GOPHERSYS_DEVCONTAINER}" in
   base)          echo "running in the base image" ;;
   cloud)         echo "running in the cloud image" ;;
-  flutter)       echo "running in the flutter layer" ;;
+  mobile)       echo "running in the mobile layer" ;;
   embedded)      echo "running in the embedded layer" ;;
   hardware)      echo "running in the hardware layer" ;;
   ui)            echo "running in the ui layer" ;;
@@ -252,7 +262,7 @@ platform is named. A platform outside that set fails the guard and names itself,
 so an edit that adds a third fails loudly instead of quietly restoring an
 emulated build.
 
-5 of the 6 images publish both. **`flutter` alone narrows**, to `linux/amd64`, and
+5 of the 6 images publish both. **`mobile` alone narrows**, to `linux/amd64`, and
 that exception is DATA: a `platforms` key on its entry in `images.yaml`, with the
 measurement beside it. An image with no such key takes the sanctioned set, and a
 key that named a platform outside the set is refused — narrower is an exception
@@ -273,7 +283,7 @@ environment, the image's `platforms` key in `images.yaml`, and the sanctioned
 set. An image may declare a measured NARROWER list but never a wider one.
 
 `verify-published` asserts the set the IMAGE publishes, not the sanctioned set.
-Against the sanctioned set, flutter's correct amd64-only manifest would read as
+Against the sanctioned set, mobile's correct amd64-only manifest would read as
 a broken publish on every run.
 
 The repository-root `ctl.sh` does **not** call the guard. It sends `push` to
@@ -341,7 +351,7 @@ July and the rule that brought it back:
   writes `FROM --platform=` now, and `_ctl/tests/platform-policy.test.sh` fails
   one that does.
 
-### Why flutter is the exception
+### Why mobile is the exception
 
 **Flutter publishes no linux-arm64 SDK, at any version.** Read on 2026-08-17,
 `https://storage.googleapis.com/flutter_infra_release/releases/releases_linux.json`
@@ -354,7 +364,7 @@ filename holds no architecture, so an HTTP probe of it returns 200 and proves
 nothing. **Read the JSON, never the 200.**
 
 No bump reaches an asset upstream does not publish, so this does not expire on
-its own. `flutter/Dockerfile` keeps amd64-only `case` arms and they are correct,
+its own. `mobile/Dockerfile` keeps amd64-only `case` arms and they are correct,
 not incomplete. On the day Flutter ships an arm64 Linux SDK, delete the
 `platforms` key from `images.yaml` and add the arm64 arms and their
 `_SHA256_ARM64` rows in the same change.
@@ -382,7 +392,7 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.ar
    `versions.env` is the ONE pin home of `base` and `cloud`. There is no second
    home and no `ARG NAME=value` in either file: the value arrives as a generated
    `--build-arg`, and a name you forget to add to the Dockerfile's pin gate is
-   the 1 way to lose it silently. A tool of `flutter` or `embedded` still takes
+   the 1 way to lose it silently. A tool of `mobile` or `embedded` still takes
    an `ARG MY_TOOL_VERSION=1.2.3` in that image's
    own Dockerfile — those 2 have not moved yet, and moving them is ledger #102.
 3. **Add a sha256 digest row per sanctioned platform beside that version**, in
@@ -483,7 +493,7 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.ar
 │   ├── upstreams.txt            # where the next value of every pin comes from
 │   └── resolve-upstream.sh      # the weekly resolver — 1 function per datasource
 ├── _delta/components/           # 1 file per folded tool group; cloud COPYs them and runs them
-├── docs/                        # PROPOSALS for images that do not exist yet — see docs/README.md
+├── docs/                        # PROPOSALS — part of one has LANDED; see docs/README.md
 ├── .claude/rules/               # identity + conventions
 ├── .ci/                         # the CI layer — .ci/README.md lists every file
 │   ├── affected.sh              # which images a commit changes — 1 home for the answer
@@ -491,7 +501,7 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.ar
 │   └── mirror-buildkit.sh       # keeps ghcr.io holding the BuildKit index the builder boots from
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── cloud/         { devcontainer.json, Dockerfile, project.json, ctl.sh }
-├── flutter/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
+├── mobile/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── embedded/      { devcontainer.json, Dockerfile, project.json, ctl.sh, embedded-entrypoint.sh }
 ├── hardware/      { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── ui/            { devcontainer.json, Dockerfile, project.json, ctl.sh }
@@ -514,7 +524,7 @@ library, and it sends the verb to `image_main`:
 
 ```sh
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-IMAGE_NAME="flutter"
+IMAGE_NAME="mobile"
 source "$PROJECT_ROOT/../_ctl/lib.sh"
 image_main "$@"
 ```
@@ -526,7 +536,7 @@ so those may be set after:
 | Name | Use |
 |---|---|
 | `PROJECT_ROOT` | The directory that holds the script. Required. |
-| `IMAGE_NAME` | The image slug, for example `flutter`. Required for the image verbs. |
+| `IMAGE_NAME` | The image slug, for example `mobile`. Required for the image verbs. |
 | `IMAGE_PLATFORMS` | The platforms this image builds. The default is `SANCTIONED_PLATFORMS`. Narrower is allowed with a measurement; wider is refused. |
 | `IMAGE_BUILD_ARGS` | An array of extra arguments for `docker build`. `base/ctl.sh` and `cloud/ctl.sh` each fill it from `versions.env` through `versions_env_build_args` — the same 1 line, because there is 1 pin mechanism. |
 | `IMAGE_BUILD_CONTEXT` | The `docker build` context. The default is `PROJECT_ROOT`. `base/ctl.sh` and `cloud/ctl.sh` both set the repository root, because they COPY `_build/` and read `versions.env` (and cloud `_delta/`), which sit 1 level above their directory. |
@@ -586,7 +596,7 @@ Run these commands from the repository root:
 ```sh
 # Build for the sanctioned platform (fast dev loop).
 bash ./ctl.sh build base
-bash ./ctl.sh build flutter
+bash ./ctl.sh build mobile
 bash ./ctl.sh build embedded
 bash ./ctl.sh build cloud
 
@@ -704,7 +714,7 @@ one asset, so that shape is a defect and not a bump.
 
 Because the arms are read as WRITTEN and never against `SANCTIONED_PLATFORMS`,
 a download with one arm and a download with no arm each take exactly one row with
-no special case for either. `flutter/Dockerfile` holds one of each, and the
+no special case for either. `mobile/Dockerfile` holds one of each, and the
 pairing is the opposite of the intuitive one: the Android cmdline-tools download
 sits under a `linux/amd64) : ;;` guard and carries a `_NOARCH` row, while
 flutter's own SDK download sits in a RUN with no case at all and carries the

@@ -84,7 +84,7 @@
 # --build-arg out of versions.env — so it declares no value for any reader to
 # find, and this file read it for 19 pins that are not there any more.
 #
-# A second home came back, and it is a DIFFERENT file. flutter and embedded
+# A second home came back, and it is a DIFFERENT file. mobile and embedded
 # declare their own `ARG NAME=value` blocks and consume no build
 # arg from versions.env, so each one's own Dockerfile is a pin home, and
 # .ci/smoke.sh reads it as one with a class table of its own. 2 kinds of home,
@@ -92,7 +92,7 @@
 #
 #   versions.env              PIN_CLASSES_CLOUD, PIN_CLASSES_BASE,
 #                             PIN_CLASSES_HARDWARE, PIN_CLASSES_UI
-#   flutter/Dockerfile        PIN_CLASSES_FLUTTER
+#   mobile/Dockerfile        PIN_CLASSES_MOBILE
 #   embedded/Dockerfile       PIN_CLASSES_EMBEDDED
 #
 # It was 7 tables, and the 7th is gone by a FOLD rather than by a deletion:
@@ -134,7 +134,7 @@
 #
 # A child image reads 2 homes, so its listing carries the records of both. The
 # records are FILTERED to the home under judgement before the rule reads them:
-# unfiltered, every versions.env pin reads as a row PIN_CLASSES_FLUTTER forgot.
+# unfiltered, every versions.env pin reads as a row PIN_CLASSES_MOBILE forgot.
 # The filter is by name and it is unambiguous — measured 2026-08-17, no name is
 # declared in versions.env and in a child Dockerfile at the same time.
 #
@@ -249,7 +249,7 @@ function env_pin_names() {
 # It was WEST_VERSION: the pin lived in zephyr/Dockerfile, zephyr-devbox
 # carried west, and no home this file reads held it for that image. The embedded
 # fold ended that case by ending the 2 files — 1 home, 1 table, and the pin is
-# read for the image that installs it. `flutter` inherits base's pins exactly
+# read for the image that installs it. `mobile` inherits base's pins exactly
 # the same way and nothing here sees them, so the general fix is unchanged:
 # walking the FROM graph in the driver.
 function dockerfile_pin_names() {
@@ -365,7 +365,7 @@ function class_table_records() {
 # already refuses it, and a mis-wire is 1 character.
 #
 # THE FIX IS NOT TO DERIVE THE NAME FROM THE IMAGE. 2 of the 6 arms would need a
-# rule of their own — `flutter` and `embedded` read PIN_CLASSES_BASE for their
+# rule of their own — `mobile` and `embedded` read PIN_CLASSES_BASE for their
 # SHARED home and their OWN table only through CHILD_CLASSES — so a derivation
 # would be a second naming convention this file invented, and a test that
 # generates the value it checks agrees with any driver. The count was 3 of 7
@@ -856,7 +856,7 @@ fi
 # PIN_HOMES: the mac's bash is 3.2 and has no associative array.
 #
 # The RULE NAME is carried separately because it is not the image name: the
-# `base` table is the BASE FAMILY's — base, flutter and embedded
+# `base` table is the BASE FAMILY's — base, mobile and embedded
 # all read it — and a check called `base_versions_env` would name 1 of the 3
 # images it answers for.
 SHARED_HOME_IMAGES=("cloud" "base" "hardware" "ui")
@@ -931,9 +931,9 @@ fi
 #
 # 3 parallel arrays and not 1 map, for the reason .ci/smoke.sh gives at
 # PIN_HOMES: the mac's bash is 3.2 and has no associative array.
-CHILD_IMAGES=("flutter" "embedded")
-CHILD_HOMES=("flutter/Dockerfile" "embedded/Dockerfile")
-CHILD_TABLES=("PIN_CLASSES_FLUTTER" "PIN_CLASSES_EMBEDDED")
+CHILD_IMAGES=("mobile" "embedded")
+CHILD_HOMES=("mobile/Dockerfile" "embedded/Dockerfile")
+CHILD_TABLES=("PIN_CLASSES_MOBILE" "PIN_CLASSES_EMBEDDED")
 
 # Every record of every listing, for the seam check in section 5.
 all_listing_records=""

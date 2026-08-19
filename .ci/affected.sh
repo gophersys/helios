@@ -39,13 +39,13 @@
 # WHY A CHILD DECLARES ITS PARENT'S INPUTS
 # ============================================================================
 #
-# flutter and embedded FROM an image this repository publishes. If
-# base rebuilds and flutter does not, the published flutter is a layer on an
+# mobile and embedded FROM an image this repository publishes. If
+# base rebuilds and mobile does not, the published mobile is a layer on an
 # image that no longer exists at that tag. So a child's input set CONTAINS its
 # parent's, and `parent built => child builds` holds by construction —
 # image_input_paths walks the `parent` edge of images.yaml to make it so.
 #
-# The other direction does not hold: flutter/ can change on its own, and then
+# The other direction does not hold: mobile/ can change on its own, and then
 # base publishes no `:<sha>` tag for this commit. That is why the workflow reads
 # each parent job's `built` output and falls back to `:latest` for BASE_TAG —
 # the child would otherwise FROM a tag that was never pushed.

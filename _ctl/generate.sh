@@ -547,7 +547,7 @@ FILE_BANNER
   cat <<'FILE_HEADER_A'
 # to the GitHub Container Registry, for every platform the env PLATFORMS key
 # names. On semver tag pushes (v*) we also publish a :v<semver> tag.
-# Flutter and embedded consume base via a BASE_TAG build-arg set to the commit
+# mobile and embedded consume base via a BASE_TAG build-arg set to the commit
 # short SHA, so the child layer FROMs the freshly pushed parent.
 #
 # Every job reads back the manifest it just pushed, at the SHA tag it pushed
@@ -686,7 +686,7 @@ env:
   #
   # A job may carry a PLATFORMS key of its OWN, which overrides this one for that
   # job. It comes from the image's `platforms` key in images.yaml, it may only be
-  # NARROWER, and the manifest carries the measurement beside it. flutter is the
+  # NARROWER, and the manifest carries the measurement beside it. mobile is the
   # 1 image that declares one today: Flutter publishes no linux-arm64 SDK.
 FILE_HEADER_B
 

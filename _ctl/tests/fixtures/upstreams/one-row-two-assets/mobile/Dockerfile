@@ -1,7 +1,7 @@
 # Fixture world for _ctl/tests/resolve-upstream.test.sh — the governed file that
 # is WRONG, in the exact way the real tree is 1 edit away from being wrong.
 #
-# Nothing builds this file and it is not an image. It is named flutter/Dockerfile
+# Nothing builds this file and it is not an image. It is named mobile/Dockerfile
 # because that is where the live seed sits: in the real repository the Android
 # cmdline-tools download runs under a `linux/amd64) : ;;` guard arm and answers
 # for ANDROID_CMDLINE_TOOLS_SHA256_NOARCH — 1 arm, 1 row, 1 asset, correct. The

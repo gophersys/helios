@@ -34,7 +34,7 @@ source "$PROJECT_ROOT/_ctl/lib.sh"
 # parent. This array was a literal here and a second literal in .ci/ctl.sh, and
 # holding the 2 to each other is what validate.yml's agreement step is for.
 #
-# `base` is the root of the dev-image family; `flutter` and `embedded` layer on
+# `base` is the root of the dev-image family; `mobile` and `embedded` layer on
 # top of `base`. `embedded` was 2 images — `zephyr` and `zephyr-devbox` on top
 # of it — and the fold made the toolchain and the pod box 1 image with 1 pin
 # home, whose 2 identities are a mode of its entrypoint. `cloud` is the
@@ -234,7 +234,7 @@ function shell_scripts() {
 #
 # The failure is silent by construction: the build succeeds, the image ships,
 # and the wrong ownership surfaces at RUNTIME in another image. It has already
-# happened here. flutter/Dockerfile chowned /opt/flutter and /opt/android-sdk
+# happened here. mobile/Dockerfile chowned /opt/flutter and /opt/android-sdk
 # through ${USERNAME} from zsh-as-root layers, so both shipped root-owned, and
 # `flutter --version` as `dev` exited 128 with "detected dubious ownership in
 # repository at '/opt/flutter'" — found by the first smoke run that ever
@@ -245,7 +245,7 @@ function shell_scripts() {
 # and no shell is involved. Only RUN reaches zsh.
 #
 # THE HOLE, stated rather than left for a reader to find: the trigger is the
-# SHELL line in THIS file. flutter and embedded declare no SHELL of their own
+# SHELL line in THIS file. mobile and embedded declare no SHELL of their own
 # and INHERIT zsh through their FROM, so their RUN layers run under exactly the
 # same shell and this reader stays silent on them. Both hardcode
 # `dev` today, and each says so in a header comment, so the hole costs nothing
@@ -446,7 +446,7 @@ function cmd_validate() {
     if [[ -n "$trapped" ]]; then
       log_error "${name}/Dockerfile: \${USERNAME} in a RUN after the SHELL switched to zsh"
       log_error "zsh auto-sets USERNAME to the EFFECTIVE user, so this reads the layer's uid and not the ARG"
-      log_error "write the literal 'dev' — the pattern flutter/ and embedded/ document in their headers"
+      log_error "write the literal 'dev' — the pattern mobile/ and embedded/ document in their headers"
       printf '%s\n' "$trapped" >&2
       rc=1
     fi

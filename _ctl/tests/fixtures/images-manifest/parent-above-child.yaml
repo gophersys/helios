@@ -19,12 +19,12 @@ images:
     groups:
       - content-base
 
-  flutter:
+  mobile:
     parent: base
-    context: flutter
-    dockerfile: flutter/Dockerfile
-    smoke_ref: flutter:smoke
+    context: mobile
+    dockerfile: mobile/Dockerfile
+    smoke_ref: mobile:smoke
     paths:
-      - flutter/
+      - mobile/
     groups:
       - content-flutter

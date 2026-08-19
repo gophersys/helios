@@ -157,7 +157,7 @@ FIXTURE_GOOD_ORDER="$FIXTURES/parent-above-child.yaml"
 # The 2 images the fixtures use. The refusal has to NAME both — a guard that
 # fails with "invalid manifest" sends the reader back to read the file by hand.
 FIXTURE_PARENT="base"
-FIXTURE_CHILD="flutter"
+FIXTURE_CHILD="mobile"
 
 # ---------------------------------------------------------------------------
 # The probes.
@@ -594,7 +594,7 @@ fi
 #                                the fold's own failure shape, and `embedded`
 #                                is exactly the entry that just moved
 #   it CONTAINS the dockerfile   `context: .` + `dockerfile: embedded/Dockerfile`
-#                                is correct, and `context: flutter` +
+#                                is correct, and `context: mobile` +
 #                                `dockerfile: embedded/Dockerfile` is a job that
 #                                builds one image's file in another's context.
 #                                docker resolves --file relative to the CWD and

@@ -36,7 +36,7 @@
 #     linux/riscv64 is the tripwire the reader is watched firing on.
 #   - "every PLATFORMS key equals the sanctioned set" is now a SUBSET rule at the
 #     job level, and equality at the workflow level. Equality everywhere would
-#     fail flutter's measured amd64-only override, which is correct; a bare
+#     fail mobile's measured amd64-only override, which is correct; a bare
 #     subset rule everywhere would pass a workflow-level key that quietly
 #     narrowed the whole publish. Each occurrence is keyed by its scope, because
 #     the 2 keys emitted the SAME check name before and a failure could not say
@@ -71,7 +71,7 @@ SANCTIONED="linux/amd64,linux/arm64"
 # is a literal: reading images.yaml here would make this file agree with any
 # manifest, including one that had silently dropped an architecture.
 #
-# 5 of the 6 declare no `platforms` key and take the sanctioned set. flutter
+# 5 of the 6 declare no `platforms` key and take the sanctioned set. mobile
 # declares linux/amd64 and the manifest carries the measurement beside the key:
 # Flutter publishes no linux-arm64 SDK at any version.
 #
@@ -89,7 +89,7 @@ SANCTIONED="linux/amd64,linux/arm64"
 # ubuntu/noble/amd64 and ubuntu/noble/arm64; the citation sits beside
 # KICAD_PPA_VERSION in versions.env. An image whose upstream served 1
 # architecture would need a narrowing key with its own measurement, the way
-# flutter has one.
+# mobile has one.
 #
 # `ui` takes the sanctioned set for the same KIND of reason, and it is the row
 # that was nearly written the other way: the plan, research-ui's ADR-0003 risk
@@ -102,7 +102,7 @@ SANCTIONED="linux/amd64,linux/arm64"
 # a measurement here, and this row is the literal that says so.
 IMAGE_PLATFORM_TABLE=(
   "base|linux/amd64,linux/arm64"
-  "flutter|linux/amd64"
+  "mobile|linux/amd64"
   "embedded|linux/amd64,linux/arm64"
   "cloud|linux/amd64,linux/arm64"
   "hardware|linux/amd64,linux/arm64"
@@ -114,7 +114,7 @@ IMAGE_PLATFORM_TABLE=(
 # exception at all — a table in which every row equalled the sanctioned set
 # would satisfy the per-image rule while proving nothing about the mechanism
 # that makes an exception possible.
-NARROWER_IMAGE="flutter"
+NARROWER_IMAGE="mobile"
 
 # The build path, named file by file. This is deliberately NOT a repository-wide
 # grep. A document must stay free to say the words "linux/riscv64" while it
@@ -154,7 +154,7 @@ BUILD_PATH_FILES=(
   "ctl.sh"
   "base/ctl.sh"
   "cloud/ctl.sh"
-  "flutter/ctl.sh"
+  "mobile/ctl.sh"
   "embedded/ctl.sh"
   "embedded/embedded-entrypoint.sh"
   "hardware/ctl.sh"
@@ -168,7 +168,7 @@ BUILD_PATH_FILES=(
   "project.json"
   "base/project.json"
   "cloud/project.json"
-  "flutter/project.json"
+  "mobile/project.json"
   "embedded/project.json"
   "hardware/project.json"
   "ui/project.json"
@@ -227,7 +227,7 @@ FIXTURE_NARROWER="$PLATFORM_FIXTURES/sanctioned-narrower.yaml"
 # The image and the platform the stimulus fixture holds. The refusal must name
 # BOTH — a guard that says "invalid manifest" sends the reader back to read the
 # file by hand.
-FIXTURE_IMAGE="flutter"
+FIXTURE_IMAGE="mobile"
 FIXTURE_BAD_PLATFORM="linux/riscv64"
 
 # ---------------------------------------------------------------------------
@@ -484,7 +484,7 @@ done
 # -------- 2b. a manifest may NARROW the set and may never widen it --------
 # THE RULE IS WATCHED FIRING, ON A FIXTURE, IN BOTH DIRECTIONS. A rule that has
 # only ever seen the correct manifest has never been observed to fail, and a
-# rule that refused every declared `platforms` key would make flutter's correct
+# rule that refused every declared `platforms` key would make mobile's correct
 # amd64-only row a broken manifest forever.
 missing_fixtures=""
 for fixture in "$FIXTURE_UNSANCTIONED" "$FIXTURE_NARROWER"; do
@@ -528,7 +528,7 @@ else
     fail_check "counter_stimulus_a_narrower_manifest_set_is_accepted" \
       "the same image declaring linux/amd64 alone exited ${IMAGE_PLATFORMS_STATUS}" \
       "output was:" "$IMAGE_PLATFORMS_OUTPUT" \
-      "a rule that refuses every declared platforms key makes flutter's correct row" \
+      "a rule that refuses every declared platforms key makes mobile's correct row" \
       "a broken manifest forever, and the stimulus above would pass on it"
   else
     assert_equal "counter_stimulus_a_narrower_manifest_set_is_accepted" \

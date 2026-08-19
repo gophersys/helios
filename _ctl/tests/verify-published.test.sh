@@ -16,12 +16,12 @@
 #
 #   base    publishes linux/amd64,linux/arm64 — no `platforms` key, so it takes
 #           the sanctioned set;
-#   flutter publishes linux/amd64 alone, declared in images.yaml and measured —
+#   mobile publishes linux/amd64 alone, declared in images.yaml and measured —
 #           Flutter ships no linux-arm64 SDK at any version.
 #
 # So the same amd64-only manifest is a BROKEN publish for base and a CORRECT
-# publish for flutter, and this file drives both images against it. Against the
-# sanctioned set, flutter's correct manifest would read as broken forever; a
+# publish for mobile, and this file drives both images against it. Against the
+# sanctioned set, mobile's correct manifest would read as broken forever; a
 # rule that only asked "is every published platform sanctioned" would call
 # base's missing arm64 half fine. Only the per-image set answers both.
 #
@@ -65,7 +65,7 @@ TEST_NAME="verify-published.test.sh"
 STUB_BIN="$TESTS_DIR/stubs"
 MANIFESTS="$TESTS_DIR/fixtures/manifests"
 BASE_CTL="$REPO_ROOT/base/ctl.sh"
-FLUTTER_CTL="$REPO_ROOT/flutter/ctl.sh"
+MOBILE_CTL="$REPO_ROOT/mobile/ctl.sh"
 
 # The 3 manifest shapes, and what each one IS. Every one of them carries the
 # attestation entries buildx really attaches, because a fixture without them
@@ -219,7 +219,7 @@ run_verify "$BASE_CTL" STUB_MANIFEST_JSON="$MANIFEST_AMD64"
 assert_verify_refused_naming "an_amd64_only_manifest_is_refused_for_base_naming_linux_arm64" \
   "linux/arm64" \
   "manifest fixture: amd64 + 1 attestation — a publish whose arm64 leg never landed" \
-  "this is the exact shape flutter publishes CORRECTLY, which is why the set has to be" \
+  "this is the exact shape mobile publishes CORRECTLY, which is why the set has to be" \
   "read per image and not from SANCTIONED_PLATFORMS"
 
 # -------- base with only the arm64 half -> refused, naming the missing amd64 --------
@@ -231,23 +231,23 @@ assert_verify_refused_naming "an_arm64_only_manifest_is_refused_for_base_naming_
   "manifest fixture: arm64 alone, with no amd64 variant and no attestation at all"
 
 # ===========================================================================
-# flutter publishes linux/amd64 ALONE
+# mobile publishes linux/amd64 ALONE
 # ===========================================================================
 # The same amd64-only fixture the check above refuses. If this passes and that
 # one fails on one document, the verb is reading the image's own set — and no
 # weaker statement proves it.
-run_verify "$FLUTTER_CTL" STUB_MANIFEST_JSON="$MANIFEST_AMD64"
-assert_verify_status "an_amd64_only_manifest_is_accepted_for_flutter" "0" \
-  "flutter declares platforms: [linux/amd64] in images.yaml, and the manifest carries" \
+run_verify "$MOBILE_CTL" STUB_MANIFEST_JSON="$MANIFEST_AMD64"
+assert_verify_status "an_amd64_only_manifest_is_accepted_for_mobile" "0" \
+  "mobile declares platforms: [linux/amd64] in images.yaml, and the manifest carries" \
   "the measurement beside the key: Flutter publishes no linux-arm64 SDK at any version" \
   "against SANCTIONED_PLATFORMS this correct publish would read as broken forever"
 
-# -------- flutter with an arm64 variant it must not have -> refused --------
+# -------- mobile with an arm64 variant it must not have -> refused --------
 # The other direction, and the one a narrower set makes possible: an EXTRA
 # variant. A rule that only asked "is every published platform sanctioned" would
-# accept this, because linux/arm64 is sanctioned — it is just not flutter's.
-run_verify "$FLUTTER_CTL" STUB_MANIFEST_JSON="$MANIFEST_DUAL"
-assert_verify_refused_naming "an_arm64_variant_is_refused_for_flutter_and_named" \
+# accept this, because linux/arm64 is sanctioned — it is just not mobile's.
+run_verify "$MOBILE_CTL" STUB_MANIFEST_JSON="$MANIFEST_DUAL"
+assert_verify_refused_naming "an_arm64_variant_is_refused_for_mobile_and_named" \
   "published but not expected: linux/arm64" \
   "manifest fixture: amd64 + arm64 + 2 attestations, which base accepts" \
   "the refusal has to name the OFFENDING variant and not only the 2 sets, or an" \

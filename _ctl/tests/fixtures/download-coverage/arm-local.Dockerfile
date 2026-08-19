@@ -89,7 +89,7 @@ RUN case "${TARGETPLATFORM}" in \
 # names a defect nobody committed.
 #
 # The mirror of it ships in the real tree with the arms the other way round:
-# flutter's Android cmdline-tools RUN opens `linux/amd64) : ;;` — a guard arm
+# mobile's Android cmdline-tools RUN opens `linux/amd64) : ;;` — a guard arm
 # that assigns NOTHING — so the amd64-only reader is empty-handed there too. Any
 # arm may be the one that answers, which is why the reader takes them all.
 RUN case "${TARGETPLATFORM}" in \

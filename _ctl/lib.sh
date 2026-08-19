@@ -28,7 +28,7 @@
 # A sourcing script sets this metadata BEFORE the source line, because this
 # file reads it while it loads:
 #   PROJECT_ROOT           Required. The directory that holds the script.
-#   IMAGE_NAME             Required for the image verbs. Example: flutter.
+#   IMAGE_NAME             Required for the image verbs. Example: mobile.
 #   IMAGE_PLATFORMS        Optional. The default is SANCTIONED_PLATFORMS. Set it
 #                          only to declare a measured narrower target, and give
 #                          the measurement. Every entry must still be sanctioned.
@@ -547,7 +547,7 @@ function image_check_groups() {
 # declared in this file precisely so 1 place answers "what may we publish".
 #
 # The narrowing itself is a MEASUREMENT and lives beside the key it justifies —
-# flutter's row cites the upstream document that says no linux-arm64 SDK exists.
+# mobile's row cites the upstream document that says no linux-arm64 SDK exists.
 function image_platforms() {
   local name="$1" declared
   declared="$(image_field "$name" 8)" || return 1
@@ -774,7 +774,7 @@ function require_base_image_current() {
 # would answer about the wrong files.
 PIN_VALUE_HOMES=(
   "versions.env"
-  "flutter/Dockerfile"
+  "mobile/Dockerfile"
   "embedded/Dockerfile"
 )
 
@@ -935,7 +935,7 @@ function evidence_of() {
 #
 # The arms are read AS WRITTEN, and never against SANCTIONED_PLATFORMS. That is
 # what keeps the 2 shapes that are not 2-armed correct without a branch for
-# either, and flutter/Dockerfile happens to hold one of each — read that file
+# either, and mobile/Dockerfile happens to hold one of each — read that file
 # before repeating the pairing, because it is the opposite of the intuitive one:
 #
 #   1 arm      the ANDROID cmdline-tools download. Its RUN opens with a
@@ -1448,7 +1448,7 @@ function image_verify_published() {
   require_cmd jq
   # The set this image PUBLISHES, which is the sanctioned set for 5 of the 6 and
   # the manifest's narrower list for the 1 exception. Comparing every image
-  # against the sanctioned set would report flutter — correctly amd64-only,
+  # against the sanctioned set would report mobile — correctly amd64-only,
   # because Flutter publishes no linux-arm64 SDK — as a broken publish forever.
   resolve_image_platforms "${IMAGE_NAME:-}"
   local tag="${1:-latest}"

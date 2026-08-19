@@ -12,10 +12,10 @@
 
 name: build-and-push
 
-# Publishes the IDP image set (base + flutter + embedded + cloud + hardware + ui)
+# Publishes the IDP image set (base + mobile + embedded + cloud + hardware + ui)
 # to the GitHub Container Registry, for every platform the env PLATFORMS key
 # names. On semver tag pushes (v*) we also publish a :v<semver> tag.
-# Flutter and embedded consume base via a BASE_TAG build-arg set to the commit
+# mobile and embedded consume base via a BASE_TAG build-arg set to the commit
 # short SHA, so the child layer FROMs the freshly pushed parent.
 #
 # Every job reads back the manifest it just pushed, at the SHA tag it pushed
@@ -151,7 +151,7 @@ env:
   #
   # A job may carry a PLATFORMS key of its OWN, which overrides this one for that
   # job. It comes from the image's `platforms` key in images.yaml, it may only be
-  # NARROWER, and the manifest carries the measurement beside it. flutter is the
+  # NARROWER, and the manifest carries the measurement beside it. mobile is the
   # 1 image that declares one today: Flutter publishes no linux-arm64 SDK.
   PLATFORMS: linux/amd64,linux/arm64
   # The platform the SMOKE step builds and asserts, and the ONE architecture
@@ -340,7 +340,7 @@ jobs:
         if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         run: bash ./ctl.sh verify-published base ${{ steps.sha.outputs.short }}
 
-  flutter:
+  mobile:
     # A job with no limit inherits the GitHub default of 360 minutes. arc-build
     # has 6 slots and one build wave takes all of them, so a hung job holds a
     # slot for 6 hours. Every timeout in this file is a CEILING sized on the
@@ -357,7 +357,7 @@ jobs:
       # ref the smoke test then runs. It carries no registry on purpose: nothing
       # can pull it, so a load that did not happen fails the smoke step instead
       # of quietly asserting against the last image that was published.
-      SMOKE_REF: flutter:smoke
+      SMOKE_REF: mobile:smoke
       # This image publishes a NARROWER set than the sanctioned one, and
       # images.yaml carries the measurement that justifies it. Never wider:
       # image_platforms refuses an entry outside SANCTIONED_PLATFORMS.
@@ -396,11 +396,11 @@ jobs:
           else
             echo "tag=" >> "$GITHUB_OUTPUT"
           fi
-      - name: does this commit change flutter
-        # flutter's input set contains base's, so base building implies this job
+      - name: does this commit change mobile
+        # mobile's input set contains base's, so base building implies this job
         # building. The reverse does not hold, which is what BASE_TAG answers.
         id: filter
-        run: bash .ci/affected.sh flutter >> "$GITHUB_OUTPUT"
+        run: bash .ci/affected.sh mobile >> "$GITHUB_OUTPUT"
       - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         if: ${{ steps.filter.outputs.build == 'true' }}
         with:
@@ -433,21 +433,21 @@ jobs:
         if: ${{ steps.filter.outputs.build == 'true' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          context: flutter
-          file: flutter/Dockerfile
+          context: mobile
+          file: mobile/Dockerfile
           platforms: ${{ env.SMOKE_PLATFORM }}
           push: false
           load: true
           build-args: |
             BASE_TAG=${{ env.BASE_TAG }}
           tags: ${{ env.SMOKE_REF }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache,mode=max
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/mobile-cache
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/mobile-cache,mode=max
       - name: smoke test (native amd64)
-        # flutter inherits every tool of base, so the pins of versions.env are
-        # compared here too, and the flutter SDK is checked on top of them.
+        # mobile inherits every tool of base, so the pins of versions.env are
+        # compared here too, and the Flutter SDK is checked on top of them.
         if: ${{ steps.filter.outputs.build == 'true' }}
-        run: bash .ci/smoke.sh flutter ${{ env.SMOKE_REF }}
+        run: bash .ci/smoke.sh mobile ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
         # build-args — so buildx resolves every amd64 layer from the cache that
@@ -461,17 +461,17 @@ jobs:
         if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          context: flutter
-          file: flutter/Dockerfile
+          context: mobile
+          file: mobile/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: true
           build-args: |
             BASE_TAG=${{ env.BASE_TAG }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:latest
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/flutter:${{ needs.base.outputs.short }}
-            ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/flutter:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/mobile:latest
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/mobile:${{ needs.base.outputs.short }}
+            ${{ steps.semver.outputs.tag != '' && format('{0}/{1}/mobile:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/mobile-cache
       - name: rehearsal — build what the publish step would build, ship nothing
         # The step above with `push: false`. Same context, same build-args, same
         # PLATFORMS, same builders — so the arm64 leg is really built, on the
@@ -484,13 +484,13 @@ jobs:
         if: ${{ steps.filter.outputs.build == 'true' && inputs.mode == 'rehearsal' }}
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
-          context: flutter
-          file: flutter/Dockerfile
+          context: mobile
+          file: mobile/Dockerfile
           platforms: ${{ env.PLATFORMS }}
           push: false
           build-args: |
             BASE_TAG=${{ env.BASE_TAG }}
-          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/flutter-cache
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/mobile-cache
       - name: verify the published manifest
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
@@ -502,7 +502,7 @@ jobs:
         # a verdict about somebody else's build — a green that checked an image
         # this run never made.
         if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
-        run: bash ./ctl.sh verify-published flutter ${{ needs.base.outputs.short }}
+        run: bash ./ctl.sh verify-published mobile ${{ needs.base.outputs.short }}
 
   embedded:
     # A job with no limit inherits the GitHub default of 360 minutes. arc-build

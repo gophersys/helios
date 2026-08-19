@@ -163,11 +163,11 @@ images:
         pin of versions.env is compared against what the image installed, and
         where the gate toolchain is exercised on a real fixture.
 
-  flutter:
+  mobile:
     parent: base
-    context: flutter
-    dockerfile: flutter/Dockerfile
-    smoke_ref: flutter:smoke
+    context: mobile
+    dockerfile: mobile/Dockerfile
+    smoke_ref: mobile:smoke
     # The 1 image of the set that is NARROWER than SANCTIONED_PLATFORMS, and the
     # reason is upstream and not ours: Flutter publishes no linux-arm64 SDK. Read
     # on 2026-08-17,
@@ -186,13 +186,21 @@ images:
     # is moot while this row stands — that question only opens on the day
     # Flutter itself does.
     #
-    # Delete this key on that day. flutter/Dockerfile keeps amd64-only case
+    # Delete this key on that day. mobile/Dockerfile keeps amd64-only case
     # arms, and they are CORRECT rather than incomplete for as long as it is
     # here.
+    #
+    # The IMAGE is `mobile` and the SDK is Flutter. This narrowing is a fact
+    # about the SDK, so it survived the rename unchanged — the key is the same
+    # key, on a row with a new name.
     platforms:
       - linux/amd64
     paths:
-      - flutter/
+      - mobile/
+    # content-flutter keeps its name, on the rule embedded's entry states below:
+    # a group names the CONTENT it exercises, and this group runs
+    # `flutter --version` against the Flutter SDK. The SDK is named flutter and
+    # did not move; only the IMAGE identity became mobile.
     groups:
       - content-base
       - content-flutter
@@ -205,11 +213,11 @@ images:
         commit that changed it, so when base did not build there is no such tag
         and the only correct parent is the :latest that is still current.
       filter: |
-        flutter's input set contains base's, so base building implies this job
+        mobile's input set contains base's, so base building implies this job
         building. The reverse does not hold, which is what BASE_TAG answers.
       smoke: |
-        flutter inherits every tool of base, so the pins of versions.env are
-        compared here too, and the flutter SDK is checked on top of them.
+        mobile inherits every tool of base, so the pins of versions.env are
+        compared here too, and the Flutter SDK is checked on top of them.
 
   embedded:
     parent: base
@@ -425,7 +433,7 @@ images:
     # on build-and-push.yml is what exercises it before a publish — and the
     # version-skew question research-ui records as Q2 does not arise, because
     # one package version serves both architectures. Narrowing this image later
-    # is a human decision with a measurement beside it, exactly like flutter's.
+    # is a human decision with a measurement beside it, exactly like mobile's.
 
     # The size budget below is PROVISIONAL, and computed from MEASURED images
     # rather than chosen — hardware's method, read on 2026-08-18 through the

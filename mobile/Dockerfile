@@ -5,7 +5,7 @@
 # (BuildKit v0.32) supersedes dockerfile:1.7, and no feature here needs
 # the external one.
 #
-# flutter — Flutter SDK + Android toolchain on top of gophersys/base.
+# mobile — Flutter SDK + Android toolchain on top of gophersys/base.
 #
 # Scope is Android + Linux desktop targets. iOS builds require macOS and are
 # explicitly out of scope. Every version is pinned as an ARG at the top.
@@ -111,10 +111,10 @@ RUN /usr/local/lib/gophersys/fetch-verified.sh \
 # QEMU cross-arch build; flutter config/precache/doctor run in post-build
 # smoke test instead.
 
-ENV GOPHERSYS_DEVCONTAINER=flutter
+ENV GOPHERSYS_DEVCONTAINER=mobile
 
 LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
-LABEL org.opencontainers.image.description="gophersys flutter layer: Flutter ${FLUTTER_VERSION} + Android SDK ${ANDROID_PLATFORM_VERSION}"
+LABEL org.opencontainers.image.description="gophersys mobile layer: Flutter ${FLUTTER_VERSION} + Android SDK ${ANDROID_PLATFORM_VERSION}"
 
 USER dev
 WORKDIR /workspace

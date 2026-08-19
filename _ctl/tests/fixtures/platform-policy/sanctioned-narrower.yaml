@@ -4,7 +4,7 @@
 #
 # The pair is the point. A reader that refused every declared `platforms` key
 # would pass the stimulus in the other file while making the real images.yaml
-# unreadable, and flutter — which is correctly amd64-only — would be a broken
+# unreadable, and mobile — which is correctly amd64-only — would be a broken
 # manifest forever. This fixture is what separates "the rule fires" from "the
 # rule is stuck on".
 images:
@@ -18,14 +18,14 @@ images:
     groups:
       - content-base
 
-  flutter:
+  mobile:
     parent: base
-    context: flutter
-    dockerfile: flutter/Dockerfile
-    smoke_ref: flutter:smoke
+    context: mobile
+    dockerfile: mobile/Dockerfile
+    smoke_ref: mobile:smoke
     platforms:
       - linux/amd64
     paths:
-      - flutter/
+      - mobile/
     groups:
       - content-flutter
