@@ -238,19 +238,82 @@ images:
       - go-gate
       - dockerfile-lint
       - compose
-    # NO size_budget_gb, and the absence is a DECISION rather than a hole.
-    # Measured on 2026-08-18 through the ghcr.io registry API, amd64, summing
-    # the per-layer gzip ISIZE trailers: zephyr:latest 6,741,148,672 bytes and
-    # zephyr-devbox:latest 8,244,974,080, so the devbox delta is 1.504 GB and
-    # this image's unpacked basis is ~9.23 GB.
+    # THIS ROW IS THE DECISION THE UNIT FIX LEFT OPEN, and it is made. What
+    # follows is the ESTIMATE that stood here until 2026-08-19, kept because it
+    # is what the real measurement below is judged against. Measured on
+    # 2026-08-18 through the ghcr.io registry API, amd64, summing the per-layer
+    # gzip ISIZE trailers: zephyr:latest 6,741,148,672 bytes and
+    # zephyr-devbox:latest 8,244,974,080, so the devbox delta was 1.504 GB and
+    # this image's unpacked basis read ~9.23 GB at the ~1.12x on-disk factor
+    # the hardware row derives.
     #
     # That number was NOT written as a budget while the gate could not fail on
-    # one (#119). THE UNIT IS FIXED NOW — .ci/smoke.sh sums `docker history`
-    # rather than reading `docker image inspect --format '{{.Size}}'` — so the
-    # only thing between this image and an acceptance metric is the DECISION to
-    # set one, which is Mateo's and not a side effect of the unit fix. A budget
-    # is a number somebody chose to be held to, and the ISIZE sum above is an
-    # estimate rather than a measurement on the basis the gate now reads.
+    # one (#119). THE UNIT IS FIXED — .ci/smoke.sh sums `docker history
+    # --human=false` rather than reading `docker image inspect --format
+    # '{{.Size}}'` — so the only thing left was the DECISION to set one, which
+    # is Mateo's and not a side effect of the unit fix. He made it on
+    # 2026-08-19, on the method the 2 rows below take: measured + 5%.
+    #
+    # THE BASIS IS UNPACKED BYTES — the sum of `docker history --human=false`,
+    # which is what .ci/smoke.sh compares.
+    #
+    #   8,543,752,192 unpacked bytes x 1.05 = 8,970,939,802
+    #
+    # so the row is 8.98 and the slack over measured+5% is 9,060,198 bytes. The
+    # budget stands 5.11% over the image as it is published today, and the
+    # ISIZE estimate this replaces was 8.1% high.
+    #
+    # THE SUBJECT IS THE PUBLISHED IMAGE, and that is the 1 way this
+    # measurement differs from hardware's and ui's, which were read off a
+    # rehearsal job. Read on 2026-08-19 from ghcr.io/gophersys/embedded:latest,
+    # pulled `--platform linux/amd64` and summed with the gate's own command —
+    # amd64 manifest
+    # sha256:18a17be5a3a9e07874ba33167fcce26c05d06c1b199237e555bc7ee7df1a3507
+    # of index
+    # sha256:0b9cb6d0dbc18208c833c5774abc9a6a8fe5b4a567079ba7c97984e256dbfa60.
+    # That tag is the publish of run 32210312247, job embedded, at
+    # 2026-08-19T03:23Z, from commit 6be0541 — which is the commit this row is
+    # written on, so the number is of THIS tree and not of an older one.
+    #
+    # THE PROXY IS MEASURED AND NOT ASSUMED, and it is not exact. The gate
+    # reads `embedded:smoke`, the `load: true` build, while this row is read off
+    # the published tag; and the number is not a pure function of the layer
+    # content either, because under the containerd store `docker history`
+    # reports what the snapshotter UNPACKED and per-file block rounding differs
+    # between unpacks. Both effects were measured rather than argued:
+    #
+    #   this image, 2 pulls of ONE digest on one mac, 3 identical reads each:
+    #     8,543,752,192 and 8,543,739,904 — 12,288 bytes, 0.00014%, on 4 of the
+    #     47 layers, each difference an exact multiple of 4,096
+    #
+    #   published tag vs what the same run's own gate printed, same commit:
+    #     cloud  5,273,964,544 vs 5,273,882,624  +81,920  +0.0016%
+    #     ui     6,027,313,152 vs 6,027,247,616  +65,536  +0.0011%
+    #
+    # Every spread is under 0.002% — 3 orders of magnitude inside the 5% — and
+    # the row takes the LARGER of this image's 2 readings, so it errs toward a
+    # bigger image. Do NOT read a size gate line as a fixed number: 5 digits of
+    # it are stable and the last 5 are not, which is the reason a budget is a
+    # percentage over a measurement and never the measurement itself.
+    #
+    # THE BASIS IS DISCRIMINATED RATHER THAN ASSERTED: the 47 compressed layer
+    # blobs of that same amd64 manifest sum to 2,546,866,546 bytes in the
+    # registry, 3.35x under the number above. That is the figure the pre-#119
+    # reader compared, and it is how a reader of this row tells in 1 command
+    # which unit a log line is in.
+    #
+    # RE-MEASURING BY HAND: PASS `--platform linux/amd64` TO BOTH COMMANDS.
+    # `docker history` with no `--platform` answers for the HOST platform when
+    # the local store holds more than 1 variant of the tag, and this tag has 2.
+    # Measured on the same mac, same digest, same 170 history lines:
+    # amd64 8,543,752,192 and arm64 8,348,999,680 — a 194,752,512-byte spread,
+    # 2.3%, and the arm64 half is the SMALLER one, so a hand measurement that
+    # forgets the flag sets this row 0.19 GB too low. It cannot bite the gate in
+    # CI: the gate build is `load: true` at SMOKE_PLATFORM, so the store there
+    # holds exactly 1 variant and the ambiguity has nothing to choose between.
+    # The number in this row is amd64 because that is the platform the gate
+    # smokes, and it is also the larger of the 2.
+    size_budget_gb: 8.98
     notes:
       base_tag: |
         The parent this layer FROMs. base publishes a :<sha> tag only on a

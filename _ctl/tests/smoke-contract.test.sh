@@ -104,7 +104,7 @@ SMOKE_REF="cloud:smoke"
 # `hardware` is that shape: a CHILD that reads versions.env. Its pins arrive as
 # generated --build-args like cloud's, so it takes a class table of its OWN over
 # the SAME home while the other 3 children read a table over their own
-# Dockerfile; it declares a size budget, which 4 of the 7 images do not; and its
+# Dockerfile; it declares a size budget, which 2 of the 6 images do not; and its
 # whole reason to exist — the KiCad rows — is `asserted` in ITS table and
 # `not-in-this-image` in the 3 others that read that home. A driver that selected
 # the wrong table would produce a payload that is entirely well-formed and
@@ -115,10 +115,19 @@ SMOKE_REF="cloud:smoke"
 # a paragraph written before the embedded fold made 2 images 1: `.ci/smoke.sh`
 # declares 6 class tables, 4 of them over versions.env (CLOUD, BASE, HARDWARE,
 # UI) and 2 over a child Dockerfile (MOBILE, EMBEDDED); images.yaml declares 6
-# images and 3 of them carry
-# `size_budget_gb` (cloud, hardware, ui), so 3 do not; and KICAD_PPA_VERSION is
+# images and 4 of them carry
+# `size_budget_gb` (cloud, embedded, hardware, ui), so 2 do not; and
+# KICAD_PPA_VERSION is
 # `asserted` in PIN_CLASSES_HARDWARE and `not-in-this-image:kicad-cli` in the
 # other 3 tables over that home.
+#
+# `embedded` joined the budgeted set on 2026-08-19 at 8.98 GB, the first row of
+# the 4 measured off a PUBLISHED image rather than a rehearsal job — its
+# measurement and the proxy drift that qualifies it are beside the key in
+# images.yaml. It is also the 1 budgeted image with no hand-kept literal in
+# this file: the gate is 1 shared data-driven path whose 2 boundaries are held
+# below for 3 images and whose BASIS is held by size-gate.test.sh, so a 4th
+# copy would discriminate nothing. Stated rather than left to be noticed.
 #
 # The names below carry the image for the reason version-coverage.test.sh gives
 # at its child loop: a reader finds the broken one in the list of names, and not
