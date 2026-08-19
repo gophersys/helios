@@ -102,11 +102,16 @@
 #               the unit every census figure in this repository uses. .ci/
 #               smoke.sh reads it and gates the LOADED image on it before the
 #               push, so an oversize image never reaches a consumer. Absent means
-#               NO size gate, which is what 3 of the 6 images take — the budget
-#               is an acceptance metric somebody set, not a number every image
-#               owes. A budget that is present and unreadable is a FAILURE and
-#               never a skip. The comment beside each key carries the
-#               measurement that set it; a budget does not move quietly.
+#               NO size gate — the budget is an acceptance metric somebody set,
+#               not a number every image owes. `base` and `mobile` are the 2
+#               that take it today, and they are NAMED rather than counted for
+#               the reason .ci/smoke.sh gives at the gate: a count written
+#               beside the definition of a key is a count that goes stale the
+#               next time somebody sets a budget, which is exactly what this
+#               line did when `embedded` took one. Read the keys below, never a
+#               number here. A budget that is present and unreadable is a
+#               FAILURE and never a skip. The comment beside each key carries
+#               the measurement that set it; a budget does not move quietly.
 #   notes       the prose of THIS image's publish job, keyed by where it goes.
 #               _ctl/generate.sh wraps each line in `# ` at the right indent. An
 #               absent key emits no comment. Everything a job says that is TRUE

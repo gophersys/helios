@@ -635,7 +635,11 @@ function image_pins() {
 # image_size_budget_gb <name> — the acceptance size budget in decimal GB, empty
 # for an image that declares none.
 #
-# EMPTY MEANS NO SIZE GATE. That is what 3 of the 6 images take, and it is the
+# EMPTY MEANS NO SIZE GATE. `base` and `mobile` are the 2 images that take it
+# today — named and not counted, because a count here goes stale the next time
+# somebody sets a budget, which is what happened when `embedded` took one on
+# 2026-08-19 and this sentence went on saying 3. Read the manifest for the set.
+# It is the
 # behaviour this key generalized rather than changed: the gate was an
 # `if [[ "$IMAGE" == "cloud" ]]` branch in .ci/smoke.sh with the number spelled
 # inside it. A budget is an acceptance metric somebody SET, with the measurement
