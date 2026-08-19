@@ -77,13 +77,6 @@ func (s *session) handle(raw Event) []Event {
 
 	if next, ok := s.nextState(raw); ok {
 		prior := s.priorState()
-		// A new prompt starts a new turn: the AwaitingInput->Running edge (a follow-up
-		// prompt after a completed turn). The turn ordinal must advance BEFORE the
-		// transition event is emitted so the new turn's first event already carries the
-		// incremented Turn/TurnID. The first Ready->Running keeps Turn 0 (batch: 0; chat:
-		// increments per message); AwaitingPermission->Running is a mid-turn continuation,
-		// not a new turn, so it does not advance.
-		s.advanceTurnOnPrompt(prior, next)
 		emitted = append(emitted, s.emit(s.stateEvent(prior, next)))
 		s.setState(next)
 	}
@@ -590,35 +583,9 @@ func (s *session) setState(next State) {
 	s.mu.Unlock()
 }
 
-// advanceTurnOnPrompt increments the turn ordinal when an admitted PROMPT begins a new
-// turn: the edge that LEAVES StateAwaitingInput to open the turn that prompt asked for. The
-// first turn (Ready->Running) stays at 0; a mid-turn continuation keeps the current turn.
-//
-// The armed flag is what separates a prompt's edge from the identical-looking one the
-// HARNESS draws resuming its own turn: one claude turn is several assistant messages, each
-// ending in a MessageEnd that parks the session, so keying on the edge alone counted a turn
-// per message. The opening edge is not always into Running: a turn whose first harness event
-// is a permission ask opens on AwaitingInput->AwaitingPermission, so that edge counts too —
-// keying only on Running let the ask eat the arming and filed the whole turn under its
-// predecessor's ordinal. Either opening edge consumes the arming, so a stale flag cannot
-// advance a later turn twice. It is called from the pump goroutine before the transition
-// event is stamped.
-func (s *session) advanceTurnOnPrompt(prior, next State) {
-	if next != StateRunning && next != StateAwaitingPermission {
-		return
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if !s.promptPending {
-		return
-	}
-	s.promptPending = false
-	if prior == StateAwaitingInput {
-		s.turn++
-	}
-}
-
-// priorTurn reports the current turn ordinal under the lock.
+// priorTurn reports the current turn ordinal under the lock. The pump never advances it: the
+// ordinal is opened by the admitted Prompt itself (session.go admitControl), so no harness
+// event shape can lose a turn or count one twice.
 func (s *session) priorTurn() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()

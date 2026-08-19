@@ -30,7 +30,6 @@ type session struct {
 	state         State
 	seq           uint64 // mirror of the last assigned Seq (authoritative is the Transcript)
 	turn          int
-	promptPending bool                          // an admitted Prompt is awaiting the Running edge that opens its turn
 	pending       map[string]*pendingPermission // RequestID -> awaiting resolution (the human-Resolve path)
 	sessionGrants []ToolGrant                   // the in-memory grant set: Spec.Grants + ScopeSession widenings (07 §3; never persisted)
 	recentDeltas  []string                      // a bounded ring of recent text/tool deltas for the advisor's AdviceContext
@@ -111,21 +110,19 @@ func (s *session) Events(_ context.Context, from Cursor) Stream {
 // phase), the Capability (UnsupportedError if the adapter declares it absent), then
 // forwards the normalized frame to the harness, returning the Seq it was admitted at.
 func (s *session) Control(ctx context.Context, command Command) (Ack, error) {
-	if err := s.guardControl(command); err != nil {
+	// A follow-up Prompt opens a new turn, and admitControl advances the ordinal in the same
+	// critical section that admits it — necessarily BEFORE the send, because an adapter whose
+	// Send streams the whole turn synchronously (omp's one-shot exec per turn) has already
+	// published that turn's events by the time Send returns.
+	openedTurn, err := s.admitControl(command)
+	if err != nil {
 		return Ack{}, err
 	}
 	s.sendMu.Lock()
 	defer s.sendMu.Unlock()
-	// A Prompt opens a new turn: arm the ordinal advance BEFORE the send, because an adapter
-	// whose Send streams the whole turn synchronously (omp's one-shot exec per turn) has
-	// already published that turn's events by the time Send returns.
-	opensTurn := command.Kind == CommandPrompt
-	if opensTurn {
-		s.armTurn()
-	}
 	if err := s.conn.Send(ctx, command); err != nil {
-		if opensTurn {
-			s.disarmTurn() // the prompt never reached the harness; no turn was opened
+		if openedTurn {
+			s.rollBackTurn() // the prompt never reached the harness; no turn was opened
 		}
 		return Ack{}, errors.Wrap(errors.KindUnavailable, "agentsession: send control", err)
 	}
@@ -200,8 +197,41 @@ func (s *session) Close(ctx context.Context) error {
 // declared Capability before it reaches the transport.
 func (s *session) guardControl(command Command) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.checkControl(command)
+}
+
+// admitControl is the control path's admission: it validates the command exactly as
+// guardControl does and, in the SAME critical section, opens the turn a follow-up Prompt asks
+// for — reporting whether it did, so a send that never reaches the harness can give the
+// ordinal back.
+//
+// The advance is derived from the ADMITTED PROMPT, not from the lifecycle edge that follows
+// it. A turn opens with an assistant message, with a permission ask, or with nothing but its
+// own boundary event, and enumerating those shapes lost a turn twice — a permission-first turn
+// and a boundary-only turn each filed under their predecessor's ordinal. The prompt is the one
+// event every shape shares. Deriving it here also makes two properties structural rather than
+// argued: a refused command cannot advance anything (the checks run first, under this lock),
+// and no harness event can advance it at all, so a mid-turn permission round-trip or a claude
+// turn's several assistant messages cannot count a turn twice.
+func (s *session) admitControl(command Command) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.checkControl(command); err != nil {
+		return false, err
+	}
+	// The FIRST turn keeps ordinal 0 — its Prompt is admitted in StateReady. StateAwaitingInput
+	// is where a FOLLOW-UP prompt is admitted, and each one opens the next turn.
+	if command.Kind != CommandPrompt || s.state != StateAwaitingInput {
+		return false, nil
+	}
+	s.turn++
+	return true, nil
+}
+
+// checkControl is the legality body both admission paths share: the caller holds s.mu.
+func (s *session) checkControl(command Command) error {
 	state := s.state
-	s.mu.Unlock()
 
 	// An unknown CommandKind is an INVALID request (not a state conflict), rejected before any
 	// state/capability reasoning.
@@ -222,7 +252,7 @@ func (s *session) guardControl(command Command) error {
 	}
 
 	// The (state × command) legality is sourced from the ONE canonical home (LegalControls via
-	// CanControl) — guardControl is its enforcer, the gateway projects the same set so the UI never
+	// CanControl) — this body is its enforcer, the gateway projects the same set so the UI never
 	// offers an illegal control, and a drift fails in exactly one place. An illegal command in the
 	// current state is a typed StateError (KindConflict).
 	if !CanControl(state, command.Kind) {
@@ -374,18 +404,11 @@ func (s *session) recordRecentDelta(delta string) {
 	s.mu.Unlock()
 }
 
-// armTurn records that an admitted Prompt is awaiting the Running edge that opens its turn,
-// so the pump advances the ordinal on that edge and on no other.
-func (s *session) armTurn() {
+// rollBackTurn gives back the ordinal a Prompt opened when the send that would have started
+// that turn never reached the harness: no turn happened, so no event may carry its number.
+func (s *session) rollBackTurn() {
 	s.mu.Lock()
-	s.promptPending = true
-	s.mu.Unlock()
-}
-
-// disarmTurn withdraws the arming when the prompt failed to reach the harness.
-func (s *session) disarmTurn() {
-	s.mu.Lock()
-	s.promptPending = false
+	s.turn--
 	s.mu.Unlock()
 }
 

@@ -131,8 +131,8 @@ func (k CommandKind) String() string {
 }
 
 // LegalControls is the SINGLE source of truth for the (State × turn-taking command) legality matrix:
-// the set of CommandKinds that may be issued in state, in CommandKind (iota) order. guardControl
-// admits a command iff it is in this set (the CapSteer-absence invalid-check excepted, since that is
+// the set of CommandKinds that may be issued in state, in CommandKind (iota) order. The session's
+// control guard admits a command iff it is in this set (the CapSteer-absence invalid-check excepted, since that is
 // a capability fault, not a state fault), and the gateway projects exactly this set to the UI so a
 // control is never OFFERED when it is illegal. The matrix:
 //
@@ -158,9 +158,9 @@ func LegalControls(state State) []CommandKind {
 }
 
 // CanControl reports whether the turn-taking command kind is legal in state (membership over
-// LegalControls). It does NOT account for CapSteer absence (a capability fault guardControl checks
-// separately); it is the pure state-legality predicate both guardControl and the gateway projection
-// cite so neither re-derives the matrix.
+// LegalControls). It does NOT account for CapSteer absence (a capability fault the control guard
+// checks separately); it is the pure state-legality predicate both that guard and the gateway
+// projection cite so neither re-derives the matrix.
 func CanControl(state State, kind CommandKind) bool {
 	for _, legal := range LegalControls(state) {
 		if legal == kind {
@@ -300,7 +300,7 @@ type Event struct {
 	SessionID string
 	TurnID    string
 	Seq       uint64    // monotonic per session; assigned at durable transcript append (Seq == transcript offset)
-	Turn      int       // turn ordinal (batch: 0; chat: increments per message)
+	Turn      int       // turn ordinal (batch: 0; chat: increments per admitted Prompt)
 	Time      time.Time // adapter-stamped at emit (the harness clock); zero == library stamps via injected Clock
 	Kind      EventKind
 
