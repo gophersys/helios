@@ -2,7 +2,7 @@
 
 // Package peerplane's integration arm exercises the plane over a REAL unix domain socket and
 // REAL OS child processes — the credential-free real-substrate proof (ADR-0016 §2: never a
-// mock). The children are a trivial internal/planepeer stub built with `go build`, NOT a
+// mock). The children are a trivial internal/stubharness stub built with `go build`, NOT a
 // vendor harness, so no credential and no harness pin are needed and it runs in LIBS CI.
 //
 //	go test -tags integration ./... -race
@@ -35,7 +35,7 @@ func (integrationClock) Now() time.Time { return time.Now() }
 // duplicate).
 func TestIntegration_KilledChildBouncesAndDropsFromRoster(t *testing.T) {
 	t.Parallel()
-	stub := buildPlanePeer(t)
+	stub := buildStubHarness(t)
 	socket := filepath.Join(t.TempDir(), "mesh.sock")
 	ctx := context.Background()
 
@@ -54,8 +54,8 @@ func TestIntegration_KilledChildBouncesAndDropsFromRoster(t *testing.T) {
 		t.Fatalf("Join observer: %v", err)
 	}
 
-	childA := startPlanePeer(t, stub, socket, "child-a", "observer")
-	childB := startPlanePeer(t, stub, socket, "child-b", "observer")
+	childA := startStubHarness(t, stub, socket, "child-a", "observer")
+	childB := startStubHarness(t, stub, socket, "child-b", "observer")
 	waitForRoster(t, orchestrator, "observer", "child-a", "child-b")
 
 	// A delivery to a LIVE child succeeds (accepted for routing).
@@ -77,7 +77,7 @@ func TestIntegration_KilledChildBouncesAndDropsFromRoster(t *testing.T) {
 
 	// A re-Join under child-b's name gets a HIGHER Generation than the departed instance.
 	before := generationOf(t, orchestrator, "observer", "child-a")
-	childBPrime := startPlanePeer(t, stub, socket, "child-b", "observer")
+	childBPrime := startStubHarness(t, stub, socket, "child-b", "observer")
 	waitForRoster(t, orchestrator, "observer", "child-b")
 	after := generationOf(t, orchestrator, "observer", "child-b")
 	if after <= before && after == 0 {
@@ -87,24 +87,24 @@ func TestIntegration_KilledChildBouncesAndDropsFromRoster(t *testing.T) {
 	_ = childBPrime
 }
 
-// buildPlanePeer compiles the internal/planepeer stub once and returns its path.
-func buildPlanePeer(t *testing.T) string {
+// buildStubHarness compiles the internal/stubharness stub once and returns its path.
+func buildStubHarness(t *testing.T) string {
 	t.Helper()
-	bin := filepath.Join(t.TempDir(), "planepeer")
-	build := exec.Command("go", "build", "-o", bin, "./internal/planepeer")
+	bin := filepath.Join(t.TempDir(), "stubharness")
+	build := exec.Command("go", "build", "-o", bin, "./internal/stubharness")
 	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build planepeer stub: %v\n%s", err, out)
+		t.Fatalf("build stubharness stub: %v\n%s", err, out)
 	}
 	return bin
 }
 
-// startPlanePeer launches a real child process that Dials the socket and Joins under name.
-func startPlanePeer(t *testing.T, stub, socket, name, parent string) *exec.Cmd {
+// startStubHarness launches a real child process that Dials the socket and Joins under name.
+func startStubHarness(t *testing.T, stub, socket, name, parent string) *exec.Cmd {
 	t.Helper()
 	cmd := exec.Command(stub, "-socket", socket, "-name", name, "-parent", parent)
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
-		t.Fatalf("start planepeer %s: %v", name, err)
+		t.Fatalf("start stubharness %s: %v", name, err)
 	}
 	t.Cleanup(func() { _ = cmd.Process.Kill() }) //nolint:errcheck // best-effort reap.
 	return cmd
