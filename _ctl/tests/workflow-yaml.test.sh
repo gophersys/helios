@@ -4,6 +4,9 @@
 #
 # Rule 1: every workflow file of both directories parses.
 # Rule 2: no job runs on a BILLED runner, and no step runs a hosted-only action.
+# Rule 3: every workflow declares the concurrency semantics it was DECIDED to
+#         have — the publish workflow queues, the review workflow cancels, and
+#         the 3 that declare nothing go on declaring nothing.
 #
 # ============================================================================
 # THE DEFECT THIS FILE EXISTS FOR
@@ -83,6 +86,39 @@
 # the same step deletes the node's caches and takes the other tenants with it.
 # The 2 halves are 1 rule — "this workflow assumes a GitHub-hosted machine" — so
 # they are checked together and named together.
+#
+# ============================================================================
+# WHY THE CONCURRENCY RULE IS HERE TOO
+# ============================================================================
+#
+# Same answer: `concurrency` is STRUCTURE, and this is the file that has a
+# parser. `cancel-in-progress` is a boolean whose 2 values are 1 character
+# apart, it is read by GitHub and by nobody in this repository, and no build
+# fails when it is wrong — so the only place a decision about it can be held is
+# a rule that reads the key.
+#
+# THE DEFECT IT EXISTS FOR, measured: on 2026-08-19 a push to main published the
+# image rename. A second push landed while that run was building, the publish
+# group cancelled it in flight, and the successor run then asked
+# `.ci/affected.sh` about a range starting at the CANCELLED push's own head — so
+# every image read as unaffected and none was built. ghcr.io/gophersys/mobile
+# was never created, hardware kept a `:latest` from before the rename, and 6
+# green badges said the set had published. The header of build-and-push.yml
+# names that class as KNOWN, and it named cancellation as one of its 2 causes.
+#
+# `cancel-in-progress: false` removes that cause: A finishes, B waits, and B's
+# range starts at a commit A really did build. It does not close the class — a
+# THIRD push replaces the PENDING second, and the survivor's `before` is the
+# replaced push's head — and the workflow header says so beside the durable fix
+# it defers. This rule is what stops the value from going back.
+#
+# The table is a hand-kept literal, per file, and it holds the OTHER workflows
+# at what they say today rather than at what this rule prefers. pr-review.yml
+# cancels ON PURPOSE: a review of a diff that has already changed is spend with
+# no reader. A rule that judged every workflow by the publish workflow's answer
+# would have flipped it, and the 3 files that declare no group at all would have
+# grown one nobody asked for. What the table forbids is a SILENT change to any
+# of the 5.
 #
 # ============================================================================
 # THE PARSER, AND WHY A MISSING ONE IS A FAILURE
@@ -173,6 +209,52 @@ SELF_HOSTED_RUNNER_PREFIX="arc-"
 HOSTED_ONLY_ACTIONS=(
   "jlumbroso/free-disk-space"
 )
+
+# THE CONCURRENCY CONTRACT, keyed on the BASENAME of a workflow file.
+#
+#   <basename>|<group>|<cancel-in-progress>   the file declares that block
+#   <basename>|<none>                         the file declares no such key
+#
+# The basename and not the path, so the provider file and its .github copy are
+# held to 1 row: they are 2 spellings of 1 decision, and a rule with 2 rows for
+# them would let a reader satisfy one of them.
+#
+# Each row is a DECISION and carries its reason:
+#
+#   build-and-push  QUEUES. A cancelled publish moves some tags and not others,
+#                   and the run that supersedes it asks .ci/affected.sh about a
+#                   range starting at the cancelled commit — so the images it
+#                   skipped are skipped for good. Measured 2026-08-19: mobile
+#                   was never created and hardware:latest stayed stale, behind
+#                   6 green badges.
+#   pr-review       CANCELS. A review is a read of a diff, the diff has already
+#                   changed, and nothing it publishes is irreversible.
+#   the other 3     declare NO group. The nightly and the weekly are scheduled
+#                   1 hour apart and cannot overlap themselves; validate.yml is
+#                   the pull request gate, and serialising it would make a
+#                   second push wait for a verdict about the first.
+#
+# `false` is spelled out rather than left to GitHub's default. An absent key is
+# a file nobody decided about wearing the answer of a file somebody did, and
+# `concurrency_semantics` below reports that shape as `<group>|null` so it
+# fails against every row here.
+#
+# The single quotes are the point rather than an oversight, the way step_actions
+# writes its yq variable: `${{ github.ref }}` is the LITERAL text GitHub reads,
+# and this shell expanding it would leave a row demanding `build-and-push-`.
+# shellcheck disable=SC2016
+CONCURRENCY_CONTRACT=(
+  'build-and-push.yml|build-and-push-${{ github.ref }}|false'
+  'pr-review.yml|pr-review-${{ github.event.pull_request.number }}|true'
+  'security-nightly.yml|<none>'
+  'validate.yml|<none>'
+  'weekly-bumps.yml|<none>'
+)
+
+# What `concurrency_semantics` prints for a document that declares no
+# concurrency key at all. It is a token and not the empty string: an empty
+# record and an unread file look the same in a failure line.
+NO_CONCURRENCY="<none>"
 
 # ---------------------------------------------------------------------------
 # The parser plumbing.
@@ -343,6 +425,44 @@ function step_actions() {
        .key as $job |
        ([.value.steps[].uses] | flatten | map(select(. != null)) | .[]) |
        $job + "|" + .'
+}
+
+# concurrency_semantics <mode> <pin> <file> — what the top-level `concurrency`
+# key of 1 document says, as `<group>|<cancel-in-progress>`, or `<none>` for a
+# document that declares no such key.
+#
+# THE ALTERNATIVE OPERATOR IS NOT USABLE HERE, and that is the whole reason this
+# is 1 function rather than 1 expression inlined at the call site.
+# `.concurrency["cancel-in-progress"] // "<none>"` yields `<none>` for a key
+# whose value is `false`, because yq's `//` takes the right-hand side when the
+# left is null OR false — so the reader would report the value this rule exists
+# to require as the absence of any value at all, in green. `tostring` is what
+# keeps `false`, `true` and `null` 3 distinct answers.
+#
+# The bracket form of the key is the same kind of care: `.concurrency.cancel-in-progress`
+# is a path holding hyphens, and yq reads those as subtraction.
+function concurrency_semantics() {
+  local mode="$1" pin="$2" file="$3" record=""
+  record="$(yq_query "$mode" "$pin" "$file" \
+    '[.concurrency.group, .concurrency["cancel-in-progress"]] | map(. | tostring) | join("|")')"
+  if [[ "$record" == "null|null" ]]; then
+    printf '%s' "$NO_CONCURRENCY"
+    return 0
+  fi
+  printf '%s' "$record"
+}
+
+# contract_expectation <basename> — the record CONCURRENCY_CONTRACT holds for a
+# file. Prints nothing and returns non-zero when no row names it, which is a
+# workflow whose concurrency nobody has decided about.
+function contract_expectation() {
+  local name="$1" row
+  for row in "${CONCURRENCY_CONTRACT[@]}"; do
+    [[ "${row%%|*}" == "$name" ]] || continue
+    printf '%s' "${row#*|}"
+    return 0
+  done
+  return 1
 }
 
 # billed_runner_report <records> — 1 evidence line per job whose runner labels
@@ -749,5 +869,139 @@ while IFS= read -r relative; do
       "gh api repos/<owner>/<repo>/git/ref/tags/<tag> and pin the commit it dereferences to"
   fi
 done <<< "$parsed_files"
+
+# ===========================================================================
+# 4. THE CONCURRENCY SEMANTICS ARE THE ONES THAT WERE DECIDED
+# ===========================================================================
+
+# The stimuli are 4 documents of 5 lines each, written here rather than kept
+# under fixtures/. The reader needs a PARSER, so each stimulus has to be a
+# document — and a 5-line document whose whole content is the key under test
+# says more at its call site than it would as a fourth file in a directory of
+# workflow-shaped fixtures. They are written once and read 4 times.
+CONCURRENCY_STIMULI="$(mktemp -d)"
+trap 'rm -rf "$CONCURRENCY_STIMULI"' EXIT
+
+# stimulus <name> <body...> — write 1 document and print its path.
+function stimulus() {
+  local name="$1"
+  shift
+  local path="$CONCURRENCY_STIMULI/${name}.yml"
+  {
+    printf 'name: fixture-%s\n' "$name"
+    printf 'on: [push]\n'
+    printf '%s\n' "$@"
+  } > "$path"
+  printf '%s' "$path"
+}
+
+STIMULUS_QUEUES="$(stimulus "queues" \
+  "concurrency:" "  group: g" "  cancel-in-progress: false")"
+STIMULUS_CANCELS="$(stimulus "cancels" \
+  "concurrency:" "  group: g" "  cancel-in-progress: true")"
+STIMULUS_HALF="$(stimulus "half" \
+  "concurrency:" "  group: g")"
+STIMULUS_SILENT="$(stimulus "silent" \
+  "jobs:" "  build:" "    runs-on: arc-build" "    steps:" "      - run: echo build")"
+
+if [[ -z "$mode" ]]; then
+  fail_check "counter_stimulus_the_concurrency_reader_ran" \
+    "no parser was reachable, so no stimulus below was read" \
+    "a missing tool is a FAILURE and never a skip"
+else
+  pass_check "counter_stimulus_the_concurrency_reader_ran"
+
+  # The 2 values are 1 character apart, and telling them apart is the entire
+  # job of this reader. A reader that could not would report the fixed workflow
+  # and the broken one identically.
+  assert_equal "counter_stimulus_reads_a_queueing_group" \
+    "g|false" "$(concurrency_semantics "$mode" "$pin" "$STIMULUS_QUEUES")" \
+    "a reader written with yq's // operator answers <none> here, because // takes its" \
+    "right-hand side when the left is null OR FALSE — and the rule would then pass" \
+    "on the exact value it exists to require, having read a document that declares it"
+
+  assert_equal "counter_stimulus_reads_a_cancelling_group" \
+    "g|true" "$(concurrency_semantics "$mode" "$pin" "$STIMULUS_CANCELS")" \
+    "this is the value build-and-push.yml carried on 2026-08-19, and pr-review.yml carries on purpose"
+
+  assert_equal "counter_stimulus_reports_a_group_with_no_cancel_key_as_undeclared" \
+    "g|null" "$(concurrency_semantics "$mode" "$pin" "$STIMULUS_HALF")" \
+    "GitHub defaults that key to false, and a reader that answered 'false' here would" \
+    "report a decision nobody wrote as a decision somebody did"
+
+  assert_equal "counter_stimulus_reports_a_document_with_no_concurrency_key" \
+    "$NO_CONCURRENCY" "$(concurrency_semantics "$mode" "$pin" "$STIMULUS_SILENT")" \
+    "3 workflows of this repository declare no group, and their row says so"
+
+  # The table reader, both directions. A lookup that always failed would make
+  # every file below red for the wrong reason, and one that always succeeded
+  # would let an unnamed workflow through with an empty expectation.
+  # shellcheck disable=SC2016  # the literal expression the workflow carries
+  assert_equal "counter_stimulus_the_contract_table_answers_for_a_named_file" \
+    'build-and-push-${{ github.ref }}|false' \
+    "$(contract_expectation "build-and-push.yml")" \
+    "the row this rule was written for"
+
+  lookup_status=0
+  contract_expectation "no-such-workflow.yml" > /dev/null || lookup_status=$?
+  assert_status_nonzero "counter_stimulus_the_contract_table_refuses_an_unnamed_file" \
+    "$lookup_status" \
+    "a lookup that answered for a file it has no row for would make the set rule below vacuous"
+fi
+
+# THE RATCHET. Keyed on the files the walk found, so a workflow added tomorrow
+# is red until somebody decides what its concurrency is.
+concurrency_rows_hit=""
+concurrency_files_judged=0
+
+while IFS= read -r relative; do
+  [[ -z "$relative" ]] && continue
+  base="${relative##*/}"
+
+  want=""
+  if ! want="$(contract_expectation "$base")"; then
+    fail_check "${relative}_is_named_in_the_concurrency_contract" \
+      "no row of CONCURRENCY_CONTRACT names ${base}" \
+      "a workflow with no row is a workflow whose concurrency nobody decided: it either" \
+      "runs beside itself, or supersedes a run that was half way through something" \
+      "fix: add the row, with the reason the decision was made"
+    continue
+  fi
+
+  concurrency_rows_hit="${concurrency_rows_hit:+${concurrency_rows_hit}
+}${base}"
+  concurrency_files_judged=$((concurrency_files_judged + 1))
+
+  got="$(concurrency_semantics "$mode" "$pin" "$REPO_ROOT/$relative")"
+  assert_equal "${relative}_declares_the_contracted_concurrency" "$want" "$got" \
+    "the contract for ${base} is in CONCURRENCY_CONTRACT, with the reason beside it" \
+    "build-and-push.yml QUEUES: a cancelled publish moves some tags and not others, and the" \
+    "successor run's affected-gate range starts at the cancelled commit, so the images it" \
+    "skipped are skipped for good — mobile was never created on 2026-08-19, behind 6 green badges" \
+    "pr-review.yml CANCELS: a review of a diff that has already changed is spend with no reader"
+done <<< "$parsed_files"
+
+if [[ "$concurrency_files_judged" -gt 0 ]]; then
+  pass_check "the_concurrency_rule_judged_at_least_one_file"
+else
+  fail_check "the_concurrency_rule_judged_at_least_one_file" \
+    "no file reached the comparison, so every clause above passed over nothing" \
+    "either the walk stopped matching, or no file parsed"
+fi
+
+# The other direction of the set rule. A row for a file that no longer exists
+# reads as coverage and covers nothing — it is the same believed-and-empty
+# check as a glob that stopped matching, spelled in a table.
+for row in "${CONCURRENCY_CONTRACT[@]}"; do
+  row_name="${row%%|*}"
+  if grep -qxF -- "$row_name" <<< "$concurrency_rows_hit"; then
+    pass_check "the_contract_row_for_${row_name}_names_a_file_that_exists"
+  else
+    fail_check "the_contract_row_for_${row_name}_names_a_file_that_exists" \
+      "CONCURRENCY_CONTRACT holds a row for ${row_name} and the walk found no such file" \
+      "the files judged were:" "${concurrency_rows_hit:-<none>}" \
+      "delete the row in the change that deletes or renames the workflow"
+  fi
+done
 
 test_summary "$TEST_NAME"
