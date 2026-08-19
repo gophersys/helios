@@ -124,7 +124,7 @@ proven no-wedge; close ladder/goroutines/fixtures all clean.
 ## DECISION (Mateo, 2026-08-19): route omp dialogs THROUGH the library permission
 chain; CapPermissionPrompt:Full stays (honest once F1 routes). F5 closed by F1's fix.
 
-## Next
+## History (fix round 1 detail below)
 Fix round 1, TDD order:
 - phase 2 (test author): pin RED — (F1) an omp select dialog surfaces as
   EventPermissionRequest carrying the COMMAND TEXT (title 2nd line), and the wire
@@ -141,3 +141,18 @@ Fix round 1, TDD order:
   bounded deny-on-timeout; delete grantedTools/isGranted/dialogTool self-decision.
 - then re-verify (round 2), PR. Also fix F8 stale doc comments; F7 bench-GOMAXPROCS is
   an out-of-diff ticket (lib.sh).
+
+## Fix round 1 — landed (routing rewrite)
+RED (author 8a19436/a553ef1): #1 command-in-ask, #2 rm-rf DENY-reaches-wire (drives
+the REAL library + risk clamp), #5 human-Allow-reaches-wire, #3 timeout-deny, #4 guard,
+#6 sentinel-by-identity, #7 verifyOmpBinary — all red for the right reason; F6 decision
+(b): #15 real-omp lane is PR-2's, binary-identity guard here instead.
+GREEN (implementer 377079c + lint 1755f85): adapter is NO LONGER a permission authority
+— dialog() surfaces EventPermissionRequest with the command folded into Tool as
+base(scope) so the library's scope-match+risk-clamp see it; library decides; Send maps
+the eden:permission steer to the wire (Allow→Approve label, Deny→Deny), cancels the
+6-min deny-on-timeout fallback; EventPermissionResolved drained with priority so the
+2nd Prompt isn't refused; verifyOmpBinary rejects oh-my-posh, Spawn probes --version.
+grantedTools/isGranted/dialogTool DELETED. Gates 5/5+11/11+6/6 green in-container;
+apidiff byte-identical; cover-floor 83.7%; 5 credential-gated live SKIPs (the 6th,
+LiveAdvisor_AllowsLowRiskRead, no longer exists in the tree — honest count is 5).
