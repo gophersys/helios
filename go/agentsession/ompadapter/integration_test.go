@@ -39,10 +39,9 @@ import (
 // through a real pipe, the boundary carried the four-token ledger with the cost converted with
 // no float drift, Seq is monotonic, and the credential canary never leaked. Reaped on Cleanup.
 //
-// Re-pinned for contract revision R1: one Prompt draws one TURN boundary. The omp PROCESS exits
-// at the end of its one-shot turn — the SESSION does not, and it accepts the next Prompt on the
-// same conn. The three-Prompt proof over that conn is its multi-turn sibling
-// (multiturn_integration_test.go).
+// One Prompt draws one TURN boundary. The one long-lived `omp --mode rpc` process does NOT exit
+// at turn end — it survives every turn, and the SESSION accepts the next Prompt on the same conn.
+// The three-Prompt proof over that conn is its multi-turn sibling (multiturn_integration_test.go).
 func TestIntegration_StubBinary_RealSubprocessLifecycle(t *testing.T) {
 	t.Parallel()
 	stub := buildStub(t)

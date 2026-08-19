@@ -225,50 +225,139 @@ func countEnv(env []string, entry string) int {
 	return n
 }
 
-// TestProperty_BuildArgumentsNeverSelectsRPC asserts the spawn-arg invariant over arbitrary
-// specs/routes: the headless json mode is ALWAYS selected and the rpc mode (the
-// extension_ui_request blocking trap, the spike's load-bearing choice) is NEVER selected,
-// regardless of grants/model/resume/system-hints.
-func TestProperty_BuildArgumentsNeverSelectsRPC(t *testing.T) {
+// TestProperty_BuildArgumentsAlwaysSelectsRPC asserts the spawn-arg invariant over arbitrary
+// specs/routes: the ONE long-lived session's `--mode rpc` is ALWAYS selected, the approval mode
+// is ALWAYS pinned explicitly (never inherited from the operator's settings), and neither the
+// one-shot print stream (`-p` / `--mode json`) nor the blocking UI plane (`--mode rpc-ui`) is
+// ever selected — regardless of grants/model/resume/system-hints.
+//
+// This is the inverse of the pre-rewrite property, which asserted rpc was NEVER selected. That
+// invariant was a measurement of `--mode json`'s one-way stream, and it made the adapter
+// single-turn by construction; q3 measured the rpc plane end to end (ready -> negotiate ->
+// prompt -> host tool -> agent_end, BLOCKING_UI_REQUESTS 0) and the choice reverses.
+func TestProperty_BuildArgumentsAlwaysSelectsRPC(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
-		spec := agentsession.Spec{
-			Workspace:   rapid.StringMatching(`(/[a-z]{1,8}){0,3}`).Draw(rt, "workspace"),
-			ResumeFrom:  rapid.StringMatching(`[a-z0-9-]{0,12}`).Draw(rt, "resume"),
-			SystemHints: rapid.StringMatching(`[a-z ]{0,20}`).Draw(rt, "hints"),
+		args := ompadapter.BuildArgumentsForTest(drawArgumentSpec(rt), drawArgumentRoute(rt))
+		scan := scanArguments(args)
+		if len(scan.dangling) > 0 {
+			rt.Fatalf("value-taking flag(s) %v carry no value; args=%v", scan.dangling, args)
 		}
-		nGrants := rapid.IntRange(0, 4).Draw(rt, "nGrants")
-		for i := 0; i < nGrants; i++ {
-			tool := rapid.StringMatching(`[a-z]{1,8}`).Draw(rt, "tool")
-			spec.Grants = append(spec.Grants, agentsession.ToolGrant{ID: "g", Tool: tool})
-		}
-		route := agentsession.Route{
-			Harness: "omp",
-			Model:   rapid.StringMatching(`[a-z0-9/.-]{0,20}`).Draw(rt, "model"),
-		}
-		args := ompadapter.BuildArgumentsForTest(spec, route)
-
-		sawHeadless, sawJSON := false, false
-		for i, a := range args {
-			if a == "-p" {
-				sawHeadless = true
-			}
-			if a == "--mode" && i+1 < len(args) {
-				switch args[i+1] {
-				case "json":
-					sawJSON = true
-				case "rpc":
-					rt.Fatalf("must NEVER select --mode rpc (the extension_ui_request blocking trap); args=%v", args)
-				}
-			}
-		}
-		if !sawHeadless {
-			rt.Fatalf("headless -p flag missing; args=%v", args)
-		}
-		if !sawJSON {
-			rt.Fatalf("--mode json missing; args=%v", args)
-		}
+		assertLongLivedModeSelected(rt, scan, args)
+		assertApprovalModePinnedByProperty(rt, scan, args)
 	})
+}
+
+// drawArgumentSpec draws an arbitrary Spec for the spawn-arg invariant.
+//
+// The resume id may deliberately begin with '-': a drawn value that LOOKS like a flag is exactly
+// what the pair-aware scan below exists to survive, so the generator keeps producing them.
+func drawArgumentSpec(rt *rapid.T) agentsession.Spec {
+	spec := agentsession.Spec{
+		Workspace:   rapid.StringMatching(`(/[a-z]{1,8}){0,3}`).Draw(rt, "workspace"),
+		ResumeFrom:  rapid.StringMatching(`[a-z0-9-]{0,12}`).Draw(rt, "resume"),
+		SystemHints: rapid.StringMatching(`[a-z ]{0,20}`).Draw(rt, "hints"),
+	}
+	nGrants := rapid.IntRange(0, 4).Draw(rt, "nGrants")
+	for i := 0; i < nGrants; i++ {
+		tool := rapid.StringMatching(`[a-z]{1,8}`).Draw(rt, "tool")
+		spec.Grants = append(spec.Grants, agentsession.ToolGrant{ID: "g", Tool: tool})
+	}
+	return spec
+}
+
+// drawArgumentRoute draws an arbitrary resolved Route. The model NEVER begins with '-': a model
+// id is a provider path (`openrouter/deepseek/deepseek-v4-flash`), and a leading dash is not a
+// model name at all — it is a flag the routing table could never produce.
+func drawArgumentRoute(rt *rapid.T) agentsession.Route {
+	return agentsession.Route{
+		Harness: "omp",
+		Model:   rapid.StringMatching(`([a-z0-9][a-z0-9/.-]{0,19})?`).Draw(rt, "model"),
+	}
+}
+
+// argumentValueFlags names every flag buildArguments emits that is followed by a VALUE token.
+//
+// Reading every token as a flag position is what made the earlier property UNSATISFIABLE: the
+// drawn model and resume id can begin with '-', so `--model -p` reported print mode against an
+// implementation that emitted no -p at all. A flag's value is data, and the invariant is about
+// the flags.
+var argumentValueFlags = map[string]bool{
+	"--mode":                 true,
+	"--approval-mode":        true,
+	"--model":                true,
+	"--thinking":             true,
+	"--tools":                true,
+	"--resume":               true,
+	"--append-system-prompt": true,
+}
+
+// argumentScan is one argv split into FLAG positions and the value each value-taking flag carried.
+type argumentScan struct {
+	flags    map[string]int      // how many times a token appeared in a FLAG position
+	values   map[string][]string // the value token of each value-taking flag, in order
+	dangling []string            // a value-taking flag with nothing after it (a malformed argv)
+}
+
+// scanArguments walks args left to right, reading the token AFTER a value-taking flag as that
+// flag's value and never as a flag of its own.
+func scanArguments(args []string) argumentScan {
+	scan := argumentScan{flags: make(map[string]int, len(args)), values: make(map[string][]string, len(args))}
+	for i := 0; i < len(args); i++ {
+		token := args[i]
+		scan.flags[token]++
+		if !argumentValueFlags[token] {
+			continue
+		}
+		if i+1 >= len(args) {
+			scan.dangling = append(scan.dangling, token)
+			continue
+		}
+		scan.values[token] = append(scan.values[token], args[i+1])
+		i++ // the value is data, not the next flag
+	}
+	return scan
+}
+
+// assertLongLivedModeSelected proves exactly one --mode is emitted and it is the long-lived rpc
+// plane — never print mode, never the one-way json stream, never the blocking rpc-ui plane.
+//
+//nolint:gocritic // argumentScan is a small read-only view (two maps and a slice) passed by value to keep the helper pure.
+func assertLongLivedModeSelected(rt *rapid.T, scan argumentScan, args []string) {
+	if scan.flags["-p"] > 0 {
+		rt.Fatalf("print mode exits after one turn; the rpc session must outlive its turn; args=%v", args)
+	}
+	modes := scan.values["--mode"]
+	if len(modes) != 1 {
+		rt.Fatalf("want exactly one --mode (found %d); args=%v", len(modes), args)
+	}
+	switch modes[0] {
+	case "rpc":
+	case "json":
+		rt.Fatalf("--mode json is the one-process-per-turn stream this rewrite deletes; args=%v", args)
+	case "rpc-ui":
+		rt.Fatalf("--mode rpc-ui installs the tool UI context (main.ts:1570) and CAN block; args=%v", args)
+	default:
+		rt.Fatalf("--mode %q is not the long-lived rpc plane; args=%v", modes[0], args)
+	}
+}
+
+// assertApprovalModePinnedByProperty proves the child is pinned to exactly one asking approval
+// mode over every drawn spec — with no flag omp inherits the operator's tools.approvalMode, and
+// q3-probe4 watched a bash call run ungated under that inheritance.
+//
+//nolint:gocritic // argumentScan is a small read-only view (two maps and a slice) passed by value to keep the helper pure.
+func assertApprovalModePinnedByProperty(rt *rapid.T, scan argumentScan, args []string) {
+	if scan.flags["--auto-approve"] > 0 {
+		rt.Fatalf("--auto-approve pins tools.approvalMode=yolo and skips every approval prompt; args=%v", args)
+	}
+	modes := scan.values["--approval-mode"]
+	if len(modes) != 1 {
+		rt.Fatalf("want exactly one explicit --approval-mode (found %d); args=%v", len(modes), args)
+	}
+	if modes[0] == "yolo" {
+		rt.Fatalf("--approval-mode must carry an ASKING value (always-ask|write); args=%v", args)
+	}
 }
 
 // ── frame builders (valid-by-construction omp json lines) ────────────────────────────────.

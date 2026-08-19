@@ -1,10 +1,9 @@
 //go:build integration
 
-// The MULTI-TURN half of the omp adapter's host-leveraging lane (ADR-0020 dimension (d)) for
-// contract revision R1: THREE consecutive Prompts on ONE agentsession.Session over ONE
-// processConn, driving THREE real stub-harness executions — omp's headless json mode is
-// one-shot per turn, so the per-turn exec model is the thing under test and it is driven for
-// real, never mocked.
+// The MULTI-TURN half of the omp adapter's host-leveraging lane (ADR-0020 dimension (d)):
+// THREE consecutive Prompts on ONE agentsession.Session over ONE long-lived `omp --mode rpc`
+// process — the process survives every turn, so the one-process-many-turns model is the thing
+// under test, driven against a real stub-harness subprocess, never mocked.
 //
 //	go test -tags integration ./ -race -count=1 -run TestIntegration_StubBinary_ThreeConsecutivePrompts
 //
@@ -49,8 +48,8 @@ const multiTurnDeadline = 90 * time.Second
 //	(c) ZERO session terminals before Close — a turn boundary ends a TURN;
 //	(d) ONE Stream opened at Seq 0 BEFORE the first Prompt delivers all three turns gap-free —
 //	    a viewer attached at the start does not lose the session at the first turn boundary;
-//	(e) three stub EXECUTIONS on ONE conn — three `session` + three `agent_start` frames, each
-//	    surfaced as EventExtension, and the Ready handshake NOT re-fired by any of them;
+//	(e) ONE omp EXECUTION serving all three turns — zero per-process `session` frames, one
+//	    `agent_start` per turn surfaced as EventExtension, and exactly one Ready handshake;
 //	(f) the requested Close then produces the session's ONE terminal, an EventResult;
 //	(g) the credential canary never leaks, across all three turns.
 //
@@ -98,7 +97,7 @@ func TestIntegration_StubBinary_ThreeConsecutivePromptsOnOneSession(t *testing.T
 
 	assertThreeDistinctBoundaries(t, log.boundaries)
 	assertTurnOrdinalsAdvance(t, log.events)
-	assertThreeExecsAndOneReady(t, log.events, log.firstBoundarySeq)
+	assertOneProcessServedEveryTurn(t, log.events, log.firstBoundarySeq)
 	assertSoleTerminalIsTheRequestedClose(t, log.events)
 	assertMultiTurnSeqAndNoLeak(t, log.events)
 }
@@ -203,26 +202,47 @@ func assertTurnOrdinalsAdvance(t *testing.T, events []agentsession.Event) {
 	}
 }
 
-// assertThreeExecsAndOneReady proves assertion (e): three stub EXECUTIONS rode one conn — three
-// `session` and three `agent_start` startup frames, each preserved as an opaque EventExtension —
-// and none of them re-fired the Ready handshake the library's Open already consumed.
-func assertThreeExecsAndOneReady(t *testing.T, events []agentsession.Event, firstBoundarySeq uint64) {
+// assertOneProcessServedEveryTurn proves assertion (e): ONE `omp --mode rpc` process served all
+// three turns.
+//
+// The discriminator is the `session` startup frame. omp's `--mode json` print mode announces one
+// `{"type":"session",…}` per PROCESS, so the pre-rewrite adapter — which launched a fresh omp per
+// Prompt — produced exactly `multiTurnCount` of them. `--mode rpc` announces no session frame at
+// all: its startup is `ready` (mapped to the Ready STATE, not an Extension), a fire-and-forget
+// setWidget, `available_commands_update`, and the `negotiate_protocol` response — measured in
+// q3-probe3-hosttool-roundtrip.txt:3,7,8,9 and q3-probe2-stub-handshake.txt:7-12. So a single
+// `session` frame here means a per-turn process is still being spawned.
+//
+// `agent_start` is NOT a discriminator (one per TURN in both worlds) and is asserted only as the
+// supporting count. The handshake half stays as it was: the `ready` frame is emitted once per
+// PROCESS, so a Ready transition published after turn 1's boundary means the process was
+// replaced. (The count itself is NOT pinned to 1: the pump publishes a Ready-bearing
+// EventSessionState twice for ONE handshake — the derived transition plus the adapter's raw
+// frame republished verbatim, pump.go:107-109 — which is a library property, not a process one.)
+func assertOneProcessServedEveryTurn(t *testing.T, events []agentsession.Event, firstBoundarySeq uint64) {
 	t.Helper()
-	for _, frameType := range []string{"session", "agent_start"} {
-		if got := countExtensionFrames(events, frameType); got != multiTurnCount {
-			t.Errorf("%d %q startup frames surfaced as EventExtension, want %d — one per stub exec, each preserved verbatim on the ONE conn",
-				got, frameType, multiTurnCount)
-		}
+	if got := countExtensionFrames(events, "session"); got != 0 {
+		t.Errorf("%d `session` startup frames across %d turns, want 0 — `--mode json` announces one per PROCESS, so this counts per-turn omp EXECUTIONS; one `--mode rpc` process serves every turn and announces `ready` instead",
+			got, multiTurnCount)
 	}
+	if got := countExtensionFrames(events, "agent_start"); got != multiTurnCount {
+		t.Errorf("%d `agent_start` frames surfaced as EventExtension, want %d — one per TURN on the ONE conn, each preserved verbatim",
+			got, multiTurnCount)
+	}
+	ready := 0
 	for i := range events {
 		event := &events[i]
 		if event.Kind != agentsession.EventSessionState || event.State == nil || event.State.To != agentsession.StateReady {
 			continue
 		}
+		ready++
 		if event.Seq > firstBoundarySeq {
-			t.Errorf("a Ready transition was published at Seq %d, after turn 1's boundary at Seq %d — a per-turn omp exec's `session`/`agent_start` frame must stay an Extension and never re-open the handshake",
+			t.Errorf("a Ready transition was published at Seq %d, after turn 1's boundary at Seq %d — the rpc `ready` frame is emitted once per PROCESS, so a later one means the process was replaced",
 				event.Seq, firstBoundarySeq)
 		}
+	}
+	if ready == 0 {
+		t.Errorf("no Ready transition in a %d-turn session — the handshake the library's Open consumed must be on the stream", multiTurnCount)
 	}
 }
 
