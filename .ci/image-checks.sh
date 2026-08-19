@@ -530,9 +530,47 @@ function checks_content_flutter() {
   run_step "java" java -version
 }
 
+# The embedded image's whole content group.
+#
+# IT WAS 2 GROUPS, content-zephyr and content-devbox, because it was 2 IMAGES.
+# The devbox deletion (Mateo, 2026-08-19) removed the checks that were the
+# pod's own — code-server, its seeded clangd extension, and the 3 sshd steps
+# that generated throwaway host keys so `sshd -t` could read the config — and
+# every check below is what was left: toolchain content, run by a developer
+# inside the container and by CI in the same image.
+#
+# The NAME is content-zephyr because a group names the CONTENT it exercises,
+# and the content that stayed is the Zephyr toolchain and the bench it flashes
+# with. images.yaml carries the same statement beside the embedded entry, and
+# _ctl/tests/images-manifest.test.sh holds the manifest's group set and this
+# file's `case` arms to SET EQUALITY — so dropping the group from one of the 2
+# and not the other is red.
 function checks_content_zephyr() {
   say "--- zephyr content ---"
   run_step "west" west --version
+  run_step "openocd" openocd --version
+  run_step "st-info" st-info --version
+  run_step "esptool" esptool version
+  run_step "picocom" picocom --help
+  run_step "gdb-multiarch" gdb-multiarch --version
+  run_step "clangd" clangd --version
+  # west extension commands, blob fetchers and `west espressif monitor` import
+  # these at runtime.
+  run_step "west venv deps" /opt/west-venv/bin/python -c "import requests, jsonschema"
+  run_step "west venv esptool" /opt/west-venv/bin/python -c "import esptool, serial"
+  local toolchain gcc status
+  for toolchain in xtensa-espressif_esp32_zephyr-elf xtensa-espressif_esp32s2_zephyr-elf xtensa-espressif_esp32s3_zephyr-elf riscv64-zephyr-elf; do
+    gcc=""
+    status=0
+    gcc="$(sdk_toolchain_gcc "$toolchain")" || status=$?
+    if [[ "$status" -ne 0 ]]; then
+      fail "sdk toolchain ${toolchain}: the search under ${ZEPHYR_SDK_INSTALL_DIR} exited ${status}"
+    elif [[ -x "$gcc" ]]; then
+      say "ok   sdk toolchain ${toolchain}: ${gcc}"
+    else
+      fail "sdk toolchain ${toolchain}: no executable ${toolchain}-gcc under ${ZEPHYR_SDK_INSTALL_DIR}"
+    fi
+  done
 }
 
 # kicad_library_floor <label> <directory> <pattern> <floor> — the KiCad share
@@ -660,55 +698,6 @@ function sdk_toolchain_gcc() {
   find "${ZEPHYR_SDK_INSTALL_DIR}" -maxdepth 4 -type f -name "${1}-gcc" -print -quit
 }
 
-function checks_content_devbox() {
-  say "--- zephyr-devbox content ---"
-  run_step "openocd" openocd --version
-  run_step "st-info" st-info --version
-  run_step "esptool" esptool version
-  run_step "picocom" picocom --help
-  run_step "gdb-multiarch" gdb-multiarch --version
-  run_step "clangd" clangd --version
-  run_step "code-server" code-server --version
-  # Baked-in extension seed (the entrypoint copies it onto a fresh PVC home).
-  local extensions="" status=0
-  extensions="$(code-server --extensions-dir "${CODE_SERVER_SEED_EXTENSIONS}" --list-extensions 2>&1)" || status=$?
-  if [[ "$status" -ne 0 || "$extensions" != *llvm-vs-code-extensions.vscode-clangd* ]]; then
-    fail "code-server: the seed extensions dir does not carry the clangd extension; it listed: ${extensions}"
-  else
-    say "ok   code-server clangd extension"
-  fi
-  # west extension commands, blob fetchers and `west espressif monitor` import
-  # these at runtime.
-  run_step "west venv deps" /opt/west-venv/bin/python -c "import requests, jsonschema"
-  run_step "west venv esptool" /opt/west-venv/bin/python -c "import esptool, serial"
-  local toolchain gcc status
-  for toolchain in xtensa-espressif_esp32_zephyr-elf xtensa-espressif_esp32s2_zephyr-elf xtensa-espressif_esp32s3_zephyr-elf riscv64-zephyr-elf; do
-    gcc=""
-    status=0
-    gcc="$(sdk_toolchain_gcc "$toolchain")" || status=$?
-    if [[ "$status" -ne 0 ]]; then
-      fail "sdk toolchain ${toolchain}: the search under ${ZEPHYR_SDK_INSTALL_DIR} exited ${status}"
-    elif [[ -x "$gcc" ]]; then
-      say "ok   sdk toolchain ${toolchain}: ${gcc}"
-    else
-      fail "sdk toolchain ${toolchain}: no executable ${toolchain}-gcc under ${ZEPHYR_SDK_INSTALL_DIR}"
-    fi
-  done
-  # Throwaway host keys, so `sshd -t` validates the full effective config,
-  # HostKey paths included.
-  run_step "sshd host keys" sudo mkdir -p /etc/ssh/hostkeys
-  run_step "sshd host key ed25519" sudo ssh-keygen -q -N '' -t ed25519 -f /etc/ssh/hostkeys/ssh_host_ed25519_key
-  run_step "sshd host key rsa" sudo ssh-keygen -q -N '' -t rsa -f /etc/ssh/hostkeys/ssh_host_rsa_key
-  # /run/sshd is a RUNTIME prerequisite that PID 1 supplies — embedded-entrypoint.sh
-  # creates it just before it execs sshd — and `sshd -t` refuses to read the
-  # config at all without it ("Missing privilege separation directory"). The
-  # smoke sends its own argv, which the entrypoint execs INSTEAD of running that
-  # preparation, so nothing here has created it. Creating it is what lets -t do
-  # the job it exists for, which is to validate the CONFIG.
-  run_step "sshd privsep dir" sudo install -d -m 0755 /run/sshd
-  run_step "sshd -t" sudo /usr/sbin/sshd -t
-}
-
 function run_functional_groups() {
   local group
   # The split is explicit: this file runs with IFS=$'\n\t', so a `for` over a
@@ -728,7 +717,6 @@ function run_functional_groups() {
       content-runner) checks_content_runner ;;
       content-flutter) checks_content_flutter ;;
       content-zephyr) checks_content_zephyr ;;
-      content-devbox) checks_content_devbox ;;
       content-hardware) checks_content_hardware ;;
       content-ui)     checks_content_ui ;;
       *) fail "unknown check group: '${group}' — .ci/smoke.sh named a group this file does not have" ;;

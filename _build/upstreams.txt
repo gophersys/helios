@@ -59,7 +59,6 @@
 # -------- github-release --------
 BUF_VERSION|github-release|bufbuild/buf|bump to the newest release github marks latest
 BUN_VERSION|github-release|oven-sh/bun|bump to the newest release github marks latest
-CODE_SERVER_VERSION|github-release|coder/code-server|bump to the newest release github marks latest
 DELVE_VERSION|github-release|go-delve/delve|bump to the newest release github marks latest
 DOCKER_BUILDX_VERSION|github-release|docker/buildx|bump to the newest release github marks latest
 DOCKER_COMPOSE_VERSION|github-release|docker/compose|bump to the newest release github marks latest

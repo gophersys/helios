@@ -647,19 +647,18 @@ jobs:
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/embedded-cache,mode=max
       - name: smoke test (native amd64)
         # embedded inherits every tool of base, so the pins of versions.env are
-        # compared here too. Its own home adds 7 rows on top of them, of which 4
-        # are `asserted` — WEST_VERSION, ZEPHYR_SDK_VERSION, ESPTOOL_VERSION and
-        # CODE_SERVER_VERSION; BASE_TAG and the 2 toolchain LISTS name no version
-        # to compare. That is the check the 2-image split cost: west and the
-        # Zephyr SDK lived in the parent's file, so the devbox run asserted 2 of
-        # the 4 its image carried (the inherited-pin half of ledger #102).
+        # compared here too. Its own home adds 6 rows on top of them, of which 3
+        # are `asserted` — WEST_VERSION, ZEPHYR_SDK_VERSION and ESPTOOL_VERSION;
+        # BASE_TAG and the 2 toolchain LISTS name no version to compare. It was 7
+        # rows and 4 asserted until the devbox deletion took CODE_SERVER_VERSION
+        # with the binary it pinned.
         #
-        # The image ships USER root for sshd, and the run forces the dev user so
-        # the base checks run in the identity every other image uses. The
-        # flash/debug stack, the SDK toolchains and `sshd -t` are checked on top.
-        # The argv this step sends BYPASSES the entrypoint's mode dispatch, so
-        # nothing here exercises it — _ctl/tests/embedded-entrypoint.test.sh is
-        # that coverage, on the host.
+        # The image ships USER root, and the run forces the dev user so the base
+        # checks run in the identity every other image uses. The flash/debug
+        # stack and the SDK toolchains are checked on top; the 3 sshd steps went
+        # with sshd. The argv this step sends reaches the entrypoint's non-root
+        # arm, so what it exercises is the plain exec and not the euid-0 drop —
+        # _ctl/tests/embedded-entrypoint.test.sh is that coverage, on the host.
         if: ${{ steps.filter.outputs.build == 'true' }}
         run: bash .ci/smoke.sh embedded ${{ env.SMOKE_REF }}
       - name: publish the image the smoke test passed

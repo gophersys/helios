@@ -154,9 +154,10 @@ VERIFIER="${SCRIPT_DIRECTORY}/fetch-verified.sh"
 #
 # embedded/Dockerfile is 1 entry where zephyr/Dockerfile and
 # zephyr-devbox/Dockerfile were 2. Both of their fetches came with it — the
-# Zephyr SDK tarball and the code-server .deb — so the assets ZEPHYR_SDK_VERSION
-# and CODE_SERVER_VERSION answer for are found in the merged file, at the same
-# URLs, under the same 2-armed `case`.
+# Zephyr SDK tarball and the code-server .deb. The code-server fetch is DELETED
+# now (the devbox deletion, 2026-08-19), so this file answers for 1 asset:
+# ZEPHYR_SDK_VERSION, under its 2-armed `case`. It stays governed because it
+# still FETCHES, which is what puts a file in this list.
 GOVERNED_DOCKERFILES=(
   "base/Dockerfile"
   "mobile/Dockerfile"

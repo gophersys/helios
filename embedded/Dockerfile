@@ -5,39 +5,36 @@
 # (BuildKit v0.32) supersedes dockerfile:1.7, and no feature here needs
 # the external one.
 #
-# embedded — the Zephyr toolchain AND the remote dev box, in 1 image.
+# embedded — the Zephyr toolchain image.
 #
 # It was 2 images: `zephyr` (the toolchain) and `zephyr-devbox` (that same
-# toolchain plus 9 layers, for a k8s pod). The split cost a second publish job,
-# a second pin table and a second nightly scan to carry ~1.5 GB of delta — and
-# it cost a real check, which is the reason this file exists: the devbox smoke
-# asserted esptool and code-server and NOT west or the Zephyr SDK, because those
-# 2 pins lived in the PARENT's file and no reader walked the FROM graph (the
-# inherited-pin half of ledger #102). The merged table is 7 rows over 1 home,
-# and the 4 that name a tool reporting its own version — WEST, ZEPHYR_SDK,
-# ESPTOOL, CODE_SERVER — are all compared in 1 run now, where the devbox run
-# compared 2 of them.
+# toolchain plus 9 layers, for a k8s pod). The fold made them 1, and the DEVBOX
+# HALF IS NOW DELETED — Mateo, 2026-08-19: "yes strip and delete and clean up
+# anything devbox we don't need any of it anymore". Its consumer had already
+# gone (gophersys/infrastructure #192 deleted the only Deployment that set
+# DEVBOX_AUTHORIZED_KEYS), and no manifest, workflow or pod anywhere in the org
+# set GOPHERSYS_EMBEDDED_MODE. The record is "The devbox mode is deleted" in
+# .claude/rules/00-identity.md.
 #
-# Adds the Zephyr-specific system deps, the `west` meta-tool (installed via
-# uv into an isolated venv), and the Zephyr SDK for cross-compilation.
-# Default toolchain set is arm-zephyr-eabi + riscv64-zephyr-elf; override via
-# ZSDK_TOOLCHAINS to include more arches at the cost of image size.
+# WHAT WENT: sshd and its hardened drop-in, /etc/ssh/hostkeys, /etc/devbox,
+# code-server and its baked clangd extension seed, EXPOSE 22 and EXPOSE 8443,
+# and the CODE_SERVER_VERSION pin with its 2 digest rows.
 #
-# On top of that: sshd (key-auth only, host keys on a persistent volume), the
-# flash/debug stack for the lab bench (openocd, stlink-tools, esptool, picocom,
-# gdb-multiarch), the full Espressif Xtensa SDK toolchain set, udev rules for
-# the USB-UART bridges the bench boards use (CP210x, CH340), and code-server on
-# :8443 for browser VS Code.
+# WHAT STAYED, and it is everything the TOOLCHAIN uses: the Zephyr-specific
+# system deps, the `west` meta-tool (installed via uv into an isolated venv),
+# the Zephyr SDK for cross-compilation (default toolchain set arm-zephyr-eabi +
+# riscv64-zephyr-elf, override via ZSDK_TOOLCHAINS at the cost of image size),
+# the full Espressif Xtensa SDK toolchain set, the flash/debug stack for the lab
+# bench (openocd, stlink-tools, esptool, picocom, gdb-multiarch), clangd, and
+# the udev rules for the debug probes and for the USB-UART bridges the bench
+# boards use (CP210x, CH340). None of those is reached over SSH: they are what a
+# developer runs inside the devcontainer and what CI runs in the same image.
 #
-# 1 IMAGE CANNOT CARRY 2 USERS, so it ships `USER root` and the entrypoint picks
-# the identity from GOPHERSYS_EMBEDDED_MODE:
-#
-#   unset (default)  toolchain mode. Drop to `dev` and exec the command, so
-#                    `docker run embedded id` is dev exactly as it was.
-#   devbox           pod mode. Host keys, authorized_keys, the mcu slots and
-#                    code-server, then exec sshd as root.
-#
-# Read embedded-entrypoint.sh for the full contract of both.
+# IT STILL SHIPS `USER root`, and embedded-entrypoint.sh is what drops to `dev`
+# before it execs the command — so `docker run embedded id` is dev exactly as it
+# was. With sshd gone nothing here needs root any more, and collapsing the pair
+# into a plain `USER dev` is open work stated in that file, not a thing this
+# change already did.
 
 ARG BASE_TAG=latest
 FROM ghcr.io/gophersys/base:${BASE_TAG}
@@ -49,10 +46,15 @@ ARG BUILDPLATFORM
 # -------------------------------------------------------------------------
 # Tool versions. 2 ARG blocks stood here — one in zephyr/Dockerfile dated
 # 2026-04-19, one in zephyr-devbox/Dockerfile dated 2026-07-05 — and the fold
-# merges them WITHOUT moving a value: every row below, and every evidence
+# merged them WITHOUT moving a value: every row below, and every evidence
 # comment beside it, is the one that was reviewed in its own image. Each date
 # comment therefore records the day somebody looked at THAT pin, which is what
 # a date beside a value means everywhere else in this repository.
+#
+# CODE_SERVER_VERSION and its 2 digest rows left this block with the devbox
+# deletion (2026-08-19). They were the only pin here that no toolchain layer
+# read, so the block is 5 rows now and _build/upstreams.txt lost its row in the
+# same change — a pin with no home is what upstream-coverage.test.sh refuses.
 # -------------------------------------------------------------------------
 ARG WEST_VERSION=1.5.0                                                 # latest LTS as of 2026-04-19
 ARG ZEPHYR_SDK_VERSION=1.0.1                                           # latest LTS as of 2026-04-19
@@ -60,9 +62,6 @@ ARG ZEPHYR_SDK_SHA256_AMD64=ca9bc0ff66fafca1dac9d592a36d953cf16d096a9d09b1c0357f
 ARG ZEPHYR_SDK_SHA256_ARM64=d79c5bfc68e679488659bea289a4026e52a64f03338875c8c9c850fff13cee30  # upstream-published: https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v1.0.1/sha256.sum
 ARG ZSDK_TOOLCHAINS=arm-zephyr-eabi,riscv64-zephyr-elf                 # latest LTS as of 2026-04-19
 ARG ESPTOOL_VERSION=5.3.1                                              # latest stable as of 2026-07-05
-ARG CODE_SERVER_VERSION=4.133.0                                        # latest stable as of 2026-08-17
-ARG CODE_SERVER_SHA256_AMD64=241feb9fcbd96b1e2caa2e16ecafa67a70d6f7f60659058ddc9a8ba51d366d7e  # computed-at-pin: 2026-08-17
-ARG CODE_SERVER_SHA256_ARM64=332bfdde6bdfd6c8c721b1722b2a69e1737d65e3131b161a63d54b0855967254  # computed-at-pin: 2026-08-17
 # Extra Zephyr SDK toolchains installed on top of the set ZSDK_TOOLCHAINS
 # names (arm-zephyr-eabi + riscv64-zephyr-elf). This is EVERY Espressif
 # toolchain sdk-ng v1.0.1 ships (names verified against the release's toolchain
@@ -207,8 +206,7 @@ RUN mkdir -p /etc/udev/rules.d \
  && usermod -aG plugdev,dialout dev
 
 # -------------------------------------------------------------------------
-# apt layer — SSH server + flash/debug/serial tooling.
-#   openssh-server  remote entry point (config hardened below)
+# apt layer — the flash/debug/serial stack for the lab bench.
 #   openocd         SWD/JTAG flash + debug server (ST-Link on the Nucleos)
 #   stlink-tools    st-info/st-flash for quick ST-Link operations
 #   picocom         serial terminal for board consoles
@@ -218,9 +216,13 @@ RUN mkdir -p /etc/udev/rules.d \
 #                   IDE debug configs point at)
 #   clangd          C/C++ language server backing VS Code IntelliSense
 #                   (the repo's committed .vscode settings point at it)
-# The host keys Debian's postinst generates are removed: this image is
-# shared, and the real keys live on a per-pod persistent volume
-# (/etc/ssh/hostkeys), created by the entrypoint on first boot.
+#
+# `openssh-server` was the 6th name here and it is GONE with the devbox
+# deletion, and so is the `rm -f /etc/ssh/ssh_host_*` that only existed to
+# throw away the keys its postinst generates. Every other name is a tool a
+# developer runs INSIDE the container — clangd included: the VS Code clangd
+# extension in a "Reopen in Container" session drives this same binary, and it
+# was never reached only through code-server.
 # -------------------------------------------------------------------------
 # hadolint ignore=DL3008
 RUN apt-get update \
@@ -228,12 +230,10 @@ RUN apt-get update \
       clangd \
       gdb-multiarch \
       openocd \
-      openssh-server \
       picocom \
       stlink-tools \
  && apt-get clean \
- && rm -rf /var/lib/apt/lists/* \
- && rm -f /etc/ssh/ssh_host_*_key /etc/ssh/ssh_host_*_key.pub
+ && rm -rf /var/lib/apt/lists/*
 
 # -------------------------------------------------------------------------
 # esptool — installed into an isolated uv-managed venv, the same pattern the
@@ -294,6 +294,10 @@ RUN ( cd "${ZEPHYR_SDK_INSTALL_DIR}" \
 # above covers the debug probes (ST-Link, J-Link, DAPLink, ...) and Espressif
 # native USB (303a); this adds the serial bridge chips.
 # -------------------------------------------------------------------------
+# The file was `99-gophersys-devbox.rules` and it is renamed with the devbox
+# deletion. Nothing reads the NAME — udev reads the directory — and a rules
+# file named after a mode that no longer exists is the stale reference this
+# repository refuses everywhere else.
 RUN mkdir -p /etc/udev/rules.d \
  && { \
       echo '# gophersys/embedded — USB-UART bridge udev rules.'; \
@@ -301,115 +305,44 @@ RUN mkdir -p /etc/udev/rules.d \
       echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", MODE="0666", GROUP="plugdev"'; \
       echo '# WCH CH340/CH341'; \
       echo 'SUBSYSTEMS=="usb", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", MODE="0666", GROUP="plugdev"'; \
-    } > /etc/udev/rules.d/99-gophersys-devbox.rules
+    } > /etc/udev/rules.d/99-gophersys-usb-uart.rules
 
 # -------------------------------------------------------------------------
-# sshd hardening drop-in. Ubuntu's stock sshd_config Includes
-# /etc/ssh/sshd_config.d/*.conf and ships with all HostKey lines commented
-# out, so the paths below are the only host keys sshd loads.
-# /etc/ssh/hostkeys is intended to be a mounted PVC subpath so the box
-# keeps its SSH identity across pod restarts; the entrypoint generates the
-# keys on first boot.
-# -------------------------------------------------------------------------
-RUN mkdir -p /etc/ssh/sshd_config.d /etc/ssh/hostkeys /etc/devbox \
- && { \
-      echo '# gophersys/embedded — hardened sshd for the remote dev box.'; \
-      echo 'HostKey /etc/ssh/hostkeys/ssh_host_ed25519_key'; \
-      echo 'HostKey /etc/ssh/hostkeys/ssh_host_rsa_key'; \
-      echo 'PermitRootLogin no'; \
-      echo 'PasswordAuthentication no'; \
-      echo 'KbdInteractiveAuthentication no'; \
-      echo 'AllowUsers dev'; \
-      echo 'X11Forwarding no'; \
-      echo '# Keep long flash/debug sessions alive across cluster ingress idle timeouts.'; \
-      echo 'ClientAliveInterval 30'; \
-      echo 'ClientAliveCountMax 4'; \
-    } > /etc/ssh/sshd_config.d/10-gophersys-devbox.conf
-
-# -------------------------------------------------------------------------
-# SSH login shells do NOT inherit container ENV, so the toolchain paths the
-# layers above export via Docker ENV must also land in /etc/zsh/zshenv
-# (the base layer already does this for its own toolchains).
+# The toolchain paths the layers above export via Docker ENV also land in
+# /etc/zsh/zshenv, the same shim base writes for its own toolchains: a zsh
+# that starts without inheriting this container's environment — `zsh -l`,
+# `su - dev` — otherwise sees neither venv.
+#
+# Its comment used to give SSH logins as the reason. That reason left with
+# sshd; the shim stays because base's does, for every other shell.
 # -------------------------------------------------------------------------
 # The single quotes are the point: ${PATH} must reach the profile file as literal
 # text, to be expanded at login and not at build time. Expanding it here would
 # freeze the build-time PATH into every SSH session.
 # hadolint ignore=SC2016
 RUN { \
-      echo '# Set by the gophersys/embedded Dockerfile — SSH logins do not inherit container ENV.'; \
+      echo '# Set by the gophersys/embedded Dockerfile — a zsh that does not inherit container ENV.'; \
       echo 'export PATH=/opt/west-venv/bin:/opt/esptool-venv/bin:${PATH}'; \
       echo 'export ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk'; \
       echo 'export ZEPHYR_BASE=/workspace/zephyr'; \
     } >> /etc/zsh/zshenv
-
-# -------------------------------------------------------------------------
-# code-server — browser VS Code for the workspaces web UI, from coder's
-# release .deb (TARGETPLATFORM-aware, same pattern as the Zephyr SDK
-# fetch). The entrypoint serves it on :8443 alongside sshd; an
-# authenticating reverse proxy + Cloudflare Access front it.
-# -------------------------------------------------------------------------
-# `ARCH="$(dpkg --print-architecture)"` stood here and answered the same
-# question correctly on both platforms. It cannot choose the DIGEST, which a
-# 2-platform set has to, so this block takes the `case` every other download in
-# this repository takes. The deb spelling and the buildx spelling agree on both
-# arches, which is why the arm bodies read the way they do.
-RUN case "${TARGETPLATFORM}" in \
-      linux/amd64) ARCH=amd64; SHA256="${CODE_SERVER_SHA256_AMD64}"; SHA256_PIN=CODE_SERVER_SHA256_AMD64 ;; \
-      linux/arm64) ARCH=arm64; SHA256="${CODE_SERVER_SHA256_ARM64}"; SHA256_PIN=CODE_SERVER_SHA256_ARM64 ;; \
-      *) echo "unsupported platform: ${TARGETPLATFORM}"; exit 1 ;; \
-    esac \
- && /usr/local/lib/gophersys/fetch-verified.sh \
-      "https://github.com/coder/code-server/releases/download/v${CODE_SERVER_VERSION}/code-server_${CODE_SERVER_VERSION}_${ARCH}.deb" \
-      /tmp/code-server.deb \
-      "${SHA256}" "${SHA256_PIN}" \
- && dpkg -i /tmp/code-server.deb \
- && rm /tmp/code-server.deb
-# NOTE: no in-layer version smoke, per repo convention — verified on the
-# native arch in the post-build smoke test (.ci/smoke.sh). code-server IS
-# executed at build time by the extension-seed layer below (node runs
-# under QEMU, unlike the static native binaries the convention exists for).
-
-# -------------------------------------------------------------------------
-# code-server extension seed. At runtime /home/dev is a PVC mount, so any
-# extension installed into the home at build time would be masked by the
-# mount; bake the set into /opt instead and let the entrypoint seed a
-# fresh home from it. The clangd extension (NOT Microsoft cpptools:
-# ms-vscode.cpptools is licence-restricted to official Microsoft VS Code
-# builds and absent from Open VSX, so it cannot ship with code-server)
-# pairs with the apt-installed clangd binary above for browser
-# IntelliSense out of the box.
-# -------------------------------------------------------------------------
-ENV CODE_SERVER_SEED_EXTENSIONS=/opt/code-server-extensions
-
-# The trailing rm is load-bearing: invoking code-server writes
-# ~/.config/code-server/config.yaml containing a GENERATED password, and a
-# credential left in this layer ships world-readable to every puller of
-# the image. Runtime auth comes from the entrypoint's env contract, never
-# from a baked config. Same RUN so no intermediate layer holds the file.
-RUN mkdir -p "${CODE_SERVER_SEED_EXTENSIONS}" \
- && chown -R dev:dev "${CODE_SERVER_SEED_EXTENSIONS}" \
- && runuser -u dev -- code-server \
-      --extensions-dir "${CODE_SERVER_SEED_EXTENSIONS}" \
-      --install-extension llvm-vs-code-extensions.vscode-clangd \
- && chmod -R a+rx "${CODE_SERVER_SEED_EXTENSIONS}" \
- && rm -rf /home/dev/.config/code-server /home/dev/.local/share/code-server
 
 COPY --chmod=0755 embedded-entrypoint.sh /usr/local/bin/embedded-entrypoint.sh
 
 ENV GOPHERSYS_DEVCONTAINER=embedded
 
 LABEL org.opencontainers.image.source="https://github.com/gophersys/.devcontainer"
-LABEL org.opencontainers.image.description="gophersys embedded layer: west ${WEST_VERSION} + Zephyr SDK ${ZEPHYR_SDK_VERSION} + SSH-able k8s dev box (sshd + openocd + stlink + esptool ${ESPTOOL_VERSION} + picocom + code-server ${CODE_SERVER_VERSION})"
+LABEL org.opencontainers.image.description="gophersys embedded layer: west ${WEST_VERSION} + Zephyr SDK ${ZEPHYR_SDK_VERSION} + Espressif Xtensa toolchains + flash/debug bench (openocd + stlink + esptool ${ESPTOOL_VERSION} + picocom + gdb-multiarch + clangd)"
 
-EXPOSE 22
-# code-server (browser VS Code) — fronted by the workspaces reverse proxy.
-EXPOSE 8443
+# `EXPOSE 22` and `EXPOSE 8443` stood here and went with sshd and code-server.
+# This image listens on nothing.
 
-# Root by design, and it is the entrypoint that makes 1 image serve 2 users:
-# devbox mode prepares host keys / volume ownership and execs sshd as root,
-# and the DEFAULT mode drops to `dev` before it execs the command, so the
-# toolchain identity is what it always was. A Dockerfile can name 1 USER; a
-# mode dispatch can name 2.
+# Root, and embedded-entrypoint.sh is what drops to `dev` before it execs the
+# command — so `docker run embedded id` answers dev, which is what `USER dev`
+# in the pre-fold Dockerfile did. NOTHING NEEDS ROOT HERE ANY MORE now that the
+# pod half is deleted; collapsing this pair into a plain `USER dev` is stated as
+# open work at the top of the entrypoint, because it also moves .ci/smoke.sh's
+# embedded-only `--user dev` arm.
 # hadolint ignore=DL3002
 USER root
 WORKDIR /workspace

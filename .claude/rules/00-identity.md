@@ -30,7 +30,7 @@ that it runs inside.
 |---|---|---|
 | `ghcr.io/gophersys/base`          | `base`          | Everything that most projects need: shells (zsh+oh-my-zsh), git/gh, languages (Node LTS, Python 3.12, Go, Rust), infra CLIs (kubectl/helm/k9s/tailscale/docker-cli/docker-compose/bw/nats), desktop libs (Tauri/GTK/webkit), USB/BLE libs (libusb, libudev, libbluetooth, bluez), data clients (psql, sqlite3, redis-cli), parsing (jq, yq, httpie, rg, fd, bat), QA (shellcheck, hadolint). |
 | `ghcr.io/gophersys/mobile`       | `mobile`       | Base + OpenJDK 21 + Android cmdline-tools/platform/build-tools + Flutter stable SDK. |
-| `ghcr.io/gophersys/embedded`      | `embedded`      | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards, AND the pod half on top of it: sshd (key-auth only, persistent host keys under /etc/ssh/hostkeys) + openocd/stlink-tools/picocom/gdb-multiarch + esptool in an isolated venv + all Espressif Xtensa SDK toolchains + CP210x/CH340 udev rules + clangd and code-server on `:8443` (browser VS Code, `EXPOSE 8443`, the clangd extension seeded into `/opt/code-server-extensions` at build time). **It was 2 images**, `zephyr` and `zephyr-devbox`; see "The embedded fold" below for what the split cost and what the mode dispatch replaces it with. Its `size_budget_gb` is 8.98, set by Mateo on 2026-08-19 — the decision the unit fix left open, on the measured+5% method the other rows take, against 8,543,752,192 unpacked bytes read off the published amd64 image of run 32210312247. |
+| `ghcr.io/gophersys/embedded`      | `embedded`      | Base + device-tree-compiler/ninja/ccache + west in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + all Espressif Xtensa SDK toolchains + esptool in an isolated venv + the flash/debug bench (openocd/stlink-tools/picocom/gdb-multiarch/clangd) + udev rules for common dev boards and for the CP210x/CH340 USB-UART bridges. **It was 2 images**, `zephyr` and `zephyr-devbox` — see "The embedded fold" below — and **the pod half of that fold is DELETED**: no sshd, no code-server, no `EXPOSE`, no `GOPHERSYS_EMBEDDED_MODE`. See "The devbox mode is deleted" below. Its `size_budget_gb` is 8.98, set by Mateo on 2026-08-19 against the image as it stood BEFORE that deletion (8,543,752,192 unpacked bytes of the published amd64 image of run 32210312247, +5%); the row is a ceiling to be re-measured from the first publish after the deletion, and `images.yaml` carries that instruction beside the key. |
 | `ghcr.io/gophersys/cloud`         | `cloud`         | The successor image of the consolidation program (ledger #94), ADDITIVE today: the reduced base (no clang/cmake, no desktop/Tauri libs, no USB-BLE libs, no Rust, no ansible + oci-cli, no speedtest-cli/ncat/net-tools, Go caches removed — terraform and the AWS CLI are NOT in this list, because they left `base` itself and are ready components nothing installs; db clients and the comfort TUIs are not in it either, because cloud re-adds them through `_delta/components/`) + delve/buf/grpcurl + the CI fold (Actions runner, cictl, claude/omp/codex at the versions.env pins). ONE image for dev and CI: the default command is zsh, and a CI pod overrides the command to `/home/runner/run.sh`. Every pin lives in `versions.env` at the repository root — the same 1 home `base` reads since the 2 Dockerfile mechanisms collapsed onto it; the build feeds it in as generated `--build-arg`s, and `_delta/components/*.sh` install the folded tool groups. Its smoke gates publish (build → smoke → push) and enforces the ≤ 5.75 GB size budget (raised from 5.5 GB by Mateo, 2026-08-16: the measured floor after the R4 levers with every tool kept is ~5.63–5.67 GB). That budget is DATA now — `size_budget_gb` on its `images.yaml` entry, with the R4 measurement beside the key — and `.ci/smoke.sh` runs 1 shared gate for every image that declares one. |
 | `ghcr.io/gophersys/hardware`      | `hardware`      | Cloud + the KiCad 10 ECAD toolchain, for `gophersys/research-hardware`. It installs `kicad`, `kicad-symbols`, `kicad-footprints` and `kicad-packages3d` from `ppa:kicad/kicad-10.0-releases`, and the python stack that repository's suite imports and runs (`kiutils`, `sexpdata`, `pytest`, `ruff`) into the SYSTEM interpreter, because `python3 -m pytest` cannot import from a `uv tool` venv. The library packages are named explicitly: `kicad` does not pull them in under `--no-install-recommends`, and without them `/usr/share/kicad` exists and is EMPTY, so the consumer's resolver suite fails on `assert 0 > 10000` — which reads like a code bug. `checks_content_hardware` holds the 3 floors that keep it true. **It is 1 of the 2 CHILD images whose pins live in `versions.env`** (`ui` is the other): its ARGs are value-less like cloud's, and `pins: versions.env` on its manifest entry is what generates the build args, so no extra `PIN_VALUE_HOME` is minted. Its `size_budget_gb` is 10.52 and no longer provisional: the 11.0 estimate computed from 2 measured images was reset on 2026-08-19 to the first green build measured on the repaired gate, 10,013,827,072 unpacked bytes + 5%. |
 | `ghcr.io/gophersys/ui`            | `ui`            | Cloud + headless Chrome and the DejaVu fallback font, for `gophersys/research-ui`. Its ARGs are value-less and it takes `pins: versions.env` the way `hardware` does. It exposes cloud's own Node and uv at `/usr/local/bin` rather than carrying a second copy of each, so the content group asserts `node`/`npm`/`uv` resolving as BOTH root and dev. Its `size_budget_gb` is 6.33 and no longer provisional: the 6.5 estimate from 2 independent derivations (6.32 and 6.47) was reset on 2026-08-19 to the first build measured on the repaired gate, 6,027,251,712 unpacked bytes + 5%, and the a-priori 6.32 landed 0.005 GB from the truth. **This row arrived late.** The image landed in `images.yaml` on 2026-08-18 and reached no sentence of this document, so every count here read 6 while the set was 7 — measure the manifest, never a count in this file. |
@@ -234,12 +234,14 @@ went on to say those pins "are the ones no smoke run compares". They are
 compared now: `.ci/smoke.sh` reads a child image's own Dockerfile as a SECOND
 pin home beside `versions.env`, with a class table of its own, and the
 refuse-to-run rule for an unclassified pin covers both homes equally. The reader
-takes every VALUE-FUL `ARG` — measured on 2026-08-18, 20 of them across the 2
-files (mobile 9, embedded 11), each file's own `BASE_TAG` and all 6 digest rows
+takes every VALUE-FUL `ARG` — measured on 2026-08-19, 17 of them across the 2
+files (mobile 9, embedded 8), each file's own `BASE_TAG` and all 4 digest rows
 included, because an ARG that carries a value and no class is the
-silence the rule exists to break — and 6 of them name a tool that reports its
+silence the rule exists to break — and 5 of them name a tool that reports its
 own version: `JAVA_VERSION`, `FLUTTER_VERSION`, `WEST_VERSION`,
-`ZEPHYR_SDK_VERSION`, `ESPTOOL_VERSION` and `CODE_SERVER_VERSION`.
+`ZEPHYR_SDK_VERSION` and `ESPTOOL_VERSION`. It read 20 and 6 the day before,
+and the devbox deletion took `CODE_SERVER_VERSION` and its 2 digest rows out of
+`embedded/Dockerfile` — count the blocks, never this sentence.
 The rest are a build id, an API level, a channel or a toolchain list, and each
 one says so in its row's neighbourhood. **The VALUE home did not move**: these
 files still spell their own pins and `bump_pin` still writes into both of them,
@@ -678,11 +680,13 @@ report, never a bump to improvise.
 
 **Count the rows, never quote a count.** Every number in the paragraph above is a
 measurement of a tree that changes, and the arch suffixes do not divide evenly —
-read on 2026-08-18 the 3 value homes hold **48** declaration rows, 23 `_AMD64`
-+ 22 `_ARM64` + 3 `_NOARCH`, because 3 downloads are `_NOARCH` and `mobile`'s
+read on 2026-08-19 the 3 value homes hold **46** declaration rows, 22 `_AMD64`
++ 21 `_ARM64` + 3 `_NOARCH`, because 3 downloads are `_NOARCH` and `mobile`'s
 own SDK row has no `_ARM64` sibling to pair with. A count that assumes the rows
-come in pairs is wrong by exactly those 4. Re-derive it rather than trusting this
-sentence:
+come in pairs is wrong by exactly those 4. It read 48 / 23 / 22 / 3 the day
+before, and the devbox deletion removed the `CODE_SERVER_SHA256_AMD64` /
+`_ARM64` pair — which is the point of the paragraph rather than an exception to
+it. Re-derive it rather than trusting this sentence:
 
 ```sh
 grep -hcE '^[[:space:]]*(ARG[[:space:]]+)?[A-Z0-9_]+_SHA256_[A-Z0-9_]+=' \
@@ -941,10 +945,12 @@ own file, and every rule of the `versions.env` home applies there unchanged: an
 unclassified pin refuses the run before a container starts. `home_pin_names` in
 `.ci/smoke.sh` therefore holds 2 readers again, and this pair is not the pair
 that went away — the old second reader read `base/Dockerfile`, which declares no
-value at all now. `CODE_SERVER_VERSION` is the pin that shows why: read on
-2026-08-17, `ghcr.io/gophersys/zephyr-devbox:latest` reports code-server 4.127.0
-while `zephyr-devbox/Dockerfile` pins 4.133.0, and until that table existed no
-class, no test and no run in this repository could say so.
+value at all now. `CODE_SERVER_VERSION` is the pin that showed why: read on
+2026-08-17, `ghcr.io/gophersys/zephyr-devbox:latest` reported code-server 4.127.0
+while `zephyr-devbox/Dockerfile` pinned 4.133.0, and until that table existed no
+class, no test and no run in this repository could say so. **That pin is deleted
+now** — the devbox deletion of 2026-08-19 took the binary with it — and the
+lesson it bought is why the table it created stays.
 
 **1 thing is deliberately outside the child home**, and it is named in the
 driver. `runner/Dockerfile` was the other, and it is deleted rather than
@@ -1061,64 +1067,111 @@ whether an image needs an install at create time.
 Adding a `postCreateCommand` to an image is therefore 2 edits and not 1: the
 `devcontainer.json` line, and the verb that answers it.
 
-You can also deploy `embedded` as a k8s pod, connect to it over VS Code
-Remote-SSH, or open it in a browser at `:8443`. Read
-`embedded/embedded-entrypoint.sh` for its full contract; sshd is the last
-thing it does, and 5 operator-facing steps come first:
+`embedded/embedded-entrypoint.sh` is PID 1 of that image, and reading it takes
+under a minute now: it execs the argv docker hands it — the image `CMD` when the
+caller named none — as `dev`, and it does nothing else.
 
-1. **It runs the pod half only when `GOPHERSYS_EMBEDDED_MODE=devbox`.** Any
-   other value, absence included, is TOOLCHAIN mode: it execs the argv docker
-   hands it — the image `CMD` when the caller named none — as `dev`, and
-   touches nothing under `/etc/ssh`. So `docker run embedded id` is `dev`
-   exactly as the `zephyr` image was, and the pod OPTS IN. The default arm is
-   the one that has to be safe by absence: an entrypoint that fell through to
-   sshd on a missing env would start a listener for every `docker run`.
-   **Toolchain mode with an EMPTY argv EXITS 2**, naming the cause. The image
-   declares `CMD`, so reaching that needs a caller who replaced `CMD` with
-   nothing, and `exec` with no argument would return and fall into the 4 pod
-   steps below — the silent wrong branch the dispatch exists to prevent. It
-   attempts the marker file and does not require it: this is the 1 refusal
-   reachable as a NON-root caller, where `/run` is not writable, and an
-   unguarded write would die under `set -e` and replace a named refusal with an
-   unexplained failure.
-2. It generates persistent ed25519 and rsa host keys into `/etc/ssh/hostkeys`,
-   so the box keeps its SSH identity across pod restarts.
-3. It takes `authorized_keys` from `DEVBOX_AUTHORIZED_KEYS` (a pod env, usually
-   a Secret), otherwise from a mounted `/etc/devbox/authorized_keys`, otherwise
-   it leaves the persistent home's file alone. With none of the 3 it reports a
-   DEGRADED error: sshd boots and refuses every login.
-4. It chowns and chmods the `/home/dev` and `/workspace` mountpoints, and
-   deliberately NOT recursively. It then recreates `/dev/mcu-slot-1..6` from
-   `/dev/serial/by-path`, because a symlink at the node's `/dev` root does not
-   propagate into the pod. Slot N is guest USB port N is physical hub slot N.
-5. It starts code-server as `dev` on `0.0.0.0:8443`, under a supervisor loop
-   that logs and restarts every exit. **Auth is required by default.** Set
-   `DEVBOX_CODE_SERVER_HASHED_PASSWORD` (code-server's own argon2
-   `HASHED_PASSWORD` contract), or state
-   `DEVBOX_CODE_SERVER_AUTH=none-behind-proxy` to declare that an
-   authenticating proxy owns the port. With neither set, code-server does NOT
-   start and the refusal names both knobs. The reason is measured, not
-   theoretical: the account code-server runs as holds passwordless sudo, so a
-   reachable unauthenticated `:8443` is root on the pod for any peer the network
-   admits — and the network boundary is a NetworkPolicy in another repository,
-   which this file cannot see and must not trust as the only wall.
+1. **At euid 0 it drops through `runuser -u dev --`.** The image ships
+   `USER root`, so this is the arm every plain `docker run embedded` takes, and
+   it is what reproduces the `USER dev` line the pre-fold Dockerfile carried:
+   `docker run embedded id` answers `dev`. Plain `runuser`, deliberately NOT
+   `--preserve-environment`, which would keep `HOME=/root` while the toolchain's
+   caches and oh-my-zsh live in `/home/dev`.
+2. **At any other euid it execs plainly.** `runuser` REFUSES below root — "may
+   not be used by non-root users" — so an arm that always ran it would turn
+   `docker run --user dev`, which `.ci/smoke.sh` itself uses, into an error.
+3. **An EMPTY argv EXITS 2**, naming the cause. The image declares `CMD`, so
+   reaching that needs a caller who replaced `CMD` with nothing, and `exec` with
+   no argument is a NO-OP in bash: the script would simply end and hand the
+   caller a container that started nothing and reported success.
 
-**Every refusal in the POD PATH writes `/run/devbox-degraded` and logs ERROR.**
-sshd still runs, because code-server is supplementary and a missing
-credential must not take the primary service down. But a pod that reports
-Running while a declared service is absent is the failure mode this entrypoint
-used to have, so the marker file is machine-readable state a probe or an
-operator can find.
+That list had **7 steps**, and the other 4 were the pod: host keys into
+`/etc/ssh/hostkeys`, mountpoint ownership, `authorized_keys` from
+`DEVBOX_AUTHORIZED_KEYS`, the `/dev/mcu-slot-N` links, code-server on `:8443`
+behind an auth knob, and `exec sshd`. **They are deleted** — see the section
+below. So is the `/run/devbox-degraded` marker: its only reader was a probe
+against a pod that reported Running, and a file written into a container that is
+exiting is state nothing can read.
 
-**That sentence said "every refusal … logs ERROR, not WARNING", and 2 things
-contradicted it.** Read the file, not this paragraph. Step 4's mcu slot links
-are BEST-EFFORT by design and log WARNING — outside k8s those
-`/dev/serial/by-path` entries do not exist, and an absent bench board must not
-abort the boot. And step 1's empty-argv refusal is in the TOOLCHAIN path rather
-than the pod path: it exits 2 instead of degrading a service that keeps running,
-and it attempts its marker rather than requiring one. A blanket "every" over a
-file with 2 stated exceptions is the believed-and-wrong prose this document
-warns about everywhere else.
+## The devbox mode is deleted
+
+**The decision.** Mateo, 2026-08-19, verbatim: *"yes strip and delete and clean
+up anything devbox we don't need any of it anymore."* That order is the
+authority for this section, and it REOPENS 2 recorded decisions — the
+`content-devbox` check group the embedded fold deliberately kept ("`DEVBOX_*`
+keeps its spelling", below), and the `size_budget_gb` row set the day before
+against an image that included the devbox layers.
+
+**The premise, verified rather than assumed.** `GOPHERSYS_EMBEDDED_MODE`
+appeared in 9 places org-wide and every one was inside this repository. Read on
+2026-08-19: GitHub code search over `org:gophersys` returns 0 for
+`GOPHERSYS_EMBEDDED_MODE`, 0 for `DEVBOX_` and 0 for `code-server`, and a
+`git grep` of `origin/main` in `gophersys/infrastructure` finds no
+`DEVBOX_AUTHORIZED_KEYS`, no `DEVBOX_CODE_SERVER_*` and no `devbox-degraded`.
+The last consumer was the `zephyr-devbox` Deployment, deleted in infrastructure
+#192. **No manifest, no workflow and no pod set the mode**, so both arms of the
+dispatch were reachable only from this repository's own tests.
+
+**What went, by surface.** The mode dispatch and every statement below it in
+`embedded/embedded-entrypoint.sh` (~150 lines of 240); the `DEVBOX_*` env
+contract; `/run/devbox-degraded`; `openssh-server`, the
+`/etc/ssh/sshd_config.d/10-gophersys-devbox.conf` drop-in, `/etc/ssh/hostkeys`
+and `/etc/devbox`; the code-server `.deb` and its baked clangd extension seed;
+`EXPOSE 22` and `EXPOSE 8443`; `CODE_SERVER_VERSION` with its 2 digest rows and
+its `_build/upstreams.txt` row; the `content-devbox` check group in both
+`images.yaml` and `.ci/image-checks.sh`; the `CODE_SERVER_VERSION` row of
+`PIN_CLASSES_EMBEDDED`; and the 5 tripwire stubs under
+`_ctl/tests/stubs/entrypoint/` that existed to catch a fall-through into a pod
+path that no longer exists.
+
+**What STAYED, and why it is not devbox.** `openocd`, `stlink-tools`,
+`picocom`, `gdb-multiarch`, `clangd`, the esptool venv, the Espressif Xtensa
+toolchains and both udev rule files. Every one is a tool a developer runs INSIDE
+the container and CI runs in the same image — none of them was reached only over
+SSH. `clangd` is the one that looks like a devbox tool and is not: the VS Code
+clangd extension in a "Reopen in Container" session drives that same binary, and
+only the code-server-side extension SEED was pod-specific. The
+`99-gophersys-devbox.rules` file is renamed `99-gophersys-usb-uart.rules` —
+udev reads the directory and nothing reads the name, so a rules file named after
+a deleted mode is a stale reference and not a contract.
+
+**2 check groups became 1.** `content-zephyr` and `content-devbox` existed
+because there were 2 IMAGES. The deletion removed only the pod's own checks —
+code-server, its seeded extension, and the 3 `sshd -t` steps — and every
+surviving check is toolchain content, so they are 1 group under the name whose
+content stayed. `_ctl/tests/images-manifest.test.sh` holds the manifest's group
+set and `run_functional_groups`' arms to SET EQUALITY, so dropping the group
+from one of the 2 files and not the other is red.
+
+**The size budget is NOT lowered here, and that is deliberate.** `8.98` was set
+on 2026-08-19 from a measurement of the image WITH the devbox layers. The
+pre-fold devbox delta measured 1.504 GB, but that delta also held esptool, the
+Xtensa toolchains and the flash/debug stack — all of which stay — so the saving
+is a fraction of it that no measurement in this repository answers for. Writing
+a new row from arithmetic on a number that measured something else is exactly
+the stale row ledger #119 was about. The row stands for one publish; the
+follow-up is to reset it to that publish's own unpacked byte count + 5%, in a
+change of its own. A budget that is too HIGH cannot fail a good image — it can
+only fail to catch a bloated one — so carrying it once costs a delay and not a
+gate.
+
+**The entrypoint SURVIVED the deletion, and its test was rewritten rather than
+deleted.** `USER root` + a dev-drop is still what makes `docker run embedded id`
+answer `dev`, and `_ctl/tests/embedded-entrypoint.test.sh` is the only thing in
+this repository that exercises the euid-0 arm — `.ci/smoke.sh` runs the image
+with `--user dev` and reaches the other one. The file went from 39 checks to 29:
+every check about the pod arm went with the code it read, and 3 new ones took
+their place — the deleted mode variable proved INERT at both euids, no devbox
+surface back in the entrypoint's code, and none back in the Dockerfile's
+instructions. Those are guards against a revert, and they are the reason the
+literals `GOPHERSYS_EMBEDDED_MODE` and `devbox` are still spelled in that file.
+
+**What is left as OPEN WORK, stated so nobody reads it as done.** With sshd gone
+nothing in this image needs root at runtime, so `USER root` + the entrypoint
+could collapse into a plain `USER dev` with no entrypoint at all. That is a
+SECOND decision: it also removes `.ci/smoke.sh`'s embedded-only `--user dev`
+arm and the identity sentences 2 other files state. It is recorded at the top of
+`embedded/embedded-entrypoint.sh` and it is not part of this change.
 
 ## Per-image verb catalog
 
@@ -1273,6 +1326,12 @@ are provider-native and have no source-of-truth copy.
 
 ## The embedded fold
 
+**READ "The devbox mode is deleted" ABOVE FIRST.** This section is the record of
+how `embedded` came to hold both halves, and the pod half is gone since
+2026-08-19. Everything below is history, kept because the fold's measurements and
+its ledger-#102 finding are still what a reader needs. The fold is also what made
+the deletion 1 file to edit instead of a second image to retire.
+
 `zephyr` and `zephyr-devbox` are 1 image, `embedded`. The devbox was the
 toolchain plus 9 layers, so the split carried ~1.5 GB of delta at the cost of a
 second publish job, a second pin home, a second class table and a second nightly
@@ -1285,27 +1344,32 @@ saving.** `.ci/smoke.sh` reads a child image's OWN Dockerfile as its second pin
 home, and `zephyr-devbox` declared esptool and code-server there while west and
 the Zephyr SDK lived in the PARENT's file. So the devbox run compared 2 of the 4
 pins its image carried, and nothing in this repository could say so — the
-inherited-pin half of ledger #102. 1 home and 1 table now carry all 7 rows, and
-the 4 `asserted` ones are compared in a single run. **This
+inherited-pin half of ledger #102. 1 home and 1 table carried all 7 rows after
+the fold, and the 4 `asserted` ones were compared in a single run. It is 6 rows
+and 3 asserted since the devbox deletion took `CODE_SERVER_VERSION`. **This
 closes #102 for this family and for no other**: `mobile` inherits base's pins
 the same way, and the general fix is a `FROM`-graph walker in the driver, which
 is still open.
 
 **1 image cannot carry 2 users, so the identity moved out of the Dockerfile.**
-`embedded` ships `USER root`, because the pod half binds sshd and manages host
-keys, and `embedded/embedded-entrypoint.sh` drops to `dev` in its default mode
-before it execs the command. That is a CONTRACT CHANGE with a stated shape:
+`embedded` ships `USER root` — at the fold, because the pod half bound sshd and
+managed host keys — and `embedded/embedded-entrypoint.sh` drops to `dev` before
+it execs the command. That is a CONTRACT CHANGE with a stated shape:
 `docker run embedded id` prints `dev` as it always did, `docker run --user dev
 embedded` must NOT reach `runuser` (it is unprivileged there and would refuse),
 and `.ci/smoke.sh` takes the second of those 2 paths. The euid test in the
 entrypoint is what makes both callers work, and
 `_ctl/tests/embedded-entrypoint.test.sh` is where both arms are proven — on the
-host, because the smoke's own argv bypasses the dispatch entirely.
+host, because the smoke's own argv reaches only the non-root one. **The REASON
+for `USER root` left with the pod half and the LINE did not**; collapsing it
+onto `USER dev` is the open work the deletion section names.
 
-**`DEVBOX_*` keeps its spelling**, and so do the `content-zephyr` and
-`content-devbox` check groups. Those names describe the pod's env contract and
-the CONTENT a group exercises; neither moved, and renaming them would have
-reached into running pods and into `.ci/image-checks.sh` for nothing.
+**`DEVBOX_*` kept its spelling at the fold**, and so did the `content-zephyr`
+and `content-devbox` check groups: those names described the pod's env contract
+and the CONTENT a group exercises, neither moved, and renaming them would have
+reached into running pods for nothing. **That paragraph is history.** `DEVBOX_*`
+and `content-devbox` are DELETED, not renamed — see "The devbox mode is
+deleted" above — and `content-zephyr` is the 1 content group of this image.
 
 **`ghcr.io/gophersys/zephyr` and `ghcr.io/gophersys/zephyr-devbox` are the
 rollback anchors.** Their `:latest` freezes at the last publish before this
