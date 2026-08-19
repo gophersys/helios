@@ -21,10 +21,10 @@ func (s *session) pump(ready chan<- error) {
 
 	readySignaled := false
 	terminalSeen := false
-	// The last turn's authoritative ledger, cached on the PUMP GOROUTINE's own stack: it is
-	// what a requested Close replays as the session's final accounting, and keeping it local
-	// means the synthesis needs no shared state and no lock on the hot path.
-	var lastTurnLedger TokenLedger
+	// The session's accounting, summed on the PUMP GOROUTINE's own stack as each turn ends:
+	// it is what a requested Close finalizes as the session's one terminal, and keeping it
+	// local means the synthesis needs no shared state and no lock on the hot path.
+	var sessionLedger turnLedgerSum
 	for raw := range s.conn.Events() {
 		emitted := s.handle(raw)
 		for i := range emitted {
@@ -34,7 +34,7 @@ func (s *session) pump(ready chan<- error) {
 				ready <- nil
 			}
 			if ev.Kind == EventTurnEnd && ev.Terminal != nil {
-				lastTurnLedger = ev.Terminal.Ledger
+				sessionLedger.add(&ev.Terminal.Ledger)
 			}
 			if ev.IsTerminal() {
 				terminalSeen = true
@@ -56,8 +56,8 @@ func (s *session) pump(ready chan<- error) {
 	if s.closeRequested() {
 		// A DELIBERATE Close reaped a healthy session (Close sets closed BEFORE it reaps the
 		// conn, so this read cannot mistake a requested shutdown for a death). The session
-		// ends on a clean Result replaying the last turn's ledger — not a transport fault.
-		s.emitTerminalResult(&lastTurnLedger)
+		// ends on a clean Result carrying what it spent — not a transport fault.
+		s.emitTerminalResult(&sessionLedger.total)
 		return
 	}
 	// The harness channel closed without a terminal Event and without a Close (a transport
@@ -505,9 +505,51 @@ func (s *session) emitTerminalFailed(reason ErrorReason, detail string) {
 	})
 }
 
+// turnLedgerSum accumulates a session's per-turn ledgers into the total its one terminal
+// finalizes on. It is written and read only on the pump goroutine.
+//
+// INVARIANT: an EventTurnEnd ledger accounts for ITS OWN turn, never for the session to
+// date, so the session total is the plain SUM and UsageMeter.Cumulative is never read here.
+// The flag cannot discriminate: BOTH shipped normalizers stamp Cumulative:true on a turn
+// boundary whose numbers are per-turn — ompadapter runs a fresh process and a fresh
+// normalizer per turn (ompadapter/spawn.go), and a claude `result` totals only the exchange
+// it closes (claudeadapter/testdata/sample-stream.jsonl: usage.input_tokens 3944 is exactly
+// that exchange's 1983+2+1959). An adapter whose harness ever reports session-to-date totals
+// on a turn boundary owes the pump the per-turn delta; summing here would double-count it.
+type turnLedgerSum struct{ total TokenLedger }
+
+// add folds one turn boundary's authoritative ledger into the session total. Model/Harness
+// attribution follows the latest turn; the -1 "cost unreported" sentinel contributes nothing.
+func (t *turnLedgerSum) add(turn *TokenLedger) {
+	if turn.Model != "" {
+		t.total.Model = turn.Model
+	}
+	if turn.Harness != "" {
+		t.total.Harness = turn.Harness
+	}
+	t.total.InputTokens += turn.InputTokens
+	t.total.OutputTokens += turn.OutputTokens
+	t.total.CacheReadTokens += turn.CacheReadTokens
+	t.total.CacheCreationTokens += turn.CacheCreationTokens
+	if turn.CostMicros > 0 {
+		t.total.CostMicros += turn.CostMicros
+	}
+	// A session total IS session-to-date, whatever the turns that built it were flagged.
+	t.total.Cumulative = true
+	t.total.Turns += turn.Turns
+	t.total.ToolUses += turn.ToolUses
+	t.total.WallTime += turn.WallTime
+	for name, count := range turn.ToolUsesByName {
+		if t.total.ToolUsesByName == nil {
+			t.total.ToolUsesByName = make(map[string]int32, len(turn.ToolUsesByName))
+		}
+		t.total.ToolUsesByName[name] += count
+	}
+}
+
 // emitTerminalResult publishes the synthetic Result terminal a REQUESTED Close produces: the
-// session is healthy and parked between turns, so its one terminal replays the last turn's
-// authoritative ledger rather than reporting a fault. It also drives the state to Completed.
+// session is healthy and parked between turns, so its one terminal finalizes the accounting
+// summed across its turns rather than reporting a fault. It also drives the state to Completed.
 func (s *session) emitTerminalResult(ledger *TokenLedger) {
 	from := s.priorState()
 	if from.IsTerminal() {
