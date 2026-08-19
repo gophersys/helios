@@ -1350,6 +1350,21 @@ count.
   on any change to a workflow or to `.ci/`. **An unbuilt image keeps its
   `:latest` and publishes no `:<sha>` for that commit** — a SHA tag is not a
   promise that every image carries it.
+- **A publish QUEUES behind the run in flight. It does not cancel it.**
+  `build-and-push.yml` declares `cancel-in-progress: false` on the group
+  `build-and-push-${{ github.ref }}`. Cancelling cost the image rename on
+  2026-08-19: the publish run was killed part way through, the run that
+  superseded it asked `.ci/affected.sh` about a range starting at the killed
+  push's own head, every image read as unaffected, and
+  `ghcr.io/gophersys/mobile` was never created while 6 badges went green.
+  **It is a MITIGATION and the hole is narrower rather than closed** — GitHub
+  keeps at most 1 PENDING run per group, so a third push replaces the queued
+  second and that push's changes are skipped the same way. The durable fix is
+  the `org.opencontainers.image.revision` read-back the workflow header defers.
+  `_ctl/tests/workflow-yaml.test.sh` holds this value, and holds every other
+  workflow at the concurrency it declares today: `pr-review.yml` CANCELS on
+  purpose, because a review of a diff that has already changed is spend with no
+  reader, and the other 3 declare no group at all.
 - **The layer cache is in the registry**, `ghcr.io/gophersys/<image>-cache`, one
   package per image, `mode=max` on the write. `type=gha` is 10 GB per repository
   across every scope, which 6 images at `mode=max` do not fit.
