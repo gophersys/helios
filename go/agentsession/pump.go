@@ -549,24 +549,29 @@ func (s *session) setState(next State) {
 }
 
 // advanceTurnOnPrompt increments the turn ordinal when an admitted PROMPT begins a new
-// turn: the AwaitingInput->Running edge that prompt draws. The first turn (Ready->Running)
-// stays at 0; a mid-turn continuation (AwaitingPermission->Running) keeps the current turn.
+// turn: the edge that LEAVES StateAwaitingInput to open the turn that prompt asked for. The
+// first turn (Ready->Running) stays at 0; a mid-turn continuation keeps the current turn.
 //
 // The armed flag is what separates a prompt's edge from the identical-looking one the
 // HARNESS draws resuming its own turn: one claude turn is several assistant messages, each
 // ending in a MessageEnd that parks the session, so keying on the edge alone counted a turn
-// per message. Every Running edge consumes the arming, so a stale flag cannot advance a
-// later turn twice. It is called from the pump goroutine before the transition event is
-// stamped.
+// per message. The opening edge is not always into Running: a turn whose first harness event
+// is a permission ask opens on AwaitingInput->AwaitingPermission, so that edge counts too —
+// keying only on Running let the ask eat the arming and filed the whole turn under its
+// predecessor's ordinal. Either opening edge consumes the arming, so a stale flag cannot
+// advance a later turn twice. It is called from the pump goroutine before the transition
+// event is stamped.
 func (s *session) advanceTurnOnPrompt(prior, next State) {
-	if next != StateRunning {
+	if next != StateRunning && next != StateAwaitingPermission {
 		return
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	prompted := s.promptPending
+	if !s.promptPending {
+		return
+	}
 	s.promptPending = false
-	if prompted && prior == StateAwaitingInput {
+	if prior == StateAwaitingInput {
 		s.turn++
 	}
 }
