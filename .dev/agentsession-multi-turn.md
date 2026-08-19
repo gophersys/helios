@@ -136,7 +136,24 @@ ids, want 2/3); TestClose_SessionTerminalSumsThePerTurnLedgers + ...DeltaFlagged
 for the implementer: claude's result ledger may be cumulative AT SOURCE (num_turns,
 total_cost_usd) — reconcile per-turn deltas vs sums without double counting.
 
+## Fix round — landed (17273c7, 03a44b4, e97ded6)
+F1: turn-opening edge = Running OR AwaitingPermission, only an ARMED edge consumes;
+arming still strictly post-guardControl. F2: pump-local turnLedgerSum accumulates every
+EventTurnEnd; requested-close terminal carries the session total; constraints held (no
+emit off pump, no pump-side Send, no locks). F3 false stdin sentence deleted (one home
+= spawn.go). F4 EventResult row reworded. All 3 pins GREEN; root -race 35 PASS;
+adapters unit+integration green; 6/6 phase gates EXIT=0; gofumpt dual-version clean;
+subjects 66/66/57 chars. SOURCE-SHAPE RECONCILIATION (evidence-read): omp per-turn by
+construction (fresh process+normalizer, Turns:1 hardcoded — Cumulative:true flag
+proven NOT the discriminator); claude result totals ITS OWN exchange (input/cache
+columns sum exactly per-message; num_turns = API iterations in one exchange); delta
+subtraction forbidden by both pin pairs AND the adapter integration assertions.
+RESIDUAL for PR-2's live lane: no second real-claude result capture exists — if live
+claude proves cumulative-across-prompts, the fix is a normalizer delta, stated in the
+invariant comment. LEFTOVERS (recorded, unclaimed): emitTerminalFailed carries no
+ledger (unbidden death = zero accounting); LedgerFold does not fold EventTurnEnd
+(EventFailed path folds zero); types.go:303 Turn doc says per-message.
+
 ## Next
-Fix round: implementer greens F1 (arming survives the permission detour) + F2 (summed
-session ledger, source-shape reconciled) + F3 (delete the false stdin comment) + F4
-(EventResult doc row). Then subject-reword rebase, re-verify (round 2), cleanup, PR.
+Verify round 2 (attempt budget: final round — STOP-AND-REPORT on new HIGHs). Then the
+subject-reword rebase of the 4 long subjects, cleanup pass, PR + ping Mateo.
