@@ -197,8 +197,11 @@ HOOK
 }
 SETTINGS
 
+  # -k 30: TERM alone bounds nothing against a process that traps it, and this one starts a network
+  # turn. KILL follows 30s later, so the step is bounded whatever claude does with the signal. 124
+  # is the TERM timeout and 137 the KILL, and both arrive below as a named non-zero turn status.
   local turn_output='' turn_status=0
-  turn_output="$(timeout 120 claude -p 'Reply with the single word: ready.' --settings "$settings" 2>&1)" ||
+  turn_output="$(timeout -k 30 120 claude -p 'Reply with the single word: ready.' --settings "$settings" 2>&1)" ||
     turn_status=$?
 
   local receipt_text=''

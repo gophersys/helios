@@ -46,6 +46,10 @@ jobs:
   conformance:
     name: pinned-harness conformance
     runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
+    # The GitHub default is 360 minutes, which on a paid runner is 6 hours of billing for a job that
+    # hung. Its successful runs take 12 to 18 minutes today (10 runs measured), so 30 is roughly
+    # double the worst one: a run that reaches it is stuck, not slow.
+    timeout-minutes: 30
     container:
       image: ghcr.io/gophersys/base:latest
       credentials:
