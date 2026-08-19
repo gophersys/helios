@@ -153,6 +153,5 @@ base(scope) so the library's scope-match+risk-clamp see it; library decides; Sen
 the eden:permission steer to the wire (Allow→Approve label, Deny→Deny), cancels the
 6-min deny-on-timeout fallback; EventPermissionResolved drained with priority so the
 2nd Prompt isn't refused; verifyOmpBinary rejects oh-my-posh, Spawn probes --version.
-grantedTools/isGranted/dialogTool DELETED. Gates 5/5+11/11+6/6 green in-container;
-apidiff byte-identical; cover-floor 83.7%; 5 credential-gated live SKIPs (the 6th,
-LiveAdvisor_AllowsLowRiskRead, no longer exists in the tree — honest count is 5).
+grantedTools/isGranted DELETED (no self-decision path survives; dialogTool remains ONLY as the title parser feeding the ask). Gates 5/5+11/11+6/6 green in-container;
+apidiff byte-identical; cover-floor 84.4%; 2 credential-gated live SKIPs in integration_test.go (live token, real-omp binary) + 1 unrelated rapid Skip; the earlier '5/6' counts were stale (LiveAdvisor_AllowsLowRiskRead no longer exists).
