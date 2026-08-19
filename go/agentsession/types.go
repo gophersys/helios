@@ -252,7 +252,7 @@ const (
 	EventPermissionRequest                   // the harness wants a tool OUTSIDE the standing grant — the human/policy gate
 	EventPermissionResolved                  // the request was decided (Allow/Deny + By) — the audit + UI-notification record
 	EventUsage                               // a token-usage + cost tick (UsageMeter) with model attribution — ALL FOUR token kinds
-	EventResult                              // TERMINAL: a turn reached a clean result; carries the authoritative TokenLedger
+	EventResult                              // TERMINAL: the SESSION ended cleanly — synthesized by a requested Close; carries the session-total TokenLedger (a clean TURN is EventTurnEnd)
 	EventFailed                              // TERMINAL: an error moved the session to StateFailed; carries the ledger + typed reason
 	EventAborted                             // TERMINAL: an Abort took the session to a stop; carries the ledger + By
 	EventExtension                           // a harness event with no normalized kind — preserved VERBATIM, NEVER dropped

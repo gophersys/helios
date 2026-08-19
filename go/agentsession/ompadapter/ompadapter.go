@@ -97,10 +97,7 @@ func (a *Adapter) Manifest() agentsession.CapabilityManifest {
 }
 
 // buildArguments assembles the headless flag set for one omp session (the spike's measured
-// choices, ADR-0008). It is PURE (no env, no process) so it is unit-tested directly. The
-// turn prompt text is supplied per turn (Send) via stdin, so the spawn arguments carry only
-// the session-wide flags — the bare `-p` with no positional message starts omp headless and
-// reading stdin for the first turn.
+// choices, ADR-0008). It is PURE (no env, no process) so it is unit-tested directly.
 //
 // Mode choice (the spike's load-bearing decision): `--mode json` over `--mode rpc`. In rpc
 // mode omp emits {"type":"ready"} then a bidirectional `extension_ui_request` (a widget UI)
