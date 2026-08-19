@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/agentsessiontest"
@@ -57,17 +58,21 @@ func TestPeer_OpenRejectsInvalidName(t *testing.T) {
 func TestPeer_NoPlaneNoNameOpensCleanly(t *testing.T) {
 	t.Parallel()
 	// A pool WITHOUT a peer plane (the frozen wiring): openScripted from property_test.go.
+	// The script carries its own terminal so the drain returns at once (R1 parks a bodyless
+	// turn in AwaitingInput; a terminal-less script would block until Close).
 	session, _ := openScripted(t, []agentsession.Event{
 		agentsessiontest.MessageStart("assistant"),
 		agentsessiontest.TextDelta("hi"),
 		agentsessiontest.MessageEnd(),
+		peerTerminal(),
 	})
 	if _, err := session.Control(context.Background(),
 		agentsession.Command{Kind: agentsession.CommandPrompt, Text: "go"}); err != nil {
 		t.Fatalf("Prompt: %v", err)
 	}
-	stream := session.Events(context.Background(), agentsession.FromSeq(0))
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	stream := session.Events(ctx, agentsession.FromSeq(0))
 	for {
 		event, ok := stream.Next(ctx)
 		if !ok {

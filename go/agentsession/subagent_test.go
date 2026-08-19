@@ -97,7 +97,9 @@ func TestSubagent_NotPeerAddressable(t *testing.T) {
 	}
 
 	// Compile-level non-conflation: the ONLY payload Send accepts is a PeerMessage. There is
-	// no overload taking a SubagentMessage — the plane API physically cannot accept one.
+	// no overload taking a SubagentMessage — the plane API physically cannot accept one. The
+	// explicit signature IS the proof, so the "omit inferred type" quickfix is suppressed.
+	//nolint:staticcheck // QF1011: the explicit func type is the non-conflation compile-assertion, not redundant.
 	var _ func(context.Context, agentsession.PeerMessage) (string, error) = link.Send
 
 	_, err = link.Send(ctx, agentsession.PeerMessage{From: "impl-a", To: "s1", Body: "hello subagent"})

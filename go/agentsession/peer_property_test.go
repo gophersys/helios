@@ -120,6 +120,11 @@ func TestProperty_PeerNameGrammarIsTotal(t *testing.T) {
 // prompts once, and drains the live tail to terminal.
 func drainPeerSession(t *testing.T, script []agentsession.Event) []agentsession.Event {
 	t.Helper()
+	// A scripted turn must carry its own terminal: the fake blocks in serviceUntilTerminal
+	// after the body (R1 parks a bodyless turn in AwaitingInput), so a script without a
+	// terminal would drain until the ctx deadline. The terminal ends the turn promptly and
+	// does not add a peer event, so the dedupe/subagent assertions are unaffected.
+	script = append(script, peerTerminal())
 	session := openPeerSession(t, "impl-a", "", script)
 	if _, err := session.Control(context.Background(),
 		agentsession.Command{Kind: agentsession.CommandPrompt, Text: "go"}); err != nil {
@@ -207,3 +212,12 @@ const peerCredentialRef = "vault://eden/anthropic#peer" // #nosec G101 -- a logg
 type peerClock struct{}
 
 func (peerClock) Now() time.Time { return time.Date(2026, time.June, 13, 12, 0, 0, 0, time.UTC) }
+
+// peerTerminal is the clean session terminal a scripted peer turn ends on, so the drain
+// returns at once instead of blocking until Close.
+func peerTerminal() agentsession.Event {
+	return agentsessiontest.Result(agentsession.TokenLedger{
+		UsageMeter: agentsession.UsageMeter{Harness: "fake", Cumulative: true},
+		Turns:      1,
+	}, "done", "end_turn")
+}
