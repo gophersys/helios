@@ -28,15 +28,17 @@ orders §4). As produced by dev-planner:
 
 ## Proven
 - RED (commit eb64fc5): `bash ./ctl.sh test` rc=1 — devcontainer-contract
-  22 checks/6 red + platform-policy 35/2 red, other 22 files 796/0 green.
+  22 checks/6 red + platform-policy 35/2 red, other 22 files 822/0 green
+  (822 re-measured by the verifier; an earlier 796 here did not reproduce).
   Each red fails for its stated reason (missing-image equality both ways,
   self-reference, README section + exception naming); counter-stimuli
   proven non-vacuous by exact-inverse breaks on scratch copies; committed
   files never edited during break-tests (shasum-identical).
 - Refusal wording is pinned by format constants in the test (ABSENT_FORMAT,
   UNDECLARED_FORMAT, SELF_REFERENCE_FORMAT) — the implementer copies them.
-- GREEN (commit 73bfa90): `bash ./ctl.sh test` rc=0 — 24 files, 853 checks,
-  0 failed (devcontainer-contract 22/0, platform-policy 35/0, others 796/0).
+- GREEN (commit 73bfa90): `bash ./ctl.sh test` rc=0 — 24 files, 879 checks,
+  0 failed (devcontainer-contract 22/0, platform-policy 35/0, others 822/0;
+  verifier-reproduced).
   `bash ./ctl.sh validate` rc=0; `shellcheck -x -S style ctl.sh` rc=0.
   3 files changed: ctl.sh (+2 properties via BUILD_ORDER, no second yaml
   reader), README 1:1 section naming mobile, 00-identity 4→6 enumeration.
