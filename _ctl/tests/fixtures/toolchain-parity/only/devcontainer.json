@@ -1,0 +1,7 @@
+{
+  "//": "check_devcontainer_json holds every */devcontainer.json of a repository root to its contract. The staged root has to satisfy it, or the matching-version run would fail for a reason that has nothing to do with a toolchain version.",
+  "name": "only",
+  "image": "ghcr.io/gophersys/only:latest",
+  "remoteUser": "dev",
+  "workspaceFolder": "/workspace"
+}

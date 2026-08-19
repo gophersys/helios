@@ -104,6 +104,7 @@ PNPM_VERSION|npm|pnpm|bump to the dist-tag latest
 # a different version of zsh for every ubuntu series, and the one this image
 # installs is the series its base OS is.
 ZSH_VERSION|apt|zsh@noble|bump to the newest binary the ubuntu noble archive publishes
+SHELLCHECK_VERSION|apt|shellcheck@noble|bump to the newest binary the ubuntu noble archive publishes, and read the diff: this pin is what ctl.sh validate judges with
 
 # -------- the single-upstream datasources --------
 GO_VERSION|go-dl|go|bump to the newest stable release

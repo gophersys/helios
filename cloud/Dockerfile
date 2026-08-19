@@ -94,6 +94,10 @@ ARG BENCHSTAT_REF
 ARG DELVE_VERSION
 
 # Parsing + QA.
+# The shell linter comes from the archive, so it has a version row and no digest
+# row — apt answers for its own bytes. It governs `ctl.sh validate` as well as
+# the image: the verb refuses to lint at any other version (ledger #117).
+ARG SHELLCHECK_VERSION
 ARG YQ_VERSION
 ARG YQ_SHA256_AMD64
 ARG YQ_SHA256_ARM64
@@ -209,6 +213,7 @@ RUN : "${ZSH_VERSION:?not in versions.env}" \
  && : "${YQ_VERSION:?not in versions.env}" \
  && : "${YQ_SHA256_AMD64:?not in versions.env}" \
  && : "${YQ_SHA256_ARM64:?not in versions.env}" \
+ && : "${SHELLCHECK_VERSION:?not in versions.env}" \
  && : "${HADOLINT_VERSION:?not in versions.env}" \
  && : "${HADOLINT_SHA256_AMD64:?not in versions.env}" \
  && : "${HADOLINT_SHA256_ARM64:?not in versions.env}" \
@@ -307,7 +312,7 @@ RUN apt-get update \
       "${PYTHON_PACKAGE}-dev" \
       "${PYTHON_PACKAGE}-venv" \
       ripgrep \
-      shellcheck \
+      "shellcheck=${SHELLCHECK_VERSION}*" \
       software-properties-common \
       sudo \
       tmux \

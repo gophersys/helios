@@ -308,10 +308,25 @@ IMAGES_MANIFEST="images.yaml"
 IMAGES_MANIFEST_YQ_PIN_NAME="YQ_VERSION"
 IMAGES_MANIFEST_YQ_PIN_HOME="versions.env"
 
-# manifest_yq_pin — the YQ_VERSION versions.env declares, comment stripped.
-# Empty when there is none.
-function manifest_yq_pin() {
-  awk -v name="$IMAGES_MANIFEST_YQ_PIN_NAME" '
+# versions_env_pin <NAME> [home] — the value versions.env declares for <NAME>,
+# comment stripped. Empty when there is no such row.
+#
+# THE ONE READER OF A PIN ROW. It was 3 awk bodies, character for character the
+# same: manifest_yq_pin here, yq_pin in _ctl/tests/workflow-yaml.test.sh, and a
+# grep of its own in ctl.sh's hadolint_pin. The comment above yq_pin measured
+# the overlap and recorded not-consolidating as open work; this closes the half
+# that is not a test literal. That test keeps its copy on purpose — it names the
+# pin and its home there so a rename in this file cannot silently move what
+# "the parser is pinned" means — and the reason stands unchanged.
+#
+# awk and not `grep | head -1`: grep exits 1 when it matches nothing, every
+# script here sets pipefail, and a caller outside an `if` condition would then
+# take the pipeline's failure instead of the empty answer this function is
+# designed to return. The caller decides what an absent row MEANS; a reader that
+# aborts has taken that decision away.
+function versions_env_pin() {
+  local name="$1" home="${2:-versions.env}"
+  awk -v name="$name" '
     index($0, name "=") == 1 {
       value = substr($0, length(name) + 2)
       sub(/[[:space:]]*#.*$/, "", value)
@@ -319,7 +334,13 @@ function manifest_yq_pin() {
       print value
       exit
     }
-  ' "${REPO_ROOT}/${IMAGES_MANIFEST_YQ_PIN_HOME}"
+  ' "${REPO_ROOT}/${home}"
+}
+
+# manifest_yq_pin — the YQ_VERSION versions.env declares, comment stripped.
+# Empty when there is none.
+function manifest_yq_pin() {
+  versions_env_pin "$IMAGES_MANIFEST_YQ_PIN_NAME" "$IMAGES_MANIFEST_YQ_PIN_HOME"
 }
 
 # manifest_yq <expression> — evaluate <expression> against the manifest.
@@ -577,11 +598,20 @@ function image_platforms() {
 #
 # The argument is REQUIRED and every call site passes it, including the 3 verbs
 # below that could have read IMAGE_NAME themselves. It was optional, defaulting
-# to IMAGE_NAME, and shellcheck 0.10.0 — the version the cloud image ships and
-# therefore the version CI runs — reported that shape as SC2120 on the function
-# and SC2119 at each of the 3 bare calls. Host 0.11.0 is silent about it, so
-# `ctl.sh validate` was green here and red in CI, which is the worst way for a
-# gate to disagree with itself. Passing the name is also the better shape: the
+# to IMAGE_NAME, and the shell linter the cloud image ships — therefore the one
+# CI runs — reported that shape as SC2120 on the function and SC2119 at each of
+# the 3 bare calls (run 32111944450). A mac's newer shellcheck is
+# silent about it, so `ctl.sh validate` was green here and red in CI, which is
+# the worst way for a gate to disagree with itself.
+#
+# THIS PARAGRAPH SAID "0.10.0", AND THAT NUMBER WAS NEVER MEASURED. The ubuntu
+# noble archive has published exactly 1 shellcheck, `0.9.0-1`, in the Release
+# pocket — read from the launchpad API on 2026-08-19 and confirmed by installing
+# it into `ubuntu:24.04` — and both root Dockerfiles take shellcheck from apt.
+# So the version CI ran was 0.9.0 the whole time. The fix for the class is
+# ledger #117: `SHELLCHECK_VERSION` in versions.env now pins the apt install AND
+# gates the verb, so this sentence can never again be a number somebody
+# remembered. Passing the name is also the better shape: the
 # function reads no global it does not receive, and `.ci/smoke.sh` — a driver
 # with an image in its argv and no IMAGE_NAME — was already calling it this way.
 # An empty argument is legal and means "no manifest lookup", which is the path a

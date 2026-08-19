@@ -151,19 +151,132 @@ function cmd_list() {
   done
 }
 
+# -------- the gate tools (ledger #117) --------
+#
+# A LINT'S VERDICT IS A FUNCTION OF ITS VERSION, so a gate that judges with
+# whatever the machine holds gives an answer about the machine and not about the
+# repository. It happened here: `resolve_image_platforms` in _ctl/lib.sh passed
+# `ctl.sh validate` on a mac and failed the same verb in CI with SC2119 +
+# SC2120 (run 32111944450), because the 2 hosts carried 2 shellchecks. The
+# author had every reason to trust the green — same verb, same flags, same
+# files — which is what makes this class worse than a check that cannot fail.
+#
+# GATE_TOOL_PINS is the answer, and it is deliberately SHORT. A tool belongs
+# here when the verb's PASS/FAIL depends on that tool's own analysis of this
+# repository's content. Both entries also come from versions.env into the
+# images, so "the devcontainer ships exactly the pin" is a property of the build
+# rather than a sentence in a document.
+#
+#   <tool>|<the versions.env row that pins it>
+GATE_TOOL_PINS=(
+  "shellcheck|SHELLCHECK_VERSION"
+  "hadolint|HADOLINT_VERSION"
+)
+
+# GATE_TOOL_EXEMPT is the other half, and writing it down is the point. A tool
+# that is neither pinned nor exempt is silence, and silence is what let
+# the shell linter run unpinned for the life of this verb. Asserting every tool
+# mechanically would be the opposite error: a pin that cannot change an answer
+# is a bump nobody can review and a red nobody can act on.
+#
+# The test is the SHAPE of the question the verb asks the tool. jq and yq are
+# asked "what does this document say", and the document decides that; docker is
+# asked to carry a linter, and the tag it carries is the pin.
+#
+#   <tool>|<why its version cannot change a verdict>
+GATE_TOOL_EXEMPT=(
+  "jq|parser: validate asks it whether a file parses and what string sits at one key, and the document answers both"
+  "yq|parser: same question against images.yaml, and manifest_yq already refuses anything but 4.x or the YQ_VERSION image"
+  "docker|transport: it only runs a linter that is already pinned by tag, so it carries a verdict and never renders one"
+)
+
+# gate_tool_pin_name <tool> — the versions.env row GATE_TOOL_PINS names for it.
+#
+# BOTH TABLES ARE READ HERE, and that is what makes them the declaration rather
+# than a comment beside one. A tool in the EXEMPT table reaching this function is
+# a contradiction — the verb is demanding a version of a tool the repository has
+# said cannot need one — and it stops here naming both halves. An unclassified
+# tool is the silence the tables exist to break, and it stops here too.
+function gate_tool_pin_name() {
+  local tool="$1" row
+  for row in "${GATE_TOOL_PINS[@]}"; do
+    if [[ "${row%%|*}" == "$tool" ]]; then
+      printf '%s' "${row#*|}"
+      return 0
+    fi
+  done
+  for row in "${GATE_TOOL_EXEMPT[@]}"; do
+    if [[ "${row%%|*}" == "$tool" ]]; then
+      log_error "${tool} is in GATE_TOOL_EXEMPT — ${row#*|}"
+      log_error "so this verb must not demand a version of it: move the row, or drop the demand"
+      return 1
+    fi
+  done
+  log_error "${tool} is in neither GATE_TOOL_PINS nor GATE_TOOL_EXEMPT"
+  log_error "a tool this verb judges with is pinned, or it says in writing why its version cannot matter"
+  return 1
+}
+
+# gate_tool_pin <PIN NAME> — the semver versions.env declares for a gate tool.
+#
+# It FAILS naming the row rather than falling back to whatever the host holds,
+# which is how a gate is supposed to lose its input. The reader is
+# versions_env_pin in _ctl/lib.sh, 1 time only; the shape check is here because
+# what this verb needs is a version to COMPARE, and a row holding `latest` or a
+# package name would compare against nothing.
+function gate_tool_pin() {
+  local name="$1" pin
+  pin="$(versions_env_pin "$name")"
+  if [[ ! "$pin" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    log_error "no '${name}=<semver>' in versions.env — the gate has no version to judge with"
+    log_error "it reads '${pin:-<absent>}', and a gate that cannot name its version must not render a verdict"
+    return 1
+  fi
+  printf '%s' "$pin"
+}
+
+# tool_reported_version <tool> — the first semver-shaped token the tool prints
+# about itself, empty when it is not on PATH or reports none.
+#
+# 2>&1 rather than 2>/dev/null: a tool that cannot report its own version is a
+# tool whose output belongs on screen, not in the bin.
+function tool_reported_version() {
+  local tool="$1" have=""
+  if command -v "$tool" >/dev/null 2>&1; then
+    have="$("$tool" --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" || have=""
+  fi
+  printf '%s' "$have"
+}
+
+# require_tool_at_pin <tool> <pin name> <pin> — the tool on PATH reports exactly
+# <pin>, or this fails naming all 4 things an operator needs: the tool, what it
+# found, what this repository pins, and where a matching one lives.
+#
+# There is no container fallback here, and that is a decision rather than an
+# omission. hadolint has one because it reads 1 self-contained file per call;
+# `shellcheck -x` follows every `source` line relative to the script, so a
+# container route would have to mount the whole repository and rewrite every
+# path — a SECOND lint mechanism whose agreement with the first nothing checks.
+# The devcontainer is the answer this repository already has.
+function require_tool_at_pin() {
+  local tool="$1" name="$2" pin="$3" have
+  have="$(tool_reported_version "$tool")"
+  [[ "$have" == "$pin" ]] && return 0
+  log_error "${tool} ${have:-none} is on PATH and ${name} in versions.env pins ${pin}"
+  log_error "this gate's verdict is a function of that number: a green here at ${have:-another version} says nothing about CI"
+  log_error "run this inside the devcontainer, which ships exactly ${pin}, or install that version on this host"
+  return 1
+}
+
 # The hadolint version versions.env pins. That row is the single source of truth
 # for the whole repository: it is the hadolint the images ship, so it is the
 # hadolint the gate must judge with. It was read out of the base/Dockerfile ARG
 # until that ARG went value-less, and the read FAILED naming the pin rather than
 # linting at whatever version the host happened to hold.
 function hadolint_pin() {
-  local pin
-  pin="$(grep -oE '^HADOLINT_VERSION=[0-9]+\.[0-9]+\.[0-9]+' "$PROJECT_ROOT/versions.env" | head -1)"
-  if [[ -z "$pin" ]]; then
-    log_error "no 'HADOLINT_VERSION=<semver>' in versions.env — the gate has no version to lint at"
-    return 1
-  fi
-  printf '%s' "${pin#HADOLINT_VERSION=}"
+  local name
+  name="$(gate_tool_pin_name hadolint)" || return 1
+  gate_tool_pin "$name"
 }
 
 # hadolint_resolve <pin> — print HOW to reach that exact version, `host` or
@@ -173,11 +286,7 @@ function hadolint_pin() {
 # Dockerfile that no linter read must not report as a Dockerfile that passed.
 function hadolint_resolve() {
   local pin="$1" have=""
-  if command -v hadolint >/dev/null 2>&1; then
-    # 2>&1 rather than 2>/dev/null: a hadolint that cannot report its own version
-    # is a hadolint whose output belongs on screen, not in the bin.
-    have="$(hadolint --version 2>&1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)" || have=""
-  fi
+  have="$(tool_reported_version hadolint)"
   if [[ "$have" == "$pin" ]]; then
     printf 'host'
     return 0
@@ -409,8 +518,9 @@ function cmd_test() {
   return "$rc"
 }
 
-# Validate: shellcheck every shell script, assert every per-image ctl.sh the
-# manifest names is executable, jq every project.json, hold every
+# Validate: hold every GATE_TOOL_PINS tool to the version versions.env pins, lint
+# every shell script, assert every per-image ctl.sh the manifest names is
+# executable, jq every project.json, hold every
 # devcontainer.json to its 6 contract properties, hadolint every Dockerfile,
 # refuse Dockerfiles that hardcode a semver-shaped version inside a RUN line
 # instead of threading an ARG, and refuse a ${USERNAME} that a zsh RUN layer
@@ -428,13 +538,34 @@ function cmd_validate() {
     scripts+=("$script")
   done < <(shell_scripts)
 
+  # The shell linter's verdict depends on its version, the way hadolint's does
+  # below. 0.9.0 — the version both root images install from the ubuntu archive,
+  # measured on ghcr.io/gophersys/cloud:latest as dpkg 0.9.0-1, and therefore the
+  # version CI runs — reports SC2119 and SC2120 on a defaulted function argument
+  # that a newer host build accepts in silence, so this verb was green on a
+  # laptop and red in the pull request for one commit (run 32111944450). A gate
+  # whose answer depends on the operator is not a gate.
+  #
+  # The REFUSAL REPLACES THE LINT, and does not follow it. Linting first and
+  # reporting the mismatch afterwards still writes `shellcheck: <file>` lines
+  # that a reader takes for a verdict, and the whole defect is that those lines
+  # were believed. So a wrong version means no lines at all.
+  local shellcheck_pin_name="" shellcheck_version=""
+  if ! shellcheck_pin_name="$(gate_tool_pin_name shellcheck)"; then
+    rc=1
+  elif ! shellcheck_version="$(gate_tool_pin "$shellcheck_pin_name")"; then
+    rc=1
+  elif ! require_tool_at_pin shellcheck "$shellcheck_pin_name" "$shellcheck_version"; then
+    log_error "nothing was linted: a verdict at another version is not this gate's verdict"
+    rc=1
   # A lint that matched nothing is not a clean lint. Without this, a glob or a
   # find that stopped matching leaves rc untouched and validate prints OK having
   # read no file at all.
-  if [[ ${#scripts[@]} -eq 0 ]]; then
+  elif [[ ${#scripts[@]} -eq 0 ]]; then
     log_error "no shell script found under ${PROJECT_ROOT} — nothing was linted, so nothing is proven"
     rc=1
   else
+    log_info "shellcheck ${shellcheck_version} (host), pinned by ${shellcheck_pin_name} in versions.env"
     for script in "${scripts[@]}"; do
       log_info "shellcheck: ${script#"$PROJECT_ROOT"/}"
       shellcheck -x -S style "$script" || rc=1
@@ -556,7 +687,8 @@ Repo-wide commands:
   base-currency [reference]        Assert the registry still holds the digest
                                    UBUNTU_BASE_REF pins (default ubuntu:24.04)
   list                             Print managed image refs
-  validate                         shellcheck, per-image ctl.sh executability,
+  validate                         the gate tools at their versions.env pins,
+                                   shellcheck, per-image ctl.sh executability,
                                    jq, devcontainer.json contract, hadolint,
                                    ARG-discipline checks, the zsh-\$USERNAME trap
   test                             Run every _ctl/tests/*.test.sh

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/validate/shellcheck — the stub shell linter that the test
+# files staging a `ctl.sh validate` run put first on PATH.
+#
+# WHY A STUB AT ALL. `validate` judges every shell script of the repository with
+# this tool, and its VERDICT depends on its version: the 0.9.0 the images ship
+# reports SC2119/SC2120 on a function shape that a newer host build accepts in
+# silence, which is the defect the version gate exists for. So the verb now
+# refuses to lint at all unless the linter on PATH reports exactly
+# SHELLCHECK_VERSION.
+#
+# That refusal is correct, and it makes every staged run depend on the linter the
+# host holds. A mac with the brew build and a CI runner with the ubuntu archive
+# build hold 2 different versions, so a staged root pinning either one would go
+# red on the other machine — for a reason that says nothing about the property
+# under test. This stub reports the version the STAGED versions.env pins, so the
+# staged run takes the matching branch on every host.
+#
+# It is deliberately in _ctl/tests/stubs/validate/ beside the hadolint stub and
+# NOT in _ctl/tests/stubs/: 7 test files put that directory on PATH, and a linter
+# appearing in all of them would be a change to 7 charters made by adding a file.
+#
+#   STUB_SHELLCHECK_VERSION   the version it reports about itself   (0.9.0)
+#   STUB_SHELLCHECK_STATUS    the exit status of a lint             (0)
+#
+# An unhandled argv exits 64 and says so, the rule the docker stub states: a
+# verb that starts calling this tool in a shape the stub does not model must
+# stop loudly, and never receive a cheerful 0 from a stub that understood
+# nothing.
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+# The real banner, 4 lines, with the number on the second one. ctl.sh reads the
+# first semver-shaped token of the whole output, so a 1-line answer would pass
+# this stub while a real shellcheck that changed its banner would not.
+if [[ "${1:-}" == "--version" ]]; then
+  printf 'ShellCheck - shell script analysis tool\n'
+  printf 'version: %s\n' "${STUB_SHELLCHECK_VERSION:-0.9.0}"
+  printf 'license: GNU General Public License, version 3\n'
+  printf 'website: https://www.shellcheck.net\n'
+  exit 0
+fi
+
+# The 1 lint shape ctl.sh writes: `shellcheck -x -S style <file>`.
+if [[ "${1:-}" == "-x" && "${2:-}" == "-S" && "${3:-}" == "style" && $# -eq 4 ]]; then
+  if [[ ! -f "${4}" ]]; then
+    printf 'stub shellcheck: the script it was handed does not exist: %s\n' "${4}" >&2
+    exit 64
+  fi
+  printf 'stub shellcheck: %s read, no host linter was consulted\n' "${4}"
+  exit "${STUB_SHELLCHECK_STATUS:-0}"
+fi
+
+( IFS=' '; printf 'stub shellcheck: unhandled argv: %s\n' "$*" >&2 )
+exit 64
