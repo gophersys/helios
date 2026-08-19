@@ -77,6 +77,16 @@ func (s *session) pump(ready chan<- error) {
 func (s *session) handle(raw Event) []Event {
 	var emitted []Event
 
+	// ORDERING DEBT (round 3, known and accepted): setState publishes the new State BEFORE the
+	// raw event below is stamped, so a Prompt admitted in that gap advances the ordinal and the
+	// boundary event of the turn just ended carries the NEXT turn's number.
+	//   - The gap is instructions-wide: captureRecent plus the switch dispatch. The transcript
+	//     write sits inside emit, AFTER the Turn stamp, so it does not widen it.
+	//   - Closing it needs emit under s.mu (transcript I/O + fan-out under the lock) or setState
+	//     after the emit (which makes prompt-on-boundary racy). Neither is acceptable.
+	//   - The Session port has no State() accessor, so a caller observes phase from the stream.
+	//     agentsessiontest/suite_semantics.go:218 prompts off the STATE event, i.e. inside the
+	//     gap: 350 measured runs, -race included, zero hits.
 	if next, ok := s.nextState(raw); ok {
 		prior := s.priorState()
 		emitted = append(emitted, s.emit(s.stateEvent(prior, next)))

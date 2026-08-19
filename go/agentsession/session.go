@@ -406,6 +406,10 @@ func (s *session) recordRecentDelta(delta string) {
 
 // rollBackTurn gives back the ordinal a Prompt opened when the send that would have started
 // that turn never reached the harness: no turn happened, so no event may carry its number.
+//
+// DEBT (round 3, sibling of the ordering note in pump.go handle): an event emitted between the
+// admission and a FAILING Send is stamped with the ordinal this then gives back. It takes
+// harness output concurrent with a failing Send to bite.
 func (s *session) rollBackTurn() {
 	s.mu.Lock()
 	s.turn--
