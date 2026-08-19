@@ -5,9 +5,9 @@
 # Usage: ./ctl.sh <command> [args...]
 #
 # This is the TOP-LEVEL ctl.sh for the gophersys/libs repository. It exposes
-# repo-wide meta-verbs. Each individual library inside typescript/, python/,
-# rust/, zephyr/, protocols/ has its own project.json + ctl.sh following the
-# development-nx-run-command skill pattern.
+# repo-wide meta-verbs. Each individual library inside go/ and typescript/ has
+# its own project.json + ctl.sh following the development-nx-run-command skill
+# pattern.
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -62,7 +62,13 @@ function on_exit() {
 trap on_exit EXIT
 
 # -------- language subtrees --------
-LANG_SUBTREES=(go typescript python rust zephyr protocols)
+# The subtrees that EXIST, not the ones once imagined. python/, rust/, zephyr/ and
+# protocols/ were listed here for 14 months holding one .gitkeep each: `status` printed
+# four zero rows that read as "empty for now" rather than "never started", and the
+# 00-identity rule described a five-language repository that was really two. A declared
+# subtree is now a directory with libraries in it; adding a language means creating the
+# subtree AND adding it here, in the same change.
+LANG_SUBTREES=(go typescript)
 
 # -------- helpers --------
 function count_libs_in() {
@@ -70,9 +76,15 @@ function count_libs_in() {
   # both project.json and ctl.sh. The subtree root itself does not count.
   local subtree="$1"
   local base="$PROJECT_ROOT/$subtree"
+  # A declared subtree that is not on disk is a rename, a move or a bad edit to
+  # LANG_SUBTREES — never a subtree that happens to hold nothing. Reporting 0 for it made
+  # those indistinguishable from "empty", which is how four directories holding a single
+  # .gitkeep each stayed on the inventory. Now that the list names only real subtrees, an
+  # absent one names itself instead of printing a zero row. (cmd_status reads this through
+  # its own assignment line, so errexit carries the failure out of the verb.)
   if [[ ! -d "$base" ]]; then
-    printf '0'
-    return 0
+    log_error "declared subtree '$subtree' is not a directory under $PROJECT_ROOT; LANG_SUBTREES names the subtrees that exist, so a missing one is a failure, not an empty count"
+    return 1
   fi
   local count=0
   local dirs=()

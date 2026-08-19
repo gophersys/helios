@@ -4,15 +4,16 @@
 
 `gophersys/libs` is the shared-library submodule consumed by every
 project monorepo in the brain ecosystem. It hosts reusable libraries
-grouped by implementation language plus a language-agnostic protocol
-layer:
+grouped by implementation language:
 
-- `typescript/` — TypeScript / Node libraries
-- `python/`     — Python libraries
-- `rust/`       — Rust crates
-- `zephyr/`     — Zephyr RTOS modules and subsystems
-- `protocols/`  — schema and protocol definitions (protobuf, JSON Schema,
-  OpenAPI, etc.) that generate bindings into the language subtrees
+- `go/`         — Go libraries (16), the bulk of the repository
+- `typescript/` — TypeScript / Node libraries (4), the `@eden/*` scope
+
+Those two are the whole list, and `LANG_SUBTREES` in the top-level
+`ctl.sh` is its one home. `python/`, `rust/`, `zephyr/` and `protocols/`
+were described here as though they held libraries; each held a single
+`.gitkeep` and they were removed. A subtree is created when a library
+lands in it — not in advance of one.
 
 This repository is authored inside the brain meta-monorepo at
 `brain/shared/libs/` and is also published standalone as

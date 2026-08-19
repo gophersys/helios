@@ -1,22 +1,27 @@
 # gophersys/libs
 
 Shared-library submodule consumed by every project monorepo in the
-brain ecosystem. Libraries are grouped by implementation language, with
-a language-agnostic protocol layer that generates bindings into each
-language subtree.
+brain ecosystem. Libraries are grouped by implementation language.
 
 ## Layout
 
 ```
 libs/
-├── typescript/   # TypeScript / Node libraries
-├── python/       # Python libraries
-├── rust/         # Rust crates
-├── zephyr/       # Zephyr RTOS modules and subsystems
-├── protocols/    # schemas (protobuf, JSON Schema, OpenAPI, ...) → bindings
+├── go/           # Go libraries (16)
+├── typescript/   # TypeScript / Node libraries (4)
+├── templates/    # application skeletons (not libraries)
+├── plugins/      # Claude Code plugins shipped with this repo
 ├── project.json  # repo-wide Nx meta-targets (status, validate, propagate)
 └── ctl.sh        # repo-wide control script (bash source of truth)
 ```
+
+Two language subtrees, and that is the whole list. `python/`, `rust/`,
+`zephyr/` and `protocols/` were carried here as empty placeholders — one
+`.gitkeep` apiece, no library, no `README.md`, no verbs — and were removed;
+`bash ./ctl.sh status` printed four zero rows that read as "empty for now"
+rather than "never started". A new language subtree is created when a
+library actually lands in it, and is added to `LANG_SUBTREES` in `ctl.sh`
+in the same change.
 
 Each language subtree has its own `README.md` describing the expected
 library layout, verbs, and cache policy for that language.
@@ -31,12 +36,9 @@ submodule at `projects/<p>/shared/libs/`, pinning a specific commit.
 Consumers never depend on loose files — they consume published
 libraries:
 
-- A project's TypeScript app imports from `@gophersys/<lib>` (npm) or
-  references `shared/libs/typescript/<lib>` by path.
-- A firmware project's `west.yml` references `shared/libs/zephyr/<mod>`
-  by path.
-- Generated bindings from `protocols/` are re-exported through the
-  matching language subtree's wrapper libraries.
+- A project's Go module requires `github.com/gophersys/libs/go/<lib>`.
+- A project's TypeScript app imports from `@eden/<lib>` or references
+  `shared/libs/typescript/<lib>` by path.
 
 ## Authoring contract
 
