@@ -253,7 +253,7 @@ func (s *session) isHostTool(name string) bool {
 	return false
 }
 
-// handlePermissionRequest publishes the request event, then drives the RATIFIED
+// handlePermissionRequest publishes the request event and drives the RATIFIED
 // resolution chain (founder model, 2026-06-15). Grants are auto-allowed first (the
 // session's dynamically-widened grant set, so a ScopeSession allow is not re-asked); an
 // out-of-grant request then takes the per-session chain:
@@ -271,11 +271,8 @@ func (s *session) isHostTool(name string) bool {
 //
 //nolint:gocritic // Event is the contract's immutable copyable record (§2); the pump processes it by value and clones-on-modify before fan-out.
 func (s *session) handlePermissionRequest(raw Event) []Event {
-	published := s.emit(raw)
-	emitted := []Event{published}
-
 	if raw.Permission == nil {
-		return emitted
+		return []Event{s.emit(raw)}
 	}
 	request := PermissionRequest{
 		RequestID: raw.Permission.RequestID,
@@ -283,30 +280,65 @@ func (s *session) handlePermissionRequest(raw Event) []Event {
 		Reason:    raw.Permission.Reason,
 	}
 	scopes := scopesFor(raw.Permission)
+	arm := s.permissionArm(request.Tool, scopes)
 
-	// Grants check FIRST: a tool already in the session grant set (including a prior
-	// ScopeSession widening) is auto-allowed without a prompt or an advisor consult. A
-	// grant is already an authorized allowlist entry, so it is not re-clamped.
-	if s.toolGranted(request.Tool, scopes) {
-		s.decide(request.RequestID, request.Tool, scopes, Decision{Allow: true, By: "grant:session", Scope: ScopeOnce}, clampOff)
-		return emitted
+	// ORDER, load-bearing on the human arm: the published ask is the ONLY thing that tells a
+	// consumer to call Resolve, so the pending entry must exist BEFORE the ask is on the
+	// stream. Publishing first left a window in which a consumer that answers the instant it
+	// sees the ask got UnknownPermissionError — measured at 7 in 1000 conformance runs.
+	// The auto-resolving arms keep the old order: they answer with no consumer in the loop,
+	// and their forward is a blocking Send that must not delay the ask reaching viewers.
+	if arm == permissionArmHuman {
+		s.recordPending(request, scopes)
 	}
+	emitted := []Event{s.emit(raw)}
 
-	switch {
-	case s.spec.OnPermission != nil:
+	switch arm {
+	case permissionArmGranted:
+		s.decide(request.RequestID, request.Tool, scopes, Decision{Allow: true, By: "grant:session", Scope: ScopeOnce}, clampOff)
+	case permissionArmPolicy:
 		// The trusted clean-room synchronous policy (the engine's auto-resolver): forwarded
 		// without the risk clamp so the existing batch behavior is unchanged (no regression).
 		s.decide(request.RequestID, request.Tool, scopes, s.spec.OnPermission(request), clampOff)
-	case s.spec.PermissionResolution == ResolveAutonomousAdvisor:
+	case permissionArmAdvisor:
 		// Unattended: no human is present, so consult the advisor directly (or default-deny
 		// when none is injected). CLAMPED — the advisor can never cross the high-risk wall.
 		s.decide(request.RequestID, request.Tool, scopes, s.adviseOrDeny(request, scopes), clampOn)
-	default:
-		// ResolveChatHumanThenAdvisor: surface for the human Resolve and arm the timeout
-		// that falls back to the CLAMPED advisor, then default-deny.
-		s.recordPending(request, scopes)
+	case permissionArmHuman:
+		// Recorded above, before the ask was published; the armed timer falls back to the
+		// CLAMPED advisor, then default-deny.
 	}
 	return emitted
+}
+
+// permissionArm names the decider an out-of-grant request goes to. It exists so the arm is
+// chosen ONCE, before the ask is published, and acted on after — the human arm has to register
+// its pending entry first, and the selection may not be re-derived on the far side of the emit.
+type permissionArm uint8
+
+// The deciders, in the order the ratified chain consults them.
+const (
+	permissionArmGranted permissionArm = iota // already in the session grant set: auto-allow, unclamped
+	permissionArmPolicy                       // Spec.OnPermission: the trusted clean-room decider, unclamped
+	permissionArmAdvisor                      // ResolveAutonomousAdvisor: consult the advisor, CLAMPED
+	permissionArmHuman                        // ResolveChatHumanThenAdvisor: a human Resolve, timeout->advisor
+)
+
+// permissionArm resolves which decider answers this request. The grant check comes FIRST: a
+// tool already in the session grant set (including a prior ScopeSession widening) is
+// auto-allowed without a prompt or an advisor consult, and a grant is an authorized allowlist
+// entry, so it is not re-clamped.
+func (s *session) permissionArm(tool string, scopes []string) permissionArm {
+	switch {
+	case s.toolGranted(tool, scopes):
+		return permissionArmGranted
+	case s.spec.OnPermission != nil:
+		return permissionArmPolicy
+	case s.spec.PermissionResolution == ResolveAutonomousAdvisor:
+		return permissionArmAdvisor
+	default:
+		return permissionArmHuman
+	}
 }
 
 // captureRecent feeds the bounded advisor-snippet ring from streamed text/tool activity
