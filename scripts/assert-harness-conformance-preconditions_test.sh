@@ -214,13 +214,20 @@ expect_case 'drift: claude reports 0.0.1 against its pin -> exit 1' 1 'drift' 'O
 export STUB_CLAUDE_VERSION="$pinned_claude"
 
 # An absent codex binary is not "unexercised, so never mind": the pin cannot be proven at all.
+#
+# The case CONSTRUCTS the absence rather than hoping for it. Keeping the inherited PATH here was a
+# defect of the worst polarity: post-create installs codex through npm, so in the devcontainer
+# ~/.nvm/versions/node/*/bin still resolves one and the case reported FAIL, while the CI container
+# resolved none and the same case reported ok. The set is the stub directory plus the system
+# directories the stubs' own `#!/usr/bin/env bash` needs — this is the sibling suite's pattern
+# (assert-peer-messaging-available_test.sh, the claude-absent case).
 saved_path="$PATH"
-PATH="${stub_directory_without_codex}:${original_path}"
+PATH="${stub_directory_without_codex}:/usr/bin:/bin:/usr/sbin:/sbin"
 export PATH
 if command -v codex >/dev/null 2>&1; then
   report_fail 'absent: codex is not installed -> exit 1' \
     "this PATH still resolves a codex: $(command -v codex)" \
-    'the case cannot fail here, so it proves nothing'
+    'a codex in a system directory would have to be removed for this case to construct absence'
 else
   run_subject
   expect_case 'absent: codex is not installed -> exit 1, named' 1 'not installed' 'OK —'
