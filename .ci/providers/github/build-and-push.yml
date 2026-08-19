@@ -351,7 +351,7 @@ jobs:
           push: false
           build-args: ${{ steps.versions.outputs.args }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache
-      - name: verify the published manifest
+      - name: verify the published manifest and every blob it references
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
@@ -361,7 +361,16 @@ jobs:
         # Left ungated it would read the tag a PREVIOUS run published and report
         # a verdict about somebody else's build — a green that checked an image
         # this run never made.
+        #
+        # It also walks every layer of every published platform and asks the
+        # registry for 1 byte of each (Range: bytes=0-0). Ledger #118: ghcr.io
+        # answered 404 for a layer 4 manifests referenced while HEAD of the same
+        # url answered 200, and a manifest-only check stayed green over an image
+        # nobody could pull. GITHUB_TOKEN is what that probe reads the private
+        # packages with — the same secret this job pushed with.
         if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash ./ctl.sh verify-published base ${{ steps.sha.outputs.short }}
 
   mobile:
@@ -515,7 +524,7 @@ jobs:
           build-args: |
             BASE_TAG=${{ env.BASE_TAG }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/mobile-cache
-      - name: verify the published manifest
+      - name: verify the published manifest and every blob it references
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
@@ -525,7 +534,16 @@ jobs:
         # Left ungated it would read the tag a PREVIOUS run published and report
         # a verdict about somebody else's build — a green that checked an image
         # this run never made.
+        #
+        # It also walks every layer of every published platform and asks the
+        # registry for 1 byte of each (Range: bytes=0-0). Ledger #118: ghcr.io
+        # answered 404 for a layer 4 manifests referenced while HEAD of the same
+        # url answered 200, and a manifest-only check stayed green over an image
+        # nobody could pull. GITHUB_TOKEN is what that probe reads the private
+        # packages with — the same secret this job pushed with.
         if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash ./ctl.sh verify-published mobile ${{ needs.base.outputs.short }}
 
   embedded:
@@ -687,7 +705,7 @@ jobs:
           build-args: |
             BASE_TAG=${{ env.BASE_TAG }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/embedded-cache
-      - name: verify the published manifest
+      - name: verify the published manifest and every blob it references
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
@@ -697,7 +715,16 @@ jobs:
         # Left ungated it would read the tag a PREVIOUS run published and report
         # a verdict about somebody else's build — a green that checked an image
         # this run never made.
+        #
+        # It also walks every layer of every published platform and asks the
+        # registry for 1 byte of each (Range: bytes=0-0). Ledger #118: ghcr.io
+        # answered 404 for a layer 4 manifests referenced while HEAD of the same
+        # url answered 200, and a manifest-only check stayed green over an image
+        # nobody could pull. GITHUB_TOKEN is what that probe reads the private
+        # packages with — the same secret this job pushed with.
         if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash ./ctl.sh verify-published embedded ${{ needs.base.outputs.short }}
 
   # The cloud image: the reduced base + the CI fold (image-architecture, ledger
@@ -847,7 +874,7 @@ jobs:
           push: false
           build-args: ${{ steps.versions.outputs.args }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/cloud-cache
-      - name: verify the published manifest
+      - name: verify the published manifest and every blob it references
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
@@ -857,7 +884,16 @@ jobs:
         # Left ungated it would read the tag a PREVIOUS run published and report
         # a verdict about somebody else's build — a green that checked an image
         # this run never made.
+        #
+        # It also walks every layer of every published platform and asks the
+        # registry for 1 byte of each (Range: bytes=0-0). Ledger #118: ghcr.io
+        # answered 404 for a layer 4 manifests referenced while HEAD of the same
+        # url answered 200, and a manifest-only check stayed green over an image
+        # nobody could pull. GITHUB_TOKEN is what that probe reads the private
+        # packages with — the same secret this job pushed with.
         if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash ./ctl.sh verify-published cloud ${{ steps.sha.outputs.short }}
 
   # The hardware image: cloud + the KiCad 10 ECAD toolchain. Its consumer is
@@ -1029,7 +1065,7 @@ jobs:
             BASE_TAG=${{ env.BASE_TAG }}
             ${{ steps.versions.outputs.args }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/hardware-cache
-      - name: verify the published manifest
+      - name: verify the published manifest and every blob it references
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
@@ -1039,7 +1075,16 @@ jobs:
         # Left ungated it would read the tag a PREVIOUS run published and report
         # a verdict about somebody else's build — a green that checked an image
         # this run never made.
+        #
+        # It also walks every layer of every published platform and asks the
+        # registry for 1 byte of each (Range: bytes=0-0). Ledger #118: ghcr.io
+        # answered 404 for a layer 4 manifests referenced while HEAD of the same
+        # url answered 200, and a manifest-only check stayed green over an image
+        # nobody could pull. GITHUB_TOKEN is what that probe reads the private
+        # packages with — the same secret this job pushed with.
         if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash ./ctl.sh verify-published hardware ${{ needs.cloud.outputs.short }}
 
   # The ui image: cloud + headless Chrome and the DejaVu fallback font. Its
@@ -1217,7 +1262,7 @@ jobs:
             BASE_TAG=${{ env.BASE_TAG }}
             ${{ steps.versions.outputs.args }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/ui-cache
-      - name: verify the published manifest
+      - name: verify the published manifest and every blob it references
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
@@ -1227,5 +1272,14 @@ jobs:
         # Left ungated it would read the tag a PREVIOUS run published and report
         # a verdict about somebody else's build — a green that checked an image
         # this run never made.
+        #
+        # It also walks every layer of every published platform and asks the
+        # registry for 1 byte of each (Range: bytes=0-0). Ledger #118: ghcr.io
+        # answered 404 for a layer 4 manifests referenced while HEAD of the same
+        # url answered 200, and a manifest-only check stayed green over an image
+        # nobody could pull. GITHUB_TOKEN is what that probe reads the private
+        # packages with — the same secret this job pushed with.
         if: ${{ steps.filter.outputs.build == 'true' && inputs.mode != 'rehearsal' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: bash ./ctl.sh verify-published ui ${{ needs.cloud.outputs.short }}

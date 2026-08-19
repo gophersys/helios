@@ -1446,9 +1446,300 @@ function image_push() {
     "${IMAGE_BUILD_CONTEXT:-$PROJECT_ROOT}"
 }
 
+# ---------------------------------------------------------------------------
+# The registry API, and the 1 place its credential is resolved.
+# ---------------------------------------------------------------------------
+#
+# verify-published reads the INDEX through `docker buildx imagetools`, which
+# carries its own auth. The blob half below cannot: no docker subcommand fetches
+# a blob, so it speaks the distribution API directly, and that needs a bearer
+# token of its own. This is a stated 2-client seam and the residue is recorded:
+# moving the index read onto the same API would leave this verb needing no
+# docker at all, and it is not this change.
+#
+# ghcr.io is the 1 registry this repository publishes to, and
+# IMAGE_REGISTRY_NAMESPACE is where that is declared. Both values below are
+# derived from it, so neither is spelled a second time.
+function registry_host() { printf '%s' "${IMAGE_REGISTRY_NAMESPACE%%/*}"; }
+function registry_repository() { printf '%s/%s' "${IMAGE_REGISTRY_NAMESPACE#*/}" "$1"; }
+
+# registry_credential <host> — the secret this host reads <host> with, or a
+# refusal that names every source it looked in.
+#
+# 2 sources, in falling precedence. The ENVIRONMENT first, because that is what
+# a CI job has and what a reader can set in front of the command; then the
+# credential docker itself holds, so a developer who has run `docker login
+# ghcr.io` — which they must have, or the index read above would not work either
+# — pays no second setup.
+#
+# There is deliberately no anonymous fallback. Every package of this repository
+# is private, so an anonymous read answers 403, and a probe that fell through to
+# one would report every blob of every image as unreachable: a red about the
+# credential wearing the clothes of a red about the image. A skip would be worse
+# — a green that checked nothing is the FAIL-NOT-SKIP failure this repository
+# refuses everywhere else.
+function registry_credential() {
+  local host="$1"
+  local secret="${GHCR_TOKEN:-${GITHUB_TOKEN:-${GH_TOKEN:-}}}"
+  if [[ -n "$secret" ]]; then
+    printf '%s' "$secret"
+    return 0
+  fi
+
+  # What each docker source said, kept so the refusal can show it. An error
+  # nobody reads is an error that was swallowed.
+  local trace="" config helper="" answer="" encoded="" decoded=""
+  config="${DOCKER_CONFIG:-${HOME}/.docker}/config.json"
+  if [[ ! -f "$config" ]]; then
+    trace="no docker config at ${config}"
+  elif ! jq empty < "$config" >/dev/null 2>&1; then
+    # A config that does not parse is a broken host, not an absent credential,
+    # and it must not read as one.
+    log_error "the docker config at ${config} is not JSON, so no credential can be read from it"
+    exit 1
+  else
+    helper="$(jq -r --arg h "$host" '.credHelpers[$h] // .credsStore // empty' < "$config")"
+    if [[ -n "$helper" ]] && command -v "docker-credential-${helper}" >/dev/null 2>&1; then
+      local helper_stderr helper_status=0
+      helper_stderr="$(mktemp)"
+      answer="$(printf 'https://%s' "$host" | "docker-credential-${helper}" get 2>"$helper_stderr")" || helper_status=$?
+      if [[ "$helper_status" -eq 0 && -n "$answer" ]]; then
+        secret="$(printf '%s' "$answer" | jq -r '.Secret // empty')"
+      else
+        trace="docker-credential-${helper} exited ${helper_status}: $(tr '\n' ' ' < "$helper_stderr")"
+      fi
+      rm -f "$helper_stderr"
+      if [[ -n "$secret" ]]; then
+        printf '%s' "$secret"
+        return 0
+      fi
+    fi
+    # The plain form docker/login-action writes on a runner with no credential
+    # store: base64 of `<user>:<secret>`.
+    encoded="$(jq -r --arg h "$host" '.auths[$h].auth // empty' < "$config")"
+    if [[ -n "$encoded" ]]; then
+      require_cmd base64
+      decoded="$(printf '%s' "$encoded" | base64 --decode)"
+      if [[ "$decoded" == *:* ]]; then
+        printf '%s' "${decoded#*:}"
+        return 0
+      fi
+      trace="${trace:+${trace}; }the auths entry for ${host} in ${config} does not decode to <user>:<secret>"
+    else
+      trace="${trace:+${trace}; }no auths entry for ${host} in ${config}"
+    fi
+  fi
+
+  log_error "no credential for ${host}: the blob probe cannot run, so NOTHING about pullability was checked"
+  log_error "  set GHCR_TOKEN, GITHUB_TOKEN or GH_TOKEN, or run: docker login ${host}"
+  log_error "  every package of this repository is private, so there is no anonymous read to fall back to"
+  log_error "  ${trace}"
+  exit 1
+}
+
+# registry_pull_token <host> <repository> <secret> — the bearer token a pull
+# scope needs. The exchange is the standard token endpoint, and the secret goes
+# in as basic-auth: ghcr.io ignores the username and reads the password.
+function registry_pull_token() {
+  local host="$1" repository="$2" secret="$3"
+  local url="https://${host}/token?service=${host}&scope=repository:${repository}:pull"
+  local body="" status=0 client_stderr
+  client_stderr="$(mktemp)"
+  # The secret reaches curl through the argv, which is the shape
+  # _build/resolve-upstream.sh already uses for its bearer tokens. It is
+  # readable in `ps` for the life of the request, and on the hosts this runs on
+  # — a CI pod and a developer's own machine — the peers that can read that argv
+  # are the peers that already hold the credential.
+  body="$(curl -fsS --max-time 30 --retry 3 --retry-delay 2 --retry-all-errors \
+    --user "x-access-token:${secret}" "$url" 2>"$client_stderr")" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    log_error "the pull-token exchange for ${repository} at ${host} failed — curl exited ${status}"
+    cat "$client_stderr" >&2
+    rm -f "$client_stderr"
+    exit 1
+  fi
+  rm -f "$client_stderr"
+  local token=""
+  token="$(printf '%s' "$body" | jq -r '.token // .access_token // empty')"
+  if [[ -z "$token" ]]; then
+    log_error "${host} answered the token request for ${repository} with a document carrying no token"
+    exit 1
+  fi
+  printf '%s' "$token"
+}
+
+# registry_get_status <url> <token> <destination> [range] — the HTTP status of a
+# GET, printed as a number, with the body at <destination>.
+#
+# -f/--fail is deliberately ABSENT. Under -f curl reports an HTTP error through
+# its exit status and the status itself is thrown away, and 404 against 403 is
+# the difference between a lost object and a lost grant — the first thing an
+# operator needs to know. So the status comes from -w and the exit status is
+# kept for what it really means: the transfer did not complete at all.
+function registry_get_status() {
+  local url="$1" token="$2" destination="$3" range="${4:-}"
+  local -a range_args=()
+  if [[ -n "$range" ]]; then
+    range_args=(--range "$range")
+  fi
+  local code="" status=0
+  code="$(curl -sSL --max-time 120 --retry 3 --retry-delay 2 --retry-all-errors \
+    --output "$destination" --write-out '%{http_code}' \
+    "${range_args[@]+"${range_args[@]}"}" \
+    --header "Authorization: Bearer ${token}" \
+    --header "Accept: application/vnd.oci.image.manifest.v1+json" \
+    --header "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+    "$url")" || status=$?
+  if [[ "$status" -ne 0 ]]; then
+    # curl has already written its own reason to stderr under -sS.
+    log_error "the request to ${url} did not complete — curl exited ${status}"
+    printf '000'
+    return 0
+  fi
+  printf '%s' "$code"
+}
+
+# verify_published_blobs <ref> <index document> — every blob every published
+# manifest references must SERVE.
+#
+# ===========================================================================
+# A MANIFEST THAT PARSES IS NOT AN IMAGE THAT PULLS (ledger #118)
+# ===========================================================================
+#
+# ghcr.io answered 404 for layer `d14f6240…` while 4 manifests still referenced
+# it. Every document parsed, every platform was declared, verify-published was
+# GREEN, and `docker pull` failed for every consumer until an unrelated rebuild
+# re-uploaded the blob. Manifest-level verification proves STRUCTURE, and the
+# structure was never the thing that broke.
+#
+# A HEAD per blob does not close it, and that is MEASURED. Read 2026-08-18
+# against a real layer of ghcr.io/gophersys/base:
+#
+#   HEAD /v2/gophersys/base/blobs/sha256:966c39…  ->  HTTP/2 200, content-length
+#                                                     29751109, answered by
+#                                                     ghcr.io ITSELF, no redirect
+#   GET  /v2/gophersys/base/blobs/sha256:966c39…  ->  HTTP 307 to
+#                                                     pkg-containers.githubusercontent.com,
+#                                                     where the bytes actually are
+#
+# The 2 methods are answered by 2 tiers. A HEAD asks the metadata tier whether a
+# blob is registered and never contacts the store that holds it, so HEAD 200 is
+# not evidence of anything a puller cares about. A registry that has lost an
+# object while keeping its metadata answers exactly HEAD 200 / GET 404.
+#
+# So the probe is a RANGED GET, `Range: bytes=0-0`. It follows the redirect,
+# reaches the object store and costs 1 byte per blob.
+#
+# THE COST, measured against :latest on 2026-08-18 (config + layers, per
+# platform): base 33, mobile 37, embedded 48, cloud 39, hardware 43, ui 43. The
+# verb runs once per image, so the most expensive invocation is embedded at
+# 48 x 2 platforms = 96 ranged GETs, plus 1 token exchange, 1 index read and 2
+# manifest reads — 100 requests and 96 bytes of payload. The whole set of 6
+# images is 449 blob probes over 11 variants: 449 bytes.
+#
+# WHAT IS DELIBERATELY NOT WALKED: the attestation manifests. buildx attaches 1
+# per variant, and a dangling attestation blob does not make an image
+# unpullable — `docker pull` never fetches one. Widening the walk to them is a
+# decision about what "published" means here, not an oversight.
+function verify_published_blobs() {
+  local ref="$1" raw="$2"
+  require_cmd curl jq
+
+  local host repository
+  host="$(registry_host)"
+  repository="$(registry_repository "${IMAGE_NAME}")"
+
+  local secret token
+  secret="$(registry_credential "$host")"
+  token="$(registry_pull_token "$host" "$repository" "$secret")"
+
+  local staged sink
+  staged="$(mktemp)"
+  sink="$(mktemp)"
+  # shellcheck disable=SC2064  # the paths are wanted at trap-set time, not later
+  trap "rm -f '$staged' '$sink'" EXIT
+
+  local variants=0 probed=0 failures=0
+  local platform digest manifest_status layer_count blob blob_status
+  local variant_probes wanted_probes
+  while IFS=$'\t' read -r platform digest; do
+    [[ -z "${platform:-}" || -z "${digest:-}" ]] && continue
+    variants=$((variants + 1))
+
+    manifest_status="$(registry_get_status "https://${host}/v2/${repository}/manifests/${digest}" "$token" "$staged")"
+    case "$manifest_status" in
+      2[0-9][0-9]) ;;
+      *)
+        log_error "verify-published: ${ref} ${platform}: the registry will not serve the manifest ${digest} — HTTP ${manifest_status}"
+        failures=$((failures + 1))
+        continue
+        ;;
+    esac
+
+    # An empty layer list is not an image, and a walk over it would report 0
+    # failures out of 0 probes — a verdict about nothing.
+    layer_count="$(jq -r '.layers | length' < "$staged")"
+    if [[ "$layer_count" -lt 1 ]]; then
+      log_error "verify-published: ${ref} ${platform}: the manifest ${digest} references no layer"
+      failures=$((failures + 1))
+      continue
+    fi
+
+    variant_probes=0
+    while IFS= read -r blob; do
+      [[ -z "$blob" ]] && continue
+      probed=$((probed + 1))
+      variant_probes=$((variant_probes + 1))
+      blob_status="$(registry_get_status "https://${host}/v2/${repository}/blobs/${blob}" "$token" "$sink" "0-0")"
+      case "$blob_status" in
+        2[0-9][0-9]) ;;
+        *)
+          log_error "verify-published: ${ref} ${platform}: the registry will not serve blob ${blob} — HTTP ${blob_status}"
+          failures=$((failures + 1))
+          ;;
+      esac
+    done < <(jq -r '[.config.digest] + [.layers[]?.digest] | .[] | select(. != null)' < "$staged")
+
+    # The walk is fed by a process substitution, so a jq that died mid-stream
+    # ends the loop silently and the blobs behind it are never probed. Reading
+    # fewer digests than the manifest declares is a check that stopped early
+    # wearing the result of a check that finished.
+    wanted_probes=$((layer_count + 1))
+    if [[ "$variant_probes" -ne "$wanted_probes" ]]; then
+      log_error "verify-published: ${ref} ${platform}: the manifest ${digest} declares ${wanted_probes} blob(s) (1 config + ${layer_count} layers) and only ${variant_probes} were probed"
+      failures=$((failures + 1))
+    fi
+  done < <(printf '%s' "$raw" | jq -r '
+    .manifests[]?
+    | select(.platform != null)
+    | select(.platform.os != "unknown" and .platform.architecture != "unknown")
+    | (.platform.os + "/" + .platform.architecture
+       + (if .platform.variant then "/" + .platform.variant else "" end))
+      + "\t" + .digest
+  ')
+
+  if [[ "$variants" -lt 1 ]]; then
+    log_error "verify-published: ${ref} declares no image variant to walk, so no blob was read"
+    exit 1
+  fi
+  if [[ "$probed" -lt 1 && "$failures" -eq 0 ]]; then
+    log_error "verify-published: ${ref} walked ${variants} variant(s) and probed no blob at all"
+    exit 1
+  fi
+  if [[ "$failures" -gt 0 ]]; then
+    log_error "verify-published: ${ref} — ${failures} of ${probed} blob probe(s) failed"
+    log_error "  the manifest is intact and the image is NOT pullable; a rebuild+push of this image is what re-uploads a lost blob"
+    exit 1
+  fi
+
+  log_info "verify-published: ${ref} serves all ${probed} referenced blob(s) across ${variants} platform(s), read with Range: bytes=0-0"
+}
+
 # verify-published [tag] — read the manifest of a published tag and assert it
-# carries EXACTLY the sanctioned set. A push declares a platform; this reads
-# what the registry actually holds.
+# carries EXACTLY the sanctioned set, then assert every blob it references
+# SERVES. A push declares a platform; this reads what the registry actually
+# holds, and then asks the registry to hand back 1 byte of every object a
+# `docker pull` would need.
 #
 # An entry whose platform is unknown/unknown is an attestation manifest, not an
 # image. buildx attaches 1 per variant on every push, so counting the entries
@@ -1503,6 +1794,9 @@ function image_verify_published() {
 
   if [[ "$published" == "$expected" ]]; then
     log_info "verify-published: ${ref} carries exactly ${published}"
+    # The set is right. Whether the bytes are there is a different question, and
+    # the incident this verb exists to catch lives entirely inside it.
+    verify_published_blobs "$ref" "$raw"
     return 0
   fi
 
