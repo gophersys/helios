@@ -27,11 +27,12 @@
 #      run can never reach, so a case opts the stub into a session mode and the stub plays claude:
 #      it reads the --settings file the subject wrote, binds a REAL AF_UNIX socket at
 #      /tmp/cc-socks/<pid>.sock, exports CLAUDE_CODE_MESSAGING_SOCKET to the SessionStart hook only
-#      — the way claude does — and runs that hook. The 3 shapes are the success path (verdict ok,
+#      — the way claude does — and runs that hook. The 4 shapes are the success path (verdict ok,
 #      exit 0, and the work directory REMOVED, because a preflight that leaks a temp directory on
-#      the path it takes 99% of the time leaks it in every job), a turn whose hook never fired, and
-#      a turn the deadline killed (stub `timeout`, exit 124). The stub records the settings path, so
-#      "the work directory was removed" is read from the path the subject really used.
+#      the path it takes 99% of the time leaks it in every job), a turn whose hook never fired, a
+#      turn that answered non-zero AFTER writing a good receipt, and a turn the deadline killed
+#      (stub `timeout`, exit 124). The stub records the settings path, so "the work directory was
+#      removed" is read from the path the subject really used.
 #
 # It drives the subject against stub `claude` and `uname` binaries on PATH, in the style of
 # assert-no-skipped-tests_test.sh, so no harness, no credential and no network take part. The pure
@@ -140,20 +141,46 @@ fi
 # session-with-socket: bind a REAL AF_UNIX socket at the shape claude uses, then run the hook with
 # the messaging variables in ITS environment and in nothing else — the reason the preflight needs a
 # hook at all.
+#
+# /tmp/cc-socks is the REAL directory a live claude session uses, and the file name must be a pid
+# for the subject's pattern to accept it. So this stub NEVER removes a path it did not create: an
+# `rm -f "/tmp/cc-socks/$$.sock"` would delete the socket of a live session whose pid happens to
+# equal this stub's. bind() fails on a path that exists, whoever owns it, so the allocation is the
+# bind itself — no exists-then-remove window, and no way to touch another session's socket. The
+# first candidate is this stub's own pid; the rest are random pids. All taken is a loud failure
+# that names the collision, never a quiet reuse.
 socket_directory='/tmp/cc-socks'
 mkdir -p "$socket_directory"
-socket="${socket_directory}/$$.sock"
-rm -f "$socket"
-python3 -c '
+socket="$(python3 -c '
+import os
+import random
 import socket as socket_module
 import sys
 
-server = socket_module.socket(socket_module.AF_UNIX, socket_module.SOCK_STREAM)
-server.bind(sys.argv[1])
-' "$socket"
+directory = sys.argv[1]
+candidates = [int(sys.argv[2])] + [random.randint(2, 4194304) for _ in range(15)]
+for candidate in candidates:
+    path = os.path.join(directory, "%d.sock" % candidate)
+    server = socket_module.socket(socket_module.AF_UNIX, socket_module.SOCK_STREAM)
+    try:
+        server.bind(path)
+    except OSError:
+        server.close()
+        continue
+    print(path)
+    sys.exit(0)
+sys.stderr.write(
+    "stub claude: every candidate socket in %s is taken after %d tries — a live session owns them, "
+    "and this stub never removes a socket it did not create\n" % (directory, len(candidates))
+)
+sys.exit(94)
+' "$socket_directory" "$$")"
 printf '%s\n' "$socket" >>"${STUB_CLAUDE_SOCKET_RECORD}"
 CLAUDE_CODE_MESSAGING_SOCKET="$socket" CLAUDE_CODE_MESSAGING_TOKEN='test-only-not-a-token' "$hook"
 printf 'ready\n'
+# The turn's own exit status. claude can answer non-zero AFTER its SessionStart hook wrote a good
+# receipt, and that shape is a failure the subject must name rather than read as success.
+exit "${STUB_CLAUDE_SESSION_EXIT_STATUS:-0}"
 STUB_CLAUDE
 chmod +x "${stub_directory}/claude"
 
@@ -202,6 +229,7 @@ export STUB_CLAUDE_SETTINGS_RECORD="$settings_record"
 export STUB_CLAUDE_SOCKET_RECORD="$socket_record"
 export STUB_CLAUDE_VERSION='2.1.212 (Claude Code)'
 export STUB_CLAUDE_SESSION_MODE='refuse'
+export STUB_CLAUDE_SESSION_EXIT_STATUS='0'
 export STUB_UNAME_S='Linux'
 
 # A PATH that still resolves a real claude would test the host, not the subject.
@@ -627,7 +655,22 @@ expect_case 'probe: the failure is the named kind' 1 'assert-peer-messaging-avai
 expect_session_started 'probe: the turn did run before the verdict'
 expect_work_directory_removed 'probe: the work directory is removed after a failed verdict'
 
-# Probe case 3 — the deadline killed the turn. GNU timeout answers 124, and the preflight must name
+# Probe case 3 — the hook wrote a GOOD receipt and the turn then answered non-zero. The socket is
+# real, so the receipt verdict is ok and every check above it passes; only the turn's own status is
+# left to catch it. Without this case that branch of the subject is reached by nothing, and a
+# mutation that drops it survives: the preflight would report OK for a session that failed.
+export STUB_CLAUDE_SESSION_MODE='session-with-socket'
+export STUB_CLAUDE_SESSION_EXIT_STATUS='3'
+run_subject
+expect_case 'probe: a good receipt with a failed turn -> exit 1, names exit 3' \
+  1 "exited 3" 'OK — claude'
+expect_case 'probe: the failed turn is a named failure' 1 'assert-peer-messaging-available: FAILED' ''
+expect_case 'probe: the run still shows the ok verdict it read' 1 'receipt verdict: ok' ''
+expect_session_started 'probe: the failed turn did run'
+expect_work_directory_removed 'probe: the work directory is removed after a failed turn'
+export STUB_CLAUDE_SESSION_EXIT_STATUS='0'
+
+# Probe case 4 — the deadline killed the turn. GNU timeout answers 124, and the preflight must name
 # that instead of reading the missing receipt as some other defect.
 export STUB_CLAUDE_SESSION_MODE='session-with-socket'
 export STUB_TIMEOUT_STATUS='124'
