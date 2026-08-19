@@ -140,8 +140,19 @@ pump invariant, name grammar 63/64 boundary — all survived break-tests).
 Low cleanup: clientLink.Received synchronous write on pump (low deadlock risk); EncodePeer
 terminator exact-match only; rapid failfile not gitignored; 2 planepeer label strings.
 
+## Fix round 1 CLOSED (c41dd60)
+F1 (author 37676fb + impl 97e5d45): eventStrings sweeps every Peer/Subagent string field;
+canary caught in peer Body/Detail + subagent Digest, bite-proven vs the blind scanner.
+F2 (author): generation assertion now captures child-b's departedGen while live and
+asserts after>departedGen — bite-proven vs the constant mutant; real-UDS integration PASS.
+F3 (impl aa7f2c5): serveConn refuses an unvouched SO_PEERCRED accept; verified+joinedName
+thread accept→dispatchFrame→serveSend; serveSend REJECTS (KindPermission, loud) send-
+before-Join and From!=joinedName, else BINDS From=joinedName + STAMPS Verified from the
+verified connection (never the client's flag). Zero surface delta (errNotJoined/
+errFromMismatch unexported). peer.go:22 doc corrected. defence→defense closed the last red.
+phase-gate implementation rc=0; testing 11/11 green incl. integration; apidiff ZERO delta;
+goleak clean; only architecture contract-doc red (eden S5, expected).
+
 ## Next
-Fix round 1: implementer F1-sweep (assert.go eventStrings reads Peer/Subagent fields +
-fix doc) + F3 (listen.go stamp Verified from verified conn, bind/reject From; peer.go:22
-doc); test author F1-assert (canary in peer body + subagent digest) + F2 (real generation
-assertion). Disjoint files. Then re-verify (round 2, bounded), PR-1c-i.
+Verify round 2 (bounded, closures only): confirm F1 sweep+assert, F2 real generation, F3
+stamp/bind survive break-tests; no new HIGH. Then PR-1c-i.
