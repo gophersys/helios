@@ -225,11 +225,17 @@ func countEnv(env []string, entry string) int {
 	return n
 }
 
-// TestProperty_BuildArgumentsNeverSelectsRPC asserts the spawn-arg invariant over arbitrary
-// specs/routes: the headless json mode is ALWAYS selected and the rpc mode (the
-// extension_ui_request blocking trap, the spike's load-bearing choice) is NEVER selected,
-// regardless of grants/model/resume/system-hints.
-func TestProperty_BuildArgumentsNeverSelectsRPC(t *testing.T) {
+// TestProperty_BuildArgumentsAlwaysSelectsRPC asserts the spawn-arg invariant over arbitrary
+// specs/routes: the ONE long-lived session's `--mode rpc` is ALWAYS selected, the approval mode
+// is ALWAYS pinned explicitly (never inherited from the operator's settings), and neither the
+// one-shot print stream (`-p` / `--mode json`) nor the blocking UI plane (`--mode rpc-ui`) is
+// ever selected — regardless of grants/model/resume/system-hints.
+//
+// This is the inverse of the pre-rewrite property, which asserted rpc was NEVER selected. That
+// invariant was a measurement of `--mode json`'s one-way stream, and it made the adapter
+// single-turn by construction; q3 measured the rpc plane end to end (ready -> negotiate ->
+// prompt -> host tool -> agent_end, BLOCKING_UI_REQUESTS 0) and the choice reverses.
+func TestProperty_BuildArgumentsAlwaysSelectsRPC(t *testing.T) {
 	t.Parallel()
 	rapid.Check(t, func(rt *rapid.T) {
 		spec := agentsession.Spec{
@@ -248,25 +254,38 @@ func TestProperty_BuildArgumentsNeverSelectsRPC(t *testing.T) {
 		}
 		args := ompadapter.BuildArgumentsForTest(spec, route)
 
-		sawHeadless, sawJSON := false, false
+		sawRPC, approvalModes := false, 0
 		for i, a := range args {
-			if a == "-p" {
-				sawHeadless = true
-			}
-			if a == "--mode" && i+1 < len(args) {
+			switch a {
+			case "-p":
+				rt.Fatalf("print mode exits after one turn; the rpc session must outlive its turn; args=%v", args)
+			case "--auto-approve":
+				rt.Fatalf("--auto-approve pins tools.approvalMode=yolo and skips every approval prompt; args=%v", args)
+			case "--approval-mode":
+				approvalModes++
+				if i+1 >= len(args) || args[i+1] == "yolo" {
+					rt.Fatalf("--approval-mode must carry an ASKING value (always-ask|write); args=%v", args)
+				}
+			case "--mode":
+				if i+1 >= len(args) {
+					rt.Fatalf("--mode carries no value; args=%v", args)
+				}
 				switch args[i+1] {
-				case "json":
-					sawJSON = true
 				case "rpc":
-					rt.Fatalf("must NEVER select --mode rpc (the extension_ui_request blocking trap); args=%v", args)
+					sawRPC = true
+				case "json":
+					rt.Fatalf("--mode json is the one-process-per-turn stream this rewrite deletes; args=%v", args)
+				case "rpc-ui":
+					rt.Fatalf("--mode rpc-ui installs the tool UI context (main.ts:1570) and CAN block; args=%v", args)
 				}
 			}
 		}
-		if !sawHeadless {
-			rt.Fatalf("headless -p flag missing; args=%v", args)
+		if !sawRPC {
+			rt.Fatalf("--mode rpc missing; args=%v", args)
 		}
-		if !sawJSON {
-			rt.Fatalf("--mode json missing; args=%v", args)
+		if approvalModes != 1 {
+			rt.Fatalf("want exactly one explicit --approval-mode (found %d); with none omp inherits the operator's setting and q3-probe4 watched bash run ungated; args=%v",
+				approvalModes, args)
 		}
 	})
 }

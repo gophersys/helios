@@ -8,11 +8,24 @@ import (
 	"github.com/gophersys/libs/go/agentsession/ompadapter"
 )
 
-// TestBuildArguments_HeadlessJSONFlagSet proves the spawn argument construction: the headless
-// -p flag, the json mode (NOT rpc — the spike's load-bearing choice), the model from the
-// Route, the thinking level, the tools CSV rendered from Spec.Grants, and the ephemeral
-// --no-session — all WITHOUT spawning a process.
-func TestBuildArguments_HeadlessJSONFlagSet(t *testing.T) {
+// TestBuildArguments_RPCModeFlagSet proves the spawn argument construction for the ONE
+// long-lived `omp --mode rpc` process per session: the rpc mode (never rpc-ui, never the
+// one-shot json print mode), the model from the Route, the thinking level, the tools CSV
+// rendered from Spec.Grants, and the ephemeral --no-session — all WITHOUT spawning a process.
+//
+// Provenance: the credential-free probe harness that captured every frame in
+// testdata/rpc-17.3.7-*.jsonl spawned exactly `omp --mode rpc --model <id>` with
+// PI_CODING_AGENT_DIR on the child env and the workspace as cwd (driver3.js:3,6-7 of
+// omp-rpc-probe-harness.tar.gz). No `-p`: print mode processes ONE prompt and exits, which is
+// the per-turn-process model this rewrite deletes — under rpc the turn text rides a stdin
+// `prompt` frame, never argv.
+//
+// The mode inversion is deliberate. The pre-rewrite argument set chose `--mode json` because a
+// blocking `extension_ui_request` was believed to be unanswerable; q3 proved the opposite —
+// the frame is answerable (`extension_ui_response`), the setWidget variant is fire-and-forget,
+// and only rpc keeps ONE process alive across turns, which multi-turn, set_host_tools and turn
+// injection all require.
+func TestBuildArguments_RPCModeFlagSet(t *testing.T) {
 	t.Parallel()
 	spec := agentsession.Spec{
 		Grants: []agentsession.ToolGrant{
@@ -24,21 +37,58 @@ func TestBuildArguments_HeadlessJSONFlagSet(t *testing.T) {
 	route := agentsession.Route{Harness: "omp", Model: "openrouter/deepseek/deepseek-v4-flash"}
 	args := ompadapter.BuildArgumentsForTest(spec, route)
 
-	// -p + --mode json is MANDATORY: it puts omp in headless one-way-stream mode. rpc mode
-	// emits an extension_ui_request that blocks the turn until the client answers the rpc — the
-	// spike's reason json is chosen. Guard the regression here.
-	mustContain(t, args, "-p")
-	mustContain(t, args, "--mode", "json")
+	mustContain(t, args, "--mode", "rpc")
 	mustContain(t, args, "--model", "openrouter/deepseek/deepseek-v4-flash")
 	mustContain(t, args, "--thinking", "minimal")
 	mustContain(t, args, "--tools", "read,bash") // dedup, order-preserved; scopes collapse to the bare name
 	mustContain(t, args, "--no-session")
 
-	// rpc mode must never be selected (the UI-ack trap).
+	// The one-shot print mode and its json stream are GONE: a session that exits after one turn
+	// cannot serve a second Prompt, cannot hold set_host_tools, and cannot take an injected turn.
+	if containsAll(args, "-p") {
+		t.Errorf("--mode rpc is a long-lived session, not print mode: -p must be gone; args: %s", strings.Join(args, " "))
+	}
+	if containsAll(args, "--mode", "json") {
+		t.Errorf("--mode json is the one-process-per-turn stream this rewrite deletes; args: %s", strings.Join(args, " "))
+	}
+	// rpc-ui is the mode that CAN block on a tool-originated dialog: it installs the tool UI
+	// context and sets hasUI=true (main.ts:1570,1765). Plain rpc never opens one. Never select it.
+	if containsAll(args, "--mode", "rpc-ui") {
+		t.Errorf("--mode rpc-ui wires the tool UI context and is the blocking plane; args: %s", strings.Join(args, " "))
+	}
+	assertExplicitApprovalMode(t, args)
+}
+
+// assertExplicitApprovalMode proves the SECURITY half of the rewrite: `tools.approvalMode` is
+// NOT in omp's rpc host-default reset list (q3 §"Why --mode rpc is the non-blocking plane"), so
+// with no flag the child INHERITS the operator's own approval setting — q3-probe4 §A watched a
+// `bash` tool call run ungated under exactly that inheritance. The adapter must therefore pin
+// the mode explicitly, and to a value that ASKS (omp accepts always-ask|write|yolo): `yolo` and
+// its `--auto-approve` alias skip the approval prompt entirely, which would make the
+// CapPermissionPrompt promotion an over-claim — there would be nothing left to prompt.
+func assertExplicitApprovalMode(t *testing.T, args []string) {
+	t.Helper()
+	asking := map[string]bool{"always-ask": true, "write": true}
+	seen := 0
 	for i, a := range args {
-		if a == "--mode" && i+1 < len(args) && args[i+1] == "rpc" {
-			t.Errorf("must never select --mode rpc (the extension_ui_request blocking trap); args: %s", strings.Join(args, " "))
+		if a != "--approval-mode" {
+			continue
 		}
+		seen++
+		if i+1 >= len(args) {
+			t.Fatalf("--approval-mode carries no value; args: %s", strings.Join(args, " "))
+		}
+		if !asking[args[i+1]] {
+			t.Errorf("--approval-mode %s does not ask: an out-of-grant tool runs ungated and CapPermissionPrompt has nothing to prompt; want one of always-ask|write",
+				args[i+1])
+		}
+	}
+	if seen != 1 {
+		t.Errorf("the child must be pinned to EXACTLY one explicit --approval-mode (found %d): with no flag omp inherits the operator's tools.approvalMode and q3-probe4 watched bash run ungated; args: %s",
+			seen, strings.Join(args, " "))
+	}
+	if containsAll(args, "--auto-approve") {
+		t.Errorf("--auto-approve maps to tools.approvalMode=yolo (main.ts:1310) and skips every approval prompt; args: %s", strings.Join(args, " "))
 	}
 }
 
@@ -53,15 +103,23 @@ func TestBuildArguments_NoGrantsDisablesTools(t *testing.T) {
 	}
 }
 
-// TestBuildArguments_ResumeReattachesSession proves a non-empty ResumeFrom re-attaches a
-// harness-native session (CapResume) via --resume and roots lookup at a session dir derived
-// from the Workspace (instead of --no-session).
-func TestBuildArguments_ResumeReattachesSession(t *testing.T) {
+// TestBuildArguments_ResumeNeverDerivesTheSessionLayout proves a non-empty ResumeFrom
+// re-attaches a harness-native session (CapResume) via --resume — and that the adapter does
+// NOT hand omp a derived --session-dir. omp OWNS the on-disk layout: 17.2.5-17.2.8 wrote
+// hashed `<scope>-<project>-<sha256(cwd)>` buckets, 17.2.9 reverted to the legacy
+// project-scoped naming and removed the migration (omp.json harnessSurfaceChanges[9], issue
+// #7646/PR #7397), and 17.2.10 had to add a one-way migration back so `omp -r` could still find
+// a session created under the other scheme. A wrapper that spells a bucket path is a wrapper
+// that breaks on the next revert. The session STORE root is the child-env
+// PI_CODING_AGENT_DIR instead (its own pin lives in the child-env test).
+func TestBuildArguments_ResumeNeverDerivesTheSessionLayout(t *testing.T) {
 	t.Parallel()
 	spec := agentsession.Spec{Workspace: "/work/ws", ResumeFrom: "sess-abc"}
 	args := ompadapter.BuildArgumentsForTest(spec, agentsession.Route{Model: "m"})
 	mustContain(t, args, "--resume", "sess-abc")
-	mustContain(t, args, "--session-dir", "/work/ws/.omp-session")
+	if containsAll(args, "--session-dir") {
+		t.Errorf("the adapter must not derive omp's session directory layout (the 17.2.9 bucket revert); args: %v", args)
+	}
 	if containsAll(args, "--no-session") {
 		t.Errorf("a resuming session must not be ephemeral (--no-session); args: %v", args)
 	}
