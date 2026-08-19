@@ -11,9 +11,24 @@
 # manifests in this directory, plus the workload Deployments the eden Helm chart
 # promotion later commits alongside them (agentgateway, agent-runtime,
 # platformgateway, frontend).
+#
+# The 2 protection labels below are read by the in-tree ValidatingAdmissionPolicies
+# in `platform/core/policy/`. They are enforcement, not documentation:
+#   protected-storage — the apiserver REFUSES `DELETE persistentvolumeclaims` in
+#     this namespace. It covers all 3 eden PVCs at once, including
+#     `data-vault-0` and `data-eden-postgres-0`, which come from
+#     volumeClaimTemplates and cannot be labelled individually on a live
+#     StatefulSet (the field is immutable).
+#   protected — the apiserver REFUSES `DELETE namespaces` on this object, which
+#     is the cascade that garbage-collects those same PVCs.
+# Every PV here reclaims with Delete on `local-path`, whose teardown script is
+# `rm -rf`, and the `eden` namespace has no backup. Break glass by annotating the
+# object with `platform.gophersys/allow-delete: "<reason>"` first.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: eden
   labels:
     app.kubernetes.io/part-of: eden
+    platform.gophersys/protected-storage: "true"
+    platform.gophersys/protected: "true"

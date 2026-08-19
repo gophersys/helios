@@ -1,0 +1,32 @@
+# Admission policy: 2 in-tree ValidatingAdmissionPolicies that refuse the
+# irreversible deletion of storage. No controller, no pod, no CRD — the
+# apiserver's own plugin evaluates them. See platform/core/policy/README.md.
+#
+# prune:false, selfHeal:true, and both matter here:
+#   selfHeal — a VAP is exempt from VAP evaluation, so `kubectl delete vap` on
+#     the guard itself succeeds. Argo recreates it on the next reconcile.
+#   prune:false — deleting the manifest file in a merged PR must NOT remove the
+#     live guard. Removing this enforcement has to be a deliberate `kubectl
+#     delete` plus this line flipped, never a side effect of a file move. Same
+#     reasoning as app-eden-namespace.yaml.
+#
+# destination.namespace only satisfies Argo's destination check; every object in
+# this Application is cluster-scoped, and the field is ignored for those.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: policy
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: main
+    path: platform/core/policy/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: false

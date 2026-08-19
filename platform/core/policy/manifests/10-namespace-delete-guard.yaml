@@ -1,0 +1,50 @@
+# namespace-delete-guard — refuse the DELETE of a protected Namespace.
+#
+# This is the cascade that reaches the same PVCs 00-storage-delete-guard
+# protects: `kubectl delete ns eden` removes the Namespace object first, and the
+# kube-system namespace-controller then deletes every PVC inside it as garbage
+# collection — a path where no per-PVC guard can help without wedging the
+# namespace in Terminating forever. Refusing the Namespace DELETE up front is the
+# only place this cascade can be stopped cleanly.
+#
+# `clusters/instances/prod/identity.yaml:protection.namespace_delete_requires_override`
+# has DECLARED this since the file was written and enforced nothing. This is the
+# artifact that makes that line true.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: namespace-delete-guard
+spec:
+  # FAIL-CLOSED, for the same reason as the storage guard: the only failure mode
+  # is a broken expression, and a guard that stops guarding quietly is worse than
+  # no guard.
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["DELETE"]
+        resources: ["namespaces"]
+  variables:
+    # A Namespace is cluster-scoped, so `namespaceObject` is null here. The label
+    # is read off the object being deleted.
+    - name: protected
+      expression: "oldObject.metadata.?labels['platform.gophersys/protected'].orValue('') == 'true'"
+    - name: override
+      expression: "oldObject.metadata.?annotations['platform.gophersys/allow-delete'].orValue('')"
+  validations:
+    - expression: '!variables.protected || variables.override != ""'
+      reason: Forbidden
+      messageExpression: >-
+        'Namespace ' + oldObject.metadata.name + ' is protected: deleting it garbage-collects' +
+        ' every PVC inside it, and those PVs reclaim with Delete (local-path rm -rf).' +
+        ' To proceed, first: kubectl annotate ns ' + oldObject.metadata.name +
+        ' platform.gophersys/allow-delete="<reason>"'
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: namespace-delete-guard
+spec:
+  policyName: namespace-delete-guard
+  validationActions: [Deny]
