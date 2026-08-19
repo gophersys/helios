@@ -27,6 +27,13 @@
 #       resolved relative to [dir].
 #   C3  the real repo tree -> exit 0 AND a line "checked <N> manifest(s)" with
 #       N >= 1. The count is the anti-false-green witness (N == 92 today).
+#   C4  a Helm chart directory under a discovery root -> exit 0, and the count of
+#       skipped chart files is REPORTED. A Chart.yaml or a values.yaml has no
+#       `kind`, so kubeconform errors on every one of them; a registry
+#       Application whose `path:` is an in-repo chart (app-observability) would
+#       otherwise turn this gate red for files that are not manifests at all.
+#       The skip is counted out loud so it can never quietly grow to cover a
+#       real manifest tree.
 #
 # Run: bash scripts/test-lint-manifests.sh            # every case
 #      bash scripts/test-lint-manifests.sh <name>...  # one case, by name
@@ -51,6 +58,7 @@ CASES="
 floor_fires_on_empty_tree
 an_invalid_manifest_fails
 checks_the_real_tree
+a_helm_chart_dir_is_not_a_manifest_tree
 "
 
 # A missing tool is a failure, never a skip. C2 and C3 drive kubeconform through
@@ -166,6 +174,50 @@ test_checks_the_real_tree() {
   run_lint "$REPO_ROOT"
   expect_rc 0 "the repo has manifests and they are kubeconform-valid (C3)"
   expect_line 'checked [0-9]+ manifest' "the run must report a count >= 1 (C3)"
+}
+
+# 4. A HELM CHART IS NOT A RAW MANIFEST TREE. `platform/services/observability/chart`
+# is an in-repo chart that an Argo Application deploys by `path:`, so
+# lint-manifests discovers it as a root. Its Chart.yaml and its values files carry
+# no `kind`, and kubeconform reports each one as an error — 4 red findings for 4
+# files that were never manifests. The subject must skip a directory that carries
+# a Chart.yaml, and REPORT how many files that removed, so the exemption stays
+# visible. A valid manifest sits alongside under `apps/` so the run cannot pass by
+# having nothing left to check.
+test_a_helm_chart_dir_is_not_a_manifest_tree() {
+  local dir
+  dir="$(mktemp -d)"; TMPDIRS+=("$dir")
+  mkdir -p "$dir/apps" "$dir/apps/somechart/templates"
+  cat >"$dir/apps/good.yaml" <<'EOYAML'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: good
+data:
+  key: value
+EOYAML
+  cat >"$dir/apps/somechart/Chart.yaml" <<'EOYAML'
+apiVersion: v2
+name: somechart
+version: 0.1.0
+EOYAML
+  cat >"$dir/apps/somechart/values.yaml" <<'EOYAML'
+replicas: 1
+image:
+  tag: "1.0"
+EOYAML
+  # Even a templated manifest inside the chart is Helm source, not YAML a
+  # schema validator can read.
+  cat >"$dir/apps/somechart/templates/deployment.yaml" <<'EOYAML'
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+EOYAML
+  run_lint "$dir"
+  expect_rc 0 "a chart's Chart.yaml/values.yaml must not be validated as manifests (C4)"
+  expect_line 'skipped [0-9]+ file' "the chart exemption must be counted out loud (C4)"
+  expect_line 'checked [0-9]+ manifest' "the surviving real manifest must still be checked (C4)"
 }
 
 # -------- runner --------
