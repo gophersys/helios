@@ -66,11 +66,10 @@ configs:
         - CiliumEndpointSlice
       ### The Kyverno report exclusions that stood here are removed: Kyverno was
       ### uninstalled on 2026-08-09 and its CRDs went with it, so the block
-      ### excluded 8 kinds in 3 apiGroups that the apiserver does not serve.
+      ### excluded 9 kinds across 3 apiGroups that the apiserver does not serve.
       ### Nothing replaces it — the admission policy in platform/core/policy/ is
       ### 4 in-tree objects that Argo tracks like any other, and it generates no
       ### report resources at all.
-        - UpdateRequest
   params:
     server.insecure: true
 
