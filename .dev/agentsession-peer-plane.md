@@ -1,6 +1,6 @@
 # agentsession-peer-plane
 
-phase:    red
+phase:    verify
 repo:     gophersys/libs
 branch:   feat/agentsession-peer-plane
 worktree: ~/code/.worktrees/libs-agentsession-peer-plane
@@ -110,6 +110,18 @@ subagent test waits 5s. Fix: append agentsessiontest.Result(...) to each peer sc
 testpackage/cyclop16/errorlint:79; subagent_test QF1011 on the intentional
 var _ func=link.Send compile-assert (needs //nolint:staticcheck).
 
+## ALL GATES GREEN (51af485)
+Fix cycle closed: test author fixed the 7 (peer scripts carry a terminal so R1 drains
+promptly; property 1000 checks in 0.47s; 4 lints) + surfaced/fixed 2 of its own (load
+goleak flake, cover-floor 24→80 with in-process transport tests). Implementer fixed 2
+(planepeer→stubharness rename for the cover-floor helper-exclusion; wire.go #nosec G115
+consistent across gosec+golangci). phase-gate testing 11/11 GREEN incl. INTEGRATION
+(real UDS/real child procs kill→bounce/roster-drop/higher-Generation PASS 2.21s);
+implementation + qa green; apidiff additive 27/0/0. ONLY architecture 'contract frozen
+header' red = docs/architecture/contracts/agentsession.md (the R1 revision doc, lands at
+eden S5/PR-2 — expected-absent in libs-standalone, NOT a regression).
+
 ## Next
-Phase 2 handback: test author fixes the 7 test-file items → phase-gate all green →
-verify → PR-1c-i.
+Phase 4: adversarial verify the whole plane (the security-relevant surface: peer body
+redaction/canary, the reconciler loudness, non-conflation compile+runtime, socket
+SO_PEERCRED fail-closed, apidiff additive-only, no emit off the pump). Then PR-1c-i.
