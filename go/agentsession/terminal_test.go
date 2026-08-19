@@ -231,6 +231,30 @@ func TestClose_UnbiddenDeathKeepsTheSessionLedger(t *testing.T) {
 	}
 }
 
+// TestClose_ZeroTurnSessionSealsAnUnreportedCost pins the SEED of the session total: a session
+// opened and then closed without ever taking a turn seals on the -1 unreported sentinel, zero
+// tokens and zero turns.
+//
+// It is the only case that can see the seed. Every other session folds at least one turn
+// boundary, and the first fold overwrites whatever the accumulator started at — so seeding the
+// total at the zero value instead of at -1 leaves the whole suite green while quietly asserting
+// that a session nobody ever prompted cost exactly nothing. It did not cost nothing; no harness
+// ever said what it cost, and the two are different facts (the same distinction the two-turn
+// sentinel pins below make for a session that DID run).
+func TestClose_ZeroTurnSessionSealsAnUnreportedCost(t *testing.T) {
+	t.Parallel()
+	conn := newTurnConn(gracefulClose) // no scripted turns: the harness only ever says Ready
+	session, transcriptEvents := openScriptedSession(t, conn)
+
+	if err := session.Close(context.Background()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	// Every field zero EXCEPT the cost, which is the "no harness reported it" sentinel.
+	want := agentsession.TokenLedger{UsageMeter: agentsession.UsageMeter{CostMicros: -1}}
+	assertBothAccountings(t, transcriptEvents(), want)
+}
+
 // TestClose_UnreportedCostStaysUnreported pins the -1 sentinel across the session boundary: two
 // turns whose ledgers BOTH carry CostMicros=-1 — the value both normalizers stamp when the
 // harness sent no usage block at all (claudeadapter/normalize.go, ompadapter/normalize.go) —
