@@ -1,0 +1,7 @@
+{
+  "//": "STIMULUS. _ctl/tests/devcontainer-contract.test.sh copies this file over first/devcontainer.json in the staged root. It is well-formed JSON, it carries the dev user and /workspace, and its .image matches the ghcr.io/gophersys/<name>:latest shape the gate already enforces — so the ONLY thing wrong with it is that the devcontainer.json of `first` opens the image of `second`. That is the whole point: the property under test is SELF-REFERENCE, and a stimulus that broke a second property as well would be refused by the rule that already exists and prove nothing about the new one.",
+  "name": "first",
+  "image": "ghcr.io/gophersys/second:latest",
+  "remoteUser": "dev",
+  "workspaceFolder": "/workspace"
+}
