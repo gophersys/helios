@@ -231,15 +231,17 @@ images:
     smoke_ref: embedded:smoke
     paths:
       - embedded/
-    # content-zephyr and content-devbox are BOTH here, and neither name moved.
-    # A group names the CONTENT it exercises — west, and the flash/debug stack
-    # — and that content is what it always was; it is the 2 IMAGES that became
-    # 1. Renaming the groups would have made this fold reach into
-    # .ci/image-checks.sh for nothing.
+    # content-zephyr and content-devbox were BOTH here, and they are 1 group
+    # now. The 2 groups existed because there were 2 IMAGES; the devbox
+    # deletion (Mateo, 2026-08-19) removed the only checks that were the pod's
+    # own — code-server, its seeded extension, and the 3 sshd steps — and every
+    # surviving check is toolchain content that content-zephyr already answers
+    # for: west and its venv deps, the flash/debug stack, and the gcc of each
+    # SDK toolchain. A group names the CONTENT it exercises, so the name that
+    # stays is the one whose content stayed.
     groups:
       - content-base
       - content-zephyr
-      - content-devbox
       - go-gate
       - dockerfile-lint
       - compose
@@ -318,6 +320,23 @@ images:
     # holds exactly 1 variant and the ambiguity has nothing to choose between.
     # The number in this row is amd64 because that is the platform the gate
     # smokes, and it is also the larger of the 2.
+    #
+    # THIS ROW IS NOW A CEILING OVER AN IMAGE THAT NO LONGER EXISTS, AND IT IS
+    # DELIBERATELY NOT GUESSED DOWN. The devbox deletion (Mateo, 2026-08-19)
+    # removes code-server, its seeded extension set and openssh-server from
+    # this image; the pre-fold measurement of the whole devbox delta was 1.504
+    # GB, but that delta ALSO held esptool, the Xtensa toolchains, the
+    # flash/debug stack and the udev rules, every one of which stays. So the
+    # saving is a FRACTION of 1.504 GB that no measurement in this repository
+    # answers for, and a budget written from arithmetic on a number that
+    # measured something else is exactly the stale row #119 was about.
+    #
+    # 8.98 therefore stands until the first publish after this merge, whose
+    # gate prints the new unpacked byte count; the follow-up is to reset this
+    # row to that measurement + 5%, by the method the comment above states, in
+    # a change of its own. A budget that is too HIGH cannot pass a broken
+    # image — it can only fail to catch a bloated one — so carrying it for one
+    # publish costs a delay and not a gate.
     size_budget_gb: 8.98
     notes:
       base_tag: |
@@ -329,19 +348,18 @@ images:
         building. The reverse does not hold, which is what BASE_TAG answers.
       smoke: |
         embedded inherits every tool of base, so the pins of versions.env are
-        compared here too. Its own home adds 7 rows on top of them, of which 4
-        are `asserted` — WEST_VERSION, ZEPHYR_SDK_VERSION, ESPTOOL_VERSION and
-        CODE_SERVER_VERSION; BASE_TAG and the 2 toolchain LISTS name no version
-        to compare. That is the check the 2-image split cost: west and the
-        Zephyr SDK lived in the parent's file, so the devbox run asserted 2 of
-        the 4 its image carried (the inherited-pin half of ledger #102).
+        compared here too. Its own home adds 6 rows on top of them, of which 3
+        are `asserted` — WEST_VERSION, ZEPHYR_SDK_VERSION and ESPTOOL_VERSION;
+        BASE_TAG and the 2 toolchain LISTS name no version to compare. It was 7
+        rows and 4 asserted until the devbox deletion took CODE_SERVER_VERSION
+        with the binary it pinned.
 
-        The image ships USER root for sshd, and the run forces the dev user so
-        the base checks run in the identity every other image uses. The
-        flash/debug stack, the SDK toolchains and `sshd -t` are checked on top.
-        The argv this step sends BYPASSES the entrypoint's mode dispatch, so
-        nothing here exercises it — _ctl/tests/embedded-entrypoint.test.sh is
-        that coverage, on the host.
+        The image ships USER root, and the run forces the dev user so the base
+        checks run in the identity every other image uses. The flash/debug
+        stack and the SDK toolchains are checked on top; the 3 sshd steps went
+        with sshd. The argv this step sends reaches the entrypoint's non-root
+        arm, so what it exercises is the plain exec and not the euid-0 drop —
+        _ctl/tests/embedded-entrypoint.test.sh is that coverage, on the host.
 
   cloud:
     parent: ""

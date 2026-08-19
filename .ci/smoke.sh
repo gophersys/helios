@@ -104,10 +104,12 @@ fi
 #
 # mobile and embedded read versions.env too, and always did read base's home:
 # what they assert there is the toolchain they INHERIT from base. What they did
-# NOT assert was their own `ARG NAME=value` block — 13 pins, of which
-# FLUTTER_VERSION, WEST_VERSION, ZEPHYR_SDK_VERSION, ESPTOOL_VERSION and
-# CODE_SERVER_VERSION name a tool that reports its own version and no run
-# compared one. That is ledger #102, and CHILD_PIN_HOME below is its home half:
+# NOT assert was their own `ARG NAME=value` block — 13 pins at the time this
+# was measured, of which FLUTTER_VERSION, WEST_VERSION, ZEPHYR_SDK_VERSION,
+# ESPTOOL_VERSION and CODE_SERVER_VERSION named a tool that reports its own
+# version and no run compared one. (CODE_SERVER_VERSION is deleted since — the
+# devbox deletion of 2026-08-19 took the binary with it. Read the ARG blocks,
+# never this count.) That is ledger #102, and CHILD_PIN_HOME below is its home half:
 # a child image reads its own Dockerfile as a SECOND home, with its own
 # classification table, and every rule of the versions.env home applies to it
 # unchanged — an unclassified pin refuses the run just the same.
@@ -535,18 +537,23 @@ PIN_CLASS_TABLE
 # the PARENT's Dockerfile, and CHILD_PIN_HOME reads 1 file: the image's own. So
 # the devbox run asserted esptool and code-server against the image and left the
 # 2 pins it inherited compared by nothing — the inherited-pin half of ledger
-# #102. The 2 images are 1 image now, so the 2 tables are 1 table over 1 home,
-# and the 4 `asserted` rows are all compared in 1 run where the devbox run
-# compared 2 of them. That closes #102 FOR THIS FAMILY
+# #102. The 2 images are 1 image now, so the 2 tables are 1 table over 1 home.
+# That closes #102 FOR THIS FAMILY
 # and for no other: `mobile` still inherits base's pins the same way, and the
 # general fix is a FROM-graph walker in this driver, which is still open.
+#
+# THE TABLE IS 6 ROWS AND IT WAS 7. `CODE_SERVER_VERSION|asserted` left with
+# the devbox deletion (Mateo, 2026-08-19), because the binary it compared
+# against is not in the image any more — an `asserted` row over an absent tool
+# is a row that goes red forever, and a `not-in-this-image` row for a pin no
+# home declares is a row `version-coverage.test.sh` refuses in the other
+# direction. A pin with no declaration takes no row at all.
 read -r -d '' PIN_CLASSES_EMBEDDED <<'PIN_CLASS_TABLE' || true
 BASE_TAG|not-a-version||
 WEST_VERSION|asserted|west --version|
 ZEPHYR_SDK_VERSION|asserted|cat ${ZEPHYR_SDK_INSTALL_DIR}/sdk_version|
 ZSDK_TOOLCHAINS|not-a-version||
 ESPTOOL_VERSION|asserted|esptool version|
-CODE_SERVER_VERSION|asserted|code-server --version|line:with Code
 ZSDK_EXTRA_TOOLCHAINS|not-a-version||
 PIN_CLASS_TABLE
 
@@ -558,19 +565,20 @@ PIN_CLASS_TABLE
 #
 # ZSDK_TOOLCHAINS and ZSDK_EXTRA_TOOLCHAINS are comma-separated LISTS of
 # toolchain names and pin no version at all. What they select is asserted by the
-# content-devbox group, which finds the gcc of each toolchain under the SDK root.
+# content-zephyr group, which finds the gcc of each toolchain under the SDK root.
 #
-# CODE_SERVER_VERSION scopes to the line that says 'with Code' — the canonical
-# '4.133.0 <hash> with Code 1.x' line. Unscoped, the reader took the FIRST
-# number in the whole output, and in the built image that was '12.329': the
-# seconds of a timestamped warning line printed above the version. The
-# observed 'version' equalled the wall clock of the check itself
-# (02:04:12.329, failed at .338) — measured in run 32088060119.
-# CODE_SERVER_VERSION is why this table exists. It was pinned in the current
-# cycle and no class, no test and no run compared it against the image: read on
-# 2026-08-17, ghcr.io/gophersys/zephyr-devbox:latest reports 4.127.0 while
-# zephyr-devbox/Dockerfile pins 4.133.0. The published image is older than the
-# pin, and until this row nothing in this repository could say so.
+# CODE_SERVER_VERSION IS WHY THIS TABLE EXISTS, and the row is gone while the
+# table stays. It was pinned in a cycle where no class, no test and no run
+# compared it against the image: read on 2026-08-17,
+# ghcr.io/gophersys/zephyr-devbox:latest reported 4.127.0 while
+# zephyr-devbox/Dockerfile pinned 4.133.0 — the published image was older than
+# its own pin, and nothing here could say so. Its scoping clause is worth
+# keeping as the lesson even though the row is deleted: it read `line:with
+# Code`, because unscoped the reader took the FIRST number in the whole output
+# and in the built image that was '12.329' — the seconds of a timestamped
+# warning line printed above the version, so the observed 'version' equalled the
+# wall clock of the check itself (02:04:12.329, failed at .338), measured in run
+# 32088060119. A comparator needs to be told WHICH line answers.
 
 # The functional groups .ci/image-checks.sh runs for each image, beyond the
 # version comparison, are the `groups` field of images.yaml — image_check_groups
@@ -1224,15 +1232,18 @@ RUN_ARGS=(
   --platform "$SMOKE_PLATFORM_RESOLVED"
 )
 if [[ "$IMAGE" == "embedded" ]]; then
-  # The embedded image ships USER root, because 1 of its 2 modes is a pod that
-  # runs sshd. Force the dev user so the base checks run in the same identity as
-  # the other images.
+  # The embedded image ships USER root and its entrypoint drops to dev. Force
+  # the dev user so the base checks run in the same identity as the other
+  # images.
   #
   # This is ALSO the non-root arm of the entrypoint's euid test, and it is
-  # reached by accident rather than by design: the argv below is a command, so
-  # the entrypoint takes its DEFAULT mode, finds euid != 0 and execs plainly
-  # instead of through runuser. Nothing here exercises the devbox mode or the
-  # root arm — _ctl/tests/embedded-entrypoint.test.sh is that coverage.
+  # reached by accident rather than by design: at euid != 0 the entrypoint execs
+  # the argv below plainly instead of through runuser. Nothing here exercises
+  # the euid-0 arm — _ctl/tests/embedded-entrypoint.test.sh is that coverage.
+  #
+  # THIS ARM IS THE COST OF `USER root`, and root is what the deleted pod half
+  # needed. Collapsing the image onto `USER dev` would delete this branch with
+  # it; that is stated as open work at the top of embedded-entrypoint.sh.
   RUN_ARGS+=(--user dev)
 fi
 

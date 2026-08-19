@@ -216,9 +216,12 @@ EDEN_SECRET_VALUE="stub-eden-manifest-token"
 NIGHTLY_LABEL="ci-nightly-red"
 WEEKLY_LABEL="ci-weekly-red"
 
-# The 3 real pins whose only home is a Dockerfile. A resolver that reads
-# versions.env alone answers 45 of the 56 pins and cannot see these at all.
-SOLE_HOME_PINS=("FLUTTER_VERSION" "ZEPHYR_SDK_VERSION" "CODE_SERVER_VERSION")
+# The real pins whose only home is a Dockerfile. A resolver that reads
+# versions.env alone cannot see these at all. It was 3 and it is 2:
+# CODE_SERVER_VERSION left with the devbox deletion (2026-08-19), and its row
+# in _build/upstreams.txt left in the same change — a listing row for a pin no
+# home declares is what upstream-coverage.test.sh reports.
+SOLE_HOME_PINS=("FLUTTER_VERSION" "ZEPHYR_SDK_VERSION")
 
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT

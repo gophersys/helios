@@ -44,7 +44,7 @@ every image has it. See "The shared ctl library" below.
 |---|---|---|
 | `ghcr.io/gophersys/base` | The general-purpose image. Ubuntu 24.04 + zsh/oh-my-zsh + Node LTS + Python 3.12 + Go stable + Rust stable + kubectl/helm/tailscale/docker-cli/docker-compose/bw/gh/k9s/nats + postgresql-client/sqlite3/redis-tools + jq/yq/httpie/rg/fd/bat + shellcheck/hadolint + Tauri/GTK/webkit desktop libs + libusb/libudev/libbluetooth/bluez USB-BLE libs. Every pin comes from `versions.env`. | `base` |
 | `ghcr.io/gophersys/mobile` | Base + OpenJDK 21 + Android cmdline-tools / platform-tools / build-tools + Flutter stable SDK. The targets are Linux desktop and Android. iOS is not in the scope. | `mobile` |
-| `ghcr.io/gophersys/embedded` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif), plus the pod half: sshd (key-auth only, host keys on a PVC subpath at `/etc/ssh/hostkeys`) + openocd / stlink-tools / picocom / gdb-multiarch + `esptool` in an isolated venv + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + CP210x/CH340 USB-UART udev rules + clangd and **code-server on `:8443`** (browser VS Code, with the clangd extension seeded at build time). **It was 2 images**, `zephyr` and `zephyr-devbox`. It ships `USER root` and its entrypoint picks the identity: `GOPHERSYS_EMBEDDED_MODE=devbox` is the k8s pod (VS Code Remote-SSH, and the browser at `:8443`, code-server as `dev` and **needing a credential**); anything else, absence included, execs your command as `dev` the way the toolchain layer always did — see "The embedded entrypoint" below. Size budget 8.98 GB — set on 2026-08-19 from 8,543,752,192 unpacked bytes measured on the repaired gate, + 5%. See the note beside the key in `images.yaml`. | `embedded` |
+| `ghcr.io/gophersys/embedded` | Base + device-tree-compiler / ninja / ccache / dfu-util + `west` in an isolated venv + Zephyr SDK (arm-zephyr-eabi + riscv64-zephyr-elf by default) + every Espressif Xtensa SDK toolchain (esp32, esp32s2, esp32s3) + `esptool` in an isolated venv + the flash/debug bench (openocd / stlink-tools / picocom / gdb-multiarch / clangd) + udev rules for common dev boards (ST-Link, J-Link, DAPLink, Black Magic Probe, nRF, Espressif) and for the CP210x/CH340 USB-UART bridges. **It was 2 images**, `zephyr` and `zephyr-devbox`, and the pod half of that fold — sshd, code-server on `:8443`, the `DEVBOX_*` env contract and the `GOPHERSYS_EMBEDDED_MODE` dispatch — **is DELETED** (Mateo, 2026-08-19); see "The devbox mode is deleted" in `.claude/rules/00-identity.md`. It still ships `USER root`, and its entrypoint drops to `dev` before it execs your command — see "The embedded entrypoint" below. Size budget 8.98 GB, and that row is a CEILING over the pre-deletion image: it is re-measured from the first publish after the deletion rather than guessed down. | `embedded` |
 | `ghcr.io/gophersys/cloud` | The reduced base + the CI fold (the Actions runner, cictl, buildx, the harnesses), built `FROM ubuntu` directly rather than from `base`, so it is a reduction and not a layer. **Every ARC pool runs it**, and the same image is a devcontainer: the default command is zsh and a CI pod overrides it. Every pin comes from `versions.env`. | `cloud` |
 | `ghcr.io/gophersys/hardware` | Cloud + the KiCad 10 ECAD toolchain from the project's own PPA (`kicad`, `kicad-symbols`, `kicad-footprints`, `kicad-packages3d`) + the python stack the consumer's suite imports and runs (`kiutils`, `sexpdata`, `pytest`, `ruff`). `kicad-cli` drives headless ERC, DRC, netlist export and Gerber generation. The consumer is `gophersys/research-hardware`. It is 1 of the 2 CHILD images whose pins come from `versions.env`: its ARGs are value-less like cloud's, and `pins: versions.env` on its manifest entry generates the build args. Size budget 10.52 GB — reset on 2026-08-19 from the 11.0 estimate to the first green build measured on the repaired gate, + 5%. See the note beside the key in `images.yaml`. | `hardware` |
 | `ghcr.io/gophersys/ui` | Cloud + headless Chrome and the DejaVu fallback font. The consumer is `gophersys/research-ui`. It exposes cloud's own Node and uv at `/usr/local/bin` rather than installing a second copy of each, and its content group asserts `node`/`npm`/`uv` resolving as BOTH root and dev. It is the other CHILD whose pins come from `versions.env`. Size budget 6.33 GB — reset on 2026-08-19 from the 6.5 estimate to the first build measured on the repaired gate, + 5%. See the note beside the key in `images.yaml`. | `ui` |
@@ -256,43 +256,26 @@ was missing here while the same README said 45 lines higher that the pools run
 
 ### The embedded entrypoint
 
-`embedded/embedded-entrypoint.sh` is PID 1 of the pod. Read that file for the
-full contract. sshd is the LAST thing it does, and these steps come first — and
-NONE of them runs unless the mode says so:
+`embedded/embedded-entrypoint.sh` is PID 1 of the image, and it does ONE thing:
 
 | Step | What it does | Operator knob |
 |---|---|---|
-| mode dispatch | Everything below runs only under `GOPHERSYS_EMBEDDED_MODE=devbox`. Any other value, absence included, is toolchain mode: it execs the argv docker hands it (the image `CMD` when you named none) as `dev`, touches nothing under `/etc/ssh`, and a local `docker run <image> zsh` behaves like the other layers. **Toolchain mode with an EMPTY argv exits 2** naming the cause — the image declares `CMD`, so reaching it means a caller replaced `CMD` with nothing, and execing nothing would fall through to the pod steps below. It writes `/run/devbox-degraded` when it can; as a non-root caller `/run` is read-only and the log line is then the whole record. | `GOPHERSYS_EMBEDDED_MODE` |
-| host keys | Generates ed25519 + rsa keys into `/etc/ssh/hostkeys` (a PVC subpath), so the box keeps its SSH identity across restarts. | — |
-| mountpoint ownership | Chowns and chmods `/home/dev` and `/workspace`, **non-recursively** — recursing a populated home on every boot is slow and tramples intentional ownership. | — |
-| authorized_keys | Takes the keys from `DEVBOX_AUTHORIZED_KEYS`, else from a mounted `/etc/devbox/authorized_keys`, else leaves the persistent home's file alone. | `DEVBOX_AUTHORIZED_KEYS` |
-| mcu slots | Recreates `/dev/mcu-slot-1..6` from `/dev/serial/by-path`. A symlink at the node's `/dev` root does not reach the pod. Slot N is guest USB port N is physical hub slot N. | — |
-| code-server | Starts it as `dev` on `0.0.0.0:8443`, under a supervisor loop that logs and restarts every exit. | `DEVBOX_CODE_SERVER_HASHED_PASSWORD` **or** `DEVBOX_CODE_SERVER_AUTH=none-behind-proxy` |
+| dev drop | Execs the argv docker hands it — the image `CMD` when you named none — as `dev`. At euid 0 that is `runuser -u dev --`; at any other euid (`docker run --user dev`, which `.ci/smoke.sh` does) it execs plainly, because `runuser` REFUSES below root and would turn a working invocation into an error. **An EMPTY argv exits 2** naming the cause: the image declares `CMD`, so reaching it means a caller replaced `CMD` with nothing, and `exec` with no argument is a no-op that would hand you a container which started nothing and exited 0. | — |
 
-**code-server auth is required by default.** Set
-`DEVBOX_CODE_SERVER_HASHED_PASSWORD` to an argon2 hash (code-server's own
-`HASHED_PASSWORD` contract, usually from a Secret), or set
-`DEVBOX_CODE_SERVER_AUTH=none-behind-proxy` to declare that an authenticating
-proxy owns the port. With neither set, code-server does NOT start and the
-refusal names both knobs. The reason is measured: the account code-server runs
-as holds passwordless sudo, so a reachable unauthenticated `:8443` is root on
-the pod for any peer the network admits — and the network boundary is a
-NetworkPolicy in another repository, which this file cannot see and must not
-trust as the only wall.
+That table had **7 rows**, and the other 6 were the pod: SSH host keys into
+`/etc/ssh/hostkeys`, mountpoint ownership, `authorized_keys` from
+`DEVBOX_AUTHORIZED_KEYS`, the `/dev/mcu-slot-N` links, code-server on `:8443`
+behind `DEVBOX_CODE_SERVER_HASHED_PASSWORD`, and `exec sshd`. **All 6 are
+deleted** — Mateo, 2026-08-19 — along with `GOPHERSYS_EMBEDDED_MODE`, the
+`/run/devbox-degraded` marker and the `EXPOSE 22` / `EXPOSE 8443` lines. The
+decision and its evidence are in `.claude/rules/00-identity.md`, "The devbox
+mode is deleted".
 
-**Every refusal in the pod path writes `/run/devbox-degraded` and logs ERROR.**
-sshd still runs, because code-server is supplementary and a missing credential
-must not take the primary service down. A pod that reports Running while a
-declared service is absent is the failure mode this entrypoint used to have, so
-the marker file gives a probe or an operator machine-readable state to find.
-
-Two things are deliberately NOT refusals, and an earlier version of this
-paragraph said "every refusal … logs ERROR, not WARNING" while both existed.
-**The mcu slot links are best-effort by design** and log WARNING: outside k8s
-those `/dev/serial/by-path` entries do not exist, and a missing bench board must
-not abort the boot. **The empty-argv refusal is in the TOOLCHAIN path**, not the
-pod path, so it exits 2 rather than degrading a service, and its marker write is
-attempted rather than required — the caller may be unprivileged.
+**The image still ships `USER root`**, and this script is what puts `dev` back,
+so `docker run embedded id` answers `dev` exactly as the pre-fold `USER dev`
+line made it. Nothing in the image needs root any more; collapsing the pair into
+a plain `USER dev` is open work stated at the top of the entrypoint, because it
+also removes `.ci/smoke.sh`'s embedded-only `--user dev` arm.
 
 ## Sanctioned-platform policy
 

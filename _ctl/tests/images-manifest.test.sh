@@ -529,8 +529,8 @@ fi
 # THE `sort -u` ABOVE IS WHAT MAKES THIS CHECK NECESSARY, and it is not a fault
 # of it. Set equality has to deduplicate, or 2 images naming `content-base`
 # would read as 2 members and fail. So the equality rule is BLIND to a repeated
-# entry INSIDE 1 image's list: `groups: [content-base, content-devbox,
-# content-devbox]` passes every check in this repository, and .ci/image-checks.sh
+# entry INSIDE 1 image's list: `groups: [content-base, content-zephyr,
+# content-zephyr]` passes every check in this repository, and .ci/image-checks.sh
 # then runs that group twice in the publish smoke.
 #
 # The typo direction is covered and the duplicate direction was not. A duplicate

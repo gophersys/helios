@@ -129,6 +129,12 @@ UPSTREAMS_FILE="_build/upstreams.txt"
 # never moved, the file that declares them was renamed, and the table was never
 # touched. A reader who "fixed" the table there would have deleted 4 correct
 # rows to silence a stale literal.
+#
+# CODE_SERVER_VERSION's row IS deleted now, and the 2 cases are the opposite of
+# each other rather than the same one twice: at the fold the pin still had a
+# home and the LISTING was correct; at the devbox deletion (2026-08-19) the pin
+# lost its home, so the row named nothing and had to go with it. The rule that
+# tells them apart is this file's own — read the HOMES, never the listing.
 VALUE_HOMES=(
   "versions.env"
   "mobile/Dockerfile"
