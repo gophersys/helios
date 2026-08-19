@@ -57,8 +57,10 @@ spec:
                   value: "2"
                 - name: attempts
                   value: "4"
-            # Same reasoning as arc-org: keep builds off the embedded lab node, and
-            # off the 3 etcd control planes that no taint protects (D45).
+            # Same reasoning as arc-org: keep jobs off the 3 etcd control planes
+            # that no taint protects (D45). k3s-w-4 left this list on 2026-08-19
+            # when the USB-passthrough embedded lab was retired and the node
+            # returned to general capacity.
             affinity:
               nodeAffinity:
                 requiredDuringSchedulingIgnoredDuringExecution:
@@ -66,7 +68,7 @@ spec:
                     - matchExpressions:
                         - key: kubernetes.io/hostname
                           operator: NotIn
-                          values: ["k3s-w-4", "k3s-cp-0", "k3s-cp-1", "k3s-cp-2"]
+                          values: ["k3s-cp-0", "k3s-cp-1", "k3s-cp-2"]
 
             imagePullSecrets:
               - name: ghcr-pull

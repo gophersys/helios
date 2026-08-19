@@ -14,9 +14,9 @@ secret `arc-github-app` (Bitwarden: `shared/github/arc-app`).
 
 | `runs-on:` | Capacity | dind | Placement | What it answers | Manifest |
 |---|---|---|---|---|---|
-| **`arc-org`** | min 1, max 4 | yes | any node except `k3s-w-4` | every repo's `validate` and its general jobs | `app-arc-runners-org.yaml` |
+| **`arc-org`** | min 1, max 4 | yes | any worker (`k3s-w-0..4`); not the control planes | every repo's `validate` and its general jobs | `app-arc-runners-org.yaml` |
 | **`arc-build`** | min 0, max 6 | yes | `k3s-w-0`, `k3s-w-1`, `k3s-w-2` only | container image builds — `.devcontainer`'s build-and-push, nightly scan and weekly bump | `app-arc-runners-build.yaml` |
-| **`arc-review`** | min 0, max 2 | **no** | any node except `k3s-w-4` | the pull request review agent, and nothing else | `app-arc-runners-review.yaml` |
+| **`arc-review`** | min 0, max 2 | **no** | any worker (`k3s-w-0..4`); not the control planes | the pull request review agent, and nothing else | `app-arc-runners-review.yaml` |
 
 All three run the **same** runner image, `ghcr.io/gophersys/cloud`, pinned by
 digest: one image for dev and CI, with the Actions runner folded in. See
@@ -108,10 +108,13 @@ Keep these 3 decisions:
   memory numbers would never have caught that failure.
 
 Declare the placement; do not use a hand-applied label. On `arc-org` and
-`arc-review` a `nodeAffinity` `NotIn [k3s-w-4]` keeps jobs off the
-USB-passthrough embedded node. `arc-build` states the positive form,
-`In [k3s-w-0, k3s-w-1, k3s-w-2]`, because it must also stay off `k3s-w-3`: that
-node has 9Gi of RAM and one pod of this shape declares 12Gi of memory limits. A
+`arc-review` a `nodeAffinity` `NotIn [k3s-cp-0, k3s-cp-1, k3s-cp-2]` keeps jobs
+off the etcd control planes, which no taint protects (D45). Both pools also
+excluded `k3s-w-4` while it held the USB-passthrough embedded lab; that role was
+retired on 2026-08-19 and the node is general capacity again. `arc-build` states
+the positive form, `In [k3s-w-0, k3s-w-1, k3s-w-2]`, because it must also stay
+off `k3s-w-3` **and** `k3s-w-4`: both have 9Gi of RAM and one pod of this shape
+declares 12Gi of memory limits. A
 preferred `podAntiAffinity` spreads concurrent runners across the workers on
 every pool. The manifests use the hostnames directly, so nothing depends on a
 label applied by hand outside git.

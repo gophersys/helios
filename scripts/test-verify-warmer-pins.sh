@@ -118,8 +118,13 @@ DIGEST="ghcr.io/gophersys/cloud@sha256:9a150cbff74b67f67f69cca1b25a463103cbe8885
 # lists below are what a manifest declares.
 CP_NODES="k3s-cp-0 k3s-cp-1 k3s-cp-2"
 WORKER_NODES="k3s-w-0 k3s-w-1 k3s-w-2 k3s-w-3 k3s-w-4"
-LAB_ONLY="k3s-w-4"                                       # every NotIn today
-LAB_AND_CPS="k3s-w-4 k3s-cp-0 k3s-cp-1 k3s-cp-2"         # what the fix writes
+# Fixture hostnames only. They reproduce the 2026-08-18 tree this suite was
+# written against, when every NotIn list read ["k3s-w-4"]; the live manifests
+# now exclude the control planes alone (k3s-w-4 returned to general capacity on
+# 2026-08-19). The suite never reads the real manifests, so these stay as they
+# are: what they exercise is the SHAPE of an exclusion, not today's node set.
+LAB_ONLY="k3s-w-4"                                       # a one-node NotIn list
+LAB_AND_CPS="k3s-w-4 k3s-cp-0 k3s-cp-1 k3s-cp-2"         # a fully-excluding list
 
 CASES="
 a_fully_excluded_tree_is_accepted
@@ -493,7 +498,7 @@ spec:
             securityContext:
               supplementalGroups: [123]
 
-            # k3s-w-4 owns the USB-passthrough embedded lab.
+            # A placement comment, so the fixture matches the real pool shape.
 $(pool_node_affinity "$shape" "$hosts")
               podAntiAffinity:
                 preferredDuringSchedulingIgnoredDuringExecution:
