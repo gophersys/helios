@@ -371,7 +371,10 @@ images:
       - go-gate
       - dockerfile-lint
       - compose
-    # PROVISIONAL, and computed from 2 MEASURED images rather than chosen.
+    # THIS ROW IS NO LONGER PROVISIONAL — read to the end before using any
+    # number in it. What follows is the ESTIMATE that stood here until
+    # 2026-08-19, computed from 2 MEASURED images rather than chosen, and it is
+    # kept because it is what the real measurement below is judged against.
     # Method, read on 2026-08-18 through the ghcr.io registry API:
     #
     #   cloud:latest (amd64) — the per-layer gzip ISIZE trailers of its 38
@@ -477,9 +480,10 @@ images:
     # one package version serves both architectures. Narrowing this image later
     # is a human decision with a measurement beside it, exactly like mobile's.
 
-    # The size budget below is PROVISIONAL, and computed from MEASURED images
-    # rather than chosen — hardware's method, read on 2026-08-18 through the
-    # ghcr.io registry API:
+    # THE SIZE BUDGET BELOW IS NO LONGER PROVISIONAL — read to the end before
+    # using any number in it. What follows is the ESTIMATE that stood here until
+    # 2026-08-19, computed from MEASURED images rather than chosen — hardware's
+    # method, read on 2026-08-18 through the ghcr.io registry API:
     #
     #   cloud:latest (amd64) — the per-layer gzip ISIZE trailers of its 38
     #   layers sum to 5,063,539,712 bytes. Against its declared 5.75 GB budget

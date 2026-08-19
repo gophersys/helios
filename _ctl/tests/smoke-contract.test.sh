@@ -775,9 +775,9 @@ done
 run_smoke "$SMOKE" "$HARDWARE_IMAGE" "$HARDWARE_SMOKE_REF" "STUB_IMAGE_SIZE=$((HARDWARE_SIZE_BUDGET + 1))"
 assert_refused_without_running "a_hardware_image_one_byte_over_its_budget_fails_and_starts_no_container" \
   "$HARDWARE_SIZE_BUDGET" \
-  "the image measured $((HARDWARE_SIZE_BUDGET + 1)) bytes, which is 1 byte over the 11.0 GB budget" \
-  "the budget is PROVISIONAL and the first green build resets it — a gate that does not bite" \
-  "cannot report the re-measurement it exists to force"
+  "the image measured $((HARDWARE_SIZE_BUDGET + 1)) unpacked bytes, which is 1 byte over the 10.52 GB budget" \
+  "that budget was reset in this change to the first measured size + 5%, so it sits 5% above a real" \
+  "image rather than above an estimate — a gate that does not bite cannot report the growth it exists to catch"
 
 run_smoke "$SMOKE" "$HARDWARE_IMAGE" "$HARDWARE_SMOKE_REF" "STUB_IMAGE_SIZE=${HARDWARE_SIZE_BUDGET}"
 if [[ "$RUN_STATUS" -ne 0 ]]; then
@@ -938,9 +938,9 @@ done
 run_smoke "$SMOKE" "$UI_IMAGE" "$UI_SMOKE_REF" "STUB_IMAGE_SIZE=$((UI_SIZE_BUDGET + 1))"
 assert_refused_without_running "a_ui_image_one_byte_over_its_budget_fails_and_starts_no_container" \
   "$UI_SIZE_BUDGET" \
-  "the image measured $((UI_SIZE_BUDGET + 1)) bytes, which is 1 byte over the 6.5 GB budget" \
-  "the budget is PROVISIONAL and the first build measured on cloud's basis resets it — a gate" \
-  "that does not bite cannot report the re-measurement it exists to force"
+  "the image measured $((UI_SIZE_BUDGET + 1)) unpacked bytes, which is 1 byte over the 6.33 GB budget" \
+  "that budget was reset in this change to the first measured size + 5%, so it sits 5% above a real" \
+  "image rather than above an estimate — a gate that does not bite cannot report the growth it exists to catch"
 
 run_smoke "$SMOKE" "$UI_IMAGE" "$UI_SMOKE_REF" "STUB_IMAGE_SIZE=${UI_SIZE_BUDGET}"
 if [[ "$RUN_STATUS" -ne 0 ]]; then
