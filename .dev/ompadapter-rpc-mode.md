@@ -1,6 +1,6 @@
 # ompadapter-rpc-mode
 
-phase:    verify
+phase:    verify (HELD — frame-contract decision for Mateo)
 repo:     gophersys/libs
 branch:   feat/ompadapter-rpc-mode
 worktree: ~/code/.worktrees/libs-ompadapter-rpc-mode
@@ -72,10 +72,57 @@ Canonical plan = the planner report (task ac7a44ba55d3732a8), load-bearing point
   design-skip (leaf=false), 5 credential-gated SKIPs = PR-2's lane.
 
 ## Blocked
--
+HELD at phase 4 on a frame-contract decision (F1/F5). Verify round 1 (task
+a4238b2552da4c1f4) verdict: NOT READY — 2 STOP-AND-REPORT + 3 send-backs. Gates
+5/5+11/11+6/6 green; 4 of 7 break-tests bit; decision (b) ask+resolution ordering
+proven no-wedge; close ladder/goroutines/fixtures all clean.
+- F1 HIGH (SECURITY, reopens contract): rpc.go dialog answerer decides from bare tool
+  NAME membership, discards grant Scopes AND the command on the dialog title's 2nd
+  line — a bash grant scoped to "ls *" auto-approves "rm -rf /"; the library's
+  permission.go scope check + riskClass clamp never run. My implementer direction
+  ("derive from toolNames(spec.Grants)") is the flaw.
+- F5 MEDIUM (reopens capability claim): CapPermissionPrompt:CapFull contradicts
+  session.go:265-269 — the adapter discards the answer frame and substitutes its own
+  verdict, so Session.Resolve(allow) returns ack=nil for a decision that reaches omp
+  nowhere. Manifest lies OR Resolve must return Unsupported.
+- Test-coverage send-backs (phase 2, AFTER the contract decision — they touch the same
+  dialog path): F2 no test for the tunneled-steer guard (disabled → load 4s→224s, all
+  green); F3 no positive-arm test (dialogTool→"" → every tool Denied, green); F4
+  assertSameSentinel compares typed cause by VALUE not identity (per-call error passes).
+- F6 real-omp lane #15 does NOT exist despite the plan claiming "AUTHORED here" — bare
+  LookPath("omp") drives oh-my-posh's omp; add the binary-identity assert (this is why
+  PR-1b's #15 must actually land or PR-2 owns it, stated).
+- F7 bench baseline is GOMAXPROCS=-8 → vacuous PASS on any other CPU count (lib.sh, out
+  of diff — ticket). F8 stale doc comments (per-turn-process model) in 5 test files.
+  F9 capitalized-grant vocabulary denies all tools (PR-2 real-omp lane).
 
 ## Blocked
--
+HELD at phase 4 on a frame-contract decision (F1/F5). Verify round 1 (task
+a4238b2552da4c1f4) verdict: NOT READY — 2 STOP-AND-REPORT + 3 send-backs. Gates
+5/5+11/11+6/6 green; 4 of 7 break-tests bit; decision (b) ask+resolution ordering
+proven no-wedge; close ladder/goroutines/fixtures all clean.
+- F1 HIGH (SECURITY, reopens contract): rpc.go dialog answerer decides from bare tool
+  NAME membership, discards grant Scopes AND the command on the dialog title's 2nd
+  line — a bash grant scoped to "ls *" auto-approves "rm -rf /"; the library's
+  permission.go scope check + riskClass clamp never run. My implementer direction
+  ("derive from toolNames(spec.Grants)") is the flaw.
+- F5 MEDIUM (reopens capability claim): CapPermissionPrompt:CapFull contradicts
+  session.go:265-269 — the adapter discards the answer frame and substitutes its own
+  verdict, so Session.Resolve(allow) returns ack=nil for a decision that reaches omp
+  nowhere. Manifest lies OR Resolve must return Unsupported.
+- Test-coverage send-backs (phase 2, AFTER the contract decision — they touch the same
+  dialog path): F2 no test for the tunneled-steer guard (disabled → load 4s→224s, all
+  green); F3 no positive-arm test (dialogTool→"" → every tool Denied, green); F4
+  assertSameSentinel compares typed cause by VALUE not identity (per-call error passes).
+- F6 real-omp lane #15 does NOT exist despite the plan claiming "AUTHORED here" — bare
+  LookPath("omp") drives oh-my-posh's omp; add the binary-identity assert (this is why
+  PR-1b's #15 must actually land or PR-2 owns it, stated).
+- F7 bench baseline is GOMAXPROCS=-8 → vacuous PASS on any other CPU count (lib.sh, out
+  of diff — ticket). F8 stale doc comments (per-turn-process model) in 5 test files.
+  F9 capitalized-grant vocabulary denies all tools (PR-2 real-omp lane).
 
 ## Next
-Phase 4: adversarial verify of the whole rewrite.
+BLOCKED ON MATEO: the F1/F5 frame-contract decision (route omp dialogs through the
+library permission chain vs adapter-side scope+risk check). On his answer: phase-3
+rewrite of the dialog path + phase-2 pins F2/F3/F4/F6, re-verify, PR. Independent of
+the merged PR-1a and the infra program; PR-1c/PR-2 wait on this.
