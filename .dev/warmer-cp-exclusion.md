@@ -76,8 +76,19 @@ Risk weighed: runner-eligible nodes drop 7->4 for arc-org/arc-review at maxRunne
   diff = 8 planned files, no drift. Verifier re-proved: defect live (warmer on all 3
   CPs now), cp-0 57%, cp-1 73% (closest to GC threshold — leads the reclaim step).
 
+## Fix round 1 — landed
+- RED (test author, 7ba5294): 4 new cases red for the right reasons (3 false-pass +
+  1 FALSE RED with 6 wrong failure lines shown verbatim); fixture parse + NotIn-intact
+  guards proven; suite premise comment corrected.
+- GREEN (implementer, 1f8a825): notin_from_text DELETED with its false premise; pools
+  read two-stage yq (scalar parsed AS document); per-nodeSelectorTerm judgement for
+  warmer files too; preferred never read; zero-terms gets its own loud line; failure
+  lines carry file+node+term index. Suite 10/10 rc=0; real-tree verifier rc=0; ctl.sh
+  validate rc=0 (after fixing an SC2004 its own first pass caught — fixed, not
+  silenced); lint-shell 33 rc=0; lint-manifests 134/0 rc=0; D45 numbers MEASURED
+  (10 roles; labels 8/8, taints 4/8); CONVENTIONS.md :131/:193 cross-referenced.
+- Honest bounds stated in code: In-lists not read as exclusions (false-red risk named);
+  matchFields/other-key NotIn count as not-ruling-out (loud direction).
+
 ## Next
-Fix round 1: test author adds 3 red fixture cases (soft-affinity, commented-block,
-second-nodeSelectorTerm) + corrects the suite's false premise comment; implementer
-replaces notin_from_text with the two-stage yq read + OR-semantics handling + D45
-corrections + CONVENTIONS.md pointers. Then re-verify, PR.
+Verify round 2, then PR. In-effect proof (7->4, crictl prune, df numbers) post-merge.
