@@ -1,10 +1,9 @@
 # eden — the Eden agentic-engineering platform namespace (stable release on homelab).
 #
-# Platform-owned Namespace (same pattern as workspaces-prod / embedded-lab): the
-# `apps` AppProject is namespace-scoped and cannot create a cluster-scoped
-# Namespace object, so a platform-project Application (app-eden-namespace) owns
-# this file while the `apps`-project Application (app-eden) owns everything
-# namespaced into it. NOT excluded from Kyverno: Eden's workloads are ordinary
+# Platform-owned Namespace: the `apps` AppProject is namespace-scoped and cannot
+# create a cluster-scoped Namespace object, so a platform-project Application
+# (app-eden-namespace) owns this file while the `apps`-project Application
+# (app-eden) owns everything namespaced into it. Eden's workloads are ordinary
 # unprivileged services (Vault is the one IPC_LOCK exception, scoped on its pod).
 #
 # Everything Eden runs on homelab lives here in ONE namespace (per the deploy

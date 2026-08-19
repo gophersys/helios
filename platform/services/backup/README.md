@@ -31,9 +31,14 @@ STUB. Populate as the first stateful workload hits `prod`.
 ## Homelab reality today (not this service)
 
 Velero is NOT deployed. What actually runs on homelab:
-- **PV backups:** Longhorn → in-cluster MinIO (`apps/minio/`, bucket
-  `longhorn-backups`) — covers the observability stack volumes.
-- **Off-cluster client backups:** restic from Mateo's Mac → same MinIO
+- **PV backups: NONE.** Longhorn wrote volume backups to the in-cluster MinIO
+  bucket `longhorn-backups` until 2026-08-19, when Longhorn was removed
+  (`platform/core/storage/README.md`). Every PV on this cluster is now
+  `local-path`, and no snapshot or replication covers them. The media config
+  PVCs are the exception: a daily `config-backup` CronJob tars them to the NVMe
+  of the same node, which protects against a bad config, not against losing that
+  node.
+- **Off-cluster client backups:** restic from Mateo's Mac → the MinIO
   (bucket `music-backups`, tailnet-private `s3.mateosegura.com`) for the
   music-studio workspace (client: github.com/MateoSegura/music-studio).
 When this service is populated (Velero + true off-site B2/R2), the MinIO

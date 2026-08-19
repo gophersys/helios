@@ -33,11 +33,12 @@ hosts:
   home:
     class: public-access
     cluster: homelab
-    why: "single-pane portal; Access-gated"
-  workspaces:
-    class: public-access
-    cluster: homelab
-    why: "workspace manager UI; Access-gated"
+    why: "single-pane portal; Access-gated. The ONLY public host on homelab."
+  # REMOVED 2026-08-19: `workspaces` (workspaces.mateosegura.com). The app was
+  # deleted with apps/workspaces/, so there is no backend to declare. Its
+  # Cloudflare DNS record, tunnel rule and Access app are dashboard state that
+  # this file cannot reach — delete them there, or the hostname resolves to the
+  # catch-all and nginx answers 404. See the post-merge steps in the PR.
 
   # ---- homelab · tailnet only ----
   argocd:   { class: tailnet, cluster: homelab, why: "GitOps controller — admin surface" }

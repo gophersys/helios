@@ -22,6 +22,10 @@ scp -r pve-01 root@<pve-01>:/tmp/ && ssh root@<pve-01> '/tmp/pve-01/bootstrap.sh
 2. **IP forwarding** (`sysctl.d/99-tailscale-router.conf`). pve-01 is the
    Tailscale subnet router, and it advertises `10.168.0.0/24`. A client outside
    the tailnet, and an operator of this repo, can then reach a cluster IP.
+   Since **2026-08-19 it is the SOLE subnet router**: pve-00 advertised the same
+   prefix until Mateo single-homed it with `tailscale set --advertise-routes=`
+   (debt-register D22). There is no second advertiser now, so if this one stops,
+   every tailnet client loses `10.168.0.0/24` and nothing alerts.
 
 ## One-time manual steps — the script prints these; it does not run them
 - **USB passthrough** into VM 925, by the physical path of the hub port. That

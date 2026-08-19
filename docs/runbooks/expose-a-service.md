@@ -15,10 +15,18 @@ The tunnel already has a **catch-all** rule:
 
 ```
 home.mateosegura.com        -> ingress-nginx:80
-workspaces.mateosegura.com  -> ingress-nginx:80
+workspaces.mateosegura.com  -> ingress-nginx:80        <-- ORPHANED, see below
 rayne.mateosegura.com       -> ingress-nginx:80
 (catch-all)                 -> ingress-nginx:80        <-- serves ANY hostname
 ```
+
+`workspaces.` lost its backend on 2026-08-19 when `apps/workspaces/` was removed.
+Its tunnel rule, its proxied `CNAME` and its Access app are dashboard state that
+no manifest reaches, so they survived the deletion: the hostname still resolves,
+Access still gates it, and nginx answers **404**. Un-exposing is the mirror of
+the workflow below — delete the DNS record and the Access app with the same
+token, then delete the public-hostname rule. This block is the live listing;
+correct it when they go.
 
 Because of that catch-all rule, a new host behind the tunnel needs **no change to
 the tunnel**. It needs 1 DNS record. That is a single API call, and
@@ -104,8 +112,9 @@ Account · Access: Apps and Policies · Edit
 `cf-expose.py` can then create the Access app too, and no part of the
 publication of a service needs a browser. The token expires **2027-06-17**.
 
-The existing `public-access` hosts (`home`, `workspaces`) already have their
-Access apps, so this affects new hosts only.
+The one remaining `public-access` host (`home`) already has its Access app, so
+this affects new hosts only. The `workspaces` Access app is orphaned — see the
+note under the tunnel rules above.
 
 ## Related
 

@@ -1,7 +1,9 @@
-# In-cluster MinIO used as Longhorn's S3 backup target. Storage lives on k3s-w-1's
-# NVMe (hostPath /mnt/media/minio) — deliberately NOT on Longhorn, so backups don't
-# depend on the thing they protect. Root creds from the minio-creds secret (vaulted
-# at shared/minio/longhorn-backups).
+# In-cluster MinIO — the S3 backup target. Its one live consumer since the
+# Longhorn removal (2026-08-19) is the music-studio restic repository in the
+# music-backups bucket. Storage lives on k3s-w-1's NVMe (hostPath
+# /mnt/media/minio) and never on a PVC, so backups don't depend on the thing they
+# protect. Root creds from the minio-creds secret (vaulted at
+# shared/minio/longhorn-backups — a historical item name; see apps/minio/README.md).
 apiVersion: apps/v1
 kind: Deployment
 metadata:

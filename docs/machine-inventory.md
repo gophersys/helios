@@ -33,6 +33,13 @@ one machine with no identity file. Tracked as debt D22.
 2 of the 3 hypervisors are undeclared. They host all 8 k3s VMs, so their
 bootstrap state is load-bearing and invisible. This is also D22.
 
+**`pve-01` is the sole Tailscale subnet router for `10.168.0.0/24`** as of
+2026-08-19. pve-00 advertised the same prefix until Mateo single-homed the
+advertisement (`tailscale set --advertise-routes=` on pve-00); pve-00 is now a
+host-only tailnet node, and it also carries `--accept-routes=false` so it does
+not route its own LAN over the tailnet. Neither pref is in git, because pve-00
+has no identity file — D22 again.
+
 ## Homelab — k3s cluster (8 VMs on the hosts above)
 
 | Node | IP | Role |

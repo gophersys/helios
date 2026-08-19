@@ -15,8 +15,9 @@
 # Both select the same pod; the StatefulSet is `eden-postgres` so its pod is
 # `eden-postgres-0`.
 #
-# Storage is `local-path` (homelab default SC; Longhorn is intentionally avoided
-# for the DB PVC — WaitForFirstConsumer pins the volume to the scheduled node).
+# Storage is `local-path` — since 2026-08-19 the only StorageClass on this
+# cluster, and already the deliberate choice before that: WaitForFirstConsumer
+# pins the volume to the scheduled node.
 #
 # The password rides a kubernetes Secret reference, NEVER an inlined value. The
 # `eden-orchestrator-postgres` Secret is IMPERATIVE (created out-of-band, never in

@@ -1,4 +1,16 @@
-# Homelab overrides: full self-contained stack on Longhorn, Grafana on a MetalLB LB.
+# Homelab overrides: full self-contained stack, Grafana on a MetalLB LB.
+#
+# ⚠️ BROKEN AS WRITTEN — every `storageClass: longhorn` below names a
+# StorageClass that DOES NOT EXIST. Longhorn was removed from the homelab on
+# 2026-08-19 (platform/core/storage/README.md); `local-path` is the only class on
+# the cluster. Installing this file today leaves 4 PVCs Pending forever, with no
+# error from helm. Nothing is broken right now only because the `obs` release was
+# itself removed on 2026-08-09 and Argo never managed this chart.
+#
+# NOT auto-fixed to `local-path`, deliberately: Loki, Tempo, Prometheus and
+# Grafana on node-local volumes is a different durability posture, and that is
+# Mateo's call to make when this stack is brought back — not a side effect of a
+# storage removal. Decide it before the next `helm upgrade --install`.
 loki:
   singleBinary:
     persistence:

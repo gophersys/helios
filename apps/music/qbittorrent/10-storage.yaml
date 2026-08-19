@@ -1,9 +1,10 @@
 # Storage for qBittorrent.
 #
 # Config: a small local-path PVC (WaitForFirstConsumer binds it on k3s-w-1,
-# where the Deployment is hostname-pinned). NOT Longhorn on purpose — the
-# config is enforced/reproducible (config-enforce initContainer) and backed up
-# nightly (apps/music/config-backup/).
+# where the Deployment is hostname-pinned). Node-local on purpose — the config is
+# enforced/reproducible (config-enforce initContainer) and backed up nightly
+# (apps/music/config-backup/). It was never replicated, and since 2026-08-19
+# local-path is the only StorageClass on this cluster anyway.
 #
 # Downloads: NOT a PVC. They live on the /mnt/media NVMe as a hostPath
 # (see 20-deployment.yaml) — a large-nominal local-path PVC sat on the 58G OS

@@ -19,8 +19,6 @@ spec:
       server: https://kubernetes.default.svc
     - namespace: ingress-nginx
       server: https://kubernetes.default.svc
-    - namespace: longhorn-system
-      server: https://kubernetes.default.svc
     - namespace: cloudflare-tunnel       # the public edge (app-cloudflared, manual-sync)
       server: https://kubernetes.default.svc
     - namespace: monitoring
@@ -28,8 +26,6 @@ spec:
     - namespace: kube-system
       server: https://kubernetes.default.svc
     - namespace: tailscale
-      server: https://kubernetes.default.svc
-    - namespace: workspaces-prod         # only the Namespace object (app-workspaces-namespace)
       server: https://kubernetes.default.svc
     - namespace: eden                    # the Eden Namespace (app-eden-namespace) + orchestrator cluster RBAC (app-eden-rbac)
       server: https://kubernetes.default.svc

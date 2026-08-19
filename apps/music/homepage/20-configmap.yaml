@@ -84,13 +84,8 @@ data:
             description: GitOps delivery
             icon: argo-cd
             siteMonitor: http://argocd-server.argocd.svc.cluster.local
-        - Workspaces:
-            href: https://workspaces.mateosegura.com
-            description: Zephyr dev environments
-            icon: mdi-chip
-            siteMonitor: http://workspaces-api.workspaces-prod.svc.cluster.local:8080/api/workspaces
         - Filebrowser Backups:
-            description: MinIO · Longhorn backup store
+            description: MinIO · S3 backup store
             icon: minio
             siteMonitor: http://minio.minio.svc.cluster.local:9000/minio/health/ready
         # The 3 hypervisors are standalone PVE nodes, not one cluster, so no

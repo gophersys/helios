@@ -4,7 +4,7 @@ What runs in the `homelab` k3s cluster, namespace by namespace, and why. Argo CD
 reconciles everything from this repo's `platform/services/gitops/registry/` (the
 `root` app-of-apps). This document gives the "what and why".
 `.claude/rules/50-cluster-architecture.md` gives the vocabulary. This document
-reflects the live cluster as of 2026-08-09.
+reflects the live cluster as of 2026-08-19.
 
 Cluster: 8 k3s VMs on 3 Proxmox hosts (pve-00 MS-A2, pve-01 ThinkPad P1, pve-03
 Yoga). CNI is flannel plus kube-router, so NetworkPolicy IS enforced. All nodes
@@ -13,9 +13,10 @@ are on the Tailscale mesh.
 ## The exposure model
 
 - **Public (internet), behind Cloudflare Access + Google SSO** — the Cloudflare
-  tunnel (`cloudflared`) forwards to `ingress-nginx:80`: `home.` (the portal) and
-  `workspaces.`. Their Ingresses carry **no** `tls:` block, because the tunnel
-  enters nginx on :80 and TLS there causes a 308 loop.
+  tunnel (`cloudflared`) forwards to `ingress-nginx:80`. `home.` (the portal) is
+  the only one left: `workspaces.` was removed on 2026-08-19. Its Ingress carries
+  **no** `tls:` block, because the tunnel enters nginx on :80 and TLS there
+  causes a 308 loop.
 - **Tailnet-private** — DNS A records only, pointing at `10.168.0.240` (the
   MetalLB nginx VIP). They are reachable only on the tailnet or the LAN, and
   cert-manager supplies the TLS: `torrent.`, `prowlarr.`, `files.`, `argocd.` and
@@ -73,22 +74,34 @@ Grafana (`.241`).
 The single IngressClass is `nginx` (Traefik was removed). All HTTP enters here,
 either from the Cloudflare tunnel (public) or from the MetalLB VIP (tailnet).
 
-### `longhorn-system` — replicated storage
-Longhorn (manager, the CSI plugin, attacher, provisioner, resizer and
-snapshotter, the UI, and the engine-image DaemonSet). It is available for RWO
-volumes that must survive a node. The media workloads deliberately use
-**local-path** instead, because their data is node-local and can be
-downloaded again.
+### `longhorn-system` — REMOVED 2026-08-19
+Longhorn is gone. It held **0 volumes**: its one real consumer was the
+`observability` stack, which was itself removed on 2026-08-09, and every
+workload that remains — the media stack, eden, MinIO — is on `local-path` or a
+hostPath by deliberate choice. It cost a manager, a CSI plugin, attacher,
+provisioner, resizer and snapshotter, the UI and an engine-image DaemonSet, on
+every node, to replicate nothing. It was also **untracked drift**: installed by a
+raw `kubectl apply` of the upstream manifests, so Argo never managed it and its
+running version existed only in prose (debt-register D9).
+
+**`local-path` is the storage story for this cluster.** A volume that must
+survive the loss of a node does not exist here today; if one appears, that is a
+deliberate decision to make again, not a component to keep running on the chance.
+See `platform/core/storage/README.md`.
 
 ### `minio` — the S3 backup target
-One MinIO instance on a hostPath NVMe on k3s-w-1. It is deliberately off Longhorn
-so that the backups do not depend on the thing they protect. It has 2 buckets:
-- `longhorn-backups` — Longhorn's `BackupTarget/default`.
+One MinIO instance on a hostPath NVMe on k3s-w-1, kept off any replicated volume
+so that the backups do not depend on the thing they protect. It has 1 live
+bucket:
 - `music-backups` — the restic repository for the music-studio workspace on
   Mateo's Mac (a scoped user, tailnet-private at `s3.mateosegura.com`).
+- `longhorn-backups` — **orphaned by the Longhorn removal (2026-08-19)**. The
+  bucket and its objects still sit on the NVMe. Deleting them is a deliberate
+  step, not a side effect of this document.
 
-It is network-isolated: only `longhorn-system` and `ingress-nginx` may reach
-`:9000`. See `apps/minio/README.md`.
+It is network-isolated: `ingress-nginx` may reach `:9000`, and the
+`allow-longhorn-backups` rule in `apps/minio/25-networkpolicy.yaml` now selects a
+namespace that no longer exists. See `apps/minio/README.md`.
 
 ### `observability` — REMOVED 2026-08-09
 The `obs` Helm release (kube-prometheus-stack plus Grafana, Loki, Tempo and
@@ -118,9 +131,10 @@ were removed 2026-08-18 and no Service opts in today.)
 ### `arc-systems` / `arc-runners` — self-hosted GitHub Actions
 The Actions Runner Controller (`arc-systems` holds the controller) drives an
 org-wide runner scale set (`arc-runners`: `arc-org`, dind, `minRunners` 0 and
-`maxRunners` 4) that serves Eden, infrastructure and workspaces
-(`runs-on: arc-org`). It authenticates as the **gophersys-arc** GitHub App (the
-`arc-github-app` Secret).
+`maxRunners` 4) that serves the `eden`, `infrastructure` and `workspaces`
+REPOSITORIES (`runs-on: arc-org`) — `workspaces` here is the source repo, which
+is untouched by the removal of its deployment. It authenticates as the
+**gophersys-arc** GitHub App (the `arc-github-app` Secret).
 
 ## Apps
 
@@ -136,17 +150,24 @@ org-wide runner scale set (`arc-runners`: `arc-org`, dind, `minRunners` 0 and
   tag (ClusterIP, no ingress).
 - **filebrowser** — web file access to `/mnt/media` and the downloads (`files.`).
 - **homepage** — the single portal (`home.`), with live widgets over qBittorrent,
-  Prowlarr and the disk. It is the one public app besides workspaces.
+  Prowlarr and the disk. It is now the **only** public app on this cluster.
 
-### `workspaces-prod` — the workspace manager (project `workspaces`)
-`workspaces-api` is a Go and Svelte app at `workspaces.mateosegura.com` (public,
-gated by Access). It managed the `embedded-lab` Zephyr envs — a read-only view
-plus create/destroy operations that opened GitOps PRs. **Those envs and the
-whole `embedded-lab` stack were removed on 2026-08-18 (Mateo's decision), so
-the app currently manages nothing**; whether it is removed or repurposed is an
-open call. It authenticates as the **gophersys-arc** GitHub App through the
-optional `workspaces-github-app` Secret. Without that Secret the app is
-read-only and returns 503.
+### `workspaces-prod` — REMOVED 2026-08-19
+`workspaces-api` was a Go and Svelte app at `workspaces.mateosegura.com` whose
+only function was to manage the `embedded-lab` Zephyr devbox envs — a read-only
+view plus create/destroy operations that opened GitOps PRs against this repo.
+Those envs and the whole `embedded-lab` stack were removed on 2026-08-18, so the
+app managed nothing. By then it was also **403-looping and 0/1 Ready**: its
+GitHub App credential no longer authorized it. Mateo's decision on 2026-08-19 was
+to remove rather than repurpose.
+
+Gone with it: the `workspaces-prod` Namespace and its NetworkPolicy, the
+`workspaces-api` Deployment, Service, ServiceAccount and Ingress, the
+`workspaces` AppProject, both registry Applications, and the public exposure
+declaration. The `gophersys/workspaces` source repository is untouched — this
+repo only ever held the deployment. The `workspaces-github-app` Secret was
+namespaced into `workspaces-prod` and dies with it; the **gophersys-arc** App key
+it came from is still live for ARC (`docs/runtime-secrets.md`).
 
 ### `eden` — the Eden platform (project `apps`)
 The Eden agentic-engineering stack (`apps/eden/`: backing services, RBAC, seed

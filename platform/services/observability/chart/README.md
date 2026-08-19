@@ -29,7 +29,9 @@ kubectl create namespace observability
 kubectl -n observability create secret generic grafana-admin \
   --from-literal=admin-user=admin --from-literal=admin-password="$(openssl rand -base64 18)"
 
-# Homelab (Longhorn storage, Grafana on a MetalLB LoadBalancer):
+# Homelab (Grafana on a MetalLB LoadBalancer). READ THE HEADER OF
+# values-homelab.yaml FIRST: it still pins the `longhorn` StorageClass, which was
+# removed from the cluster on 2026-08-19, so this command leaves 4 PVCs Pending.
 helm upgrade --install obs . -f values.yaml -f values-homelab.yaml -n observability
 
 # Cloud (S3-backed Loki/Tempo — see values-cloud.yaml header for the obs-s3 secret + bucket):

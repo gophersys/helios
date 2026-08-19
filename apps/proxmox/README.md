@@ -72,9 +72,32 @@ verify-access` is 15/15.
 **It can come back silently.** The fix is a Tailscale pref on a host that has no
 identity file in this repo, so nothing in git reproduces it: re-provision pve-00,
 or run one `tailscale up --accept-routes`, and the black-hole returns with no
-symptom other than this hostname timing out. That, and the open question of
-whether pve-00 should keep advertising `10.168.0.0/24` alongside pve-01, are
-recorded in **D22** of `docs/debt-register.md`.
+symptom other than this hostname timing out. Recorded in **D22** of
+`docs/debt-register.md`.
+
+## The subnet is single-homed on pve-01 — decided 2026-08-19
+
+The open question beside the incident above was whether pve-00 should keep
+advertising `10.168.0.0/24` alongside pve-01. Mateo decided **single-home**, and
+it was executed live on pve-00:
+
+```
+tailscale set --advertise-routes=          # empty list — advertise nothing
+```
+
+pve-00 is now a host-only tailnet node. **pve-01 is the sole subnet router** for
+`10.168.0.0/24` — see `clusters/instances/homelab/hypervisors/pve-01/`, the one
+declared hypervisor, whose bootstrap script sets `net.ipv4.ip_forward` and
+records the `--advertise-routes=10.168.0.0/24` command. Verified after the
+change: `bash ctl.sh verify-access` is **15/15**.
+
+**The caveat moved rather than closed.** One advertiser means one place it can
+disappear from. If pve-01 stops advertising — a re-provision, a `tailscale up`
+without `--advertise-routes`, or the route left unapproved in the Tailscale admin
+console — the subnet has no router at all, every tailnet client loses
+`10.168.0.0/24`, and nothing alerts. This app is a consumer: the ingress-nginx
+pod reaches `10.168.0.201:8006` over the LAN, so a pod on a node that lost the
+route serves 503 here first.
 
 ## Argo silently skipped the EndpointSlice — incident, resolved 2026-08-18
 

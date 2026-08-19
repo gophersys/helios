@@ -20,7 +20,7 @@ Documentation index for `infrastructure/`.
 | `testing-standard.md`     | The standard `go test` invocation, the measured cost of each flag, and the trigger table |
 | `migration-homelab-to-idp.md` | Historical: the move from homelab to IDP, and the 9 decisions |
 | `audit-2026-07.md`        | Point-in-time cluster audit and backlog (2026-07)       |
-| `runbooks/`               | Operational runbooks (for example the staged Longhorn upgrade) |
+| `runbooks/`               | Operational runbooks (for example exposing a service through the tunnel) |
 
 Machine facts are declared in `contracts/access.yaml`, and
 `bash ctl.sh verify-access` asserts them. Secrets live only in Vaultwarden. The

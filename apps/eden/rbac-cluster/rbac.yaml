@@ -2,7 +2,8 @@
 # apps/agentgateway/deploy/kubernetes/10-rbac.yaml. Kept OUTSIDE the `apps`
 # AppProject on purpose — the `apps` project is namespace-scoped and cannot grant
 # cluster-scoped resources, so a platform-project Application (app-eden-rbac)
-# applies this (same split as workspaces' rbac-embedded/).
+# applies this. `workspaces` below names EDEN's agent workspaces, not the removed
+# workspaces.mateosegura.com app.
 #
 # This is the orchestrator's runtime authority to CREATE PROJECT NAMESPACES
 # (eden-<prefix>-<projectUUID>) and the workspace pod + its Secrets/NetworkPolicy/
