@@ -733,7 +733,10 @@ Two consequences a reader will meet:
 
 Verify a published image with `bash ./ctl.sh verify-published <image> [tag]`. A
 manifest declares a platform; that verb reads the manifest back out of the
-registry and asserts the set is exactly the sanctioned one. An `unknown/unknown`
+registry and asserts the set is exactly the sanctioned one, and then asserts
+that every blob those manifests reference SERVES — see "A manifest that parses
+is not an image that pulls" below, which is the half a green manifest cannot
+answer for. An `unknown/unknown`
 entry is an attestation manifest, which buildx attaches 1 of per variant, and it
 is not a variant. For the deeper check — the manifest declares a platform, but
 what is in the layers — `bash ctl.sh verify-image-arch <ref> [platforms]` in
@@ -743,7 +746,65 @@ gophersys/infrastructure reads the content.
 |---|---|---|
 | `build` | local dev loop | explicit `--platform`, 1 platform, no push |
 | `push` | publish | **GUARDED** buildx build + push |
-| `verify-published` | after a publish | reads the manifest the registry holds |
+| `verify-published` | after a publish | reads the manifest the registry holds, then asks the registry for 1 byte of every blob it references |
+
+### A manifest that parses is not an image that pulls
+
+Ledger #118. ghcr.io answered **404** for layer `d14f6240…` while 4 manifests
+still referenced it. Every document parsed, every platform was declared,
+`verify-published` was GREEN — and `docker pull` failed for every consumer until
+an unrelated rebuild re-uploaded the blob. Manifest-level verification proves
+STRUCTURE, and the structure was never what broke.
+
+**A HEAD per blob does not close it, and that is MEASURED rather than argued.**
+Read 2026-08-18 against a real layer of `ghcr.io/gophersys/base`:
+
+```
+HEAD /v2/gophersys/base/blobs/sha256:966c39…  ->  HTTP/2 200, content-length
+                                                  29751109, answered by ghcr.io
+                                                  ITSELF, with NO redirect
+GET  /v2/gophersys/base/blobs/sha256:966c39…  ->  HTTP 307 to
+                                                  pkg-containers.githubusercontent.com,
+                                                  where the bytes actually are
+```
+
+The 2 methods are answered by 2 tiers. A HEAD asks the metadata tier whether a
+blob is registered and never contacts the store that holds it, so **HEAD 200 is
+not evidence**. A registry that has lost an object while keeping its metadata
+answers exactly HEAD 200 / GET 404, which is the incident. The probe is
+therefore a **ranged GET**, `Range: bytes=0-0`: it follows the 307, reaches the
+object store, and costs 1 byte.
+
+- **The cost is bounded and measured**, `:latest` on 2026-08-18, config + layers
+  per platform: base 33, mobile 37, embedded 48, cloud 39, hardware 43, ui 43.
+  The verb runs once per image, so the worst invocation is `embedded` at
+  48 × 2 = 96 ranged GETs. The whole set is 449 probes over 11 variants — 449
+  bytes of payload. Wall time from a home connection, measured the same day:
+  base 34s, mobile 20s, embedded 120s, cloud 56s, hardware 48s, ui 49s. Batching
+  the probes of one manifest into a single `curl` invocation, so the connection
+  is reused, is the obvious speed-up and is NOT in this change.
+- **The blob half speaks the registry API directly, and that is a 2-client
+  seam.** No docker subcommand fetches a blob, so `registry_get_status` in
+  `_ctl/lib.sh` uses `curl` while the index read stays on
+  `docker buildx imagetools`. Moving the index read onto the same API would
+  leave this verb needing no docker at all; that is recorded residue, not done.
+- **The credential is resolved in 1 place and never falls back to anonymous.**
+  `registry_credential` reads `GHCR_TOKEN`, `GITHUB_TOKEN` or `GH_TOKEN` first,
+  then the credential docker itself holds (`credsStore`/`credHelpers`, then the
+  plain `auths` entry). Every package here is private, so an anonymous read
+  answers 403: a probe that fell through to one would report every blob of every
+  image as unreachable — a red about the credential wearing the clothes of a red
+  about the image. With no credential the verb REFUSES and names the variables,
+  because a skip would be a green that checked nothing. Each publish job passes
+  `GITHUB_TOKEN` to the step, the same secret it pushed with.
+- **The attestation manifests are deliberately NOT walked.** buildx attaches 1
+  per variant, and `docker pull` never fetches one, so a dangling attestation
+  blob does not make an image unpullable. Widening the walk is a decision about
+  what "published" means here, not an oversight.
+- **A walk that probes nothing FAILS.** An index with no image variant, a
+  manifest with an empty layer list, and a variant that yielded fewer digests
+  than its own manifest declares are each a refusal — 0 failures out of 0 probes
+  is a verdict about nothing.
 
 The guard `require_buildx_and_platforms` is in `_ctl/lib.sh`, 1 time only, and it
 runs at the start of every per-image `push`. It fails closed in 5 conditions: a
@@ -1065,7 +1126,7 @@ warns about everywhere else.
 |---|---|---|
 | `build` | `docker build --platform "$IMAGE_PLATFORMS"` | false |
 | `push` | `docker buildx build --platform "$IMAGE_PLATFORMS" --push` (guarded) | false |
-| `verify-published [tag]` | read the published manifest; it must carry exactly `$IMAGE_PLATFORMS` — the image's OWN set, which is the sanctioned set unless `images.yaml` narrows it. Held against `SANCTIONED_PLATFORMS`, mobile's correct amd64-only manifest reads as a broken publish forever. A platform the image does not publish is refused too, so the rule is equality and not "at least". | false |
+| `verify-published [tag]` | read the published manifest; it must carry exactly `$IMAGE_PLATFORMS` — the image's OWN set, which is the sanctioned set unless `images.yaml` narrows it. Held against `SANCTIONED_PLATFORMS`, mobile's correct amd64-only manifest reads as a broken publish forever. A platform the image does not publish is refused too, so the rule is equality and not "at least". THEN walk each published manifest and prove every blob it references SERVES, with a ranged GET of 1 byte; a non-2xx names the image, the platform, the digest and the status. | false |
 | `pull` | `docker pull ghcr.io/gophersys/<name>:latest` | false |
 | `inspect` | `docker image inspect ghcr.io/gophersys/<name>:latest` | false |
 | `help` | Print the usage block from `ctl.sh` | n/a |

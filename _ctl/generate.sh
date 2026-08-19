@@ -501,7 +501,7 @@ JOB_REHEARSAL_HEAD
   printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache\n' "$name"
 
   cat <<'JOB_VERIFY_HEAD'
-      - name: verify the published manifest
+      - name: verify the published manifest and every blob it references
         # A push DECLARES a platform; this reads what the registry actually
         # holds. At the SHA tag, never at :latest, so a concurrent run cannot
         # make this describe somebody else's image. It runs only when this job
@@ -511,8 +511,17 @@ JOB_REHEARSAL_HEAD
         # Left ungated it would read the tag a PREVIOUS run published and report
         # a verdict about somebody else's build — a green that checked an image
         # this run never made.
+        #
+        # It also walks every layer of every published platform and asks the
+        # registry for 1 byte of each (Range: bytes=0-0). Ledger #118: ghcr.io
+        # answered 404 for a layer 4 manifests referenced while HEAD of the same
+        # url answered 200, and a manifest-only check stayed green over an image
+        # nobody could pull. GITHUB_TOKEN is what that probe reads the private
+        # packages with — the same secret this job pushed with.
 JOB_VERIFY_HEAD
   printf '        if: %s\n' "$PUBLISH_GATE"
+  printf '        env:\n'
+  printf '          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}\n'
   printf '        run: bash ./ctl.sh verify-published %s %s\n' "$name" "$sha_expression"
 }
 
