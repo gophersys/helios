@@ -42,9 +42,15 @@
 # WHY THIS FILE EXISTS BESIDE smoke-contract.test.sh
 # ============================================================================
 #
-# smoke-contract.test.sh already holds the COMPARISON at its 2 sides, for all 3
-# images that declare a budget — 1 byte over is refused, exactly at the budget
-# passes. Every one of those checks was GREEN throughout the whole period above,
+# smoke-contract.test.sh already holds the COMPARISON at its 2 sides — 1 byte
+# over is refused, exactly at the budget passes — for `cloud`, `hardware` and
+# `ui`. It held it for EVERY budgeted image when this file was written, and it
+# does not any more: `embedded` took a budget on 2026-08-19 and got no arm
+# there, deliberately, for the reason stated at smoke-contract.test.sh's own
+# count paragraph. So 4 images declare a budget and 3 of them have their gate
+# EDGES held; embedded's BASIS is held here, and its comparison is the shared
+# data-driven path all 4 run through.
+# Every one of those checks was GREEN throughout the whole period above,
 # and correctly so: the stub handed the driver a number and the driver compared
 # it. The defect was never in the comparison. It was in WHICH NUMBER the driver
 # asks the daemon for, and a stub that answers one number to every question
