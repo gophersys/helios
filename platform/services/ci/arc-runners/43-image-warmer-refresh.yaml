@@ -43,7 +43,7 @@ spec:
                   - matchExpressions:
                       - key: kubernetes.io/hostname
                         operator: NotIn
-                        values: ["k3s-w-4", "k3s-cp-0", "k3s-cp-1", "k3s-cp-2"]
+                        values: ["k3s-cp-0", "k3s-cp-1", "k3s-cp-2"]
           volumes:
             # kubectl writes its discovery cache under $HOME; the root
             # filesystem is read-only, so HOME points here instead.

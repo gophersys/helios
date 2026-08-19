@@ -93,12 +93,14 @@ spec:
             securityContext:
               supplementalGroups: [123]
 
-            # k3s-w-4 owns the USB-passthrough embedded lab and is the most committed
-            # node in the cluster. A build must never contend with hardware under test.
             # k3s-cp-0/1/2 are the 38GB etcd control planes, and no taint keeps a pod
             # off them (docs/debt-register.md D45): a runner's image pulls land on the
             # disk etcd writes to. scripts/verify-warmer-pins.sh derives that set from
             # clusters/instances/homelab/nodes/*/identity.yaml and asserts it here.
+            # k3s-w-4 was excluded here too while it owned the USB-passthrough
+            # embedded lab. That lab is gone and the node returned to general
+            # capacity on 2026-08-19, so this pool now schedules on it like any
+            # other worker.
             affinity:
               nodeAffinity:
                 requiredDuringSchedulingIgnoredDuringExecution:
@@ -106,7 +108,7 @@ spec:
                     - matchExpressions:
                         - key: kubernetes.io/hostname
                           operator: NotIn
-                          values: ["k3s-w-4", "k3s-cp-0", "k3s-cp-1", "k3s-cp-2"]
+                          values: ["k3s-cp-0", "k3s-cp-1", "k3s-cp-2"]
               # Spread concurrent runners so four jobs do not pile onto one worker.
               podAntiAffinity:
                 preferredDuringSchedulingIgnoredDuringExecution:

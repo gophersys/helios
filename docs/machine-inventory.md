@@ -47,8 +47,7 @@ has no identity file — D22 again.
 | `k3s-cp-0/1/2` | `10.168.0.211-213` | control-plane + etcd |
 | `k3s-w-0` | `10.168.0.221` | platform / devops |
 | `k3s-w-1` | `10.168.0.222` | media — NVMe `/mnt/media`, MinIO |
-| `k3s-w-2`, `k3s-w-3` | `10.168.0.223-224` | general apps |
-| `k3s-w-4` | `10.168.0.225` | embedded — USB passthrough for Zephyr |
+| `k3s-w-2`, `k3s-w-3`, `k3s-w-4` | `10.168.0.223-225` | general apps |
 
 All 8 are declared under `clusters/instances/homelab/nodes/`. You reach them
 through the tailnet, and the services land on the MetalLB VIP `10.168.0.240`.

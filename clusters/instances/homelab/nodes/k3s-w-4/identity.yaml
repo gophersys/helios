@@ -2,10 +2,16 @@
 #
 # Proxmox VM on pve-01, Ubuntu 24.04, joined to the homelab k3s cluster + Tailscale.
 # Values from live kubectl (2026-07-05). See clusters/instances/homelab/identity.yaml.
+#
+# It held the USB-passthrough embedded lab until 2026-08-19. The lab's workloads
+# were removed, so the special role was dropped and the node returned to general
+# `apps` capacity: no `usb-embedded` label, no host bootstrap, and no runner pool
+# excludes it any more. It stays out of `arc-build` on RAM alone (9Gi, the same
+# rule as k3s-w-3) — see app-arc-runners-build.yaml.
 
 name: k3s-w-4
 os: linux-ubuntu
-purpose: "k3s worker — embedded USB node (apps); QEMU USB passthrough for Zephyr dev envs"
+purpose: "k3s worker — general apps capacity"
 tailscale_hostname: k3s-w-4
 status: active
 location: proxmox-pve-01
@@ -36,9 +42,6 @@ kubernetes:
   cluster_role: apps
   labels:
     role: apps
-    usb-embedded: "true"       # microcontrollers QEMU-passed into this VM from pve-01;
-                               # devices at /dev/bus/usb + /dev/serial, stable udev
-                               # symlinks /dev/mcu-slot-N (apps/embedded pins here)
   taints: []
   extra_flags: []
 

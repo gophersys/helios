@@ -219,10 +219,14 @@ Eden build, and it is noted here only for completeness. See
 - **cp-0/1/2 + w-0** — control-plane and platform (`devops`).
 - **w-1** — the media node (NVMe `/mnt/media`, GPU labels); runs the `media`
   stack.
-- **w-4** — carries the `usb-embedded: true` label and QEMU USB passthrough
-  from the removed `embedded-lab` stack; nothing schedules on that label today.
-  Repurposing or unlabeling the node is an open call.
-- **w-2/3** — general `apps`.
+- **w-2/3/4** — general `apps`. **w-4 returned to general capacity on
+  2026-08-19** (decision closed): it held the `usb-embedded: true` label and QEMU
+  USB passthrough for the removed `embedded-lab` stack, nothing scheduled on that
+  label, and `arc-org`, `arc-review` and the image warmer all reserved it. Those
+  exclusions are gone and the label is off the declaration. It stays out of
+  `arc-build` on the RAM rule alone — 9Gi, the same reason k3s-w-3 is out.
 
 Host-level bootstrap that nothing reconciles lives in
-`clusters/instances/homelab/{nodes/k3s-w-4,hypervisors/pve-01}/bootstrap/`.
+`clusters/instances/homelab/hypervisors/pve-01/bootstrap/`. The k3s-w-4 half was
+removed with the embedded role; the USB passthrough it depended on is still
+declared on pve-01, and unwinding that is a hypervisor-side call.

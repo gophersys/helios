@@ -122,6 +122,20 @@ agent, udev slot rules) and `clusters/instances/homelab/hypervisors/pve-01/`
 live device and tailnet operations (USB passthrough, subnet-router advertise) are
 documented in each README.
 
+**Amended 2026-08-19 — the k3s-w-4 half of that resolution was deleted.** When
+the node returned to general capacity its whole `bootstrap/` directory went with
+the role. Two consequences, both stated rather than assumed:
+- The live host still carries what the script applied — `linux-generic`, the
+  `cp210x`/`cdc_acm`/`ch341`/`ftdi_sio` modules, and
+  `/etc/udev/rules.d/99-mcu-slots.rules`. Nothing removed them, and nothing in
+  git describes them any more. That is untracked residue on one node; it is
+  harmless while no board is attached, and removing it is a host-side call.
+- `qemu-guest-agent` was the one step in that script that was NOT about USB, and
+  it is now tracked nowhere. It is a fleet-wide need, not a k3s-w-4 one, so a
+  per-node script was the wrong home for it. It is unowned until an Ansible role
+  under `machines/roles/` claims it.
+The pve-01 half of D3 is untouched and still resolved.
+
 ### D4 ✅ Secrets created imperatively — DOCUMENTED (PR #32)
 **Resolved as a document:** `docs/runtime-secrets.md` is the **live inventory** of
 every imperative k8s Secret. It covers `media`, `arc-runners`, `minio` and
