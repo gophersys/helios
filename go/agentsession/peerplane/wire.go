@@ -55,7 +55,7 @@ func writeFrame(conn io.Writer, f *frame) error {
 		return errors.Wrap(errors.KindInvalid, "peerplane: frame too large", errFrameTooLarge)
 	}
 	var header [4]byte
-	//nolint:gosec // len(payload) is bounded by maxFrameBytes (checked above), well within uint32.
+	// #nosec G115 -- len(payload) is bounded by maxFrameBytes (1<<20, checked above), far within uint32. Honored by both the standalone gosec sast lane and golangci's gosec.
 	binary.BigEndian.PutUint32(header[:], uint32(len(payload)))
 	if _, err := conn.Write(header[:]); err != nil {
 		return errors.Wrap(errors.KindUnavailable, "peerplane: write frame header", err)
