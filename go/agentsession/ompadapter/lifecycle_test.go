@@ -1,14 +1,13 @@
 //go:build lifecycle
 
 // The full-object-lifecycle conformance (ADR-0020 dimension (c)) for the omp adapter's closeable
-// handle — the live agentsession.Session backed by the REAL omp processConn driving the GENUINE
+// handle — the live agentsession.Session backed by the REAL rpcConn driving ONE long-lived
 // stub-harness subprocess. It drives testing.AssertLifecycle over a probe whose owned resource is
-// the per-turn OS child process: construct -> use (one real Prompt that spawns+reaps a stub
-// process) -> first Close -> SECOND Close is a no-op (idempotent) -> CountOwned()==0 (no orphan
-// stubharness process left parented to this test). The orphan-GOROUTINE half (the Ready/turn
-// goroutines must reap, no scanner left attached) is asserted by the surrounding
-// goleak.VerifyNone. Tagged `//go:build lifecycle` so the heavy spawn/double-close/reap drive
-// stays out of the fast unit run.
+// that ONE session process: construct -> use (one real Prompt on the live session) -> first Close
+// -> SECOND Close is a no-op (idempotent) -> CountOwned()==0 (no orphan stubharness process left
+// parented to this test). The orphan-GOROUTINE half (the pump goroutine must reap, no scanner
+// left attached) is asserted by the surrounding goleak.VerifyNone. Tagged `//go:build lifecycle`
+// so the heavy spawn/double-close/reap drive stays out of the fast unit run.
 package ompadapter_test
 
 import (
@@ -42,8 +41,8 @@ func TestLifecycle_SessionDoubleCloseIdempotentNoOrphanProcess(t *testing.T) {
 }
 
 // ompSessionProbe is the testing.LifecycleProbe binding for the omp adapter's Session. Its owned
-// resource is the per-turn OS child process: after Use spawns+reaps one and Close reaps the conn,
-// CountOwned counts the live stubharness children of THIS process — which must be zero.
+// resource is the ONE long-lived session process: after Use drives a Prompt on it and Close reaps
+// the conn, CountOwned counts the live stubharness children of THIS process — which must be zero.
 type ompSessionProbe struct {
 	session agentsession.Session
 }
@@ -120,12 +119,12 @@ func (e lifecycleAssertionError) Error() string { return string(e) }
 func (p *ompSessionProbe) Close(ctx context.Context) error { return p.session.Close(ctx) }
 
 // CountOwned reports how many stub-harness child processes this test process still owns. After
-// the session's double-Close it must read zero — every per-turn process was reaped, no orphan.
+// the session's double-Close it must read zero — the one session process was reaped, no orphan.
 // A short settle accounts for the kernel reaping a just-exited child the conn already Wait()ed.
 func (p *ompSessionProbe) CountOwned(context.Context) (int, error) {
-	// The conn reaps each turn process via command.Wait() on turn-end and on Close; give the
-	// just-finished turn a brief moment to be fully reaped before counting (bounded, not a sleep
-	// race — a leaked process would still be present after this window and fail the count).
+	// The conn reaps the session process via command.Wait() at Close; give a just-finished reap a
+	// brief moment to complete before counting (bounded, not a sleep race — a leaked process would
+	// still be present after this window and fail the count).
 	deadline := time.Now().Add(2 * time.Second)
 	for {
 		n, err := liveStubChildren()

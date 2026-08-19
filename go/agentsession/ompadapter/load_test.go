@@ -1,9 +1,9 @@
 //go:build load
 
-// The load / scale lane (ADR-0020 dimension (e)) for the omp adapter: N concurrent turns, each
+// The load / scale lane (ADR-0020 dimension (e)) for the omp adapter: N concurrent SESSIONS, each
 // the FULL real path (Open -> Prompt -> spawn+scan the GENUINE stub subprocess -> drain to
 // terminal -> Close), fanned out under -race and bounded by t.Context() + an errgroup. It proves
-// the spawn/parse/reap ladder is race-clean at fan-out, every per-turn process is reaped (no
+// the spawn/parse/reap ladder is race-clean at fan-out, every session process is reaped (no
 // orphan stubharness child survives), and the goroutine high-water returns to baseline
 // (goleak.VerifyNone) once the fan-out joins. The fan-out width is EDEN_LOAD_N (default 500
 // in-process); concurrency is capped so the container is not flooded with simultaneous processes
@@ -75,7 +75,7 @@ func TestLoad_ConcurrentTurnsRaceCleanAllReaped(t *testing.T) {
 		t.Fatalf("a concurrent turn failed under fan-out N=%d: %v", n, err)
 	}
 
-	// Every per-turn process must be reaped: no orphan stubharness child of this test process.
+	// Every session process must be reaped: no orphan stubharness child of this test process.
 	if owned := waitForZeroStubChildren(t, 5*time.Second); owned != 0 {
 		t.Fatalf("%d stubharness process(es) survived the fan-out — orphan leak (want 0)", owned)
 	}

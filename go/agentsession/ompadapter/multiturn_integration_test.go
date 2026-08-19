@@ -1,10 +1,9 @@
 //go:build integration
 
-// The MULTI-TURN half of the omp adapter's host-leveraging lane (ADR-0020 dimension (d)) for
-// contract revision R1: THREE consecutive Prompts on ONE agentsession.Session over ONE
-// processConn, driving THREE real stub-harness executions — omp's headless json mode is
-// one-shot per turn, so the per-turn exec model is the thing under test and it is driven for
-// real, never mocked.
+// The MULTI-TURN half of the omp adapter's host-leveraging lane (ADR-0020 dimension (d)):
+// THREE consecutive Prompts on ONE agentsession.Session over ONE long-lived `omp --mode rpc`
+// process — the process survives every turn, so the one-process-many-turns model is the thing
+// under test, driven against a real stub-harness subprocess, never mocked.
 //
 //	go test -tags integration ./ -race -count=1 -run TestIntegration_StubBinary_ThreeConsecutivePrompts
 //

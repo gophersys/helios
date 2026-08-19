@@ -115,6 +115,9 @@ func TestRPC_DialogAskCarriesTheCommand(t *testing.T) {
 // Today the adapter answers the dialog itself from bare "bash" membership (which IS in --tools),
 // writes "Approve" on the wire, and DROPS the library's tunneled deny — the ungated-bash defect.
 // RED: the wire carries Approve where the library resolved Deny.
+//
+// This test fails SAFE if the command-fold regresses (a bare shell tool is RiskHigh and the clamp
+// denies anyway), so the FOLD itself is pinned next door in TestRPC_DialogAskCarriesTheCommand.
 func TestRPC_WireAnswerFollowsLibraryDeny(t *testing.T) {
 	t.Parallel()
 	harness := newLibraryHarness(t, agentsession.Spec{

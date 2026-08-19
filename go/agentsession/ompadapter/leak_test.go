@@ -8,9 +8,10 @@ import (
 
 // TestMain installs goleak.VerifyTestMain so the resource-leak lane (`ctl.sh leak`,
 // ADR-0020 dimension (b)) fails the package on ANY goroutine left running after the suite
-// drains. The omp adapter's spawn path owns at most one Ready-signal goroutine plus one turn
-// goroutine per processConn — both reaped through the graceful Close ladder (spawn.go: close
-// done -> kill the in-flight turn -> close the events channel under turnMu). The fast suite
+// drains. The omp adapter's spawn path owns one pump goroutine per rpcConn — it reads the one
+// long-lived `omp --mode rpc` process's stdout for the whole session — reaped through the
+// graceful Close ladder (rpc.go: close done -> stdin EOF -> drain -> close the events channel).
+// The fast suite
 // this TestMain governs exercises only the PURE normalizer + arg/env builders + the credential
 // scrub seam (no process, no goroutine), so the gate's threshold here is ZERO leaked
 // goroutines; the lifecycle/load lanes (their own build tags) add `defer goleak.VerifyNone(t)`
