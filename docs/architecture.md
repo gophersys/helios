@@ -18,7 +18,7 @@ clusters/instances/*         (Kubernetes clusters)
         │   providers/*     (reusable Terraform modules)
         │   platform/*      (cluster-level shared services)
         ▼
-machines/hosts/*             (physical + virtual hosts)
+machines/<category>/*        (physical + virtual hosts; development | services)
         │
         │   machines/roles/*      (Ansible roles)
         │   machines/scripts/*    (BW-backed ephemeral scripts)

@@ -5,10 +5,10 @@ infrastructure expects from an application in return.
 
 ## What infrastructure provides
 
-1. **Hosts.** Through `machines/hosts/<name>/`, every application can assume that
-   a host is reachable on the tailnet under the name declared in
-   `identity.yaml:tailscale_hostname`. `machines/scripts/ssh-ephemeral.sh`
-   mediates SSH with keys from Bitwarden.
+1. **Hosts.** Through `machines/<category>/<name>/` (`development` or
+   `services`), every application can assume that a host is reachable on the
+   tailnet under its machine name. `machines/scripts/ssh-ephemeral.sh` mediates
+   SSH with keys from Bitwarden.
 
 2. **Clusters.** Through `clusters/instances/<name>/`, an application can assume
    that a kubeconfig is available for `describe`, `logs` and similar commands

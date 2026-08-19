@@ -116,11 +116,12 @@ configuration. A capability role assumes that a platform role already ran.
 
 ## Groups
 
-`machines/groups/by-purpose/` and `machines/groups/by-location/` are Ansible
-inventory fragments that group the hosts by 1 dimension each. They are NOT the
-source of truth; identity.yaml is. The groups are regenerated from identity.yaml
-once the index generator is extended to emit an inventory. That extension does
-not exist yet.
+`machines/groups/by-purpose/` and `machines/groups/by-location/` will be Ansible
+inventory fragments that group the hosts by 1 dimension each. **Neither
+directory exists today**: the extension that emits them does not exist either,
+and the empty placeholders that stood in for them were removed on 2026-08-19.
+They are NOT the source of truth; identity.yaml is. The groups are generated
+from identity.yaml once the index generator is extended to emit an inventory.
 
 TODO: extend `generate-machine-index.sh` so that it also emits
 `machines/groups/by-purpose/<purpose>.yml` and the equivalent by-location files.
