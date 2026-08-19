@@ -58,6 +58,12 @@ func TestIntegration_KilledChildBouncesAndDropsFromRoster(t *testing.T) {
 	childB := startStubHarness(t, stub, socket, "child-b", "observer")
 	waitForRoster(t, orchestrator, "observer", "child-a", "child-b")
 
+	// Capture child-b's generation while it is STILL LIVE. The re-attach below must bump it,
+	// so a restart is distinguishable from a duplicate; comparing against this departed value
+	// (never child-a's, never >0) is what makes the assertion bite — a constant generation
+	// would leave after == departedGen and FAIL.
+	departedGen := generationOf(t, orchestrator, "observer", "child-b")
+
 	// A delivery to a LIVE child succeeds (accepted for routing).
 	if _, err := observer.Send(ctx, agentsession.PeerMessage{From: "observer", To: "child-b", Body: "ping"}); err != nil {
 		t.Fatalf("Send to live child-b: %v", err)
@@ -75,13 +81,13 @@ func TestIntegration_KilledChildBouncesAndDropsFromRoster(t *testing.T) {
 		t.Fatalf("a Send to a killed child must be UnreachableError, got %v (%T)", err, err)
 	}
 
-	// A re-Join under child-b's name gets a HIGHER Generation than the departed instance.
-	before := generationOf(t, orchestrator, "observer", "child-a")
+	// A re-Join under child-b's name gets a STRICTLY HIGHER Generation than the departed
+	// instance — the fact that lets an observer tell a restart from a duplicate.
 	childBPrime := startStubHarness(t, stub, socket, "child-b", "observer")
 	waitForRoster(t, orchestrator, "observer", "child-b")
 	after := generationOf(t, orchestrator, "observer", "child-b")
-	if after <= before && after == 0 {
-		t.Errorf("re-Join Generation = %d, want a higher generation than the departed instance", after)
+	if after <= departedGen {
+		t.Errorf("re-Join Generation = %d, want strictly greater than the departed instance's %d", after, departedGen)
 	}
 	_ = childA
 	_ = childBPrime
