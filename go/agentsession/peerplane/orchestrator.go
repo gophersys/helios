@@ -445,6 +445,8 @@ func (o *Orchestrator) joinTimeout() time.Duration {
 var (
 	errBodyTooLarge        = errors.New(errors.KindInvalid, "peerplane: peer body exceeds MaxPeerBodyBytes")
 	errUnsupportedPlatform = errors.New(errors.KindInternal, "peerplane: this platform cannot supply peer credentials (Listen fails closed, never trust-the-socket)")
+	errNotJoined           = errors.New(errors.KindPermission, "peerplane: send before join — the connection has no verified identity to send under")
+	errFromMismatch        = errors.New(errors.KindPermission, "peerplane: a peer may not send as another name (From bound to the SO_PEERCRED-verified connection)")
 )
 
 // compile-time assertion: *Orchestrator is an agentsession.PeerPlane.

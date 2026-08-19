@@ -19,7 +19,7 @@ type PeerMessage struct {
 	To       string // the recipient's Spec.Name; "" on an inbound event (it is this session)
 	ReplyTo  string // the MsgID this answers; "" == not a reply
 	Body     string // UNTRUSTED agent prose, at most MaxPeerBodyBytes, redacted at the normalization boundary
-	Verified bool   // the transport kernel-verified the sender (claude verifiedPeerPid; the eden bus SO_PEERCRED)
+	Verified bool   // kernel-verified sender: claude verifiedPeerPid, or STAMPED by the peerplane orchestrator from the SO_PEERCRED connection (never the client's claim)
 	Accepted bool   // EventPeerSent only: false == accepted for routing but NEVER delivered (the root reconciler's bounce)
 	Detail   string // EventPeerSent, Accepted==false: the redacted reason
 }

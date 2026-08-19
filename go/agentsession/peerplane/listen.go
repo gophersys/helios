@@ -70,8 +70,11 @@ func (o *Orchestrator) Listen(ctx context.Context) error {
 func (o *Orchestrator) serveConn(conn net.Conn) {
 	defer o.untrackConn(conn)
 
-	if _, ok := peerUID(conn); !ok {
-		// The kernel could not vouch for the peer: reject the connection rather than trust it.
+	// SO_PEERCRED pinned at accept: the kernel vouches for the peer, or the connection is refused.
+	// `verified` is the trust the orchestrator STAMPS onto every message this connection routes —
+	// never the client's self-asserted flag.
+	_, verified := peerUID(conn)
+	if !verified {
 		return
 	}
 
@@ -88,15 +91,16 @@ func (o *Orchestrator) serveConn(conn net.Conn) {
 			}
 			return
 		}
-		if o.dispatchFrame(conn, &writeMu, &joinedName, &f) {
+		if o.dispatchFrame(conn, &writeMu, &joinedName, verified, &f) {
 			return
 		}
 	}
 }
 
 // dispatchFrame services one wire frame. It returns true when the connection should close (a
-// leave). joinedName is updated on a successful join so a later EOF leaves the right node.
-func (o *Orchestrator) dispatchFrame(conn net.Conn, writeMu *sync.Mutex, joinedName *string, f *frame) (done bool) {
+// leave). joinedName is updated on a successful join so a later EOF leaves the right node; verified
+// is this connection's kernel-verified trust, stamped onto anything it sends.
+func (o *Orchestrator) dispatchFrame(conn net.Conn, writeMu *sync.Mutex, joinedName *string, verified bool, f *frame) (done bool) {
 	switch f.Type {
 	case frameJoin:
 		_ = conn.SetReadDeadline(time.Time{}) //nolint:errcheck // clear the handshake deadline; steady-state reads block.
@@ -104,7 +108,7 @@ func (o *Orchestrator) dispatchFrame(conn net.Conn, writeMu *sync.Mutex, joinedN
 	case frameRoster:
 		o.respond(conn, writeMu, &frame{Type: frameRosterResp, Peers: o.roster()})
 	case frameSend:
-		o.serveSend(conn, writeMu, f)
+		o.serveSend(conn, writeMu, *joinedName, verified, f)
 	case frameReceived:
 		o.received(f.MsgID)
 	case frameLeave:
@@ -137,13 +141,28 @@ func (o *Orchestrator) serveJoin(conn net.Conn, writeMu *sync.Mutex, joinedName 
 	o.respond(conn, writeMu, &frame{Type: frameJoinAck, OK: true, Generation: created.generation})
 }
 
-// serveSend routes a member's send and answers with the minted msg id or the typed error's Kind.
-func (o *Orchestrator) serveSend(conn net.Conn, writeMu *sync.Mutex, f *frame) {
+// serveSend routes a member's send. It NEVER trusts the frame's self-asserted identity: the From
+// is BOUND to this connection's joinedName (the name it registered under a SO_PEERCRED-verified
+// accept) and Verified is STAMPED from that same verified connection — so a raw same-uid process
+// cannot speak as another peer or forge the verified flag. A From that names a different peer, or a
+// send before Join, is rejected LOUDLY (a typed sendAck error), never silently dropped.
+func (o *Orchestrator) serveSend(conn net.Conn, writeMu *sync.Mutex, joinedName string, verified bool, f *frame) {
 	if f.Message == nil {
 		o.respond(conn, writeMu, &frame{Type: frameSendAck, ErrKind: uint8(liberrors.KindInvalid), ErrMsg: "empty send"})
 		return
 	}
-	msgID, err := o.route(*f.Message)
+	if joinedName == "" {
+		o.respond(conn, writeMu, &frame{Type: frameSendAck, ErrKind: uint8(liberrors.KindOf(errNotJoined)), ErrMsg: errNotJoined.Error()})
+		return
+	}
+	if f.Message.From != "" && f.Message.From != joinedName {
+		o.respond(conn, writeMu, &frame{Type: frameSendAck, ErrKind: uint8(liberrors.KindOf(errFromMismatch)), ErrMsg: errFromMismatch.Error()})
+		return
+	}
+	message := *f.Message
+	message.From = joinedName // BIND to the verified connection identity, never the client's claim
+	message.Verified = verified
+	msgID, err := o.route(message)
 	if err != nil {
 		o.respond(conn, writeMu, &frame{Type: frameSendAck, ErrKind: uint8(liberrors.KindOf(err)), ErrMsg: err.Error()})
 		return
