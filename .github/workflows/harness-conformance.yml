@@ -107,11 +107,6 @@ jobs:
           # Above the band flip the step starts one real `claude -p` turn, so it needs the same
           # bootstrap credential as the live arm. Absent there -> a named failure, never a skip.
           CLAUDEADAPTER_LIVE_TOKEN: ${{ secrets.CLAUDEADAPTER_LIVE_TOKEN }}
-          # Every step of this job reads the in-repo manifest rather than the /workspace default
-          # (CI checks out elsewhere), so a step that grows a manifest read cannot pick up the wrong
-          # file silently. This preflight does not read it today: the band it judges is a property
-          # of the INSTALLED binary that will run the turn, never of the pin.
-          HARNESS_VERSIONS_FILE: ${{ github.workspace }}/harnesses/versions.env
         run: bash scripts/assert-peer-messaging-available.sh
 
       - name: Adapter conformance + live gated tests against the pinned versions
