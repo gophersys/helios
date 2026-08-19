@@ -47,12 +47,41 @@
 #                           pulls the cloud image there — which is the pin the
 #                           DaemonSet exclusion just removed.
 #   POOLS-COVERED           the runner pools are covered. Their NotIn lives
-#                           inside a Helm `values: |` STRING block, so a
-#                           structural yq read of the Application finds nothing
-#                           there; the verifier must read that block as text.
+#                           inside a Helm `values: |` STRING block, so ONE yq
+#                           read of the Application returns that whole block as
+#                           a single scalar and sees no affinity in it. That is
+#                           a property of the read, NOT of the file: a TWO-STAGE
+#                           read — take the scalar, parse it as YAML — reaches
+#                           the same structure the warmer files expose directly,
+#                           and phase 4 proved it works. A text scan reaches it
+#                           too, at the cost of the 3 shapes below.
 #                           app-arc-runners-build.yaml is NOT in this set: it
 #                           uses an `In` list already pinned to k3s-w-0/1/2, and
 #                           demanding a NotIn of it would be wrong.
+#
+# WHAT A TEXT SCAN COSTS, AND WHAT OR SEMANTICS COST (round 2)
+# The first 5 cases prove the property is CHECKED. These 4 prove the check reads
+# what Kubernetes reads. Three of them are the ways a line that says
+# `operator: NotIn` above a list of hostnames does not exclude anything:
+#
+#   SOFT-AFFINITY           `preferredDuringSchedulingIgnoredDuringExecution` is
+#                           a SCORE. The scheduler prefers another node and takes
+#                           a control plane the moment the workers are full. The
+#                           4 hostnames are all there, and nothing is excluded.
+#   COMMENTED-BLOCK         a `#`-commented copy of the correct block, above an
+#                           effective list of ["k3s-w-4"]. A comment is not a
+#                           constraint. A line-oriented scan cannot tell.
+#   BLOCK-STYLE             the SAME correct exclusion written as a YAML block
+#                           sequence instead of a flow list. This one must PASS:
+#                           a check that fails on a correct file, naming it, is
+#                           the false red that teaches an operator to ignore red.
+#   SECOND-TERM             nodeSelectorTerms are OR-ed. A second term
+#                           (kubernetes.io/os In [linux]) beside an intact NotIn
+#                           term makes every linux node eligible again, control
+#                           planes included, while the NotIn list still reads
+#                           correct on its own. This one is structural, not
+#                           textual: a yq read of `nodeSelectorTerms[]` that does
+#                           not look at how many terms there are reports green.
 #
 # HOW THESE CASES REACH THE REAL SCRIPT
 # verify-warmer-pins.sh derives ROOT from its own location
@@ -99,6 +128,10 @@ a_fourth_server_node_is_caught_without_a_manifest_change
 zero_declared_servers_is_not_a_pass
 the_refresh_cronjob_is_covered
 the_runner_pools_are_covered
+a_soft_affinity_is_not_an_exclusion
+a_commented_out_block_is_not_an_exclusion
+a_block_style_list_is_still_an_exclusion
+a_second_node_selector_term_reopens_the_nodes
 "
 
 # A missing tool is a failure, never a skip (docs/testing-standard.md rule 3).
@@ -160,6 +193,117 @@ flow_list() {
   printf '[%s]' "$out_list"
 }
 
+# A scheduling knob is "<hosts>" or "<shape>:<hosts>". A hostname carries no
+# colon, so the prefix is unambiguous. The shapes exist because a NotIn list is
+# not the only thing that LOOKS like an exclusion, and a block sequence is an
+# exclusion that does not look like the others.
+shape_of() {
+  case "$1" in
+    *:*) printf '%s' "${1%%:*}" ;;
+    *) printf 'flow' ;;
+  esac
+}
+
+hosts_of() {
+  case "$1" in
+    *:*) printf '%s' "${1#*:}" ;;
+    *) printf '%s' "$1" ;;
+  esac
+}
+
+# The nodeAffinity of a runner pool, at the indent its helm values block uses.
+# <hosts> is always the EFFECTIVE list — what the scheduler would act on.
+pool_node_affinity() {
+  local shape="$1" hosts="$2" host
+  printf '            affinity:\n'
+  printf '              nodeAffinity:\n'
+  case "$shape" in
+    soft)
+      # A preference, not a requirement. Every hostname is present and the
+      # scheduler is free to ignore all of them under pressure.
+      printf '                preferredDuringSchedulingIgnoredDuringExecution:\n'
+      printf '                  - weight: 100\n'
+      printf '                    preference:\n'
+      printf '                      matchExpressions:\n'
+      printf '                        - key: kubernetes.io/hostname\n'
+      printf '                          operator: NotIn\n'
+      printf '                          values: %s\n' "$(flow_list "$hosts")"
+      ;;
+    commented)
+      # The correct block, commented out above the effective one. This is what a
+      # half-finished rollout looks like in a diff.
+      printf '                requiredDuringSchedulingIgnoredDuringExecution:\n'
+      printf '                  nodeSelectorTerms:\n'
+      printf '                    # historical shape, kept while the rollout settles:\n'
+      printf '                    #   - key: kubernetes.io/hostname\n'
+      printf '                    #     operator: NotIn\n'
+      printf '                    #     values: %s\n' "$(flow_list "$LAB_AND_CPS")"
+      printf '                    - matchExpressions:\n'
+      printf '                        - key: kubernetes.io/hostname\n'
+      printf '                          operator: NotIn\n'
+      printf '                          values: %s\n' "$(flow_list "$hosts")"
+      ;;
+    block|block-quoted)
+      # The same exclusion, as a YAML block sequence. Kubernetes reads this and
+      # the flow form identically.
+      printf '                requiredDuringSchedulingIgnoredDuringExecution:\n'
+      printf '                  nodeSelectorTerms:\n'
+      printf '                    - matchExpressions:\n'
+      printf '                        - key: kubernetes.io/hostname\n'
+      printf '                          operator: NotIn\n'
+      printf '                          values:\n'
+      for host in $hosts; do
+        if [ "$shape" = "block-quoted" ]; then
+          printf '                            - "%s"\n' "$host"
+        else
+          printf '                            - %s\n' "$host"
+        fi
+      done
+      ;;
+    flow)
+      printf '                requiredDuringSchedulingIgnoredDuringExecution:\n'
+      printf '                  nodeSelectorTerms:\n'
+      printf '                    - matchExpressions:\n'
+      printf '                        - key: kubernetes.io/hostname\n'
+      printf '                          operator: NotIn\n'
+      printf '                          values: %s\n' "$(flow_list "$hosts")"
+      ;;
+    *)
+      echo "test-verify-warmer-pins: unknown pool shape: $shape" >&2
+      exit 2
+      ;;
+  esac
+}
+
+# The nodeAffinity of a warmer file, at the DaemonSet pod-spec indent.
+warmer_node_affinity() {
+  local shape="$1" hosts="$2"
+  printf '      affinity:\n'
+  printf '        nodeAffinity:\n'
+  printf '          requiredDuringSchedulingIgnoredDuringExecution:\n'
+  printf '            nodeSelectorTerms:\n'
+  printf '              - matchExpressions:\n'
+  printf '                  - key: kubernetes.io/hostname\n'
+  printf '                    operator: NotIn\n'
+  printf '                    values: %s\n' "$(flow_list "$hosts")"
+  case "$shape" in
+    flow) ;;
+    two-terms)
+      # nodeSelectorTerms are OR-ed. A node that satisfies ANY term is eligible,
+      # so this term re-opens every linux node while the term above still reads
+      # correct on its own.
+      printf '              - matchExpressions:\n'
+      printf '                  - key: kubernetes.io/os\n'
+      printf '                    operator: In\n'
+      printf '                    values: ["linux"]\n'
+      ;;
+    *)
+      echo "test-verify-warmer-pins: unknown warmer shape: $shape" >&2
+      exit 2
+      ;;
+  esac
+}
+
 # One cluster member declaration, in the shape of the real ones: the k3s role
 # under `kubernetes.role`, and a `cluster_role` + `labels.role` beside it whose
 # values are the node-role taxonomy (apps|devops|...), never "server".
@@ -195,7 +339,7 @@ EOYAML
 
 # The warmer DaemonSet: the file that holds 3.86GB on whatever it lands on.
 emit_daemonset() {
-  local path="$1" values="$2"
+  local path="$1" shape="$2" hosts="$3"
   cat >"$path" <<EOYAML
 # ci-image-warmer (fixture) — initContainers run \`true\` so the kubelet pulls
 # the image and a container holds it. Scheduling is the whole payload.
@@ -217,14 +361,7 @@ spec:
       automountServiceAccountToken: false
       imagePullSecrets:
         - name: ghcr-pull
-      affinity:
-        nodeAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            nodeSelectorTerms:
-              - matchExpressions:
-                  - key: kubernetes.io/hostname
-                    operator: NotIn
-                    values: $values
+$(warmer_node_affinity "$shape" "$hosts")
       initContainers:
         - name: warm-cloud-pinned
           image: $DIGEST
@@ -330,7 +467,7 @@ EOYAML
 # STRING — yq reads it as one scalar, so the exclusion is text until someone
 # parses the block.
 emit_pool_notin() {
-  local path="$1" app="$2" release="$3" values="$4"
+  local path="$1" app="$2" release="$3" shape="$4" hosts="$5"
   cat >"$path" <<EOYAML
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -357,14 +494,7 @@ spec:
               supplementalGroups: [123]
 
             # k3s-w-4 owns the USB-passthrough embedded lab.
-            affinity:
-              nodeAffinity:
-                requiredDuringSchedulingIgnoredDuringExecution:
-                  nodeSelectorTerms:
-                    - matchExpressions:
-                        - key: kubernetes.io/hostname
-                          operator: NotIn
-                          values: $values
+$(pool_node_affinity "$shape" "$hosts")
               podAntiAffinity:
                 preferredDuringSchedulingIgnoredDuringExecution:
                   - weight: 100
@@ -460,12 +590,22 @@ new_env() {
     emit_identity "$nodes_dir" "$node" agent
   done
 
-  emit_daemonset "$arc/42-image-warmer-daemonset.yaml" "$(flow_list "$ds_values")"
+  # The refresh CronJob has one shape and no case varies it. A shape prefix there
+  # would be silently dropped, so it is refused out loud instead.
+  case "$refresh_values" in
+    *:*)
+      echo "test-verify-warmer-pins: the refresh knob takes no shape prefix: $refresh_values" >&2
+      exit 2
+      ;;
+  esac
+
+  emit_daemonset "$arc/42-image-warmer-daemonset.yaml" \
+    "$(shape_of "$ds_values")" "$(hosts_of "$ds_values")"
   emit_refresh "$arc/43-image-warmer-refresh.yaml" "$(flow_list "$refresh_values")"
   emit_pool_notin "$registry/app-arc-runners-org.yaml" arc-runners-org arc-org \
-    "$(flow_list "$org_values")"
+    "$(shape_of "$org_values")" "$(hosts_of "$org_values")"
   emit_pool_notin "$registry/app-arc-runners-review.yaml" arc-runners-review arc-review \
-    "$(flow_list "$review_values")"
+    "$(shape_of "$review_values")" "$(hosts_of "$review_values")"
   emit_pool_in "$registry/app-arc-runners-build.yaml"
 }
 
@@ -474,10 +614,43 @@ new_env() {
 # the substitution so nothing runs between them. A pipeline would report its last
 # stage instead — a misreading that has produced false findings here.
 run_verify() {
+  assert_fixtures_parse
   set +e
   out="$(bash "$ENV_DIR/scripts/verify-warmer-pins.sh" 2>&1)"
   rc=$?
   set -e
+}
+
+# Every fixture manifest must be YAML the subject can read. A manifest that does
+# not parse reads back as an EMPTY affinity, which fails the subject for a
+# plumbing reason while every assertion in the case still passes — a red that
+# looks valid and proves nothing. The parse error is printed, never swallowed.
+assert_fixtures_parse() {
+  local f err
+  for f in "$ENV_DIR"/platform/services/ci/arc-runners/*.yaml \
+    "$ENV_DIR"/platform/services/gitops/registry/*.yaml \
+    "$ENV_DIR"/clusters/instances/homelab/nodes/*/identity.yaml; do
+    [ -f "$f" ] || continue
+    if ! err="$(yq '.' "$f" 2>&1)"; then
+      bad "fixture does not parse as YAML: ${f#"$ENV_DIR"/} — $err"
+    fi
+  done
+}
+
+# The hostnames a warmer fixture still declares in its hostname NotIn term, read
+# structurally. A case that pins a defect OUTSIDE that list must prove the list
+# itself is intact, or its red is the ordinary defect wearing a new name.
+expect_fixture_notin_intact() {
+  local file="$1" pod="$2" hosts="$3" got host
+  if ! got="$(yq "${pod}.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[].matchExpressions[] | select(.key == \"kubernetes.io/hostname\" and .operator == \"NotIn\") | .values[]" "$ENV_DIR/$file" 2>&1)"; then
+    bad "the fixture $file did not parse: $got"
+    return 0
+  fi
+  for host in $hosts; do
+    if ! printf '%s\n' "$got" | grep -qxF "$host"; then
+      bad "the fixture $file lost $host from its NotIn term — the red below would be the wrong defect"
+    fi
+  done
 }
 
 expect_rc() {
@@ -606,6 +779,75 @@ test_the_runner_pools_are_covered() {
   refute_fixture_defects
   expect_line 'FAIL.*app-arc-runners-org\.yaml' "the exclusion inside a helm values string must be read, not skipped"
   expect_line 'FAIL.*k3s-cp-0' "and the node it fails to exclude"
+}
+
+# 6. SOFT-AFFINITY-IS-NOT-EXCLUSION — every hostname is present, spelled
+# correctly, under `operator: NotIn`, and NOTHING is excluded.
+# `preferredDuringSchedulingIgnoredDuringExecution` is a scoring hint: the
+# scheduler ranks the control planes last and then places the pod there anyway
+# the moment the workers cannot fit it — which is precisely the busy hour this
+# pool exists for. A reader that matches on `NotIn` + hostnames cannot tell a
+# score from a constraint, and reports the file correct.
+test_a_soft_affinity_is_not_an_exclusion() {
+  new_env "$CP_NODES" "$WORKER_NODES" \
+    "$LAB_AND_CPS" "$LAB_AND_CPS" "soft:$LAB_AND_CPS" "$LAB_AND_CPS"
+  run_verify
+  expect_rc 1 "a preference is not an exclusion — the pod lands on an etcd node as soon as the workers are full"
+  refute_fixture_defects
+  expect_line 'FAIL.*app-arc-runners-org\.yaml' "the failure must name the file whose exclusion is only a preference"
+  expect_line 'FAIL.*k3s-cp-0' "and the node that is still schedulable"
+}
+
+# 7. COMMENTED-BLOCK-IS-NOT-EXCLUSION — the correct 4-hostname block sits in a
+# `# historical shape` comment above an effective list of ["k3s-w-4"]. This is
+# what a half-finished rollout looks like in a diff, and it is the cheapest way
+# to make a line-oriented check green: the hostnames are in the file, on lines
+# that Kubernetes never reads. The check must read the DOCUMENT, not the bytes.
+test_a_commented_out_block_is_not_an_exclusion() {
+  new_env "$CP_NODES" "$WORKER_NODES" \
+    "$LAB_AND_CPS" "$LAB_AND_CPS" "commented:$LAB_ONLY" "$LAB_AND_CPS"
+  run_verify
+  expect_rc 1 "a commented block excludes nothing — the effective list is [\"k3s-w-4\"]"
+  refute_fixture_defects
+  expect_line 'FAIL.*app-arc-runners-org\.yaml' "the failure must name the file whose exclusion is commented out"
+  expect_line 'FAIL.*k3s-cp-0' "and the node the live block leaves schedulable"
+}
+
+# 8. BLOCK-STYLE-IS-STILL-EXCLUSION — and this one must PASS. The exact same
+# exclusion, written as a YAML block sequence: unquoted in arc-org, quoted in
+# arc-review, both of them what a person writes when a flow list outgrows a
+# line. Kubernetes reads all three forms identically. A check that fails here
+# names a correct file as broken, and a false red on a correct file is how an
+# operator learns to ignore the gate. This is the second control in the suite,
+# and unlike the first it is RED today.
+test_a_block_style_list_is_still_an_exclusion() {
+  new_env "$CP_NODES" "$WORKER_NODES" \
+    "$LAB_AND_CPS" "$LAB_AND_CPS" "block:$LAB_AND_CPS" "block-quoted:$LAB_AND_CPS"
+  run_verify
+  expect_rc 0 "a block sequence is the same exclusion — the style of the list is not the property"
+  refute_line 'FAIL' "a correct file named as broken is a false red, and it trains people to ignore the gate"
+}
+
+# 9. SECOND-TERM-REOPENS-THE-NODES — the structural one. The NotIn term is
+# intact and correct; a second nodeSelectorTerm (kubernetes.io/os In [linux])
+# sits beside it. nodeSelectorTerms are OR-ed, so a node that satisfies EITHER
+# term is eligible, and every control plane runs linux. The exclusion is void
+# while the list that spells it out still reads perfect on its own — so a read
+# of `nodeSelectorTerms[].matchExpressions[]` that never counts the terms
+# reports green on a DaemonSet that is back on the etcd nodes.
+test_a_second_node_selector_term_reopens_the_nodes() {
+  new_env "$CP_NODES" "$WORKER_NODES" \
+    "two-terms:$LAB_AND_CPS" "$LAB_AND_CPS" "$LAB_AND_CPS" "$LAB_AND_CPS"
+  # The NotIn term here is PERFECT, and this proves it. Without the proof, a
+  # fixture that lost a hostname would go red for the ordinary defect while
+  # posing as evidence for OR semantics.
+  expect_fixture_notin_intact "platform/services/ci/arc-runners/42-image-warmer-daemonset.yaml" \
+    ".spec.template.spec" "$LAB_AND_CPS"
+  run_verify
+  expect_rc 1 "OR-ed terms: the second term makes every linux node eligible, control planes included"
+  refute_fixture_defects
+  expect_line 'FAIL.*42-image-warmer-daemonset\.yaml' "the failure must name the file whose second term reopens the nodes"
+  expect_line 'FAIL.*k3s-cp-0' "and the node that is schedulable again"
 }
 
 # -------- runner --------
