@@ -285,10 +285,12 @@ func (a *Advisor) maxTurns() int32 {
 // adjudication past its budget on a wedged harness.
 const reviewerCloseTimeout = 5 * time.Second
 
-// drainReviewerReply reads the reviewer session's Event stream from Seq 0 to its terminal (or the
-// ctx deadline), accumulating the assistant text. The terminal Result's ResultText is preferred
-// when present (the authoritative final text); otherwise the concatenated text deltas are used. A
-// stream fault or a non-Result terminal (Failed/Aborted) is an error so Advise fails safe.
+// drainReviewerReply reads the reviewer session's Event stream from Seq 0 to the end of its TURN
+// (or the ctx deadline), accumulating the assistant text. The verdict is the authoritative final
+// text of that turn — for claude the `result` line, an EventTurnEnd — so a turn boundary ends the
+// drain exactly as a session terminal does; the deferred Close then reaps the reviewer. Otherwise
+// the concatenated text deltas are used. A stream fault or a Failed/Aborted terminal is an error so
+// Advise fails safe.
 func drainReviewerReply(ctx context.Context, session agentsession.Session) (string, error) {
 	stream := session.Events(ctx, agentsession.FromSeq(0))
 	var deltas strings.Builder
@@ -310,7 +312,7 @@ func drainReviewerReply(ctx context.Context, session agentsession.Session) (stri
 			if event.Message != nil {
 				deltas.WriteString(event.Message.Delta)
 			}
-		case agentsession.EventResult:
+		case agentsession.EventResult, agentsession.EventTurnEnd:
 			if event.Terminal != nil && strings.TrimSpace(event.Terminal.ResultText) != "" {
 				return event.Terminal.ResultText, nil
 			}

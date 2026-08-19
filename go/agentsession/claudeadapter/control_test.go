@@ -8,6 +8,7 @@ import (
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/claudeadapter"
+	"github.com/gophersys/libs/go/agentsession/internal/controlframe"
 )
 
 // capturedCanUseToolFrame is a REAL can_use_tool control_request line captured from claude
@@ -260,64 +261,70 @@ func TestPermissionDecisionFrame_Deny(t *testing.T) {
 	}
 }
 
-// TestPermissionAnswerPrefix_MatchesLibrary pins the one-home invariant: the adapter's internal
-// frame prefix equals the library's agentsession.permissionAnswer prefix. A drift would make
-// the adapter mis-parse the library's resolved-decision frame and silently fall back to a user
-// turn (the very bug being fixed). The library prefix is reconstructed from the frame a real
-// Decision renders (TestResolve_TranslatesToControlResponse drives the live shape end-to-end);
-// here the literal is pinned so the duplication is detectable.
-func TestPermissionAnswerPrefix_MatchesLibrary(t *testing.T) {
-	t.Parallel()
-	if got := claudeadapter.PermissionAnswerPrefixForTest(); got != "eden:permission:" {
-		t.Fatalf("adapter permission-answer prefix = %q, want eden:permission: (library drift)", got)
-	}
-}
+// TestPermissionAnswerPrefix_MatchesLibrary and TestRationaleSeparator_MatchesLibrary are
+// RETIRED here. They pinned the adapter's PRIVATE COPY of the eden:permission grammar equal to
+// the library's private copy — a guard that only ever existed because the grammar was written
+// down in two places (agentsession/identifiers.go:26,61 and claudeadapter/control.go:104,109),
+// plus a third in agentsessiontest/events.go:17. Contract revision R1 collapses all three into
+// agentsession/internal/controlframe, so there is no second copy to drift from and a
+// literal-equality test has nothing left to guard. The suite below proves the STRONGER property
+// those tests were approximating: a frame the ONE HOME encodes is the frame the adapter decodes.
 
-// TestParsePermissionAnswer_Roundtrip proves the internal frame parse: an allow with a
-// colon-bearing policy identity parses to (id, allow, by) with the identity intact, and a
-// genuine Steer interjection (no prefix) is NOT parsed as a permission answer.
-func TestParsePermissionAnswer_Roundtrip(t *testing.T) {
+// TestParsePermissionAnswer_DecodesTheOneHomeEncoding is the interoperability proof, and it is
+// the one that actually matters on the wire: whatever agentsession sends as a resolved decision
+// is produced by controlframe.EncodePermission, so the adapter's parser must read exactly that.
+// Pinning the two sides against a shared ENCODER (rather than against a shared literal) means a
+// change to the grammar is caught even when both copies are changed consistently-but-wrongly.
+func TestParsePermissionAnswer_DecodesTheOneHomeEncoding(t *testing.T) {
 	t.Parallel()
-	id, allow, by, ok := claudeadapter.ParsePermissionAnswerForTest("eden:permission:req-1:allow:policy:clean-room")
-	if !ok || id != "req-1" || !allow || by != "policy:clean-room" {
-		t.Errorf("parse allow frame = (%q,%v,%q,%v), want (req-1,true,policy:clean-room,true)", id, allow, by, ok)
-	}
-	id, allow, by, ok = claudeadapter.ParsePermissionAnswerForTest("eden:permission:req-2:deny:user-7")
-	if !ok || id != "req-2" || allow || by != "user-7" {
-		t.Errorf("parse deny frame = (%q,%v,%q,%v), want (req-2,false,user-7,true)", id, allow, by, ok)
+	for _, testCase := range []struct {
+		name      string
+		requestID string
+		allow     bool
+		by        string
+	}{
+		{"allow with a colon-bearing policy identity", "req-1", true, "policy:clean-room"},
+		{"deny with a plain user identity", "req-2", false, "user-7"},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+			frame := controlframe.EncodePermission(testCase.requestID, testCase.allow, testCase.by, "")
+			id, allow, by, ok := claudeadapter.ParsePermissionAnswerForTest(frame)
+			if !ok {
+				t.Fatalf("the adapter did not recognize the frame the one home encoded: %q", frame)
+			}
+			if id != testCase.requestID || allow != testCase.allow || by != testCase.by {
+				t.Errorf("parse %q = (%q,%v,%q), want (%q,%v,%q)",
+					frame, id, allow, by, testCase.requestID, testCase.allow, testCase.by)
+			}
+		})
 	}
 	if _, _, _, ok := claudeadapter.ParsePermissionAnswerForTest("focus on the tests"); ok {
 		t.Errorf("a genuine Steer interjection must NOT parse as a permission answer")
 	}
 }
 
-// TestParsePermissionAnswer_Rationale proves the ADDITIVE audit-rationale decode: a frame
-// with the optional 0x1f-separated rationale splits the By identity from the rationale
-// (the By identity stays intact, even a colon-bearing "policy:risk-clamp"), while a frame
-// WITHOUT the separator parses byte-identically to the pre-ratification id:verdict:by (no
-// rationale, By is the whole tail). This is the non-breaking-frame guarantee.
+// TestParsePermissionAnswer_Rationale proves the ADDITIVE audit-rationale decode against the one
+// home's encoding: a frame carrying the optional rationale splits the By identity from the
+// rationale (the identity stays intact, even a colon-bearing "policy:risk-clamp"), while a frame
+// encoded WITHOUT one parses byte-identically to the pre-ratification id:verdict:by. The
+// separator is no longer named here at all — it is controlframe's private business, which is
+// exactly what "one home" means.
 func TestParsePermissionAnswer_Rationale(t *testing.T) {
 	t.Parallel()
-	sep := claudeadapter.RationaleSeparatorForTest()
-	// A clamped deny carries By="policy:risk-clamp" + a rationale; both decode intact.
-	by, rationale, ok := claudeadapter.ParsePermissionAnswerRationaleForTest("eden:permission:req-1:deny:policy:risk-clamp" + sep + "high-risk tool: overridden")
-	if !ok || by != "policy:risk-clamp" || rationale != "high-risk tool: overridden" {
-		t.Errorf("rationale frame = (%q,%q,%v), want (policy:risk-clamp, high-risk tool: overridden, true)", by, rationale, ok)
+	const audited = "high-risk tool: overridden"
+	clamped := controlframe.EncodePermission("req-1", false, "policy:risk-clamp", audited)
+	by, rationale, ok := claudeadapter.ParsePermissionAnswerRationaleForTest(clamped)
+	if !ok || by != "policy:risk-clamp" || rationale != audited {
+		t.Errorf("rationale frame %q = (%q,%q,%v), want (policy:risk-clamp, %q, true)", clamped, by, rationale, ok, audited)
 	}
-	// A frame with NO rationale: By is the whole tail, rationale empty (back-compat).
-	by, rationale, ok = claudeadapter.ParsePermissionAnswerRationaleForTest("eden:permission:req-2:allow:user-7")
+	plain := controlframe.EncodePermission("req-2", true, "user-7", "")
+	by, rationale, ok = claudeadapter.ParsePermissionAnswerRationaleForTest(plain)
 	if !ok || by != "user-7" || rationale != "" {
-		t.Errorf("no-rationale frame = (%q,%q,%v), want (user-7, \"\", true)", by, rationale, ok)
+		t.Errorf("no-rationale frame %q = (%q,%q,%v), want (user-7, \"\", true)", plain, by, rationale, ok)
 	}
-}
-
-// TestRationaleSeparator_MatchesLibrary pins the one-home invariant for the audit-rationale
-// separator: the adapter's separator equals the library's (a drift would corrupt the By
-// identity by mis-splitting the frame). The library uses the ASCII unit separator (0x1f).
-func TestRationaleSeparator_MatchesLibrary(t *testing.T) {
-	t.Parallel()
-	if got := claudeadapter.RationaleSeparatorForTest(); got != "\x1f" {
-		t.Fatalf("adapter rationale separator = %q, want 0x1f (library drift)", got)
+	if plain != "eden:permission:req-2:allow:user-7" {
+		t.Errorf("a rationale-free frame must stay byte-identical to the pre-ratification form, got %q", plain)
 	}
 }
 

@@ -3,7 +3,7 @@
 // Package claudeadapter_test's load arm fans out N concurrent spawn -> normalize -> Close
 // cycles over the REAL stub subprocess (internal/stubharness, NOT claude) under -race
 // (ADR-0020 dimension (e)). Each cycle spawns its own process through the genuine Spawn
-// path, drives the Prompt, drains the normalized stream to its terminal, and Closes — so
+// path, drives the Prompt, drains the normalized stream to its TURN boundary, and Closes — so
 // the os/exec lifecycle, the scanner goroutine, and the normalizer are all exercised
 // concurrently. The race detector must report 0 races; every process is reaped; and goleak
 // asserts the goroutine high-water returns to baseline (no orphaned scanner/process).
@@ -60,8 +60,8 @@ func loadConcurrency(n int) int {
 
 // TestLoad_ConcurrentSpawnNormalizeCloseRaceClean fans out N concurrent spawn/normalize/
 // Close cycles over the stub subprocess. Bound by t.Context(), admission-controlled by a
-// semaphore, every cycle must reach a terminal and reap its process; the race detector must
-// find 0 races; goleak.VerifyNone proves the goroutine high-water returns to baseline.
+// semaphore, every cycle must draw its TURN boundary and reap its process; the race detector
+// must find 0 races; goleak.VerifyNone proves the goroutine high-water returns to baseline.
 //
 //nolint:paralleltest // goleak.VerifyNone asserts the goroutine high-water at this test's end; a parallel sibling's goroutines would pollute that snapshot, so the load test runs serially.
 func TestLoad_ConcurrentSpawnNormalizeCloseRaceClean(t *testing.T) {
@@ -78,10 +78,10 @@ func TestLoad_ConcurrentSpawnNormalizeCloseRaceClean(t *testing.T) {
 	defer cancel()
 
 	var (
-		wg        sync.WaitGroup
-		failures  atomic.Int64
-		terminals atomic.Int64
-		firstErr  atomic.Pointer[string]
+		wg         sync.WaitGroup
+		failures   atomic.Int64
+		boundaries atomic.Int64
+		firstErr   atomic.Pointer[string]
 	)
 	recordErr := func(msg string) {
 		failures.Add(1)
@@ -99,7 +99,7 @@ func TestLoad_ConcurrentSpawnNormalizeCloseRaceClean(t *testing.T) {
 				recordErr(err.Error())
 				return
 			}
-			terminals.Add(1)
+			boundaries.Add(1)
 		}(i)
 	}
 	wg.Wait()
@@ -111,17 +111,17 @@ func TestLoad_ConcurrentSpawnNormalizeCloseRaceClean(t *testing.T) {
 		}
 		t.Fatalf("%d/%d concurrent cycles failed; first error: %s", got, n, msg)
 	}
-	if got := terminals.Load(); got != int64(n) {
-		t.Fatalf("expected all %d cycles to reach a terminal, got %d", n, got)
+	if got := boundaries.Load(); got != int64(n) {
+		t.Fatalf("expected all %d cycles to draw a turn boundary, got %d", n, got)
 	}
 }
 
-// oneCycle runs a single spawn -> Prompt -> drain-to-terminal -> Close over a fresh stub
+// oneCycle runs a single spawn -> Prompt -> drain-to-turn-boundary -> Close over a fresh stub
 // process. A background drainer reads conn.Events() to EOF (the conn is NOT self-draining —
 // the graceful Close ladder waits on the scanner, which only finishes once the channel is
 // read to completion; this mirrors the real library's session pump). The cycle asserts the
-// stream reached a terminal AFTER the Ready handshake and the credential canary never leaked
-// onto any event, then Closes and joins the drainer (proving the process is reaped).
+// stream drew its turn boundary AFTER the Ready handshake and the credential canary never
+// leaked onto any event, then Closes and joins the drainer (proving the process is reaped).
 func oneCycle(ctx context.Context, stub string, i int) error {
 	adapter, err := claudeadapter.New(claudeadapter.Config{Binary: stub})
 	if err != nil {
@@ -163,12 +163,18 @@ func oneCycle(ctx context.Context, stub string, i int) error {
 }
 
 // cycleObservation records what one cycle's drainer saw on its stream.
+//
+// Re-pinned for contract revision R1: what a CONN emits at the end of a turn is a TURN
+// boundary, and a conn that serves many turns never emits a session terminal at all — the
+// session terminal is synthesized by the library at Close, one layer above this lane. So the
+// per-cycle invariant is "a boundary was drawn, after Ready, and it was NOT terminal".
 type cycleObservation struct {
-	ready, terminal, leaked, terminalBeforeReady bool
+	ready, boundary, leaked, boundaryBeforeReady, sessionTerminal bool
 }
 
-// drainObservations reads conn.Events() to EOF, recording the Ready handshake, the terminal,
-// any canary leak, and whether a terminal preceded Ready (an ordering violation).
+// drainObservations reads conn.Events() to EOF, recording the Ready handshake, the turn
+// boundary, any canary leak, whether a boundary preceded Ready (an ordering violation), and
+// whether any event ended the SESSION (the pre-R1 single-turn defect, at fan-out).
 func drainObservations(conn agentsession.HarnessConn) cycleObservation {
 	var o cycleObservation
 	for ev := range conn.Events() {
@@ -181,9 +187,12 @@ func drainObservations(conn agentsession.HarnessConn) cycleObservation {
 			}
 		}
 		if ev.IsTerminal() {
-			o.terminal = true
+			o.sessionTerminal = true
+		}
+		if ev.Terminal != nil {
+			o.boundary = true
 			if !o.ready {
-				o.terminalBeforeReady = true
+				o.boundaryBeforeReady = true
 			}
 		}
 	}
@@ -195,10 +204,12 @@ func evalObservation(i int, o cycleObservation) error {
 	switch {
 	case o.leaked:
 		return wrapCycle(i, "leak", cycleError("credential canary leaked onto a load-stream event"))
-	case !o.terminal:
-		return wrapCycle(i, "stream", cycleError("channel closed before a terminal"))
-	case o.terminalBeforeReady:
-		return wrapCycle(i, "order", cycleError("terminal observed before the Ready handshake"))
+	case !o.boundary:
+		return wrapCycle(i, "stream", cycleError("channel closed before a turn boundary"))
+	case o.boundaryBeforeReady:
+		return wrapCycle(i, "order", cycleError("turn boundary observed before the Ready handshake"))
+	case o.sessionTerminal:
+		return wrapCycle(i, "turn", cycleError("a conn event ended the SESSION; a `result` line ends the TURN and the conn stays open for the next one"))
 	default:
 		return nil
 	}

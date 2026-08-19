@@ -73,8 +73,14 @@ func newOmpSessionProbe(t *testing.T, stub string) libtesting.LifecycleFactory {
 	}
 }
 
-// Use exercises the live session once: open a tail, prompt, and drain to terminal so the conn
-// spawns one real stub process and reaps it through the full path before Close.
+// Use exercises the live session once: open a tail, prompt, and drain to the TURN BOUNDARY so
+// the conn spawns one real stub process and reaps it through the full path before Close.
+//
+// Re-pinned for contract revision R1: the session under lifecycle here is one that SURVIVES its
+// turn, so Use must stop on the boundary payload — the same event on both sides of the revision.
+// Waiting for a session terminal would wait for one that never comes: post-R1 the terminal is
+// what the driver's own Close produces, one step later, and a Use that blocks on it turns the
+// lifecycle probe into a deadlock on its own next step.
 func (p *ompSessionProbe) Use(ctx context.Context) error {
 	stream := p.session.Events(ctx, agentsession.FromSeq(0))
 	if _, err := p.session.Control(ctx, agentsession.Command{Kind: agentsession.CommandPrompt, Text: "read the file"}); err != nil {
@@ -85,11 +91,29 @@ func (p *ompSessionProbe) Use(ctx context.Context) error {
 		if !ok {
 			return stream.Err()
 		}
-		if ev.IsTerminal() {
-			return nil
+		if ev.Terminal == nil {
+			continue
 		}
+		if ev.IsTerminal() {
+			return errTurnEndedTheSession(ev.Kind)
+		}
+		return nil
 	}
 }
+
+// errTurnEndedTheSession names the pre-R1 defect the lifecycle probe hits: the harness's one
+// turn ended the SESSION, so the handle the driver is about to Close is already dead and the
+// construct->use->close->double-close ladder never runs against a live session.
+func errTurnEndedTheSession(kind agentsession.EventKind) error {
+	return lifecycleAssertionError("the omp turn ended the SESSION on a " + kind.String() +
+		" terminal; a clean `agent_end` is a TURN boundary and the session must still be alive for Close to reap")
+}
+
+// lifecycleAssertionError is a tiny error type so the probe reports a contract violation without
+// pulling the errors lib into this lane's surface.
+type lifecycleAssertionError string
+
+func (e lifecycleAssertionError) Error() string { return string(e) }
 
 // Close closes the session. The library + conn guarantee Close is idempotent, so the driver's
 // SECOND call must also return nil (the double-close invariant).

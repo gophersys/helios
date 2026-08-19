@@ -457,9 +457,13 @@ func (n *normalizer) user(envelope *streamLine) []agentsession.Event {
 	return events
 }
 
-// result maps the terminal result line to EventResult (success) or EventFailed (error),
-// carrying the authoritative four-token TokenLedger. CostMicros is converted from the
-// reported USD with no float drift (round to the nearest micro-unit).
+// result maps the result line to EventTurnEnd (success) or the session-terminal EventFailed
+// (error), carrying the authoritative four-token TokenLedger. CostMicros is converted from
+// the reported USD with no float drift (round to the nearest micro-unit).
+//
+// A SUCCESS result ends the TURN, not the session: one claude process in stream-json input
+// mode emits one `result` per turn and goes back to reading stdin, so mapping it to a
+// session terminal is what made an eden claude session single-turn.
 func (n *normalizer) result(envelope *streamLine) agentsession.Event {
 	ledger := agentsession.TokenLedger{
 		UsageMeter: agentsession.UsageMeter{
@@ -496,7 +500,7 @@ func (n *normalizer) result(envelope *streamLine) agentsession.Event {
 		}
 	}
 	return agentsession.Event{
-		Kind: agentsession.EventResult,
+		Kind: agentsession.EventTurnEnd,
 		Terminal: &agentsession.TerminalPayload{
 			Outcome:    agentsession.TurnCompleted,
 			Ledger:     ledger,

@@ -84,7 +84,7 @@ func (l *runLoop) drive(shutdownCtx context.Context) (TerminationReason, error) 
 		l.seedInitialPrompt()
 	}
 
-	reason := l.pump() // blocks until the stream terminates or a trigger cancels agentCtx
+	reason, sessionAlive := l.pump() // blocks until the stream terminates or a trigger cancels agentCtx
 
 	// Publish the explicit PhaseDraining beat BEFORE the cancel: the heartbeat goroutine returns the
 	// instant agentCtx cancels (so it cannot emit a drain beat itself once we cancel below), yet the
@@ -102,6 +102,9 @@ func (l *runLoop) drive(shutdownCtx context.Context) (TerminationReason, error) 
 	if err := l.session.Close(drainCtx); err != nil {
 		r.observer.Logf(shutdownCtx, "agentruntime: agent %q session close error: %v", r.configuration.AgentID, err)
 	}
+	if sessionAlive {
+		l.publishSessionTail(drainCtx)
+	}
 	l.publishHealth(shutdownCtx, PhaseStopped)
 
 	if err := r.observer.Flush(context.WithoutCancel(shutdownCtx)); err != nil {
@@ -114,24 +117,48 @@ func (l *runLoop) drive(shutdownCtx context.Context) (TerminationReason, error) 
 }
 
 // pump reads the session's Event stream from Seq 0, publishing each event as a Seq-stamped envelope
-// to agent.<id>.events, until the stream reaches a terminal OR a termination trigger fires. It
-// returns the typed reason. The pump is the single writer of lastSeq/sessionState.
-func (l *runLoop) pump() TerminationReason {
+// to agent.<id>.events, until the stream reaches a TURN BOUNDARY or a session terminal, OR a
+// termination trigger fires. It returns the typed reason plus whether the session is STILL ALIVE at
+// that point — true when the loop ended on a turn boundary, so drive knows the session's own
+// terminal is still to come from the Close. The pump is the single writer of lastSeq/sessionState.
+func (l *runLoop) pump() (reason TerminationReason, sessionAlive bool) {
 	stream := l.session.Events(l.agentCtx, agentsession.FromSeq(0))
 	for {
 		// A termination trigger pre-empts a blocking Next: check the request channels first so a
 		// STOP/KILL/signal does not wait on the next event.
 		if reason, done := l.checkTriggers(); done {
-			return reason
+			return reason, false
 		}
 		event, ok := stream.Next(l.agentCtx)
 		if !ok {
-			return l.streamEndReason(stream)
+			return l.streamEndReason(stream), false
 		}
-		l.recordAndPublish(event)
+		l.recordAndPublish(l.agentCtx, event)
 		if event.IsTerminal() {
-			return TerminationSessionEnd
+			return TerminationSessionEnd, false
 		}
+		if event.Kind == agentsession.EventTurnEnd {
+			// The harness ended its TURN and is waiting for the next Prompt. The sidecar runs one
+			// turn, so this ends the run — but the session is alive, and Close is what produces
+			// the terminal every viewer's replay ends on.
+			return TerminationSessionEnd, true
+		}
+	}
+}
+
+// publishSessionTail publishes whatever the Close appended past the pump's last event — the
+// session's own terminal, synthesized when the harness only ever ended its TURN. Without it a
+// clean multi-turn run would leave the bus with no terminal to end a replay on. It reads from the
+// last published Seq, so nothing is republished, and the session is already closed, so the drain
+// is bounded by the transcript head.
+func (l *runLoop) publishSessionTail(ctx context.Context) {
+	stream := l.session.Events(ctx, agentsession.FromSeq(l.lastSeq.Load()))
+	for {
+		event, ok := stream.Next(ctx)
+		if !ok {
+			return
+		}
+		l.recordAndPublish(ctx, event)
 	}
 }
 
@@ -180,7 +207,7 @@ func (l *runLoop) streamEndReason(stream agentsession.Stream) TerminationReason 
 // a transient publish failure is surfaced and the pump continues so the harness is not blocked).
 //
 //nolint:gocritic // agentsession.Event is the frozen, copyable record (agentsession contract §2); this writer takes it by value, mirroring the upstream seam.
-func (l *runLoop) recordAndPublish(event agentsession.Event) {
+func (l *runLoop) recordAndPublish(ctx context.Context, event agentsession.Event) {
 	r := l.runtime
 	l.lastSeq.Store(event.Seq)
 	if event.Kind == agentsession.EventSessionState && event.State != nil {
@@ -190,11 +217,11 @@ func (l *runLoop) recordAndPublish(event agentsession.Event) {
 		AgentID:  r.configuration.AgentID,
 		Seq:      event.Seq,
 		Event:    event,
-		OTel:     r.observer.Inject(l.agentCtx),
+		OTel:     r.observer.Inject(ctx),
 		EmitTime: r.clock.Now(),
 	}
-	if err := r.bus.PublishEvent(l.agentCtx, envelope); err != nil {
-		r.observer.Logf(l.agentCtx, "agentruntime: agent %q publish event seq=%d error: %v", r.configuration.AgentID, event.Seq, err)
+	if err := r.bus.PublishEvent(ctx, envelope); err != nil {
+		r.observer.Logf(ctx, "agentruntime: agent %q publish event seq=%d error: %v", r.configuration.AgentID, event.Seq, err)
 	}
 }
 

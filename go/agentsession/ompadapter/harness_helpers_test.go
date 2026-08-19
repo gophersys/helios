@@ -95,22 +95,28 @@ type integrationClock struct{}
 
 func (integrationClock) Now() time.Time { return time.Date(2026, time.June, 13, 12, 0, 0, 0, time.UTC) }
 
-// drainTerminal drains a session's stream to its terminal, bounded so a regression fails fast
-// rather than hanging.
+// drainToTurnBoundary drains a session's stream to the end of its FIRST TURN, bounded so a
+// regression fails fast rather than hanging.
 // drainDeadline bounds a live harness run. Exceeding it is a FAILURE that says
 // so, never a quiet return of a partial event list.
 const drainDeadline = 60 * time.Second
 
+// Re-pinned for contract revision R1: the drain stops on the boundary PAYLOAD
+// (`event.Terminal != nil`), which is the SAME event on both sides of the revision — a clean
+// `agent_end` today, and the non-terminal turn-end it becomes once a session survives its own
+// turn. Stopping on IsTerminal() alone would wait out the whole deadline post-R1, since a
+// healthy multi-turn session emits no terminal until it is Closed.
+//
 // It returns an error rather than calling t.Fatalf, so that the deadline branch
 // below can be driven from a test. While it took a *testing.T that branch could
 // not be reached by any test, and it shipped unproven.
-func drainTerminal(session agentsession.Session) ([]agentsession.Event, error) {
-	return drainTerminalWithin(session, drainDeadline)
+func drainToTurnBoundary(session agentsession.Session) ([]agentsession.Event, error) {
+	return drainToTurnBoundaryWithin(session, drainDeadline)
 }
 
-// drainTerminalWithin takes the deadline as a parameter so a test can drive the
+// drainToTurnBoundaryWithin takes the deadline as a parameter so a test can drive the
 // timeout branch in seconds instead of waiting out the production deadline.
-func drainTerminalWithin(session agentsession.Session, deadline time.Duration) ([]agentsession.Event, error) {
+func drainToTurnBoundaryWithin(session agentsession.Session, deadline time.Duration) ([]agentsession.Event, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), deadline)
 	defer cancel()
 	stream := session.Events(ctx, agentsession.FromSeq(0))
@@ -126,24 +132,27 @@ func drainTerminalWithin(session agentsession.Session, deadline time.Duration) (
 			// event happened to be and the reader looked at event kinds instead
 			// of the clock. Name the timeout here, where it is known.
 			if ctx.Err() != nil {
-				return events, fmt.Errorf("no terminal event within %s (%d event(s) seen, last = %s); the harness is hung or slower than this deadline",
+				return events, fmt.Errorf("no turn boundary within %s (%d event(s) seen, last = %s); the harness is hung or slower than this deadline",
 					deadline, len(events), lastKind(events))
 			}
 			return events, nil
 		}
 		events = append(events, event)
-		if event.IsTerminal() {
+		if event.Terminal != nil || event.IsTerminal() {
 			return events, nil
 		}
 	}
 }
 
-// lastKind names the final event for a diagnostic, or "none".
+// lastKind names the final event for a diagnostic, or "none". It renders through String(), not
+// through a conversion: EventKind's underlying type is uint8, so `string(kind)` is a rune
+// conversion that go vet's stringintconv permits (uint8 IS byte) and that prints an
+// unprintable byte instead of the token — the diagnostic this deadline message exists to give.
 func lastKind(events []agentsession.Event) string {
 	if len(events) == 0 {
 		return "none"
 	}
-	return string(events[len(events)-1].Kind)
+	return events[len(events)-1].Kind.String()
 }
 
 // readyObserved reports whether the stream contains the Initializing->Ready handshake.
@@ -222,18 +231,18 @@ func procCommPPID(pid int) (comm string, ppid int, ok bool) {
 	return comm, ppid, true
 }
 
-// TestDrainTerminal_ADeadlineNamesItself drives the branch that shipped
-// unproven. The scripted fake emits 1 non-terminal event and then holds the
-// stream open, so the drain can only end on its deadline.
+// TestDrainToTurnBoundary_ADeadlineNamesItself drives the branch that shipped
+// unproven. The scripted fake emits 1 event that draws no boundary and then holds
+// the stream open, so the drain can only end on its deadline.
 //
 // Before this, the deadline returned the events collected so far and the caller
 // blamed whatever the last event happened to be. That is how a 64-second omp run
 // was reported as "last = extension" in eden#4, with the clock nowhere in the
 // message.
-func TestDrainTerminal_ADeadlineNamesItself(t *testing.T) {
+func TestDrainToTurnBoundary_ADeadlineNamesItself(t *testing.T) {
 	t.Parallel()
 
-	// No terminal event in the script, so the stream never ends by itself.
+	// No boundary-bearing event in the script, so the stream never ends by itself.
 	pool := newPool(t, agentsessiontest.New(agentsession.Event{Kind: agentsession.EventExtension}))
 	session, err := pool.Open(context.Background(), agentsession.Spec{
 		Workspace:  "/workspace",
@@ -248,11 +257,11 @@ func TestDrainTerminal_ADeadlineNamesItself(t *testing.T) {
 	// 2 seconds, not the production deadline: this test is about the branch,
 	// not about how long the real harness is given.
 	const testDeadline = 2 * time.Second
-	events, drainErr := drainTerminalWithin(session, testDeadline)
+	events, drainErr := drainToTurnBoundaryWithin(session, testDeadline)
 	if drainErr == nil {
-		t.Fatalf("a session with no terminal event drained cleanly; got %d event(s)", len(events))
+		t.Fatalf("a session that drew no turn boundary drained cleanly; got %d event(s)", len(events))
 	}
-	if !strings.Contains(drainErr.Error(), "no terminal event within") {
+	if !strings.Contains(drainErr.Error(), "no turn boundary within") {
 		t.Fatalf("the error does not name the deadline: %v", drainErr)
 	}
 	if !strings.Contains(drainErr.Error(), testDeadline.String()) {

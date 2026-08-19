@@ -27,6 +27,12 @@ import (
 // VENDOR PARSER (the thing that differs between harnesses) and runs it through the one
 // library, which is exactly the conformance closure the contract names (the real adapter
 // passes the same suite the fake does, at the parser level).
+//
+// Re-pinned for contract revision R1: the fixture's `result` line is a TURN boundary, so every
+// viewer drains to the BOUNDARY (the first event carrying a TerminalPayload) rather than to a
+// session terminal, and the session is still alive when they get there. Draining on
+// IsTerminal() here would both assert the defect and, once R1 lands, hang — the script's last
+// event would no longer be terminal at all.
 func TestRealParser_ThroughLibraryMachinery(t *testing.T) {
 	t.Parallel()
 	script := realNormalizedFixture(t, "sample-stream.jsonl")
@@ -49,7 +55,7 @@ func TestRealParser_ThroughLibraryMachinery(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			stream := session.Events(context.Background(), agentsession.FromSeq(0))
-			results[idx] = drainAll(context.Background(), stream)
+			results[idx] = drainThroughTurnBoundary(context.Background(), stream)
 		}(i)
 	}
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "go"}); err != nil {
@@ -68,12 +74,12 @@ func TestRealParser_ThroughLibraryMachinery(t *testing.T) {
 	if !anyKind(canonical, agentsession.EventExtension) {
 		t.Errorf("the real parser's rate_limit_event Extension must survive the library machinery")
 	}
-	assertTerminalCacheTokens(t, canonical[len(canonical)-1])
+	assertTurnBoundaryCacheTokens(t, canonical[len(canonical)-1])
 
-	// Post-terminate replay reproduces the whole session (old-Run reload).
-	replay := drainAll(context.Background(), session.Events(context.Background(), agentsession.FromSeq(0)))
+	// Replay reproduces everything published so far (old-Run reload).
+	replay := drainThroughTurnBoundary(context.Background(), session.Events(context.Background(), agentsession.FromSeq(0)))
 	if len(replay) != len(canonical) {
-		t.Errorf("post-terminate replay saw %d events, live saw %d", len(replay), len(canonical))
+		t.Errorf("replay saw %d events, live saw %d", len(replay), len(canonical))
 	}
 }
 
@@ -105,16 +111,22 @@ func assertFanoutParity(t *testing.T, results [][]agentsession.Event, canonical 
 	}
 }
 
-// assertTerminalCacheTokens proves the terminal ledger carries the cache token kinds.
+// assertTurnBoundaryCacheTokens proves the real parser's turn boundary carries the four-token
+// ledger AND is not a session terminal (contract revision R1: the recorded `result` line ends
+// the turn, and the claude process is alive for the next Prompt).
 //
 //nolint:gocritic // Event is the contract's copyable value record (§2); this fake/test helper takes it by value.
-func assertTerminalCacheTokens(t *testing.T, terminal agentsession.Event) {
+func assertTurnBoundaryCacheTokens(t *testing.T, boundary agentsession.Event) {
 	t.Helper()
-	if !terminal.IsTerminal() || terminal.Terminal == nil {
-		t.Fatalf("stream did not end on a terminal carrying a ledger")
+	if boundary.Terminal == nil {
+		t.Fatalf("the stream did not reach a boundary carrying a ledger (last kind %s)", boundary.Kind)
 	}
-	if terminal.Terminal.Ledger.CacheReadTokens == 0 || terminal.Terminal.Ledger.CacheCreationTokens == 0 {
-		t.Errorf("real parser terminal ledger missing cache tokens: %+v", terminal.Terminal.Ledger)
+	if boundary.IsTerminal() {
+		t.Errorf("the real parser's turn boundary ENDED THE SESSION (kind %s); a `result` line is a turn boundary, not a session terminal",
+			boundary.Kind)
+	}
+	if boundary.Terminal.Ledger.CacheReadTokens == 0 || boundary.Terminal.Ledger.CacheCreationTokens == 0 {
+		t.Errorf("real parser turn-boundary ledger missing cache tokens: %+v", boundary.Terminal.Ledger)
 	}
 }
 
@@ -190,8 +202,12 @@ type parserClock struct{}
 
 func (parserClock) Now() time.Time { return time.Date(2026, time.June, 13, 12, 0, 0, 0, time.UTC) }
 
-// drainAll reads a stream to its terminal.
-func drainAll(ctx context.Context, stream agentsession.Stream) []agentsession.Event {
+// drainThroughTurnBoundary reads a stream up to and including the first BOUNDARY event — the
+// first one carrying a TerminalPayload, which is a turn boundary under R1 and a session
+// terminal before it. Breaking on the payload rather than on IsTerminal() is what makes this
+// drain valid on BOTH sides of the revision: the same call site reads the same event either
+// way, and only the assertions about that event change.
+func drainThroughTurnBoundary(ctx context.Context, stream agentsession.Stream) []agentsession.Event {
 	var events []agentsession.Event
 	for {
 		event, ok := stream.Next(ctx)
@@ -199,7 +215,7 @@ func drainAll(ctx context.Context, stream agentsession.Stream) []agentsession.Ev
 			return events
 		}
 		events = append(events, event)
-		if event.IsTerminal() {
+		if event.Terminal != nil || event.IsTerminal() {
 			return events
 		}
 	}

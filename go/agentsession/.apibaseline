@@ -102,6 +102,10 @@ type Transcript struct{ ... }
 type Adapter struct{ ... }
 type Config struct{ ... }
 ## github.com/gophersys/libs/go/agentsession/claudeadapter/internal/stubharness
+## github.com/gophersys/libs/go/agentsession/internal/controlframe
+const PermissionPrefix = "eden:permission:"
+func DecodePermission(frame string) (requestID string, allow bool, by, rationale string, ok bool)
+func EncodePermission(requestID string, allow bool, by, rationale string) string
 ## github.com/gophersys/libs/go/agentsession/ompadapter
     func New(configuration Config) (*Adapter, error)
 type Adapter struct{ ... }

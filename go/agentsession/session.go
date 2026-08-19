@@ -110,12 +110,20 @@ func (s *session) Events(_ context.Context, from Cursor) Stream {
 // phase), the Capability (UnsupportedError if the adapter declares it absent), then
 // forwards the normalized frame to the harness, returning the Seq it was admitted at.
 func (s *session) Control(ctx context.Context, command Command) (Ack, error) {
-	if err := s.guardControl(command); err != nil {
+	// A follow-up Prompt opens a new turn, and admitControl advances the ordinal in the same
+	// critical section that admits it — necessarily BEFORE the send, because an adapter whose
+	// Send streams the whole turn synchronously (omp's one-shot exec per turn) has already
+	// published that turn's events by the time Send returns.
+	openedTurn, err := s.admitControl(command)
+	if err != nil {
 		return Ack{}, err
 	}
 	s.sendMu.Lock()
 	defer s.sendMu.Unlock()
 	if err := s.conn.Send(ctx, command); err != nil {
+		if openedTurn {
+			s.rollBackTurn() // the prompt never reached the harness; no turn was opened
+		}
 		return Ack{}, errors.Wrap(errors.KindUnavailable, "agentsession: send control", err)
 	}
 	return Ack{Seq: s.currentSeq()}, nil
@@ -189,8 +197,41 @@ func (s *session) Close(ctx context.Context) error {
 // declared Capability before it reaches the transport.
 func (s *session) guardControl(command Command) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.checkControl(command)
+}
+
+// admitControl is the control path's admission: it validates the command exactly as
+// guardControl does and, in the SAME critical section, opens the turn a follow-up Prompt asks
+// for — reporting whether it did, so a send that never reaches the harness can give the
+// ordinal back.
+//
+// The advance is derived from the ADMITTED PROMPT, not from the lifecycle edge that follows
+// it. A turn opens with an assistant message, with a permission ask, or with nothing but its
+// own boundary event, and enumerating those shapes lost a turn twice — a permission-first turn
+// and a boundary-only turn each filed under their predecessor's ordinal. The prompt is the one
+// event every shape shares. Deriving it here also makes two properties structural rather than
+// argued: a refused command cannot advance anything (the checks run first, under this lock),
+// and no harness event can advance it at all, so a mid-turn permission round-trip or a claude
+// turn's several assistant messages cannot count a turn twice.
+func (s *session) admitControl(command Command) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.checkControl(command); err != nil {
+		return false, err
+	}
+	// The FIRST turn keeps ordinal 0 — its Prompt is admitted in StateReady. StateAwaitingInput
+	// is where a FOLLOW-UP prompt is admitted, and each one opens the next turn.
+	if command.Kind != CommandPrompt || s.state != StateAwaitingInput {
+		return false, nil
+	}
+	s.turn++
+	return true, nil
+}
+
+// checkControl is the legality body both admission paths share: the caller holds s.mu.
+func (s *session) checkControl(command Command) error {
 	state := s.state
-	s.mu.Unlock()
 
 	// An unknown CommandKind is an INVALID request (not a state conflict), rejected before any
 	// state/capability reasoning.
@@ -211,7 +252,7 @@ func (s *session) guardControl(command Command) error {
 	}
 
 	// The (state × command) legality is sourced from the ONE canonical home (LegalControls via
-	// CanControl) — guardControl is its enforcer, the gateway projects the same set so the UI never
+	// CanControl) — this body is its enforcer, the gateway projects the same set so the UI never
 	// offers an illegal control, and a drift fails in exactly one place. An illegal command in the
 	// current state is a typed StateError (KindConflict).
 	if !CanControl(state, command.Kind) {
@@ -360,6 +401,18 @@ func (s *session) recordRecentDelta(delta string) {
 	if len(s.recentDeltas) > recentDeltaWindow {
 		s.recentDeltas = s.recentDeltas[len(s.recentDeltas)-recentDeltaWindow:]
 	}
+	s.mu.Unlock()
+}
+
+// rollBackTurn gives back the ordinal a Prompt opened when the send that would have started
+// that turn never reached the harness: no turn happened, so no event may carry its number.
+//
+// DEBT (round 3, sibling of the ordering note in pump.go handle): an event emitted between the
+// admission and a FAILING Send is stamped with the ordinal this then gives back. It takes
+// harness output concurrent with a failing Send to bite.
+func (s *session) rollBackTurn() {
+	s.mu.Lock()
+	s.turn--
 	s.mu.Unlock()
 }
 
