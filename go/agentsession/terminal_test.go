@@ -189,18 +189,136 @@ func assertSessionLedgerIsTheSumOfItsTurns(t *testing.T, flagged sourceFlag) {
 		t.Fatalf("Close: %v", err)
 	}
 
-	events := transcriptEvents()
+	assertBothAccountings(t, transcriptEvents(), summedTurnTotal())
+}
+
+// TestClose_UnbiddenDeathKeepsTheSessionLedger is the DEATH twin of the summed-ledger pin: the
+// same three turns costing 100+200+300 micros, and then the harness dies with no Close.
+//
+// The session already spent the money — the turns completed and their boundaries are in the
+// durable transcript — so the transport fault that ends the session must finalize on the same
+// 600 micros over 3 turns the Close path finalizes on. Today the death path synthesizes its
+// terminal from nothing (pump.go emitTerminalFailed builds a TerminalPayload with no Ledger),
+// so an identical session reports 600 when it is closed and 0 when it dies: the FinOps record
+// loses everything a crashed session spent, and a crash is the cheapest way to be billed for
+// free. Nothing about the fault classification moves — that is the guard twin below.
+func TestClose_UnbiddenDeathKeepsTheSessionLedger(t *testing.T) {
+	t.Parallel()
+	const turns = 3
+	conn := newTurnConn(
+		unbiddenDeath,
+		turnBodyWithLedger("first turn answer", turnLedgerCosting(100, cumulativeFlagged)),
+		turnBodyWithLedger("second turn answer", turnLedgerCosting(200, cumulativeFlagged)),
+		turnBodyWithLedger("third turn answer", turnLedgerCosting(300, cumulativeFlagged)),
+	)
+	session, transcriptEvents := openScriptedSession(t, conn)
+
+	promptEveryTurn(t, session, turns)
+	awaitStreamEnd(t, session)
+
+	terminal := assertBothAccountings(t, transcriptEvents(), summedTurnTotal())
+	// The accounting is kept, the diagnosis is NOT softened: an unbidden death stays a
+	// transport fault. A "fix" that reported the dead session as a clean Result would satisfy
+	// the ledger assertion above and lie about the outcome.
+	if terminal.Kind != agentsession.EventFailed {
+		t.Errorf("an unbidden death must stay EventFailed, got %s", terminal.Kind)
+	}
+	if terminal.Terminal.Reason != agentsession.ReasonTransport {
+		t.Errorf("unbidden death reason = %v, want ReasonTransport", terminal.Terminal.Reason)
+	}
+	if terminal.Terminal.Outcome != agentsession.TurnFailed {
+		t.Errorf("unbidden death Outcome = %v, want TurnFailed", terminal.Terminal.Outcome)
+	}
+}
+
+// TestClose_UnreportedCostStaysUnreported pins the -1 sentinel across the session boundary: two
+// turns whose ledgers BOTH carry CostMicros=-1 — the value both normalizers stamp when the
+// harness sent no usage block at all (claudeadapter/normalize.go, ompadapter/normalize.go) —
+// must finalize on -1, not 0.
+//
+// -1 means "this harness did not report what it cost"; 0 means "this session was free". They
+// are different facts and a biller acts differently on each. Today the session total starts at
+// the zero value and the summation skips a negative cost, so two turns of unknown money seal as
+// a session that cost nothing. The TOKENS are known and still sum — only the money is unknown.
+func TestClose_UnreportedCostStaysUnreported(t *testing.T) {
+	t.Parallel()
+	want := agentsession.TokenLedger{
+		UsageMeter: agentsession.UsageMeter{
+			InputTokens: 20, OutputTokens: 2, CacheReadTokens: 2000, CacheCreationTokens: 10,
+			CostMicros: -1,
+		},
+		Turns: 2,
+	}
+	assertTwoTurnSessionSeals(t, unreportedTurnLedger(), unreportedTurnLedger(), want)
+}
+
+// TestClose_OneUnreportedTurnMakesTheSessionCostUnreported is the MIXED case, and it is a
+// decision as much as a pin: turn 1 reports nothing (-1), turn 2 reports 200 micros.
+//
+// The session total is pinned to -1, NOT to 200. A partial sum presented as a total is a lie
+// with no marking on it: 200 asserts "this session cost 200 micros" when the true figure is
+// "200 plus an unknown amount", and every consumer downstream — the UsageRecord, the budget
+// watch, a per-session invoice — would treat it as complete. Once ANY turn's cost is unknown
+// the session's cost is unknown, and -1 is the one value that says so. The tokens are reported
+// by every turn, so they still sum.
+func TestClose_OneUnreportedTurnMakesTheSessionCostUnreported(t *testing.T) {
+	t.Parallel()
+	want := agentsession.TokenLedger{
+		UsageMeter: agentsession.UsageMeter{
+			InputTokens: 30, OutputTokens: 3, CacheReadTokens: 3000, CacheCreationTokens: 15,
+			CostMicros: -1,
+		},
+		Turns: 2,
+	}
+	assertTwoTurnSessionSeals(t, unreportedTurnLedger(), turnLedgerCosting(200, cumulativeFlagged), want)
+}
+
+// assertTwoTurnSessionSeals drives one session through two turns carrying the given per-turn
+// ledgers, closes it deliberately, and asserts both readings of the sealed accounting.
+//
+//nolint:gocritic // TokenLedger is the contract's copyable value record (§2); the script carries it by value.
+func assertTwoTurnSessionSeals(t *testing.T, first, second, want agentsession.TokenLedger) {
+	t.Helper()
+	const turns = 2
+	conn := newTurnConn(
+		gracefulClose,
+		turnBodyWithLedger("first turn answer", first),
+		turnBodyWithLedger("second turn answer", second),
+	)
+	session, transcriptEvents := openScriptedSession(t, conn)
+
+	promptEveryTurn(t, session, turns)
+	if err := session.Close(context.Background()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	assertBothAccountings(t, transcriptEvents(), want)
+}
+
+// assertBothAccountings asserts the TWO readings of a finished session's final accounting
+// against want, and returns the terminal so a caller can assert its classification too:
+//
+//	the ledger on the session's ONE terminal event (the durable record), and
+//	LedgerFold.Finish() over the whole transcript (the fold every consumer seals with).
+//
+// Asserting the fold as well is what stops the total from being double-counted — a fold that
+// added the turn boundaries AND the sealed terminal would report 1200 on a 600-micro session.
+//
+//nolint:gocritic // TokenLedger is the contract's copyable value record (§2); this helper takes it by value.
+func assertBothAccountings(t *testing.T, events []agentsession.Event, want agentsession.TokenLedger) agentsession.Event {
+	t.Helper()
 	terminal := soleTerminal(t, events)
 	if terminal.Terminal == nil {
-		t.Fatalf("the synthesized terminal carries no TerminalPayload")
+		t.Fatalf("the session terminal (%s) carries no TerminalPayload", terminal.Kind)
 	}
-	assertSessionLedger(t, "the Close-synthesized session terminal", terminal.Terminal.Ledger)
+	assertSessionLedger(t, "the session terminal ("+terminal.Kind.String()+")", terminal.Terminal.Ledger, want)
 
 	fold := agentsession.NewLedgerFold()
 	for i := range events {
 		fold.Fold(events[i])
 	}
-	assertSessionLedger(t, "LedgerFold.Finish() over the recorded session", fold.Finish())
+	assertSessionLedger(t, "LedgerFold.Finish() over the recorded session", fold.Finish(), want)
+	return terminal
 }
 
 // ── the scripted turn conn (shared with turn_test.go) ────────────────────────────────────.
@@ -367,12 +485,21 @@ func turnBodyWithLedger(text string, ledger agentsession.TokenLedger) []agentses
 	return []agentsession.Event{
 		{Kind: agentsession.EventMessageStart, Message: &agentsession.MessagePayload{Role: "assistant"}},
 		{Kind: agentsession.EventTextDelta, Message: &agentsession.MessagePayload{Role: "assistant", Delta: text}},
-		{
-			Kind: eventTurnEnd,
-			Terminal: &agentsession.TerminalPayload{
-				Outcome: agentsession.TurnCompleted, Ledger: ledger,
-				ResultText: text, StopReason: "end_turn",
-			},
+		turnBoundaryEvent(text, ledger),
+	}
+}
+
+// turnBoundaryEvent is the ONE event that ends a turn, carrying that turn's authoritative
+// accounting. It is spelled here once so a script that emits nothing else (see
+// boundaryOnlyTurnBody in turn_test.go) cannot drift from the ordinary three-event body.
+//
+//nolint:gocritic // TokenLedger is the contract's copyable value record (§2); the script carries it by value.
+func turnBoundaryEvent(text string, ledger agentsession.TokenLedger) agentsession.Event {
+	return agentsession.Event{
+		Kind: eventTurnEnd,
+		Terminal: &agentsession.TerminalPayload{
+			Outcome: agentsession.TurnCompleted, Ledger: ledger,
+			ResultText: text, StopReason: "end_turn",
 		},
 	}
 }
@@ -408,6 +535,16 @@ func turnLedgerCosting(costMicros int64, flagged sourceFlag) agentsession.TokenL
 		},
 		Turns: 1,
 	}
+}
+
+// unreportedTurnLedger is ONE turn from a harness that sent no usage block: the tokens are
+// counted, the money is the -1 "cost unreported" sentinel BOTH normalizers stamp
+// (claudeadapter/normalize.go, ompadapter/normalize.go) when the harness reports no cost.
+// -1 is not a small number — it is the marker for "unknown", and it must survive summation.
+func unreportedTurnLedger() agentsession.TokenLedger {
+	ledger := turnLedgerCosting(100, cumulativeFlagged)
+	ledger.CostMicros = -1
+	return ledger
 }
 
 // recordingTranscript is a mutex-guarded in-memory agentsession.Transcript whose whole
@@ -575,17 +712,13 @@ func assertLedgerReplayed(t *testing.T, got agentsession.TokenLedger) {
 	}
 }
 
-// assertSessionLedger asserts one reading of the session's final accounting against the total a
-// three-turn session costing 100+200+300 micros spent. The expected numbers are written out
-// LITERALLY rather than folded from turnLedgerCosting, so the expectation is independent of the
-// fixture that produced it: 3 turns, cost 100+200+300, input 10+20+30, output 1+2+3, cache-read
-// 1000+2000+3000, cache-creation 5+10+15.
+// assertSessionLedger asserts one reading of a session's final accounting field by field.
 //
 // Model, Harness and the Cumulative flag are deliberately not asserted — attribution and the
 // meaning of the flag on a SESSION total are their own questions, not this one.
 //
 //nolint:gocritic // TokenLedger is the contract's copyable value record (§2); this helper takes it by value.
-func assertSessionLedger(t *testing.T, what string, got agentsession.TokenLedger) {
+func assertSessionLedger(t *testing.T, what string, got, want agentsession.TokenLedger) {
 	t.Helper()
 	var drifted []string
 	for _, field := range []struct {
@@ -593,20 +726,34 @@ func assertSessionLedger(t *testing.T, what string, got agentsession.TokenLedger
 		got  int64
 		want int64
 	}{
-		{"CostMicros", got.CostMicros, 600},
-		{"InputTokens", got.InputTokens, 60},
-		{"OutputTokens", got.OutputTokens, 6},
-		{"CacheReadTokens", got.CacheReadTokens, 6000},
-		{"CacheCreationTokens", got.CacheCreationTokens, 30},
-		{"Turns", int64(got.Turns), 3},
+		{"CostMicros", got.CostMicros, want.CostMicros},
+		{"InputTokens", got.InputTokens, want.InputTokens},
+		{"OutputTokens", got.OutputTokens, want.OutputTokens},
+		{"CacheReadTokens", got.CacheReadTokens, want.CacheReadTokens},
+		{"CacheCreationTokens", got.CacheCreationTokens, want.CacheCreationTokens},
+		{"Turns", int64(got.Turns), int64(want.Turns)},
 	} {
 		if field.got != field.want {
 			drifted = append(drifted, fmt.Sprintf("%s=%d (want %d)", field.name, field.got, field.want))
 		}
 	}
 	if len(drifted) > 0 {
-		t.Errorf("%s reports %s — a 3-turn session's accounting is the SUM of its turns, not a replay of the last one",
+		t.Errorf("%s reports %s — one terminal finalizes the accounting of the WHOLE session: its turns summed, and a cost no harness reported left at the -1 sentinel",
 			what, strings.Join(drifted, ", "))
+	}
+}
+
+// summedTurnTotal is what a session that took the three 100/200/300-micro turns spent. The
+// numbers are written out LITERALLY rather than folded from turnLedgerCosting, so the
+// expectation is independent of the fixture that produced it: 3 turns, cost 100+200+300, input
+// 10+20+30, output 1+2+3, cache-read 1000+2000+3000, cache-creation 5+10+15.
+func summedTurnTotal() agentsession.TokenLedger {
+	return agentsession.TokenLedger{
+		UsageMeter: agentsession.UsageMeter{
+			InputTokens: 60, OutputTokens: 6, CacheReadTokens: 6000, CacheCreationTokens: 30,
+			CostMicros: 600,
+		},
+		Turns: 3,
 	}
 }
 

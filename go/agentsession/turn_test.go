@@ -154,20 +154,39 @@ func TestTurn_PermissionFirstTurnKeepsItsOwnOrdinal(t *testing.T) {
 		t.Fatalf("Close: %v", err)
 	}
 
-	ordinals, identifiers := turnOrdinalsAndIdentifiers(transcriptEvents())
-	if got := maxOrdinal(ordinals); got != turns-1 {
-		t.Errorf("the turn ordinal reached %d across %d admitted Prompts, want %d (ordinals seen: %v) — the permission-first turn spent its arming on the %v->%v edge and was never counted",
-			got, turns, turns-1, ordinals, agentsession.StateAwaitingPermission, agentsession.StateRunning)
+	assertEveryTurnGotItsOwnOrdinal(t, transcriptEvents(), turns)
+}
+
+// TestTurn_BoundaryOnlyTurnKeepsItsOwnOrdinal pins the ordinal against the turn shape that draws
+// NO opening edge at all: a turn whose only harness event is the boundary itself.
+//
+// It is a real reply, not a contrivance — claudeadapter maps a `result` line to EventTurnEnd, so
+// a turn the harness answers without streaming an assistant message (a resumed exchange, a
+// tool-only turn, an empty completion) arrives as one boundary event and nothing else. From
+// StateAwaitingInput that event implies no transition, so nothing consumes the prompt arming and
+// the turn is never counted; worse, the stale arming is then spent by the NEXT turn's opening
+// edge, which advances once for two admitted Prompts. Three Prompts report ordinals 0,0,1.
+//
+// This is the second shape edge-enumeration has missed (the permission ask was the first), which
+// is the argument for deriving the advance from the admitted Prompt rather than from the shape
+// of the edge that follows it.
+func TestTurn_BoundaryOnlyTurnKeepsItsOwnOrdinal(t *testing.T) {
+	t.Parallel()
+	const turns = 3
+	conn := newTurnConn(
+		gracefulClose,
+		turnBody("first turn answer"),
+		boundaryOnlyTurnBody("second turn answer"),
+		turnBody("third turn answer"),
+	)
+	session, transcriptEvents := openScriptedSession(t, conn)
+
+	promptEveryTurn(t, session, turns)
+	if err := session.Close(context.Background()); err != nil {
+		t.Fatalf("Close: %v", err)
 	}
-	for ordinal := range turns {
-		if !ordinals[ordinal] {
-			t.Errorf("no event carried turn ordinal %d; a turn folded into its predecessor's ordinal", ordinal)
-		}
-	}
-	if len(identifiers) != turns {
-		t.Errorf("%d distinct TurnIDs across %d turns (%v); a permission-first turn must correlate under its OWN id, not its predecessor's",
-			len(identifiers), turns, identifiers)
-	}
+
+	assertEveryTurnGotItsOwnOrdinal(t, transcriptEvents(), turns)
 }
 
 // TestTurn_FollowUpPromptIsLegalAfterATurnBoundary isolates the single lifecycle edge R1 adds:
@@ -211,6 +230,36 @@ func permissionFirstTurnBody(text string) []agentsession.Event {
 		{Kind: agentsession.EventPermissionRequest},
 		{Kind: agentsession.EventPermissionResolved},
 	}, turnBody(text)...)
+}
+
+// boundaryOnlyTurnBody is a turn whose ONLY harness event is the boundary — no message, no
+// text, just the result that closes the exchange. It shares turnBoundaryEvent with the ordinary
+// body so the two cannot drift apart.
+func boundaryOnlyTurnBody(text string) []agentsession.Event {
+	return []agentsession.Event{turnBoundaryEvent(text, turnLedger())}
+}
+
+// assertEveryTurnGotItsOwnOrdinal asserts the per-turn ordinal tracked the ADMITTED PROMPTS: the
+// highest ordinal is turns-1, every ordinal in between was carried by some event, and the
+// session minted exactly one TurnID per turn. A turn that folds into its predecessor fails all
+// three at once, which is the point — the ordinal and the TurnID are what a viewer groups a
+// conversation by, so a lost advance silently files one turn's events under another's.
+func assertEveryTurnGotItsOwnOrdinal(t *testing.T, events []agentsession.Event, turns int) {
+	t.Helper()
+	ordinals, identifiers := turnOrdinalsAndIdentifiers(events)
+	if got := maxOrdinal(ordinals); got != turns-1 {
+		t.Errorf("the turn ordinal reached %d across %d admitted Prompts, want %d (ordinals seen: %v)",
+			got, turns, turns-1, ordinals)
+	}
+	for ordinal := range turns {
+		if !ordinals[ordinal] {
+			t.Errorf("no event carried turn ordinal %d; a turn folded into its predecessor's ordinal", ordinal)
+		}
+	}
+	if len(identifiers) != turns {
+		t.Errorf("%d distinct TurnIDs across %d turns (%v); each turn must correlate under its OWN id, not its predecessor's",
+			len(identifiers), turns, identifiers)
+	}
 }
 
 // readThroughTurnBoundary reads the live tail up to and including turn n's boundary event (the

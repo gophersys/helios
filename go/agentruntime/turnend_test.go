@@ -67,7 +67,8 @@ func TestTurnBoundary_RendersTheAppendedToken(t *testing.T) {
 // waiting for its next Prompt: Run never returns and the sidecar hangs on a healthy agent.
 func TestRun_TurnBoundaryEndsTheRunAndTheSessionTerminalReachesTheBus(t *testing.T) {
 	t.Parallel()
-	runtime, bus, _ := agentruntimetest.NewRuntime(t, fastHeartbeat,
+	runtime, bus, _ := agentruntimetest.NewRuntime(
+		t, fastHeartbeat,
 		scriptedMessageStart(),
 		scriptedTextDelta("the answer"),
 		turnBoundary("the answer"),
@@ -102,7 +103,8 @@ func TestRun_TurnBoundaryEndsTheRunAndTheSessionTerminalReachesTheBus(t *testing
 func TestAdvisor_ReadsTheVerdictOffTheTurnBoundary(t *testing.T) {
 	t.Parallel()
 	const verdict = "VERDICT: allow\nSCOPE: session\nRATIONALE: reading a doc is read-only and in the spirit of the goal"
-	factory := newRecordingFactory(t,
+	factory := newRecordingFactory(
+		t,
 		scriptedMessageStart(),
 		scriptedThinkingDelta("weighing the request against the session goal"),
 		turnBoundary(verdict),
