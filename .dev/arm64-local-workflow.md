@@ -1,6 +1,6 @@
 # arm64-local-workflow
 
-phase:    red
+phase:    green
 repo:     gophersys/.devcontainer
 branch:   feat/arm64-local-workflow
 worktree: ~/code/.worktrees/devcontainer-arm64-workflow
@@ -27,11 +27,19 @@ orders §4). As produced by dev-planner:
   arm64 registry smoke, any pin/build change.
 
 ## Proven
-- (pending red) each new check shown failing by its stated break direction.
+- RED (commit eb64fc5): `bash ./ctl.sh test` rc=1 — devcontainer-contract
+  22 checks/6 red + platform-policy 35/2 red, other 22 files 796/0 green.
+  Each red fails for its stated reason (missing-image equality both ways,
+  self-reference, README section + exception naming); counter-stimuli
+  proven non-vacuous by exact-inverse breaks on scratch copies; committed
+  files never edited during break-tests (shasum-identical).
+- Refusal wording is pinned by format constants in the test (ABSENT_FORMAT,
+  UNDECLARED_FORMAT, SELF_REFERENCE_FORMAT) — the implementer copies them.
 
 ## Blocked
 - Nothing.
 
 ## Next
-dev-test-author writes checks 1-5 red-proven; then dev-implementer closes
-G1-G4; suite green; PR.
+dev-implementer closes G1-G4 (ctl.sh two properties with the exact refusal
+strings; README section naming mobile; 00-identity invariant); suite green;
+verifier; PR.
