@@ -22,9 +22,9 @@ func (s *session) pump(ready chan<- error) {
 	readySignaled := false
 	terminalSeen := false
 	// The session's accounting, summed on the PUMP GOROUTINE's own stack as each turn ends:
-	// it is what a requested Close finalizes as the session's one terminal, and keeping it
-	// local means the synthesis needs no shared state and no lock on the hot path.
-	var sessionLedger turnLedgerSum
+	// it is what the session's one terminal finalizes on, whichever terminal that is, and
+	// keeping it local means the synthesis needs no shared state and no lock on the hot path.
+	sessionLedger := newTurnLedgerSum()
 	for raw := range s.conn.Events() {
 		emitted := s.handle(raw)
 		for i := range emitted {
@@ -47,7 +47,7 @@ func (s *session) pump(ready chan<- error) {
 		// silent-bad-token trap. Surface AuthError to Open and emit a Failed terminal.
 		ready <- errors.Wrap(errors.KindUnauthenticated, "agentsession: handshake",
 			AuthError{Reference: s.spec.Credential})
-		s.emitTerminalFailed(ReasonAuth, "harness closed before readiness handshake")
+		s.emitTerminalFailed(ReasonAuth, "harness closed before readiness handshake", &sessionLedger.total)
 		return
 	}
 	if terminalSeen {
@@ -62,8 +62,10 @@ func (s *session) pump(ready chan<- error) {
 	}
 	// The harness channel closed without a terminal Event and without a Close (a transport
 	// drop / process death mid-run). Synthesize a Failed terminal so every viewer's stream
-	// ends with a real terminal and the ledger finalizes.
-	s.emitTerminalFailed(ReasonTransport, "harness stream ended without a terminal event")
+	// ends with a real terminal and the ledger finalizes — on what the session actually spent:
+	// the turns it completed before the drop are paid for either way, so the fault terminal
+	// carries the same total a requested Close would have. Only the classification differs.
+	s.emitTerminalFailed(ReasonTransport, "harness stream ended without a terminal event", &sessionLedger.total)
 }
 
 // handle normalizes one raw adapter event into the published sequence. It applies the
@@ -480,8 +482,11 @@ func (s *session) stampTerminal(raw Event) Event {
 }
 
 // emitTerminalFailed publishes a synthetic Failed terminal (used for the
-// silent-bad-token trap and transport death). It also drives the state to Failed.
-func (s *session) emitTerminalFailed(reason ErrorReason, detail string) {
+// silent-bad-token trap and transport death) carrying the session's accounting: a session
+// that died having taken three turns still took them, so the fault terminal finalizes the
+// same total a requested Close would have and the classification alone reports the fault.
+// It also drives the state to Failed.
+func (s *session) emitTerminalFailed(reason ErrorReason, detail string, ledger *TokenLedger) {
 	from := s.priorState()
 	if from.IsTerminal() {
 		return
@@ -492,6 +497,7 @@ func (s *session) emitTerminalFailed(reason ErrorReason, detail string) {
 		Kind: EventFailed,
 		Terminal: &TerminalPayload{
 			Outcome: TurnFailed,
+			Ledger:  *ledger,
 			Reason:  reason,
 			Detail:  detail,
 		},
@@ -499,20 +505,37 @@ func (s *session) emitTerminalFailed(reason ErrorReason, detail string) {
 }
 
 // turnLedgerSum accumulates a session's per-turn ledgers into the total its one terminal
-// finalizes on. It is written and read only on the pump goroutine.
+// finalizes on — whichever terminal that is, since a session that dies spent what it spent.
+// It is written and read only on the pump goroutine.
 //
 // INVARIANT: an EventTurnEnd ledger accounts for ITS OWN turn, never for the session to
 // date, so the session total is the plain SUM and UsageMeter.Cumulative is never read here.
 // The flag cannot discriminate: BOTH shipped normalizers stamp Cumulative:true on a turn
 // boundary whose numbers are per-turn — ompadapter runs a fresh process and a fresh
-// normalizer per turn (ompadapter/spawn.go), and a claude `result` totals only the exchange
-// it closes (claudeadapter/testdata/sample-stream.jsonl: usage.input_tokens 3944 is exactly
-// that exchange's 1983+2+1959). An adapter whose harness ever reports session-to-date totals
-// on a turn boundary owes the pump the per-turn delta; summing here would double-count it.
-type turnLedgerSum struct{ total TokenLedger }
+// normalizer per turn (ompadapter/spawn.go), and a claude `result` totals the exchange it
+// closes rather than the process.
+//
+// The claude half of that reading is measured on ONE capture and it is partial:
+// claudeadapter/testdata/sample-stream.jsonl reconciles three of the four token columns
+// exactly as the exchange's per-message sums (input 3944 = 1983+2+1959, cache-read 56397,
+// cache-creation 5689) while OUTPUT does not (394 against 78) — the per-message ticks there
+// are partial snapshots, and no capture of a SECOND result line from one real claude process
+// exists in this repository. PR-2's live harness lane is where the cross-prompt shape gets
+// measured. An adapter whose harness does report session-to-date totals on a turn boundary
+// owes the pump the per-turn delta; summing that here would double-count it.
+type turnLedgerSum struct {
+	total       TokenLedger
+	costUnknown bool // a turn reported no cost, so the SESSION's cost is unknown for good
+}
+
+// newTurnLedgerSum returns the empty session total: no turn has reported a cost yet, and that
+// is the unreported sentinel rather than zero.
+func newTurnLedgerSum() turnLedgerSum {
+	return turnLedgerSum{total: TokenLedger{UsageMeter: UsageMeter{CostMicros: costUnreported}}}
+}
 
 // add folds one turn boundary's authoritative ledger into the session total. Model/Harness
-// attribution follows the latest turn; the -1 "cost unreported" sentinel contributes nothing.
+// attribution follows the latest turn.
 func (t *turnLedgerSum) add(turn *TokenLedger) {
 	if turn.Model != "" {
 		t.total.Model = turn.Model
@@ -524,9 +547,7 @@ func (t *turnLedgerSum) add(turn *TokenLedger) {
 	t.total.OutputTokens += turn.OutputTokens
 	t.total.CacheReadTokens += turn.CacheReadTokens
 	t.total.CacheCreationTokens += turn.CacheCreationTokens
-	if turn.CostMicros > 0 {
-		t.total.CostMicros += turn.CostMicros
-	}
+	t.addCost(turn.CostMicros)
 	// A session total IS session-to-date, whatever the turns that built it were flagged.
 	t.total.Cumulative = true
 	t.total.Turns += turn.Turns
@@ -538,6 +559,24 @@ func (t *turnLedgerSum) add(turn *TokenLedger) {
 		}
 		t.total.ToolUsesByName[name] += count
 	}
+}
+
+// addCost folds one turn's money into the session's. The unreported sentinel is not a small
+// number: once ANY turn's cost is unknown the session's cost is unknown, permanently, because
+// a partial sum offered as a total reads as complete — 200 micros plus an unknown amount is
+// not a 200-micro session. Every turn reports its tokens, so the token columns still sum.
+func (t *turnLedgerSum) addCost(cost int64) {
+	if cost < 0 {
+		t.costUnknown = true
+	}
+	if t.costUnknown {
+		t.total.CostMicros = costUnreported
+		return
+	}
+	if t.total.CostMicros < 0 {
+		t.total.CostMicros = 0
+	}
+	t.total.CostMicros += cost
 }
 
 // emitTerminalResult publishes the synthetic Result terminal a REQUESTED Close produces: the

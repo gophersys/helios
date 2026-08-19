@@ -412,7 +412,10 @@ type UsageMeter struct {
 	CacheReadTokens     int64 // cache-hit input tokens (cheap)
 	CacheCreationTokens int64 // cache-write input tokens (the 4th kind — distinct cost)
 	CostMicros          int64 // provider spend, micro-units of account currency; -1 == harness did not report cost
-	Cumulative          bool  // true == session-to-date totals (Claude result event); false == this-turn delta
+	// Cumulative says the tick carries totals to date rather than a this-turn delta. It is NOT
+	// a turn/session discriminator: both shipped adapters stamp it true on a PER-TURN boundary
+	// ledger, and the SESSION total is summed by the library from those boundaries.
+	Cumulative bool
 }
 
 // TerminalPayload bounds a turn AND the session: exactly one terminal Event
