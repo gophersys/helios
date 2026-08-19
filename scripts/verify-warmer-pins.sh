@@ -32,7 +32,10 @@
 #      taints exist cluster-wide, see docs/debt-register.md D45. The server set
 #      is DERIVED, so a 4th control plane is caught the day its identity file
 #      lands; an empty derived set is a FAILURE, because a loop over it asserts
-#      nothing and reads green.
+#      nothing and reads green. The judgement is PER TERM and structural: a
+#      `preferred...Execution` block scores nodes and removes none, and
+#      nodeSelectorTerms are OR-ed, so a term that does not rule the node out
+#      makes it eligible however correct the term beside it reads.
 #
 # Exit 0 = all 3 hold. Exit 1 = at least one does not, naming the file.
 set -uo pipefail
@@ -140,34 +143,73 @@ if [[ -z "$servers" ]]; then
   fail "no node under $NODES declares kubernetes.role: server — the control-plane set is empty, so this check went blind"
 fi
 
-# The NotIn hostnames of the kubernetes.io/hostname expression, read structurally
-# from the pod spec of a warmer file.
-notin_from_yaml() {
-  local file="$1" pod="$2"
-  yq "${pod}.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[].matchExpressions[] | select(.key == \"kubernetes.io/hostname\" and .operator == \"NotIn\") | .values[]" "$file"
+# Both shapes are judged from a PARSED DOCUMENT, never from the bytes. A warmer
+# file is the pod's manifest, so the document is the file. A pool file keeps the
+# pod template inside `spec.source.helm.values`, which is a YAML STRING: one yq
+# read returns that whole block as a single scalar and finds no affinity in it —
+# a property of the READ, not of the file. Take the scalar and parse it AS a
+# document and the same structure is there. A line-oriented scan reaches it too,
+# and then has to guess: it cannot tell a `#`-commented block from a live one, a
+# scoring preference from a constraint, or a block sequence from a flow list.
+pool_pod_document() {
+  yq '.spec.source.helm.values' "$1"
 }
 
-# The same list from a pool file, which keeps its affinity inside
-# `spec.source.helm.values` — a YAML STRING. A structural read returns one scalar
-# and finds no affinity at all, so the flow list is taken as TEXT.
-notin_from_text() {
-  awk '
-    /key:[[:space:]]*kubernetes\.io\/hostname/ { key = 1; next }
-    key && /operator:[[:space:]]*NotIn/        { op = 1; key = 0; next }
-    op && /values:[[:space:]]*\[/ {
-      op = 0
-      n = split($0, part, "\"")
-      for (i = 2; i <= n; i += 2) print part[i]
-    }
-  ' "$1"
+term_count() {
+  local doc="$1" pod="$2"
+  printf '%s\n' "$doc" | yq "${pod}.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms | length" -
 }
 
+# The hostnames ONE nodeSelectorTerm rules out, from that term's own
+# kubernetes.io/hostname NotIn expressions. `preferred...Execution` is not read
+# at all: it scores nodes, it does not remove them. An `In` list is not read as
+# an exclusion either — the one file that pins that way,
+# app-arc-runners-build.yaml, is deliberately outside POOL_NOTIN_FILES, and a
+# file that moves to `In` belongs there rather than under a rule written for
+# NotIn.
+term_notin_hostnames() {
+  local doc="$1" pod="$2" idx="$3"
+  printf '%s\n' "$doc" | yq "${pod}.affinity.nodeAffinity.requiredDuringSchedulingIgnoredDuringExecution.nodeSelectorTerms[$idx].matchExpressions[] | select(.key == \"kubernetes.io/hostname\" and .operator == \"NotIn\") | .values[]" -
+}
+
+# nodeSelectorTerms are OR-ed: a node that satisfies ANY term is eligible. So a
+# node is excluded only when EVERY term rules it out, and zero terms rule out
+# nothing at all.
 assert_excludes() {
-  local label="$1" values="$2" node
+  local label="$1" doc="$2" pod="$3"
+  local terms vals node open i
+  local -a ruled_out
+  if ! terms="$(term_count "$doc" "$pod")"; then
+    fail "$label did not parse as YAML — an affinity this check cannot read is an affinity it cannot judge"
+    return
+  fi
+  if [[ ! "$terms" =~ ^[0-9]+$ ]]; then
+    fail "$label has an unreadable nodeSelectorTerms list ($terms) — the exclusion cannot be judged"
+    return
+  fi
+  for ((i = 0; i < terms; i++)); do
+    if ! vals="$(term_notin_hostnames "$doc" "$pod" "$i")"; then
+      fail "$label did not parse as YAML at nodeSelectorTerm #$i — the exclusion cannot be judged"
+      return
+    fi
+    ruled_out[i]="$vals"
+  done
+
   while IFS= read -r node; do
     [[ -n "$node" ]] || continue
-    if ! printf '%s\n' "$values" | grep -qxF "$node"; then
-      fail "$label leaves $node schedulable — it declares kubernetes.role: server, and a pod there lands on the disk etcd writes to"
+    if [[ "$terms" -eq 0 ]]; then
+      fail "$label leaves $node schedulable — it carries no requiredDuringScheduling nodeSelectorTerms, and a preference only scores a node, it never removes it"
+      continue
+    fi
+    open=""
+    for ((i = 0; i < terms; i++)); do
+      if ! printf '%s\n' "${ruled_out[$i]}" | grep -qxF "$node"; then
+        open="$i"
+        break
+      fi
+    done
+    if [[ -n "$open" ]]; then
+      fail "$label leaves $node schedulable — nodeSelectorTerm #$open does not rule it out, and terms are OR-ed, so one open term is enough"
     fi
   done <<<"$servers"
 }
@@ -175,11 +217,15 @@ assert_excludes() {
 for i in "${!WARMER_FILES[@]}"; do
   f="${WARMER_FILES[$i]}"
   [[ -f "$f" ]] || continue
-  assert_excludes "${f#"$ROOT"/}" "$(notin_from_yaml "$f" "${WARMER_POD_PATHS[$i]}")"
+  assert_excludes "${f#"$ROOT"/}" "$(cat "$f")" "${WARMER_POD_PATHS[$i]}"
 done
 for f in "${POOL_NOTIN_FILES[@]}"; do
   [[ -f "$f" ]] || continue
-  assert_excludes "${f#"$ROOT"/}" "$(notin_from_text "$f")"
+  if ! pool_doc="$(pool_pod_document "$f")"; then
+    fail "${f#"$ROOT"/} did not parse as YAML — its helm values block cannot be read, so its affinity cannot be judged"
+    continue
+  fi
+  assert_excludes "${f#"$ROOT"/}" "$pool_doc" ".template.spec"
 done
 
 if [[ "$failures" -gt 0 ]]; then

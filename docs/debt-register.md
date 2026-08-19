@@ -976,12 +976,16 @@ match git, so a blanket ignore would hide a real drift without fixing anything.
 
 ### D45 🟠 Node labels and taints exist in git and on no node — OPEN
 
-**Every homelab node declares labels and taints that nothing applies.** Each
-`clusters/instances/homelab/nodes/<node>/identity.yaml` carries
-`kubernetes.labels.role` and `kubernetes.taints` — the 3 control planes declare
-`devops=true:PreferNoSchedule` — and lists `cluster-node-labels` in its `roles:`.
-`clusters/CONVENTIONS.md` names that Ansible role as the applier. It does not
-exist: `machines/roles/` has 8 roles and none of them is it.
+**Every homelab node declares labels that nothing applies, and half of them
+declare taints that nothing applies either.** All 8
+`clusters/instances/homelab/nodes/<node>/identity.yaml` files carry
+`kubernetes.labels.role` (`devops` on k3s-cp-0/1/2 and k3s-w-0, `apps` on
+k3s-w-1..4). Only those same 4 declare a taint —
+`devops=true:PreferNoSchedule` — and the other 4 declare `taints: []`, so the
+gap is the labels on all 8 and the taints on 4. Every one of them lists
+`cluster-node-labels` in its `roles:`, and `clusters/CONVENTIONS.md` names that
+Ansible role as the applier. It does not exist: `machines/roles/` holds 10 roles
+and none of them is it.
 
 Measured live on 2026-08-18, all 8 nodes:
 
