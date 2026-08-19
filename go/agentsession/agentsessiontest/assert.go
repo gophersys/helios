@@ -15,7 +15,8 @@ type TestingT interface {
 
 // AssertNoSecretInEvent fails if canary appears in ANY redaction-eligible field of an
 // Event (the message/thinking deltas, the tool arg/result digests, the terminal text,
-// the Extension bytes) — the redaction-by-construction guarantee, runnable per Event.
+// the peer/subagent message bodies, the Extension bytes) — the redaction-by-construction
+// guarantee, runnable per Event.
 //
 //nolint:gocritic // Event is the contract's copyable value record (§2); this fake/test helper takes it by value.
 func AssertNoSecretInEvent(t TestingT, event agentsession.Event, canary string) {
@@ -41,7 +42,9 @@ func AssertNoSecretInStream(t TestingT, events []agentsession.Event, canary stri
 }
 
 // eventStrings projects every human-readable / byte field of an Event so a leak check is
-// total. It deliberately reaches into every payload variant.
+// total. It reaches into EVERY typed payload variant, including the peer and subagent
+// payloads whose Body/Digest carry UNTRUSTED foreign prose — the exact surface the canary
+// sweep must cover so a secret in an inter-session message body is caught (rule 21 §f).
 //
 //nolint:gocritic // Event is the contract's copyable value record (§2); this fake/test helper takes it by value.
 func eventStrings(event agentsession.Event) []string {
@@ -63,6 +66,14 @@ func eventStrings(event agentsession.Event) []string {
 	if event.Terminal != nil {
 		out = append(out, event.Terminal.ResultText, event.Terminal.StopReason,
 			event.Terminal.Detail, event.Terminal.By)
+	}
+	if event.Peer != nil {
+		// The Body carries untrusted foreign prose; every string field is swept.
+		out = append(out, event.Peer.MsgID, event.Peer.From, event.Peer.To,
+			event.Peer.ReplyTo, event.Peer.Body, event.Peer.Detail)
+	}
+	if event.Subagent != nil {
+		out = append(out, event.Subagent.SubagentID, event.Subagent.ParentTurn, event.Subagent.Digest)
 	}
 	return out
 }
