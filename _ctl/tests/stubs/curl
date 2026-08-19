@@ -1,34 +1,84 @@
 #!/usr/bin/env bash
 #
-# _ctl/tests/stubs/curl — the stub `curl` that _ctl/tests/resolve-upstream.test.sh
-# puts first on PATH.
+# _ctl/tests/stubs/curl — the stub `curl` the hermetic ctl tests put first on
+# PATH. _ctl/tests/resolve-upstream.test.sh drives the upstream resolver through
+# it, and _ctl/tests/verify-published.test.sh drives the registry blob probe.
 #
 # It opens no socket, reads no credential and reaches no network. Every answer
 # it gives comes from a map the calling case writes, so a case states the world
-# it wants — an index that answers, an index that 404s, an asset that is gone —
-# in 1 line, and then reads what _build/resolve-upstream.sh did about it.
+# it wants — an index that answers, an index that 404s, an asset that is gone, a
+# blob whose HEAD says 200 and whose GET says 404 — in 1 line, and then reads
+# what the caller did about it.
 #
 # ============================================================================
 # THE MAP IS MATCHED ON A SUBSTRING, ON PURPOSE
 # ============================================================================
 #
-#   STUB_CURL_MAP   a file of `<url substring>|<status>|<body path>` rows, in
-#                   order. The FIRST row whose substring is inside the requested
-#                   URL answers it, so a case lists the specific rows (an asset
+#   STUB_CURL_MAP   a file of `[<method> ]<url substring>|<status>|<body path>`
+#                   rows, in order. The FIRST row whose substring is inside the
+#                   requested URL — and whose method matches, when it names one
+#                   — answers it, so a case lists the specific rows (an asset
 #                   file name) above the general ones (a repository coordinate).
 #                   The substring `*` matches any URL.
-#   STUB_CURL_LOG   every requested URL is appended here, 1 per line.
+#   STUB_CURL_LOG   every requested URL is appended here, 1 per line, and
+#                   NOTHING ELSE goes on the line. resolve-upstream.test.sh
+#                   counts fetches with `awk '$0 == needle'`, so a method or a
+#                   range prefix here would silently zero every one of those
+#                   counts.
+#   STUB_CURL_REQUEST_LOG
+#                   the same requests with their METHOD and their range, 1 per
+#                   line: `<METHOD> <range or -> <url>`. This is the log a case
+#                   reads to prove HOW something was asked for, which is the
+#                   whole subject of the blob probe: a HEAD and a ranged GET of
+#                   one url are 2 different questions to a registry, and only
+#                   the second one proves the bytes are there.
 #
-# A substring and not a whole URL, because the exact endpoint is the resolver's
+# A substring and not a whole URL, because the exact endpoint is the caller's
 # choice and not this stub's business: `https://api.github.com/repos/o/r/releases/latest`
 # and `https://github.com/o/r/releases/latest` are the same question asked 2
 # ways, and a map keyed on the coordinate `o/r` answers both. What the test
 # holds is the DOCUMENT each datasource reads and the value it takes out of it.
 #
-# status 200   the body file is written to the -o destination, or to stdout
-# status 404   the message `curl` writes under -f, and exit 22 — the status a
-#              real curl returns for an HTTP error, so the caller cannot tell
-#              this apart from the real thing
+# ============================================================================
+# THE METHOD IS PART OF THE KEY, BECAUSE HEAD AND GET DISAGREE IN REAL LIFE
+# ============================================================================
+#
+# A row may open with `GET ` or `HEAD `, and then it answers that method alone.
+# A row that names no method answers both, which is what every pre-existing map
+# in this directory relies on.
+#
+# This exists because ghcr.io answers the 2 methods from 2 different tiers, and
+# that is measured rather than assumed. Read on 2026-08-18 against a real layer
+# of ghcr.io/gophersys/base:
+#
+#   HEAD /v2/gophersys/base/blobs/sha256:966c39…  ->  HTTP/2 200, content-length
+#                                                     29751109, answered by
+#                                                     ghcr.io itself, NO redirect
+#   GET  /v2/gophersys/base/blobs/sha256:966c39…  ->  HTTP 307 to
+#                                                     pkg-containers.githubusercontent.com,
+#                                                     and the bytes come from THERE
+#
+# So a HEAD never contacts the store that holds the object. A registry whose
+# metadata tier still knows a blob while its storage tier has lost it answers
+# HEAD 200 and GET 404, and a checker built on HEAD reports an image as fine
+# while nobody can pull it. That is the incident this stub has to be able to
+# stage.
+#
+# ============================================================================
+# STATUS, -f AND -w ARE MODELLED THE WAY REAL CURL BEHAVES
+# ============================================================================
+#
+# status 2xx   the body file is written to the -o destination, or to stdout
+# status 4xx   WITHOUT -f/--fail, curl exits 0 and the status is only visible
+#              through -w '%{http_code}' — which is exactly why the blob probe
+#              reads the code instead of the exit status, and why this stub must
+#              not exit 22 unless the caller asked for that behaviour.
+#              WITH -f/--fail, curl writes its own message and exits 22.
+#
+# -w/--write-out is expanded for %{http_code} and %{size_download}, after the
+# body, on stdout. Bundled short flags are read character by character
+# (`-fsSL` is -f -s -S -L), because that is how every caller in this repository
+# spells them and a naive `case "$argument" in -f)` would see none of them.
 #
 # A URL no row matches exits 64 and says so. A stub that answered 0 to a request
 # it did not understand would hand the caller a cheerful success for a fetch
@@ -46,33 +96,89 @@ function stub_fail() {
 }
 
 # The argv walk. The URL is the argument that carries a scheme, and the value of
-# an option that TAKES one is never read as a URL — a header, a credential or a
-# retry count is not a request.
+# an option that TAKES one is never read as a URL — a header, a credential, a
+# range or a retry count is not a request.
 DESTINATION=""
 URL=""
-PREVIOUS=""
+METHOD=""
+RANGE=""
+WRITE_OUT=""
+FAIL_MODE=0
+EXPECT_VALUE=""
+
+# stub_consume <option> <value> — hand an option the value that followed it.
+function stub_consume() {
+  case "$1" in
+    -o|--output)         DESTINATION="$2" ;;
+    -w|--write-out)      WRITE_OUT="$2" ;;
+    -r|--range)          RANGE="$2" ;;
+    -X|--request)        METHOD="$2" ;;
+    *)                   : ;;   # -H, -u, -d, -A, --retry, --max-time, …
+  esac
+}
+
 for argument in "$@"; do
-  case "$PREVIOUS" in
-    -o|--output)
-      DESTINATION="$argument"
-      PREVIOUS=""
-      continue
-      ;;
-    -H|--header|-u|--user|-A|--user-agent|-d|--data|--retry|--max-time|--connect-timeout|--retry-delay)
-      PREVIOUS=""
-      continue
-      ;;
-  esac
+  if [[ -n "$EXPECT_VALUE" ]]; then
+    stub_consume "$EXPECT_VALUE" "$argument"
+    EXPECT_VALUE=""
+    continue
+  fi
   case "$argument" in
-    *://*) URL="$argument" ;;
+    --output|--write-out|--range|--request|--header|--user|--user-agent|--data|--retry|--max-time|--connect-timeout|--retry-delay)
+      EXPECT_VALUE="$argument"
+      continue
+      ;;
+    --fail)
+      FAIL_MODE=1
+      continue
+      ;;
+    --head)
+      METHOD="HEAD"
+      continue
+      ;;
+    --*)
+      continue
+      ;;
+    *://*)
+      URL="$argument"
+      continue
+      ;;
+    -?*)
+      # A bundle of short flags. The LAST character may be an option that takes
+      # a value, and then the value is the next argument — `-so file` is real
+      # curl spelling and this stub has to read it the same way.
+      bundle="${argument#-}"
+      index=0
+      while [[ "$index" -lt "${#bundle}" ]]; do
+        flag="${bundle:$index:1}"
+        index=$((index + 1))
+        case "$flag" in
+          f) FAIL_MODE=1 ;;
+          I) METHOD="HEAD" ;;
+          o|w|r|X|H|u|d|A)
+            if [[ "$index" -lt "${#bundle}" ]]; then
+              stub_consume "-${flag}" "${bundle:$index}"
+              index="${#bundle}"
+            else
+              EXPECT_VALUE="-${flag}"
+            fi
+            ;;
+          *) : ;;   # -s, -S, -L and anything else that carries no value
+        esac
+      done
+      continue
+      ;;
   esac
-  PREVIOUS="$argument"
 done
 
 [[ -n "$URL" ]] || stub_fail "no argument carried a url scheme, so there is nothing to answer: $*"
+[[ -n "$METHOD" ]] || METHOD="GET"
 
 if [[ -n "${STUB_CURL_LOG:-}" ]]; then
   printf '%s\n' "$URL" >> "$STUB_CURL_LOG"
+fi
+if [[ -n "${STUB_CURL_REQUEST_LOG:-}" ]]; then
+  printf '%s %s %s\n' "$METHOD" "${RANGE:--}" "$URL" >> "$STUB_CURL_REQUEST_LOG"
 fi
 
 [[ -n "${STUB_CURL_MAP:-}" ]] || stub_fail "STUB_CURL_MAP is not set, so this case wrote no world"
@@ -85,6 +191,16 @@ while IFS='|' read -r needle status body; do
   case "$needle" in
     '#'*) continue ;;
   esac
+  # A row may open with a method. `HEAD https://…` answers a HEAD alone; a row
+  # with no method answers whatever was asked.
+  row_method=""
+  case "$needle" in
+    "GET "*)  row_method="GET";  needle="${needle#GET }" ;;
+    "HEAD "*) row_method="HEAD"; needle="${needle#HEAD }" ;;
+  esac
+  if [[ -n "$row_method" && "$row_method" != "$METHOD" ]]; then
+    continue
+  fi
   if [[ "$needle" == "*" ]] || [[ "$URL" == *"$needle"* ]]; then
     MATCHED_STATUS="$status"
     MATCHED_BODY="$body"
@@ -93,22 +209,48 @@ while IFS='|' read -r needle status body; do
 done < "$STUB_CURL_MAP"
 
 if [[ -z "$MATCHED_STATUS" ]]; then
-  stub_fail "no row of ${STUB_CURL_MAP} matches ${URL} — the case did not model this fetch"
+  stub_fail "no row of ${STUB_CURL_MAP} matches ${METHOD} ${URL} — the case did not model this request"
 fi
 
-if [[ "$MATCHED_STATUS" == "404" ]]; then
-  printf 'curl: (22) The requested URL returned error: 404\n' >&2
+case "$MATCHED_STATUS" in
+  [1-5][0-9][0-9]) : ;;
+  *) stub_fail "the map answers ${URL} with status '${MATCHED_STATUS}', which is not an HTTP status" ;;
+esac
+
+# stub_write_out <bytes written> — the -w expansion, on stdout, after the body.
+function stub_write_out() {
+  local written="$1"
+  [[ -n "$WRITE_OUT" ]] || return 0
+  local rendered="$WRITE_OUT"
+  rendered="${rendered//'%{http_code}'/$MATCHED_STATUS}"
+  rendered="${rendered//'%{size_download}'/$written}"
+  printf '%s' "$rendered"
+}
+
+case "$MATCHED_STATUS" in
+  2[0-9][0-9])
+    [[ -f "$MATCHED_BODY" ]] || stub_fail "the map points ${URL} at '${MATCHED_BODY}', and there is no such file"
+    bytes="$(wc -c < "$MATCHED_BODY" | tr -d '[:space:]')"
+    if [[ "$METHOD" == "HEAD" ]]; then
+      # A HEAD carries the headers and no body, exactly like the real thing.
+      bytes=0
+    elif [[ -n "$DESTINATION" ]]; then
+      cat "$MATCHED_BODY" > "$DESTINATION"
+    else
+      cat "$MATCHED_BODY"
+    fi
+    stub_write_out "$bytes"
+    exit 0
+    ;;
+esac
+
+# A non-2xx. Real curl reports it through the exit status ONLY under -f; without
+# it the transfer is a success that carries an error document, and the status is
+# visible through -w alone.
+if [[ "$FAIL_MODE" -eq 1 ]]; then
+  printf 'curl: (22) The requested URL returned error: %s\n' "$MATCHED_STATUS" >&2
+  stub_write_out 0
   exit 22
 fi
-
-if [[ "$MATCHED_STATUS" != "200" ]]; then
-  stub_fail "the map answers ${URL} with status '${MATCHED_STATUS}', which this stub does not model"
-fi
-
-[[ -f "$MATCHED_BODY" ]] || stub_fail "the map points ${URL} at ${MATCHED_BODY}, and there is no such file"
-
-if [[ -n "$DESTINATION" ]]; then
-  cat "$MATCHED_BODY" > "$DESTINATION"
-else
-  cat "$MATCHED_BODY"
-fi
+stub_write_out 0
+exit 0
