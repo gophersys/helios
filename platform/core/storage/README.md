@@ -9,10 +9,15 @@ schedule.
 
 **1 provisioner: `local-path`, the k3s default.** It gives node-local volumes for
 data that you can download again, or that is already pinned to a node. Every
-workload on this cluster uses it deliberately — the `media` stack, `eden` and the
-`config-backup` CronJob. If a node is lost, the data is pulled again. MinIO is
-the one exception, and it is not a PVC at all: it writes a hostPath on the NVMe
-of k3s-w-1.
+workload on this cluster uses it deliberately — the `media` stack, `eden`, the
+`config-backup` CronJob, and the `observability` stack (4 PVCs: Loki 10Gi, Tempo
+10Gi, Prometheus 20Gi, Grafana 5Gi). If a node is lost, the data is pulled again.
+MinIO is the one exception, and it is not a PVC at all: it writes a hostPath on
+the NVMe of k3s-w-1.
+
+`local-path` is **WaitForFirstConsumer**: a PVC stays `Pending` until a pod
+consumes it, then binds on that pod's node and pins the pod there. A `Pending`
+PVC with no pod is therefore normal, not a fault.
 
 ### Longhorn — REMOVED 2026-08-19
 
@@ -32,6 +37,14 @@ storage is not solved and is **deliberately not solved**: reintroduce a
 replicated provisioner when a workload exists whose data cannot be re-fetched and
 cannot be pinned to a node — and decide it then, rather than keep 8 controllers
 warm against the possibility.
+
+**The observability stack came back on `local-path`, same day, same decision.**
+It was Longhorn's only consumer, so it is the one workload that had to answer the
+question rather than inherit it. The answer was yes: metrics and logs re-arrive
+within seconds of a pod restarting elsewhere, traces are bounded at 168h, and
+none of it is a system of record. It is the worked example of the rule above, not
+an exception to it. The trade is written out in the header of
+`platform/services/observability/chart/values-homelab.yaml`.
 
 **Backups:** a daily `config-backup` CronJob writes a tar of the media config
 PVCs to the NVMe. The in-cluster **MinIO** (`apps/minio/`) is still up: its
