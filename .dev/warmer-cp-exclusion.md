@@ -29,8 +29,10 @@ Risk weighed: runner-eligible nodes drop 7->4 for arc-org/arc-review at maxRunne
   unobserved and unprecedented in-repo). False comments rewritten (42:35-37, 43:12).
 - verify-warmer-pins.sh property 3: DERIVE the server set from clusters/instances/
   homelab/nodes/*/identity.yaml (kubernetes.role: server) and assert every derived
-  hostname in the NotIn of all 4 files (yq guarded exit-127 for identities; TEXT read
-  for the helm values: | blocks); accumulate via fail(), never exit mid-loop (-e absent).
+  hostname in the NotIn of all 4 files (yq guarded exit-127; accumulate via fail()).
+  [SUPERSEDED IN FIX ROUND 1: the planned "TEXT read for the helm values" rested on a
+  false premise — replaced by the two-stage yq structural read, per-term. See
+  ## Fix round 1 — landed. Recorded here so a reader of the plan is not misled.]
 - scripts/test-verify-warmer-pins.sh: NEW fixture suite, 5 cases (CP-EXCLUDED,
   DERIVED-NOT-HARDCODED, ZERO-SERVERS-IS-NOT-A-PASS, REFRESH-COVERED, POOLS-COVERED),
   real script via symlinked ROOT per test-verify-buildx-key.sh convention.
@@ -90,5 +92,13 @@ Risk weighed: runner-eligible nodes drop 7->4 for arc-org/arc-review at maxRunne
 - Honest bounds stated in code: In-lists not read as exclusions (false-red risk named);
   matchFields/other-key NotIn count as not-ruling-out (loud direction).
 
+## Verify round 2 (final): CONFIRMED — ready for PR
+All F1-F6 closed against the verifier's own probes + 2 unpinned inputs (mixed styles,
+matchFields-only term — both correct+loud); new cases proven load-bearing against the
+round-2 code; 5 degenerate inputs all fail closed; D45 numbers independently
+re-measured; commit hygiene clean, no drift. 3 LOWs recorded, none blocking.
+
 ## Next
-Verify round 2, then PR. In-effect proof (7->4, crictl prune, df numbers) post-merge.
+Open PR; validate.yml green with logs read; merge --merge; IN-EFFECT proof: Argo sync,
+DS 7->4, zero warmer pods on k3s-cp*, one-time crictl rmi --prune per CP (cp-1 first,
+73%, NOT during a sync), df before/after recorded here and in the program board.
