@@ -1,11 +1,11 @@
 # warmer-cp-exclusion
 
-phase:    red
+phase:    fix
 repo:     gophersys/infrastructure
 branch:   fix/warmer-cp-exclusion
 worktree: ~/code/.worktrees/infrastructure-warmer-cp-exclusion
 pr:       -
-attempt:  0/2
+attempt:  1/2
 
 ## Goal
 The arc-runners ci-image-warmer DaemonSet pins ~3.86GB of unGCable images (its
@@ -58,5 +58,26 @@ Risk weighed: runner-eligible nodes drop 7->4 for arc-org/arc-review at maxRunne
 ## Blocked
 -
 
+## Phase evidence (F5 correction — this file lagged two phases; orchestrator's fault)
+- RED (83c52a1): fixture suite cases=6 assertion-failures=18 rc=1 against the real
+  verifier; 5 cases fail exactly on the missing property; control green; missing-tool
+  guard exit 127; fixture-defect guard proven on a scratch break.
+- GREEN (c0f24fb): suite cases=6 failures=0 rc=0; real-tree verifier rc=0 with the new
+  "3 control-plane node(s) excluded" line; ctl.sh validate rc=0; lint-manifests 134
+  resources 0 invalid; lint-shell 33 scripts rc=0; kubeconform valid; both pools'
+  values re-parsed to the 4-host list.
+- VERIFY round 1 (REFUTED — fix round 1 open): F1 HIGH pool text-read passes on soft
+  (preferred) affinity AND on commented-out exclusion blocks; the "structural read
+  impossible" premise is FALSE — two-stage yq parses the helm values string (proven).
+  F2 block-style values fires FALSE red. F3 nodeSelectorTerms OR-semantics ignored —
+  a second term reopens all CPs, gate says OK. F4 D45: roles count is 10 not 8; only
+  4/8 nodes declare taints. F6 CONVENTIONS.md:131,193 need D45 cross-refs.
+  CORRECTIONS: no ≤72-char subject rule exists in THIS repo (that is libs' rule);
+  diff = 8 planned files, no drift. Verifier re-proved: defect live (warmer on all 3
+  CPs now), cp-0 57%, cp-1 73% (closest to GC threshold — leads the reclaim step).
+
 ## Next
-Phase 1: dev-planner.
+Fix round 1: test author adds 3 red fixture cases (soft-affinity, commented-block,
+second-nodeSelectorTerm) + corrects the suite's false premise comment; implementer
+replaces notin_from_text with the two-stage yq read + OR-semantics handling + D45
+corrections + CONVENTIONS.md pointers. Then re-verify, PR.
