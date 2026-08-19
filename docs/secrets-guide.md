@@ -50,8 +50,8 @@ bash machines/scripts/ssh-ephemeral.sh my-host
 2. It writes the key to `/dev/shm/<random>/id` with mode 0600.
 3. It runs `ssh-add -t 300 /dev/shm/<random>/id`, so the agent holds the key for
    5 minutes.
-4. It resolves the target through `identity.yaml:tailscale_hostname`, or falls
-   back to the machine name.
+4. It connects to the machine's Tailscale hostname, which is the machine name
+   verbatim. There is no per-host override.
 5. It calls `ssh` with `IdentitiesOnly=yes`, so only the new key is offered.
 6. On exit it runs `ssh-add -d`, shreds the key, and removes the tmpfs directory.
 

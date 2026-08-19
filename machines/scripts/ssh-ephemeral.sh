@@ -76,9 +76,16 @@ function preflight_bw() {
 # machines/hosts/<machine>/identity.yaml first. There is no machines/hosts/ in
 # this repository and there never was — hosts live at machines/<category>/<host>/
 # — so the `[[ -f ]]` guard could only ever miss and the function always fell
-# through to the line below. The branch was removed rather than repointed: an
-# override nothing has ever set is a feature to add deliberately, with a caller
-# that needs it, not a path to silently correct.
+# through to the line below.
+#
+# The field itself is NOT unused: machines/services/{macos,windows}-ci-runner
+# declare it, and machines/scripts/generate-machine-index.sh reads it. Only this
+# SSH-side read was dead, and in both declared cases the value already equals the
+# machine name, so removing it changes no hostname this script has ever produced.
+# The branch was deleted rather than repointed at machines/<category>/: an
+# override that has never once differed from the default is a feature to add
+# deliberately, when a host actually needs a different name, not a dead path to
+# quietly re-aim.
 function resolve_hostname() {
   local machine="$1"
   printf '%s\n' "$machine"
