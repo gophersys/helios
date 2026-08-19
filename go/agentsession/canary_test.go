@@ -166,7 +166,7 @@ func TestCanary_ScannerReadsKnownField(t *testing.T) {
 // a seeded secret in EventPeerSent.Peer.Body, EventPeerSent.Peer.Detail, or a
 // SubagentMessage.Digest MUST be caught (rule 21 §f). Peer bodies are untrusted foreign prose
 // redacted at the normalization boundary, and the bounce Detail is a redacted reason — so the
-// scanner is the defence-in-depth that catches a redaction miss. RED until eventStrings reaches
+// scanner is the defense-in-depth that catches a redaction miss. RED until eventStrings reaches
 // into Event.Peer / Event.Subagent.
 func TestCanary_ScannerReadsPeerAndSubagentPayload(t *testing.T) {
 	t.Parallel()
