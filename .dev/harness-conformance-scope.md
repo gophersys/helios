@@ -1,6 +1,6 @@
 # harness-conformance-scope
 
-phase:    fix
+phase:    wait
 repo:     gophersys/eden
 branch:   ci/harness-conformance-scope
 worktree: ~/code/.worktrees/eden-harness-conformance-scope
@@ -82,6 +82,10 @@ duplicate heading (fixed in this commit); R3 the probe stub rm -f's the REAL
 fix, no subject change). Incompleteness stated: affected-check leaf run directly
 (EXIT 0 both) not via nx; the high band stays stub-proven until the pin flips.
 
+## Cleanup (a7a2ab0): R1 branch reached (M2 mutant killed — differential shown vs the
+suite that let it survive); R3 bind-is-the-allocation (1000-blocker proof: 0 damaged;
+all-taken = loud exit 94; the trap removes only recorded paths). Suites 65 ok.
+
 ## Next
-Author cleanup (R1 stub mode + R3 bind-without-delete), suites re-green, open the PR;
-the job's live low-band run on this PR is part of the check set to read.
+PR open; read checks incl. harness-conformance's live low-band run; merge on green
+(no reviewer workflow observed in eden — state it at submit); delete this file last.
