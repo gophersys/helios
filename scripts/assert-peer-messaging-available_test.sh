@@ -23,6 +23,15 @@
 #      invocation it receives and refuses anything but `--version`. Each case asserts the recorded
 #      set, so a subject that starts a `-p` turn where it must not is caught by the record, not by
 #      trust. NOTHING in this file starts a real session: `claude` here is always the stub.
+#   4. THE PROBE BODY, DRIVEN BY THE STUB. The high band is the half of the subject a live low-band
+#      run can never reach, so a case opts the stub into a session mode and the stub plays claude:
+#      it reads the --settings file the subject wrote, binds a REAL AF_UNIX socket at
+#      /tmp/cc-socks/<pid>.sock, exports CLAUDE_CODE_MESSAGING_SOCKET to the SessionStart hook only
+#      — the way claude does — and runs that hook. The 3 shapes are the success path (verdict ok,
+#      exit 0, and the work directory REMOVED, because a preflight that leaks a temp directory on
+#      the path it takes 99% of the time leaks it in every job), a turn whose hook never fired, and
+#      a turn the deadline killed (stub `timeout`, exit 124). The stub records the settings path, so
+#      "the work directory was removed" is read from the path the subject really used.
 #
 # It drives the subject against stub `claude` and `uname` binaries on PATH, in the style of
 # assert-no-skipped-tests_test.sh, so no harness, no credential and no network take part. The pure
@@ -52,30 +61,124 @@ fi
 
 fails=0
 work="$(mktemp -d "${TMPDIR:-/tmp}/assert-peer-messaging-available_test.XXXXXX")"
-trap 'rm -rf "$work"' EXIT
 
 invocation_log="${work}/claude-invocations.log"
 stderr_file="${work}/stderr.txt"
+# What the stub saw when it played a session: the --settings path it was handed, and every socket it
+# bound. The first is how a case reads the subject's own work directory; the second is what to
+# remove, since a bound AF_UNIX socket outlives the process that bound it.
+settings_record="${work}/settings-path.txt"
+socket_record="${work}/bound-sockets.txt"
+: >"$settings_record"
+: >"$socket_record"
+
+# This trap owns the paths it removes: both are set above and both are global. A trap that reads a
+# variable local to a function runs after that function returned, when the name is gone.
+remove_test_artefacts() {
+  local socket
+  while IFS= read -r socket; do
+    [[ -n "$socket" ]] || continue
+    rm -f "$socket"
+  done <"$socket_record"
+  rm -rf "$work"
+}
+trap remove_test_artefacts EXIT
 
 # --- the stubs ----------------------------------------------------------------------------------
 # `claude` records what it was asked to do and answers only --version. Any other invocation is a
-# started session: it is recorded, it is refused, and the case that provoked it reads the record.
+# started session: it is recorded, and unless the case opted in with STUB_CLAUDE_SESSION_MODE it is
+# refused, so "no session started" stays a recorded fact everywhere else in this file.
 stub_directory="${work}/bin"
 mkdir -p "$stub_directory"
 cat >"${stub_directory}/claude" <<'STUB_CLAUDE'
 #!/usr/bin/env bash
 # Stub `claude` for assert-peer-messaging-available_test.sh. It appends its arguments to
-# STUB_CLAUDE_INVOCATION_LOG, prints STUB_CLAUDE_VERSION for --version and refuses everything else.
+# STUB_CLAUDE_INVOCATION_LOG, prints STUB_CLAUDE_VERSION for --version, and plays a session only
+# when STUB_CLAUDE_SESSION_MODE asks for one.
 set -Eeuo pipefail
 printf '%s\n' "$*" >>"${STUB_CLAUDE_INVOCATION_LOG}"
 if [[ "${1:-}" == '--version' ]]; then
   printf '%s\n' "${STUB_CLAUDE_VERSION}"
   exit "${STUB_CLAUDE_VERSION_STATUS:-0}"
 fi
-printf 'stub claude: refused — this is a session start, not a version read: %s\n' "$*" >&2
-exit 97
+
+if [[ "${STUB_CLAUDE_SESSION_MODE:-refuse}" == 'refuse' ]]; then
+  printf 'stub claude: refused — this is a session start, not a version read: %s\n' "$*" >&2
+  exit 97
+fi
+
+# A session. Find the settings file the subject wrote and record it: its directory IS the subject's
+# work directory, which is how a case can ask whether that directory was removed afterwards.
+settings=''
+while [[ $# -gt 0 ]]; do
+  if [[ "$1" == '--settings' ]]; then
+    settings="${2:-}"
+    break
+  fi
+  shift
+done
+if [[ -z "$settings" || ! -f "$settings" ]]; then
+  printf 'stub claude: the invocation carries no readable --settings file\n' >&2
+  exit 96
+fi
+printf '%s\n' "$settings" >"${STUB_CLAUDE_SETTINGS_RECORD}"
+
+hook="$(grep -o '"command"[[:space:]]*:[[:space:]]*"[^"]*"' "$settings" | tail -1 |
+  sed 's/.*"\(.*\)"$/\1/')"
+if [[ -z "$hook" || ! -x "$hook" ]]; then
+  printf 'stub claude: the settings name no runnable SessionStart hook: %s\n' "$settings" >&2
+  exit 95
+fi
+
+if [[ "${STUB_CLAUDE_SESSION_MODE}" == 'session-without-receipt' ]]; then
+  # The turn runs and the SessionStart hook never fires. No receipt is written, which is exactly
+  # the shape the preflight exists to catch.
+  printf 'ready\n'
+  exit 0
+fi
+
+# session-with-socket: bind a REAL AF_UNIX socket at the shape claude uses, then run the hook with
+# the messaging variables in ITS environment and in nothing else — the reason the preflight needs a
+# hook at all.
+socket_directory='/tmp/cc-socks'
+mkdir -p "$socket_directory"
+socket="${socket_directory}/$$.sock"
+rm -f "$socket"
+python3 -c '
+import socket as socket_module
+import sys
+
+server = socket_module.socket(socket_module.AF_UNIX, socket_module.SOCK_STREAM)
+server.bind(sys.argv[1])
+' "$socket"
+printf '%s\n' "$socket" >>"${STUB_CLAUDE_SOCKET_RECORD}"
+CLAUDE_CODE_MESSAGING_SOCKET="$socket" CLAUDE_CODE_MESSAGING_TOKEN='test-only-not-a-token' "$hook"
+printf 'ready\n'
 STUB_CLAUDE
 chmod +x "${stub_directory}/claude"
+
+# `timeout` runs what it is given, unless STUB_TIMEOUT_STATUS asks it to answer like GNU timeout
+# after it killed the command (exit 124). It skips timeout's own options and its duration, so it
+# survives the day the subject grows a `-k 30`.
+cat >"${stub_directory}/timeout" <<'STUB_TIMEOUT'
+#!/usr/bin/env bash
+# Stub `timeout` for assert-peer-messaging-available_test.sh.
+set -Eeuo pipefail
+if [[ -n "${STUB_TIMEOUT_STATUS:-}" ]]; then
+  printf 'stub timeout: the command was killed at the deadline\n' >&2
+  exit "${STUB_TIMEOUT_STATUS}"
+fi
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -k | --kill-after | -s | --signal) shift 2 ;;
+    -*) shift ;;
+    *) break ;;
+  esac
+done
+shift
+exec "$@"
+STUB_TIMEOUT
+chmod +x "${stub_directory}/timeout"
 
 # `uname` answers with STUB_UNAME_S so the OS check is reachable from a test.
 cat >"${stub_directory}/uname" <<'STUB_UNAME'
@@ -95,7 +198,10 @@ original_path="$PATH"
 PATH="${stub_directory}:${original_path}"
 export PATH
 export STUB_CLAUDE_INVOCATION_LOG="$invocation_log"
+export STUB_CLAUDE_SETTINGS_RECORD="$settings_record"
+export STUB_CLAUDE_SOCKET_RECORD="$socket_record"
 export STUB_CLAUDE_VERSION='2.1.212 (Claude Code)'
+export STUB_CLAUDE_SESSION_MODE='refuse'
 export STUB_UNAME_S='Linux'
 
 # A PATH that still resolves a real claude would test the host, not the subject.
@@ -115,6 +221,7 @@ run_stderr=''
 # start every case from an empty invocation record.
 run_subject() {
   : >"$invocation_log"
+  : >"$settings_record"
   run_output="$( ( bash "$subject" ) 2>&1 )" && run_status=0 || run_status=$?
 }
 
@@ -170,6 +277,58 @@ expect_case() {
 recorded_invocations() {
   [[ -f "$invocation_log" ]] || return 0
   cat -- "$invocation_log"
+}
+
+# count_probe_work_directories — how many of the subject's own work directories exist right now. The
+# subject creates them with mktemp -d "${TMPDIR:-/tmp}/assert-peer-messaging-available.XXXXXX"; this
+# test's own directory carries a _test infix, so it is not counted.
+count_probe_work_directories() {
+  local directory count=0
+  for directory in "${TMPDIR:-/tmp}"/assert-peer-messaging-available.*; do
+    [[ -d "$directory" ]] || continue
+    count=$((count + 1))
+  done
+  printf '%d\n' "$count"
+}
+
+# expect_session_started <case name> — the record holds exactly 1 session, and the stub served it.
+# Without this, a subject that printed OK while starting no turn at all would pass the probe cases.
+expect_session_started() {
+  local name="$1" line sessions=0
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    if [[ "$line" != '--version' ]]; then
+      sessions=$((sessions + 1))
+    fi
+  done < <(recorded_invocations)
+  if [[ $sessions -ne 1 ]]; then
+    report_fail "$name" "the record holds ${sessions} session(s), want 1" \
+      "record: $(recorded_invocations | tr '\n' '|')" \
+      'the probe proves the socket with ONE claude -p turn, and the stub is the only claude here'
+    return 0
+  fi
+  printf '  ok    %s\n' "$name"
+}
+
+# expect_work_directory_removed <case name> — the subject removed the work directory it wrote its
+# hook and its settings into. The path comes from the stub, so this reads the directory the subject
+# really used and never a guess.
+expect_work_directory_removed() {
+  local name="$1" settings_path='' probe_work=''
+  settings_path="$(cat -- "$settings_record")"
+  if [[ -z "$settings_path" ]]; then
+    report_fail "$name" 'the stub recorded no --settings path, so no work directory was observed' \
+      'the case proves nothing about cleanup — the turn never reached the stub'
+    return 0
+  fi
+  probe_work="${settings_path%/*}"
+  if [[ -d "$probe_work" ]]; then
+    report_fail "$name" "the work directory is still there: ${probe_work}" \
+      "it holds: $(find "$probe_work" -mindepth 1 -maxdepth 1 | tr '\n' ' ')" \
+      'the EXIT trap must remove it on EVERY path, and a trap that reads a variable local to a function reads nothing once that function returned'
+    return 0
+  fi
+  printf '  ok    %s\n' "$name"
 }
 
 # expect_no_session <case name> — the record may hold --version reads and nothing else.
@@ -404,8 +563,8 @@ expect_no_session 'unsupported OS: no session started'
 export STUB_UNAME_S='Linux'
 
 # Hard failure 5 — in the high band the credential is required, and its absence is named BEFORE any
-# session is attempted. This case is the only one that reaches the high band, and it must still end
-# with an empty session record.
+# session is attempted: the run must end with an empty session record even though it reached the
+# probe.
 export STUB_CLAUDE_VERSION='2.1.224 (Claude Code)'
 unset "${credential_variable}"
 run_subject
@@ -413,6 +572,74 @@ expect_case "hard failure: high band without ${credential_variable} -> exit 1, n
   1 "$credential_variable" 'UNEXERCISED'
 expect_no_session "high band without a credential: no session started"
 export STUB_CLAUDE_VERSION='2.1.212 (Claude Code)'
+
+# --- test 3b — the probe body, played by the stub -------------------------------------------------
+# Everything above stops before the turn. These 3 cases drive the turn itself, which is the half of
+# the subject a live low-band run can never reach: the stub binds a real AF_UNIX socket and runs the
+# subject's own SessionStart hook against it. `claude` is still the stub, and it is the only claude
+# on PATH.
+printf '\n-- test 3b: the probe --\n'
+
+# ADR-0020 FAIL-NOT-SKIP: the socket the hook reads must be a real one, and python3 is what binds it
+# here. An absent python3 is a failure of this environment, named, never a skipped case.
+if ! command -v python3 >/dev/null 2>&1; then
+  printf 'assert-peer-messaging-available_test: FAILED — python3 is required to bind the AF_UNIX socket the probe cases read; this host has none.\n' >&2
+  printf '  Run it in the base devcontainer, which carries python3:\n' >&2
+  printf '    bash .devcontainer/base/ctl.sh exec -- bash scripts/assert-peer-messaging-available_test.sh\n' >&2
+  exit 1
+fi
+
+export STUB_CLAUDE_VERSION='2.1.224 (Claude Code)'
+export "${credential_variable}=test-only-not-a-credential"
+
+# Probe case 1 — the success path. The hook reads a real socket, the verdict is ok, the run exits 0,
+# and the work directory the subject wrote its hook into is GONE afterwards. The cleanup assertion
+# belongs here and not on a failure path: an EXIT trap that reads a variable local to a function
+# still works while that function is on the stack (every failure path exits from inside it) and
+# breaks exactly once the function has returned — which is the success path, the path every green
+# job takes.
+export STUB_CLAUDE_SESSION_MODE='session-with-socket'
+work_directories_before="$(count_probe_work_directories)"
+run_subject
+expect_case 'probe: a real socket in the hook -> exit 0 and OK' \
+  0 'assert-peer-messaging-available: OK — claude 2.1.224' 'FAILED'
+expect_case 'probe: the receipt names the socket and its shape' 0 'is_socket=yes' ''
+expect_case 'probe: the run reports the turn and the verdict' 0 'receipt verdict: ok' ''
+expect_session_started 'probe: exactly one claude -p turn, served by the stub'
+expect_work_directory_removed 'probe: the work directory is removed on the success path'
+work_directories_after="$(count_probe_work_directories)"
+if [[ "$work_directories_after" -ne "$work_directories_before" ]]; then
+  report_fail 'probe: no work directory leaks' \
+    "before=${work_directories_before} after=${work_directories_after} in ${TMPDIR:-/tmp}" \
+    'each green run of this preflight would leave one directory behind in the job container'
+else
+  printf '  ok    probe: no work directory leaks (%s before, %s after)\n' \
+    "$work_directories_before" "$work_directories_after"
+fi
+
+# Probe case 2 — the turn runs and the SessionStart hook never fires. No receipt is the shape that
+# would otherwise surface much later as "no message received", so it is named here.
+export STUB_CLAUDE_SESSION_MODE='session-without-receipt'
+run_subject
+expect_case 'probe: no receipt written -> exit 1, names the verdict' \
+  1 'receipt-empty' 'OK — claude'
+expect_case 'probe: the failure is the named kind' 1 'assert-peer-messaging-available: FAILED' ''
+expect_session_started 'probe: the turn did run before the verdict'
+expect_work_directory_removed 'probe: the work directory is removed after a failed verdict'
+
+# Probe case 3 — the deadline killed the turn. GNU timeout answers 124, and the preflight must name
+# that instead of reading the missing receipt as some other defect.
+export STUB_CLAUDE_SESSION_MODE='session-with-socket'
+export STUB_TIMEOUT_STATUS='124'
+run_subject
+expect_case 'probe: timeout kills the turn -> exit 1, names exit 124' 1 '124' 'OK — claude'
+expect_case 'probe: a killed turn is a named failure' 1 'assert-peer-messaging-available: FAILED' ''
+expect_no_session 'probe: the bound held — the turn never reached claude'
+unset STUB_TIMEOUT_STATUS
+
+export STUB_CLAUDE_SESSION_MODE='refuse'
+export STUB_CLAUDE_VERSION='2.1.212 (Claude Code)'
+unset "${credential_variable}"
 
 if [[ $fails -ne 0 ]]; then
   printf '\nassert-peer-messaging-available_test: %d failure(s)\n' "$fails" >&2
