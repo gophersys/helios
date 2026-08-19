@@ -7,7 +7,12 @@
 # sends POST /sync to the bridge every 10 minutes, so the cache is at most 10
 # minutes old. The job is fail-loud: a non-200 response, or a 200 response
 # without "success":true in the body, makes the Job fail. No retry loop hides
-# an outage: restartPolicy Never, backoffLimit 1.
+# an outage: restartPolicy Never, backoffLimit 1. The one sanctioned retry is
+# INSIDE curl (--retry 5 --retry-connrefused, ~15 s worst case): measured on
+# 2026-08-19 (ledger #127), a fresh pod's first connect is refused in ~24 ms
+# while ESO through the same Service stays green — a cold-pod dataplane race,
+# not a bridge outage. The retry outlives the race; a real outage still
+# exhausts it and fails the Job loudly.
 #
 # HONEST LIMIT: "fail" means a Failed Job object (the last 3 are kept), not an
 # alert. Nothing in this cluster alerts on a CronJob that stops working
@@ -70,7 +75,9 @@ spec:
               # answered. No `|| true` anywhere.
               args:
                 - |
-                  out="$(curl -fsS --max-time 60 -X POST \
+                  date -u +%Y-%m-%dT%H:%M:%SZ
+                  out="$(curl -fsS --max-time 60 \
+                    --retry 5 --retry-delay 3 --retry-connrefused -X POST \
                     http://bw-serve.external-secrets.svc.cluster.local:8087/sync)"
                   echo "$out"
                   printf '%s' "$out" | grep -Eq '"success"[[:space:]]*:[[:space:]]*true'
