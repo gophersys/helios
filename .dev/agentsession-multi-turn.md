@@ -1,11 +1,11 @@
 # agentsession-multi-turn
 
-phase:    red
+phase:    fix
 repo:     gophersys/libs
 branch:   feat/agentsession-multi-turn
 worktree: ~/code/.worktrees/libs-agentsession-multi-turn
 pr:       -
-attempt:  0/2
+attempt:  1/2
 
 ## Goal
 Contract revision R1: an eden agent session survives its own turn. Today
@@ -119,5 +119,24 @@ opened, fold into PR-1c lane work. Machine note: docker VM disk hit 100% mid-run
 resolved non-destructively via bind-mount caches; the 9.35GB "dangling" image is the
 LIVE devcontainer's (do not prune); 77 orphan volumes ~3.9GB = future cleanup.
 
+## Verify round 1 (send-backs) + fix round
+Verifier: R1 largely CONFIRMED (9 break-tests bit; 3 retirements true; apidiff exactly
+4 lines; -race x5 clean; the promptPending mechanism survived the race hunt: refused
+Steer does not arm, concurrent Prompts advance exactly once). REFUTED: F1 HIGH
+permission-first turn loses its ordinal (AwaitingPermission detour eats the arming);
+F2 HIGH session terminal replays only the LAST turn's ledger (300/1 for a 100+200+300
+session) while flagged Cumulative; F3 ompadapter.go:100-103 false stdin comment still
+present; F4 types.go:255 EventResult doc row now false; F5 4 commit subjects >72 chars
+(libs rule) — scripted reword rebase BEFORE the PR; F7 contract-text deferral to eden
+S5 goes in the PR body. ENV: gofumpt v0.10(amd64 image)/v0.11(arm64) skew — test files
+now dual-clean (b175c8a); if CI runs the amd64 image other diffs may format-differ.
+RED PINS (b175c8a): TestTurn_PermissionFirstTurnKeepsItsOwnOrdinal (got ordinal 1/2
+ids, want 2/3); TestClose_SessionTerminalSumsThePerTurnLedgers + ...DeltaFlagged...
+(both 300/1 want 600/3; the pair forbids branching on Cumulative). Author's open point
+for the implementer: claude's result ledger may be cumulative AT SOURCE (num_turns,
+total_cost_usd) — reconcile per-turn deltas vs sums without double counting.
+
 ## Next
-Phase 4: dev-verifier adversarial refutation. Then cleanup pass, PR.
+Fix round: implementer greens F1 (arming survives the permission detour) + F2 (summed
+session ledger, source-shape reconciled) + F3 (delete the false stdin comment) + F4
+(EventResult doc row). Then subject-reword rebase, re-verify (round 2), cleanup, PR.
