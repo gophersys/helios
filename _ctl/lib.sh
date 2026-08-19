@@ -648,7 +648,13 @@ function image_size_budget_gb() {
 
 # image_size_budget_bytes <name> — the same budget in bytes, empty when there is
 # none. Decimal GB, which is the unit every census figure of this repository
-# uses and the unit `docker image inspect --format '{{.Size}}'` answers in.
+# uses.
+#
+# THE BASIS OF THE NUMBER IS UNPACKED BYTES, and it is not a free choice: read
+# image_unpacked_size_bytes in .ci/smoke.sh before writing a budget or a reader
+# for one. `docker image inspect --format '{{.Size}}'` used to be that reader
+# and it answers COMPRESSED bytes on a containerd-store daemon, which is how 3
+# budgets spent 2 days unable to fail (ledger #119).
 #
 # awk and not shell arithmetic: bash has no floating point, and 5.75 is the
 # budget a human wrote. A value that is not a number is a FAILURE naming the

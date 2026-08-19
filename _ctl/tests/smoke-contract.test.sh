@@ -111,10 +111,12 @@ SMOKE_REF="cloud:smoke"
 # asserts the wrong image, and every check above would still pass, because they
 # read cloud.
 #
-# Read on 2026-08-18 rather than incremented: `.ci/smoke.sh` declares 7 class
-# tables, 4 of them over versions.env (CLOUD, BASE, HARDWARE, UI) and 3 over a
-# child Dockerfile; images.yaml declares 7 images and 3 of them carry
-# `size_budget_gb` (cloud, hardware, ui), so 4 do not; and KICAD_PPA_VERSION is
+# Read on 2026-08-19 rather than incremented — and it had been incremented, by
+# a paragraph written before the embedded fold made 2 images 1: `.ci/smoke.sh`
+# declares 6 class tables, 4 of them over versions.env (CLOUD, BASE, HARDWARE,
+# UI) and 2 over a child Dockerfile (MOBILE, EMBEDDED); images.yaml declares 6
+# images and 3 of them carry
+# `size_budget_gb` (cloud, hardware, ui), so 3 do not; and KICAD_PPA_VERSION is
 # `asserted` in PIN_CLASSES_HARDWARE and `not-in-this-image:kicad-cli` in the
 # other 3 tables over that home.
 #
@@ -162,12 +164,14 @@ HARDWARE_ASSERTED_ROWS=(
   'RUFF_VERSION|ruff --version'
 )
 
-# The budget images.yaml declares for it: 11.0 GB, in the decimal bytes
-# image_size_budget_bytes computes. It is PROVISIONAL — an estimate computed
-# from 2 measured images, to be reset to the first green build's real size — so
-# this literal moves when that number does, and the pair of cases below is what
-# makes the move visible instead of silent.
-HARDWARE_SIZE_BUDGET="11000000000"
+# The budget images.yaml declares for it, in the decimal bytes
+# image_size_budget_bytes computes. It was 11.0 GB and PROVISIONAL — an estimate
+# computed from 2 measured images, to be reset to the first green build's real
+# size — and that reset has now happened: 10,013,827,072 unpacked bytes measured
+# in rehearsal run 32202500436, x 1.05. This literal moves when that number
+# does, and the pair of cases below is what makes the move visible instead of
+# silent.
+HARDWARE_SIZE_BUDGET="10520000000"
 
 # ============================================================================
 # THE THIRD IMAGE, WHICH IS THE SECOND OF ITS SHAPE
@@ -210,20 +214,17 @@ UI_ASSERTED_ROWS=(
   'CHROME_MAJOR_VERSION|sh -c "${DENSUI_CHROME} --version"'
 )
 
-# The budget images.yaml declares for it: 6.5 GB, in the decimal bytes
-# image_size_budget_bytes computes. PROVISIONAL like hardware's, and it moved
-# from 6.3 BEFORE this image was ever built — which is what a provisional number
-# is for. The 6.3 rested on the premise that research-ui-ci's chrome+fonts layer
-# was the WHOLE delta, and that premise is false on THIS parent: research-ui-ci
-# builds FROM `base`, which installs the GTK/webkit stack, and `cloud` installs
-# none of it, so the chrome install drags its own dependency closure in here.
-# 2 independent derivations — 6.32 a-priori, 6.47 from the first rehearsal's
-# compressed delta converted at the chrome layer's own ratio — and the row is the
-# 6.5 above both. The full account with its measurements is beside the key in
-# images.yaml; read it before moving this literal, and move it when the first
-# build measured on the SAME basis as cloud's and hardware's budgets resets that
-# row.
-UI_SIZE_BUDGET="6500000000"
+# The budget images.yaml declares for it, in the decimal bytes
+# image_size_budget_bytes computes. It moved twice: 6.3 to 6.5 BEFORE this image
+# was ever built, which is what a provisional number is for, and 6.5 to 6.33 on
+# the first build ever measured in the unit the budget is written in —
+# 6,027,251,712 unpacked bytes in rehearsal run 32202500436, x 1.05.
+#
+# The estimate it replaces was good: 6.32 from the dependency-closure reasoning
+# lands 0.005 GB from the truth, while 6.47 from converting a compressed delta
+# at one layer's ratio is 7.3% high. The full account with its measurements is
+# beside the key in images.yaml; read it before moving this literal.
+UI_SIZE_BUDGET="6330000000"
 
 # The tools the payload must name. Each one is a gate-critical hole today.
 # `docker compose` carries a space on purpose — the plugin is invoked that way,
@@ -399,9 +400,9 @@ function docker_run_lines() {
 #
 # THE SECOND CHECK THAT COULD NOT FAIL, and the rule it repairs is "the driver
 # smokes the ref it was given". That rule read the WHOLE argv log, and the driver
-# calls `docker image inspect` on the same ref twice before it runs anything — for
-# the platform and for the size. So the ref was always in the log, whatever
-# container was started. Measured 2026-08-18 by rewriting the last line of
+# reads the same ref twice before it runs anything — `docker image inspect` for
+# the platform and `docker history` for the size. So the ref was always in the
+# log, whatever container was started. Measured 2026-08-18 by rewriting the last line of
 # .ci/smoke.sh to `docker run ... "cloud:latest"`: all 3 ref checks stayed GREEN
 # while every smoke in this file asserted about an image nobody built.
 #
@@ -589,8 +590,14 @@ assert_refused_without_running "an_empty_pin_fails_the_run_and_starts_no_contain
 # still orders correctly, so the pair below is chosen so that ONLY the boundary
 # itself separates them.
 #
-# The stub answers `docker image inspect --format '{{.Size}}'` with
-# STUB_IMAGE_SIZE, so no image of any size is ever built.
+# The stub answers `docker history` with STUB_IMAGE_SIZE, so no image of any
+# size is ever built.
+#
+# THE 3 PAIRS BELOW ARE THE COMPARISON AND NOT THE BASIS, and each one stayed
+# correctly green while the gate compared the wrong number entirely. What the
+# driver ASKS THE DAEMON FOR is held in _ctl/tests/size-gate.test.sh (ledger
+# #119); a stub that answers one number to every question cannot express that
+# difference, which is why the file is a second one and not 3 more cases here.
 CLOUD_SIZE_BUDGET="5750000000"
 
 run_smoke "$SMOKE" "$IMAGE" "$SMOKE_REF" "STUB_IMAGE_SIZE=$((CLOUD_SIZE_BUDGET + 1))"
@@ -768,9 +775,9 @@ done
 run_smoke "$SMOKE" "$HARDWARE_IMAGE" "$HARDWARE_SMOKE_REF" "STUB_IMAGE_SIZE=$((HARDWARE_SIZE_BUDGET + 1))"
 assert_refused_without_running "a_hardware_image_one_byte_over_its_budget_fails_and_starts_no_container" \
   "$HARDWARE_SIZE_BUDGET" \
-  "the image measured $((HARDWARE_SIZE_BUDGET + 1)) bytes, which is 1 byte over the 11.0 GB budget" \
-  "the budget is PROVISIONAL and the first green build resets it — a gate that does not bite" \
-  "cannot report the re-measurement it exists to force"
+  "the image measured $((HARDWARE_SIZE_BUDGET + 1)) unpacked bytes, which is 1 byte over the 10.52 GB budget" \
+  "that budget was reset in this change to the first measured size + 5%, so it sits 5% above a real" \
+  "image rather than above an estimate — a gate that does not bite cannot report the growth it exists to catch"
 
 run_smoke "$SMOKE" "$HARDWARE_IMAGE" "$HARDWARE_SMOKE_REF" "STUB_IMAGE_SIZE=${HARDWARE_SIZE_BUDGET}"
 if [[ "$RUN_STATUS" -ne 0 ]]; then
@@ -931,9 +938,9 @@ done
 run_smoke "$SMOKE" "$UI_IMAGE" "$UI_SMOKE_REF" "STUB_IMAGE_SIZE=$((UI_SIZE_BUDGET + 1))"
 assert_refused_without_running "a_ui_image_one_byte_over_its_budget_fails_and_starts_no_container" \
   "$UI_SIZE_BUDGET" \
-  "the image measured $((UI_SIZE_BUDGET + 1)) bytes, which is 1 byte over the 6.5 GB budget" \
-  "the budget is PROVISIONAL and the first build measured on cloud's basis resets it — a gate" \
-  "that does not bite cannot report the re-measurement it exists to force"
+  "the image measured $((UI_SIZE_BUDGET + 1)) unpacked bytes, which is 1 byte over the 6.33 GB budget" \
+  "that budget was reset in this change to the first measured size + 5%, so it sits 5% above a real" \
+  "image rather than above an estimate — a gate that does not bite cannot report the growth it exists to catch"
 
 run_smoke "$SMOKE" "$UI_IMAGE" "$UI_SMOKE_REF" "STUB_IMAGE_SIZE=${UI_SIZE_BUDGET}"
 if [[ "$RUN_STATUS" -ne 0 ]]; then

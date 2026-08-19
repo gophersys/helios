@@ -1106,12 +1106,79 @@ if [[ "$STORED_PLATFORM" != "$SMOKE_PLATFORM_RESOLVED" ]]; then
   fi
 fi
 
+# image_unpacked_size_bytes <ref> — the UNPACKED size of a stored image, in
+# bytes: the sum of the per-layer sizes `docker history` reports.
+#
+# ============================================================================
+# READ THIS BEFORE CHANGING THE READ. IT IS LEDGER #119.
+# ============================================================================
+#
+# This was `docker image inspect --format '{{.Size}}'`, and that template does
+# NOT answer the same question on every daemon:
+#
+#   - under the CLASSIC (graphdriver) image store it answers the UNPACKED size,
+#     which is the basis every size_budget_gb in images.yaml was set on;
+#   - under the CONTAINERD image store it answers the CONTENT size instead: the
+#     sum of the COMPRESSED layer blobs.
+#
+# WHICH STORE A DAEMON RUNS IS NOT THIS REPOSITORY'S TO CHOOSE. The dind the
+# arc-build pods talk to answers the second way, and the numbers below are how
+# that was found rather than a claim about a docker version.
+#
+# The daemon under this smoke changed basis without a commit here. cloud read
+# 5,627,002,516 bytes in run 32039450157 (2026-08-17T14:33Z) and 2,059,410,281
+# in run 32055368934 (2026-08-17T18:32Z), and by 2026-08-18 all 3 budgets were
+# being compared against a number 3.4x to 4.2x under them. Nothing went red,
+# because a smaller number is still under a budget — so 3 acceptance metrics
+# stopped being able to fail and every run went on printing that they passed.
+#
+# `docker history --human=false` is the store-invariant answer. Measured on a
+# mac at docker 29.5.3 with the containerd store, against an image holding
+# 400,000,000 bytes of zeros: `image inspect --format '{{.Size}}'` said
+# 4,483,568 and the history lines summed to 409,493,504.
+#
+# 3 readings are refusals here rather than a number:
+#
+#   - a history that cannot be READ. There is no size, so there is no gate.
+#   - a history with NO LAYER in it. It sums to 0, and 0 is under every budget
+#     anybody will ever write — the believed-and-empty check again.
+#   - a line that is NOT A COUNT OF BYTES. This is the defect's own class one
+#     flag away: without `--human=false` docker prints `4GB`. Measured —
+#     `t=$((t + 4GB))` under `set -Eeuo pipefail` aborts with
+#     `value too great for base (error token is "4GB")`, which names neither
+#     this gate nor the image, and it would abort the smoke of an image nobody
+#     had measured. The refusal below names both.
+function image_unpacked_size_bytes() {
+  local reference="$1"
+  local lines
+  if ! lines="$(docker history --human=false --format '{{.Size}}' "$reference")"; then
+    return 1
+  fi
+  if [[ -z "$lines" ]]; then
+    log_error "docker history reported no layer for ${reference}"
+    log_error "a sum over no layer is 0 bytes, which is under every budget — so this is a FAILURE and not a size"
+    return 1
+  fi
+  local total=0 line
+  while IFS= read -r line; do
+    if [[ -z "$line" ]]; then
+      continue
+    fi
+    if [[ ! "$line" =~ ^[0-9]+$ ]]; then
+      log_error "docker history reported '${line}' as a layer size of ${reference}, which is not a count of bytes"
+      log_error "the gate compares BYTES; a human-readable size would compare a number nobody measured"
+      return 1
+    fi
+    total=$((total + line))
+  done <<< "$lines"
+  printf '%s\n' "$total"
+}
+
 # The size gate: the acceptance budget images.yaml declares for THIS image, in
-# decimal GB — the unit every census figure of this repository uses, and the
-# unit `docker image inspect --format '{{.Size}}'` answers in. It runs on the
-# HOST against the loaded or pulled image, BEFORE the container smoke, and in CI
-# this whole script runs before the push, so an oversize image never reaches a
-# consumer.
+# decimal GB — the unit every census figure of this repository uses. It runs on
+# the HOST against the loaded or pulled image, BEFORE the container smoke, and
+# in CI this whole script runs before the push, so an oversize image never
+# reaches a consumer.
 #
 # It was `if [[ "$IMAGE" == "cloud" ]]` with 5750000000 spelled inside it, and
 # the branch is what changed rather than the rule. The budget is DATA now, so
@@ -1120,24 +1187,31 @@ fi
 # which is where a reader tempted to raise one will be standing. cloud's R4
 # history moved there whole.
 #
-# An image that declares no budget takes no gate, which is what 3 of the 6
-# declare. The 2 refusals are unchanged and both are FAILURES and never skips: a
-# budget that cannot be READ, and an image whose size the daemon will not report.
+# THE BASIS IS UNPACKED BYTES, and the reader above is where that is enforced.
+# A log line from before 2026-08-18 carries the other basis for the same image,
+# so the lines below name the basis rather than only the number.
+#
+# An image that declares no budget takes no gate. Read images.yaml for which
+# ones: a count written here is a count that goes stale, and this file has done
+# that twice already. The refusals are all FAILURES and never skips: a budget
+# that cannot be READ, and — inside the reader — a size the daemon will not
+# report, a size with no layer behind it, and a size that is not in bytes.
 SIZE_BUDGET_BYTES="$(image_size_budget_bytes "$IMAGE")" || exit 1
 if [[ -n "$SIZE_BUDGET_BYTES" ]]; then
   SIZE_BUDGET_GB="$(image_size_budget_gb "$IMAGE")"
   IMAGE_SIZE_BYTES=""
-  if ! IMAGE_SIZE_BYTES="$(docker image inspect --format '{{.Size}}' "$REF")"; then
-    log_error "cannot read the size of ${REF}; the ${SIZE_BUDGET_GB} GB gate cannot run, which is a FAILURE and not a skip"
+  if ! IMAGE_SIZE_BYTES="$(image_unpacked_size_bytes "$REF")"; then
+    log_error "cannot read the unpacked size of ${REF} for the ${IMAGE} ${SIZE_BUDGET_GB} GB size gate"
+    log_error "the gate cannot run, which is a FAILURE and not a skip"
     exit 1
   fi
   if [[ "$IMAGE_SIZE_BYTES" -gt "$SIZE_BUDGET_BYTES" ]]; then
-    log_error "${IMAGE} size gate: ${REF} is ${IMAGE_SIZE_BYTES} bytes, over the ${SIZE_BUDGET_BYTES}-byte (${SIZE_BUDGET_GB} GB) budget"
+    log_error "${IMAGE} size gate: ${REF} is ${IMAGE_SIZE_BYTES} unpacked bytes, over the ${SIZE_BUDGET_BYTES}-byte (${SIZE_BUDGET_GB} GB) budget"
     log_error "the budget is an acceptance metric declared in ${IMAGES_MANIFEST}, with the measurement that set it beside the key"
     log_error "it does not move quietly: read that comment before you raise the number"
     exit 1
   fi
-  log_info "${IMAGE} size gate: ${IMAGE_SIZE_BYTES} bytes <= ${SIZE_BUDGET_BYTES} (${SIZE_BUDGET_GB} GB budget)"
+  log_info "${IMAGE} size gate: ${IMAGE_SIZE_BYTES} unpacked bytes <= ${SIZE_BUDGET_BYTES} (${SIZE_BUDGET_GB} GB budget)"
 fi
 
 RUN_ARGS=(

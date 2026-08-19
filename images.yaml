@@ -242,14 +242,15 @@ images:
     # Measured on 2026-08-18 through the ghcr.io registry API, amd64, summing
     # the per-layer gzip ISIZE trailers: zephyr:latest 6,741,148,672 bytes and
     # zephyr-devbox:latest 8,244,974,080, so the devbox delta is 1.504 GB and
-    # this image's docker-Size basis is ~9.23 GB.
+    # this image's unpacked basis is ~9.23 GB.
     #
-    # That number is NOT written as a budget, because the gate that would read
-    # it compares COMPRESSED bytes against an uncompressed budget — the finding
-    # the ui entry records below, which makes cloud's 5.75 GB acceptance metric
-    # unfailable too (#119). A budget that cannot fail is the believed-and-empty
-    # check this repository refuses elsewhere, so the key arrives with the unit
-    # fix and not before.
+    # That number was NOT written as a budget while the gate could not fail on
+    # one (#119). THE UNIT IS FIXED NOW — .ci/smoke.sh sums `docker history`
+    # rather than reading `docker image inspect --format '{{.Size}}'` — so the
+    # only thing between this image and an acceptance metric is the DECISION to
+    # set one, which is Mateo's and not a side effect of the unit fix. A budget
+    # is a number somebody chose to be held to, and the ISIZE sum above is an
+    # estimate rather than a measurement on the basis the gate now reads.
     notes:
       base_tag: |
         The parent this layer FROMs. base publishes a :<sha> tag only on a
@@ -303,6 +304,30 @@ images:
     # on 2026-08-16 to keep every tool and set the budget here. Above THIS
     # budget the remaining levers are splitting build-essential out or dropping
     # a tool, and either goes back to Mateo.
+    #
+    # THE BASIS IS UNPACKED BYTES — the sum of `docker history --human=false`,
+    # which is what .ci/smoke.sh compares. Every figure in the paragraph above
+    # is on that basis: the 6,303,346,803-byte refusal of the first build (run
+    # 31977905169) and the 5,626,948,253 bytes run 32020729843 read after the
+    # levers, which is 2.1% under this budget.
+    #
+    # It has NOT always been what the gate read, and that is why the basis is
+    # written here rather than assumed (#119). The gate read
+    # `docker image inspect --format '{{.Size}}'`, and on a containerd-store
+    # daemon that template answers the COMPRESSED content size: the same image
+    # measured 5,627,002,516 bytes in run 32039450157 and 2,059,410,281 in run
+    # 32055368934 the same afternoon, with no commit here in between. A budget
+    # compared against a number 3.5x under it cannot fail, so this metric was
+    # believed and empty for 2 days. Compare a log line to this number only
+    # after checking that the line says `unpacked bytes`.
+    #
+    # MEASURED AGAIN ON THE REPAIRED GATE: 5,273,882,624 unpacked bytes,
+    # rehearsal run 32202500436 (job 95919051177, 2026-08-19T01:00Z) — 8.3%
+    # under this budget, and 353 MB below the 5,626,948,253 of 2026-08-17,
+    # because the image went on shrinking through the days no reader could see
+    # it. THE MEASUREMENT DOES NOT MOVE THE BUDGET. 5.75 is a decision a human
+    # made with the R4 levers in front of him; it is not a provisional row that
+    # the next number resets, which is what the 2 children below are.
     size_budget_gb: 5.75
     notes:
       job: |
@@ -346,13 +371,16 @@ images:
       - go-gate
       - dockerfile-lint
       - compose
-    # PROVISIONAL, and computed from 2 MEASURED images rather than chosen.
+    # THIS ROW IS NO LONGER PROVISIONAL — read to the end before using any
+    # number in it. What follows is the ESTIMATE that stood here until
+    # 2026-08-19, computed from 2 MEASURED images rather than chosen, and it is
+    # kept because it is what the real measurement below is judged against.
     # Method, read on 2026-08-18 through the ghcr.io registry API:
     #
     #   cloud:latest (amd64) — the per-layer gzip ISIZE trailers of its 38
-    #   layers sum to 5,063,474,688 bytes. Its docker-Size budget is 5.75 GB
-    #   against a measured docker-Size floor of ~5.63-5.67 GB, so docker's
-    #   on-disk accounting runs ~1.12x the tar-stream sum for this image family
+    #   layers sum to 5,063,474,688 bytes. Its budget is 5.75 GB against a
+    #   measured UNPACKED floor of ~5.63-5.67 GB, so docker's on-disk
+    #   accounting runs ~1.12x the tar-stream sum for this image family
     #   — small files round up to a filesystem block and this image has many.
     #
     #   research-hardware-ci:latest — the image this one replaces. Read the same
@@ -364,11 +392,28 @@ images:
     #
     #   5.75 + 4.71 x 1.12 = 11.0
     #
-    # It is an ESTIMATE of a number nothing here has built yet. The first green
-    # build measures the real size, and the budget is reset to that measurement
-    # + 5% in the same pull request. Until then a red here means "re-measure",
-    # not "drop a tool".
-    size_budget_gb: 11.0
+    # It was an ESTIMATE of a number nothing had built yet, at 11.0, and the row
+    # said the first green build resets it to that measurement + 5% in the same
+    # pull request. THIS IS THAT PULL REQUEST, and the estimate was 9.8% high.
+    #
+    # THE BASIS IS UNPACKED BYTES — the sum of `docker history --human=false`,
+    # which is what .ci/smoke.sh compares. That is the basis the derivation
+    # above was done on, and it was NOT the basis the gate read while this row
+    # was written: the reader was `docker image inspect --format '{{.Size}}'`,
+    # which a containerd-store daemon answers with COMPRESSED bytes, so this
+    # image measured 2,608,220,360 against 11,000,000,000 in run 32193984249 and
+    # the budget could not have failed whatever the image held (#119). The first
+    # measurement on the repaired gate is therefore also the first measurement
+    # this row could ever have been reset from.
+    #
+    #   10,013,827,072 unpacked bytes, rehearsal run 32202500436
+    #   (job 95924341075, 2026-08-19T02:32Z) x 1.05 = 10,514,518,426
+    #
+    # so the row is 10.52 and the slack over measured+5% is 5,481,574 bytes.
+    # This TIGHTENS the budget by 0.48 GB; it does not widen one. A red here
+    # still means "re-measure" first — the KiCad PPA is an upstream that moves,
+    # and this image is 61% apt data by volume.
+    size_budget_gb: 10.52
     notes:
       job: |
         The hardware image: cloud + the KiCad 10 ECAD toolchain. Its consumer is
@@ -435,13 +480,14 @@ images:
     # one package version serves both architectures. Narrowing this image later
     # is a human decision with a measurement beside it, exactly like mobile's.
 
-    # The size budget below is PROVISIONAL, and computed from MEASURED images
-    # rather than chosen — hardware's method, read on 2026-08-18 through the
-    # ghcr.io registry API:
+    # THE SIZE BUDGET BELOW IS NO LONGER PROVISIONAL — read to the end before
+    # using any number in it. What follows is the ESTIMATE that stood here until
+    # 2026-08-19, computed from MEASURED images rather than chosen — hardware's
+    # method, read on 2026-08-18 through the ghcr.io registry API:
     #
     #   cloud:latest (amd64) — the per-layer gzip ISIZE trailers of its 38
     #   layers sum to 5,063,539,712 bytes. Against its declared 5.75 GB budget
-    #   and its measured docker-Size floor of ~5.63-5.67 GB, docker's on-disk
+    #   and its measured UNPACKED floor of ~5.63-5.67 GB, docker's on-disk
     #   accounting runs ~1.12x the tar-stream sum for this image family.
     #
     #   research-ui-ci:latest — the image this one replaces. Its chrome+fonts
@@ -470,23 +516,41 @@ images:
     # 1,647,731,708 in the same run — a delta of 286,513,752. That is a
     # COMPRESSED reading: cloud's registry blobs plus its config sum to
     # 1,647,719,707 bytes, which is the gate's figure to within 12,001 bytes of
-    # 2 builds' metadata, and it is ~3.4x under the docker-Size basis every
+    # 2 builds' metadata, and it is ~3.4x under the UNPACKED basis every
     # budget in this file was set from. So it cannot be used as
     # "measured size + 5%" — that would put this image's budget in a unit its
     # siblings do not share. Converted at the chrome layer's own measured
     # compression ratio (463,258,112 / 207,293,833 = 2.235), the delta is
     # ~0.640 GB and the same arithmetic gives 5.75 + 0.640 x 1.12 = 6.47.
     #
-    # 2 independent derivations, 6.32 and 6.47, so the budget is 6.5 and the
-    # slack over the larger one is 0.03 GB. It is still an ESTIMATE: the first
-    # build to be measured on the SAME basis as cloud's and hardware's budgets
-    # resets this row to that measurement + 5% in the same pull request. A red
-    # here means "re-measure", not "drop a tool".
+    # 2 independent derivations, 6.32 and 6.47, so the budget was 6.5 and the
+    # slack over the larger one was 0.03 GB. It was still an ESTIMATE, and the
+    # row said the first build measured on the SAME basis as cloud's and
+    # hardware's budgets resets it to that measurement + 5% in the same pull
+    # request. THIS IS THAT PULL REQUEST.
     #
-    # The gate that reads compressed bytes against uncompressed budgets is not
-    # this image's defect to fix — it makes cloud's 5.75 GB acceptance metric
-    # unfailable too — and it is reported rather than papered over here.
-    size_budget_gb: 6.5
+    # THE BASIS IS UNPACKED BYTES — the sum of `docker history --human=false`,
+    # which is what .ci/smoke.sh compares. The paragraph above is where the
+    # unit defect was FOUND, and it is fixed rather than only reported now
+    # (#119): the reader was `docker image inspect --format '{{.Size}}'`, which
+    # a containerd-store daemon answers with the compressed content size, so
+    # this budget and cloud's and hardware's were each being compared against a
+    # number 3.4x to 4.2x under them and none of the 3 could fail. So the number
+    # below is the FIRST reading of this image anybody has ever taken in the
+    # unit its budget is written in:
+    #
+    #   6,027,251,712 unpacked bytes, rehearsal run 32202500436
+    #   (job 95924341021, 2026-08-19T02:14Z) x 1.05 = 6,328,614,298
+    #
+    # so the row is 6.33 and the slack over measured+5% is 1,385,702 bytes.
+    #
+    # THE A-PRIORI DERIVATION WAS THE GOOD ONE, and that is worth keeping. 6.32
+    # from the dependency-closure reasoning lands 0.005 GB from the truth; 6.47
+    # from converting the rehearsal's compressed delta at the chrome layer's own
+    # ratio is 7.3% high, because a per-layer ratio does not describe a whole
+    # image. Real delta over cloud: 6,027,251,712 - 5,273,882,624 = 0.753 GB
+    # against the 0.640 GB the ratio predicted.
+    size_budget_gb: 6.33
     notes:
       job: |
         The ui image: cloud + headless Chrome and the DejaVu fallback font. Its
