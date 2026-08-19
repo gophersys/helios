@@ -210,12 +210,12 @@ func TestSessionEnvironment_RootsOmpSessionStorageOnce(t *testing.T) {
 	if n := countPrefixEntries(env, "PI_CODING_AGENT_DIR="); n != 1 {
 		t.Fatalf("expected exactly one PI_CODING_AGENT_DIR entry, got %d; env: %v", n, env)
 	}
-	store := entryValue(env, "PI_CODING_AGENT_DIR=")
-	if store == operatorStore {
-		t.Errorf("the child inherited the operator's session store %q; every eden session would write into it", store)
+	sessionStore := entryValue(env, "PI_CODING_AGENT_DIR=")
+	if sessionStore == operatorStore {
+		t.Errorf("the child inherited the operator's session store %q; every eden session would write into it", sessionStore)
 	}
-	if !strings.HasPrefix(store, workspace) {
-		t.Errorf("PI_CODING_AGENT_DIR = %q, want it rooted inside the provisioned workspace %q", store, workspace)
+	if !strings.HasPrefix(sessionStore, workspace) {
+		t.Errorf("PI_CODING_AGENT_DIR = %q, want it rooted inside the provisioned workspace %q", sessionStore, workspace)
 	}
 	// The credential seam is unchanged by the rpc rewrite: the key still lands exactly once.
 	if n := countPrefixEntries(env, "OPENROUTER_API_KEY="); n != 1 {

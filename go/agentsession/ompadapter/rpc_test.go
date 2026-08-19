@@ -47,7 +47,7 @@ const (
 
 	// readyGrace is how long a freshly built conn is watched for a PREMATURE Ready before any
 	// frame has been written on omp's stdout. It only has to be long enough to catch a Ready
-	// that is signalled unconditionally at construction, which is instant.
+	// that is signaled unconditionally at construction, which is instant.
 	readyGrace = 250 * time.Millisecond
 
 	// rpcPoll is the granularity of the wait loops.
@@ -75,11 +75,18 @@ const (
 	selectFrameID = "155cde478590975d"
 )
 
+// dialogDismissField is the dismissal variant's field name in RpcExtensionUIResponse
+// (rpc-types.ts:535), spelled as omp spells it on the wire. The test reads the answer by the key
+// that actually resolves a dialog, so it must carry omp's spelling and not this repository's.
+//
+//nolint:misspell // the double-L is omp's wire spelling of this field, not prose; it mirrors rpc.go's answerCancelField.
+const dialogDismissField = "cancelled"
+
 // TestRPC_ReadyWaitsForTheReadyFrame proves the readiness handshake is MEASURED, not assumed: no
 // Ready is published while omp has said nothing, and the host answers the `ready` frame by
 // negotiating protocol 2 on stdin.
 //
-// The pre-rewrite conn signalled Initializing->Ready from a goroutine started inside Spawn,
+// The pre-rewrite conn signaled Initializing->Ready from a goroutine started inside Spawn,
 // before any process existed — so the library's Open returned a live session for a harness that
 // might never have started. omp's `ready` is unconditional and FIRST (rpc-mode.ts:690), which is
 // exactly why it is a usable readiness signal and a synthesized one is not.
@@ -105,7 +112,7 @@ func TestRPC_ReadyWaitsForTheReadyFrame(t *testing.T) {
 		t.Errorf("negotiate_protocol protocolVersion = %v, want 2 — 1 is what omp runs until the host negotiates, and the rpc wire schema is byte-identical 17.2.5<->17.3.7, so 2 is safe on the pin",
 			negotiate["protocolVersion"])
 	}
-	if id, _ := negotiate["id"].(string); id == "" {
+	if id := stringField(negotiate, "id"); id == "" {
 		t.Errorf("negotiate_protocol carries no id; omp correlates its response on it (captured: id \"1\"): %v", negotiate)
 	}
 
@@ -147,7 +154,7 @@ func TestRPC_HostToolResultCorrelatesOnTheFrameID(t *testing.T) {
 		t.Fatalf("Prompt on the live rpc session: %v", err)
 	}
 	prompt := harness.waitFrame("prompt", hasType("prompt"))
-	if message, _ := prompt["message"].(string); message != promptText {
+	if message := stringField(prompt, "message"); message != promptText {
 		t.Errorf("prompt frame message = %q, want %q — under rpc the turn text is a stdin frame on the LIVING session, never a positional argv on a fresh process",
 			message, promptText)
 	}
@@ -155,7 +162,7 @@ func TestRPC_HostToolResultCorrelatesOnTheFrameID(t *testing.T) {
 	harness.emit(rpcFixture(t, hostToolFixture)...)
 
 	answer := harness.waitFrame("host_tool_result", hasType("host_tool_result"))
-	if id, _ := answer["id"].(string); id != hostToolFrameID {
+	if id := stringField(answer, "id"); id != hostToolFrameID {
 		t.Errorf("host_tool_result id = %q, want %q (the host_tool_call's RPC `id`)%s", id, hostToolFrameID, wrongIDHint(id))
 	}
 	assertContentIsAnArray(t, answer, handlerResult)
@@ -193,11 +200,11 @@ func TestRPC_SelectDialogIsAnsweredWithoutATimeout(t *testing.T) {
 	harness.emit(frames[0], frames[1]) // fire-and-forget setWidget, then the no-timeout select
 
 	answer := harness.waitFrame("extension_ui_response", hasType("extension_ui_response"))
-	if id, _ := answer["id"].(string); id != selectFrameID {
+	if id := stringField(answer, "id"); id != selectFrameID {
 		t.Errorf("extension_ui_response id = %q, want %q — omp resolves the dialog by id and ignores an answer to anything else", id, selectFrameID)
 	}
 	assertLegalDialogAnswer(t, answer)
-	if value, _ := answer["value"].(string); value == "Approve" {
+	if value := stringField(answer, "value"); strings.EqualFold(value, "approve") {
 		t.Errorf("a dialog nobody decided was answered %q: an unattended session must never authorize the tool it was asked about", value)
 	}
 
@@ -282,7 +289,7 @@ func TestRPC_ManifestPromotionsAreMeasuredNotDeclared(t *testing.T) {
 	// (1) the host-tool round trip, earning CapHostTools.
 	harness.emit(rpcFixture(t, hostToolFixture)...)
 	answer := harness.waitFrame("host_tool_result", hasType("host_tool_result"))
-	if id, _ := answer["id"].(string); id != hostToolFrameID {
+	if id := stringField(answer, "id"); id != hostToolFrameID {
 		t.Errorf("host_tool_result id = %q, want %q%s", id, hostToolFrameID, wrongIDHint(id))
 	}
 	assertContentIsAnArray(t, answer, "pong from eden host")
@@ -320,10 +327,10 @@ func assertRegistersEdenPing(t *testing.T, frame map[string]any) {
 	if !ok {
 		t.Fatalf("set_host_tools tools[0] is %T, want an object: %v", tools[0], frame)
 	}
-	if name, _ := first["name"].(string); name != "eden_ping" {
+	if name := stringField(first, "name"); name != "eden_ping" {
 		t.Errorf("set_host_tools registered %q, want eden_ping (the Spec's HostTool)", name)
 	}
-	if description, _ := first["description"].(string); description == "" {
+	if description := stringField(first, "description"); description == "" {
 		t.Errorf("set_host_tools sent no description; it is a required field of RpcHostToolDefinition: %v", first)
 	}
 }
@@ -351,19 +358,28 @@ func assertContentIsAnArray(t *testing.T, frame map[string]any, wantText string)
 }
 
 // assertLegalDialogAnswer proves the answer is one of the three RpcExtensionUIResponse variants
-// (rpc-types.ts:535): a `value` for select/input/editor, a `confirmed` boolean for confirm, or
-// `cancelled: true` for any of them. A frame outside that union does not resolve the dialog.
+// (rpc-types.ts:535): a `value` for select/input/editor, a `confirmed` boolean for confirm, or the
+// dismissal field (dialogDismissField, spelled omp's way) set true. A frame outside that union
+// does not resolve the dialog.
 func assertLegalDialogAnswer(t *testing.T, frame map[string]any) {
 	t.Helper()
 	_, hasValue := frame["value"].(string)
 	_, hasConfirmed := frame["confirmed"].(bool)
-	cancelled, _ := frame["cancelled"].(bool)
-	if !hasValue && !hasConfirmed && !cancelled {
-		t.Errorf("extension_ui_response is none of the three variants (value | confirmed | cancelled:true) and resolves nothing: %v", frame)
+	if !hasValue && !hasConfirmed && !boolField(frame, dialogDismissField) {
+		t.Errorf("extension_ui_response is none of the three variants (value | confirmed | %s:true) and resolves nothing: %v",
+			dialogDismissField, frame)
 	}
-	if value, ok := frame["value"].(string); ok && value != "Approve" && value != "Deny" {
+	if value, ok := frame["value"].(string); ok && !isDialogOption(value) {
 		t.Errorf("extension_ui_response value = %q, want one of the dialog's own options [\"Approve\",\"Deny\"] — the value is matched against them", value)
 	}
+}
+
+// isDialogOption reports whether the answer names one of the captured dialog's own option labels.
+// omp matches the value against the `options` array, so anything else resolves nothing; the
+// comparison is case-insensitive because the adapter answers with the label VERBATIM from the
+// frame and a future capture may spell it differently.
+func isDialogOption(value string) bool {
+	return strings.EqualFold(value, "approve") || strings.EqualFold(value, "deny")
 }
 
 // assertAskIsActionable proves the surfaced permission request is one a decider can act on: it
@@ -676,8 +692,7 @@ func (s *recordingStdin) render() string {
 	}
 	types := make([]string, 0, len(s.frames))
 	for _, frame := range s.frames {
-		name, _ := frame["type"].(string)
-		types = append(types, name)
+		types = append(types, stringField(frame, "type"))
 	}
 	return strings.Join(types, ", ")
 }
@@ -716,10 +731,29 @@ func rpcFixture(t *testing.T, name string) []string {
 
 // hasType matches a written frame by its top-level `type`.
 func hasType(name string) func(map[string]any) bool {
-	return func(frame map[string]any) bool {
-		got, _ := frame["type"].(string)
-		return got == name
+	return func(frame map[string]any) bool { return stringField(frame, "type") == name }
+}
+
+// stringField reads a decoded frame's string field, returning "" when the key is absent or
+// carries another JSON type. A frame is decoded into map[string]any, so every read is a type
+// assertion; going through one checked reader keeps the assertion honest at every call site
+// (errcheck's check-type-assertions) instead of discarding the ok bit eleven times.
+func stringField(frame map[string]any, name string) string {
+	value, ok := frame[name].(string)
+	if !ok {
+		return ""
 	}
+	return value
+}
+
+// boolField reads a decoded frame's boolean field, returning false when the key is absent or
+// carries another JSON type.
+func boolField(frame map[string]any, name string) bool {
+	value, ok := frame[name].(bool)
+	if !ok {
+		return false
+	}
+	return value
 }
 
 // isReady matches the Initializing->Ready handshake event.
