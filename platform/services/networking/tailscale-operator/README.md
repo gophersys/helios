@@ -60,8 +60,17 @@ ESO-to-Vaultwarden bridge does not work at present, so you create the Secret
 - `platform/services/gitops/` — the Argo Application drives the install.
 - Admin access to the tailnet, for the OAuth client and the ACL tagOwners. This
   is a one-time action, and it happens outside this repo.
-  the tun device and NET_ADMIN. The `tailscale` namespace is therefore excluded
-  in `platform/core/policy/policies/pod-security-baseline.yaml` and in
+
+## Pod-security note
+
+The operator's proxy pods need the tun device and `NET_ADMIN`, which restricted
+PodSecurity rejects. **Nothing excludes or exempts this namespace today, because
+nothing enforces pod security at admission**: the sentence that stood here named
+`platform/core/policy/policies/pod-security-baseline.yaml`, a Kyverno file that
+was deleted with Kyverno on 2026-08-09 and whose own paragraph had already lost
+its opening clause. The in-tree mechanism is a `pod-security.kubernetes.io/*`
+label on the `tailscale` namespace; only `metallb-system` carries such labels on
+the live cluster. See `.claude/rules/50-cluster-architecture.md` §4 and §7.
 
 ## Consumer interface
 

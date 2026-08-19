@@ -26,8 +26,12 @@ reads it, and future provisioning will read it. No live controller reads it.
 ## Ratified differences from the template
 - **CNI = flannel + kube-router**, not Cilium. NetworkPolicy **is** enforced, by
   kube-router, and we verified that empirically. There is no Cilium reinstall.
-- **policy_profile = audit-only** during the migration. Enforce per namespace at
-  a later date.
+- **policy_profile = delete-protection.** The 2 in-tree
+  ValidatingAdmissionPolicies in `platform/core/policy/` enforce with
+  `validationActions: [Deny]`. The "audit-only during the migration" line that
+  stood here described the Kyverno install that was removed on 2026-08-09, and
+  audit-only is exactly why it was removed. Pod security is a separate axis and is
+  still unenforced.
 - **edge TLS = letsencrypt-dns01** through cert-manager, not cloudflare-origin.
 - **There are no irreplaceable nodes.** A Proxmox VM here is replaceable.
 - **w-1 = apps plus labels, with no taint.** That prevents an eviction of the

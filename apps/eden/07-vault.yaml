@@ -71,6 +71,12 @@ metadata:
 spec:
   serviceName: vault
   replicas: 1
+  # PINNED EXPLICITLY — see the same block in 05-postgres.yaml. `Delete` here
+  # would let garbage collection remove `data-vault-0`, the root of trust, below
+  # the level `platform/core/policy/storage-delete-guard` can observe.
+  persistentVolumeClaimRetentionPolicy:
+    whenDeleted: Retain
+    whenScaled: Retain
   selector:
     matchLabels:
       app.kubernetes.io/name: eden-vault
@@ -107,8 +113,10 @@ spec:
             capabilities:
               # No IPC_LOCK: disable_mlock=true is set in vault.hcl above, so Vault
               # never calls mlock and the capability is unneeded — dropping it keeps
-              # the pod inside the baseline PodSecurityStandard (Kyverno flagged the
-              # add). swap is off on the nodes, so the protection mlock buys is moot.
+              # the pod inside the baseline PodSecurityStandard. (Historical: the
+              # IPC_LOCK add was flagged by Kyverno, which was removed 2026-08-09
+              # and enforces nothing now — the reason to drop it stands on its own.)
+              # swap is off on the nodes, so the protection mlock buys is moot.
               drop: ["ALL"]
           resources:
             requests:

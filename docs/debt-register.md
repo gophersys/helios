@@ -336,16 +336,23 @@ still open the dashboard once. Fix: add
 2027-06-17). Existing public-access hosts are not affected.
 
 
-### D21 🟡 No admission policy engine — ACCEPTED (2026-08-09)
+### D21 ✅ No admission policy engine — SUPERSEDED by D46 (2026-08-19)
 Kyverno was removed. It ran `audit-only` from installation with a single
 `pod-security-baseline` ClusterPolicy that excluded 8 namespaces. It therefore
 enforced nothing, cost 4 controller pods, and stayed permanently OutOfSync in
-Argo on 4 CRDs. This is accepted, not fixed: with 1 operator and everything
-reconciled from git, code review is the control. An unfinished policy engine is
+Argo on 4 CRDs. This was accepted, not fixed: with 1 operator and everything
+reconciled from git, code review was the control. An unfinished policy engine is
 worse than no policy engine, because it suggests an enforcement that does not
-happen. Review this decision when more than 1 person deploys here, and only with
-2 policies that you would genuinely enforce, not audit. Pod hardening is still
-applied per workload in the manifests.
+happen.
+
+**Closed 2026-08-19.** The review condition this entry set — "only with 2 policies
+that you would genuinely enforce, not audit" — was met, and met without any
+engine. `platform/core/policy/` holds 2 in-tree `ValidatingAdmissionPolicy`
+objects that the apiserver evaluates itself: 0 pods, 0 CRDs, 0 OutOfSync lines.
+The premise that needed correcting was the word "engine": this entry banned a
+*controller*, and an admission *policy* is an API object with none of the cost
+that justified the ban. Pod hardening is still applied per workload in the
+manifests, still unenforced — that half moved to D46. Read D46.
 
 
 ### D22 🟠 The machine inventory has 4 gaps — OPEN
@@ -1123,6 +1130,73 @@ Every other multi-source app with a `$values` ref source carries the same defect
 **What closes this entry:** #29185 merging and reaching a release, then the chart
 bump that carries it. Until then D45 stays 🔴 — the failure mode is silent, and a
 guard that depends on a person remembering is not a fix.
+
+
+### D46 🟡 Admission policy: 2 in-tree VAPs enforce; everything else is PR-gate or unenforced — OPEN (bounded)
+**Successor to D21.** The decision, its evidence and its counter-argument:
+`.claude/rules/50-cluster-architecture.md` §4 and `platform/core/policy/README.md`.
+
+**What is now enforced at admission**, by
+`platform/core/policy/manifests/`, applied by the `policy` Argo Application, both
+bindings `validationActions: [Deny]`, both policies `failurePolicy: Fail`:
+
+| Policy | Refuses | Gated on |
+|---|---|---|
+| `storage-delete-guard` | `DELETE persistentvolumeclaims` | namespace `platform.gophersys/protected-storage=true`, or PVC `platform.gophersys/retain=true` |
+| `namespace-delete-guard` | `DELETE namespaces` | namespace `platform.gophersys/protected=true` |
+
+**Why it earned admission and CI could not.** `local-path` is the only
+StorageClass, it is the default, every PV reclaims with `Delete`, and the
+provisioner's teardown script is `rm -rf`. The `eden` namespace holds Vault (the
+root of trust), Postgres and the NATS JetStream store, and it has **no backup** —
+`apps/music/config-backup` covers media only, and Longhorn was removed
+2026-08-19. `apps/eden/06-nats.yaml` declared a bare PVC inside an Argo
+Application with `prune: true` and `selfHeal: true`, so deleting or renaming that
+file in a **merged** PR would have destroyed the store with no human in the loop.
+**A deletion is not a manifest**: kubeconform validates what you add, and Argo's
+prune runs after merge. The PR gate is structurally blind to this class.
+
+**What this entry stays OPEN for.** Three named gaps, each with its bucket:
+
+1. **Pod security is unenforced.** `applied-per-workload-unenforced`. The fix is
+   in-tree PodSecurity namespace labels, not a policy engine, and `restricted`
+   cannot hold today: metallb needs `hostNetwork` + `NET_RAW`. Only
+   `metallb-system` carries PSA labels on the live cluster. Honest per-namespace
+   levels are unbuilt.
+2. **No registry allowlist anywhere.** The list documented in
+   `50-cluster-architecture.md` §7 was fiction — the estate also pulls `lscr.io`,
+   `docker.io`, `qmcgaw`, `hashicorp`, `openresty`, `filebrowser` — so the claim
+   was deleted rather than softened. It belongs at the PR gate with an explicit
+   list derived from what runs. Unbuilt.
+3. **`prod` is not covered.** `platform/core/policy/` is `platform/core`, so every
+   cluster is supposed to get it, but the OCI `prod` cluster runs no Argo root
+   from this repo. Its `protection:` block still enforces nothing. That is a
+   GitOps gap, not a capability gap (k3s v1.34.5 serves the same GA API).
+
+**Known limits, so they are not rediscovered.** A VAP cannot read another object,
+and cannot reach one through `paramRef` either, so it cannot condition on the PV's
+`reclaimPolicy` — the label carries that intent, and that is the only in-tree
+shape (KEP-3488 names external lookups a permanent non-goal). A VAP cannot expire
+an annotation, so `platform.gophersys/allow-delete` has **no TTL** and this entry
+does not claim one. `MutatingAdmissionPolicy` is not served on k3s 1.35, so the
+labels cannot be injected at admission; it goes GA in 1.36, which is when
+auto-labelling should be revisited. A VAP does not protect itself — `kubectl
+delete vap` on the guard succeeds, and the only thing that undoes it is the
+`policy` Application's `selfHeal: true` on the next reconcile.
+
+**Never re-adopt a generator for these.** Kyverno can emit VAPs from a
+`ClusterPolicy`, and the emitted object carries an `ownerReference` back to the
+Kyverno policy — uninstalling Kyverno garbage-collects the enforcement on the way
+out. There is no converter back (`kyverno migrate` migrates resource versions).
+The manifests are hand-written and depend on nothing that can be uninstalled.
+
+**Verification.** `bash ctl.sh verify-vap-policies` (in `validate.yml`; manifest
+shape, with a fixture suite of 17 cases that prove it fails) and
+`bash ctl.sh test-vap-guard` (LOCAL-ONLY; exercises the live admission chain with
+`--dry-run=server` in both directions, and exits 2 rather than 0 when the
+policies are absent).
+
+**What closes this entry:** the 3 gaps above, each with a named artifact.
 
 
 ## Resolved

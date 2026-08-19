@@ -7,7 +7,9 @@ Namespace: {{ .Release.Namespace }}     (expected: {{ .Values.project }}-{{ .Val
 Release:   {{ .Release.Name }}
 Replicas:  {{ .Values.replicas }}
 Storage:   {{ .Values.storage.size }} per replica ({{ .Values.storage.class }}, {{ .Values.storage.accessMode }})
-Retained:  PVCs carry platform.gophersys/retain=true (deletion gated by platform/core/policy)
+Retained:  PVCs carry platform.gophersys/retain=true. Where platform/core/policy is
+           installed the apiserver REFUSES to delete them; annotate the PVC with
+           platform.gophersys/allow-delete="<reason>" first.
 Backup:    {{- if .Values.backup.enabled }} {{ .Values.backup.schedule }}, retained {{ .Values.backup.retention }} {{- else }} disabled {{- end }}
 
 Stable pod DNS:

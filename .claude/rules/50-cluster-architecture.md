@@ -65,16 +65,19 @@ canonical project names today are `codectl`, `fintel`, `finances`,
 **`<env>`:** the enum `prod | staging | dev | lab`. The schema rejects an app
 outside the enum.
 
-**A `<project>-<env>` namespace is provisioned automatically** by
-`platform/core/namespace-provisioner/`, with:
+**A `<project>-<env>` namespace is SUPPOSED to be provisioned automatically** by
+`platform/core/namespace-provisioner/`. That component is a STUB and lost its
+mechanism with Kyverno, so today every namespace is written by hand in
+`apps/*/00-namespace.yaml`. The specification, unimplemented:
 - a default-deny NetworkPolicy baseline;
 - a `ResourceQuota` (tier: small, medium or large — it applies to the whole
   project-env, and all the apps inside share it);
 - a `LimitRange` with sensible defaults;
 - `pod-security.kubernetes.io/enforce=restricted`.
 
-The provisioner generates a namespace only if `<project>` is declared in the
-cluster's `projects_hosted:`. That structure prevents a typo.
+The provisioner would generate a namespace only if `<project>` is declared in the
+cluster's `projects_hosted:`, and that structure would prevent a typo. Nothing
+checks it today.
 
 **Traffic between projects is explicit.** The apps in `codectl-prod` can talk
 freely to each other, because they share a namespace. They cannot talk to
@@ -110,22 +113,90 @@ platform.gophersys/data-class: <public | internal | confidential | pii>
 platform.gophersys/slo-tier:   <critical | high | standard | best-effort>
 ```
 
-## 4. Policy model — REMOVED
+## 4. Policy model — 2 in-tree policies, no engine (2026-08-19)
 
-**Kyverno was removed on 2026-08-09.** It had run `audit-only` since its
-installation, with a single `pod-security-baseline` ClusterPolicy that excluded 8
-namespaces. It therefore enforced nothing, while it cost 4 controller pods and a
-permanent OutOfSync line in Argo.
+**Kyverno was removed on 2026-08-09**, and it is not coming back. It had run
+`audit-only` since its installation, with a single `pod-security-baseline`
+ClusterPolicy that excluded 8 namespaces. It therefore enforced nothing, while it
+cost 4 controller pods and a permanent OutOfSync line in Argo on 4 CRDs.
 
-Admission policy is not solved here. It is **deliberately not solved**: there is
-1 operator, everything is reconciled from git, and code review is the control.
-Introduce an admission controller again when more than 1 person deploys to these
-clusters, and when you can name 2 policies that you would enforce rather than
-audit. See debt-register D21.
+**What replaced it is not a smaller engine. It is no engine at all.**
+`platform/core/policy/` holds 2 hand-written `ValidatingAdmissionPolicy` objects
+that the apiserver's own in-tree plugin evaluates: **0 pods, 0 CRDs, 0 OutOfSync
+lines**. Both bind with `validationActions: [Deny]` and both set
+`failurePolicy: Fail`.
 
-Pod-level hardening (non-root, read-only root filesystem, dropped capabilities,
-seccomp) is still applied **per workload in the manifests**. It is simply not
-enforced at admission.
+| Policy | Refuses | Gated on |
+|---|---|---|
+| `storage-delete-guard` | `DELETE persistentvolumeclaims` | namespace label `platform.gophersys/protected-storage=true`, or PVC label `platform.gophersys/retain=true` |
+| `namespace-delete-guard` | `DELETE namespaces` | namespace label `platform.gophersys/protected=true` |
+
+Break glass on either with the annotation
+`platform.gophersys/allow-delete: "<reason>"` on the object. That annotation has
+**no TTL** — see §6.
+
+### Why this clears the bar the previous version of this section set
+
+The old text said: reintroduce an admission controller only when more than 1
+person deploys here, **and** when you can name 2 policies you would enforce
+rather than audit.
+
+The second condition is met, and by a measured threat rather than an aspiration.
+`local-path` is the only StorageClass, it is the default, its reclaim policy is
+`Delete`, and its teardown script is `rm -rf`. The `eden` namespace holds Vault —
+the root of trust — plus Postgres and the NATS JetStream store, and it has **no
+backup**: `apps/music/config-backup` covers media only, and Longhorn was removed
+on 2026-08-19. `apps/eden/06-nats.yaml` declares a bare PVC inside an Argo
+Application with `prune: true` and `selfHeal: true`, so deleting or renaming that
+one file in a **merged** pull request destroys the store with no human in the
+loop. That is one armed path and one cascade — 2 policies, one family,
+irreversible deletion.
+
+**The first condition is not met, and this section does not claim it is.** There
+is still 1 operator. The argument is that the condition encodes the wrong threat
+model for *this* invariant: the deleters here are Argo's prune and one operator's
+own `kubectl`, and both exist with a team of one. The CI gate cannot cover it,
+because **a deletion is not a manifest** — kubeconform validates what you add,
+and Argo's prune runs after merge.
+
+**And the cost premise of the old text is simply zero here.** It banned an
+admission *controller* — a deployed engine with pods, CRDs and a webhook that can
+be down. A `ValidatingAdmissionPolicy` is an in-tree API object. The ban belongs
+on the first, not the second, and this section now says so explicitly. Nothing in
+`platform/core/policy/` can be uninstalled, because nothing was installed.
+
+**Consequence for future work:** never adopt a generator that emits these
+policies. Kyverno can produce `ValidatingAdmissionPolicy` objects from a
+`ClusterPolicy`, and the generated object carries an `ownerReference` back to the
+Kyverno policy — so removing Kyverno garbage-collects the enforcement on the way
+out. There is also no export path back (`kyverno migrate` migrates resource
+versions; it is not a policy converter). Hand-written is a requirement, not a
+style.
+
+### What is still NOT enforced at admission
+
+Everything else. Each claim in this repo now carries exactly one bucket, and each
+bucket names the artifact that backs it:
+
+| Bucket | Means | Verified by |
+|---|---|---|
+| `enforced-at-admission` | a Binding with `validationActions: [Deny]`, or a PodSecurity namespace label | `kubectl get validatingadmissionpolicybinding` · `kubectl get ns --show-labels` |
+| `enforced-at-render` | a Helm `values.schema.json` constraint. The opt-out is named and falsifiable: Argo's `spec.source.helm.skipSchemaValidation` / Helm's `--helm-skip-schema-validation`, default `false` | read the schema, then grep for the opt-out |
+| `enforced-at-PR-gate` | a named script step in `.github/workflows/validate.yml` | read the workflow |
+| `applied-per-workload-unenforced` | the manifest renders it and nothing checks it — the sentence must say **"unenforced"** | read the manifest |
+| `historical-record` | a dated audit or migration record; do not rewrite | the file's own date header |
+
+**A claim with no artifact is deleted, not softened.**
+
+Specifically still unenforced at admission: the registry allowlist (§7 — the
+documented list was fiction and the honest one belongs at the PR gate), and the
+pod-security posture (§7 — that wants in-tree PodSecurity namespace labels, not a
+policy engine, and `restricted` cannot hold today because metallb needs
+`hostNetwork` + `NET_RAW`). Pod-level hardening is still applied **per workload
+in the manifests, unenforced**.
+
+See `platform/core/policy/README.md` for the CEL, the limits and the primary
+sources; `docs/debt-register.md` D21 (closed) and D46 (the successor entry).
 
 ## 5. Observability contract (short, with a cross-reference)
 
@@ -150,15 +221,23 @@ cluster state from git, and a direct `kubectl apply` is banned outside a
 break-glass procedure.
 
 The future break-glass override procedure: annotate the object with
-`platform.gophersys/gitops-bypass: "<reason>"`, with a TTL of 24 hours. An alert
-fires.
+`platform.gophersys/gitops-bypass: "<reason>"`, with a TTL of 24 hours and an
+alert. **Nothing implements that TTL or that alert today** — it is a design note,
+not a control. The one break-glass annotation that IS live,
+`platform.gophersys/allow-delete` (§4), deliberately has **no** TTL: a
+ValidatingAdmissionPolicy cannot expire an annotation, and claiming a TTL that
+nothing enforces is the exact defect §4 exists to end. It expires when a human
+removes it.
 
 ## 7. Security posture (baseline)
 
 - **Pod level:** non-root, read-only root filesystem, dropped capabilities, and
-  seccomp `RuntimeDefault`. That is the **target** posture: enforced at admission
-  under restricted PSS. **Today** it is applied per workload in the manifests,
-  with no enforcement at admission at all. See §4.
+  seccomp `RuntimeDefault`. That is the **target** posture. **Today** it is
+  `applied-per-workload-unenforced`: the manifests render it and nothing checks
+  it. Admission enforcement here needs no policy engine — in-tree PodSecurity is
+  default-on and wants 3 namespace labels — but `restricted` cannot hold yet
+  (metallb needs `hostNetwork` + `NET_RAW`, and only `metallb-system` carries PSA
+  labels today). Honest per-namespace labels are a separate work item. See §4.
 - **Network:** default-deny NetworkPolicy everywhere. By default, egress is
   allowed to DNS, to the same namespace, and for the metrics scrape. Add more
   allowances per app.
@@ -167,9 +246,14 @@ fires.
   audit log entry.
 - **Identity:** every app has a dedicated `ServiceAccount`. RBAC is empty by
   default, and each permission is opt-in.
-- **Images:** allowlisted registries only (ghcr.io/gophersys/*,
-  ghcr.io/mateosegura/*, registry.k8s.io/*, and the official upstreams).
-  Verification of the Cosign signature lands when CI signs the images.
+- **Images:** **no registry allowlist is enforced anywhere today.** The list that
+  stood here — `ghcr.io/gophersys/*`, `ghcr.io/mateosegura/*`, `registry.k8s.io/*`
+  "and the official upstreams" — was fiction: the running estate also pulls from
+  `lscr.io`, `docker.io`, `qmcgaw`, `hashicorp`, `openresty` and `filebrowser`,
+  and "the official upstreams" is unfalsifiable, so nothing could ever check it.
+  When this is enforced it belongs at the PR gate, with an explicit list derived
+  from what actually runs, and this bullet gets the artifact's name. Verification
+  of the Cosign signature lands when CI signs the images.
 
 ## 8. SLO framework
 
@@ -208,8 +292,9 @@ Next, as each cluster is brought up:
 1. Populate `providers/oracle/modules/compute` and `providers/aws/` with real
    Terraform.
 2. Populate `clusters/instances/prod/nodes/*/` with the real nodes.
-3. Implement `platform/core/*` — Cilium, Traefik, cert-manager, ESO, Kyverno,
-   namespace-provisioner.
+3. Implement `platform/core/*` — Cilium, Traefik, cert-manager, ESO,
+   namespace-provisioner. (`policy/` is done: 2 in-tree ValidatingAdmissionPolicies,
+   no engine — see §4.)
 4. Implement `platform/services/observability` — the first platform service.
 5. Implement `charts/stateless-app/templates/*` — the first chart archetype.
 6. Migrate the first app (codectl-api) onto the archetype and the cluster.
@@ -235,7 +320,7 @@ Next year (enterprise-ready):
 | This rule (cluster arch map)   | `.claude/rules/50-cluster-architecture.md`              |
 | Cluster-level conventions      | `clusters/CONVENTIONS.md`                               |
 | Chart authoring conventions    | `charts/CONVENTIONS.md`                                 |
-| Policy model — REMOVED         | §4 of this rule + debt-register D21                     |
+| Policy model (2 in-tree VAPs)  | §4 + `platform/core/policy/README.md` + debt-register D46 |
 | Namespace provisioning         | `platform/core/namespace-provisioner/README.md`         |
 | App-platform contracts         | `contracts/README.md` + `contracts/<name>.md`           |
 | Per-archetype knobs            | `charts/<archetype>/README.md`                          |

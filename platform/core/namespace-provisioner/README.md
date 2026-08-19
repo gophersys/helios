@@ -13,20 +13,29 @@ ResourceQuota can starve the cluster. A namespace without a LimitRange lets a po
 declare any resources it wants. Every new namespace must get all 3, and a manual
 application of them causes errors.
 
-The pattern also enforces the **project taxonomy by construction**. A namespace
-is created only for a project that the cluster lists explicitly in
-`projects_hosted:`. Admission rejects a typo, for example "marketting-prod", and
-it rejects a leak across tenants.
+The pattern is INTENDED to enforce the **project taxonomy by construction**: a
+namespace would be created only for a project that the cluster lists explicitly
+in `projects_hosted:`, so a typo like "marketting-prod" and a leak across tenants
+are both rejected. **None of that is enforced today** — this component is a stub,
+and no admission policy checks a namespace name. See Status.
 
-## Default implementation
+## Default implementation — UNDECIDED
 
-**Kyverno `generate` policies.** The mechanism already exists; see
-`platform/core/policy/`. The namespace-provisioner is a set of generate policies,
-and they live here rather than in the policy catalog, because they cover the
-**side effects of a creation** rather than admission control.
+The original design was **Kyverno `generate` policies**. Kyverno was removed on
+2026-08-09 and is not coming back, so that mechanism is gone and this component
+has no implementation at all.
 
-The policies watch for a new namespace that matches the naming pattern, and they
-generate the required resources into that namespace:
+**There is no in-tree replacement for the generate half.** `platform/core/policy/`
+holds `ValidatingAdmissionPolicy` objects, and a VAP can only accept or refuse a
+request — it cannot create another object. `MutatingAdmissionPolicy` is not served
+on this cluster (k3s 1.35 ships it beta and off), and even when it lands it
+mutates the object under admission; it does not generate siblings. So the honest
+shapes are: (a) keep writing the per-namespace manifests in git, which is what
+`apps/*/00-namespace.yaml` does today, or (b) write a small controller. Neither is
+chosen.
+
+What a provisioned `<project>-<env>` namespace is SUPPOSED to receive, whatever
+mechanism eventually does it:
 
 1. `NetworkPolicy/default-deny-ingress`
 2. `NetworkPolicy/default-deny-egress`
@@ -55,11 +64,12 @@ generate the required resources into that namespace:
 | `platform-<component>`   | `platform-ingress`, `platform-monitoring`   | `<component>` matches a known platform component                        |
 | `kube-*`                 | `kube-system`                               | Skipped by the generator (Kubernetes reserved)                          |
 
-Nothing rejects a name outside these patterns today. The companion validating
-policy `namespace-naming-enforced` was part of the Kyverno design, and Kyverno
-was removed on 2026-08-09. There is no `platform/core/policy/` directory and no
-policy catalog. See `.claude/rules/50-cluster-architecture.md` §4 and
-debt-register D21.
+Nothing rejects a name outside these patterns today, and nothing is scheduled to.
+The companion policy `namespace-naming-enforced` was part of the Kyverno design
+and died with it. `platform/core/policy/` exists again, but it holds exactly 2
+policies and both guard **deletion**; neither looks at a name. Writing a
+name-checking VAP is possible and unbuilt. See
+`.claude/rules/50-cluster-architecture.md` §4.
 
 ## How the project registry works
 
@@ -128,8 +138,10 @@ limits:
 ```
 
 An app overrides these values with an explicit `resources` block in its chart
-values. See `platform/core/policy/` → `resources-required`. The LimitRange is the
-protection for anyone who forgets.
+values. There is no `resources-required` admission policy — that named a Kyverno
+policy that never existed. Required resources are `enforced-at-render` by
+`charts/<archetype>/values.schema.json`. The LimitRange would be the protection
+for anyone who forgets, once this component exists.
 
 ## Lifecycle
 
@@ -137,20 +149,22 @@ protection for anyone who forgets.
   `<project>` in `projects_hosted:` → the generator starts asynchronously, and
   the baseline resources appear within seconds.
 - **Create** a namespace that matches the pattern, but with a `<project>` that is
-  not in the cluster's list → the validating policy rejects it, and no namespace
-  is created.
+  not in the cluster's list → **nothing rejects it today.** The design says a
+  validating policy would.  Unbuilt.
 - **Update** the labels or annotations of a namespace → the generator reconciles
   the quota tier if `platform.gophersys/quota-tier` changed.
-- **Delete** a namespace → `platform/core/policy/namespace-delete-protection`
-  validates the request. The generator removes any resource that it owned and
-  that is not namespaced. There is none today; the hook is reserved for future
-  cluster-scoped references.
+- **Delete** a namespace → this one IS enforced, and by a different artifact than
+  the name above: `platform/core/policy/`'s `namespace-delete-guard` refuses the
+  request when the namespace carries `platform.gophersys/protected=true`, unless
+  it is annotated `platform.gophersys/allow-delete`. That guard is live and needs
+  nothing from this component.
 
 ## Observability
 
-Every provisioning action emits a `NamespaceProvisioned` event, which is a
-Kyverno generator event, and the observability stack scrapes it. The Grafana
-"platform compliance" dashboard shows:
+**None of this exists.** It describes what the dashboard would show once a
+mechanism emits a `NamespaceProvisioned` event; the original design took that
+event from the Kyverno generator, which is gone. Kept as the requirement, not as a
+description of anything running:
 
 - the count of namespaces per project and per env;
 - the namespaces that are missing a generated resource. This count should always
@@ -160,9 +174,10 @@ Kyverno generator event, and the observability stack scrapes it. The Grafana
 
 ## Dependencies
 
-- `platform/core/policy/` — the Kyverno install itself, plus the companion
-  validating policies `namespace-naming-enforced` and
-  `namespace-delete-protection`.
+- `platform/core/policy/` — **not a dependency any more.** It installs nothing
+  and holds 2 deletion guards, one of which (`namespace-delete-guard`) already
+  covers the Delete lifecycle above on its own. A future
+  `namespace-naming-enforced` VAP would live there.
 - `platform/core/network-policies/` — the baseline NetworkPolicy templates that
   the generator references.
 - `identity.yaml:projects_hosted` of the cluster — the source of truth for which
@@ -170,5 +185,8 @@ Kyverno generator event, and the observability stack scrapes it. The Grafana
 
 ## Status
 
-STUB. This README is the only content. The Kyverno generator policies land with
-the rollout of `platform/core/policy/`, because they share the Kyverno install.
+**STUB, and now without a chosen mechanism.** This README is the only content. The
+generator half lost its engine when Kyverno was removed, and no in-tree object can
+replace it (see Default implementation). Read every requirement above as a
+specification, never as a description of the running cluster: today each namespace
+is written by hand in `apps/*/00-namespace.yaml`.

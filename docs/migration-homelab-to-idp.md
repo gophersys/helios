@@ -33,6 +33,12 @@ verified the result at every step.
    `platform/services/gitops/registry/`. The `argocd` namespace is kept.
 8. **Policy** — Kyverno is installed audit-only first. Enforce per namespace only
    after the exceptions land.
+   > **Superseded 2026-08-19 (this document is a historical record; decision 8 as
+   > ratified is left as written).** Kyverno never left audit-only and was removed
+   > on 2026-08-09. What enforces today is `platform/core/policy/`: 2 in-tree
+   > `ValidatingAdmissionPolicy` objects with `validationActions: [Deny]`, guarding
+   > deletion of protected PVCs and namespaces. No engine, no audit-only stage.
+   > See `.claude/rules/50-cluster-architecture.md` §4.
 9. **Storage** — `local-path` is the default for media that can be downloaded
    again. Longhorn is available for a volume that must survive a node.
 

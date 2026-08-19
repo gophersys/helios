@@ -43,10 +43,14 @@ node_role_assignments:
   code-kit-server: data    # OCI A1.Flex ARM 2/12 — control-plane + etcd, Postgres/CouchDB
   agent-00:        apps    # OCI A1.Flex ARM 2/12 — Vaultwarden + all PVCs
 
-# Admission policies installed on this cluster. `none` is the only value that
-# any cluster can use today: Kyverno was removed repo-wide on 2026-08-09, so
-# there is no policy engine, no platform/core/policy/ directory and no catalog
-# of profiles. See .claude/rules/50-cluster-architecture.md §4 and D21.
+# Admission policies installed on this cluster. `platform/core/policy/` exists
+# again (2 in-tree ValidatingAdmissionPolicies, no engine — see
+# .claude/rules/50-cluster-architecture.md §4), but this cluster does NOT run this
+# repo's Argo app-of-apps: the root Application in
+# platform/services/gitops/bootstrap/ is applied on homelab only. So nothing
+# applies them here. This is `none` because of the missing GitOps root, not
+# because of a capability gap — k3s v1.34.5 serves
+# admissionregistration.k8s.io/v1 like every release since 1.30.
 policy_profile: none
 
 # Projects hosted on this cluster. Namespace-provisioner enforces that
@@ -146,9 +150,12 @@ cost_envelope:
 
 # Protection rules for this cluster. Nothing reads this block. The node half is
 # enforced, but from each node's own Terraform: `prevent_destroy = true` in
-# clusters/instances/prod/nodes/*/main.tf. The namespace half needed
-# platform/core/policy/, and Kyverno was removed on 2026-08-09, so
-# namespace_delete_requires_override enforces nothing. See D21.
+# clusters/instances/prod/nodes/*/main.tf. The namespace and volume halves are
+# still enforced by NOTHING here: platform/core/policy/ now implements exactly
+# these 2 rules as ValidatingAdmissionPolicies, but this cluster has no Argo root
+# to apply them (see policy_profile above). To make them true here, apply the
+# manifests in platform/core/policy/manifests/ and label the namespaces holding
+# Vaultwarden's PVCs. Until then both lines below are aspiration.
 protection:
   irreplaceable_nodes:
     - server-00
