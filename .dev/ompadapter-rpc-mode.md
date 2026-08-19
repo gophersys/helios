@@ -1,6 +1,6 @@
 # ompadapter-rpc-mode
 
-phase:    red
+phase:    verify
 repo:     gophersys/libs
 branch:   feat/ompadapter-rpc-mode
 worktree: ~/code/.worktrees/libs-ompadapter-rpc-mode
@@ -52,10 +52,30 @@ Canonical plan = the planner report (task ac7a44ba55d3732a8), load-bearing point
   host-uri schemes, rpc-ui/ACP/collab, shared router extraction.
 
 ## Proven
+- RED (author, 014da5e/6657ffd): behavioral reds at the buildable commit (argv, resume
+  layout, property inversion, 3-execs re-pin failing against the OLD stub for the
+  right reason); compile-dep reds isolated (exactly the 2 feature symbols); 10
+  single-defect mutations each killed by name; fixtures cited to probe captures
+  line-by-line (2 reconstructed lines marked).
+- GREEN (implementer, 9ed2a76 + a94196b bench re-record as a reviewed act): rpc.go/
+  hosttool.go/spawn/ompadapter/normalize/stub rewritten; ALL reds green; apidiff
+  byte-identical; 8 documented frame-contract decisions (grant-derived dialog answers
+  — never invented approval; ask+resolution published; always-ask enforced; ids
+  counter-matched to the probe); Linux lanes integration/lifecycle/load green with
+  goleak; bench +20.7% B/op = the security fix's 2 argv tokens, re-baselined with the
+  pre-existing drift proven not-ours via base-tree benchmark.
+- FIX (author, 02cac9a): property generator excludes leading '-', scan is (flag,value)
+  pair-aware WITH the resume generator still drawing flag-like values on purpose; 6
+  argv break-tests; 22 lints → 0 with no weakening + one strengthening (EqualFold
+  never-Approve); gates 5/5+11/11+6/6 PASS in-container (gitdir-mount environment fix
+  recorded: unmounted gitdir = silent rc=128 abort that reads like a hang); mutate =
+  design-skip (leaf=false), 5 credential-gated SKIPs = PR-2's lane.
+
+## Blocked
 -
 
 ## Blocked
 -
 
 ## Next
-Phase 1: dev-planner.
+Phase 4: adversarial verify of the whole rewrite.
