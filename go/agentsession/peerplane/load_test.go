@@ -53,11 +53,15 @@ func TestLoad_MeshDeliversOrBouncesUnderRaceNoDeadlock(t *testing.T) {
 	ctx := context.Background()
 	n := meshN()
 
-	orchestrator, err := New(Config{DeliveryDeadline: 2 * time.Second}, Deps{Clock: loadClock{}})
+	// The DeliveryDeadline is set WELL ABOVE the whole-run bound below: on the happy path every
+	// message is delivered and corroborated, so the reconciler must NOT fire a bounce mid-run
+	// (a bounce into an already-stopped drainer would leave a deliver goroutine blocked on a full
+	// inbox — a false goleak failure). A genuine deliver-on-pump hang is still caught, by the
+	// shorter deliverDeadline select below, long before this deadline could elapse.
+	orchestrator, err := New(Config{DeliveryDeadline: 60 * time.Second}, Deps{Clock: loadClock{}})
 	if err != nil {
 		t.Fatalf("New: %v", err)
 	}
-	t.Cleanup(func() { _ = orchestrator.Close(ctx) }) //nolint:errcheck // best-effort reap.
 
 	names := make([]string, n)
 	links := make([]agentsession.PeerLink, n)
@@ -77,7 +81,10 @@ func TestLoad_MeshDeliversOrBouncesUnderRaceNoDeadlock(t *testing.T) {
 	// One drainer per peer: it takes delivery, corroborates it to the root (Received), and
 	// counts every message that resolves (a real delivery or an in-band bounce).
 	drainCtx, stopDrainers := context.WithCancel(ctx)
-	defer stopDrainers()
+	// Failure-path fallback reap: on a Fatalf the deferred goleak still runs, so the timers and
+	// drainers must be torn down. The happy path reaps EXPLICITLY below, before goleak, so the
+	// goroutine high-water is measured on a fully quiesced plane.
+	t.Cleanup(func() { stopDrainers(); _ = orchestrator.Close(ctx) }) //nolint:errcheck // best-effort reap.
 	for i := range n {
 		link := links[i]
 		go func() {
@@ -129,4 +136,13 @@ func TestLoad_MeshDeliversOrBouncesUnderRaceNoDeadlock(t *testing.T) {
 			"the deliver goroutine blocked (delivery was moved onto the pump goroutine, whose harness write never returned)",
 			resolved.Load(), target, deliverDeadline)
 	}
+
+	// Explicit goleak-safe reap (runs BEFORE the deferred goleak): Close stops every pending
+	// deadline timer so no reconciler bounce can fire after the drainers stop, then the drainers
+	// exit on the cancelled context. The plane is fully quiesced when the goroutine high-water is
+	// asserted.
+	if err := orchestrator.Close(ctx); err != nil {
+		t.Errorf("Close: %v", err)
+	}
+	stopDrainers()
 }
