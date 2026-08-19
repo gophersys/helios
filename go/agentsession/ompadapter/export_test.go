@@ -1,6 +1,7 @@
 package ompadapter
 
 import (
+	"io"
 	"testing"
 
 	"github.com/gophersys/libs/go/agentsession"
@@ -47,6 +48,30 @@ func BuildArgumentsForTest(spec agentsession.Spec, route agentsession.Route) []s
 // Secret or process.
 func ChildEnvironmentForTest(base []string, envName, key string) []string {
 	return childEnvironment(base, envName, key)
+}
+
+// RPCConnForTest builds the REAL `--mode rpc` HarnessConn over an INJECTED transport instead of
+// a spawned process: fromOMP supplies the NDJSON frames omp writes on ITS stdout, and every frame
+// the conn writes to omp's stdin is written to toOMP. The returned conn is already pumping —
+// Spawn adds only the child process and its two pipes on top of it — so the whole handshake /
+// host-tool / extension-UI plane is provable in the fast unit lane with NO process.
+//
+// toOMP is a WriteCloser because the stdin EOF is load-bearing rather than incidental: closing it
+// is what makes omp reject its pending extension-UI and host-tool requests, drain the accepted
+// commands, dispose the session and exit 0. Compiled only in tests.
+//
+//nolint:gocritic,ireturn // contract §2: Spec is the frozen copyable session input and the seam returns the frozen HarnessConn port — exactly the shapes Spawn takes and returns.
+func RPCConnForTest(spec agentsession.Spec, fromOMP io.Reader, toOMP io.WriteCloser) agentsession.HarnessConn {
+	return newRPCConn(spec, fromOMP, toOMP)
+}
+
+// SessionEnvironmentForTest exposes the rpc child-environment assembly: the scrubbed base, the
+// injected OpenRouter key, and the ONE PI_CODING_AGENT_DIR that roots omp's session storage under
+// the provisioned workspace. It takes the workspace because the session STORE root is the
+// adapter's to choose, while the layout INSIDE it is omp's — the 17.2.9 revert of the hashed
+// bucket scheme is why the adapter names the root and nothing below it. Compiled only in tests.
+func SessionEnvironmentForTest(base []string, workspace string, cred agentsession.InjectedCredential) ([]string, error) {
+	return sessionEnvironment(base, workspace, cred)
 }
 
 // InjectEnvironmentForTest exposes the REAL credential injection seam (resolve the seeded

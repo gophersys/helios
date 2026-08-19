@@ -6,6 +6,7 @@ import (
 
 	"github.com/gophersys/libs/go/agentsession"
 	"github.com/gophersys/libs/go/agentsession/ompadapter"
+	"github.com/gophersys/libs/go/secrets/secretstest"
 )
 
 // TestBuildArguments_RPCModeFlagSet proves the spawn argument construction for the ONE
@@ -171,6 +172,60 @@ func TestChildEnvironment_InjectsKeyAndScrubsCredentialKeys(t *testing.T) {
 	}
 }
 
+// TestSessionEnvironment_RootsOmpSessionStorageOnce proves the child env carries EXACTLY ONE
+// PI_CODING_AGENT_DIR, rooted inside the provisioned workspace, and that the operator's own
+// inherited value never survives.
+//
+// PI_CODING_AGENT_DIR is omp's session-storage directory (`omp --help`: "Session storage
+// directory (default: ~/.omp/agent)"), and it is the SUPPORTED way to place that store — the
+// probe harness that captured every frame in testdata/rpc-17.3.7-*.jsonl set exactly this var
+// (driver3.js:7). Two properties ride on it:
+//
+//   - Isolation. Inherited, the child writes its transcripts into the operator's ~/.omp/agent
+//     alongside every other omp on the host, and two eden sessions share a store neither owns.
+//   - The layout stays omp's. The adapter names the ROOT and nothing below it: 17.2.5-17.2.8
+//     wrote hashed buckets, 17.2.9 reverted to legacy names and 17.2.10 had to add a migration
+//     back. A wrapper that spells a path below the root breaks on the next revert.
+//
+// A duplicate entry is not harmless bookkeeping either: execve passes the environ array
+// verbatim, so a stale first entry is visible to anything in the child that reads the array
+// rather than the resolved value.
+func TestSessionEnvironment_RootsOmpSessionStorageOnce(t *testing.T) {
+	t.Parallel()
+	const key = "sk-or-v1-INJECTED" //gitleaks:allow // deliberate FAKE OpenRouter key (the literal word INJECTED) — a test fixture, never a real secret.
+	const workspace = "/work/ws"
+	const operatorStore = "/home/operator/.omp/agent"
+	base := []string{
+		"PATH=/usr/bin",
+		"PI_CODING_AGENT_DIR=" + operatorStore,
+		"OMP_AUTH_TOKEN=library-default-must-be-scrubbed",
+	}
+	cred := agentsession.InjectedCredential{Secret: secretstest.MintSecret([]byte(key)), EnvName: "OPENROUTER_API_KEY"}
+
+	env, err := ompadapter.SessionEnvironmentForTest(base, workspace, cred)
+	if err != nil {
+		t.Fatalf("sessionEnvironment with a valid seeded secret: %v", err)
+	}
+
+	if n := countPrefixEntries(env, "PI_CODING_AGENT_DIR="); n != 1 {
+		t.Fatalf("expected exactly one PI_CODING_AGENT_DIR entry, got %d; env: %v", n, env)
+	}
+	store := entryValue(env, "PI_CODING_AGENT_DIR=")
+	if store == operatorStore {
+		t.Errorf("the child inherited the operator's session store %q; every eden session would write into it", store)
+	}
+	if !strings.HasPrefix(store, workspace) {
+		t.Errorf("PI_CODING_AGENT_DIR = %q, want it rooted inside the provisioned workspace %q", store, workspace)
+	}
+	// The credential seam is unchanged by the rpc rewrite: the key still lands exactly once.
+	if n := countPrefixEntries(env, "OPENROUTER_API_KEY="); n != 1 {
+		t.Errorf("expected exactly one OPENROUTER_API_KEY entry, got %d", n)
+	}
+	if hasPrefixEntry(env, "OMP_AUTH_TOKEN=") {
+		t.Errorf("OMP_AUTH_TOKEN must be scrubbed from the child env; env: %v", env)
+	}
+}
+
 // TestManifest_DeclaresRealOmpCapabilities proves the manifest matches omp's measured
 // capabilities: Steer/Resume/ThinkingEvents/PartialToolResults full, NativeBudget absent.
 func TestManifest_DeclaresRealOmpCapabilities(t *testing.T) {
@@ -235,6 +290,16 @@ func hasPrefixEntry(env []string, prefix string) bool {
 		}
 	}
 	return false
+}
+
+// entryValue returns the value of the first env entry with the given "NAME=" prefix, or "".
+func entryValue(env []string, prefix string) string {
+	for _, e := range env {
+		if strings.HasPrefix(e, prefix) {
+			return strings.TrimPrefix(e, prefix)
+		}
+	}
+	return ""
 }
 
 func countPrefixEntries(env []string, prefix string) int {
