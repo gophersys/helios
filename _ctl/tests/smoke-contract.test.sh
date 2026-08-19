@@ -164,12 +164,14 @@ HARDWARE_ASSERTED_ROWS=(
   'RUFF_VERSION|ruff --version'
 )
 
-# The budget images.yaml declares for it: 11.0 GB, in the decimal bytes
-# image_size_budget_bytes computes. It is PROVISIONAL — an estimate computed
-# from 2 measured images, to be reset to the first green build's real size — so
-# this literal moves when that number does, and the pair of cases below is what
-# makes the move visible instead of silent.
-HARDWARE_SIZE_BUDGET="11000000000"
+# The budget images.yaml declares for it, in the decimal bytes
+# image_size_budget_bytes computes. It was 11.0 GB and PROVISIONAL — an estimate
+# computed from 2 measured images, to be reset to the first green build's real
+# size — and that reset has now happened: 10,013,827,072 unpacked bytes measured
+# in rehearsal run 32202500436, x 1.05. This literal moves when that number
+# does, and the pair of cases below is what makes the move visible instead of
+# silent.
+HARDWARE_SIZE_BUDGET="10520000000"
 
 # ============================================================================
 # THE THIRD IMAGE, WHICH IS THE SECOND OF ITS SHAPE
@@ -212,20 +214,17 @@ UI_ASSERTED_ROWS=(
   'CHROME_MAJOR_VERSION|sh -c "${DENSUI_CHROME} --version"'
 )
 
-# The budget images.yaml declares for it: 6.5 GB, in the decimal bytes
-# image_size_budget_bytes computes. PROVISIONAL like hardware's, and it moved
-# from 6.3 BEFORE this image was ever built — which is what a provisional number
-# is for. The 6.3 rested on the premise that research-ui-ci's chrome+fonts layer
-# was the WHOLE delta, and that premise is false on THIS parent: research-ui-ci
-# builds FROM `base`, which installs the GTK/webkit stack, and `cloud` installs
-# none of it, so the chrome install drags its own dependency closure in here.
-# 2 independent derivations — 6.32 a-priori, 6.47 from the first rehearsal's
-# compressed delta converted at the chrome layer's own ratio — and the row is the
-# 6.5 above both. The full account with its measurements is beside the key in
-# images.yaml; read it before moving this literal, and move it when the first
-# build measured on the SAME basis as cloud's and hardware's budgets resets that
-# row.
-UI_SIZE_BUDGET="6500000000"
+# The budget images.yaml declares for it, in the decimal bytes
+# image_size_budget_bytes computes. It moved twice: 6.3 to 6.5 BEFORE this image
+# was ever built, which is what a provisional number is for, and 6.5 to 6.33 on
+# the first build ever measured in the unit the budget is written in —
+# 6,027,251,712 unpacked bytes in rehearsal run 32202500436, x 1.05.
+#
+# The estimate it replaces was good: 6.32 from the dependency-closure reasoning
+# lands 0.005 GB from the truth, while 6.47 from converting a compressed delta
+# at one layer's ratio is 7.3% high. The full account with its measurements is
+# beside the key in images.yaml; read it before moving this literal.
+UI_SIZE_BUDGET="6330000000"
 
 # The tools the payload must name. Each one is a gate-critical hole today.
 # `docker compose` carries a space on purpose — the plugin is invoked that way,

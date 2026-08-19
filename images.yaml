@@ -320,6 +320,14 @@ images:
     # compared against a number 3.5x under it cannot fail, so this metric was
     # believed and empty for 2 days. Compare a log line to this number only
     # after checking that the line says `unpacked bytes`.
+    #
+    # MEASURED AGAIN ON THE REPAIRED GATE: 5,273,882,624 unpacked bytes,
+    # rehearsal run 32202500436 (job 95919051177, 2026-08-19T01:00Z) — 8.3%
+    # under this budget, and 353 MB below the 5,626,948,253 of 2026-08-17,
+    # because the image went on shrinking through the days no reader could see
+    # it. THE MEASUREMENT DOES NOT MOVE THE BUDGET. 5.75 is a decision a human
+    # made with the R4 levers in front of him; it is not a provisional row that
+    # the next number resets, which is what the 2 children below are.
     size_budget_gb: 5.75
     notes:
       job: |
@@ -381,19 +389,28 @@ images:
     #
     #   5.75 + 4.71 x 1.12 = 11.0
     #
-    # It is an ESTIMATE of a number nothing here has built yet. The first green
-    # build measures the real size, and the budget is reset to that measurement
-    # + 5% in the same pull request. Until then a red here means "re-measure",
-    # not "drop a tool".
+    # It was an ESTIMATE of a number nothing had built yet, at 11.0, and the row
+    # said the first green build resets it to that measurement + 5% in the same
+    # pull request. THIS IS THAT PULL REQUEST, and the estimate was 9.8% high.
     #
     # THE BASIS IS UNPACKED BYTES — the sum of `docker history --human=false`,
-    # which is what .ci/smoke.sh compares. That is the basis this derivation was
-    # done on, and it was NOT the basis the gate read while this row was
-    # written: the reader was `docker image inspect --format '{{.Size}}'`, which
-    # a containerd-store daemon answers with COMPRESSED bytes, so this image
-    # measured 2,608,220,360 against 11,000,000,000 in run 32193984249 and the
-    # budget could not have failed whatever the image held (#119).
-    size_budget_gb: 11.0
+    # which is what .ci/smoke.sh compares. That is the basis the derivation
+    # above was done on, and it was NOT the basis the gate read while this row
+    # was written: the reader was `docker image inspect --format '{{.Size}}'`,
+    # which a containerd-store daemon answers with COMPRESSED bytes, so this
+    # image measured 2,608,220,360 against 11,000,000,000 in run 32193984249 and
+    # the budget could not have failed whatever the image held (#119). The first
+    # measurement on the repaired gate is therefore also the first measurement
+    # this row could ever have been reset from.
+    #
+    #   10,013,827,072 unpacked bytes, rehearsal run 32202500436
+    #   (job 95924341075, 2026-08-19T02:32Z) x 1.05 = 10,514,518,426
+    #
+    # so the row is 10.52 and the slack over measured+5% is 5,481,574 bytes.
+    # This TIGHTENS the budget by 0.48 GB; it does not widen one. A red here
+    # still means "re-measure" first — the KiCad PPA is an upstream that moves,
+    # and this image is 61% apt data by volume.
+    size_budget_gb: 10.52
     notes:
       job: |
         The hardware image: cloud + the KiCad 10 ECAD toolchain. Its consumer is
@@ -502,11 +519,11 @@ images:
     # compression ratio (463,258,112 / 207,293,833 = 2.235), the delta is
     # ~0.640 GB and the same arithmetic gives 5.75 + 0.640 x 1.12 = 6.47.
     #
-    # 2 independent derivations, 6.32 and 6.47, so the budget is 6.5 and the
-    # slack over the larger one is 0.03 GB. It is still an ESTIMATE: the first
-    # build to be measured on the SAME basis as cloud's and hardware's budgets
-    # resets this row to that measurement + 5% in the same pull request. A red
-    # here means "re-measure", not "drop a tool".
+    # 2 independent derivations, 6.32 and 6.47, so the budget was 6.5 and the
+    # slack over the larger one was 0.03 GB. It was still an ESTIMATE, and the
+    # row said the first build measured on the SAME basis as cloud's and
+    # hardware's budgets resets it to that measurement + 5% in the same pull
+    # request. THIS IS THAT PULL REQUEST.
     #
     # THE BASIS IS UNPACKED BYTES — the sum of `docker history --human=false`,
     # which is what .ci/smoke.sh compares. The paragraph above is where the
@@ -514,8 +531,22 @@ images:
     # (#119): the reader was `docker image inspect --format '{{.Size}}'`, which
     # a containerd-store daemon answers with the compressed content size, so
     # this budget and cloud's and hardware's were each being compared against a
-    # number 3.4x to 4.2x under them and none of the 3 could fail.
-    size_budget_gb: 6.5
+    # number 3.4x to 4.2x under them and none of the 3 could fail. So the number
+    # below is the FIRST reading of this image anybody has ever taken in the
+    # unit its budget is written in:
+    #
+    #   6,027,251,712 unpacked bytes, rehearsal run 32202500436
+    #   (job 95924341021, 2026-08-19T02:14Z) x 1.05 = 6,328,614,298
+    #
+    # so the row is 6.33 and the slack over measured+5% is 1,385,702 bytes.
+    #
+    # THE A-PRIORI DERIVATION WAS THE GOOD ONE, and that is worth keeping. 6.32
+    # from the dependency-closure reasoning lands 0.005 GB from the truth; 6.47
+    # from converting the rehearsal's compressed delta at the chrome layer's own
+    # ratio is 7.3% high, because a per-layer ratio does not describe a whole
+    # image. Real delta over cloud: 6,027,251,712 - 5,273,882,624 = 0.753 GB
+    # against the 0.640 GB the ratio predicted.
+    size_budget_gb: 6.33
     notes:
       job: |
         The ui image: cloud + headless Chrome and the DejaVu fallback font. Its
