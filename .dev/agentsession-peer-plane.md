@@ -58,13 +58,35 @@ Canonical plan = planner report (task ae68d5e195d3fa53c). Load-bearing:
   (shared by 16 libs — care). Tests 1-8 per plan, each with its falsification.
 
 ## Proven
--
+- RED (author, 416349f/41e4e7d/4438dc0): 8 libs tests + 3 harness obligations, each red
+  on undefined:<contract symbol>, each behavioral core bite-proven vs a naive scratch
+  reference (dedupe emits twice; roster holds a subagent; no-reconciler no-bounce; token
+  bare-const collides; open returns nil). load/socket reds compile-include under their
+  tags and fail only on absent symbols. Harness files tag-included, gofumpt-clean, red on
+  the absent peerplane package. SEAM LIST captured (see below).
+  NOTE: harness bodies fully type-check only once peerplane/*.go lands (implementer).
 
 ## Blocked
 -
 
+## SEAMS the implementer adds (from the author's report)
+agentsession: Spec.Name/Parent (Open ConfigError grammar ^[a-z][a-z0-9-]{1,61}[a-z0-9]$),
+Deps.Peer PeerPlane, Event.Peer/.Subagent, EventPeerMessage/EventPeerSent/
+EventSubagentMessage + tokens, CapPeerMessaging/CapSubagentMessaging + tokens,
+PeerMessage{MsgID,From,To,ReplyTo,Body,Verified,Accepted,Detail}, SubagentMessage,
+Peer{Name,Parent,Harness,Live,Generation}, PeerPlane{Join,Roster}, PeerLink{Inbound,
+Send,Received,Close}, UnreachableError(Kind=KindNotFound), MaxPeerBodyBytes=8<<10; pump:
+256-id dedupe ring on EventPeerMessage, call PeerLink.Received after emit, suppress peer
+events when Deps.Peer==nil. controlframe: scalar-only PeerPrefix/EncodePeer/DecodePeer.
+agentsessiontest: NewPeerPlane (in-memory registry+router+reconciler; body-bound +
+terminator→KindInvalid; UnreachableError for unknown To), 3 event builders,
+RequireLiveCredential (t.Fatalf). peerplane: New/Dial, Config/DialConfig/Deps,
+Orchestrator(Listen/Join/Roster/Close), Client, JoinError, UndeliveredError,
+export_test.go recordedUndelivered, internal/planepeer/main.go stub. _ctl/lib.sh harness
+verb (cmd_harness + require_env; additive — shared by 16 libs). apidiff-record + the
+docs/architecture R1 contract revision in THIS PR.
+
 ## Next
-Phase 2: dev-test-author writes tests 1-8 + the -tags harness obligations red (the
-apidiff red is the surface-not-yet-added; the property/reconciler/socket reds need the
-port symbols — controlframe precedent: compile-dep reds in their own commit, bite proven
-against a naive scratch reference). Big slice — expect multiple red commits.
+Phase 3: implementer builds the whole seam list; all 8 libs tests green (incl. the real-
+UDS socket integration + N-mesh load -race); phase-gate all + apidiff-record; harness
+bodies type-check (authored-not-run in libs). Big round — logical commits.
