@@ -23,14 +23,23 @@ VERSIONS_FILE="${HARNESS_VERSIONS_FILE:-${ROOT}/harnesses/versions.env}"
 # only the fixtures run, which is not a merge-eligible verification of a pin bump.
 REQUIRED_CREDENTIALS=(CLAUDEADAPTER_LIVE_TOKEN OPENROUTER_API_KEY)
 
-# One row for each pinned harness: `<binary>:<variable in the manifest>`.
+# One row for each pinned harness: `<binary>:<variable in the manifest>:<tier>`.
+#
+# The tier is the honesty of the row. `exercised` means the conformance suite really drives this
+# harness through an adapter. `unexercised` means the pin is installed and version-checked here and
+# nothing else in the suite touches it — true for codex, which has no adapter yet: the pin is bumped
+# and the tier is declared loudly rather than left to read like the other 2. The label takes nothing
+# away. An unexercised row keeps every assert of an exercised one, so drift, an absent binary and a
+# failing `--version` each still stop the run. It only stops a reader from taking
+# "3 harness pin(s) verified" for 3 proven adapters.
 PINNED_HARNESSES=(
-  claude:CLAUDE_CODE_VERSION
-  omp:OMP_VERSION
-  codex:CODEX_VERSION
+  claude:CLAUDE_CODE_VERSION:exercised
+  omp:OMP_VERSION:exercised
+  codex:CODEX_VERSION:unexercised
 )
 
 failures=()
+unexercised=()
 
 for name in "${REQUIRED_CREDENTIALS[@]}"; do
   if [[ -z "${!name:-}" ]]; then
@@ -47,9 +56,21 @@ fi
 source "$VERSIONS_FILE"
 
 for row in "${PINNED_HARNESSES[@]}"; do
-  binary="${row%%:*}"
-  variable="${row##*:}"
+  IFS=':' read -r binary variable tier <<<"$row"
   pin="${!variable:-}"
+
+  label=''
+  case "$tier" in
+    exercised) : ;;
+    unexercised)
+      label='   [UNEXERCISED — no adapter drives this harness; this version check is the only proof]'
+      unexercised+=("$binary")
+      ;;
+    *)
+      failures+=("row '${row}' carries the unknown tier '${tier}' — a tier this script cannot read is a row it cannot report honestly")
+      continue
+      ;;
+  esac
 
   if [[ -z "$pin" ]]; then
     failures+=("${variable} is unset in ${VERSIONS_FILE}")
@@ -64,7 +85,7 @@ for row in "${PINNED_HARNESSES[@]}"; do
     continue
   fi
 
-  printf '%s --version -> %s   (pin %s=%s)\n' "$binary" "$installed" "$variable" "$pin"
+  printf '%s --version -> %s   (pin %s=%s)%s\n' "$binary" "$installed" "$variable" "$pin" "$label"
   case "$installed" in
     *"$pin"*) : ;;
     *) failures+=("harness pin drift: '${binary}' reports '${installed}', which does not carry ${variable}='${pin}'") ;;
@@ -77,5 +98,13 @@ if [[ ${#failures[@]} -gt 0 ]]; then
   exit 1
 fi
 
-printf 'assert-harness-conformance-preconditions: OK — %d credential(s) present, %d harness pin(s) verified\n' \
-  "${#REQUIRED_CREDENTIALS[@]}" "${#PINNED_HARNESSES[@]}"
+# The summary carries the tier split too. A pin that no adapter drives is verified in exactly one
+# sense — it is installed and it carries its pin — and the line says which sense it is.
+tiers="$((${#PINNED_HARNESSES[@]} - ${#unexercised[@]})) exercised"
+if [[ ${#unexercised[@]} -gt 0 ]]; then
+  unexercised_list="$(printf '%s,' "${unexercised[@]}")"
+  tiers="${tiers}, ${#unexercised[@]} UNEXERCISED: ${unexercised_list%,}"
+fi
+
+printf 'assert-harness-conformance-preconditions: OK — %d credential(s) present, %d harness pin(s) verified (%s)\n' \
+  "${#REQUIRED_CREDENTIALS[@]}" "${#PINNED_HARNESSES[@]}" "$tiers"
