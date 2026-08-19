@@ -257,9 +257,7 @@ func TestRPC_CloseFailsEveryCallerWithOneTypedError(t *testing.T) {
 	if postErr == nil {
 		t.Fatalf("a Send after Close returned nil: the caller believes a closed session took a turn")
 	}
-	pendingCause := contractTypedCause(t, pendingErr, "the Send pending at Close")
-	postCause := contractTypedCause(t, postErr, "the Send after Close")
-	assertSameSentinel(t, pendingCause, postCause)
+	assertSameSentinel(t, pendingErr, postErr)
 }
 
 // TestRPC_ManifestPromotionsAreMeasuredNotDeclared is the capability-truthfulness pin: the two
@@ -401,21 +399,24 @@ func assertAskIsActionable(t *testing.T, ask *agentsession.Event) {
 	}
 }
 
-// assertSameSentinel proves the close error is STICKY: the caller pending at Close and the caller
-// after it received the same typed value, not two independently constructed errors that merely
-// read alike.
-func assertSameSentinel(t *testing.T, pending, post any) {
+// assertSameSentinel proves the close error is STICKY by IDENTITY, not by value: the caller
+// pending at Close and the caller after it must receive the SAME error — one declared sentinel
+// handed out twice — exactly as omp's own bridge stores ONE #closedError and rejects the pending
+// call and every future one with it (q4 §5).
+//
+// Comparing the extracted typed CAUSE by value was too weak: two errors each freshly wrapping an
+// equal State{From:Completed,Op:"Send"} would compare equal and pass, so a per-call constructed
+// error — precisely what a "sticky sentinel" must NOT be — would slip through. This compares the
+// original errors by interface identity (same dynamic pointer), which a per-call construction
+// cannot satisfy. Each must also carry a contract-typed cause so a caller can branch on it
+// (rule 12); a sentinel that is one value but only a bare message is still unbranchable.
+func assertSameSentinel(t *testing.T, pendingErr, postErr error) {
 	t.Helper()
-	pendingType, postType := reflect.TypeOf(pending), reflect.TypeOf(post)
-	if pendingType != postType {
-		t.Fatalf("the close error is not one sentinel: pending caller got %v, later caller got %v", pendingType, postType)
-	}
-	if !pendingType.Comparable() {
-		t.Fatalf("the close sentinel type %v is not comparable, so no caller can match it by value", pendingType)
-	}
-	if pending != post {
-		t.Errorf("the close error is not STICKY: pending caller got %#v, later caller got %#v — omp's own bridge stores ONE closedError and hands it to the pending call and every future one (q4 §5)",
-			pending, post)
+	contractTypedCause(t, pendingErr, "the Send pending at Close")
+	contractTypedCause(t, postErr, "the Send after Close")
+	if pendingErr != postErr {
+		t.Errorf("the close error is not ONE sticky sentinel by identity: pending caller got %#v, later caller got %#v — a per-call constructed error, even one whose typed cause is value-equal, is not the shared sentinel omp's bridge model requires (q4 §5)",
+			pendingErr, postErr)
 	}
 }
 
