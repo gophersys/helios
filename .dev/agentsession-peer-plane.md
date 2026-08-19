@@ -91,12 +91,12 @@ Whole seam built: controlframe scalar peer codec; agentsession contract (peer.go
 Spec.Name/Parent, Deps.Peer, Event.Peer/.Subagent, 3 kinds + 2 caps + tokens); pool/pump/
 session wiring (deliver goroutine reaped on Close, 256-id ring, Received-after-emit,
 suppress when no plane); peerplane package (orchestrator registry/tree/router/ledger/
-AfterFunc-reconciler/bounce; Listen SO_PEERCRED-Linux / fail-closed-elsewhere; Dial/
+AfterFunc-reconciler/bounce; Listen accept-gated by SO_PEERCRED-Linux / fail-closed-elsewhere (F3: it does NOT yet PIN From/Verified to the verified identity — fixed this round); Dial/
 Client; length-prefixed wire; planepeer stub); agentsessiontest NewPeerPlane+builders;
 _ctl/lib.sh cmd_harness+require_env; apidiff-record baseline. PROVEN green by name:
 reconciler bounce, Open validation, send-reject, subagent non-conflation, token totality,
 name grammar; load N-mesh -race+goleak clean; SOCKET INTEGRATION real-UDS/real-process
-kill→bounce/roster-drop/higher-Generation PASS in golang:1.26. Decisions: bounce = an
+kill→bounce/roster-drop/higher-Generation (F2: that assertion was DEAD — after==0 unreachable; fixed this round). Decisions: bounce = an
 in-band PeerMessage from <mesh>.root ReplyTo=orig Accepted=false (the bounce IS the
 record); Generation counter never reset on leave; DeliveryDeadline default 60s as one
 AfterFunc/row Stopped on receipt (goleak-forced); EncodePeer renders eden:peer: frame
@@ -121,7 +121,27 @@ implementation + qa green; apidiff additive 27/0/0. ONLY architecture 'contract 
 header' red = docs/architecture/contracts/agentsession.md (the R1 revision doc, lands at
 eden S5/PR-2 — expected-absent in libs-standalone, NOT a regression).
 
+## Verify round 1: NOT READY — 3 send-backs (core PROVEN unbreakable: apidiff 27/0/0
+break-fired, reconciler loudness, dedupe exactly-once, token totality AST-non-vacuous,
+real SO_PEERCRED integration+lifecycle, load -race x20, non-conflation both layers,
+pump invariant, name grammar 63/64 boundary — all survived break-tests).
+- F1 HIGH (redaction): agentsessiontest/assert.go eventStrings + canary_test.go sweep do
+  NOT read Event.Peer (Body/From/To/ReplyTo/Detail) or Event.Subagent (Digest) — the two
+  payloads THIS PR added; the helper doc falsely claims it reaches every variant. No
+  active leak here (the model→EventPeerSent write is PR-1c-ii; the bounce Detail is a
+  fixed string) but the gate is blind exactly where PR-1c-ii writes. Rule 21 §f.
+- F2 MEDIUM: socket_integration_test.go:83 `after <= before && after == 0` is dead
+  (generation always >=1) — proven vacuous (constant generation:=1 still PASSED).
+  Assert child-b's re-attach > its OWN departed generation.
+- F3 MEDIUM (spoof, RESOLVED secure per program principles; Mateo may redirect at review):
+  serveSend forwards client-asserted From/Verified; the root (which IS the eden bus)
+  must STAMP Verified from the verified connection and reject From!=joinedName. Within
+  same-UID trust domain, unreachable by the shipped client (clientLink forces From).
+Low cleanup: clientLink.Received synchronous write on pump (low deadlock risk); EncodePeer
+terminator exact-match only; rapid failfile not gitignored; 2 planepeer label strings.
+
 ## Next
-Phase 4: adversarial verify the whole plane (the security-relevant surface: peer body
-redaction/canary, the reconciler loudness, non-conflation compile+runtime, socket
-SO_PEERCRED fail-closed, apidiff additive-only, no emit off the pump). Then PR-1c-i.
+Fix round 1: implementer F1-sweep (assert.go eventStrings reads Peer/Subagent fields +
+fix doc) + F3 (listen.go stamp Verified from verified conn, bind/reject From; peer.go:22
+doc); test author F1-assert (canary in peer body + subagent digest) + F2 (real generation
+assertion). Disjoint files. Then re-verify (round 2, bounded), PR-1c-i.
