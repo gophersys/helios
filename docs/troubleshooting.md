@@ -39,9 +39,9 @@ admin console, update `tailscale-authkey-<tag>` in Bitwarden, and try again.
 
 ## `generate-machine-index.sh` produces empty output
 
-Check that each `machines/hosts/<name>/identity.yaml` exists. The script indexes
-only the directories that contain one. It ignores a directory that holds only a
-`.gitkeep`.
+Check that each `machines/<category>/<name>/identity.yaml` exists, under
+`machines/development/` or `machines/services/`. The script indexes only the
+directories that contain one.
 
 ## `bash machines/ctl.sh new-host ...` says that the template is not found
 

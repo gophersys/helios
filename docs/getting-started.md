@@ -54,11 +54,11 @@ and every `project.json`.
 ## 5. Add a machine
 
 ```
-bash machines/ctl.sh new-host linux-server-kubernetes my-new-host
-$EDITOR machines/hosts/my-new-host/identity.yaml
-bash ctl.sh generate-index
-git add machines/hosts/my-new-host machines/README.md machines/ledger.md
-git commit -m 'feat(machines): enroll my-new-host'
+bash machines/ctl.sh new-host services linux-server-kubernetes my-new-host
+$EDITOR machines/services/my-new-host/identity.yaml
+bash machines/ctl.sh generate-index
+git add machines/services/my-new-host machines/README.md machines/ledger.md
+git commit -m 'feat(machines): enroll services/my-new-host'
 ```
 
 ## 6. What is NOT implemented yet

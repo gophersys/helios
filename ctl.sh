@@ -71,10 +71,16 @@ trap on_exit EXIT
 function cmd_status() {
   log_info "infrastructure status"
 
+  # Hosts live at machines/<category>/<host>/, one directory per real machine.
+  # There is no machines/hosts/ and there never was: this counted a directory
+  # that does not exist, so it reported 0 hosts however many were declared.
   local machines_hosts=0 machines_templates=0 machines_roles=0
-  if [[ -d "$PROJECT_ROOT/machines/hosts" ]]; then
-    machines_hosts=$(find "$PROJECT_ROOT/machines/hosts" -mindepth 1 -maxdepth 1 -type d | wc -l)
-  fi
+  local category
+  for category in development services; do
+    if [[ -d "$PROJECT_ROOT/machines/$category" ]]; then
+      machines_hosts=$((machines_hosts + $(find "$PROJECT_ROOT/machines/$category" -mindepth 1 -maxdepth 1 -type d | wc -l)))
+    fi
+  done
   if [[ -d "$PROJECT_ROOT/machines/templates" ]]; then
     machines_templates=$(find "$PROJECT_ROOT/machines/templates" -mindepth 1 -maxdepth 1 -type d | wc -l)
   fi

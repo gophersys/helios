@@ -1,7 +1,8 @@
 # machines/templates
 
-Blueprints used by `bash machines/ctl.sh new-host <template> <name>` to
-scaffold a new host directory under `machines/hosts/<name>/`.
+Blueprints used by `bash machines/ctl.sh new-host <category> <template> <name>`
+to scaffold a new host directory under `machines/<category>/<name>/`, where
+`<category>` is `development` or `services`.
 
 A template is a directory tree; `new-host` copies it verbatim, then replaces
 the literal token `__HOST_NAME__` in `identity.yaml` with the provided host

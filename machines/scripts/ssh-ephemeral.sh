@@ -8,8 +8,8 @@
 # Resolution:
 #   - SSH key is fetched from BW item named "ssh-key-<machine-name>" (the
 #     private key is stored in the item's "notes" field).
-#   - Target host is the machine's Tailscale hostname: "<machine-name>".
-#     If identity.yaml has a tailscale_hostname override, it wins.
+#   - Target host is the machine's Tailscale hostname, which is the machine name
+#     verbatim. There is no per-host override.
 #
 # Operation:
 #   1. Preflight bw status (unlocked).
@@ -20,9 +20,6 @@
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
-
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel 2>/dev/null || echo "$PROJECT_ROOT")"
 
 function log_info()  { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
 function log_warn()  { printf '\033[0;33m[warn]\033[0m  %s\n' "$*" >&2; }
@@ -73,26 +70,24 @@ function preflight_bw() {
   fi
 }
 
+# The machine name IS the Tailscale hostname.
+#
+# This used to read a `tailscale_hostname:` override out of
+# machines/hosts/<machine>/identity.yaml first. There is no machines/hosts/ in
+# this repository and there never was — hosts live at machines/<category>/<host>/
+# — so the `[[ -f ]]` guard could only ever miss and the function always fell
+# through to the line below.
+#
+# The field itself is NOT unused: machines/services/{macos,windows}-ci-runner
+# declare it, and machines/scripts/generate-machine-index.sh reads it. Only this
+# SSH-side read was dead, and in both declared cases the value already equals the
+# machine name, so removing it changes no hostname this script has ever produced.
+# The branch was deleted rather than repointed at machines/<category>/: an
+# override that has never once differed from the default is a feature to add
+# deliberately, when a host actually needs a different name, not a dead path to
+# quietly re-aim.
 function resolve_hostname() {
   local machine="$1"
-  local identity="$REPO_ROOT/machines/hosts/$machine/identity.yaml"
-  if [[ -f "$identity" ]]; then
-    # Parse tailscale_hostname: <value> from YAML with python3 if available.
-    local override
-    override="$(python3 -c "
-import sys, re
-try:
-    txt = open(sys.argv[1]).read()
-    m = re.search(r'^\s*tailscale_hostname\s*:\s*[\"\']?([A-Za-z0-9._-]+)[\"\']?\s*$', txt, re.M)
-    print(m.group(1) if m else '')
-except Exception:
-    print('')
-" "$identity" 2>/dev/null || true)"
-    if [[ -n "$override" ]]; then
-      printf '%s\n' "$override"
-      return 0
-    fi
-  fi
   printf '%s\n' "$machine"
 }
 
