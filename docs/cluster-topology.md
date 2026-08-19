@@ -31,7 +31,9 @@ are on the Tailscale mesh.
   offline when the laptop sleeps. That is correct, not a fault. See
   `music-studio/docs/architecture.md` → "The studio dashboard".
 - **Grafana** — **no hostname at all** since the stack came back on 2026-08-19.
-  Reach it at the MetalLB LoadBalancer `10.168.0.241`, plain HTTP, tailnet only.
+  Reach it at the MetalLB LoadBalancer `10.168.0.241`, plain HTTP, tailnet only
+  — an address the chart **pins** with `metallb.io/loadBalancerIPs`, so it is a
+  fact rather than an allocation accident.
   Before 2026-08-09 it was *publicly reachable through the Cloudflare tunnel*
   behind nothing but Grafana's own login, with an admin password that was
   generated and never stored in the vault, while this document stated the
@@ -77,8 +79,10 @@ never syncs on its own (build ledger #89).
 
 ### `metallb-system` — LoadBalancer on bare metal
 The controller plus the speaker DaemonSet, in L2 mode, with the pool
-`10.168.0.240-250`. It backs the Service VIP of `ingress-nginx` (`.240`) and
-Grafana (`.241`).
+`10.168.0.240-250`. It backs the Service VIP of `ingress-nginx` (`.240`,
+**unpinned** — it holds that address by creation order, recorded as a follow-up
+in `platform/core/edge/loadbalancer/metallb/README.md`) and Grafana (`.241`,
+pinned). The allocation table lives in that README.
 
 ### `ingress-nginx` — the ingress controller
 The single IngressClass is `nginx` (Traefik was removed). All HTTP enters here,
@@ -132,7 +136,8 @@ so nothing reconciles it by hand and drift cannot survive. Its 4 PVCs — Loki
 re-derivable and none of it is a system of record.
 
 **Grafana has no hostname.** The reinstall ships the MetalLB LoadBalancer
-(`10.168.0.241`, plain HTTP, tailnet) and **no Ingress**: the dedicated
+(`10.168.0.241`, pinned with `metallb.io/loadBalancerIPs`, plain HTTP, tailnet)
+and **no Ingress**: the dedicated
 `grafana` A record was deleted on 2026-08-09, and `*.mateosegura.com` sends the
 name to the cloud cluster's public IP instead, so a homelab Ingress for it could
 never be reached. See the exposure model above and the restore order in

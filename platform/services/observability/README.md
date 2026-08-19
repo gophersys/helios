@@ -27,10 +27,10 @@ the Grafana datasources address stable in-namespace DNS.
 - `platform/core/storage/` — Loki + Prometheus + Tempo + Grafana all need a PV.
   On the homelab that is `local-path`: node-local, not replicated (decided
   2026-08-19).
-- **MetalLB** — the Grafana LoadBalancer VIP (`10.168.0.241`). It is one of the
-  raw-manifest components in debt-register D9, not a directory in this repo.
-  There is no Ingress and no hostname on the homelab today; see the header of
-  `chart/values-homelab.yaml`.
+- **MetalLB** — the Grafana LoadBalancer VIP `10.168.0.241`, pinned by the chart
+  with `metallb.io/loadBalancerIPs` against the pool in
+  `platform/core/edge/loadbalancer/metallb/`. There is no Ingress and no
+  hostname on the homelab today; see the header of `chart/values-homelab.yaml`.
 - **Not** `platform/core/secrets-operator/`. The one credential this stack needs,
   `grafana-admin`, is imperative — see `docs/runtime-secrets.md` for the two
   reasons and what would change them.

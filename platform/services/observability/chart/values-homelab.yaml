@@ -44,7 +44,29 @@ grafana:
   persistence:
     storageClassName: local-path
   service:
-    type: LoadBalancer        # MetalLB hands out 10.168.0.240-250 (tailnet access)
+    type: LoadBalancer
+    # THE ADDRESS IS PINNED, not requested and hoped for. `10.168.0.241` is
+    # written down as fact in 4 places — the Homepage Grafana card, this file,
+    # docs/cluster-topology.md and platform/services/observability/README.md —
+    # and before this pin nothing reserved it. MetalLB simply hands out the
+    # lowest free address in `homelab-pool` (10.168.0.240-250, declared in
+    # platform/core/edge/loadbalancer/metallb/pool.yaml). Grafana got .241 only
+    # because ingress-nginx happened to take .240 first. Introduce a third
+    # LoadBalancer Service before Grafana's, or rebuild in a different order,
+    # and Grafana moves while every document keeps saying .241 — the same
+    # "moved silently and no document noticed" failure contracts/exposure.yaml
+    # exists for, one layer down.
+    #
+    # THE KEY IS `metallb.io/`, NOT `metallb.universe.tf/`. Both work on the
+    # MetalLB running here (v0.16.1) — verified on the live cluster with two
+    # throwaway Services, which were assigned exactly the addresses they asked
+    # for. But the `universe.tf` form ALSO emits a warning Event:
+    #   "Service uses deprecated annotation metallb.universe.tf/loadBalancerIPs"
+    # A permanent warning on the Service is a warning nobody will read twice.
+    # `spec.loadBalancerIP` is the third option and it is worse than both: the
+    # field is deprecated in Kubernetes itself since 1.24.
+    annotations:
+      metallb.io/loadBalancerIPs: "10.168.0.241"
 
   # NO INGRESS AND NO HOSTNAME IN THIS INSTALL. Read this before turning it back
   # on, because the obvious reading of the situation is wrong.

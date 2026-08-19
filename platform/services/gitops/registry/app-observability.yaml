@@ -35,8 +35,10 @@
 # Mateo action, and the ExternalSecret that would replace this step is a separate
 # PR that lands only after the item exists.
 #
-# NO NEW EXPOSURE. Grafana gets its MetalLB LoadBalancer (10.168.0.241, plain
-# HTTP, tailnet) and NO Ingress. `grafana.mateosegura.com` has no dedicated A
+# NO NEW EXPOSURE. Grafana gets its MetalLB LoadBalancer (10.168.0.241, PINNED
+# with metallb.io/loadBalancerIPs, plain HTTP, tailnet) and NO Ingress —
+# 10.168.0.241 is reserved by that annotation rather than won by allocation
+# order, so the documents that name it stay true. `grafana.mateosegura.com` has no dedicated A
 # record since 2026-08-09, and the `*.mateosegura.com` wildcard sends it to the
 # cloud cluster's public IP, so an Ingress here could never be reached. The
 # reasoning and the exact restore order are in the values-homelab.yaml header.
