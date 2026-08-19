@@ -137,4 +137,4 @@ type DialConfig struct{ ... }
 type JoinError struct{ ... }
 type Orchestrator struct{ ... }
 type UndeliveredError struct{ ... }
-## github.com/gophersys/libs/go/agentsession/peerplane/internal/planepeer
+## github.com/gophersys/libs/go/agentsession/peerplane/internal/stubharness

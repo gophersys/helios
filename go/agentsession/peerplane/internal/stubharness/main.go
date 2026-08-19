@@ -1,7 +1,9 @@
-// Command planepeer is a test-only stub: a real member PROCESS the peerplane socket integration
+// Command stubharness is a test-only stub: a real member PROCESS the peerplane socket integration
 // test spawns to prove the plane over a real unix socket and real OS processes. It Dials the root,
 // Joins under -name/-parent, drains its inbound (corroborating each delivery with Received), and
-// exits on a signal. No vendor harness, no credential — so the proof runs in libs CI.
+// exits on a signal. No vendor harness, no credential — so the proof runs in libs CI. It lives at
+// internal/stubharness by the repo convention (claudeadapter/ompadapter/internal/stubharness), so
+// the cover-floor helper exclusion recognizes it as test infrastructure, not a gated load path.
 package main
 
 import (
