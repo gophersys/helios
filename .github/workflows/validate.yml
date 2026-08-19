@@ -105,6 +105,29 @@ jobs:
       - name: runner-queue rule — fixture tests
         run: bash scripts/test-verify-runner-queue.sh
 
+      # The admission guard in platform/core/policy/ is the ONE thing in this
+      # repo that enforces at the apiserver, and the way it dies is silent: one
+      # word turns `validationActions: [Deny]` into `[Audit]`, and every document
+      # keeps saying "enforced" while nothing is. That is precisely how Kyverno
+      # ran for months before it was removed. This holds the shape — Deny
+      # bindings, fail-closed policies, no dangling policyName, an Argo
+      # Application that applies it and cannot prune it — plus the two manifest
+      # facts the policy depends on: at least one namespace is actually labelled,
+      # and every StatefulSet with volumeClaimTemplates pins
+      # persistentVolumeClaimRetentionPolicy to Retain (`Delete` puts an ownerRef
+      # on the PVCs and garbage-collects them BELOW admission, where no policy
+      # can refuse it). Manifest-only, so it needs no cluster.
+      #
+      # Its live twin, `bash ctl.sh test-vap-guard`, is deliberately NOT here:
+      # it exercises the real admission chain with --dry-run=server and needs an
+      # apiserver that already has the policies synced. Local-only, like
+      # verify-access and verify-vault-refs.
+      - name: admission policy still enforces
+        run: bash scripts/verify-vap-policies.sh
+
+      - name: admission-policy rule — fixture tests
+        run: bash scripts/test-verify-vap-policies.sh
+
       - name: qBittorrent config-enforce — tests + drift guard
         run: |
           set -euo pipefail

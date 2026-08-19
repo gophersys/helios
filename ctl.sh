@@ -175,6 +175,13 @@ Commands:
   verify-warmer-pins Assert the image warmer warms the digest the pools pin,
                     and stays unprivileged
   verify-bw-sync    Assert the bw-serve-sync CronJob is wired to the bridge
+  verify-vap-policies
+                    Assert platform/core/policy still ENFORCES: Deny bindings,
+                    fail-closed policies, labelled namespaces, pinned PVC
+                    retention (manifest-only; no cluster)
+  test-vap-guard    LOCAL-ONLY. Prove on the LIVE apiserver, via
+                    --dry-run=server, that the storage guard denies a protected
+                    delete and admits an unprotected one
   verify-runner-image <repository> <tag>
                     Assert a runner image works in the ARC pod shape
   verify-image-arch <ref>    Assert every manifest variant IS the arch it declares
@@ -187,11 +194,14 @@ Every verb in the dispatcher below must appear in this list. Two did not
 verify-access: that verb needs LAN and tailnet access, and a CI runner does not
 have it. Run verify-access by hand from a machine on the tailnet.
 
-LOCAL-ONLY VERBS: verify-access and verify-vault-refs. Both need something a
-runner does not have — the tailnet for one, an unlocked Vaultwarden session for
-the other. Neither is wired into CI, and neither degrades to a skip when what it
-needs is absent: it fails and names what is missing. Run both by hand after a
-change to a machine, a credential or a secret reference.
+LOCAL-ONLY VERBS: verify-access, verify-vault-refs and test-vap-guard. Each needs
+something a runner does not have — the tailnet for the first, an unlocked
+Vaultwarden session for the second, a real apiserver with the admission policies
+already synced for the third (there is no offline evaluator for a
+ValidatingAdmissionPolicy). None is wired into CI, and none degrades to a skip
+when what it needs is absent: each fails and names what is missing. Run the first
+two by hand after a change to a machine, a credential or a secret reference; run
+test-vap-guard after any change under platform/core/policy/.
 EOF
 }
 
@@ -278,6 +288,19 @@ function cmd_verify_bw_sync() {
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-bw-sync-wiring.sh" "$@"
 }
 
+function cmd_verify_vap_policies() {
+  # Assert the in-tree admission policies still ENFORCE, and that the storage
+  # they guard is still guardable. Manifest-only: no cluster, no network.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-vap-policies.sh" "$@"
+}
+
+function cmd_test_vap_guard() {
+  # LOCAL-ONLY. Exercise the LIVE admission chain with --dry-run=server. It needs
+  # a cluster whose 'policy' Application has already synced, and it exits 2 —
+  # never 0 — when the policies are absent.
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/test-vap-storage-guard.sh" "$@"
+}
+
 function cmd_verify_exposure() {
   # Assert every hostname is exposed the way contracts/exposure.yaml declares.
   # Read-only: DNS resolution + one HTTP probe per host. Changes nothing.
@@ -298,6 +321,8 @@ function main() {
     verify-vault-refs) cmd_verify_vault_refs "$@" ;;
     verify-buildx-key) cmd_verify_buildx_key "$@" ;;
     verify-bw-sync)  cmd_verify_bw_sync  "$@" ;;
+    verify-vap-policies) cmd_verify_vap_policies "$@" ;;
+    test-vap-guard)  cmd_test_vap_guard  "$@" ;;
     verify-warmer-pins) cmd_verify_warmer_pins "$@" ;;
     verify-image-arch)   cmd_verify_image_arch   "$@" ;;
     verify-runner-image) cmd_verify_runner_image "$@" ;;
