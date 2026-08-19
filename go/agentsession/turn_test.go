@@ -89,7 +89,8 @@ func TestTurnEnd_RendersTheAppendedTurnBoundaryToken(t *testing.T) {
 func TestTurn_OrdinalReachesTwoAcrossThreeFoldedTurns(t *testing.T) {
 	t.Parallel()
 	const turns = 3
-	conn := newTurnConn(gracefulClose,
+	conn := newTurnConn(
+		gracefulClose,
 		turnBody("first turn answer"),
 		turnBody("second turn answer"),
 		turnBody("third turn answer"),
@@ -125,6 +126,50 @@ func TestTurn_OrdinalReachesTwoAcrossThreeFoldedTurns(t *testing.T) {
 	}
 }
 
+// TestTurn_PermissionFirstTurnKeepsItsOwnOrdinal pins the ordinal against the ONE turn shape
+// that does not open with an assistant message: a turn whose first harness event is a
+// permission ask (the tool-first opening move — "read the file before you answer" — that both
+// shipped harnesses emit).
+//
+// The ordinal advances on the AwaitingInput->Running edge an admitted Prompt draws, and the
+// arming that identifies that edge is consumed by EVERY Running edge. A permission-first turn
+// draws AwaitingInput->AwaitingPermission->Running instead, so the arming is spent on the
+// SECOND edge, whose prior state is AwaitingPermission — the turn is never counted. Three
+// admitted Prompts then report ordinals 0,0,1 with only two distinct TurnIDs, and every event
+// of the middle turn is filed under the previous turn's correlation id: the exact silent
+// mis-attribution the per-turn ordinal exists to prevent.
+func TestTurn_PermissionFirstTurnKeepsItsOwnOrdinal(t *testing.T) {
+	t.Parallel()
+	const turns = 3
+	conn := newTurnConn(
+		gracefulClose,
+		turnBody("first turn answer"),
+		permissionFirstTurnBody("second turn answer"),
+		turnBody("third turn answer"),
+	)
+	session, transcriptEvents := openScriptedSession(t, conn)
+
+	promptEveryTurn(t, session, turns)
+	if err := session.Close(context.Background()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	ordinals, identifiers := turnOrdinalsAndIdentifiers(transcriptEvents())
+	if got := maxOrdinal(ordinals); got != turns-1 {
+		t.Errorf("the turn ordinal reached %d across %d admitted Prompts, want %d (ordinals seen: %v) — the permission-first turn spent its arming on the %v->%v edge and was never counted",
+			got, turns, turns-1, ordinals, agentsession.StateAwaitingPermission, agentsession.StateRunning)
+	}
+	for ordinal := range turns {
+		if !ordinals[ordinal] {
+			t.Errorf("no event carried turn ordinal %d; a turn folded into its predecessor's ordinal", ordinal)
+		}
+	}
+	if len(identifiers) != turns {
+		t.Errorf("%d distinct TurnIDs across %d turns (%v); a permission-first turn must correlate under its OWN id, not its predecessor's",
+			len(identifiers), turns, identifiers)
+	}
+}
+
 // TestTurn_FollowUpPromptIsLegalAfterATurnBoundary isolates the single lifecycle edge R1 adds:
 // once a turn boundary has been folded, the session must be parked in StateAwaitingInput, where
 // LegalControls already declares Prompt legal. Today the boundary implies no transition, the
@@ -153,6 +198,20 @@ func TestTurn_FollowUpPromptIsLegalAfterATurnBoundary(t *testing.T) {
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────────────────.
+
+// permissionFirstTurnBody is turnBody preceded by a permission round-trip, so the turn's FIRST
+// harness event is the ask rather than the assistant message.
+//
+// The request deliberately carries NO PermissionPayload: a payload would send the pump down the
+// resolution chain (advisor consult / pending human timer), which has nothing to do with the
+// ordinal. With a nil payload the pump publishes the ask verbatim, and the ONLY thing under test
+// is the lifecycle detour it forces — AwaitingInput->AwaitingPermission->Running.
+func permissionFirstTurnBody(text string) []agentsession.Event {
+	return append([]agentsession.Event{
+		{Kind: agentsession.EventPermissionRequest},
+		{Kind: agentsession.EventPermissionResolved},
+	}, turnBody(text)...)
+}
 
 // readThroughTurnBoundary reads the live tail up to and including turn n's boundary event (the
 // one carrying that turn's TerminalPayload), so the next Prompt is issued in the right phase.

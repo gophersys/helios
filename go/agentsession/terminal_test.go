@@ -2,6 +2,8 @@ package agentsession_test
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -133,6 +135,72 @@ func TestClose_ExactlyOneTerminalPerSession(t *testing.T) {
 		t.Errorf("the terminal is at Seq %d but the last event is %s at Seq %d; nothing may follow the terminal",
 			terminal.Seq, last.Kind, last.Seq)
 	}
+}
+
+// TestClose_SessionTerminalSumsThePerTurnLedgers is the SESSION-accounting half of the same
+// boundary: a session that took three turns costing 100, 200 and 300 micros spent 600 micros
+// over 3 turns, and that total is what its one terminal must finalize on.
+//
+// Today the requested-close terminal replays the LAST turn's ledger, so a three-turn session
+// reports 300 micros and Turns=1 — the first two turns are simply gone from the durable record
+// the FinOps UsageRecord and the T6 observability.Ledger are built from. The under-report grows
+// with the length of the conversation, which is precisely what R1 makes common.
+//
+// The per-turn ledgers here carry Cumulative=true, the flag BOTH shipped normalizers stamp on a
+// turn boundary (ompadapter/normalize.go, claudeadapter/normalize.go). See the delta-flagged
+// twin below: the flag is not the discriminator, so an aggregation that keys off it is wrong.
+func TestClose_SessionTerminalSumsThePerTurnLedgers(t *testing.T) {
+	t.Parallel()
+	assertSessionLedgerIsTheSumOfItsTurns(t, cumulativeFlagged)
+}
+
+// TestClose_SessionTerminalSumsDeltaFlaggedTurnLedgers is the omp-shaped twin: the SAME three
+// per-turn ledgers, flagged Cumulative=false at the source.
+//
+// omp runs a new process AND a new normalizer per turn, so its turn ledger can only ever hold
+// that turn's own accounting whatever the flag says. Both flags must therefore sum to the same
+// session total: an aggregation that adds only the delta-flagged ledgers would under-report
+// every omp session (flag true, values per-turn), and one that adds only the cumulative-flagged
+// ones would under-report this shape. Pinning both forbids keying on the flag at all.
+func TestClose_SessionTerminalSumsDeltaFlaggedTurnLedgers(t *testing.T) {
+	t.Parallel()
+	assertSessionLedgerIsTheSumOfItsTurns(t, deltaFlagged)
+}
+
+// assertSessionLedgerIsTheSumOfItsTurns drives one session through three turns costing
+// 100/200/300 micros and asserts BOTH readings of the session's final accounting agree with the
+// sum: the Close-synthesized terminal in the durable transcript, and LedgerFold.Finish() over
+// that transcript (the fold every consumer runs to seal a session). Asserting the fold too is
+// what stops the sum from being double-counted — a fold that added the turn boundaries AND the
+// summed terminal would report 1200 on a 600-micro session.
+func assertSessionLedgerIsTheSumOfItsTurns(t *testing.T, flagged sourceFlag) {
+	t.Helper()
+	const turns = 3
+	conn := newTurnConn(
+		gracefulClose,
+		turnBodyWithLedger("first turn answer", turnLedgerCosting(100, flagged)),
+		turnBodyWithLedger("second turn answer", turnLedgerCosting(200, flagged)),
+		turnBodyWithLedger("third turn answer", turnLedgerCosting(300, flagged)),
+	)
+	session, transcriptEvents := openScriptedSession(t, conn)
+
+	promptEveryTurn(t, session, turns)
+	if err := session.Close(context.Background()); err != nil {
+		t.Fatalf("Close: %v", err)
+	}
+
+	events := transcriptEvents()
+	terminal := soleTerminal(t, events)
+	if terminal.Terminal == nil {
+		t.Fatalf("the synthesized terminal carries no TerminalPayload")
+	}
+	assertSessionLedger(t, "the Close-synthesized session terminal", terminal.Terminal.Ledger)
+
+	fold := agentsession.NewLedgerFold()
+	for i := range events {
+		fold.Fold(events[i])
+	}
+	assertSessionLedger(t, "LedgerFold.Finish() over the recorded session", fold.Finish())
 }
 
 // ── the scripted turn conn (shared with turn_test.go) ────────────────────────────────────.
@@ -288,13 +356,21 @@ func (a scriptedAdapter) Spawn(context.Context, agentsession.Spec, agentsession.
 // prove nothing. Leaving it out makes the turn boundary the ONLY thing that can end the turn,
 // which is exactly the edge R1 adds.
 func turnBody(text string) []agentsession.Event {
+	return turnBodyWithLedger(text, turnLedger())
+}
+
+// turnBodyWithLedger is turnBody over an explicit per-turn ledger, so a multi-turn script can
+// give each turn its own accounting (the shape the session total is summed from).
+//
+//nolint:gocritic // TokenLedger is the contract's copyable value record (§2); the script carries it by value.
+func turnBodyWithLedger(text string, ledger agentsession.TokenLedger) []agentsession.Event {
 	return []agentsession.Event{
 		{Kind: agentsession.EventMessageStart, Message: &agentsession.MessagePayload{Role: "assistant"}},
 		{Kind: agentsession.EventTextDelta, Message: &agentsession.MessagePayload{Role: "assistant", Delta: text}},
 		{
 			Kind: eventTurnEnd,
 			Terminal: &agentsession.TerminalPayload{
-				Outcome: agentsession.TurnCompleted, Ledger: turnLedger(),
+				Outcome: agentsession.TurnCompleted, Ledger: ledger,
 				ResultText: text, StopReason: "end_turn",
 			},
 		},
@@ -303,6 +379,36 @@ func turnBody(text string) []agentsession.Event {
 
 // oneTurnScript is a single scripted turn.
 func oneTurnScript() []agentsession.Event { return turnBody("the answer") }
+
+// sourceFlag is the Cumulative flag a scripted per-turn ledger carries at the SOURCE. It is a
+// parameter rather than a constant because it is NOT the discriminator for session accounting:
+// ompadapter stamps Cumulative:true on a ledger whose values can only be per-turn (a fresh
+// process and a fresh normalizer per turn), so the flag says nothing about whether the numbers
+// already include the earlier turns.
+type sourceFlag bool
+
+const (
+	cumulativeFlagged sourceFlag = true  // what both shipped normalizers stamp on a turn boundary
+	deltaFlagged      sourceFlag = false // the honest per-turn flag
+)
+
+// turnLedgerCosting builds ONE TURN's authoritative accounting for a turn that cost costMicros.
+// Every token field is scaled off the cost (cost/100 units), so a summed session total is
+// unmistakable in a failure message and a "last turn wins" reading cannot coincide with it.
+// Turns is 1: a turn boundary accounts for its OWN turn, which is what makes the session total
+// a sum rather than a replay.
+func turnLedgerCosting(costMicros int64, flagged sourceFlag) agentsession.TokenLedger {
+	unit := costMicros / 100
+	return agentsession.TokenLedger{
+		UsageMeter: agentsession.UsageMeter{
+			Model: "deepseek", Harness: "omp",
+			InputTokens: 10 * unit, OutputTokens: unit,
+			CacheReadTokens: 1000 * unit, CacheCreationTokens: 5 * unit,
+			CostMicros: costMicros, Cumulative: bool(flagged),
+		},
+		Turns: 1,
+	}
+}
 
 // recordingTranscript is a mutex-guarded in-memory agentsession.Transcript whose whole
 // contents these tests read back after the session ends. It is separate from this package's
@@ -405,6 +511,23 @@ func promptAndAwaitTurnBoundary(t *testing.T, session agentsession.Session) {
 	}
 }
 
+// promptEveryTurn fires `turns` consecutive Prompts on ONE session, reading the live tail
+// through each turn's boundary before the next Prompt so every command is issued in the phase
+// the legality matrix admits it in. One stream serves the whole run: a fresh FromSeq(0) reader
+// per turn would replay an earlier boundary and return without ever reaching the live tail.
+func promptEveryTurn(t *testing.T, session agentsession.Session, turns int) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream := session.Events(ctx, agentsession.FromSeq(0))
+	for turn := range turns {
+		if _, err := session.Control(ctx, agentsession.Command{Kind: agentsession.CommandPrompt, Text: "prompt"}); err != nil {
+			t.Fatalf("Prompt %d of %d was refused: %v", turn+1, turns, err)
+		}
+		readThroughTurnBoundary(ctx, t, stream, turn+1)
+	}
+}
+
 // awaitStreamEnd reads the live tail to its end (the pump's terminal), bounded so a regression
 // fails fast instead of hanging the lane.
 func awaitStreamEnd(t *testing.T, session agentsession.Session) {
@@ -449,6 +572,41 @@ func assertLedgerReplayed(t *testing.T, got agentsession.TokenLedger) {
 	if got.UsageMeter != want.UsageMeter || got.Turns != want.Turns ||
 		got.ToolUses != want.ToolUses || got.WallTime != want.WallTime {
 		t.Errorf("the requested-close terminal must replay the last turn's ledger: got %+v, want %+v", got, want)
+	}
+}
+
+// assertSessionLedger asserts one reading of the session's final accounting against the total a
+// three-turn session costing 100+200+300 micros spent. The expected numbers are written out
+// LITERALLY rather than folded from turnLedgerCosting, so the expectation is independent of the
+// fixture that produced it: 3 turns, cost 100+200+300, input 10+20+30, output 1+2+3, cache-read
+// 1000+2000+3000, cache-creation 5+10+15.
+//
+// Model, Harness and the Cumulative flag are deliberately not asserted — attribution and the
+// meaning of the flag on a SESSION total are their own questions, not this one.
+//
+//nolint:gocritic // TokenLedger is the contract's copyable value record (§2); this helper takes it by value.
+func assertSessionLedger(t *testing.T, what string, got agentsession.TokenLedger) {
+	t.Helper()
+	var drifted []string
+	for _, field := range []struct {
+		name string
+		got  int64
+		want int64
+	}{
+		{"CostMicros", got.CostMicros, 600},
+		{"InputTokens", got.InputTokens, 60},
+		{"OutputTokens", got.OutputTokens, 6},
+		{"CacheReadTokens", got.CacheReadTokens, 6000},
+		{"CacheCreationTokens", got.CacheCreationTokens, 30},
+		{"Turns", int64(got.Turns), 3},
+	} {
+		if field.got != field.want {
+			drifted = append(drifted, fmt.Sprintf("%s=%d (want %d)", field.name, field.got, field.want))
+		}
+	}
+	if len(drifted) > 0 {
+		t.Errorf("%s reports %s — a 3-turn session's accounting is the SUM of its turns, not a replay of the last one",
+			what, strings.Join(drifted, ", "))
 	}
 }
 
