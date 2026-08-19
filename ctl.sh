@@ -282,19 +282,26 @@ function devcontainer_files() {
   done
 }
 
-# Hold every devcontainer.json to the 4 properties a consumer depends on. Until
+# Hold every devcontainer.json to the 6 properties a consumer depends on. Until
 # this pass these files were read by nothing in the repository: no verb, no test
 # and no workflow opened one, so a typo in the image ref reached a developer's
 # "Reopen in Container" and nowhere earlier.
 #
-# The 4 are the contract .claude/rules/00-identity.md states — the published ref,
-# the `dev` user (uid 1000, sudo-nopasswd), and /workspace, which is Eden's
-# bind-mount convention. postCreateCommand is deliberately NOT a 5th: exactly 1
-# of the 6 files declares it and the other 5 must not, so agreement is the wrong
-# property here. That document's dev-in-container section gives the reason per
-# image.
+# 4 of the 6 are the contract .claude/rules/00-identity.md states about 1 file —
+# it parses, the published ref, the `dev` user (uid 1000, sudo-nopasswd), and
+# /workspace, which is Eden's bind-mount convention. The other 2 are SET rules
+# that no single file can answer, and the local/CI 1:1 workflow rests on both:
+# the image set of images.yaml and the devcontainer set are ONE set, and each
+# file opens the image of the directory it sits in. An image with no
+# devcontainer.json is an image nobody can open locally; a file that names a
+# SIBLING's ref passes the shape rule while handing the developer a container
+# that no CI job of that directory ever runs.
+#
+# postCreateCommand is deliberately NOT a 7th: exactly 1 of the 6 files declares
+# it and the other 5 must not, so agreement is the wrong property here. That
+# document's dev-in-container section gives the reason per image.
 function check_devcontainer_json() {
-  local rc=0 file rel value
+  local rc=0 file rel name value expected declared found
   local -a files=()
   while IFS= read -r file; do
     files+=("$file")
@@ -307,9 +314,34 @@ function check_devcontainer_json() {
     return 1
   fi
 
+  # The manifest half of the set equality. The glob answers the other half, and
+  # it cannot answer this one: an image that ships without a devcontainer.json
+  # is a file the glob never matches, so the pass would report OK about an image
+  # a developer has no way to open.
+  for name in "${BUILD_ORDER[@]}"; do
+    if [[ ! -f "$(image_dir "$name")/devcontainer.json" ]]; then
+      log_error "${name}/devcontainer.json: absent — ${IMAGES_MANIFEST} declares ${name}, and this is the file that opens it"
+      rc=1
+    fi
+  done
+
   for file in "${files[@]}"; do
     rel="${file#"$PROJECT_ROOT"/}"
+    name="${rel%%/*}"
     log_info "devcontainer: ${rel}"
+
+    # The other half. A file in a directory the manifest does not declare points
+    # at a ref nothing here builds or pushes — `runner/` sat retired on disk for
+    # months, and a devcontainer.json added to it would have been read by
+    # nothing.
+    found=""
+    for declared in "${BUILD_ORDER[@]}"; do
+      [[ "$declared" == "$name" ]] && found="yes"
+    done
+    if [[ -z "$found" ]]; then
+      log_error "${rel}: no such image in ${IMAGES_MANIFEST} — declare ${name} there, or delete ${name}/"
+      rc=1
+    fi
 
     if ! jq empty "$file"; then
       log_error "${rel}: not parseable JSON"
@@ -319,9 +351,17 @@ function check_devcontainer_json() {
 
     # -r prints a bare string and `// empty` prints nothing for a null, so an
     # absent property and a wrong one take the same branch and name themselves.
+    #
+    # The self-reference is an `elif` and not a second `if`: a ref that fails the
+    # shape is already refused, and printing both would report 1 defect twice
+    # while leaving the reader to work out that the 2 lines are the same file.
     value="$(jq -r '.image // empty' "$file")"
+    expected="ghcr.io/gophersys/${name}:latest"
     if [[ ! "$value" =~ ^ghcr\.io/gophersys/[a-z-]+:latest$ ]]; then
       log_error "${rel}: .image is '${value:-<absent>}' — must match ghcr.io/gophersys/<name>:latest"
+      rc=1
+    elif [[ "$value" != "$expected" ]]; then
+      log_error "${rel}: .image is '${value}' — must be '${expected}'"
       rc=1
     fi
 
@@ -371,7 +411,7 @@ function cmd_test() {
 
 # Validate: shellcheck every shell script, assert every per-image ctl.sh the
 # manifest names is executable, jq every project.json, hold every
-# devcontainer.json to its 4 contract properties, hadolint every Dockerfile,
+# devcontainer.json to its 6 contract properties, hadolint every Dockerfile,
 # refuse Dockerfiles that hardcode a semver-shaped version inside a RUN line
 # instead of threading an ARG, and refuse a ${USERNAME} that a zsh RUN layer
 # would read as the effective user.

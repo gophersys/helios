@@ -166,6 +166,40 @@ into the image through `_delta/components/agents.sh` at the `versions.env` pins,
 so a container start does zero network installs. `base` ships no harness, so
 `base/ctl.sh post-create` installs them at create time.
 
+### The local/CI 1:1 workflow
+
+**One image, two consumers.** A developer opens
+`ghcr.io/gophersys/<image>:latest` on the Apple Silicon Mac. A CI job runs
+`ghcr.io/gophersys/<image>:latest` on the ARC pool. The 2 refs are equal, because
+they are the same string: 1 publish writes 1 manifest list, and that list holds
+both variants.
+
+- **The amd64 leg runs CI.** Every ARC node is amd64, so a job pulls that
+  variant.
+- **The arm64 leg is what the Mac opens.** The devcontainer CLI pulls the variant
+  of the host, and the Mac mini builds that leg natively.
+
+Nothing here selects a platform. Each `devcontainer.json` names the tag alone,
+and the docker client takes the variant of the host out of the manifest list. So
+a developer and a CI job get the same pins, the same tools and the same
+`GOPHERSYS_DEVCONTAINER` value.
+
+`ctl.sh validate` enforces the workflow, and it does so as a SET. The image set
+of `images.yaml` and the set of `*/devcontainer.json` files are one set, in both
+directions: an image with no such file is an image nobody can open locally, and
+a file in a directory no image declares points at a ref nothing here builds. Each
+file must also open the image of its own directory. A `ui/devcontainer.json` that
+names cloud's ref matches the shape rule exactly, and it gives the developer a
+container that no CI job of `ui/` has ever run.
+
+**`mobile` is the exception, and it is the only one.** That image publishes
+`linux/amd64` alone, because Flutter publishes no linux-arm64 SDK. An arm64 host
+therefore emulates the amd64 variant, or it does not use `mobile` locally. The
+developer's `uname -m` then disagrees with every CI job of that image. Read "Why
+mobile is the exception" below for the measurement.
+`_ctl/tests/platform-policy.test.sh` holds this paragraph to the manifest: an
+image that loses its arm64 variant, and takes no name here, turns that file red.
+
 ### As the CI runtime
 
 The image is the image of the **pod**, and never a workflow `container:` image.
