@@ -1,6 +1,6 @@
 # agentsession-multi-turn
 
-phase:    fix
+phase:    submit
 repo:     gophersys/libs
 branch:   feat/agentsession-multi-turn
 worktree: ~/code/.worktrees/libs-agentsession-multi-turn
@@ -168,8 +168,19 @@ types.go:303 "per message" one-worder; (7) invariant comment overgeneralizes (ou
 column does not reconcile — state it); (8) pre-existing budget-authority dead on real
 adapters → ticketed. Attempt 2/2 justified: new findings, exact fixes.
 
+## Final state: READY (verify round 3, closures break-tested both directions)
+Attempt 2/2 closed everything: death-path ledger sealed with the session sum; -1
+sentinel one-home + permanent poison (mixed case pinned to -1 — reversible contract
+choice, flagged); ordinal derived at admission (admitControl fuses legality+turn-open;
+edge enumeration deleted after three defeats); amd64 CI tier green (was red);
+concurrent Prompts now advance once per ADMITTED Prompt (matches the contract row;
+nothing asserted the old collapse); poll-window + rollBackTurn windows recorded as
+in-tree comments (ed8794d); sentinel seed pinned (75b9b15, proven able to fail, sole
+red under the mutant). 6/6 gates green both arches' PR tier; apidiff = controlframe 4
+lines only; 8 pins + 3 ordinal pins + seed pin all green; -race x5 90/90.
+Deferred, stated for the PR body: R1 contract text lands in eden (S5/PR-2); ticketed:
+budget-authority dead branch; recorded debt: LedgerFold EventTurnEnd default-arm,
+zero-turn death/auth paths share the seed unpinned, stub num_turns shape.
+
 ## Next
-FINAL attempt: test author pins B1 + sentinel + boundary-only-ordinal RED and fixes
-B2 formatting; implementer greens B1 (pass the sum to emitTerminalFailed) + sentinel
-(-1 preserved when no turn reported) + arm-time ordinal + docs (4/6/7). Verify round
-3 LIMITED to these closures. Any further HIGH = hard stop, report to Mateo.
+Subject reword (4 long subjects), delete this file, open the PR.
