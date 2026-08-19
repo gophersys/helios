@@ -24,7 +24,7 @@ hardware:
     arch: amd64
     cores: 2
     memory_gb: 3
-    storage_gb: 60                  # root VM disk (thin LV on the host NVMe)
+    storage_gb: 80                  # root VM disk (thin LV on the host NVMe); grown 60->80 live 2026-08-18
     storage_class: ssd
     network: tailnet
   proxmox:

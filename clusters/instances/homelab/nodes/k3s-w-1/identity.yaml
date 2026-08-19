@@ -24,7 +24,7 @@ hardware:
     arch: amd64
     cores: 4
     memory_gb: 14
-    storage_gb: 60                  # root VM disk (thin LV on the host NVMe)
+    storage_gb: 100                 # root VM disk (thin LV on the host NVMe); grown 60->100 live 2026-08-19 (DiskPressure evictions killed CI builds)
     storage_class: ssd
     network: tailnet
   proxmox:
