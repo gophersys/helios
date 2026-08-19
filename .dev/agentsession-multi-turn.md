@@ -5,7 +5,7 @@ repo:     gophersys/libs
 branch:   feat/agentsession-multi-turn
 worktree: ~/code/.worktrees/libs-agentsession-multi-turn
 pr:       -
-attempt:  1/2
+attempt:  2/2
 
 ## Goal
 Contract revision R1: an eden agent session survives its own turn. Today
@@ -154,6 +154,22 @@ invariant comment. LEFTOVERS (recorded, unclaimed): emitTerminalFailed carries n
 ledger (unbidden death = zero accounting); LedgerFold does not fold EventTurnEnd
 (EventFailed path folds zero); types.go:303 Turn doc says per-message.
 
+## Verify round 2: STOP-AND-REPORT — 2 blockers, both NEW information
+F1-F4 closures all CONFIRMED by break-tests. NEW: B1 HIGH — unbidden death emits a
+terminal with NO ledger; R1 CREATED the loss (pre-R1 zero was correct; now 3 paid
+turns seal as 0 while the Close path on the identical session seals 600). B2 — the
+amd64 CI tier is RED: agentruntime/turnend_test.go not dual-gofumpt-formatted (the
+"dual-version clean" claim covered only agentsession). Also: (3) the fix regressed
+the -1 cost sentinel to 0 ("billed unknown reads as free"); (4) types.go:415
+Cumulative doc names the claude result as session-to-date — the OPPOSITE of the
+invariant, on the contract surface; (5) boundary-only turn loses its ordinal —
+edge-enumeration has failed twice, derive the advance AT ARM TIME instead; (6)
+types.go:303 "per message" one-worder; (7) invariant comment overgeneralizes (output
+column does not reconcile — state it); (8) pre-existing budget-authority dead on real
+adapters → ticketed. Attempt 2/2 justified: new findings, exact fixes.
+
 ## Next
-Verify round 2 (attempt budget: final round — STOP-AND-REPORT on new HIGHs). Then the
-subject-reword rebase of the 4 long subjects, cleanup pass, PR + ping Mateo.
+FINAL attempt: test author pins B1 + sentinel + boundary-only-ordinal RED and fixes
+B2 formatting; implementer greens B1 (pass the sum to emitTerminalFailed) + sentinel
+(-1 preserved when no turn reported) + arm-time ordinal + docs (4/6/7). Verify round
+3 LIMITED to these closures. Any further HIGH = hard stop, report to Mateo.
