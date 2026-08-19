@@ -936,12 +936,14 @@ Container" then lists `base`, `cloud`, `mobile`, `embedded`, `hardware` and
 configuration bind-mounts the project to `/workspace` and runs as the `dev`
 user.
 
-**`ctl.sh validate` holds every `*/devcontainer.json` to 4 properties**, and
+**`ctl.sh validate` holds every `*/devcontainer.json` to 6 properties**, and
 until that pass was written these 6 files were read by NOTHING in this
 repository — no verb, no test, no workflow opened one, so a typo in an image ref
-reached a developer's "Reopen in Container" and nowhere earlier. The 4 are
+reached a developer's "Reopen in Container" and nowhere earlier. The 6 are
 `jq .` parses, `.image` matches `ghcr.io/gophersys/<name>:latest`,
-`.remoteUser` is `dev`, `.workspaceFolder` is `/workspace` — the contract this
+`.remoteUser` is `dev`, `.workspaceFolder` is `/workspace`, the image set of
+`images.yaml` and the devcontainer set are ONE set in BOTH directions, and
+`.image` is the ref of the directory the file sits in — the contract this
 section states. The pass FAILS naming the file and the property, and it fails
 when the glob matches zero files, because a check that opened no file is not a
 check that passed. It finds the files by glob and not by `BUILD_ORDER`: a
@@ -949,7 +951,33 @@ directory outside `BUILD_ORDER` would otherwise take an unchecked
 `devcontainer.json` the day somebody added one, which is what `runner/` would
 have done for as long as it sat on disk retired.
 
-**`postCreateCommand` is deliberately NOT the 5th property. 1 of the 6 files
+**The last 2 are the local/CI 1:1 workflow, and they are SET rules that no
+single file can answer.** The workflow is 1 sentence: a developer opens the SAME
+published `:latest` a CI job runs, the amd64 leg on the pool and the arm64 leg on
+the Mac, out of 1 manifest list that 1 publish wrote. Property 5 is why the
+first 4 are not enough — an image of `images.yaml` with no `devcontainer.json` is
+an image nobody can open locally, and a `devcontainer.json` in a directory no
+image declares points at a ref nothing here builds or pushes, which is what
+`runner/` would have carried. Property 6 is the half the SHAPE rule cannot see:
+`ghcr.io/gophersys/second:latest` inside `first/` matches
+`^ghcr\.io/gophersys/[a-z-]+:latest$` exactly, and it hands the developer a
+container that no CI job of `first/` has ever run. Both refusals name the
+directory and the remedy, and property 6 names both refs, because 2 refs of this
+repository leave a reader no way to tell which direction the mistake goes in.
+
+**`mobile` is the 1 exception to the workflow, and it is STATED rather than
+fixed.** It publishes `linux/amd64` alone, so an arm64 host emulates that variant
+or does not open the image locally, and the developer's architecture then
+disagrees with every CI job of it. The reason is upstream's and not ours — see
+the mobile subsection of the platform policy above — so the rule is that the
+exception is named where a developer reads the workflow. `README.md`
+"### The local/CI 1:1 workflow" is that place, and
+`_ctl/tests/platform-policy.test.sh` holds its `ARM64_LOCAL_EXCEPTIONS` literal
+to SET EQUALITY with the rows of its platform table that carry no `linux/arm64`.
+So an image that loses its arm64 variant with no name in that section is red, and
+a name there that describes no narrowed image is red too.
+
+**`postCreateCommand` is deliberately NOT the 7th property. 1 of the 6 files
 declares it, and the other 5 must not.** The property is not symmetry; it is
 whether an image needs an install at create time.
 

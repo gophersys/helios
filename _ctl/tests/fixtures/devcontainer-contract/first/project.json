@@ -1,0 +1,5 @@
+{
+  "//": "A fixture project.json. `validate` runs `jq empty` over it and reads nothing else.",
+  "name": "first",
+  "targets": {}
+}

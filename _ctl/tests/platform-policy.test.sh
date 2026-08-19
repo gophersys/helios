@@ -17,7 +17,11 @@
 #     images.yaml and measured. It may never publish a wider one, and a manifest
 #     that tries is refused NAMING the image and the platform;
 #   - the generated workflow repeats the sanctioned set at the workflow level and
-#     carries a job-level override ONLY where the image is narrower.
+#     carries a job-level override ONLY where the image is narrower;
+#   - an image that publishes NO linux/arm64 variant is an exception to the
+#     local/CI 1:1 workflow — it cannot be opened natively on the Apple Silicon
+#     Mac that consumes these images locally — and every such image is named in
+#     the README section that states the workflow.
 #
 # The sanctioned value is written here as a literal ON PURPOSE, and so is the
 # per-image table below it. A test that reads the value out of the
@@ -115,6 +119,82 @@ IMAGE_PLATFORM_TABLE=(
 # would satisfy the per-image rule while proving nothing about the mechanism
 # that makes an exception possible.
 NARROWER_IMAGE="mobile"
+
+# ============================================================================
+# THE ARM64-LOCAL EXCEPTIONS
+# ============================================================================
+#
+# The local half of the local/CI 1:1 workflow runs on an Apple Silicon Mac, so
+# it consumes linux/arm64. An image with no arm64 variant is therefore an image
+# a developer cannot open NATIVELY: Docker Desktop emulates the amd64 one
+# instead, which is the same image bytes running on a different architecture —
+# the developer's `uname -m` disagrees with every CI job of that image, and any
+# defect that is architecture-shaped shows up on exactly one of the 2 sides.
+#
+# That is a real exception to the 1:1 claim, not a defect to fix here: mobile's
+# narrowing is upstream's (Flutter publishes no linux-arm64 SDK, at any version)
+# and images.yaml carries the measurement beside the key. So the rule is that
+# the exception is STATED where a developer reads the workflow, and this list is
+# what ties the 2 together.
+#
+# It is a HAND-KEPT LITERAL for the reason SANCTIONED and IMAGE_PLATFORM_TABLE
+# are literals, and it is the reason it may never be derived from images.yaml:
+# a test that reads its own subject agrees with any value the subject happens to
+# hold, a wrong one included. It owes SET EQUALITY to the rows of
+# IMAGE_PLATFORM_TABLE that do not publish linux/arm64 — BOTH directions, so an
+# image that loses its arm64 variant without being named here is red, and a name
+# here that no longer describes a narrowed image is red too.
+ARM64_LOCAL_EXCEPTIONS=("mobile")
+
+# The platform the local half of the workflow runs. It is a member of SANCTIONED
+# and it is spelled again here because this rule is about THIS platform and not
+# about the set: widening the set to a third architecture would not make that
+# architecture the one a Mac pulls.
+ARM64_LOCAL_PLATFORM="linux/arm64"
+
+# WHERE THE EXCEPTION MUST BE STATED, and the reason it is a SECTION and not the
+# file. README.md names `mobile` on 20 lines, 22 times, measured 2026-08-18 —
+# the inventory table, the dependency graph, the rename note, the platform
+# policy, the day-to-day commands — so a whole-file grep for the name would be
+# satisfied by every one of them and would pass on a README that never mentioned
+# the workflow at all.
+# The reader below extracts exactly this section, and the check reads that.
+README_FILE="README.md"
+README_LOCAL_CI_HEADING="### The local/CI 1:1 workflow"
+
+# ============================================================================
+# AND THE NAME IS MATCHED AS A NAME. A SUBSTRING IS NOT ONE.
+# ============================================================================
+#
+# The membership test was a bare substring read of the section body, and it was
+# unfalsifiable for 2 of the 6 images this rule can ever be about. Measured
+# against the real section on 2026-08-18:
+#
+#   ui     the section says "the Mac mini BUILDS that leg natively" — b-UI-lds —
+#          so `ui` was "stated" by a sentence about the build host.
+#   cloud  the section says "a ui/devcontainer.json that names CLOUD'S ref" —
+#          the word itself, in an example about a DIFFERENT rule.
+#
+# Both are exactly the event this check exists to catch: if either image ever
+# narrowed to amd64-only, the check would have passed on a sentence about
+# something else, in green, forever. Only base, embedded and hardware would have
+# failed correctly.
+#
+# A word boundary does not fix it either, and that is worth stating so the next
+# reader does not reach for one: "cloud's" is the word `cloud` followed by an
+# apostrophe, so it satisfies every boundary spelling there is.
+#
+# So the exception must appear as a CODE SPAN of its own name — the form
+# README.md already uses for every image it names, and a form ordinary prose
+# cannot produce by accident. `ui/` inside a path is not `ui`, and a sentence
+# about the cloud image is not `cloud`.
+#
+# shellcheck disable=SC2016
+# The backticks are MARKDOWN, not a command substitution, and SC2016's remedy is
+# the one thing that must never be done here: in double quotes this shell would
+# run the name as a command. Single quotes are the correct spelling and the
+# linter cannot tell the 2 intents apart.
+EXCEPTION_STATEMENT_FORMAT='`%s`'
 
 # The build path, named file by file. This is deliberately NOT a repository-wide
 # grep. A document must stay free to say the words "linux/riscv64" while it
@@ -305,6 +385,48 @@ function workflow_platform_keys() {
       printf "%s|%d|%s|%s\n", scope, NR, key, value
     }
   ' "$file"
+}
+
+# markdown_section <file> <heading line> — the BODY of that section, without its
+# heading line, ending at the next heading.
+#
+# It tracks fenced code blocks, and that is not decoration: README.md's
+# "Day-to-day operations" section is a ```sh block whose comment lines all begin
+# with `#`, so a reader that ended a section at the first line starting with a
+# hash would cut half of this file's sections at their first shell comment and
+# report a body that stops before the words the check is looking for.
+#
+# An absent file and an absent heading both print NOTHING, and the caller has to
+# tell those apart from a section that is really empty. It does: the check below
+# reports the missing heading by name, because "the exception is not stated" and
+# "the section that would state it does not exist" are 2 different things to fix.
+function markdown_section() {
+  local file="$1" heading="$2"
+  [[ -f "$file" ]] || return 0
+  awk -v heading="$heading" '
+    /^```/ { fence = !fence }
+    !fence && $0 == heading { inside = 1; next }
+    inside && !fence && /^#+ / { exit }
+    inside { print }
+  ' "$file"
+}
+
+# exception_statement <image name> — the exact text that STATES an exception.
+function exception_statement() {
+  # shellcheck disable=SC2059
+  # The format is a CONSTANT declared above, and %s is the point of it.
+  printf "$EXCEPTION_STATEMENT_FORMAT" "$1"
+}
+
+# section_states_exception <section body> <image name> — does that body state
+# that image as an exception? Exit status, so the caller reads it in an `if`.
+#
+# grep -F on the code-span form, and never on the bare name: read the block at
+# EXCEPTION_STATEMENT_FORMAT for the 2 images a substring read could not tell
+# from prose.
+function section_states_exception() {
+  local body="$1" name="$2"
+  grep -qF -- "$(exception_statement "$name")" <<< "$body"
 }
 
 # IMAGE_PLATFORMS_OUTPUT / IMAGE_PLATFORMS_STATUS — set by the probe below.
@@ -833,6 +955,193 @@ else
     "base/Dockerfile still pins a platform on a FROM line:" \
     "$from_hits" \
     "want: FROM ubuntu:24.04"
+fi
+
+# -------- 7. the arm64-local exceptions, and where they are STATED --------
+#
+# The 1:1 workflow is a claim about 2 machines: the Apple Silicon Mac a
+# developer opens a devcontainer on, and the amd64 pool a CI job runs on. It
+# holds for an image that publishes both variants, and it does NOT hold for an
+# image that publishes amd64 alone — that developer gets an emulated container,
+# and no file in this repository said so.
+#
+# So the rule has 2 halves, and both are here: the exception LIST is exact
+# against the platform table, and every name in it is stated where a developer
+# reads the workflow.
+
+# THE READER IS WATCHED FIRING FIRST, on a file written for the purpose — the
+# shape section 5 uses for platform_tokens, and for the same reason. A reader
+# that returned the empty string for every heading would make the checks below
+# report a README that states nothing, whatever the README said; and one that
+# ran past the next heading would let a mention in an unrelated section satisfy
+# a rule about this one.
+probe_readme="$(mktemp)"
+{
+  printf '# Title\n'
+  printf '\n'
+  printf '## Before\n'
+  printf 'before-marker\n'
+  printf '\n'
+  printf '%s\n' "$README_LOCAL_CI_HEADING"
+  printf 'inside-marker\n'
+  printf '\n'
+  printf '```sh\n'
+  printf '# a shell comment a naive reader would end the section on\n'
+  printf '```\n'
+  printf '\n'
+  printf 'still-inside-marker\n'
+  printf '\n'
+  printf '### After\n'
+  printf 'after-marker\n'
+} > "$probe_readme"
+probe_section="$(markdown_section "$probe_readme" "$README_LOCAL_CI_HEADING")"
+rm -f "$probe_readme"
+
+probe_section_ok=1
+for probe_marker in "inside-marker" "still-inside-marker"; do
+  if ! grep -qF -- "$probe_marker" <<< "$probe_section"; then
+    probe_section_ok=0
+  fi
+done
+for probe_marker in "before-marker" "after-marker"; do
+  if grep -qF -- "$probe_marker" <<< "$probe_section"; then
+    probe_section_ok=0
+  fi
+done
+
+if [[ "$probe_section_ok" -eq 1 ]]; then
+  pass_check "counter_stimulus_the_markdown_section_reader_reads_exactly_one_section"
+else
+  fail_check "counter_stimulus_the_markdown_section_reader_reads_exactly_one_section" \
+    "a file whose '${README_LOCAL_CI_HEADING}' section holds inside-marker, a fenced shell" \
+    "comment and still-inside-marker, between a section holding before-marker and one holding" \
+    "after-marker, must read back as the middle 2 and neither of the others; it read:" \
+    "${probe_section:-<nothing>}" \
+    "the fenced comment is in the stimulus because README.md's own command sections are fenced" \
+    "sh blocks whose every comment line begins with a hash, and a reader that ended a section" \
+    "there would report a body that stops before the words this rule looks for"
+fi
+
+# THE MEMBERSHIP TEST IS WATCHED REFUSING PROSE, on the 3 sentences that made
+# the substring version unfalsifiable. Every line below is taken from the real
+# section, and 2 of them are the trap: a reader that answers YES for ui or cloud
+# here is a reader that would report those images as stated on the day either one
+# narrowed — the exact event 7b exists to catch.
+# shellcheck disable=SC2016
+# The backticks on the third line are the markdown this rule requires, for the
+# reason EXCEPTION_STATEMENT_FORMAT gives; double quotes there would run the
+# image name as a command.
+statement_probe_body="$(printf '%s\n' \
+  'Nothing here selects a platform, and the Mac mini builds that leg natively.' \
+  "A ui/devcontainer.json that names cloud's ref matches the shape rule exactly." \
+  'The 1 exception is `mobile`, which publishes linux/amd64 alone.')"
+
+statement_probe_ok=1
+if ! section_states_exception "$statement_probe_body" "mobile"; then
+  statement_probe_ok=0
+fi
+for statement_probe_name in "ui" "cloud"; do
+  if section_states_exception "$statement_probe_body" "$statement_probe_name"; then
+    statement_probe_ok=0
+  fi
+done
+
+if [[ "$statement_probe_ok" -eq 1 ]]; then
+  pass_check "counter_stimulus_a_prose_mention_does_not_state_an_exception"
+else
+  fail_check "counter_stimulus_a_prose_mention_does_not_state_an_exception" \
+    "a body holding 'the Mac mini builds that leg', 'names cloud'\''s ref' and a code span of" \
+    "mobile must state mobile and must state NEITHER ui NOR cloud; the body was:" \
+    "$statement_probe_body" \
+    "ui is a substring of the word builds, and cloud is a whole word in a sentence about a" \
+    "different rule, so a substring read — and a word-boundary read, for cloud — reports both" \
+    "as stated and the check becomes unfalsifiable for the 2 images most likely to narrow next"
+fi
+
+# 7a. THE LIST IS EXACT AGAINST THE PLATFORM TABLE, IN BOTH DIRECTIONS.
+arm64_missing_rows=""
+for arm64_row in "${IMAGE_PLATFORM_TABLE[@]}"; do
+  arm64_row_name="${arm64_row%%|*}"
+  arm64_row_platforms="${arm64_row#*|}"
+  # The comma-fenced membership test the whole file uses. `linux/arm` is a
+  # prefix of `linux/arm64`, so a bare substring read answers the wrong question.
+  if [[ ",${arm64_row_platforms}," == *",${ARM64_LOCAL_PLATFORM},"* ]]; then
+    continue
+  fi
+  arm64_missing_rows="${arm64_missing_rows:+${arm64_missing_rows}
+}${arm64_row_name}"
+done
+
+# The liveness clause first. With no narrowed row left, the equality below would
+# be satisfied by an empty list against an empty set, and 7b would then loop 0
+# times and report a README that states nothing — in green.
+if [[ -n "$arm64_missing_rows" ]]; then
+  pass_check "the_platform_table_still_holds_an_image_with_no_arm64_variant"
+else
+  fail_check "the_platform_table_still_holds_an_image_with_no_arm64_variant" \
+    "every row of IMAGE_PLATFORM_TABLE publishes ${ARM64_LOCAL_PLATFORM}" \
+    "the exception list would then be empty, the equality below would compare 2 empty sets," \
+    "and the README rule under it would run 0 times and pass having read nothing" \
+    "if that is really true, the exception is GONE — delete this rule with the last row it" \
+    "described, in the change that gives that image its arm64 variant"
+fi
+
+assert_equal "the_arm64_local_exceptions_equal_the_rows_with_no_arm64" \
+  "$(joined ${ARM64_LOCAL_EXCEPTIONS[@]+"${ARM64_LOCAL_EXCEPTIONS[@]}"})" \
+  "$(printf '%s\n' "$arm64_missing_rows" | awk 'NF' | sort)" \
+  "want is the ARM64_LOCAL_EXCEPTIONS literal of this file; got is every row of" \
+  "IMAGE_PLATFORM_TABLE whose platform list does not carry ${ARM64_LOCAL_PLATFORM}" \
+  "an image that loses its arm64 variant without a name here is an image whose developers" \
+  "silently move to an emulated container, and a name here that describes no narrowed row" \
+  "is an exception this file goes on stating about an image that no longer has one"
+
+# 7b. EVERY EXCEPTION IS STATED WHERE THE WORKFLOW IS.
+readme_path="$REPO_ROOT/$README_FILE"
+readme_local_ci_body=""
+if [[ -f "$readme_path" ]]; then
+  readme_local_ci_body="$(markdown_section "$readme_path" "$README_LOCAL_CI_HEADING")"
+fi
+
+if [[ ! -f "$readme_path" ]]; then
+  fail_check "the_README_carries_the_local_CI_workflow_section" \
+    "absent: ${README_FILE}"
+elif [[ -z "$readme_local_ci_body" ]]; then
+  fail_check "the_README_carries_the_local_CI_workflow_section" \
+    "${README_FILE} carries no section '${README_LOCAL_CI_HEADING}', or that section is empty" \
+    "the 1:1 workflow is the claim this whole feature rests on — local development opens the" \
+    "SAME published image CI runs — and until a section states it, it is a property the tests" \
+    "enforce and no reader of this repository is told about" \
+    "the heading is matched EXACTLY, so a section with a different wording is a different" \
+    "section: edit README_LOCAL_CI_HEADING here in the change that renames it there"
+else
+  pass_check "the_README_carries_the_local_CI_workflow_section"
+fi
+
+unstated_exceptions=""
+for arm64_exception in ${ARM64_LOCAL_EXCEPTIONS[@]+"${ARM64_LOCAL_EXCEPTIONS[@]}"}; do
+  if ! section_states_exception "$readme_local_ci_body" "$arm64_exception"; then
+    unstated_exceptions="${unstated_exceptions:+${unstated_exceptions}
+}$(exception_statement "$arm64_exception")"
+  fi
+done
+
+if [[ -z "$readme_local_ci_body" ]]; then
+  fail_check "every_arm64_local_exception_is_stated_in_the_README" \
+    "there is no '${README_LOCAL_CI_HEADING}' section in ${README_FILE} to read, so every" \
+    "exception is stated nowhere a developer looks:" \
+    "$(joined ${ARM64_LOCAL_EXCEPTIONS[@]+"${ARM64_LOCAL_EXCEPTIONS[@]}"})"
+elif [[ -n "$unstated_exceptions" ]]; then
+  fail_check "every_arm64_local_exception_is_stated_in_the_README" \
+    "these images publish no ${ARM64_LOCAL_PLATFORM}, and the workflow section does not state" \
+    "them AS A NAME — each one is wanted in the section body exactly as written here:" \
+    "$unstated_exceptions" \
+    "the section read as:" "$readme_local_ci_body" \
+    "a developer who opens one of these on the Mac gets an emulated amd64 container, and the" \
+    "1:1 claim they just read does not hold for it" \
+    "the form is a code span and not the bare word on purpose: prose in this very section" \
+    "contains ui inside the word builds, and cloud inside a sentence about another rule"
+else
+  pass_check "every_arm64_local_exception_is_stated_in_the_README"
 fi
 
 test_summary "$TEST_NAME"
