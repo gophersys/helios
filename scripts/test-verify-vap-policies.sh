@@ -39,6 +39,12 @@
 #                    policy directory. A `2>/dev/null` there would read as "this
 #                    file declares no PVC" / "no policy is declared" — the right
 #                    exit code for the wrong reason.
+#   CHART-EXCLUDED   Helm chart source (a Chart.yaml at or above the file) is
+#                    excluded from the scan — a Go template is not YAML — and
+#                    the skipped count is PRINTED. And the exclusion must not
+#                    swallow the tree it does not own: a raw manifest outside
+#                    the chart is still scanned, so a bare PVC in a protected
+#                    namespace still FAILS with the chart present.
 #   GREEN            the correct tree passes. A check that cannot pass is as
 #                    useless as one that cannot fail.
 #
@@ -213,6 +219,29 @@ m_no_dir()     { rm -rf "$1/platform/core/policy"; }
 m_no_scan()    { rm -rf "$1/apps" "$1/platform/services"; }
 m_malformed()  { printf 'kind: PersistentVolumeClaim\n  bad: [indent\n' > "$1/apps/demo/99-broken.yaml"; }
 m_bad_policy() { printf 'kind: ValidatingAdmissionPolicy\n  bad: [indent\n' > "$1/platform/core/policy/manifests/99-broken.yaml"; }
+# An in-repo Helm chart under a scan root, as
+# platform/services/observability/chart is. The template is a Go template and
+# NOT parseable YAML on purpose: without the Chart.yaml-anchored exclusion it
+# fails check 4b, which is exactly how the first CHART-EXCLUDED case proves the
+# exclusion runs (verified: against the pre-exclusion script this case exits 1
+# with "yq could not read").
+m_chart() {
+  local d="$1"
+  mkdir -p "$d/apps/somechart/templates"
+  printf 'apiVersion: v2\nname: somechart\nversion: 0.1.0\n' > "$d/apps/somechart/Chart.yaml"
+  printf 'enabled: true\n' > "$d/apps/somechart/values.yaml"
+  cat > "$d/apps/somechart/templates/externalsecret.yaml" <<'EOYAML'
+{{- if .Values.enabled }}
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  name: {{ .Release.Name }}-secret
+{{- end }}
+EOYAML
+}
+# The chart AND a broken property outside it: the exclusion must not have
+# swallowed the raw tree, so the bare PVC must still turn check 6 red.
+m_chart_and_bare_pvc() { m_chart "$1"; m_pvc_bare "$1"; }
 
 echo "spec: scripts/verify-vap-policies.sh"
 
@@ -233,6 +262,8 @@ case_run "FLOOR            a missing policy directory fails"          1 "the adm
 case_run "FLOOR            a scan over zero manifests fails"          1 "measured nothing" m_no_scan
 case_run "NO-SWALLOW       an unparseable POLICY manifest fails"       1 "yq could not read" m_bad_policy
 case_run "NO-SWALLOW       an unparseable manifest fails"             1 "yq could not read" m_malformed
+case_run "CHART-EXCLUDED   helm chart source is skipped, counted out loud" 0 "chart-source file(s) under a Chart.yaml excluded" m_chart
+case_run "CHART-EXCLUDED   the exclusion must not swallow the raw tree"    1 "loses its guard" m_chart_and_bare_pvc
 
 echo
 echo "  cases=$n pass=$pass fail=$fail"
