@@ -1,6 +1,6 @@
 # agentsession-peer-plane
 
-phase:    verify
+phase:    submit
 repo:     gophersys/libs
 branch:   feat/agentsession-peer-plane
 worktree: ~/code/.worktrees/libs-agentsession-peer-plane
@@ -156,3 +156,9 @@ goleak clean; only architecture contract-doc red (eden S5, expected).
 ## Next
 Verify round 2 (bounded, closures only): confirm F1 sweep+assert, F2 real generation, F3
 stamp/bind survive break-tests; no new HIGH. Then PR-1c-i.
+
+
+## Round 2 CLOSED (854a997 F3 pin + gitignore; 47094c0 planepeer→stub labels)
+F1/F2/F3 all pinned+break-proof; F3 spoof net proven over a real socket (revert-to-
+passthrough fails all 3). phase-gate impl+testing green incl. real-UDS integration;
+apidiff ZERO delta; only architecture contract-doc red = eden S5 (expected). READY.
