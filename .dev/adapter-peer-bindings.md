@@ -1,6 +1,6 @@
 # adapter-peer-bindings
 
-phase:    intake
+phase:    red
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
 worktree: ~/code/.worktrees/libs-adapter-peer-bindings
@@ -22,10 +22,47 @@ real harnesses so a running agent can actually send and receive.
 Live proof is eden's harness lane at PR-2 (libs CI has no credential/harness).
 
 ## Plan
-(pending phase 1 — inputs: the MERGED peerplane + peer port (b54976d); the claude
-contract memory claude-cross-session-headless-contract.md; the committed probe fixtures
-design-artifacts/claude-peer-receive*.stream.jsonl incl. the HELD pair + claude-peer-send.json;
-the merged ompadapter rpc host-tool router as the omp-side model; synthesis-1.json S4.)
+plan: SELF-APPROVED (--auto) with ONE COORDINATOR OVERRIDE (below). Canonical plan =
+planner report (task a523f9ad0b54cd914). Load-bearing findings:
+- STRUCTURAL: an adapter CANNOT reach the plane — Adapter.Spawn carries no PeerLink and
+  Pool.Open calls Spawn (pool.go:81) BEFORE joinPeer (:95). So the eden_peer_send /
+  eden_peer_list HostTool DEFINITIONS live in the LIBRARY (new unexported
+  agentsession/peer_hosttool.go), injected by Pool.Open into its own COPY of
+  spec.HostTools (never mutate the caller's slice), gated on Deps.Peer!=nil &&
+  Spec.Name!="" && the adapter's CapPeerMessaging status. They ride omp's already-merged
+  host-tool router unchanged. controlframe.DecodePeer exists with NO caller — this PR is
+  its caller, in the home already documented for it.
+- MEASURED CORRECTION to the contract memory (now fixed there): result.origin is the ONLY
+  inbound form on stream-json stdout — 0 <cross-session-message> wrappers, 0 type:"user"
+  events across all three captures. Parse origin; never scrape text. EventPeerMessage is
+  emitted immediately BEFORE the EventTurnEnd the same result line produces.
+- claudeadapter scan() becomes a select-pump over (lines, peerEvents, done) — the events
+  chan is unbuffered and the scanner is its sole sender, so a Send-goroutine write would
+  race; shape copied from the proven ompadapter pump() resolved-channel pattern.
+- Zero .apibaseline delta: buildArguments unexported in BOTH adapters (verified). What
+  WOULD break it: any new package dir (each emits a ## header) or any new exported
+  symbol. The baseline is BLIND to a new field on an exported struct — so apidiff is
+  never the only guard; the manifest-truthfulness test is.
+- Risks: the HELD sender-side receipt was never captured (the Accepted:false arm is
+  unverified in libs — eden PR-2 settles it); the plane cannot see native traffic
+  (Orchestrator.received is a silent no-op on an unknown id, so native msg_ids
+  corroborate nothing — accepted, not fixed); kill-switch envs disable native messaging
+  observably but nothing fails on it; --name collisions go live natively before the
+  plane can refuse them (Spawn precedes Join); two unrelated clocks (claude dialogExpiry
+  5m vs peerplane DeliveryDeadline 30s); SendMessage is NOT auto-granted and the adapter
+  must not widen --allowedTools (it is not a permission authority — the merged omp
+  dialog ruling).
+
+## COORDINATOR OVERRIDE of the planner's open question
+The planner recommended amending the MERGED peer_pair_harness_test.go claude-omp pair to
+one direction (claude→omp unreachable, CapPartial). REJECTED: Mateo ruled FULL MESH v1 at
+the design gates, explicitly choosing the recovery path — "the library recovers the failed
+native send from the tool_use INPUT {to, message} and routes it over the bus", accepting
+the model-visible-failure caveat. The merged obligation stays as authored; A3 (claude→omp)
+MUST deliver. The recovery honors the structural constraint: the ADAPTER only surfaces the
+failed-send + recovered payload as a normalized fact; the LIBRARY (which holds peerLink)
+does the routing. Capability is declared by what the proof arm supports, and the
+model-visible failure is documented as a known caveat in code + PR body.
 
 ## Proven
 -
@@ -34,4 +71,4 @@ the merged ompadapter rpc host-tool router as the omp-side model; synthesis-1.js
 -
 
 ## Next
-Phase 1: dev-planner.
+Phase 2: red tests 1-10 + the recovery-path pins (A3 delivery via library routing).
