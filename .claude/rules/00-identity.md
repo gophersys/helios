@@ -420,7 +420,18 @@ base-OS currency probe above. It builds and publishes nothing.
   267-333 per image (base 267, cloud 333, zephyr 267, zephyr-devbox 268,
   measured in-cluster at trivy 0.65.0), and a ~270-finding red every morning
   teaches the reader to ignore red. Re-measure before ever gating it.
-- **An unfixed CRITICAL becomes a waiver, never a skip.** Waivers live in
+- **An unfixed CRITICAL becomes a waiver, never a skip — with ONE named
+  exception.** `linux-libc-dev` takes the class rule in
+  `.ci/trivy-ignore-policy.rego` (Mateo, 2026-08-24): the kernel-headers
+  package accrues unfixed kernel CVEs faster than dated waivers can follow —
+  5 in the 5 days to 2026-08-24 — and no kernel code from it executes in a
+  container. That suppression is deliberately NOT dated the way a yaml waiver
+  is: it un-suppresses itself through `FixedVersion` instead of an expiry —
+  the rule ignores a finding only while ubuntu publishes no fix, so the
+  moment one ships the finding resurfaces and the rebuild picks it up. The
+  scan names the policy with `--ignore-policy`, and
+  `_ctl/tests/scheduled-workflows.test.sh` holds the file's existence and
+  both predicates of its rule. Every OTHER package: waivers live in
   `.ci/trivyignore.yaml`. Each entry carries 4 fields: trivy's own `id`,
   `statement` (WHY it is accepted) and `expired_at` (`yyyy-mm-dd`), and `paths`.
   Trivy enforces the expiry itself, so a dated waiver reopens on its own.
