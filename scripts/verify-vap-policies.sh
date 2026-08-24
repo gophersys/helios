@@ -193,13 +193,38 @@ done
 # The policy manifests themselves are excluded: they are the subject of checks
 # 0-3, and counting them here would make the floor below unreachable — the
 # component's own files would always keep the scan non-empty.
+#
+# A HELM CHART DIRECTORY IS NOT A RAW MANIFEST TREE. Same rule and same anchor
+# as lint-manifests.sh: a Chart.yaml at or above the file defines a chart, and a
+# chart template carries `{{ }}` where a value belongs, so it is a Go template
+# rather than YAML — check 4b would fail it for being exactly what it is
+# (first hit: platform/services/observability/chart/templates/, 2026-08-24).
+# The skipped count is PRINTED below so the exemption cannot quietly grow to
+# swallow a real manifest tree. What this costs is the gap lint-manifests.sh
+# already states: an in-repo chart's RENDERED output is validated by nothing
+# in CI, including its PVCs — a chart-rendered PVC relies on the namespace
+# label, not the per-PVC label, until that gap is closed.
 scan_files=()
+chart_skipped=0
 if [ "${#scan_roots[@]}" -gt 0 ]; then
   while IFS= read -r -d '' f; do
     case "$f" in "$POLICY_DIR"/*) continue ;; esac
+    d="$(dirname "$f")"
+    in_chart=0
+    while [ "$d" != "." ] && [ "$d" != "/" ]; do
+      if [ -f "$d/Chart.yaml" ]; then in_chart=1; break; fi
+      d="$(dirname "$d")"
+    done
+    if [ "$in_chart" -eq 1 ]; then
+      chart_skipped=$((chart_skipped + 1))
+      continue
+    fi
     scan_files+=("$f")
   done < <(find "${scan_roots[@]}" -name '*.yaml' \
     -not -path '*/config-enforce/*' -not -path '*/envs/*' -print0 | sort -z)
+fi
+if [ "$chart_skipped" -gt 0 ]; then
+  printf '  note %d chart-source file(s) under a Chart.yaml excluded from the scan (Go templates, not YAML)\n' "$chart_skipped"
 fi
 
 if [ "${#scan_files[@]}" -eq 0 ]; then
