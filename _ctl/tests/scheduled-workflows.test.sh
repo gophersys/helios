@@ -198,6 +198,7 @@ NOTIFIER=".ci/notify-failure.sh"
 
 # The waiver file, and the 4 sections trivy allows in it.
 WAIVER_FILE=".ci/trivyignore.yaml"
+POLICY_FILE=".ci/trivy-ignore-policy.rego"
 
 # How far a scanning job's own ceiling must sit ABOVE the scan deadline it
 # gives trivy, in minutes. Rule 9 below is about the ORDER of the 2 deadlines,
@@ -1612,6 +1613,31 @@ while IFS= read -r relative; do
       "the scan never names ${WAIVER_FILE}" \
       "the YAML ignore file is experimental in trivy and is loaded only when its path is given," \
       "so an unnamed waiver file is a document with no effect on the scan"
+  fi
+
+  # The rego class rule. It is the ONLY thing suppressing a whole package
+  # across every scan, so a scan that names --ignore-policy must point at a
+  # file that exists, and that file must keep BOTH predicates: the package
+  # name, and the unfixed condition. Dropping the second would silently
+  # un-gate a FIXED linux-libc-dev CRITICAL — the exact class the policy is
+  # designed to keep gating — and nothing else in the gate would go red.
+  if uncommented "$file" | grep -qF -- "--ignore-policy"; then
+    if uncommented "$file" | grep -qF -- "$POLICY_FILE" && [[ -f "$REPO_ROOT/$POLICY_FILE" ]]; then
+      pass_check "${relative}_names_a_policy_file_that_exists"
+    else
+      fail_check "${relative}_names_a_policy_file_that_exists" \
+        "the scan passes --ignore-policy but ${POLICY_FILE} is absent or unnamed" \
+        "a policy flag pointing at nothing fails every scan at 09:00 UTC with nobody watching"
+    fi
+    if grep -qF 'input.PkgName == "linux-libc-dev"' "$REPO_ROOT/$POLICY_FILE" 2>/dev/null \
+       && grep -qF 'not input.FixedVersion' "$REPO_ROOT/$POLICY_FILE" 2>/dev/null; then
+      pass_check "${relative}_policy_keeps_both_predicates"
+    else
+      fail_check "${relative}_policy_keeps_both_predicates" \
+        "${POLICY_FILE} must carry BOTH 'input.PkgName == \"linux-libc-dev\"' and 'not input.FixedVersion'" \
+        "without the package predicate the rule waives other packages;" \
+        "without the unfixed predicate a FIXED kernel CVE is silently un-gated"
+    fi
   fi
 done <<< "$scanning"
 

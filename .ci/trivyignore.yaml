@@ -2,7 +2,11 @@
 #
 # The scan gates CRITICAL and sets no --ignore-unfixed, so an unfixed CRITICAL
 # has to become an entry HERE — a visible line in a diff — and never a silent
-# skip.
+# skip. ONE package is the exception: linux-libc-dev takes the class rule in
+# .ci/trivy-ignore-policy.rego (Mateo, 2026-08-24) instead of per-CVE entries,
+# because it accrues unfixed kernel CVEs faster than dated waivers can follow
+# — 5 in the 5 days to 2026-08-24 — and its findings resurface the moment a
+# fix exists. Every OTHER package still takes a dated entry here.
 #
 # Trivy loads this file only because .ci/providers/github/security-nightly.yml
 # names it with --ignorefile. The YAML ignore file is experimental, and without
@@ -48,35 +52,6 @@
 #       expired_at: 2026-09-30
 #
 vulnerabilities:
-  # linux-libc-dev — the 3 kernel CVEs of 2026-08-19, one waiver each. The
-  # package is the kernel HEADERS alone: no kernel code from it executes in a
-  # container (the host kernel is the runtime), and ubuntu marks all 3
-  # `affected` with NO fixed version, so no bump can clear them. They arrive
-  # in every image through the toolchain's libc6-dev. Re-read when ubuntu
-  # publishes a fixed 6.8.0 kernel package set.
-  #
-  # `paths` is `**` here BY MEASUREMENT, not laziness: an OS-package finding
-  # carries an EMPTY path — proven 2026-08-19 against base:latest at trivy
-  # 0.74.0, where `usr/include/**` and `var/lib/dpkg/**` both left all 3
-  # findings alive and `**` (the only doublestar pattern that matches the
-  # empty string) suppressed them. The scope is therefore the CVE id itself,
-  # which is safe for exactly this class: a kernel CVE id names no other
-  # artifact an image could carry.
-  - id: CVE-2026-53398
-    paths:
-      - "**"
-    statement: "linux-libc-dev is headers only; the kernel code the CVE describes never executes in a container, and ubuntu publishes no fixed version yet (status: affected, fixed column empty on 2026-08-19)."
-    expired_at: 2026-11-30
-  - id: CVE-2026-64535
-    paths:
-      - "**"
-    statement: "linux-libc-dev is headers only; the kernel code the CVE describes never executes in a container, and ubuntu publishes no fixed version yet (status: affected, fixed column empty on 2026-08-19)."
-    expired_at: 2026-11-30
-  - id: CVE-2026-64564
-    paths:
-      - "**"
-    statement: "linux-libc-dev is headers only; the kernel code the CVE describes never executes in a container, and ubuntu publishes no fixed version yet (status: affected, fixed column empty on 2026-08-19)."
-    expired_at: 2026-11-30
   # gitleaks — the pin is ALREADY the latest release. 8.30.1 (2026-03-21) is the
   # newest upstream tag, and `go version -m` on its published asset reports
   # go1.24.11; the fix needs go1.24.13. There is no version to bump to.
