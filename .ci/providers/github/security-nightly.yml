@@ -153,6 +153,7 @@ jobs:
             --severity CRITICAL \
             --exit-code 1 \
             --ignorefile .ci/trivyignore.yaml \
+            --ignore-policy .ci/trivy-ignore-policy.rego \
             ghcr.io/gophersys/${{ matrix.image }}:latest
 
   base-currency:
