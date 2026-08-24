@@ -712,6 +712,13 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   OWNER: gophersys
+  # No build-record artifact uploads. docker/build-push-action v6 uploads a
+  # .dockerbuild record per build by DEFAULT — ~12 per publish run across the
+  # 2 builds x 6 jobs — and on 2026-08-24 that class was 577 of the 836
+  # artifacts in the org when the storage quota tripped and failed a review
+  # check on an APPROVE. Nothing here reads a build record; the build log is
+  # the record. Delete this key and every build silently resumes uploading.
+  DOCKER_BUILD_RECORD_UPLOAD: false
   # The platforms an image of this workflow PUBLISHES by default. This value is
   # SANCTIONED_PLATFORMS in _ctl/lib.sh, written in by the generator, and the
   # verify-published step in each job is what proves the registry agrees. It is
