@@ -125,7 +125,7 @@ func (o *Orchestrator) dispatchFrame(conn net.Conn, writeMu *sync.Mutex, joinedN
 // serveJoin registers a socket member with a deliver callback that pushes a deliver frame to its
 // connection, then answers with the generation or a refusal reason.
 func (o *Orchestrator) serveJoin(conn net.Conn, writeMu *sync.Mutex, joinedName *string, f *frame) {
-	created, err := o.register(f.Name, f.Parent, "planepeer", func(message agentsession.PeerMessage) error {
+	created, err := o.register(f.Name, f.Parent, "stub", func(message agentsession.PeerMessage) error {
 		return o.writeLocked(conn, writeMu, &frame{Type: frameDeliver, Message: &message})
 	})
 	if err != nil {

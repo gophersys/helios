@@ -29,7 +29,7 @@ func main() {
 	flag.Parse()
 
 	client, err := peerplane.Dial(
-		peerplane.DialConfig{SocketPath: *socket, Name: *name, Parent: *parent, Harness: "planepeer"},
+		peerplane.DialConfig{SocketPath: *socket, Name: *name, Parent: *parent, Harness: "stub"},
 		peerplane.Deps{Clock: realClock{}},
 	)
 	if err != nil {
