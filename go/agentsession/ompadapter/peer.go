@@ -1,0 +1,126 @@
+package ompadapter
+
+import (
+	"strings"
+
+	"github.com/gophersys/libs/go/agentsession"
+	"github.com/gophersys/libs/go/agentsession/internal/controlframe"
+	"github.com/gophersys/libs/go/errors"
+)
+
+// The DELIVERY side of the peer binding on omp's `--mode rpc` transport.
+//
+// omp has no cross-session plane of its own, so it carries peer traffic on the LIBRARY-owned
+// one: the outbound half is the eden_peer_send / eden_peer_list host tools the library injects
+// into the Spec (agentsession/peer_hosttool.go), routed by the rpc host-tool bridge unchanged,
+// and the inbound half is here. The library's deliver goroutine hands the adapter an arrival as
+// an ordinary control frame carrying the internal `eden:peer:` grammar — 0x1f-separated header
+// fields whose only purpose is to survive the hop from the library to the adapter. What reaches
+// the MODEL is a different thing entirely.
+
+// peerDeliveryBuffer bounds the hand-off channel an arrival's event rides from Send (the
+// library's deliver goroutine) to the pump — the ONE sender on the events channel. A session
+// takes deliveries one at a time, but the buffer is generous so a burst never blocks that
+// goroutine on the pump.
+const peerDeliveryBuffer = 8
+
+// peerDelivery is one decoded inbound peer frame: what the MODEL is shown, what the STREAM
+// records, and who it was addressed to. The decode happens once, here, for both control verbs.
+type peerDelivery struct {
+	to       string
+	envelope string
+	event    agentsession.Event
+}
+
+// decodePeerDelivery reads an inbound peer control frame the library tunneled through the
+// ordinary control path. ok=false means the text is an ordinary turn and falls through.
+func decodePeerDelivery(text string) (peerDelivery, bool) {
+	from, to, msgID, replyTo, body, verified, ok := controlframe.DecodePeer(text)
+	if !ok {
+		return peerDelivery{}, false
+	}
+	return peerDelivery{
+		to:       to,
+		envelope: peerEnvelope(from, msgID, replyTo, body, verified),
+		event: agentsession.Event{
+			Kind: agentsession.EventPeerMessage,
+			Peer: &agentsession.PeerMessage{
+				MsgID: msgID, From: from, ReplyTo: replyTo, Body: body, Verified: verified,
+			},
+		},
+	}, true
+}
+
+// deliverPeer writes one arrival to the model as the envelope, on the turn-taking frame the
+// library chose, and hands the pump the EventPeerMessage.
+//
+// A frame addressed to another session is REFUSED rather than written: the conn knows its own
+// name, and injecting another session's prose into this model's context on a misroute is worse
+// than a loud error at the seam.
+func (c *rpcConn) deliverPeer(frameType string, delivery *peerDelivery) error {
+	if delivery.to != c.name {
+		return errors.New(errors.KindInvalid,
+			"ompadapter: peer delivery addressed to another session")
+	}
+	if err := c.writeFrame(map[string]any{
+		"id": c.nextFrameID(), "type": frameType, "message": delivery.envelope,
+	}); err != nil {
+		return err
+	}
+	c.queuePeerEvent(delivery.event)
+	return nil
+}
+
+// queuePeerEvent hands the pump the arrival's event. The events channel has ONE sender by
+// design, so a publish from the library's deliver goroutine would race it; this channel is
+// buffered and done-guarded, so a delivery never blocks that goroutine and one that lands after
+// Close is harmlessly dropped.
+//
+//nolint:gocritic // Event is the contract's copyable record; the queue takes it by value.
+func (c *rpcConn) queuePeerEvent(event agentsession.Event) {
+	select {
+	case c.peerEvents <- event:
+	case <-c.done:
+	}
+}
+
+// peerEnvelope renders the MODEL-FACING delivery envelope for one inbound peer message:
+//
+//	<eden-peer-message from="…" msg_id="…" verified="true|false">body</eden-peer-message>
+//
+// It is deliberately NOT the internal `eden:peer:` frame the library tunneled the delivery in. A
+// model that read that frame would learn Eden's private control grammar and could forge a
+// delivery by typing it, which is the whole reason the two forms differ — and why the encoder
+// rejects a body that could close this envelope early.
+//
+// verified renders in BOTH directions, never by omission: it is the model's only signal that a
+// "from" is a kernel fact (the plane stamps it from the SO_PEERCRED connection) rather than a
+// claim, so an envelope that dropped the attribute when false would silently promote every
+// unverified sender.
+func peerEnvelope(from, msgID, replyTo, body string, verified bool) string {
+	var envelope strings.Builder
+	envelope.WriteString(`<eden-peer-message from="`)
+	envelope.WriteString(from)
+	envelope.WriteString(`" msg_id="`)
+	envelope.WriteString(msgID)
+	envelope.WriteString(`"`)
+	if replyTo != "" {
+		envelope.WriteString(` reply_to="`)
+		envelope.WriteString(replyTo)
+		envelope.WriteString(`"`)
+	}
+	envelope.WriteString(` verified="`)
+	envelope.WriteString(verifiedFlag(verified))
+	envelope.WriteString(`">`)
+	envelope.WriteString(body)
+	envelope.WriteString(`</eden-peer-message>`)
+	return envelope.String()
+}
+
+// verifiedFlag renders the trust flag both ways.
+func verifiedFlag(verified bool) string {
+	if verified {
+		return "true"
+	}
+	return "false"
+}
