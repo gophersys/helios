@@ -139,6 +139,22 @@ require_cmd() {
   fi
 }
 
+# require_env <VAR...> — every named environment variable MUST be set and non-empty, else exit 1
+# NAMING the missing one. It is the mechanical form of FAIL-NOT-SKIP at a lane boundary that needs
+# a credential: a lane whose secret is absent FAILS loudly rather than skipping (an absent credential
+# read as a pass is exactly the silent-skip this repo refuses). Used by cmd_harness.
+require_env() {
+  local missing=() var
+  for var in "$@"; do
+    [[ -n "${!var:-}" ]] || missing+=("$var")
+  done
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    log_error "missing required credential env var(s): ${missing[*]}"
+    log_dim   "  ADR-0020 FAIL-NOT-SKIP: a lane whose credential is absent FAILS naming it — never a silent skip."
+    exit 1
+  fi
+}
+
 # go_in_lib <args...> — run a go invocation inside the lib WITH the workspace go.work.
 go_in_lib() { ( cd "$PROJECT_ROOT" && go "$@" ); }
 
@@ -315,6 +331,26 @@ cmd_load() {
   log_info "load: go test -tags load ./... -race -count=1 -timeout=${EDEN_SUBSTRATE_TIMEOUT}/package (fan-out N=${EDEN_LOAD_N:-500})"
   ( cd "$PROJECT_ROOT" && env EDEN_LOAD_N="${EDEN_LOAD_N:-500}" go test -tags load ./... -race -count=1 -timeout="$EDEN_SUBSTRATE_TIMEOUT" )
   log_success "load: OK"
+}
+
+# ── the `harness` lane — REAL vendor harnesses + REAL models, ZERO skip path ──────────────────
+# A lib that exercises a live agent harness (agentsession's adapters + the peer plane) authors its
+# obligations under `//go:build harness` with t.Fatalf, never t.Skip. This verb runs them: it FAILS
+# (never skips) on a missing binary (require_cmd, exit 127) or a missing credential (require_env,
+# exit 1), each NAMED. It is NOT run in libs CI — libs holds no vendor credential and installs no
+# pinned harness (ADR-0021 one-home) — so a lib opts in by naming EDEN_HARNESS_CMDS and
+# EDEN_HARNESS_CREDENTIALS in its per-lib ctl.sh; a lib that names neither has no harness lane.
+cmd_harness() {
+  # The script IFS excludes space, so a bare expansion would pass "claude omp" as ONE arg; split
+  # the space-separated lists EXPLICITLY (the cmd_integration precedent).
+  local -a harness_cmds=() harness_creds=()
+  [[ -n "${EDEN_HARNESS_CMDS:-}" ]] && IFS=' ' read -r -a harness_cmds <<< "$EDEN_HARNESS_CMDS"
+  [[ -n "${EDEN_HARNESS_CREDENTIALS:-}" ]] && IFS=' ' read -r -a harness_creds <<< "$EDEN_HARNESS_CREDENTIALS"
+  require_cmd go "${harness_cmds[@]}"
+  [[ ${#harness_creds[@]} -gt 0 ]] && require_env "${harness_creds[@]}"
+  log_info "harness: go test -tags harness ./... -race -count=1 -timeout=${EDEN_SUBSTRATE_TIMEOUT}/package (REAL harnesses ${EDEN_HARNESS_CMDS:-none})"
+  go_in_lib test -tags harness ./... -race -count=1 -timeout="$EDEN_SUBSTRATE_TIMEOUT"
+  log_success "harness: OK"
 }
 
 # ── (f) SECURITY / VULNERABILITIES ──────────────────────────────────────────────────────────
@@ -1302,6 +1338,7 @@ ADR-0020 test-taxonomy verbs (the 8 dimensions):
   lifecycle        construct→use→double-close→teardown conformance
   integration      REAL docker + k3s/k3d (+ kind) substrate suite
   load             fan-out concurrency, race-clean under N
+  harness          REAL vendor harnesses + models (opt-in; FAIL-NOT-SKIP; NOT run in libs CI)
   vuln             govulncheck — 0 applicable vulnerabilities
   sast             gosec — 0 high/medium findings
   secretscan       gitleaks + the SeededCanary no-leak property
@@ -1335,6 +1372,7 @@ lib_main() {
     lifecycle)        cmd_lifecycle        "$@" ;;
     integration)      cmd_integration      "$@" ;;
     load)             cmd_load             "$@" ;;
+    harness)          cmd_harness          "$@" ;;
     vuln)             cmd_vuln             "$@" ;;
     sast)             cmd_sast             "$@" ;;
     secretscan)       cmd_secretscan       "$@" ;;

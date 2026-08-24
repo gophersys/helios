@@ -30,6 +30,11 @@ htmlcov/
 .hypothesis/
 pip-wheel-metadata/
 
+# -------- Go --------
+# pgregory.net/rapid writes a failing-example artifact here on a property failure; it is a
+# reproduction aid, never a committed input.
+go/agentsession/testdata/rapid/
+
 # -------- Rust --------
 target/
 Cargo.lock.bak

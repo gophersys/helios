@@ -26,6 +26,16 @@ type session struct {
 	advisor     PermissionAdvisor // the ratified-model reasoning port (nil == degrade to OnPermission/default-deny)
 	broadcaster *broadcaster
 
+	// peerLink is the session's attachment to the injected peer plane (nil == no plane). The
+	// pump calls Received after emitting an inbound EventPeerMessage; the deliver goroutine
+	// drains its Inbound. peerSeen/peerRing are the bounded 256-id dedupe ring (guarded by mu).
+	peerLink     PeerLink
+	deliverStop  chan struct{} // closed by Close to stop the deliver goroutine (only when peerLink != nil)
+	deliverDone  chan struct{} // closed by the deliver goroutine when it exits
+	peerSeen     map[string]struct{}
+	peerRing     []string
+	peerRingNext int
+
 	mu            sync.Mutex // guards state, seq, turn, pending permissions, the session grant set, closed
 	state         State
 	seq           uint64 // mirror of the last assigned Seq (authoritative is the Transcript)
@@ -61,7 +71,7 @@ var _ Session = (*session)(nil)
 // NOT trusted as success. On that failure it reaps the conn and zeroizes the secret.
 //
 //nolint:gocritic // contract §2: Spec is the frozen, copyable session input (the configuration pattern); the port takes it by value.
-func newSession(ctx context.Context, spec Spec, route Route, conn HarnessConn, cred InjectedCredential, dependencies Deps) (*session, error) {
+func newSession(ctx context.Context, spec Spec, route Route, conn HarnessConn, cred InjectedCredential, dependencies Deps, link PeerLink) (*session, error) {
 	s := &session{
 		id:            sessionID(spec, route),
 		spec:          spec,
@@ -73,6 +83,7 @@ func newSession(ctx context.Context, spec Spec, route Route, conn HarnessConn, c
 		manifest:      adapterManifest(dependencies, route.Harness),
 		advisor:       dependencies.Advisor,
 		broadcaster:   newBroadcaster(),
+		peerLink:      link,
 		state:         StateInitializing,
 		pending:       make(map[string]*pendingPermission),
 		sessionGrants: cloneGrants(spec.Grants),
@@ -88,6 +99,13 @@ func newSession(ctx context.Context, spec Spec, route Route, conn HarnessConn, c
 			_ = s.conn.Close(context.Background()) //nolint:errcheck // best-effort reap on a failed handshake; the AuthError is the actionable outcome.
 			s.credential.zeroize()
 			return nil, err
+		}
+		// The handshake confirmed: start the DEDICATED deliver goroutine that drains the
+		// plane-routed inbound queue (C2 — never the pump goroutine). It is reaped on Close.
+		if s.peerLink != nil {
+			s.deliverStop = make(chan struct{})
+			s.deliverDone = make(chan struct{})
+			go s.deliverLoop()
 		}
 		return s, nil
 	case <-ctx.Done():
@@ -184,6 +202,13 @@ func (s *session) Close(ctx context.Context) error {
 	select {
 	case <-s.pumpDone:
 	case <-ctx.Done():
+	}
+	// Reap the deliver goroutine and leave the tree: stop the drainer, wait for it, then close
+	// the link so the name drops from every roster (the goleak guarantee includes this goroutine).
+	if s.peerLink != nil {
+		close(s.deliverStop)
+		<-s.deliverDone
+		_ = s.peerLink.Close(ctx) //nolint:errcheck // best-effort leave; the reap is the actionable outcome.
 	}
 	s.broadcaster.close()
 	s.credential.zeroize()
@@ -425,6 +450,8 @@ func (s *session) currentSeq() uint64 {
 
 // adapterManifest fetches the manifest for the resolved harness (empty manifest when
 // the adapter is somehow absent — guarded earlier at route resolution).
+//
+//nolint:gocritic // hugeParam: Deps mirrors the constructor spine's by-value hexagon (rule 10 §9); the manifest lookup reads one field.
 func adapterManifest(dependencies Deps, harness string) CapabilityManifest {
 	if adapter, ok := dependencies.Adapters[harness]; ok && adapter != nil {
 		return adapter.Manifest()

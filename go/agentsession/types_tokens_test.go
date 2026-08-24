@@ -75,11 +75,22 @@ func TestTaxonomyTokens_SourceScanSeesTheKnownMembers(t *testing.T) {
 	assertMemberAt(t, eventKinds, int(agentsession.EventResult), "EventResult")
 	assertMemberAt(t, eventKinds, int(agentsession.EventExtension), "EventExtension")
 	assertMemberAt(t, eventKinds, int(agentsession.EventThinkingProgress), "EventThinkingProgress")
+	// PR-1c-i appends the peer + subagent kinds. Pinning them here makes the source scan a
+	// non-vacuous oracle for the new members: a kind added without its eventKindTokens row
+	// renders as "extension" (the [...]string fallback) and the distinctness loop above then
+	// fails naming both members — the defect class this file exists to make loud.
+	assertMemberAt(t, eventKinds, int(agentsession.EventPeerMessage), "EventPeerMessage")
+	assertMemberAt(t, eventKinds, int(agentsession.EventPeerSent), "EventPeerSent")
+	assertMemberAt(t, eventKinds, int(agentsession.EventSubagentMessage), "EventSubagentMessage")
 
 	capabilities := declaredMembers(t, "agentsession.go", "Capability")
 	assertMemberAt(t, capabilities, 0, "CapSteer")
 	assertMemberAt(t, capabilities, int(agentsession.CapPermissionPrompt), "CapPermissionPrompt")
 	assertMemberAt(t, capabilities, int(agentsession.CapPartialToolResults), "CapPartialToolResults")
+	// PR-1c-i appends the two peer/subagent capability bits; a bit added without its
+	// capabilityTokens row renders as "steer" and collides.
+	assertMemberAt(t, capabilities, int(agentsession.CapPeerMessaging), "CapPeerMessaging")
+	assertMemberAt(t, capabilities, int(agentsession.CapSubagentMessaging), "CapSubagentMessaging")
 }
 
 // ── the taxonomies under guard ───────────────────────────────────────────────────────────.

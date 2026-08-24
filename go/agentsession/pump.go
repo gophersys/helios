@@ -110,6 +110,18 @@ func (s *session) handle(raw Event) []Event {
 		emitted = append(emitted, s.emit(raw))
 	case EventResult, EventFailed, EventAborted:
 		emitted = append(emitted, s.emit(s.stampTerminal(raw)))
+	case EventPeerMessage:
+		// The adapter is the ONLY producer of EventPeerMessage (C3); the pump dedupes it,
+		// emits it exactly once, corroborates delivery, and suppresses it when there is no plane.
+		emitted = append(emitted, s.deliverInboundPeer(raw)...)
+	case EventPeerSent:
+		// The library observed the model's send; it rides the stream only when a plane is wired.
+		if s.peerLink != nil {
+			emitted = append(emitted, s.emit(raw))
+		}
+	case EventSubagentMessage:
+		// A DISTINCT function from peer messaging: no plane, no dedupe, no roster — published verbatim.
+		emitted = append(emitted, s.emit(raw))
 	case EventMessageStart, EventThinkingDelta, EventTextDelta, EventMessageEnd,
 		EventToolUpdate, EventToolEnd, EventPermissionResolved, EventExtension, EventTurnEnd:
 		// EventTurnEnd is published verbatim: it ends a TURN, so it is NOT re-classified by

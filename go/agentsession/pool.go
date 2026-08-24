@@ -22,6 +22,8 @@ var _ Factory = (*Pool)(nil)
 // spawn. It validates Config + Deps and returns the concrete *Pool. The first process
 // spawn happens only at Pool.Open. It returns a wrapped ConfigError (errors.AsType) on
 // a missing dependency.
+//
+//nolint:gocritic // hugeParam: Deps is the injected hexagon taken BY VALUE per the constructor spine (rule 10 §9); a pointer would break the spine.
 func New(configuration Config, dependencies Deps) (*Pool, error) {
 	if len(dependencies.Adapters) == 0 {
 		return nil, errors.Wrap(errors.KindInvalid, "agentsession: New",
@@ -56,6 +58,13 @@ func New(configuration Config, dependencies Deps) (*Pool, error) {
 //
 //nolint:gocritic,ireturn // contract §2: Spec is the frozen copyable session input (configuration pattern) and Open returns the Session port — both the frozen surface.
 func (p *Pool) Open(ctx context.Context, spec Spec) (Session, error) {
+	// The peer contract is validated FIRST, before any I/O: a session that believes it is
+	// reachable and is not, or a name that would mangle an argv/socket filename, is a
+	// ConfigError at Open — never a silent non-membership.
+	if err := validatePeerSpec(spec, p.dependencies.Peer != nil); err != nil {
+		return nil, err
+	}
+
 	route, adapter, err := p.resolveRoute(spec.Routing)
 	if err != nil {
 		return nil, err
@@ -81,9 +90,22 @@ func (p *Pool) Open(ctx context.Context, spec Spec) (Session, error) {
 			SpawnError{Harness: route.Harness})
 	}
 
-	session, err := newSession(ctx, spec, route, conn, cred, p.dependencies)
+	// Register on the injected peer plane (nil,nil when there is no plane): the session's link
+	// is the wire the pump corroborates delivery over and the deliver goroutine drains.
+	link, err := p.joinPeer(ctx, spec)
 	if err != nil {
-		// newSession reaps the conn and zeroizes the credential on a failed handshake.
+		cred.zeroize()
+		_ = conn.Close(ctx) //nolint:errcheck // best-effort reap; the join error is the actionable outcome.
+		return nil, err
+	}
+
+	session, err := newSession(ctx, spec, route, conn, cred, p.dependencies, link)
+	if err != nil {
+		// newSession reaps the conn and zeroizes the credential on a failed handshake; leave
+		// the plane too so the name does not linger in the roster.
+		if link != nil {
+			_ = link.Close(context.Background()) //nolint:errcheck // best-effort leave on a failed handshake.
+		}
 		return nil, err
 	}
 	return session, nil
