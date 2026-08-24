@@ -81,6 +81,25 @@ fi
 refs() {
   local f
   while IFS= read -r f; do
+    # A Helm chart TEMPLATE (e.g. platform/services/observability/chart/
+    # templates/) is Go template source, so yq cannot parse it — and until
+    # 2026-08-24 the 2>/dev/null below dropped its references SILENTLY, leaving
+    # a vault item named only there covered by no gate: the exact defect class
+    # this header names. For a file yq cannot read, extract every
+    # `remoteRef:`+`key:` pair textually. If the file names an ExternalSecret
+    # and no key can be extracted, the empty-ref line below makes it FAIL as
+    # unrecognised — extend the extractor then, never let the file vanish.
+    if ! yq eval-all -N 'true' "$f" >/dev/null 2>&1; then
+      local id keys k
+      id="${f#"$ROOT"/} (helm template)"
+      keys="$(awk '$1 == "remoteRef:" {want=1; next} want && $1 == "key:" {print $2; want=0}' "$f")"
+      if [ -z "$keys" ]; then
+        printf '%s|\n' "$id"
+      else
+        while IFS= read -r k; do printf '%s|%s\n' "$id" "$k"; done <<< "$keys"
+      fi
+      continue
+    fi
     yq eval-all -o=json 'select(.kind == "ExternalSecret")' "$f" 2>/dev/null \
       | jq -r --arg f "${f#"$ROOT"/}" '
           ($f + " " + (.metadata.namespace // "-") + "/" + (.metadata.name // "-")) as $id

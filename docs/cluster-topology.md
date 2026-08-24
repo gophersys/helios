@@ -118,8 +118,9 @@ It is network-isolated: `ingress-nginx` may reach `:9000`, and the
 namespace that no longer exists. See `apps/minio/README.md`.
 
 ### `observability` — REMOVED 2026-08-09, REINSTALLED under Argo
-Prometheus, Loki, Tempo, Grafana and 2 Grafana Alloy collectors (an OTLP gateway
-Deployment and a log-tailing DaemonSet), from the in-repo `eden-observability`
+Prometheus, Alertmanager (since 2026-08-24, Discord delivery), Loki, Tempo,
+Grafana and 2 Grafana Alloy collectors (an OTLP gateway Deployment and a
+log-tailing DaemonSet), from the in-repo `eden-observability`
 chart at `platform/services/observability/chart`, release `obs`.
 
 **Why it was removed.** The `obs` release had been in `failed` helm state at
@@ -130,8 +131,9 @@ and every hand-applied fix reverted with no message. It was uninstalled on
 
 **What is different now.** It is an Argo Application
 (`registry/app-observability.yaml`, project `platform`, automated + `selfHeal`),
-so nothing reconciles it by hand and drift cannot survive. Its 4 PVCs — Loki
-10Gi, Tempo 10Gi, Prometheus 20Gi, Grafana 5Gi — are on **`local-path`**, decided
+so nothing reconciles it by hand and drift cannot survive. Its 5 PVCs — Loki
+10Gi, Tempo 10Gi, Prometheus 20Gi, Grafana 5Gi, Alertmanager 2Gi (added
+2026-08-24 with the Discord alerting) — are on **`local-path`**, decided
 2026-08-19: node-local, no replication, on the stated ground that telemetry is
 re-derivable and none of it is a system of record.
 
@@ -147,6 +149,9 @@ is no hostname to declare.
 
 **One imperative secret.** `grafana-admin` is created by hand
 (`docs/runtime-secrets.md`); Grafana does not start until it exists. The
+Alertmanager Discord webhook is NOT imperative: it is an ExternalSecret in the
+chart (vault item `shared/discord/alerts-webhook`), and Alertmanager sits in
+ContainerCreating until ESO syncs it. The
 observability of the cloud cluster (`obsv.mateosegura.com`) is a separate,
 unaffected install.
 

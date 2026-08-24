@@ -10,8 +10,9 @@ schedule.
 **1 provisioner: `local-path`, the k3s default.** It gives node-local volumes for
 data that you can download again, or that is already pinned to a node. Every
 workload on this cluster uses it deliberately — the `media` stack, `eden`, the
-`config-backup` CronJob, and the `observability` stack (4 PVCs: Loki 10Gi, Tempo
-10Gi, Prometheus 20Gi, Grafana 5Gi). If a node is lost, the data is pulled again.
+`config-backup` CronJob, and the `observability` stack (5 PVCs: Loki 10Gi, Tempo
+10Gi, Prometheus 20Gi, Grafana 5Gi, Alertmanager 2Gi since 2026-08-24). If a
+node is lost, the data is pulled again.
 MinIO is the one exception, and it is not a PVC at all: it writes a hostPath on
 the NVMe of k3s-w-1.
 
