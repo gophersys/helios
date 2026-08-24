@@ -65,10 +65,43 @@ does the routing. Capability is declared by what the proof arm supports, and the
 model-visible failure is documented as a known caveat in code + PR body.
 
 ## Proven
--
+- RED (author, 1a9e37d behavioural + d3548a4 compile-dep): 16 tests; fixtures copied
+  VERBATIM from the committed captures with provenance headers (2 derived files state
+  their edits). Reds verbatim: origin→PeerMessage 0-got; bypass-accept 4 expected 0-got;
+  argv missing --name/--settings; send-receipt both arms 0-got; omp inbound leaked the
+  RAW `eden:peer:` frame + 0x1f separator to the model (the exact leak); host tools not
+  injected; manifest CapAbsent on both; canary arms 0-got; recovery surfaced-then-ROUTED
+  0-got with review-c receiving nothing. Bite proofs: a result-keyed (naive) normalizer
+  makes the HELD control fail 1 and bypass fail 5 — the control discriminates; the
+  3 missing seams reproduce byte-for-byte from absence alone.
+- CORRECTIONS to the plan (measured): the bypass-accept capture has 5 result lines, 4
+  with origin and ONE without (the plan said 2 origin-less; the second lives in a
+  different capture). peer-send-unreachable.jsonl is DERIVED — the failure body is
+  quoted from probe-2.json's P1 ADDRESSABILITY finding (measured, never captured as a
+  raw stream line); its envelope is byte-copied from the real success line. Whether a
+  failed SendMessage sets is_error is UNVERIFIED — test 12 asserts the digest still
+  carries the failure text and asserts nothing about ToolOutcome.
 
 ## Blocked
 -
 
+## SEAMS the implementer adds (exactly these; export_test.go documents each)
+1. claudeadapter newPipeConn(spec, io.Reader, io.WriteCloser) *processConn — the analog
+   of the merged ompadapter.RPCConnForTest; takes the Spec because a conn that does not
+   know its own Name cannot tell a delivery meant for it from one that is not.
+2. claudeadapter peerEnvelope(from, msgID, replyTo, body string, verified bool) string —
+   the pure model-facing renderer; verified renders explicitly in BOTH directions.
+3. agentsession peerHostTools(name string, plane PeerPlane, link PeerLink) []HostTool in
+   the new unexported peer_hosttool.go; nil link → typed errors.KindUnavailable never a
+   panic; nil plane or empty name → empty set.
+NORMATIVE LITERALS the reds pin (contract, not preference):
+  tools "eden_peer_send"/"eden_peer_list"; send args {"to","body"} → answer
+  {"msg_id":"<the id the PLANE minted>"}; Detail discriminators "send-receipt-unparsed"
+  (accepted natively, id unreadable — NEVER re-routed) vs "native-send-unreachable" (the
+  full-mesh recovery — the library DOES route it); argv --name <name> --settings
+  {"crossSessionInbound":"accept"} as ONE raw element; wire envelope
+  <eden-peer-message …verified="true|false"…>body</eden-peer-message> — never
+  "eden:peer:" and never 0x1f in front of the model.
+
 ## Next
-Phase 2: red tests 1-10 + the recovery-path pins (A3 delivery via library routing).
+Phase 3: implementer builds the 3 seams + both bindings + the library routing.
