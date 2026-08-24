@@ -59,6 +59,11 @@
       "options": { "command": "bash ./ctl.sh load", "cwd": "{projectRoot}" },
       "cache": false
     },
+    "harness": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh harness", "cwd": "{projectRoot}" },
+      "cache": false
+    },
     "vuln": {
       "executor": "nx:run-commands",
       "options": { "command": "bash ./ctl.sh vuln", "cwd": "{projectRoot}" },
