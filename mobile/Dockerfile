@@ -25,9 +25,9 @@ ARG ANDROID_CMDLINE_TOOLS_VERSION=14742923                             # latest 
 ARG ANDROID_CMDLINE_TOOLS_SHA256_NOARCH=04453066b540409d975c676d781da1477479dde3761310f1a7eb92a1dfb15af7  # computed-at-pin: 2026-08-17
 ARG ANDROID_PLATFORM_VERSION=36                                        # latest LTS as of 2026-04-19
 ARG ANDROID_BUILDTOOLS_VERSION=36.1.0                                  # latest LTS as of 2026-04-19
-ARG FLUTTER_VERSION=3.47.0                                             # latest LTS as of 2026-08-17
+ARG FLUTTER_VERSION=3.47.1                                             # latest LTS as of 2026-08-24
 ARG FLUTTER_CHANNEL=stable                                             # latest LTS as of 2026-04-19
-ARG FLUTTER_SHA256_AMD64=26cd99d3d94b1367e6b50535a18aeef0282c10a535bbe3ec493534dcdab75296  # computed-at-pin: 2026-08-17
+ARG FLUTTER_SHA256_AMD64=a1d8166c0309267cb7dc99f1424eecf08b86946ad3b50723c6f59945964aea45  # computed-at-pin: 2026-08-24
 
 # NOTE: the non-root user is hardcoded as `dev` throughout this Dockerfile
 # (matching the base image's invariant). An ARG USERNAME is intentionally NOT
