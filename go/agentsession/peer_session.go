@@ -18,6 +18,16 @@ var peerNameRE = regexp.MustCompile(`^[a-z][a-z0-9-]{1,61}[a-z0-9]$`)
 // message even when both the bus and a native plane could deliver it (C5).
 const peerDedupeRing = 256
 
+// peerRecoveredSendDetail marks an EventPeerSent as a ROUTING INSTRUCTION rather than a receipt:
+// the harness's own plane refused the send and the adapter recovered {to, body} from the model's
+// tool call. It is the contract between the two halves and is spelled identically in the adapter
+// that produces it (claudeadapter/peer.go). It cannot be shared as one constant without adding an
+// exported symbol to the frozen surface, so each side names it and the tests pin them equal.
+//
+// It must differ from the adapters' "send-receipt-unparsed", which marks a send the native plane
+// DID accept and which is therefore never re-routed.
+const peerRecoveredSendDetail = "native-send-unreachable"
+
 // validatePeerSpec enforces the Open-time peer contract. Deps.Peer set with an empty Name is a
 // session that believes it is reachable and is not — the silent failure this design removes; a
 // non-empty Name that violates the grammar is a ConfigError, never a mangled argv or socket
@@ -130,6 +140,49 @@ func (s *session) deliverInboundPeer(raw Event) []Event {
 	published := s.emit(raw)
 	s.peerLink.Received(msgID)
 	return []Event{published}
+}
+
+// routeRecoveredSend carries the FULL-MESH recovery: a send the harness's own plane could not
+// make (claude cannot reach a non-claude peer) is surfaced by the adapter with the payload
+// recovered from the model's tool call, and the LIBRARY — the only side holding a PeerLink —
+// routes it over the bus so the peer really receives it. It returns the event to publish,
+// re-stamped with what the plane did: the routing outcome IS how the error is reported, so a
+// send nothing accepted stays visibly unaccepted on the stream.
+//
+// The discrimination is load-bearing in BOTH directions. An already-accepted send must not be
+// re-routed (every native message would be delivered twice), and a "send-receipt-unparsed" one
+// is a send the native plane DID accept whose id was merely unreadable — also never re-routed.
+//
+//nolint:gocritic // Event is the contract's immutable copyable record; the pump processes it by value and clones-on-modify.
+func (s *session) routeRecoveredSend(raw Event) Event {
+	if !isRecoveredSend(raw.Peer) {
+		return raw
+	}
+	recovered := *raw.Peer
+	// From is the SENDING SESSION's own name, never the model's claim.
+	msgID, err := s.peerLink.Send(context.Background(), PeerMessage{
+		From:    s.spec.Name,
+		To:      recovered.To,
+		ReplyTo: recovered.ReplyTo,
+		Body:    recovered.Body,
+	})
+	if err != nil {
+		// Unreachable natively AND on the bus: the event already says nothing accepted it, so
+		// the fact is on the stream rather than in a swallowed error.
+		return raw
+	}
+	recovered.MsgID = msgID
+	recovered.Accepted = true
+	raw.Peer = &recovered
+	return raw
+}
+
+// isRecoveredSend reports whether an observed send is the adapter's recovery instruction: not
+// accepted by the harness's own plane, carrying the recovery discriminator, and carrying both
+// halves of a routable message.
+func isRecoveredSend(message *PeerMessage) bool {
+	return message != nil && !message.Accepted && message.Detail == peerRecoveredSendDetail &&
+		message.To != "" && message.Body != ""
 }
 
 // peerAlreadySeen reports whether msgID is already in the bounded dedupe ring, recording it
