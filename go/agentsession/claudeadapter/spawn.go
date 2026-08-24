@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"os/exec"
 	"sync"
@@ -57,7 +58,7 @@ func (a *Adapter) Spawn(ctx context.Context, spec agentsession.Spec, route agent
 			agentsession.SpawnError{Harness: harnessName})
 	}
 
-	conn := newProcessConn(command, stdin, stdout, spec.HostTools)
+	conn := newProcessConn(command, stdin, stdout, spec)
 	conn.start()
 	return conn, nil
 }
@@ -89,54 +90,77 @@ func injectEnvironment(base []string, cred agentsession.InjectedCredential) ([]s
 	return env, nil
 }
 
+// peerDeliveryBuffer bounds the hand-off channel a peer delivery's event rides from Send (the
+// library's deliver goroutine) to the scanner (the sole sender on the events channel). A session
+// takes deliveries one at a time, but the buffer is generous so a burst never blocks that
+// goroutine on the scanner.
+const peerDeliveryBuffer = 8
+
 // processConn is the os/exec-backed HarnessConn: it scans the subprocess stdout into
 // normalized Events and writes control frames (Prompt/Steer/Abort) to stdin as
-// stream-json user turns. The graceful Close ladder closes stdin, waits, then kills.
+// stream-json user turns. The graceful Close ladder closes stdin and joins the scanner, which
+// reaps the child once its stdout has reached its end.
 //
-// Concurrency: one scanner goroutine owns stdout and the events channel; Send writes to
-// stdin under a mutex; Close is idempotent via sync.Once.
+// Concurrency: one scanner goroutine owns the events channel; a reader goroutine owns stdout
+// and hands it whole lines; Send writes to stdin under a mutex; Close is idempotent via
+// sync.Once.
 type processConn struct {
 	command    *exec.Cmd
 	stdin      writeCloser
-	stdout     readCloser
+	stdout     io.Reader
 	normalizer *normalizer
 	events     chan agentsession.Event
 
+	name        string          // this session's peer address; "" == not addressable
 	hostTools   *hostToolRouter // services mcp_message host-tool drives over the control channel
 	hostServers []string        // the SDK-MCP servers advertised at the initialize handshake
+
+	// peerEvents carries an inbound delivery's EventPeerMessage from Send to the scanner.
+	peerEvents chan agentsession.Event
 
 	writeMu   sync.Mutex
 	closeOnce sync.Once
 	doneOnce  sync.Once
-	done      chan struct{}
+	done      chan struct{} // closed when the scanner has ended: the Close join and the queue's escape
 }
 
-// writeCloser and readCloser are the minimal pipe seams the conn needs (so a test can
-// substitute in-memory pipes without a real process — the unit-testable surface).
-type (
-	writeCloser interface {
-		Write(p []byte) (int, error)
-		Close() error
-	}
-	readCloser interface {
-		Read(p []byte) (int, error)
-		Close() error
-	}
-)
+// writeCloser is the minimal stdin seam the conn needs (so a test can substitute an in-memory
+// pipe without a real process — the unit-testable surface).
+type writeCloser interface {
+	Write(p []byte) (int, error)
+	Close() error
+}
 
-// newProcessConn builds a conn over a started command and its pipes, with the host-tool
-// router and SDK-MCP server set derived from the spec's HostTools.
-func newProcessConn(command *exec.Cmd, stdin writeCloser, stdout readCloser, hostTools []agentsession.HostTool) *processConn {
+// newProcessConn builds a conn over an already-open transport, with the peer address, the
+// host-tool router and the SDK-MCP server set derived from the spec. command is nil on the
+// in-memory transport seam, which owns no child to reap.
+//
+//nolint:gocritic // contract §2: Spec is the frozen copyable session input; the conn mirrors Spawn's by-value port.
+func newProcessConn(command *exec.Cmd, stdin writeCloser, stdout io.Reader, spec agentsession.Spec) *processConn {
 	return &processConn{
 		command:     command,
 		stdin:       stdin,
 		stdout:      stdout,
 		normalizer:  newNormalizer(),
 		events:      make(chan agentsession.Event),
-		hostTools:   newHostToolRouter(hostTools),
-		hostServers: hostToolNames(hostTools),
+		name:        spec.Name,
+		hostTools:   newHostToolRouter(spec.HostTools),
+		hostServers: hostToolNames(spec.HostTools),
+		peerEvents:  make(chan agentsession.Event, peerDeliveryBuffer),
 		done:        make(chan struct{}),
 	}
+}
+
+// newPipeConn builds the REAL conn over an INJECTED transport instead of a spawned process and
+// starts it scanning — Spawn adds only the child process and its two pipes on top of it. It
+// takes the Spec for the same reason Spawn does: a conn that does not know its own Name cannot
+// tell a delivery meant for it from one that is not.
+//
+//nolint:gocritic // contract §2: Spec is the frozen copyable session input; the seam mirrors Spawn's by-value port.
+func newPipeConn(spec agentsession.Spec, stdout io.Reader, stdin io.WriteCloser) *processConn {
+	conn := newProcessConn(nil, stdin, stdout, spec)
+	conn.start()
+	return conn
 }
 
 // start launches the stdout scanner.
@@ -168,8 +192,16 @@ func (c *processConn) Send(ctx context.Context, command agentsession.Command) er
 		if answer, ok := parsePermissionAnswer(command.Text); ok {
 			return c.writePermissionDecision(answer)
 		}
+		// The library's deliver goroutine steers an inbound peer message into a RUNNING turn,
+		// so the delivery path is on both turn-taking verbs, not only Prompt.
+		if delivery, ok := decodePeerDelivery(command.Text); ok {
+			return c.deliverPeer(&delivery)
+		}
 		return c.writeUserTurn(command.Text)
 	case agentsession.CommandPrompt:
+		if delivery, ok := decodePeerDelivery(command.Text); ok {
+			return c.deliverPeer(&delivery)
+		}
 		return c.writeUserTurn(command.Text)
 	default:
 		return errors.New(errors.KindInvalid, "claudeadapter: unknown control kind")
@@ -221,19 +253,30 @@ func (c *processConn) writeControl(frame []byte) error {
 // Close runs the graceful ladder: close stdin (signal end of input), then wait for the
 // scanner to drain. The exec.CommandContext cancel reaps the process if it does not exit;
 // Close is idempotent.
+//
+// The scanner ends on the child's stdout EOF, which the child produces by exiting on that same
+// stdin EOF — so the join is what makes the tail of the session reach the stream before it
+// closes. A conn built over an INJECTED transport has no child, so nothing on this side will
+// ever produce that EOF and the transport's lifetime belongs to whoever injected it: there is
+// nothing to wait for, and waiting would be a deadlock rather than a drain.
 func (c *processConn) Close(_ context.Context) error {
 	c.closeOnce.Do(func() {
 		c.writeMu.Lock()
 		_ = c.stdin.Close() //nolint:errcheck // best-effort stdin close in the graceful ladder; the scanner drain is the join.
 		c.writeMu.Unlock()
 	})
+	if c.command == nil {
+		return nil
+	}
 	<-c.done
 	return nil
 }
 
-// scan reads stdout line by line, normalizes each into Events, and fans them onto the
-// events channel. On EOF / scan end it closes the channel (the library's pump treats a
-// closed channel without a terminal as a transport failure, and without a Ready as the
+// scan is the SOLE sender on the events channel. It interleaves the harness's own stdout lines,
+// read off a reader goroutine, with the inbound peer DELIVERIES Send hands back — which cannot
+// be published by Send itself, because the events channel is unbuffered and a second sender on
+// it would race the scanner. On EOF it closes the channel (the library's pump treats a closed
+// channel without a terminal as a transport failure, and without a Ready as the
 // silent-bad-token trap).
 func (c *processConn) scan() {
 	defer c.finish()
@@ -243,12 +286,10 @@ func (c *processConn) scan() {
 	// real-claude hang the fakes hid). The harness is ready to accept a turn the moment it is
 	// spawned with stdin open; claude's later `system/init` is session metadata (normalize.go
 	// maps it to Extension), not the readiness signal.
-	select {
-	case c.events <- agentsession.Event{
+	if !c.publish(agentsession.Event{
 		Kind:  agentsession.EventSessionState,
 		State: &agentsession.StatePayload{From: agentsession.StateInitializing, To: agentsession.StateReady},
-	}:
-	case <-c.done:
+	}) {
 		return
 	}
 	// Send the host's initialize control_request: it advertises the SDK-MCP servers (when host
@@ -258,32 +299,95 @@ func (c *processConn) scan() {
 	if frame, err := initializeFrame("eden-init-1", c.hostServers); err == nil {
 		_ = c.writeControl(frame) //nolint:errcheck // best-effort handshake; the conversation stream does not depend on the ack.
 	}
+	lines := make(chan []byte)
+	go c.readLines(lines)
+	for {
+		// A delivery goes out FIRST, so the arrival precedes the lines the turn it caused
+		// produces — the same ordering the origin-bearing result line owes.
+		select {
+		case delivered := <-c.peerEvents:
+			if !c.publish(delivered) {
+				return
+			}
+			continue
+		default:
+		}
+		select {
+		case delivered := <-c.peerEvents:
+			if !c.publish(delivered) {
+				return
+			}
+		case line, ok := <-lines:
+			if !ok {
+				c.waitProcess()
+				return
+			}
+			if !c.publishLine(line) {
+				return
+			}
+		case <-c.done:
+			return
+		}
+	}
+}
+
+// readLines scans the harness stdout into whole lines and hands COPIES to the scanner (bufio
+// reuses its buffer), closing the channel on EOF so the scanner ends the session.
+func (c *processConn) readLines(lines chan<- []byte) {
+	defer close(lines)
 	scanner := bufio.NewScanner(c.stdout)
 	scanner.Buffer(make([]byte, 0, 64*1024), maxLineBytes)
 	for scanner.Scan() {
-		line := scanner.Bytes()
-		// Service host-tool mcp_message control_requests inline (they are not conversation):
-		// the router answers tools/list+tools/call into the HostTool.Handler and the conn
-		// writes the control_response. serviced==true means the line was a host-tool drive; any
-		// EventToolUpdate it produced is fanned out, and the line is not normalized.
-		if events, serviced := c.serviceControl(line); serviced {
-			for i := range events {
-				select {
-				case c.events <- events[i]:
-				case <-c.done:
-					return
-				}
-			}
-			continue
+		line := make([]byte, len(scanner.Bytes()))
+		copy(line, scanner.Bytes())
+		select {
+		case lines <- line:
+		case <-c.done:
+			return
 		}
-		events := c.normalizer.normalize(line)
-		for i := range events {
-			select {
-			case c.events <- events[i]:
-			case <-c.done:
-				return
-			}
+	}
+}
+
+// publishLine services or normalizes one stdout line and fans out what it produced. Host-tool
+// mcp_message control_requests are serviced inline (they are not conversation): the router
+// answers tools/list+tools/call into the HostTool.Handler and the conn writes the
+// control_response; any EventToolUpdate it produced is fanned out and the line is not
+// normalized. It reports false when Close ended the session first.
+func (c *processConn) publishLine(line []byte) bool {
+	if events, serviced := c.serviceControl(line); serviced {
+		return c.publishAll(events)
+	}
+	return c.publishAll(c.normalizer.normalize(line))
+}
+
+// publish fans one event onto the channel, reporting false when Close ended the session first so
+// the scanner returns instead of blocking on a stream nobody will read.
+//
+//nolint:gocritic // Event is the contract's copyable record; the scanner publishes it by value.
+func (c *processConn) publish(event agentsession.Event) bool {
+	select {
+	case c.events <- event:
+		return true
+	case <-c.done:
+		return false
+	}
+}
+
+// publishAll fans a batch out in order, stopping at the first Close.
+func (c *processConn) publishAll(events []agentsession.Event) bool {
+	for i := range events {
+		if !c.publish(events[i]) {
+			return false
 		}
+	}
+	return true
+}
+
+// waitProcess reaps the child once its stdout has reached its end. The in-memory transport seam
+// owns no child and has nothing to reap.
+func (c *processConn) waitProcess() {
+	if c.command == nil {
+		return
 	}
 	_ = c.command.Wait() //nolint:errcheck // the process exit status is not the contract; the terminal Event (or its absence) is.
 }
