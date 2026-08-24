@@ -263,7 +263,7 @@ prometheus:
       requests: { cpu: 100m, memory: 512Mi }
       limits: { memory: 1536Mi }
   alertmanager:
-    enabled: false
+    enabled: false   # turned on per cluster; homelab does (values-homelab.yaml)
   prometheus-pushgateway:
     enabled: false
   kube-state-metrics:
@@ -379,3 +379,13 @@ grafana:
         gnetId: 13639
         revision: 2
         datasource: Loki
+
+# =========================================================================
+# Alertmanager -> Discord delivery secret (chart-owned ExternalSecret).
+# Off by default: a cluster that enables prometheus.alertmanager supplies its
+# own receiver config, and only the homelab's is Discord. Turning this on
+# requires vault item `shared/discord/alerts-webhook` to exist, or the
+# ExternalSecret reports SecretSyncedError forever and verify-vault-refs is red.
+# =========================================================================
+alertmanagerDiscordWebhook:
+  enabled: false

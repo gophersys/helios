@@ -40,6 +40,94 @@ prometheus:
     persistentVolume:
       storageClass: local-path
 
+  # ALERTMANAGER — ENABLED 2026-08-24. This answers ledger #75/#124: DiskPressure
+  # evictions killed 8 CI jobs with ZERO alerts, plus NodeNotReady flaps and lost
+  # runners. The subchart is prometheus-community `alertmanager` 1.39.0
+  # (appVersion v0.33.0 — `discord_configs` needs Alertmanager >= 0.25.0 and
+  # `webhook_url_file` for Discord needs >= 0.26.0, both satisfied). When enabled,
+  # the prometheus chart auto-wires `alerting.alertmanagers` in prometheus.yml by
+  # pod SD on labels instance=obs + name=alertmanager + port 9093, so no
+  # fullnameOverride is needed for discovery; it is set anyway so the StatefulSet
+  # and Service carry the stable name the runbooks use.
+  #
+  # THE WEBHOOK URL IS NEVER IN GIT AND NEVER IN A CONFIGMAP. The receiver uses
+  # `webhook_url_file` against a file mounted from Secret
+  # `alertmanager-discord-webhook`, which ESO materializes from vault item
+  # `shared/discord/alerts-webhook` (templates/
+  # alertmanager-discord-webhook-externalsecret.yaml, gated by
+  # `alertmanagerDiscordWebhook.enabled` below). Alertmanager v0.33.0 applies
+  # strings.TrimSpace to the file content (notify/discord/discord.go), so a
+  # trailing newline in the vault notes blob is harmless and no ESO template is
+  # needed. Until ESO syncs the Secret the pod sits in ContainerCreating on the
+  # mount — visible, not silent, same posture as grafana-admin.
+  alertmanager:
+    enabled: true
+    fullnameOverride: alertmanager
+    persistence:
+      # 2Gi on local-path, the stack's StorageClass pattern (see header). The
+      # subchart default is 50Mi, too small for the nflog + silences snapshots
+      # to survive growth. Node-local, no replication — accepted, same trade as
+      # the other 4 PVCs: alert state is re-derivable, silences are not a
+      # system of record.
+      size: 2Gi
+      storageClass: local-path
+    extraSecretMounts:
+      - name: discord-webhook
+        mountPath: /etc/secrets/discord
+        subPath: ""
+        secretName: alertmanager-discord-webhook
+        readOnly: true
+    config:
+      # Map-merged over the subchart defaults: group_wait 10s and
+      # group_interval 5m are inherited; the receivers LIST replaces the
+      # default-receiver stub wholesale.
+      receivers:
+        - name: discord
+          discord_configs:
+            - webhook_url_file: /etc/secrets/discord/webhook-url
+              send_resolved: true
+      route:
+        receiver: discord
+        group_by: [alertname, node]
+        repeat_interval: 4h
+
+  # Alert rules derived from the incident, one rule per observed failure mode.
+  # Each metric was verified present on the LIVE prometheus-server before the
+  # rule was written (2026-08-24, /api/v1/query):
+  #   kube_node_status_condition{condition="DiskPressure",status="true"} -> 8 series (one per node)
+  #   kube_node_status_condition{condition="Ready",status="true"}        -> 8 series
+  #   kube_pod_status_phase{namespace="arc-runners",phase="Failed"}      -> 13 series
+  serverFiles:
+    alerting_rules.yml:
+      groups:
+        - name: node-health
+          rules:
+            - alert: NodeDiskPressure
+              expr: kube_node_status_condition{condition="DiskPressure",status="true"} == 1
+              for: 2m
+              labels:
+                severity: critical
+              annotations:
+                summary: 'Node {{ $labels.node }} is under DiskPressure'
+                description: 'DiskPressure on {{ $labels.node }} for 2m. The kubelet is evicting pods; on 2026-08-23 this killed 8 CI jobs unalerted (ledger #75/#124). Check disk usage and image GC on the node.'
+            - alert: NodeNotReady
+              expr: kube_node_status_condition{condition="Ready",status="true"} == 0
+              for: 3m
+              labels:
+                severity: critical
+              annotations:
+                summary: 'Node {{ $labels.node }} is NotReady'
+                description: '{{ $labels.node }} has reported NotReady for 3m. Workloads on it are not being rescheduled until the eviction timeout; CI runners on it are lost silently.'
+        - name: ci-runners
+          rules:
+            - alert: ArcRunnersPodsFailed
+              expr: sum(increase(kube_pod_status_phase{namespace="arc-runners", phase="Failed"}[10m])) > 0
+              labels:
+                severity: warning
+              annotations:
+                summary: 'Runner pods failed in arc-runners'
+                description: 'At least one pod in arc-runners entered Failed within 10m — the lost-runner proxy from the 2026-08-23 incident. Check the runner scale sets and the node the pods sat on.'
+
 grafana:
   persistence:
     storageClassName: local-path
@@ -118,3 +206,10 @@ grafana:
   #   server:
   #     root_url: "https://grafana.mateosegura.com"
   #     domain: grafana.mateosegura.com
+
+# Renders templates/alertmanager-discord-webhook-externalsecret.yaml — the ESO
+# link from vault item `shared/discord/alerts-webhook` to the Secret the
+# alertmanager receiver above mounts. Homelab-only: base values.yaml keeps it
+# off, the same way the base keeps alertmanager itself off.
+alertmanagerDiscordWebhook:
+  enabled: true

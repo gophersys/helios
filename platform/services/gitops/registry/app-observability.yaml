@@ -45,9 +45,14 @@
 #
 # NO ServerSideApply. It is set only where a resource measurably needs it, and
 # never on an Application that manages an ExternalSecret (debt-register D44).
-# This one manages neither: the largest object it renders is well inside the
-# 262144-byte client-side-apply annotation, because the `gnetId` dashboards are
-# fetched by Grafana's own download initContainer rather than embedded.
+# Since 2026-08-24 this app DOES manage one ExternalSecret
+# (alertmanager-discord-webhook, rendered by the chart), which is exactly why
+# SSA must stay off here — and it makes this app the control case D44 asked
+# for: an ExternalSecret in an Application WITHOUT ServerSideApply=true. If it
+# reports Synced, the D44 correlation (SSA + this CRD) holds. No size problem:
+# the largest object it renders is well inside the 262144-byte
+# client-side-apply annotation, because the `gnetId` dashboards are fetched by
+# Grafana's own download initContainer rather than embedded.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
