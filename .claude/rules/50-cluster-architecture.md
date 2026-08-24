@@ -267,12 +267,19 @@ slo:
   errorBudget:  { burnRateFast: 14.4, burnRateSlow: 6 }
 ```
 
-The chart emits Prometheus recording rules. Alertmanager routes by
+The chart emits Prometheus recording rules. The TARGET routing model is by
 `platform.gophersys/slo-tier`:
 - `critical`: page immediately.
 - `high`: page during business hours, ticket overnight.
 - `standard`: ticket, no page.
 - `best-effort`: dashboard only.
+
+**Today (2026-08-24):** the homelab Alertmanager exists (enabled with the
+Discord delivery in `platform/services/observability`) and routes EVERYTHING
+through one flat Discord receiver. The tier-aware tree above is not built —
+that gap is the first TODO in `platform/services/observability/README.md`.
+Before this date the sentence above was vacuous (no Alertmanager ran anywhere);
+now it would be false without this paragraph.
 
 ## 9. Cost governance
 

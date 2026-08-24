@@ -9,7 +9,8 @@
 # pending, because node-local volumes are a different durability posture and that
 # is Mateo's call rather than a side effect of removing a provisioner.
 #
-# The call is made. Loki, Tempo, Prometheus and Grafana run on `local-path`:
+# The call is made. Loki, Tempo, Prometheus, Grafana and (since 2026-08-24)
+# Alertmanager run on `local-path`:
 #
 #   - Each PVC is a directory on ONE node. There is no replication. If that node
 #     is lost, the data in it is lost.
@@ -20,9 +21,10 @@
 #     pod first schedules to, and the pod is pinned to that node afterwards.
 #     A node drain therefore strands the pod until the node returns; delete the
 #     PVC to let it re-bind elsewhere and start empty.
-#   - Sizes are unchanged from values.yaml (Loki 10Gi, Tempo 10Gi, Prometheus
-#     20Gi, Grafana 5Gi). Retention is already bounded: 168h logs/traces, 15d
-#     metrics.
+#   - Sizes: Loki 10Gi, Tempo 10Gi, Prometheus 20Gi, Grafana 5Gi — unchanged
+#     from values.yaml. Alertmanager 2Gi is set HERE, not there: the subchart
+#     default is 50Mi and the subchart is enabled only in this file. Retention
+#     is already bounded: 168h logs/traces, 15d metrics.
 #
 # Reintroduce a replicated provisioner when a workload exists whose data cannot
 # be re-fetched and cannot be pinned to a node. This stack is not that workload.
@@ -120,13 +122,20 @@ prometheus:
                 description: '{{ $labels.node }} has reported NotReady for 3m. Workloads on it are not being rescheduled until the eviction timeout; CI runners on it are lost silently.'
         - name: ci-runners
           rules:
+            # max_over_time, NOT increase: kube_pod_status_phase is a GAUGE,
+            # and increase() over it misses a pod whose Failed series first
+            # appears already at 1 (created and only ever observed Failed) —
+            # proven with promtool test rules, which is exactly the shape a
+            # short-lived lost runner takes. max_over_time fires on any Failed
+            # sample inside the window, including one from a pod reaped before
+            # the next scrape, and self-resolves 10m after the last one.
             - alert: ArcRunnersPodsFailed
-              expr: sum(increase(kube_pod_status_phase{namespace="arc-runners", phase="Failed"}[10m])) > 0
+              expr: max_over_time(kube_pod_status_phase{namespace="arc-runners", phase="Failed"}[10m]) > 0
               labels:
                 severity: warning
               annotations:
-                summary: 'Runner pods failed in arc-runners'
-                description: 'At least one pod in arc-runners entered Failed within 10m — the lost-runner proxy from the 2026-08-23 incident. Check the runner scale sets and the node the pods sat on.'
+                summary: 'Runner pod {{ $labels.pod }} failed in arc-runners'
+                description: 'Pod {{ $labels.pod }} in arc-runners was Failed within the last 10m — the lost-runner proxy from the 2026-08-23 incident. Check the runner scale sets and the node the pod sat on.'
 
 grafana:
   persistence:

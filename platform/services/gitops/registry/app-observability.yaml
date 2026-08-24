@@ -9,8 +9,9 @@
 #
 # STORAGE: `local-path`, decided 2026-08-19. See the header of
 # values-homelab.yaml for the trade — node-local, no replication, telemetry is
-# re-derivable. The 4 PVCs (Loki 10Gi, Tempo 10Gi, Prometheus 20Gi, Grafana 5Gi)
-# are WaitForFirstConsumer and bind on the node each pod first lands on.
+# re-derivable. The 5 PVCs (Loki 10Gi, Tempo 10Gi, Prometheus 20Gi, Grafana
+# 5Gi, Alertmanager 2Gi since 2026-08-24) are WaitForFirstConsumer and bind on
+# the node each pod first lands on.
 #
 # BEFORE THE FIRST SYNC — the one imperative step, and it is NOT skippable.
 # Grafana reads `admin.existingSecret: grafana-admin` (namespace `observability`,

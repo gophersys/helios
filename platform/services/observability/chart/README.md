@@ -11,6 +11,7 @@ OpenTelemetry endpoint for your apps.
 | **Grafana Alloy** — gateway (Deployment) | OTLP receiver (gRPC `:4317` / HTTP `:4318`) → fans out to Prometheus / Loki / Tempo. **This is the endpoint your apps target.** |
 | **Grafana Alloy** — logs (DaemonSet) | Tails every pod's logs → Loki |
 | **Prometheus** | Scrapes k8s (cAdvisor, kubelet, kube-state-metrics, node-exporter) + accepts remote-write |
+| **Alertmanager** (subchart of prometheus, v0.33.0) | Alert routing + delivery. Off in the base values; the homelab enables it with a Discord receiver (`webhook_url_file` from an ESO-materialized Secret) and the incident-derived rules in `serverFiles.alerting_rules.yml` — see `values-homelab.yaml`. No UI exposure; port-forward `svc/alertmanager :9093`. |
 | **Loki** | Log store (filesystem or S3) |
 | **Tempo** | Trace store (filesystem or S3), HTTP API on **:3200**, OTLP on :4317/:4318 |
 | **Grafana** | Dashboards + provisioned datasources (Prometheus/Loki/Tempo). Disable to reuse an existing one. |
@@ -82,7 +83,7 @@ All of them are visible in Grafana, and the Tempo datasource links them together
 
 ## Notes
 
-- **Storage on the homelab is `local-path`** (decided 2026-08-19; the 4 pins are
+- **Storage on the homelab is `local-path`** (decided 2026-08-19; the 5 pins are
   in `values-homelab.yaml`, and its header carries the durability trade). The
   volumes are node-local and not replicated, and `local-path` is
   WaitForFirstConsumer, so each PVC binds on the node its pod first lands on and

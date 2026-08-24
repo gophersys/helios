@@ -39,12 +39,16 @@
 #                    policy directory. A `2>/dev/null` there would read as "this
 #                    file declares no PVC" / "no policy is declared" — the right
 #                    exit code for the wrong reason.
-#   CHART-EXCLUDED   Helm chart source (a Chart.yaml at or above the file) is
-#                    excluded from the scan — a Go template is not YAML — and
-#                    the skipped count is PRINTED. And the exclusion must not
-#                    swallow the tree it does not own: a raw manifest outside
-#                    the chart is still scanned, so a bare PVC in a protected
-#                    namespace still FAILS with the chart present.
+#   CHART-EXCLUDED   ONLY a chart's templates/ (under a Chart.yaml) is excluded
+#                    from the scan — a Go template is not YAML — and the
+#                    skipped count is PRINTED. The exclusion must not swallow
+#                    what it does not own, in either direction: a raw manifest
+#                    outside the chart is still scanned (a bare PVC in a
+#                    protected namespace still FAILS with the chart present),
+#                    AND the chart's own values*.yaml/Chart.yaml are still
+#                    parsed — this pass is the only CI gate that reads them, so
+#                    a malformed chart values file FAILS instead of riding
+#                    green to Argo.
 #   GREEN            the correct tree passes. A check that cannot pass is as
 #                    useless as one that cannot fail.
 #
@@ -242,6 +246,12 @@ EOYAML
 # The chart AND a broken property outside it: the exclusion must not have
 # swallowed the raw tree, so the bare PVC must still turn check 6 red.
 m_chart_and_bare_pvc() { m_chart "$1"; m_pvc_bare "$1"; }
+# The chart with a MALFORMED values file. values*.yaml and Chart.yaml are real
+# YAML that only this parse pass reads in CI (lint-manifests skips the whole
+# chart dir), so they must STAY in the scan: a blanket under-a-Chart.yaml
+# exclusion swallowed exactly this case and let a values syntax error ride
+# green to Argo (adversarial verify on #202).
+m_chart_bad_values() { m_chart "$1"; printf 'route:\n  group_by: [alertname, node\n' > "$1/apps/somechart/values.yaml"; }
 
 echo "spec: scripts/verify-vap-policies.sh"
 
@@ -262,8 +272,9 @@ case_run "FLOOR            a missing policy directory fails"          1 "the adm
 case_run "FLOOR            a scan over zero manifests fails"          1 "measured nothing" m_no_scan
 case_run "NO-SWALLOW       an unparseable POLICY manifest fails"       1 "yq could not read" m_bad_policy
 case_run "NO-SWALLOW       an unparseable manifest fails"             1 "yq could not read" m_malformed
-case_run "CHART-EXCLUDED   helm chart source is skipped, counted out loud" 0 "chart-source file(s) under a Chart.yaml excluded" m_chart
+case_run "CHART-EXCLUDED   chart templates/ is skipped, counted out loud"  0 "Helm template file(s) excluded from the scan" m_chart
 case_run "CHART-EXCLUDED   the exclusion must not swallow the raw tree"    1 "loses its guard" m_chart_and_bare_pvc
+case_run "CHART-EXCLUDED   a malformed chart values file still fails"      1 "yq could not read" m_chart_bad_values
 
 echo
 echo "  cases=$n pass=$pass fail=$fail"

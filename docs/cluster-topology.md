@@ -118,8 +118,9 @@ It is network-isolated: `ingress-nginx` may reach `:9000`, and the
 namespace that no longer exists. See `apps/minio/README.md`.
 
 ### `observability` — REMOVED 2026-08-09, REINSTALLED under Argo
-Prometheus, Loki, Tempo, Grafana and 2 Grafana Alloy collectors (an OTLP gateway
-Deployment and a log-tailing DaemonSet), from the in-repo `eden-observability`
+Prometheus, Alertmanager (since 2026-08-24, Discord delivery), Loki, Tempo,
+Grafana and 2 Grafana Alloy collectors (an OTLP gateway Deployment and a
+log-tailing DaemonSet), from the in-repo `eden-observability`
 chart at `platform/services/observability/chart`, release `obs`.
 
 **Why it was removed.** The `obs` release had been in `failed` helm state at

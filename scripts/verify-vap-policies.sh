@@ -194,28 +194,34 @@ done
 # 0-3, and counting them here would make the floor below unreachable — the
 # component's own files would always keep the scan non-empty.
 #
-# A HELM CHART DIRECTORY IS NOT A RAW MANIFEST TREE. Same rule and same anchor
-# as lint-manifests.sh: a Chart.yaml at or above the file defines a chart, and a
-# chart template carries `{{ }}` where a value belongs, so it is a Go template
-# rather than YAML — check 4b would fail it for being exactly what it is
+# A HELM TEMPLATE IS NOT YAML — but ONLY the template is exempt. The anchor is
+# the same as lint-manifests.sh (a Chart.yaml at or above the file defines a
+# chart), the scope is deliberately NARROWER: only files under that chart's
+# templates/ are dropped, because only they carry `{{ }}` where a value belongs
 # (first hit: platform/services/observability/chart/templates/, 2026-08-24).
+# The chart's OWN Chart.yaml and values*.yaml files STAY in the scan: they are
+# real YAML, this parse pass (4b) is the only CI gate that reads them — the
+# kubeconform gate skips the whole chart directory — and a blanket Chart.yaml
+# exclusion here was proven to let a syntax error in values-homelab.yaml ride
+# green to Argo (adversarial verify on #202). They carry no `kind:`, so checks
+# 5-7 select nothing from them; parse coverage is the point.
 # The skipped count is PRINTED below so the exemption cannot quietly grow to
-# swallow a real manifest tree. What this costs is the gap lint-manifests.sh
-# already states: an in-repo chart's RENDERED output is validated by nothing
-# in CI, including its PVCs — a chart-rendered PVC relies on the namespace
-# label, not the per-PVC label, until that gap is closed.
+# swallow a real manifest tree.
 scan_files=()
 chart_skipped=0
 if [ "${#scan_roots[@]}" -gt 0 ]; then
   while IFS= read -r -d '' f; do
     case "$f" in "$POLICY_DIR"/*) continue ;; esac
     d="$(dirname "$f")"
-    in_chart=0
+    in_chart_templates=0
     while [ "$d" != "." ] && [ "$d" != "/" ]; do
-      if [ -f "$d/Chart.yaml" ]; then in_chart=1; break; fi
+      if [ -f "$d/Chart.yaml" ]; then
+        case "$f" in "$d"/templates/*) in_chart_templates=1 ;; esac
+        break
+      fi
       d="$(dirname "$d")"
     done
-    if [ "$in_chart" -eq 1 ]; then
+    if [ "$in_chart_templates" -eq 1 ]; then
       chart_skipped=$((chart_skipped + 1))
       continue
     fi
@@ -224,7 +230,7 @@ if [ "${#scan_roots[@]}" -gt 0 ]; then
     -not -path '*/config-enforce/*' -not -path '*/envs/*' -print0 | sort -z)
 fi
 if [ "$chart_skipped" -gt 0 ]; then
-  printf '  note %d chart-source file(s) under a Chart.yaml excluded from the scan (Go templates, not YAML)\n' "$chart_skipped"
+  printf '  note %d Helm template file(s) excluded from the scan (templates/ under a Chart.yaml is Go template source, not YAML)\n' "$chart_skipped"
 fi
 
 if [ "${#scan_files[@]}" -eq 0 ]; then
