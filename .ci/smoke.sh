@@ -754,7 +754,7 @@ function resolve_pin() {
 }
 
 # expected_version <raw pin value> — the version INSIDE the pin. Everything
-# before the first digit goes: CICTL_VERSION is written `v0.1.0`, and
+# before the first digit goes: CICTL_VERSION is written `v0.6.0`, and
 # PYTHON_PACKAGE is written `python3.12` because apt names a package rather than
 # a version. Empty when the value holds no digit at all, which the caller reports.
 function expected_version() {

@@ -13,7 +13,7 @@
 #       1 record on stdout:  <version>|<row>=<sha256> [<row>=<sha256> ...]
 #
 #       <version>  spelled the way the pin's CURRENT value is spelled. A leading
-#                  `v` is kept when the pin carries one (cictl pins v0.1.0) and
+#                  `v` is kept when the pin carries one (cictl pins v0.6.0) and
 #                  dropped when it does not (gh pins 2.90.0); `go1.26.5` and
 #                  `bun-v1.3.14` lose their word prefix the same way.
 #       <row>=...  1 pair per `<tool>_SHA256_<ARCH>` row beside the pin, each
