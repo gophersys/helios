@@ -67,7 +67,6 @@ GITLEAKS_VERSION|github-release|gitleaks/gitleaks|bump to the newest release git
 GOFUMPT_VERSION|github-release|mvdan/gofumpt|bump to the newest release github marks latest
 GOLANGCI_LINT_VERSION|github-release|golangci/golangci-lint|bump to the newest release github marks latest
 GOSEC_VERSION|github-release|securego/gosec|bump to the newest release github marks latest
-GOVULNCHECK_VERSION|github-release|golang/vuln|bump to the newest release github marks latest
 GREMLINS_VERSION|github-release|go-gremlins/gremlins|bump to the newest release github marks latest
 GRPCURL_VERSION|github-release|fullstorydev/grpcurl|bump to the newest release github marks latest
 HADOLINT_VERSION|github-release|hadolint/hadolint|bump to the newest release github marks latest
@@ -177,6 +176,32 @@ HNSLINT_VERSION|no-autobump|gophersys/hnslint|gophersys-owned and tag-only (zero
 # the coordinate grammar (`bitwarden/clients#cli-v`), which needs a release-LIST
 # fixture this suite does not have; until that lands, an honest no-autobump.
 BW_VERSION|no-autobump|bitwarden/clients|the release stream carries browser, desktop, web and cli together and github marks the newest of ALL of them latest, so resolving it bumps this pin to a version whose cli asset does not exist
+
+# -------- no-autobump: the upstream that STOPPED releasing --------
+# The 3 corrected rows above were coordinates that FAILED — a 404 a run reports.
+# This one is the other shape, and it is worse: the row RESOLVED, every Monday,
+# to the same value, and a resolver that always answers the same thing is
+# indistinguishable from one that is current. golang/vuln cut its last GitHub
+# Release at v1.1.4 on 2025-01-13 and went on TAGGING through v1.7.0
+# (2026-08-13), so `releases/latest` answers 1.1.4 forever. The pin sat 6
+# releases behind for 7 months while the weekly reported "no move", and it broke
+# in the open only when go1.27 arrived and 1.1.4's vendored x/tools panicked on
+# the AST.
+#
+# LEAVING IT `github-release` WOULD NOW DOWNGRADE THE PIN. Measured on
+# 2026-08-25 against this tree with the pin already at 1.7.0:
+# `bash _build/resolve-upstream.sh GOVULNCHECK_VERSION` answers `1.1.4|-` at
+# exit 0, so `collect_bumps` sees 1.1.4 != 1.7.0, writes a mover, and `bump_pin`
+# rewrites the row back to the version that panics. `no-autobump` is what stops
+# that, because `collect_bumps` skips on FIELD 2 and never reads this sentence.
+#
+# THE REAL FIX IS A DATASOURCE, and this row is the honest interim state until
+# it lands. govulncheck is installed with `go install
+# golang.org/x/vuln/cmd/govulncheck@v${PIN}`, so the upstream that decides its
+# bytes is the GO MODULE PROXY and never a release page —
+# proxy.golang.org/golang.org/x/vuln/@latest answered v1.7.0 on 2026-08-25,
+# which is the value this pin holds.
+GOVULNCHECK_VERSION|no-autobump|golang/vuln|github marks v1.1.4 latest forever because golang/vuln stopped cutting releases there and moved to tags alone, so resolving this row DOWNGRADES the pin and reintroduces the go1.27 panic; the true upstream is the go module proxy that go install reads, and a datasource for it is the fix this row waits for
 
 # -------- no-autobump: the ready components --------
 # 2 pins whose component no image calls (ledger #103). A bump of a tool nothing
