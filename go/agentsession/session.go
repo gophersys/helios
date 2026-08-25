@@ -29,12 +29,13 @@ type session struct {
 	// peerLink is the session's attachment to the injected peer plane (nil == no plane). The
 	// pump calls Received after emitting an inbound EventPeerMessage; the deliver goroutine
 	// drains its Inbound. peerSeen/peerRing are the bounded 256-id dedupe ring (guarded by mu).
-	peerLink     PeerLink
-	deliverStop  chan struct{} // closed by Close to stop the deliver goroutine (only when peerLink != nil)
-	deliverDone  chan struct{} // closed by the deliver goroutine when it exits
-	peerSeen     map[string]struct{}
-	peerRing     []string
-	peerRingNext int
+	peerLink       PeerLink
+	deliverStop    chan struct{}    // closed by Close to stop the deliver goroutine (only when peerLink != nil)
+	deliverDone    chan struct{}    // closed by the deliver goroutine when it exits
+	recoveredSends chan PeerMessage // full-mesh recovered sends handed OFF the pump to deliverLoop (the pump must never block on the plane)
+	peerSeen       map[string]struct{}
+	peerRing       []string
+	peerRingNext   int
 
 	mu            sync.Mutex // guards state, seq, turn, pending permissions, the session grant set, closed
 	state         State
@@ -73,21 +74,24 @@ var _ Session = (*session)(nil)
 //nolint:gocritic // contract §2: Spec is the frozen, copyable session input (the configuration pattern); the port takes it by value.
 func newSession(ctx context.Context, spec Spec, route Route, conn HarnessConn, cred InjectedCredential, dependencies Deps, link PeerLink) (*session, error) {
 	s := &session{
-		id:            sessionID(spec, route),
-		spec:          spec,
-		route:         route,
-		conn:          conn,
-		credential:    cred,
-		transcript:    dependencies.Transcript,
-		clock:         dependencies.Clock,
-		manifest:      adapterManifest(dependencies, route.Harness),
-		advisor:       dependencies.Advisor,
-		broadcaster:   newBroadcaster(),
-		peerLink:      link,
-		state:         StateInitializing,
-		pending:       make(map[string]*pendingPermission),
-		sessionGrants: cloneGrants(spec.Grants),
-		pumpDone:      make(chan struct{}),
+		id:          sessionID(spec, route),
+		spec:        spec,
+		route:       route,
+		conn:        conn,
+		credential:  cred,
+		transcript:  dependencies.Transcript,
+		clock:       dependencies.Clock,
+		manifest:    adapterManifest(dependencies, route.Harness),
+		advisor:     dependencies.Advisor,
+		broadcaster: newBroadcaster(),
+		peerLink:    link,
+		// Allocated up front (before the pump starts) so a recovered EventPeerSent can be enqueued
+		// without a nil-channel race; drained only when a plane is wired (deliverLoop).
+		recoveredSends: make(chan PeerMessage, peerRecoveredSendBuffer),
+		state:          StateInitializing,
+		pending:        make(map[string]*pendingPermission),
+		sessionGrants:  cloneGrants(spec.Grants),
+		pumpDone:       make(chan struct{}),
 	}
 
 	ready := make(chan error, 1)
