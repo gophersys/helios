@@ -308,7 +308,24 @@ with correct tool versions. Surfaced: PR #26 comment + eden back-channel handoff
 runner image; not touching it from this feature worktree to avoid colliding with eden's concurrent
 .ci work). #26 is ready-to-merge on its own merits.
 
-## BLOCKED — repo-wide CI-estate regression
+## BLOCKER ROOT-CAUSED + FIX OPEN (.devcontainer #102)
+CORRECTION: my first diagnosis (golangci rejecting allow-parallel-runner) was WRONG — that exit-3 is
+libs' own NEGATIVE SELF-TEST (go/_ctl/lib_test.sh:222) injecting the bad key on purpose. Retracted on
+PR #26 publicly.
+REAL CAUSE (execution-proven, real ctl.sh vuln verb, in base:latest): GO_VERSION->1.27.0 on 08-24 but
+GOVULNCHECK_VERSION stayed 1.1.4 -> govulncheck 1.1.4 cannot parse the go1.27 AST -> panic
+(unexpected expr: *ast.KeyValueExpr) on go/secrets + go/workspaceprovider under GOWORK=off -> vuln
+verb dies -> pr tier red on EVERY libs PR (#25 identical), content-independent.
+  1.1.4 panic | 1.7.0 rc=0 "[ok] vuln: OK" on workspaceprovider, secrets, agentsession.
+FIX: .devcontainer PR #102 (pin 1.1.4->1.7.0 + stale-tracker annotation). .devcontainer validate
+green IN-CONTAINER rc=0. Mateo authorized taking eden's estate work (eden offline).
+SYSTEMIC: upstreams.txt tracked the pin via github-release, but golang/vuln STOPPED publishing
+releases after v1.1.4 — github marks v1.1.4 latest while real stream moved to TAGS (v1.7.0). The
+resolver answered CORRECTLY with a frozen value = green-check-that-verifies-nothing, in the version
+supply chain. Global asks handed to eden: audit ALL github-release rows, add a github-tag datasource,
+and a STALENESS ALARM (fail loudly when a tracker's value is frozen while upstream tags moved).
+
+## BLOCKED — waiting on #102 merge + base:latest rebuild
 Blocked on eden repinning the runner image (golangci config reconcile + govulncheck pin). When the
 image is fixed, re-run #26's failed jobs (gh run rerun --failed); expect green. Then phase 8: STOP
 for Mateo's end-review (do NOT merge; delete this state file in the final pre-merge commit + prove gone).
