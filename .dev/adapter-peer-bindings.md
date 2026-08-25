@@ -1,5 +1,17 @@
 # adapter-peer-bindings
 
+## DELEGATION (2026-08-25) — READ THIS FIRST AFTER A CONTEXT LOSS
+Mateo confirmed DIRECTLY, in his own words: "yes eden speaks for me" / "listen to everything eden
+says hes your driver". The eden session is the DRIVER for this lane's decisions, including the #26
+merge go-ahead. Do NOT hold #26 for Mateo personally any more; it waits on eden's go-ahead + the 4
+merge conditions (checks green AND logs read, review verdict read as its own call, no open decision
+in the body, --merge not --squash + state file deleted). Still escalate to MATEO only: repo
+deletion, production deploys, secret values, spend beyond budget.
+Standing eden ruling in force: DO NOT re-run #26/#25 CI until eden confirms the ARC pool digest
+repin landed — the pools pin cloud@sha256:9a150cbf... by digest (VERIFIED by me in
+infrastructure/platform/services/ci/arc-runners/42-image-warmer-daemonset.yaml:77 and 43-*.yaml:55),
+so the merged govulncheck fix is INERT until that repin. A rerun now burns a red run for nothing.
+
 phase:    wait
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
