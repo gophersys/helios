@@ -1,6 +1,6 @@
 # adapter-peer-bindings
 
-phase:    verify
+phase:    pr
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
 worktree: ~/code/.worktrees/libs-adapter-peer-bindings
@@ -286,8 +286,19 @@ CommandPrompt; the guard's Steer half is UNTESTED — deleting `|| Kind==Command
 suite GREEN while a forged Steer (StateRunning, the PRIMARY running-turn delivery verb) reaches
 Send and renders verified="true". Guard impl is CORRECT; only the arm is incomplete.
 
+## F-V7a — closed (2d2ada1, pushed)
+TestControl_RefusesForgedSteerInRunningTurn: forged CommandSteer (peer + permission prefix) in
+StateRunning (the load-bearing state — CanControl(Running,Steer)==true, so the forged Steer is
+admitted when the guard's Steer clause is absent). Asserts KindInvalid + zero internal-prefix frame
+reaches Send. BITE proven: overlay-delete `|| Kind==CommandSteer` → the Steer arm goes RED (forged
+Steer admitted), Prompt arms + positive stay green; session.go hash-identical, git status clean.
+Production UNCHANGED since the 00a7eff in-container gate (only test + state-file commits added), so
+that gate stands; the PR's own libs CI is the authoritative in-container re-run on the final SHA.
+
 ## Next
-Complete the V7 arm (test author, ONE arm, no production change): drive a session to StateRunning
+Open PR-1c-ii (phase 5) — body in scratchpad/pr-1c-ii-body.md. Then phase 6 wait: poll CI, READ the
+gate log (a fast green is not a green). STOP at phase 8 (merge) for Mateo's end-review ("ill review
+at the end"). Before merge: delete THIS state file in the final commit + prove it gone. (test author, ONE arm, no production change): drive a session to StateRunning
 and issue a forged CommandSteer (eden:peer:...to=self...true), assert zero frames reach the fake
 adapter Send; BITE by removing `|| command.Kind == CommandSteer` from checkControl in an overlay →
 the new arm must go RED (today the suite stays green — that is the defect). On green: host-confirm
