@@ -7,6 +7,14 @@
 > templates-into-libs fold (ADR-0026 — any "4th submodule" claim below is WRONG), and the projects
 > dashboard. Kept as a build record; for current state read the git log and the architecture
 > ADR set (0020–0027).
+>
+> **Its git-workflow entries are SUPERSEDED (2026-08-25, ADR-0032).** Everything below about
+> doc-13, the `<class>/<slug>[/run-<id>]` branch grammar, the pre-push branch-name hook and
+> fast-forward-only merge agents describes a process that no longer exists — the hook is
+> removed and the single home is `.claude/rules/git-process.md`. The entries are left exactly
+> as written because this is a dated journal: it records what was true then, and a journal
+> that is edited to match today is no longer a record. Its `ff-only` lines about the
+> `gitrepository` LIBRARY (Push/NonFastForwardError) are a different subject and remain true.
 
 > Living working-state for the self-paced manager loop (set up 2026-06-12 while Mateo is away).
 > This is my memory across loop iterations. Mateo: read this first when you're back.

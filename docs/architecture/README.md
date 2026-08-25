@@ -60,7 +60,7 @@ Two upstream invariant families share the I-prefix; this set always qualifies ci
 | 10 | [Library system](10-library-system.md) | Patterns, HNS-1 naming, environment≠platform axes, lifecycle, manifest | Draft |
 | 11 | [Project document system](11-project-document-system.md) | Document tiers, id/link grammar, envelope, traceability, enforcement | Draft |
 | 12 | [Presentation layer](12-presentation-layer.md) | Visual-first thesis, view altitudes A0–A4, diagram-as-projection, navigation/IA | Draft |
-| 13 | [Versioning & git workflow](13-versioning-and-git-workflow.md) | One workflow machine for all artifact classes; branch/commit grammar; worktrees; merge agents; per-class versioning | Draft |
+| 13 | — *(removed)* | The git process moved to `.claude/rules/git-process.md`, its single home. Doc 13 and ADR-0019 are superseded and deleted by [ADR-0032](adr/0032-git-process-single-home.md). | Superseded |
 | 14 | [Library engineering pipeline](14-library-engineering-pipeline.md) | The four-phase library SDLC + the 8-dimension test taxonomy + per-phase gates | Draft |
 | 16 | [Application template system](16-application-template-system.md) | Templates in `libs/templates/` (ADR-0026 folds them into libs); sqlc/pgx, OpenAPI-first, the 5-files-per-route rule, libs-assembly, .claude enforcement (ADR-0023) | Draft |
 | 17 | [Design language](17-design-language.md) | The Eden UI ruling: tokens, atomic hierarchy, information architecture, motion, the one-shell ruling, wizard/settings/theming patterns (grounds the ADR-0024 UI track) | Draft |

@@ -441,7 +441,7 @@ data:
       priority: P1
       rationale: "Uniformity is what makes the flow scale (C26): the same branch/worktree/gate/merge machine for a doc edit, an architecture change, and a library implementation means one mental model and one toolchain at any scale, with per-class gates as the only variation. Merge agents remove the human from mechanical green-making while keeping humans at the rulings that matter (P13)."
       acceptance:
-        - "Branch and commit naming follow the published grammar (doc 13); a hook rejects non-conforming branch/commit names."
+        - "Branch and commit naming follow the published grammar in `.claude/rules/git-process.md` (its single home per ADR-0032): `<type>/<slug>` and Conventional Commits. The slug rule is a documented guide, not a hook — the doc-13 pre-push grammar hook was removed with ADR-0019."
         - "Concurrent work is worktree-isolated with disjoint file leases; the same flow drives a documents change and an implementation change, differing only in which gates run."
         - "A merge agent takes a branch, runs its class's gates, fixes mechanical failures to green within budget, and merges; it never alters a frozen contract or an approved artifact, escalating those instead."
       links:

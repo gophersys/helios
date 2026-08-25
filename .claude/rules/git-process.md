@@ -4,20 +4,25 @@ Dated 2026-08-25. **Rule of this document: state what EXISTS.** Put what does no
 exist in §14 TO BUILD. A document that describes unbuilt machinery as a property
 of the system is a green check that verifies nothing.
 
-> ## ⛔ BLOCKED ON MATEO: ADR-0019 conflict, decision pending
+> ## This file is the SINGLE HOME of the git process (ADR-0032)
 >
-> **§1 and §2 contradict `docs/architecture/adr/0019-unified-git-workflow-and-merge-agents.md`
-> (Status: Accepted, 2026-06-13), its canonical home
-> `docs/architecture/13-versioning-and-git-workflow.md`, and `.claude/agents/merge-agent.md`.**
-> ADR-0019 decides **fast-forward-only** merges and the branch grammar
-> `<class>/<slug>[/run-<id>]`; §1 says one MERGE COMMIT and §2 says
-> `<type>/<slug>`. §5 of this file lists "a new or reopened ADR" as Mateo's gate,
-> so no agent may resolve this by editing either side.
+> ADR-0019 and `docs/architecture/13-versioning-and-git-workflow.md` decided a
+> different workflow — fast-forward-only merges, the `<class>/<slug>[/run-<id>]`
+> grammar, artifact trailers. **They are superseded and their content is
+> deleted.** No compatibility layer, no parallel grammar.
 >
-> **§1 and §2 are left AS WRITTEN and are NOT in force where they conflict.**
-> Until Mateo decides, ADR-0019 and doc-13 govern. The resolution is either
-> conformance to them, or an ADR amendment that supersedes them, exercised with
-> verbatim words and a timestamp under §13.
+> **The human gate is EXERCISED**, per §5 and §13 rule 4:
+>
+> > **Mateo, 2026-08-25 ~15:36 MST, verbatim:** "super seed and delete
+> > everything related to the old provess no legacy no nothing"
+>
+> Normalized: *supersede, and delete everything related to the old process — no
+> legacy, no nothing.* No agent chose the merge method; he did.
+>
+> **`docs/architecture/contracts/gitrepository.md` is deliberately UNTOUCHED.**
+> Its fast-forward-only statements govern a Go LIBRARY's push semantics, where
+> ff-only stops a silent three-way merge inside code no human is reading. That
+> is not a statement about how pull requests merge. Blueprint **P2-0** owns it.
 
 ## 1. Model — trunk-based, artifact promotion
 
@@ -288,8 +293,24 @@ false record.
 | 10 | CI instrumentation probe | cictl | §12 — echo the loaded profile into the job summary; FAIL when it is absent |
 | 11 | bot GitHub identity (task #138) | eden + org | §13 — actor-level separation, so the ACTOR carries the agent identity and not only the commit author |
 | 12 | raise the reviewer turn cap (task #134) | cictl | §10 — it is **40** today at main, v0.5.1 and v0.6.0; 500/max is the directive, not the state |
-| 13 | attribution sync: `.claude/agents/merge-agent.md` §5 | eden | still carries the OLD no-attribution rule, which §13 reversed |
-| 14 | attribution sync: `docs/architecture/adr/0010-documentation-scheme.md:34` | **Mateo** | "Conventional Commits with no AI/LLM attribution lines" — §13 reopens ADR-0010, so this is an ADR amendment and his gate, not an agent edit |
+
+Rows 13 and 14 were the attribution-sync debt. **Both are CLOSED in the same
+change as ADR-0032**: `merge-agent.md` is rewritten to this process, and
+ADR-0010 §6 is amended on Mateo's exercised gate. Nothing carries the reversed
+rule now.
+
+## 15. The library contract this process does NOT govern
+
+`docs/architecture/contracts/gitrepository.md` states fast-forward-only push and
+"no `Merge`/`Rebase`/`Reset --hard`/`Force`", and **that stays true and
+untouched.** It governs a Go LIBRARY: ff-only there stops a silent three-way
+merge inside code with no human reading it, and dropping it would weaken a real
+safety guarantee.
+
+**Two subjects wear one phrase.** This file governs how humans and agents merge
+PULL REQUESTS. The contract governs what a library does to a ref. ADR-0032
+supersedes the first and does not open the second — blueprint **P2-0** owns it.
+Do not "clean up" that document to match this one.
 
 A `.dev/` gate is deliberately NOT here: the state file must be PRESENT until the
 last commit, so a PR-time check fails every feature PR and a main-tier check
