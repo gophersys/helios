@@ -636,15 +636,23 @@ else
       "got:  0, with output:" "${fixture_output:-<nothing>}" \
       "that fixture holds the exact defect this file exists for — a plain run: scalar" \
       "carrying ': ' — so a parser quiet on it is quiet on the real workflow too"
+  # The line-reference literal below is tied to the pinned yq's error
+  # FORMAT: the 4.53.3 -> 4.53.6 bump (2026-08-25) changed "line 45" to
+  # "L45.C5", which is what fired this check on MAIN. The REASON grep above
+  # it is deliberately the parser-independent scanner reason ("mapping
+  # values are not allowed"), which survived the bump unchanged — anchoring
+  # on the volatile prefix instead was proposed here and refused in review:
+  # the counter-stimulus proves the parser rejects THIS defect, not any
+  # load error that happens to sit on the fixture's line.
   elif ! grep -qF -- "mapping values are not allowed" <<< "$fixture_output"; then
     fail_check "counter_stimulus_the_parser_reports_the_unquoted_run_scalar" \
       "the parser rejected the fixture and its message does not name the reason" \
       "it said:" "${fixture_output:-<nothing>}" \
       "want a message naming: mapping values are not allowed" \
       "the reader of a red gate needs the line and the reason, or the next step is to parse by hand"
-  elif ! grep -qF -- "line 45" <<< "$fixture_output"; then
+  elif ! grep -qF -- "L45" <<< "$fixture_output"; then
     fail_check "counter_stimulus_the_parser_reports_the_unquoted_run_scalar" \
-      "the message does not name line 45, which is the unparseable run: line of the fixture" \
+      "the message does not name L45, which is the unparseable run: line of the fixture" \
       "it said:" "${fixture_output:-<nothing>}"
   else
     pass_check "counter_stimulus_the_parser_reports_the_unquoted_run_scalar"
