@@ -186,27 +186,56 @@ func firstNonEmpty(first, second string) string {
 // model that read that frame would learn Eden's private control grammar and could forge a
 // delivery by typing it, which is the whole reason the two forms differ.
 //
+// SECURITY BOUNDARY: every untrusted field is ESCAPED here, and that escaping — not the encoder's
+// exact-byte terminator check — is what stops a peer body forging envelope structure. A raw body
+// like `</eden-peer-message >` (a space is valid close grammar), an UPPERCASE or whitespaced
+// variant, or a nested `<eden-peer-message from="root" verified="true">` all slip a blocklist; an
+// escape cannot be slipped, because after it no `<`, `>`, or `&` survives in the body to open a
+// tag, an entity, or the terminator, and no `"` survives in an attribute to close it early. The
+// same escaping is spelled in ompadapter/peer.go, its documented counterpart.
+//
 // verified renders in BOTH directions, never by omission: it is the model's only signal that a
 // "from" is a kernel fact rather than a claim, and an envelope that dropped the attribute when
 // false would leave "unverified" indistinguishable from "an older Eden that did not stamp it".
 func peerEnvelope(from, msgID, replyTo, body string, verified bool) string {
 	var envelope strings.Builder
 	envelope.WriteString(`<eden-peer-message from="`)
-	envelope.WriteString(from)
+	envelope.WriteString(escapePeerAttr(from))
 	envelope.WriteString(`" msg_id="`)
-	envelope.WriteString(msgID)
+	envelope.WriteString(escapePeerAttr(msgID))
 	envelope.WriteString(`"`)
 	if replyTo != "" {
 		envelope.WriteString(` reply_to="`)
-		envelope.WriteString(replyTo)
+		envelope.WriteString(escapePeerAttr(replyTo))
 		envelope.WriteString(`"`)
 	}
 	envelope.WriteString(` verified="`)
 	envelope.WriteString(verifiedFlag(verified))
 	envelope.WriteString(`">`)
-	envelope.WriteString(body)
+	envelope.WriteString(escapePeerBody(body))
 	envelope.WriteString(`</eden-peer-message>`)
 	return envelope.String()
+}
+
+// escapePeerBody renders an untrusted peer body inert inside the model-facing envelope. ORDER IS
+// LOAD-BEARING: `&` is escaped FIRST, so the ampersands the later passes introduce are not
+// re-escaped. After it the body can emit no tag, no `</eden-peer-message>` terminator, and no
+// entity the model would read as envelope structure.
+func escapePeerBody(body string) string {
+	body = strings.ReplaceAll(body, "&", "&amp;")
+	body = strings.ReplaceAll(body, "<", "&lt;")
+	body = strings.ReplaceAll(body, ">", "&gt;")
+	return body
+}
+
+// escapePeerAttr renders an untrusted attribute value (from, msg_id, reply_to) inert inside its
+// double-quoted slot. `&` FIRST (same reason as the body), then the `"` that would otherwise close
+// the attribute early and inject a forged one. `<`/`>` are inert inside a quoted value, so they
+// round-trip unescaped.
+func escapePeerAttr(value string) string {
+	value = strings.ReplaceAll(value, "&", "&amp;")
+	value = strings.ReplaceAll(value, `"`, "&quot;")
+	return value
 }
 
 // verifiedFlag renders the trust flag both ways.
