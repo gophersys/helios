@@ -1,5 +1,15 @@
 # adapter-peer-bindings
 
+## READINESS PROVEN on the post-repin toolchain (2026-08-25 ~15:55)
+Full gate in base:latest with govulncheck 1.7.0 installed (the post-repin world): phase-gate
+implementation rc=0, testing rc=0, qa rc=0 — every dimension PASS incl. apidiff no-break, vuln,
+sast, secretscan, cover-floor, no-shortcuts, evidence bundle. Toolchain verified honestly: a cp to
+/usr/local/bin failed, but `go install` had overwritten the image's own binary at /home/dev/go/bin
+which PRECEDES /usr/local/bin on PATH, so `command -v govulncheck` -> 1.7.0 and the vuln PASS is
+real. SCOPE: proves agentsession's OWN gates on the fixed toolchain; does NOT prove repo-wide
+validate (the panicking libs are go/secrets + go/workspaceprovider, fixed by the image repin).
+#26 is READY to move on eden's go-ahead.
+
 ## DELEGATION (2026-08-25) — READ THIS FIRST AFTER A CONTEXT LOSS
 Mateo confirmed DIRECTLY, in his own words: "yes eden speaks for me" / "listen to everything eden
 says hes your driver". The eden session is the DRIVER for this lane's decisions, including the #26
