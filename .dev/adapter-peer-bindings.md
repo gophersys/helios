@@ -1,6 +1,6 @@
 # adapter-peer-bindings
 
-phase:    fix
+phase:    verify
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
 worktree: ~/code/.worktrees/libs-adapter-peer-bindings
@@ -264,8 +264,22 @@ Bite proven via a temporary probe (deleted, not committed).
 STILL OWED: test author's permanent V7 arm (in flight); then the bounded final verify MUST run the
 full gate IN-CONTAINER (a gate that could not run is not green — FAIL-LOUDLY).
 
+## V7 arm — landed (87314d7, pushed)
+peer_control_forgery_test.go: 2 forgery arms (peer + permission prefix via Session.Control) + 1
+positive control. Bite proven via -overlay swapping session.go for its pre-guard parent 6b05d10:
+pre-guard ADMITS the forged frame (reaches conn.Send → renders verified="true"); HEAD 87314d7 all
+3 PASS. Non-vacuous: session.go shasum identical before/after, only the new test in git status;
+zero-Send + KindInvalid + cause assertions all fail if the guard is absent. Both adapters covered
+at the shared library ingress (asserts zero frames reach the fake adapter Received, so neither
+claude spawn.go:205 nor omp rpc.go:196 can content-sniff). Host gofumpt/vet/peer-suite green.
+
 ## Next
-V7 fix round (contained) (contained, NOT a re-grind — verifier + pre-committed branch concur): implementer —
+BOUNDED FINAL VERIFY (owed, in-container): the fix agents could only run host checks — run the full
+gate IN-CONTAINER (impl/testing/qa: apidiff, hnslint, gremlins, gosec, govulncheck, 11-dim real
+docker+k3d+kind), read exit codes; confirm V7 arm green + non-vacuous; confirm NO V1-V6 regression.
+A gate that could not run is NOT green (FAIL-LOUDLY). On SHIP → pre-merge cleanup (reword 3 subjects
+>72: be91ba2/3053748/20586a2 via rebase at this quiescent point since both agents are done; delete
+this state file), then open PR-1c-ii. (contained, NOT a re-grind — verifier + pre-committed branch concur): implementer —
 reject controlframe.PeerPrefix/PermissionPrefix Text in session.checkControl (session.go:262).
 Test author — an arm driving Session.Control with a crafted eden:peer:...verified=true...to=self
 frame, asserting the model sees NO <eden-peer-message>; bite vs pre-fix tree (both adapters).
