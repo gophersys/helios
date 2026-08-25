@@ -61,6 +61,19 @@ jobs:
     # first. It fails naming the deadline and prints the WARN that says to raise
     # it, where a job timeout stops the step with a log that diagnoses nothing.
     # Raise this whenever the flag below is raised, and keep the gap.
+    #
+    # RE-CHECKED on 2026-08-25, when the pull step below moved the download OUT
+    # of trivy's own 20m deadline and INTO this ceiling. The arithmetic changed
+    # shape, so it was re-derived rather than assumed, off the 2 legs of run
+    # 32832111998 that COMPLETED — the first real measurements this repository
+    # has held: hardware 13m17s and ui 12m02s for download AND analysis
+    # together, hardware being the largest image at 10.01 GB unpacked. The same
+    # bytes cross the wire either way; they are only accounted differently now,
+    # so the worst leg sits near 13m against a 30m ceiling with ~2m25s of
+    # measured setup beside it. A pull that has to use all 3 of its attempts
+    # resumes rather than restarts, so it adds the lost fraction of a layer and
+    # not another whole download. 30 still holds, and it is the first green
+    # nightly that should re-size BOTH numbers.
     timeout-minutes: 30
     runs-on: arc-build
     permissions:
