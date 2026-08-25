@@ -1,6 +1,6 @@
 # adapter-peer-bindings
 
-phase:    red
+phase:    verify
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
 worktree: ~/code/.worktrees/libs-adapter-peer-bindings
@@ -103,5 +103,22 @@ NORMATIVE LITERALS the reds pin (contract, not preference):
   <eden-peer-message …verified="true|false"…>body</eden-peer-message> — never
   "eden:peer:" and never 0x1f in front of the model.
 
+## GREEN (implementer df534fe..1c40725 + author lints 70031dd)
+All 21 tests green by name incl. 11b (recovered send DELIVERED through the real
+Pool→pump→deliver→plane to review-c) and 12 (native failure still reported to the model
+— both halves). Gates: implementation 5/5, testing 11/11 (real docker+k3d integration),
+qa 6/6; apidiff ZERO delta; goleak clean over the new select-pump + channels; gofumpt
+dual + -extra clean. Author's lint round proved assertion force UNCHANGED by replaying
+the refactored tests against the pre-implementation tree (each arm still bites at the
+same line). Implementer's design decisions recorded: recovery triggers on any
+success:false receipt (never prose-matching); routing outcome stamped onto the ONE
+published event (routed → MsgID=plane-minted + Accepted:true, Detail kept as
+provenance); Detail literals + peerEnvelope spelled per-package (zero-baseline-delta
+wins over one-home; counterparts documented); cross-addressed deliveries refused
+KindInvalid; eden_peer_list renders the five roster fields explicitly (never
+json.Marshal of []Peer). Known: HELD sender-side receipt still uncaptured (derived
+fixture; is_error unverified — branching is on success only); architecture gate's
+contract-doc dimension resolves only when mounted at eden/libs (path artifact).
+
 ## Next
-Phase 3: implementer builds the 3 seams + both bindings + the library routing.
+Phase 4: adversarial verify (Opus), then PR-1c-ii.
