@@ -326,7 +326,14 @@ supply chain. Global asks handed to eden: audit ALL github-release rows, add a g
 and a STALENESS ALARM (fail loudly when a tracker's value is frozen while upstream tags moved).
 
 ## Blocker RESOLVED on main (my #102 was redundant — CORRECTED RECORD)
-The govulncheck fix LANDED ON MAIN independently via Mateo: 968bd0b (pin 1.1.4->1.7.0) + 64f1495
+CORRECTION-2: the superseding PR was EDEN's #103 (merged, 440f6c8), not Mateo hand-landing it — the
+gh timeline actor reads MateoSegura because eden acts under his account. Eden also DID the global
+audit (all 25 github-release rows swept: govulncheck was the ONLY frozen one, no second live freeze)
+and opened #104 feat/go-proxy-datasource (go-proxy, NOT github-tag — `go install` fetches through
+proxy.golang.org so the proxy decides the bytes; 5 pins move, all resolve to what they already hold;
+GREMLINS+BENCHSTAT excluded by measurement). The STALENESS ALARM is explicitly NOT done and eden is
+not claiming it — still open for the other 19 rows.
+The govulncheck fix LANDED ON MAIN via eden #103: 968bd0b (pin 1.1.4->1.7.0) + 64f1495
 (no-autobump, killing the weekly revert). Mateo closed my #102 at 21:54 as redundant; I REOPENED IT
 BY MISTAKE at 22:07 without checking who closed it or why — my error, now re-closed with an
 explanation and the branch deleted (both fix halves proven reachable from main first). The
