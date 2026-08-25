@@ -143,15 +143,16 @@ VALUE_HOMES=(
 
 # The whole taxonomy, as a literal, exactly as platform-policy.test.sh spells
 # SANCTIONED out: a test that reads the taxonomy out of the table it checks
-# agrees with a 13th datasource that nothing implements.
+# agrees with a 14th datasource that nothing implements.
 #
-# 11 of them resolve a version from an upstream and are driven, 1 stub pin each,
-# by _ctl/tests/resolve-upstream.test.sh. `no-autobump` is the 12th: it resolves
+# 12 of them resolve a version from an upstream and are driven, 1 stub pin each,
+# by _ctl/tests/resolve-upstream.test.sh. `no-autobump` is the 13th: it resolves
 # nothing, and its row carries the reason instead.
 DATASOURCES=(
   "github-release"
   "pypi"
   "npm"
+  "go-proxy"
   "apt"
   "go-dl"
   "node-dist"
@@ -162,7 +163,7 @@ DATASOURCES=(
   "eden-manifest"
   "no-autobump"
 )
-DATASOURCES_TEXT="github-release, pypi, npm, apt, go-dl, node-dist, oci-index, k8s-dl, tailscale-pkgs, flutter-releases, eden-manifest, no-autobump"
+DATASOURCES_TEXT="github-release, pypi, npm, go-proxy, apt, go-dl, node-dist, oci-index, k8s-dl, tailscale-pkgs, flutter-releases, eden-manifest, no-autobump"
 
 NO_AUTOBUMP="no-autobump"
 
@@ -592,9 +593,9 @@ fi
 
 unknown="$(rows_with_an_unknown_datasource "$REAL_ROWS")"
 if [[ -z "$unknown" ]]; then
-  pass_check "every_upstream_row_names_one_of_the_twelve_datasources"
+  pass_check "every_upstream_row_names_one_of_the_thirteen_datasources"
 else
-  fail_check "every_upstream_row_names_one_of_the_twelve_datasources" \
+  fail_check "every_upstream_row_names_one_of_the_thirteen_datasources" \
     "these rows name a datasource outside the taxonomy:" \
     "$unknown" \
     "the 12 are: ${DATASOURCES_TEXT}" \

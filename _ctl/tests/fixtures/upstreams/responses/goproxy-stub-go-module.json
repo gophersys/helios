@@ -1,0 +1,10 @@
+{
+  "Version": "v8.1.0",
+  "Time": "2026-08-20T09:14:02Z",
+  "Origin": {
+    "VCS": "git",
+    "URL": "https://stubhost.example/stubgoproxy",
+    "Hash": "5c1f0a2e9d4b7c8a3f6e1d0b9a2c4e7f8d3b6a10",
+    "Ref": "refs/tags/v8.1.0"
+  }
+}

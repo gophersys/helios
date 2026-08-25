@@ -404,6 +404,56 @@ function resolve_npm() {
   respell "$version" "$current"
 }
 
+# The go module proxy, for a pin that `go install <module>@v<pin>` installs.
+#
+# THE UPSTREAM OF A `go install` PIN IS THE PROXY AND NOT A RELEASE PAGE. That
+# is the whole reason this datasource exists. A GitHub Release is a document a
+# human writes about a tag; `go install` never reads one — it asks
+# proxy.golang.org, which serves whatever the module was TAGGED. The 2 can
+# disagree in both directions, and each direction has already cost this
+# repository something:
+#
+#   the release is BEHIND the tags   GOVULNCHECK_VERSION. golang/vuln cut its
+#                                    last release at v1.1.4 and tagged on to
+#                                    v1.7.0, so `releases/latest` answered a
+#                                    dead value for 7 months while the weekly
+#                                    reported "no move" every Monday.
+#   the release is AHEAD of @latest  GREMLINS_VERSION, measured 2026-08-25: the
+#                                    proxy answers v0.5.1 while the newest tag
+#                                    and the release are both v0.6.0. That row
+#                                    therefore stays on `github-release` — see
+#                                    its line in _build/upstreams.txt.
+#
+# So neither datasource is right for every go tool, and the choice is made per
+# pin against a measurement rather than by a rule about the language.
+#
+# A PSEUDO-VERSION IS REFUSED. `@latest` answers a pseudo-version
+# (`v0.0.0-20260825160852-19be9d8e6c70`) for a module with no tag at all, and
+# that string is a COMMIT rather than a release. Taking it would move the pin
+# every time anybody pushed to the module's default branch, which is a pull
+# request a week about a commit nobody chose. A module in that state is a
+# decision for a human, so this refuses and says so — the shape BENCHSTAT_REF
+# takes on purpose, with a no-autobump row of its own.
+#
+# AN UPPERCASE COORDINATE IS REFUSED rather than encoded. The proxy takes a
+# case-ENCODED path — every uppercase letter becomes `!` plus its lowercase —
+# so a raw module path with a capital in it 404s. Every coordinate this table
+# holds is lowercase; implementing the encoding for a case that does not exist
+# would be untested code, and a silent 404 would read as a dead upstream.
+function resolve_go_proxy() {
+  local pin="$1" coordinate="$2" current="$3"
+  if [[ "$coordinate" =~ [A-Z] ]]; then
+    fail_pin "$pin" "the go-proxy coordinate '${coordinate}' holds an uppercase letter, and the proxy takes a case-encoded path (each capital becomes '!' plus its lowercase); write the encoded path in the row"
+  fi
+  local document version
+  capture document fetch_document "$pin" "https://proxy.golang.org/${coordinate}/@latest"
+  capture version json_value "$pin" "$document" '.Version // empty'
+  if [[ "$version" =~ -[0-9]{14}-[0-9a-f]{12}$ ]]; then
+    fail_pin "$pin" "the proxy answers the pseudo-version ${version}, so ${coordinate} carries no tag at all and this pin would follow every commit on its default branch; that is a human's decision and the row belongs on no-autobump"
+  fi
+  respell "$version" "$current"
+}
+
 # The archive publishes `1:5.9-6ubuntu2`. The epoch and the debian revision are
 # the archive's own bookkeeping: `zsh --version` says 5.9, and 5.9 is what the
 # pin holds and what the smoke test compares.
@@ -815,6 +865,7 @@ function resolve_version() {
     github-release)   capture version resolve_github_release   "$pin" "$coordinate" "$current" ;;
     pypi)             capture version resolve_pypi             "$pin" "$coordinate" "$current" ;;
     npm)              capture version resolve_npm              "$pin" "$coordinate" "$current" ;;
+    go-proxy)         capture version resolve_go_proxy         "$pin" "$coordinate" "$current" ;;
     apt)              capture version resolve_apt              "$pin" "$coordinate" "$current" ;;
     go-dl)            capture version resolve_go_dl            "$pin" "$coordinate" "$current" ;;
     node-dist)        capture version resolve_node_dist        "$pin" "$coordinate" "$current" ;;
