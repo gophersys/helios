@@ -125,7 +125,8 @@ Every concept has exactly one canonical definition. Other documents cite; they n
 | Environment ≠ Platform axes (hard rule, detection, default map) | 10 §2 |
 | Bender failure modes 1–15 (compact in-repo list) | 03 §1 |
 | Document tiers, id/link grammar, envelope, traceability rules T1–T7 | 11 |
-| Git workflow machine, branch/commit grammar, worktrees, merge agents, per-class versioning | 13 |
+| Git process — branch/commit grammar, worktrees, merge conditions, merge agents, attribution | `.claude/rules/git-process.md` (ADR-0032) |
+| Per-class versioning | **no synthesis home — deliberately dropped (ADR-0032).** Doc 13 §7 was a pointer table, and all four homes it pointed at survive: document envelopes **11 §4**, library semver **10 §8**, platform releases **06 §3**, contract freezes **09 §4**/ADR-0016. Cite those, never a synthesis. |
 | Presentation thesis, view-altitude model A0–A4, diagram-as-projection contract, navigation/IA | 12 |
 | Engine altitudes (product/component recursion depth) | 04 §3 |
 

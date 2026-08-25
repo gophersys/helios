@@ -270,17 +270,25 @@ with no trailer.
 **Rule 2 — joint interactive work** is authored Mateo, with a
 `Co-Authored-By: Claude` trailer.
 
-**Rule 3 — an agent NEVER commits, approves or comments as "Mateo".** An agent's PR
-  An agent's PR comment identifies itself and NAMES THE AUTHORITY it acts under.
+**Rule 3 — an agent NEVER commits, approves or comments as "Mateo".** An agent's
+PR comment identifies itself and NAMES THE AUTHORITY it acts under.
+
+**Rules 1-3 govern the git AUTHOR field, and only that field.** The COMMITTER
+stays the human account whose credential does the push, because an agent has no
+GitHub identity of its own yet. That is the honest current state, not an
+oversight: a commit today reads `author=Claude`, `committer=Mateo Segura`, and
+the record is therefore more precise in the author field than in the committer
+field. Rule 5 is what closes the gap.
 
 **Rule 4 — a human gate counts as EXERCISED only when the record quotes Mateo's
-VERBATIM words and a TIMESTAMP.** With no quote, the record says
-  **"gate not individually exercised"**. Inference, a summary, or "he
-  co-designed it" is not an exercised gate. This makes the F27 fix permanent:
-  an agent may not certify the human gate on its own change.
-**Rule 5 — actor-level separation** (a real bot GitHub identity, so the ACTOR
-and not only the commit author carries it) is TO BUILD (§14, task #138). Until
-it lands, an agent posts through Mateo's credential and MUST say so in the
+VERBATIM words and a TIMESTAMP.** With no quote, the record says **"gate not
+individually exercised"**. Inference, a summary, or "he co-designed it" is not an
+exercised gate. This makes the F27 fix permanent: an agent may not certify the
+human gate on its own change.
+
+**Rule 5 — actor-level separation** (a real bot GitHub identity, so the ACTOR and
+the COMMITTER carry it too, not only the author) is TO BUILD (§14, task #138).
+Until it lands, an agent posts through Mateo's credential and MUST say so in the
 comment, per rule 3.
 
 ## 14. TO BUILD — none of this exists yet

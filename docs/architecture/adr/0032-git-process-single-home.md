@@ -55,7 +55,17 @@ his, and the quote above is the evidence rather than an inference from it.
 
 **Deleted, not deprecated:**
 
-- `docs/architecture/13-versioning-and-git-workflow.md` — removed.
+- `docs/architecture/13-versioning-and-git-workflow.md` — removed. **This is a
+  deliberate exception to the attic policy.** `CLAUDE.md` says to move a
+  superseded document to `docs/attic/` and never delete it; D6 says "no legacy
+  no nothing", and a ruling quoted with its timestamp is what overrides the
+  standing rule. `CLAUDE.md` now records that exception, and `docs/README.md`
+  §3 logs the deletion where the attic log would have logged a move.
+  **Doc 13 §7's per-class-versioning synthesis gets NO successor, by decision.**
+  It was a pointer table, and all four homes it pointed at survive — document
+  envelopes 11 §4, library semver 10 §8, platform releases 06 §3, contract
+  freezes 09 §4/ADR-0016. Cite those directly; a synthesis table is a second
+  home by another name, which is what this ADR exists to remove.
 - ADR-0019 — reduced to a tombstone pointing here. Its content is gone.
 - `hook_check_branch_name` in `.githooks/lib/common.sh`, its call in
   `.githooks/pre-push`, and `.githooks/lib/branchname_test.sh` — removed. The

@@ -24,7 +24,14 @@ build target.
   in prose.
 - **Documents:** a new document follows the scheme of 4 classes: canonical spec, research note,
   directory README or attic. Use lowercase kebab-case file names. A spec carries a status header
-  and epistemic tags. Move a superseded document to `docs/attic/`. Never delete it.
+  and epistemic tags. Move a superseded document to `docs/attic/`. Never delete it —
+  **EXCEPT on Mateo's explicit no-legacy ruling.** He gave one on 2026-08-25 (D6,
+  quoted in ADR-0032): *"super seed and delete everything related to the old
+  provess no legacy no nothing"*, and `docs/architecture/13-versioning-and-git-workflow.md`
+  was DELETED under it rather than moved to the attic. A deletion needs a ruling
+  of that kind, quoted with its timestamp per `.claude/rules/git-process.md`
+  §13 rule 4; without one, the attic rule stands. Git history is the archive
+  either way and is never rewritten.
 - **Pipeline vocabulary:** "phase" is a step of the SDLC pipeline of 10 phases. "stage" is the
   environment axis (development/test/staging/production). Never mix the 2 words.
 - **Commits:** use Conventional Commits. **ATTRIBUTION IS IDENTITY** — solo agent work is
