@@ -1,5 +1,16 @@
 # adapter-peer-bindings
 
+## UNBLOCKED — repin landed, #25 merged, #26 rebased (2026-08-25 ~16:55)
+Infra #204 (6d1bb08) repinned all pools to cloud@sha256:ffdcf504 (the digest I verified by
+execution). VERIFIED IN EFFECT by live manifest read of origin/main, not prose. libs #25 MERGED
+(6b25e442) -> libs has pr-review coverage for the first time (ledger #44 libs half CLOSED); I
+verified all 4 merge conditions myself, and CLOSED a stale "Not merging / decision is Mateo's" note
+in its body by proving the arc-org cictl bump real (same contract, ci-drift exit 1 -> SUCCESS).
+#26 REBASED onto new main (53/53 clean, 0 behind, content verified: both V7 arms, ValidatePeerField,
+the session.go:288 guard). Pre-rebase tip = tag prerebase-26 -> 0358c5a. Fresh CI on 451771b.
+NOTE: the rebase pulled in the new reviewer, so #26 is now the pr-review's first real subject.
+Do NOT `gh run rerun` to refresh CI — it replays the OLD sha (learned on #102). Rebase or push.
+
 ## READINESS PROVEN on the post-repin toolchain (2026-08-25 ~15:55)
 Full gate in base:latest with govulncheck 1.7.0 installed (the post-repin world): phase-gate
 implementation rc=0, testing rc=0, qa rc=0 — every dimension PASS incl. apidiff no-break, vuln,
