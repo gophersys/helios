@@ -41,12 +41,21 @@ agent supervision (P13).
 
 ## 3. Worktree & merge discipline
 
-- One worktree per work package; branch naming `ws<N>/<package-slug>`; short-lived (days).
+**The git process is NOT defined here.** Its single home is
+`.claude/rules/git-process.md` (ADR-0032) — branch naming, merge conditions,
+commit format and attribution all live there and are cited, never restated. The
+`ws<N>/<package-slug>` grammar this section used to name is deleted with
+ADR-0019; the vocabulary is `<type>/<slug>`.
+
+- One worktree per work package, cut from fresh `origin/main`; short-lived (days).
+  Naming per git-process §2.
 - File-lease sets declared in each package's plan; overlapping leases across concurrent packages
   are a planning error — fix the plan, not the merge.
-- Merge to `main` only with: tests green in a clean checkout (not the authoring worktree),
-  lint/naming gates, and the ADOPTED-only library invariant (10 §8).
-- Conventional Commits; no AI attribution in commits (repo convention).
+- Merge under the four merge conditions of git-process §5. **This section states no
+  competing set** — it previously carried a third one, which is the two-homes defect
+  ADR-0032 exists to kill. The package-specific addition, and the only one, is the
+  ADOPTED-only library invariant (10 §8).
+- Conventional Commits; attribution per git-process §13.
 
 ## 4. Interface negotiation protocol
 

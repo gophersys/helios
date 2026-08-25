@@ -60,7 +60,7 @@ Two upstream invariant families share the I-prefix; this set always qualifies ci
 | 10 | [Library system](10-library-system.md) | Patterns, HNS-1 naming, environment≠platform axes, lifecycle, manifest | Draft |
 | 11 | [Project document system](11-project-document-system.md) | Document tiers, id/link grammar, envelope, traceability, enforcement | Draft |
 | 12 | [Presentation layer](12-presentation-layer.md) | Visual-first thesis, view altitudes A0–A4, diagram-as-projection, navigation/IA | Draft |
-| 13 | [Versioning & git workflow](13-versioning-and-git-workflow.md) | One workflow machine for all artifact classes; branch/commit grammar; worktrees; merge agents; per-class versioning | Draft |
+| 13 | — *(removed)* | The git process moved to `.claude/rules/git-process.md`, its single home. Doc 13 and ADR-0019 are superseded and deleted by [ADR-0032](adr/0032-git-process-single-home.md). | Superseded |
 | 14 | [Library engineering pipeline](14-library-engineering-pipeline.md) | The four-phase library SDLC + the 8-dimension test taxonomy + per-phase gates | Draft |
 | 16 | [Application template system](16-application-template-system.md) | Templates in `libs/templates/` (ADR-0026 folds them into libs); sqlc/pgx, OpenAPI-first, the 5-files-per-route rule, libs-assembly, .claude enforcement (ADR-0023) | Draft |
 | 17 | [Design language](17-design-language.md) | The Eden UI ruling: tokens, atomic hierarchy, information architecture, motion, the one-shell ruling, wizard/settings/theming patterns (grounds the ADR-0024 UI track) | Draft |
@@ -125,7 +125,8 @@ Every concept has exactly one canonical definition. Other documents cite; they n
 | Environment ≠ Platform axes (hard rule, detection, default map) | 10 §2 |
 | Bender failure modes 1–15 (compact in-repo list) | 03 §1 |
 | Document tiers, id/link grammar, envelope, traceability rules T1–T7 | 11 |
-| Git workflow machine, branch/commit grammar, worktrees, merge agents, per-class versioning | 13 |
+| Git process — branch/commit grammar, worktrees, merge conditions, merge agents, attribution | `.claude/rules/git-process.md` (ADR-0032) |
+| Per-class versioning | **no synthesis home — deliberately dropped (ADR-0032).** Doc 13 §7 was a pointer table, and all four homes it pointed at survive: document envelopes **11 §4**, library semver **10 §8**, platform releases **06 §3**, contract freezes **09 §4**/ADR-0016. Cite those, never a synthesis. |
 | Presentation thesis, view-altitude model A0–A4, diagram-as-projection contract, navigation/IA | 12 |
 | Engine altitudes (product/component recursion depth) | 04 §3 |
 

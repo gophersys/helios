@@ -31,8 +31,13 @@ unrecoverable — "remove" needs a preservation policy.
    Doc 10 preserves the source's §1–§9 numbering so existing "§N" citations remain stable.
 5. **Generated artifacts are gitignored reading copies**, regenerable from `docs/tools/`.
 6. **Template-seed conventions ratified** (previously stated only in the seed README):
-   Conventional Commits with **no AI/LLM attribution lines**, and Nx Cloud disabled
-   (`neverConnectToCloud`). Operational docs cite this ruling.
+   Conventional Commits, and Nx Cloud disabled (`neverConnectToCloud`). Operational
+   docs cite this ruling. **AMENDED 2026-08-25 by [ADR-0032](0032-git-process-single-home.md):**
+   this clause read "Conventional Commits with **no AI/LLM attribution lines**".
+   That half is REVERSED — attribution is identity, and
+   `.claude/rules/git-process.md` §13 is its single home: an agent authors as
+   `Claude <claude-agent@gophersys.noreply>`, joint work carries
+   `Co-Authored-By: Claude`. The Conventional Commits half stands.
 7. **Repo identifier cleanup under E7:** root `README.md` rewritten for Eden; `package.json` name
    `@helios/source` → `@eden/source`; the empty `go/` tree removed; regenerable PoC binaries
    removed. `poc/` content itself is retained as donor material (ADR-0009 D) and deliberately not

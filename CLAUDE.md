@@ -24,12 +24,23 @@ build target.
   in prose.
 - **Documents:** a new document follows the scheme of 4 classes: canonical spec, research note,
   directory README or attic. Use lowercase kebab-case file names. A spec carries a status header
-  and epistemic tags. Move a superseded document to `docs/attic/`. Never delete it.
+  and epistemic tags. Move a superseded document to `docs/attic/`. Never delete it —
+  **EXCEPT on Mateo's explicit no-legacy ruling.** He gave one on 2026-08-25 (D6,
+  quoted in ADR-0032): *"super seed and delete everything related to the old
+  provess no legacy no nothing"*, and `docs/architecture/13-versioning-and-git-workflow.md`
+  was DELETED under it rather than moved to the attic. A deletion needs a ruling
+  of that kind, quoted with its timestamp per `.claude/rules/git-process.md`
+  §13 rule 4; without one, the attic rule stands. Git history is the archive
+  either way and is never rewritten.
 - **Pipeline vocabulary:** "phase" is a step of the SDLC pipeline of 10 phases. "stage" is the
   environment axis (development/test/staging/production). Never mix the 2 words.
-- **Commits:** use Conventional Commits. Do not add an AI or LLM attribution line (ratified in
-  ADR-0010 — omit the `Co-Authored-By` trailer). Always push after you commit (standing
-  directive, 2026-06-12: never lose data; save and push).
+- **Commits:** use Conventional Commits. **ATTRIBUTION IS IDENTITY** — solo agent work is
+  authored `Claude <claude-agent@gophersys.noreply>`; joint interactive work is authored
+  Mateo with a `Co-Authored-By: Claude` trailer; an agent never commits, approves or
+  comments as "Mateo". The single home of that rule is `.claude/rules/git-process.md` §13
+  (ADR-0032, 2026-08-25), which REVERSED the earlier "no AI/LLM attribution" clause of
+  ADR-0010. Always push after you commit (standing directive, 2026-06-12: never lose data;
+  save and push).
 - **Go:** the floor is Go 1.26. Write in Go everything that can be Go (ADR-0003). The UI is
   Svelte 5 (ADR-0004).
 - `poc/` holds material for reuse. Read it freely, but code enters `main` only through the gates

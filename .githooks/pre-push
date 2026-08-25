@@ -27,13 +27,9 @@ Z40="0000000000000000000000000000000000000000"
 declare -a CHANGED=()
 range=""
 range_base=""
-while read -r local_ref local_sha _remote_ref remote_sha; do
+while read -r _local_ref local_sha _remote_ref remote_sha; do
   [[ -z "${local_sha:-}" ]] && continue
   [[ "$local_sha" == "$Z40" ]] && continue          # branch deletion — nothing to check
-
-  # doc-13 §2: validate the branch name being pushed (blocks malformed AGENT branches,
-  # warns for off-grammar human branches — see hook_check_branch_name).
-  [[ "$local_ref" == refs/heads/* ]] && hook_check_branch_name "${local_ref#refs/heads/}"
 
   if [[ "$remote_sha" == "$Z40" ]]; then
     # New branch on the remote: diff against whatever it already has, else just this commit.
