@@ -171,17 +171,20 @@ func (c *processConn) Events() <-chan agentsession.Event { return c.events }
 
 // Send writes a normalized control frame to the subprocess stdin as a stream-json user
 // turn. Prompt and Steer send the text as a user message; Abort closes stdin to end the
-// turn (the CLI's headless cancel). Writes are serialized under writeMu.
+// turn (the CLI's headless cancel). Each write is serialized under writeMu by the leaf writer
+// itself (as writeControl already does), NOT across the whole call: a peer delivery hands its
+// event to the scanner AFTER the write, and holding writeMu across that channel push is how a
+// full peerEvents buffer plus a wedged scanner made Close (which needs writeMu) unkillable.
 func (c *processConn) Send(ctx context.Context, command agentsession.Command) error {
 	if err := errors.FromContext(ctx); err != nil {
 		return err
 	}
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
 	switch command.Kind {
 	case agentsession.CommandAbort:
 		// End the turn: close stdin so the headless CLI stops reading input.
+		c.writeMu.Lock()
 		_ = c.stdin.Close() //nolint:errcheck // best-effort turn cancel; an already-closed stdin is the desired state.
+		c.writeMu.Unlock()
 		return nil
 	case agentsession.CommandSteer:
 		// A Steer frame may be a permission ANSWER (the library's forwardDecision sends the
@@ -208,13 +211,16 @@ func (c *processConn) Send(ctx context.Context, command agentsession.Command) er
 	}
 }
 
-// writeUserTurn renders text as a stream-json user message and writes it on stdin. Caller
-// holds writeMu.
+// writeUserTurn renders text as a stream-json user message and writes it on stdin. The render is
+// lock-free; only the stdin write is serialized, under writeMu taken HERE (as writeControl does),
+// so deliverPeer can queue the scanner's event after it without holding the send lock.
 func (c *processConn) writeUserTurn(text string) error {
 	line, err := userTurn(text)
 	if err != nil {
 		return err
 	}
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 	if _, werr := c.stdin.Write(line); werr != nil {
 		return errors.Wrap(errors.KindUnavailable, "claudeadapter: write stdin", werr)
 	}
@@ -223,8 +229,8 @@ func (c *processConn) writeUserTurn(text string) error {
 
 // writePermissionDecision writes the can_use_tool control_response for a resolved decision,
 // correlated by request id. An allow echoes the original input (stashed by the normalizer when
-// the ask arrived) as updatedInput; a deny carries the operator-safe message. Caller holds
-// writeMu. The original input is consumed exactly once here.
+// the ask arrived) as updatedInput; a deny carries the operator-safe message. The original input
+// is consumed exactly once here; only the stdin write is serialized under writeMu, taken HERE.
 func (c *processConn) writePermissionDecision(answer parsedPermissionAnswer) error {
 	originalInput, _ := c.normalizer.takeInput(answer.requestID)
 	result := permissionResult(answer.allow, denyMessage(answer.by, answer.rationale), originalInput)
@@ -232,6 +238,8 @@ func (c *processConn) writePermissionDecision(answer parsedPermissionAnswer) err
 	if err != nil {
 		return err
 	}
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
 	if _, werr := c.stdin.Write(line); werr != nil {
 		return errors.Wrap(errors.KindUnavailable, "claudeadapter: write permission decision", werr)
 	}

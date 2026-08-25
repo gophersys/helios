@@ -274,7 +274,10 @@ func decodePeerDelivery(text string) (peerDelivery, bool) {
 }
 
 // deliverPeer writes one inbound delivery to the model as the envelope and hands the SCANNER the
-// EventPeerMessage. Caller holds writeMu.
+// EventPeerMessage. The write is serialized under writeMu inside writeUserTurn; the event is
+// queued AFTER, with NO lock held, so a full peerEvents buffer can never wedge a Close that needs
+// writeMu (the claude half of the peer-delivery deadlock — ompadapter's writeFrame already
+// releases the lock before its own queuePeerEvent).
 //
 // A frame addressed to another session is REFUSED rather than written: the conn knows its own
 // name, and injecting another session's prose into this model's context on a misroute is worse
