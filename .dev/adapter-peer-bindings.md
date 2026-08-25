@@ -1,6 +1,6 @@
 # adapter-peer-bindings
 
-phase:    fix
+phase:    verify
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
 worktree: ~/code/.worktrees/libs-adapter-peer-bindings
@@ -210,8 +210,30 @@ VALIDATE to a safe alphabet at INGRESS (no 0x1f, < > " &), so neither serializer
 0x1f wire OR model envelope) can read a field byte as structure. Escaping one serializer is the
 fix-that-must-be-repeated; validating at the boundary is the fix that isn't.
 
+## Fix round 2 — landed (impl 686d309..3053748, tests be91ba2/4208d6f), on origin 4208d6f
+V1 CLOSED at root: ONE ValidatePeerField grammar in internal/controlframe (rejects <0x20, 0x7f,
+< > " &) over from/to/msg_id/reply_to; enforced at register/serveJoin/serveSend ingress + defensive
+DecodePeer re-check; controlframe doc now says ENFORCED not asserted. Adapters refuse an undecodable
+peer frame (KindInvalid) instead of leaking it to the model. Proven over a REAL unix socket
+(ServeJoin/ServeSend refuse hostile 0x1f/<>/"). V2 CLOSED: escapePeerAttr escapes < > too. V5 CLOSED:
+overflow publishes a distinct branched-on Detail (native-send-unrecovered) — loud, not silent. V4
+CLOSED contained (client.go only, ~35 lines): clientLink.Received now a queue push + forwardReceipts
+writer goroutine reaped by Close (pump can't wedge); goleak-proven. V6 CLOSED: types.go/peer.go docs
+tell the truth about all 4 Accepted==false meanings + Detail-as-contract. V3 CLOSED: both guard arms
+PASS -race on host AND compile clean (go vet rc=0); F3 arm fails if Seq stops advancing, V5 arm fails
+if a dropped recovery is byte-identical to a routed one. apidiff: +1 internal line, zero removed/changed.
+All 3 gates green per-dimension (impl 5/5, testing 11/11, qa 6/6). cover: controlframe 95.7%.
+RESIDUAL flagged by implementer for round-3 ruling: routeRecoveredOnBus (peer_session.go:224) still
+swallows an ASYNC peerLink.Send error (same silent-drop class as V5 but only when the bus hand-off
+call itself errors; the deliver goroutine has no emit path — surfacing needs the pump's main range
+loop to become a select over a feedback channel, a change to the most load-bearing loop). Impl judged
+it out-of-list; round 3 rules ship-blocking vs tracked-follow-up.
+
 ## Next
-Fix round 2 (attempt 2/2): implementer — ingress field validation in peerplane register/
+Verify round 3 (Opus, bounded): confirm V1-V6 closed; BITE-check the 2 new guard arms (revert to
+on-pump routing → F3 arm must go RED; revert to silent-drop → V5 arm must go RED); rule the async
+Send-error residual ship-blocking or tracked-follow-up. If a HIGH survives → budget spent (2/2), STOP
+and escalate to Mateo. Else SHIP → PR-1c-ii. — ingress field validation in peerplane register/
 serveJoin/serveSend + defensive reject in DecodePeer (V1), escape < > in escapePeerAttr both
 adapters (V2), overflow-goes-loud bounce (V5), V4 bound-or-accept, V6 doc. Test author — hostile
 0x1f/</>/" join+reply_to arms bite vs pre-fix (V1), attr < > arm (V2), F3+F4 removal-guards (V3),
