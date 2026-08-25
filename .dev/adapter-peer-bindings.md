@@ -1,6 +1,6 @@
 # adapter-peer-bindings
 
-phase:    verify
+phase:    fix
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
 worktree: ~/code/.worktrees/libs-adapter-peer-bindings
@@ -229,12 +229,34 @@ call itself errors; the deliver goroutine has no emit path — surfacing needs t
 loop to become a select over a feedback channel, a change to the most load-bearing loop). Impl judged
 it out-of-list; round 3 rules ship-blocking vs tracked-follow-up.
 
+## Verify round 3 — V1-V6 CLOSED, one contained blocker (V7)
+All six bite-tested RED under -overlay (tracked files hash-identical after), gates green
+in-container (impl 5/5, testing 11/11 real docker+k3d+kind, qa 6/6), apidiff +1 internal line only.
+- V1 CLOSED: ValidatePeerField refuses <0x20 (0x1f/nl/tab/CR), 0x7f, < > " & at register/route/
+  DecodePeer + recovered To/ReplyTo; bounce name eden-mesh.root passes (loudness not self-defeated).
+  Socket bite reproduced the forgery live over a real uds then went green.
+- V2/V3/V4/V5/V6 CLOSED (V3 both guards non-vacuous + independent; V4 goleak-reaped; V5 distinct
+  branched literal; V6 docs accurate).
+- RESIDUAL (async bus-Send swallow) = TRACKED FOLLOW-UP, not ship-blocking: invisible sub-cases
+  (unreachable-To / over-long body) never fake "delivered" (native failure already on the stream);
+  inbox-full gets a loud reconciler bounce. Follow-up task opened; lands with eden PR-2 harness lane.
+- V7 SHIP-BLOCKING but CONTAINED: Session.Control passes caller Text verbatim to the adapter which
+  content-sniffs decodePeerDelivery — caller/relayed text `eden:peer:`+5 fields+to=self+true renders
+  a forged <eden-peer-message from=root verified=true> to the model, bypassing the V1/V2 wall. Both
+  adapters. FIX (verifier's, better than origin-dispatch): reject any Prompt/Steer whose Text begins
+  with controlframe.PeerPrefix OR PermissionPrefix in session.checkControl — the library's own
+  injections (deliverToHarness, forwardDecision) call conn.Send DIRECTLY (bypass Control), so the
+  caller is the ONLY Control-text source; ~5 lines, closes V7 + the pre-existing permission-sniff
+  door in one home, zero apibaseline delta. Legit peer BODY starting eden:peer: unaffected
+  (bodies delivered library-side, never via Control).
+
 ## Next
-Verify round 3 (Opus, bounded): confirm V1-V6 closed; BITE-check the 2 new guard arms (revert to
-on-pump routing → F3 arm must go RED; revert to silent-drop → V5 arm must go RED); rule the async
-Send-error residual ship-blocking or tracked-follow-up. If a HIGH survives → budget spent (2/2), STOP
-and escalate to Mateo. Else SHIP → PR-1c-ii. — ingress field validation in peerplane register/
-serveJoin/serveSend + defensive reject in DecodePeer (V1), escape < > in escapePeerAttr both
-adapters (V2), overflow-goes-loud bounce (V5), V4 bound-or-accept, V6 doc. Test author — hostile
-0x1f/</>/" join+reply_to arms bite vs pre-fix (V1), attr < > arm (V2), F3+F4 removal-guards (V3),
-overflow-loud arm (V5). If verify round 3 still finds a HIGH → STOP, escalate to Mateo (budget spent).
+V7 fix round (contained, NOT a re-grind — verifier + pre-committed branch concur): implementer —
+reject controlframe.PeerPrefix/PermissionPrefix Text in session.checkControl (session.go:262).
+Test author — an arm driving Session.Control with a crafted eden:peer:...verified=true...to=self
+frame, asserting the model sees NO <eden-peer-message>; bite vs pre-fix tree (both adapters).
+Then a BOUNDED final verify (V7 bite + gates only), pre-merge cleanup (reword 3 subjects >72:
+be91ba2/3053748/20586a2; delete this state file), open PR-1c-ii.
+BUDGET NOTE: rounds 1-2 converged the escaping/deadlock/ingress problem; V7 is a distinct newly-
+surfaced problem with a one-shot contained fix, so it is not the grind the 2/2 budget guards. If
+the V7 fix itself does not converge in one round → STOP + escalate.
