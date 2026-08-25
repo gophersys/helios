@@ -39,8 +39,12 @@ merge conditions (checks green AND logs read, review verdict read as its own cal
 in the body, --merge not --squash + state file deleted). Still escalate to MATEO only: repo
 deletion, production deploys, secret values, spend beyond budget.
 Standing eden ruling in force: DO NOT re-run #26/#25 CI until eden confirms the ARC pool digest
-repin landed — the pools pin cloud@sha256:9a150cbf... by digest (VERIFIED by me in
-infrastructure/platform/services/ci/arc-runners/42-image-warmer-daemonset.yaml:77 and 43-*.yaml:55),
+repin landed — the pools pin cloud@sha256:9a150cbf... by digest (the DIGEST VALUE I first
+recorded, 9a150cbf, was WRONG — I grepped a 7-day-stale local checkout; origin/main actually pins
+245e3e9efb34 since infra #203/6ded578 merged 19:42, and 9a150cbf now survives only in 2 deliberate
+non-pin spellings: docs/ci-substrate.md + scripts/test-verify-warmer-pins.sh. The STRUCTURAL claim
+— pools pin cloud by digest, so the fix is inert until repin — holds and is why the hold is right.
+LESSON: fetch before measuring; a stale working copy passes a grep and reads as verified),
 so the merged govulncheck fix is INERT until that repin. A rerun now burns a red run for nothing.
 
 phase:    wait
