@@ -4,7 +4,7 @@ phase:    pr
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
 worktree: ~/code/.worktrees/libs-adapter-peer-bindings
-pr:       -
+pr:       26
 attempt:  2/2
 
 ## Goal
