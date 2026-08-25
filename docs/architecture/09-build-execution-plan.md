@@ -46,7 +46,9 @@ agent supervision (P13).
   are a planning error — fix the plan, not the merge.
 - Merge to `main` only with: tests green in a clean checkout (not the authoring worktree),
   lint/naming gates, and the ADOPTED-only library invariant (10 §8).
-- Conventional Commits; no AI attribution in commits (repo convention).
+- Conventional Commits; attribution per `.claude/rules/git-process.md` §13 (ADR-0032) —
+  an agent authors as Claude, joint work carries `Co-Authored-By: Claude`. The earlier
+  "no AI attribution" convention is REVERSED.
 
 ## 4. Interface negotiation protocol
 

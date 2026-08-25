@@ -27,9 +27,13 @@ build target.
   and epistemic tags. Move a superseded document to `docs/attic/`. Never delete it.
 - **Pipeline vocabulary:** "phase" is a step of the SDLC pipeline of 10 phases. "stage" is the
   environment axis (development/test/staging/production). Never mix the 2 words.
-- **Commits:** use Conventional Commits. Do not add an AI or LLM attribution line (ratified in
-  ADR-0010 — omit the `Co-Authored-By` trailer). Always push after you commit (standing
-  directive, 2026-06-12: never lose data; save and push).
+- **Commits:** use Conventional Commits. **ATTRIBUTION IS IDENTITY** — solo agent work is
+  authored `Claude <claude-agent@gophersys.noreply>`; joint interactive work is authored
+  Mateo with a `Co-Authored-By: Claude` trailer; an agent never commits, approves or
+  comments as "Mateo". The single home of that rule is `.claude/rules/git-process.md` §13
+  (ADR-0032, 2026-08-25), which REVERSED the earlier "no AI/LLM attribution" clause of
+  ADR-0010. Always push after you commit (standing directive, 2026-06-12: never lose data;
+  save and push).
 - **Go:** the floor is Go 1.26. Write in Go everything that can be Go (ADR-0003). The UI is
   Svelte 5 (ADR-0004).
 - `poc/` holds material for reuse. Read it freely, but code enters `main` only through the gates

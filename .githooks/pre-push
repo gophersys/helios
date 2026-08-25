@@ -27,7 +27,7 @@ Z40="0000000000000000000000000000000000000000"
 declare -a CHANGED=()
 range=""
 range_base=""
-while read -r local_ref local_sha _remote_ref remote_sha; do
+while read -r _local_ref local_sha _remote_ref remote_sha; do
   [[ -z "${local_sha:-}" ]] && continue
   [[ "$local_sha" == "$Z40" ]] && continue          # branch deletion — nothing to check
 

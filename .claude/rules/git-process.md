@@ -141,12 +141,14 @@ timestamp, or write "gate not individually exercised".
 | nightly | whole-repo gates, soaks, scans, the sweep, the dependency resolver | no |
 | tag `v*` | publish artifacts by digest | no |
 
-**Coverage is partial. Measured against the GitHub API on `main`, 2026-08-25:**
+**Coverage is partial. Measured against the GitHub API on `main`, 2026-08-25, over
+the 11 repos of the ENGINEERING ESTATE** (the org holds 21; the other 10 are
+archives and personal projects, none part of this process):
 
 | repo | workflows | note |
 | --- | --- | --- |
-| `.devcontainer` | build-and-push, pr-review, security-nightly, validate, weekly-bumps | **the most complete in the estate, and the ONE repo with the full nightly + tag + merge triple** |
-| `eden` | harness-conformance, harness-upgrade-check, on-pr, on-push, release | hand-written. **NO pr-review** — see §8. |
+| `.devcontainer` | build-and-push, pr-review, security-nightly, validate, weekly-bumps | **the most complete in the estate, and the only one with a NIGHTLY-CADENCE tag + merge + nightly triple** |
+| `eden` | harness-conformance, harness-upgrade-check, on-pr, on-push, release | hand-written. **NO pr-review** — see §8. Has the same triple on a WEEKLY cron (`harness-upgrade-check` `0 7 * * 1` + `release` `tags:["v*"]` + `on-push` `push:[main]`). |
 | `libs` | nightly, on-pr, on-push | cictl-generated |
 | `infrastructure` | ghcr-retention, pr-review, validate | **has the AI reviewer** |
 | `research-ui` | build-ci-image, ci, on-pr | |
@@ -157,7 +159,7 @@ timestamp, or write "gate not individually exercised".
 
 `.devcontainer` is the working example to copy: `security-nightly.yml`
 (`cron 0 9 * * *`), `build-and-push.yml` (`tags: ["v*"]` and `push: main`),
-`validate.yml` (`push: main`). Every tier writing what it RAN into the job
+`validate.yml` (`push: main` **and every `pull_request`**). Every tier writing what it RAN into the job
 summary is TO BUILD (§14).
 
 ## 8. Submodules — the pointer seam
@@ -262,20 +264,24 @@ earlier no-attribution rule, which forbade every AI trailer. The record must say
 who did the work. An unattributed agent commit reads as a human's, and that is a
 false record.
 
-| case | git author | trailer |
-| --- | --- | --- |
-| solo agent work | `Claude <claude-agent@gophersys.noreply>` | none |
-| joint interactive work | Mateo | `Co-Authored-By: Claude` |
+**Rule 1 — solo agent work** is authored `Claude <claude-agent@gophersys.noreply>`,
+with no trailer.
 
-- **An agent NEVER commits, approves or comments as "Mateo".** An agent's PR
-  comment identifies itself and NAMES THE AUTHORITY it acts under.
-- **A human gate counts as EXERCISED only when the record quotes Mateo's
-  VERBATIM words and a TIMESTAMP.** With no quote, the record says
+**Rule 2 — joint interactive work** is authored Mateo, with a
+`Co-Authored-By: Claude` trailer.
+
+**Rule 3 — an agent NEVER commits, approves or comments as "Mateo".** An agent's PR
+  An agent's PR comment identifies itself and NAMES THE AUTHORITY it acts under.
+
+**Rule 4 — a human gate counts as EXERCISED only when the record quotes Mateo's
+VERBATIM words and a TIMESTAMP.** With no quote, the record says
   **"gate not individually exercised"**. Inference, a summary, or "he
   co-designed it" is not an exercised gate. This makes the F27 fix permanent:
   an agent may not certify the human gate on its own change.
-- Actor-level separation — a real bot GitHub identity, so the ACTOR and not
-  only the commit author carries it — is TO BUILD (§14, task #138).
+**Rule 5 — actor-level separation** (a real bot GitHub identity, so the ACTOR
+and not only the commit author carries it) is TO BUILD (§14, task #138). Until
+it lands, an agent posts through Mateo's credential and MUST say so in the
+comment, per rule 3.
 
 ## 14. TO BUILD — none of this exists yet
 
@@ -293,11 +299,25 @@ false record.
 | 10 | CI instrumentation probe | cictl | §12 — echo the loaded profile into the job summary; FAIL when it is absent |
 | 11 | bot GitHub identity (task #138) | eden + org | §13 — actor-level separation, so the ACTOR carries the agent identity and not only the commit author |
 | 12 | raise the reviewer turn cap (task #134) | cictl | §10 — it is **40** today at main, v0.5.1 and v0.6.0; 500/max is the directive, not the state |
+| 13 | lint `.githooks/` in CI | eden | **NOTHING gates it today.** `.ci/ctl.sh` shellchecks `ctl.sh` files only, so a hook can regress silently. Proven by this change: deleting the branch-grammar function orphaned `local_ref` and took `pre-push` from shellcheck-clean to SC2034, and no gate in this repository would have caught it. The deleted `branchname_test.sh` header stated the contract — "shellcheck-clean (the hooks authoring contract)" — and deleting a test does not repeal a contract. |
 
-Rows 13 and 14 were the attribution-sync debt. **Both are CLOSED in the same
-change as ADR-0032**: `merge-agent.md` is rewritten to this process, and
-ADR-0010 §6 is amended on Mateo's exercised gate. Nothing carries the reversed
-rule now.
+The attribution-sync debt is CLOSED in the same change as ADR-0032, and it took
+**four** files rather than the two first listed. `.claude/agents/merge-agent.md`
+is rewritten; ADR-0010 §6 is amended; **the root `CLAUDE.md` is amended**; and
+`docs/architecture/09-build-execution-plan.md` is amended. `docs/attic/` gains an
+archive banner rather than edits, for the reason §7 gives about a dated journal.
+
+**The root `CLAUDE.md` is the one that mattered most, and it was missed twice.**
+It is the ALWAYS-LOADED file — §12 names it first as the CI profile — while
+`.claude/rules/` is path-scoped and read on demand. So an agent reading only what
+is loaded for it would have obeyed the reversed rule, and the contradiction would
+have resolved the WRONG way by default. It also cited ADR-0010 as its authority,
+which this same change amends: a dangling authority chain this branch created.
+
+**The lesson is a rule, not an anecdote.** Three refutations each found the same
+shape: the sweep widened by one ring and stopped one ring short. When a rule
+changes, sweep EVERY subject across EVERY ring — root files first, because the
+root is what loads.
 
 ## 15. The library contract this process does NOT govern
 
