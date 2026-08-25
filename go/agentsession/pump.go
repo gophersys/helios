@@ -118,10 +118,11 @@ func (s *session) handle(raw Event) []Event {
 		// The library observed the model's send; it rides the stream only when a plane is wired.
 		// A send the harness's OWN plane could not make is handed to the deliver goroutine for the
 		// full-mesh recovery — OFF the pump, which owns Seq and must never block on the plane — and
-		// the event is published verbatim (the native failure stays visible to the model).
+		// the event is published verbatim (the native failure stays visible to the model). A
+		// hand-off the deliver goroutine could not take comes back re-stamped, so a recovery that
+		// will never happen is never published as one that will.
 		if s.peerLink != nil {
-			s.routeRecoveredSend(raw)
-			emitted = append(emitted, s.emit(raw))
+			emitted = append(emitted, s.emit(s.routeRecoveredSend(raw)))
 		}
 	case EventSubagentMessage:
 		// A DISTINCT function from peer messaging: no plane, no dedupe, no roster — published verbatim.

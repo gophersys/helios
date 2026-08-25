@@ -35,6 +35,17 @@ const peerRecoveredSendBuffer = 8
 // DID accept and which is therefore never re-routed.
 const peerRecoveredSendDetail = "native-send-unreachable"
 
+// peerRecoveryDroppedDetail REPLACES peerRecoveredSendDetail on the published EventPeerSent when
+// the recovery could not even be handed to the deliver goroutine. It is LIBRARY-owned: no adapter
+// produces it, because only the library knows whether it took the routing instruction.
+//
+// It exists because the two outcomes were byte-identical on the stream. The recovered EventPeerSent
+// is published VERBATIM, so a consumer reading Detail=="native-send-unreachable" is entitled to
+// conclude "the library is routing this over the bus" — and a dropped hand-off published exactly
+// that while routing nothing. A silently held message is the one failure this whole plane exists
+// to make impossible, so the drop gets its own literal and the consumer can see it.
+const peerRecoveryDroppedDetail = "native-send-unrecovered"
+
 // validatePeerSpec enforces the Open-time peer contract. Deps.Peer set with an empty Name is a
 // session that believes it is reachable and is not — the silent failure this design removes; a
 // non-empty Name that violates the grammar is a ConfigError, never a mangled argv or socket
@@ -159,37 +170,49 @@ func (s *session) deliverInboundPeer(raw Event) []Event {
 // routes it over the bus so the peer really receives it. It runs ON THE PUMP, so it does the
 // discrimination and the copy here but hands the actual bus Send to the deliver goroutine: the
 // pump owns Seq and must NEVER block, and the plane's Send does (a socket handshake, an inbox
-// push). The published EventPeerSent is left verbatim — the native send failed visibly to the
-// model (the accepted full-mesh caveat), and the recovery delivers underneath it.
+// push). It returns the event to PUBLISH: verbatim when the recovery was taken (the native send
+// failed visibly to the model — the accepted full-mesh caveat — and the recovery delivers
+// underneath it), re-stamped when it was not.
 //
 // The discrimination is load-bearing in BOTH directions. An already-accepted send must not be
 // re-routed (every native message would be delivered twice), and a "send-receipt-unparsed" one
 // is a send the native plane DID accept whose id was merely unreadable — also never re-routed.
 //
 //nolint:gocritic // Event is the contract's immutable copyable record; the pump reads it by value.
-func (s *session) routeRecoveredSend(raw Event) {
+func (s *session) routeRecoveredSend(raw Event) Event {
 	if !isRecoveredSend(raw.Peer) {
-		return
+		return raw
 	}
 	// From is the SENDING SESSION's own name, never the model's claim in the failed tool_use.
-	s.queueRecoveredSend(PeerMessage{
+	if s.queueRecoveredSend(PeerMessage{
 		From:    s.spec.Name,
 		To:      raw.Peer.To,
 		ReplyTo: raw.Peer.ReplyTo,
 		Body:    raw.Peer.Body,
-	})
+	}) {
+		return raw
+	}
+	// The hand-off was refused, so NOTHING will route this message. Clone-on-modify (the pump's
+	// rule) and re-stamp, so the one event this send produces says what actually happened.
+	dropped := *raw.Peer
+	dropped.Detail = peerRecoveryDroppedDetail
+	raw.Peer = &dropped
+	return raw
 }
 
-// queueRecoveredSend hands a recovered send to the deliver goroutine WITHOUT blocking the pump. A
-// full queue drops the recovery rather than stalling Seq assignment: the model already saw the
-// native send fail, so a dropped recovery leaves the failure on the stream — never a silent
-// success. Recovered sends are rare, so the bounded buffer is not reached in practice.
+// queueRecoveredSend hands a recovered send to the deliver goroutine WITHOUT blocking the pump,
+// reporting whether the deliver goroutine took it. A full queue does NOT stall Seq assignment —
+// the pump may never block — so the message is not routed, and the caller re-stamps the published
+// event to say so. Recovered sends are rare, so the bounded buffer is not reached in practice;
+// what matters is that reaching it is VISIBLE rather than silent.
 //
 //nolint:gocritic // PeerMessage is the contract's copyable value record; the queue takes it by value.
-func (s *session) queueRecoveredSend(message PeerMessage) {
+func (s *session) queueRecoveredSend(message PeerMessage) bool {
 	select {
 	case s.recoveredSends <- message:
+		return true
 	default:
+		return false
 	}
 }
 
