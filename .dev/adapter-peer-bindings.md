@@ -1,11 +1,11 @@
 # adapter-peer-bindings
 
-phase:    verify
+phase:    fix
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
 worktree: ~/code/.worktrees/libs-adapter-peer-bindings
 pr:       -
-attempt:  0/2
+attempt:  1/2
 
 ## Goal
 PR-1c-ii — the deferred half of the peer slice: bind the merged peer plane to the two
@@ -120,5 +120,35 @@ json.Marshal of []Peer). Known: HELD sender-side receipt still uncaptured (deriv
 fixture; is_error unverified — branching is on success only); architecture gate's
 contract-doc dimension resolves only when mounted at eden/libs (path artifact).
 
+## Verify round 1: SEND BACK — 1 HIGH (security), 1 HIGH (test gap), 2 MEDIUM deadlock, 1 LOW
+Core survived attack (full-mesh delivery, frame-unwrap, injection-copy, manifest guard,
+result-keying bite all break-tested red). NOT survived:
+- F1 HIGH (SECURITY): peerEnvelope (claudeadapter/peer.go:192-210 + ompadapter/peer.go:
+  100-118) concatenates the untrusted body with NO escaping; the only guard is an
+  EXACT-BYTE strings.Contains("</eden-peer-message>"). `</eden-peer-message >` (space —
+  valid XML close grammar), newline/tab/UPPERCASE variants, a nested opening tag, a raw
+  0x1f, and the literal `eden:peer:` all slip past → a peer body forges a
+  from="root" verified="true" delivery to the RECEIVING model (prompt-injection). Fix:
+  ESCAPE (<,>,& in body; " in from/msg_id/reply_to), NOT a wider blocklist. Implementer
+  = peerEnvelope escaping (both adapters); test author = the crafted-body arm.
+- F2 HIGH (test gap / check-that-cannot-fail): isRecoveredSend (peer_session.go:183-186)
+  has NO arm for Detail=="send-receipt-unparsed" — deleting the Detail clause keeps all 8
+  packages green while a natively-ACCEPTED send gets DOUBLE-delivered. Test author: third
+  table arm {Accepted:false, Detail:"send-receipt-unparsed"} → wantRouted:false.
+- F3 MEDIUM: routeRecoveredSend (peer_session.go:163) calls peerLink.Send on the PUMP
+  goroutine (both Sends ignore ctx; socket blocks handshakeTimeout 10s, in-proc is an
+  unbounded inbox push) — violates the invariant stated twice (peer.go:72-74,
+  peer_session.go:67-70). Route off the pump or bound it.
+- F4 MEDIUM: claude queuePeerEvent (peer.go:253-276) blocks under writeMu; Close needs
+  writeMu → with F3, a wedged pump makes Close UNKILLABLE (deadlock). omp releases
+  writeMu before queuePeerEvent — match it. Implementer.
+- F5 LOW: claudeadapter/leak_test.go:11-14 doc now false (peer_conn_test drives real
+  scan+readLines goroutines in the fast suite). Test author.
+Verifier method notes accepted: cover-floor first-read void (concurrent breaks),
+re-ran serially 11/11; count is 20 new tests not 21; harness lane authored-not-run
+(claude→omp full mesh proven only vs in-memory plane; real proof owed at eden PR-2).
+
 ## Next
-Phase 4: adversarial verify (Opus), then PR-1c-ii.
+Fix round 1: implementer F1-escape + F3 (route off pump) + F4 (queuePeerEvent outside
+writeMu); test author F1-crafted-body-arm + F2 (double-delivery arm) + F5 (leak doc).
+Disjoint. Then re-verify round 2 (Opus, bounded), PR-1c-ii.
