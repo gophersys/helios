@@ -250,8 +250,22 @@ in-container (impl 5/5, testing 11/11 real docker+k3d+kind, qa 6/6), apidiff +1 
   door in one home, zero apibaseline delta. Legit peer BODY starting eden:peer: unaffected
   (bodies delivered library-side, never via Control).
 
+## V7 fix — implementer landed (484dd96, pushed)
+session.checkControl now rejects a CommandPrompt/CommandSteer whose Text begins with
+controlframe.PeerPrefix OR PermissionPrefix → errors.KindInvalid (closes V7 + the pre-existing
+permission-sniff door in one home). Prefix cited from controlframe, not re-spelled. Invariant
+CONFIRMED by the implementer: deliverToHarness (peer_session.go:127) + forwardDecision
+(session.go:304) call conn.Send DIRECTLY, bypassing Control — the reject cannot break a real
+delivery; a legit peer BODY starting eden:peer: is unaffected (bodies arrive via deliverToHarness).
+apidiff ZERO public delta. Host checks green (build/vet/test/gofumpt/golangci); FULL in-container
+gate (apidiff/hnslint/gremlins/gosec/govulncheck + 11-dim real-docker) OWED to the final verify —
+the implementer's worktree lacked the container runner, so those did NOT run yet (not a pass).
+Bite proven via a temporary probe (deleted, not committed).
+STILL OWED: test author's permanent V7 arm (in flight); then the bounded final verify MUST run the
+full gate IN-CONTAINER (a gate that could not run is not green — FAIL-LOUDLY).
+
 ## Next
-V7 fix round (contained, NOT a re-grind — verifier + pre-committed branch concur): implementer —
+V7 fix round (contained) (contained, NOT a re-grind — verifier + pre-committed branch concur): implementer —
 reject controlframe.PeerPrefix/PermissionPrefix Text in session.checkControl (session.go:262).
 Test author — an arm driving Session.Control with a crafted eden:peer:...verified=true...to=self
 frame, asserting the model sees NO <eden-peer-message>; bite vs pre-fix tree (both adapters).
