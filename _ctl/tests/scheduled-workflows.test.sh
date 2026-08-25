@@ -238,8 +238,21 @@ function uncommented() {
 #
 # The key, and not the string: `schedule:` at an indent inside `on:`. A trailing
 # `# comment` on the key line is left alone, because the key is what matters.
+#
+# `uncommented` is CAPTURED to a local first and never piped straight into
+# `grep -q`. 2026-08-25: this file's own scheduled-workflows job proved why —
+# grow the workflow it reads past a certain size and `grep -q` closes the pipe
+# the instant it matches, sed receives SIGPIPE mid-write, and under
+# `pipefail` sed's 141 outranks grep's 0 as the pipeline's exit status. The
+# `if` then takes the FALSE branch on a file that plainly matched, and this
+# reader reports "0" for a schedule that is right there — 28 of 100
+# iterations, reproduced in-container against the current file size. A
+# variable is read start-to-finish by `sed` alone, with no second process to
+# close it early, so there is nothing left to race.
 function declares_a_schedule() {
-  if uncommented "$1" | grep -qE '^[[:space:]]+schedule:[[:space:]]*$'; then
+  local body
+  body="$(uncommented "$1")"
+  if grep -qE '^[[:space:]]+schedule:[[:space:]]*$' <<< "$body"; then
     printf '1'
   else
     printf '0'
@@ -249,7 +262,9 @@ function declares_a_schedule() {
 # declares_a_cron <file> — 1 when the schedule carries at least 1 cron entry.
 # A `schedule:` key with no cron under it parses and never fires.
 function declares_a_cron() {
-  if uncommented "$1" | grep -qE '^[[:space:]]+-[[:space:]]+cron:'; then
+  local body
+  body="$(uncommented "$1")"
+  if grep -qE '^[[:space:]]+-[[:space:]]+cron:' <<< "$body"; then
     printf '1'
   else
     printf '0'
@@ -260,7 +275,9 @@ function declares_a_cron() {
 # write`. Which block holds it is not constrained here: a job-level grant is
 # narrower than a workflow-level one and both are correct.
 function declares_issues_write() {
-  if uncommented "$1" | grep -qE '^[[:space:]]+issues:[[:space:]]+write[[:space:]]*$'; then
+  local body
+  body="$(uncommented "$1")"
+  if grep -qE '^[[:space:]]+issues:[[:space:]]+write[[:space:]]*$' <<< "$body"; then
     printf '1'
   else
     printf '0'
@@ -408,8 +425,13 @@ function invokes_trivy() {
 }
 
 # gates_critical <file> — 1 when the severity list names CRITICAL.
+#
+# `uncommented` is captured to a local before grep reads it — see
+# declares_a_schedule above for the SIGPIPE/pipefail race this avoids.
 function gates_critical() {
-  if uncommented "$1" | grep -qE "(--severity[[:space:]=]|severity:[[:space:]]*)['\"]?[A-Z,]*CRITICAL"; then
+  local body
+  body="$(uncommented "$1")"
+  if grep -qE "(--severity[[:space:]=]|severity:[[:space:]]*)['\"]?[A-Z,]*CRITICAL" <<< "$body"; then
     printf '1'
   else
     printf '0'
@@ -422,7 +444,9 @@ function gates_critical() {
 # table, the step succeeds, the run is green, and nobody reads the log of a
 # scheduled job.
 function fails_the_step() {
-  if uncommented "$1" | grep -qE "(--exit-code[[:space:]=]|exit-code:[[:space:]]*)['\"]?1"; then
+  local body
+  body="$(uncommented "$1")"
+  if grep -qE "(--exit-code[[:space:]=]|exit-code:[[:space:]]*)['\"]?1" <<< "$body"; then
     printf '1'
   else
     printf '0'
@@ -457,7 +481,9 @@ function unfixed_skip_lines() {
 # dead text, and the waiver rule further down would be checking a document with
 # no effect on anything.
 function names_the_waiver_file() {
-  if uncommented "$1" | grep -qF -- "$WAIVER_FILE"; then
+  local body
+  body="$(uncommented "$1")"
+  if grep -qF -- "$WAIVER_FILE" <<< "$body"; then
     printf '1'
   else
     printf '0'
@@ -1621,8 +1647,12 @@ while IFS= read -r relative; do
   # name, and the unfixed condition. Dropping the second would silently
   # un-gate a FIXED linux-libc-dev CRITICAL — the exact class the policy is
   # designed to keep gating — and nothing else in the gate would go red.
-  if uncommented "$file" | grep -qF -- "--ignore-policy"; then
-    if uncommented "$file" | grep -qF -- "$POLICY_FILE" && [[ -f "$REPO_ROOT/$POLICY_FILE" ]]; then
+  # Captured once and grepped twice from the variable — never piped straight
+  # into `grep -q`, for the same SIGPIPE/pipefail race declares_a_schedule's
+  # comment documents, and 1 call to `uncommented` instead of 2.
+  scan_body="$(uncommented "$file")"
+  if grep -qF -- "--ignore-policy" <<< "$scan_body"; then
+    if grep -qF -- "$POLICY_FILE" <<< "$scan_body" && [[ -f "$REPO_ROOT/$POLICY_FILE" ]]; then
       pass_check "${relative}_names_a_policy_file_that_exists"
     else
       fail_check "${relative}_names_a_policy_file_that_exists" \
