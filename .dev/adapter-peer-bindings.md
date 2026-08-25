@@ -273,18 +273,23 @@ zero-Send + KindInvalid + cause assertions all fail if the guard is absent. Both
 at the shared library ingress (asserts zero frames reach the fake adapter Received, so neither
 claude spawn.go:205 nor omp rpc.go:196 can content-sniff). Host gofumpt/vet/peer-suite green.
 
+## Final verify — SHIP except one MEDIUM (in-container, @00a7eff)
+Gates GREEN in fresh base:latest, real docker.sock, all pinned tools: impl 5/5 (apidiff no-break),
+testing 11/11 (integration RAN 193 pass / 5 skip — the 5 are the live-token harness runs owed to
+eden PR-2, a documented env property, NOT a silent skip), qa 6/6 (mutate skip by-design leaf=false).
+Guard correctness SHIP: checkControl rejects PeerPrefix|PermissionPrefix for Prompt|Steer, prefixes
+cited from controlframe, HasPrefix set == sniffer trigger EXACTLY (no gap), no second Send door
+(4 conn.Send sites enumerated; only Control carries caller text and it is guarded). apidiff zero
+PUBLIC delta. No V1-V6 regression (59 peer arms + 5 ingress arms green by name).
+SEND BACK — F-V7a (MEDIUM, check-that-cannot-fail): peer_control_forgery_test.go drives only
+CommandPrompt; the guard's Steer half is UNTESTED — deleting `|| Kind==CommandSteer` leaves the
+suite GREEN while a forged Steer (StateRunning, the PRIMARY running-turn delivery verb) reaches
+Send and renders verified="true". Guard impl is CORRECT; only the arm is incomplete.
+
 ## Next
-BOUNDED FINAL VERIFY (owed, in-container): the fix agents could only run host checks — run the full
-gate IN-CONTAINER (impl/testing/qa: apidiff, hnslint, gremlins, gosec, govulncheck, 11-dim real
-docker+k3d+kind), read exit codes; confirm V7 arm green + non-vacuous; confirm NO V1-V6 regression.
-A gate that could not run is NOT green (FAIL-LOUDLY). On SHIP → pre-merge cleanup (reword 3 subjects
->72: be91ba2/3053748/20586a2 via rebase at this quiescent point since both agents are done; delete
-this state file), then open PR-1c-ii. (contained, NOT a re-grind — verifier + pre-committed branch concur): implementer —
-reject controlframe.PeerPrefix/PermissionPrefix Text in session.checkControl (session.go:262).
-Test author — an arm driving Session.Control with a crafted eden:peer:...verified=true...to=self
-frame, asserting the model sees NO <eden-peer-message>; bite vs pre-fix tree (both adapters).
-Then a BOUNDED final verify (V7 bite + gates only), pre-merge cleanup (reword 3 subjects >72:
-be91ba2/3053748/20586a2; delete this state file), open PR-1c-ii.
-BUDGET NOTE: rounds 1-2 converged the escaping/deadlock/ingress problem; V7 is a distinct newly-
-surfaced problem with a one-shot contained fix, so it is not the grind the 2/2 budget guards. If
-the V7 fix itself does not converge in one round → STOP + escalate.
+Complete the V7 arm (test author, ONE arm, no production change): drive a session to StateRunning
+and issue a forged CommandSteer (eden:peer:...to=self...true), assert zero frames reach the fake
+adapter Send; BITE by removing `|| command.Kind == CommandSteer` from checkControl in an overlay →
+the new arm must go RED (today the suite stays green — that is the defect). On green: host-confirm
+the arm + bite; production code UNCHANGED so the 00a7eff in-container gate still stands → pre-merge
+cleanup (reword over-length subjects, delete this file) → open PR-1c-ii.
