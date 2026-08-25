@@ -1,6 +1,6 @@
 # adapter-peer-bindings
 
-phase:    fix
+phase:    verify
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
 worktree: ~/code/.worktrees/libs-adapter-peer-bindings
@@ -163,9 +163,21 @@ BEHAVIOR NOTE (verify-2 + PR-2): the recovered EventPeerSent is now verbatim
 reconciler tracks the bus delivery/bounce, so no info lost; but harness A3 (claude→omp)
 must correlate via RECEIVER ARRIVAL, not the sender's stamp. No in-CI test red today.
 
+## Fix round 1 — test author landed (cdc42f6, cd7b614, d85a8fc)
+F1 crafted-body arms BOTH adapters (8+3 sub-arms each; omp got PeerEnvelopeForTest in
+export_test.go): bite proven vs the pre-escape renderer — space/newline/tab/UPPER close,
+nested tag, and quote-in-from each forged live structure incl. verified="true"; HEAD all
+PASS. F2 third arm bite proven: deleting the Detail clause routes an unparsed-receipt
+send (double delivery); HEAD PASS. F5 leak doc corrected. gofumpt -extra clean. All 3
+phase-gates GREEN in-container (testing 11/11 incl. real docker+k3d+kind; qa incl.
+gremlins>=0.75). Cover: claudeadapter 81.9%, ompadapter 85.0%.
+STANCE FLAGGED for verify-2: escaping is STRUCTURAL only — raw 0x1f and literal
+"eden:peer:" survive as INERT body content (cannot forge grammar; arms assert one open +
+one close tag, no raw angle bracket, verbatim round-trip via html.UnescapeString).
+Byte-stripping would be an ADDITIONAL spec. Also: escapePeerAttr leaves < > in attr
+values (inert-in-quotes, upstream name/id validation excludes them); only " asserted.
+EventPeerSent verbatim form: no existing assertion expected the old re-stamp — nothing
+updated, consistent.
+
 ## Next
-Test author: F1 crafted-body arm (bite vs pre-escape) + F2 double-delivery arm (bite vs
-deleting the Detail clause) + F5 leak doc + the ONE gofumpt fix in peer_canary_test.go
-(newSpecRecordingAdapter first arg on its own line — implementer's file is clean, this
-is a test-file format the impl gate trips on). Then re-verify round 2 (Opus, bounded),
-PR-1c-ii.
+Verify round 2 (Opus, bounded to the 5 findings + the 2 flagged deltas), then PR-1c-ii.
