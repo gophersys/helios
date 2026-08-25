@@ -65,6 +65,33 @@ tiers:
     privileged: true
     schedule: "0 6 * * *"
     timeoutMinutes: 90
+# review — libs' FIRST pr-review coverage (ledger #44). The caller below is
+# GENERATED from this block by `cictl generate -C .`, beside on-pr.yml /
+# on-push.yml / nightly.yml; `cictl drift` fails any hand edit of the result.
+#
+# ref is the cictl main HEAD at rollout time (PR #23, "make the reviewer a
+# composite action, generate its callers", merged 2026-08-25) — a 40-hex commit,
+# never a tag, because a tag is a pointer its owner can move. No release names
+# this exact commit yet (latest tag is v0.5.1), so `release:` is omitted rather
+# than inventing a name `cictl conformance --org` would then find disagrees.
+#
+# tier: module — libs is a MODULE repo per gophersys-repo-governance.md's type
+# taxonomy (a reusable building block other repositories consume), which selects
+# the platform/module preset: opus, $25/round, 4 rounds ($125 worst case/PR).
+#
+# streamStore: none — the explicit, visible opt-out. cictl PR #23 left
+# streamEndpoint with deliberately no default ("a MinIO URL I could not verify
+# would be configuration that reads as intent and archives nothing"; validation
+# refuses a minio store with an empty endpoint) and named this rollout as the
+# separate later task that supplies the real homelab endpoint. Until
+# infrastructure wires it, `none` is honest; a guessed URL would not be.
+review:
+  enabled: true
+  ref: 7f063fc04a5209a5abf04e5deba1c18aa7881a60
+  tier: module
+  runsOn: arc-review
+  timeoutMinutes: 30
+  streamStore: none
 providers:
   - github
 toolMatrix:
