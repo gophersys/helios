@@ -1,6 +1,6 @@
 # adapter-peer-bindings
 
-phase:    pr
+phase:    wait
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
 worktree: ~/code/.worktrees/libs-adapter-peer-bindings
@@ -295,12 +295,23 @@ Steer admitted), Prompt arms + positive stay green; session.go hash-identical, g
 Production UNCHANGED since the 00a7eff in-container gate (only test + state-file commits added), so
 that gate stands; the PR's own libs CI is the authoritative in-container re-run on the final SHA.
 
+## PR-1c-ii OPEN as libs #26; phase 6 wait
+CI RED — but a repo-wide CI-ESTATE regression, NOT this PR (phase-7 causation: SURFACED not caused).
+Root cause = runner-image tool-version mismatch surfaced after #24 merged green 08-24:
+(1) golangci-lint rejects the .ci-generated .golangci.yml (exit 3, additional property
+'allow-parallel-runner' not allowed) + 'parallel golangci-lint is running' panic;
+(2) govulncheck panics scanning go/secrets + go/workspaceprovider (exit 2, unexpected *ast.KeyValueExpr).
+Proof not-mine: zero lint findings in any agentsession file; agentsession verb-record/shellcheck/
+project.json all ok; unrelated PR #25 fails the IDENTICAL validate with the same allow-parallel-runner
+rejection; deterministic (re-run won't clear). Full gate ran GREEN in-container at the pre-final SHA
+with correct tool versions. Surfaced: PR #26 comment + eden back-channel handoff (eden owns .ci +
+runner image; not touching it from this feature worktree to avoid colliding with eden's concurrent
+.ci work). #26 is ready-to-merge on its own merits.
+
+## BLOCKED — repo-wide CI-estate regression
+Blocked on eden repinning the runner image (golangci config reconcile + govulncheck pin). When the
+image is fixed, re-run #26's failed jobs (gh run rerun --failed); expect green. Then phase 8: STOP
+for Mateo's end-review (do NOT merge; delete this state file in the final pre-merge commit + prove gone).
+
 ## Next
-Open PR-1c-ii (phase 5) — body in scratchpad/pr-1c-ii-body.md. Then phase 6 wait: poll CI, READ the
-gate log (a fast green is not a green). STOP at phase 8 (merge) for Mateo's end-review ("ill review
-at the end"). Before merge: delete THIS state file in the final commit + prove it gone. (test author, ONE arm, no production change): drive a session to StateRunning
-and issue a forged CommandSteer (eden:peer:...to=self...true), assert zero frames reach the fake
-adapter Send; BITE by removing `|| command.Kind == CommandSteer` from checkControl in an overlay →
-the new arm must go RED (today the suite stays green — that is the defect). On green: host-confirm
-the arm + bite; production code UNCHANGED so the 00a7eff in-container gate still stands → pre-merge
-cleanup (reword over-length subjects, delete this file) → open PR-1c-ii.
+Wait on eden's runner-image fix; re-run #26 CI; hold at phase 8 for Mateo.
