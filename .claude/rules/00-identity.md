@@ -499,10 +499,14 @@ release was.
   `flutter-releases` and `eden-manifest` each read 1 upstream DOCUMENT;
   `no-autobump` states, in a sentence, why a pin is not resolved. 15 pins take
   it today: the 3 `ANDROID_*` rows, `PYTHON_PACKAGE`,
-  `JAVA_VERSION`, `KICAD_PPA_VERSION`, `RUST_CHANNEL`, `FLUTTER_CHANNEL`,
+  `JAVA_VERSION`, `KICAD_PPA_VERSION`, `CHROME_MAJOR_VERSION`, `RUST_CHANNEL`,
+  `FLUTTER_CHANNEL`,
   `BENCHSTAT_REF`,
   `TERRAFORM_VERSION`, `AWS_CLI_VERSION`, `CICTL_VERSION`, `HNSLINT_VERSION`
-  and `BW_VERSION`. `KICAD_PPA_VERSION` joined with the hardware image and takes
+  and `BW_VERSION`. **The count and the names must be re-derived together.**
+  This sentence read "14" over 14 names while the table held 15 rows, because
+  `CHROME_MAJOR_VERSION` was never enumerated; correcting the count alone left
+  a list that claimed to be exhaustive and was not. `KICAD_PPA_VERSION` joined with the hardware image and takes
   the class `PYTHON_PACKAGE` and `JAVA_VERSION` take: it is a MAJOR LINE inside
   a name — `ppa:kicad/kicad-10.0-releases` — so the version that archive
   publishes (`10.0.5~ubuntu24.04.1` on noble) is not what the row holds, and a
