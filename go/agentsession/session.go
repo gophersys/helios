@@ -2,9 +2,11 @@ package agentsession
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/gophersys/libs/go/agentsession/internal/controlframe"
 	"github.com/gophersys/libs/go/errors"
 )
 
@@ -270,6 +272,24 @@ func (s *session) checkControl(command Command) error {
 	default:
 		return errors.Wrap(errors.KindInvalid, "agentsession: control",
 			StateError{From: state, Op: "Control"})
+	}
+
+	// A Prompt/Steer carries the caller's text verbatim to the harness, where the adapter's Send
+	// content-sniffs it for the library's OWN internal control frames — a tunneled permission
+	// answer (eden:permission:) or an inbound peer delivery (eden:peer:). Caller text that BEGINS
+	// with one of those prefixes would be decoded as a trusted, library-minted frame and rendered
+	// to the model as a forged permission verdict or a verified peer message, synthesizing the
+	// whole trusted envelope from caller text and bypassing the plane's ingress wall. The library's
+	// own frames never reach this path (deliverToHarness and forwardDecision call conn.Send
+	// directly, not Control), so Control is the caller's ONLY channel into Send — a Prompt/Steer
+	// opening with an internal prefix can only be a forged frame, refused here at the one ingress
+	// every caller command shares. The prefix set is the grammar's, cited from its one home.
+	if command.Kind == CommandPrompt || command.Kind == CommandSteer {
+		if strings.HasPrefix(command.Text, controlframe.PeerPrefix) ||
+			strings.HasPrefix(command.Text, controlframe.PermissionPrefix) {
+			return errors.New(errors.KindInvalid,
+				"agentsession: control text may not begin with an internal control-frame prefix")
+		}
 	}
 
 	// CapSteer absence is a CAPABILITY fault (KindInvalid), checked BEFORE the state membership so an
