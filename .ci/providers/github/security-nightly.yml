@@ -100,11 +100,102 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+      - name: preflight - disk margin on RUNNER_TEMP for ghcr.io/gophersys/${{ matrix.image }}:latest
+        # 2026-08-25, follow-up to #98. TRIVY_CACHE_DIR and TMPDIR below both
+        # write to RUNNER_TEMP - the vulnerability database and the `docker
+        # save` tar --image-src docker reads from - and #98 shipped with that
+        # sizing UNMEASURED for the largest image: "watch the first hardware
+        # nightly" was its own stated residual. This step replaces the
+        # watching with a number, printed every run, checked before the pull
+        # spends the transfer rather than after a scan dies on ENOSPC with a
+        # log that only says so.
+        #
+        # The registry size is read the way base-currency and
+        # verify-published already read a manifest - `docker buildx imagetools
+        # inspect --raw`, never `docker manifest inspect`, so this repository
+        # keeps 1 registry client and not 2 - for the linux/amd64 variant,
+        # because arc-build runs no other. It is the COMPRESSED size the
+        # manifest declares, and that is a FLOOR against the real need and not
+        # the need itself: no registry API reports the UNPACKED size before a
+        # pull, and trivy's `docker save` tar sits close to that larger number
+        # (hardware measures 10.01 GB unpacked in images.yaml). A compressed
+        # floor plus a flat overhead is the best signal available before the
+        # transfer runs - the same posture the TMPDIR comment below takes with
+        # its own FLOOR reading.
+        #
+        # 2.5 GiB is the stated trivy DB overhead this follow-up ships with:
+        # headroom over the ~1.6 GB the main DB (108 MiB, rule 9's own
+        # measurement above) and the Java DB (~1.5 GB, #98's review) combine
+        # to.
+        run: |
+          set -Eeuo pipefail
+          image="ghcr.io/gophersys/${{ matrix.image }}:latest"
+          trivy_db_overhead_bytes=2684354560   # 2.5 GiB = 2.5 * 1024^3
+
+          index_stderr="$(mktemp)"
+          read_status=0
+          index_raw="$(docker buildx imagetools inspect --raw "$image" 2>"$index_stderr")" || read_status=$?
+          if [ "$read_status" -ne 0 ]; then
+            printf 'FATAL: cannot read the manifest of %s (docker buildx imagetools inspect exited %s):\n' "$image" "$read_status" >&2
+            cat "$index_stderr" >&2
+            rm -f "$index_stderr"
+            exit 1
+          fi
+          rm -f "$index_stderr"
+
+          # An index carries a "manifests" array, one entry per platform; a
+          # single-platform manifest does not. Read whichever shape the tag
+          # holds - a caller cannot tell without asking.
+          platform_digest="$(jq -r '
+            if has("manifests") then
+              [ .manifests[]?
+                | select(.platform.os == "linux" and .platform.architecture == "amd64")
+                | .digest
+              ] | first // empty
+            else empty end
+          ' <<< "$index_raw")"
+
+          if [ -n "$platform_digest" ]; then
+            manifest_stderr="$(mktemp)"
+            read_status=0
+            manifest_raw="$(docker buildx imagetools inspect --raw "${image%:*}@${platform_digest}" 2>"$manifest_stderr")" || read_status=$?
+            if [ "$read_status" -ne 0 ]; then
+              printf 'FATAL: cannot read the linux/amd64 manifest of %s at %s (exited %s):\n' "$image" "$platform_digest" "$read_status" >&2
+              cat "$manifest_stderr" >&2
+              rm -f "$manifest_stderr"
+              exit 1
+            fi
+            rm -f "$manifest_stderr"
+          else
+            manifest_raw="$index_raw"
+          fi
+
+          registry_bytes="$(jq -r '(.config.size // 0) + ([.layers[]? | (.size // 0)] | add // 0)' <<< "$manifest_raw")"
+          if [ -z "$registry_bytes" ] || [ "$registry_bytes" -le 0 ]; then
+            printf 'FATAL: %s reports a registry size of %s bytes - the manifest carries no readable layers\n' "$image" "$registry_bytes" >&2
+            exit 1
+          fi
+
+          needed_bytes=$((registry_bytes + trivy_db_overhead_bytes))
+          free_bytes="$(df -B1 --output=avail "$RUNNER_TEMP" | tail -n 1 | tr -d '[:space:]')"
+
+          printf 'disk margin for %s:\n' "$image"
+          printf '  registry size (linux/amd64, compressed): %d bytes (%s GiB)\n' "$registry_bytes" "$(awk -v b="$registry_bytes" 'BEGIN { printf "%.2f", b / 1073741824 }')"
+          printf '  trivy DB overhead (stated):               %d bytes (2.50 GiB)\n' "$trivy_db_overhead_bytes"
+          printf '  needed on RUNNER_TEMP:                    %d bytes (%s GiB)\n' "$needed_bytes" "$(awk -v b="$needed_bytes" 'BEGIN { printf "%.2f", b / 1073741824 }')"
+          printf '  free on RUNNER_TEMP (%s): %d bytes (%s GiB)\n' "$RUNNER_TEMP" "$free_bytes" "$(awk -v b="$free_bytes" 'BEGIN { printf "%.2f", b / 1073741824 }')"
+
+          if [ "$free_bytes" -lt "$needed_bytes" ]; then
+            printf 'FATAL: %s needs an estimated %d bytes on RUNNER_TEMP (%d registry + %d trivy DB) but only %d bytes are free - raise the work volume or narrow this scan before it runs\n' \
+              "$image" "$needed_bytes" "$registry_bytes" "$trivy_db_overhead_bytes" "$free_bytes" >&2
+            exit 1
+          fi
       - name: install trivy at the pinned version
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
           version: ${{ env.TRIVY_VERSION }}
       - name: pull ghcr.io/gophersys/${{ matrix.image }}:latest
+        timeout-minutes: 10
         # 2026-08-25. THE SCAN NO LONGER DOWNLOADS THE IMAGE ITSELF, and the
         # reason is a retry that trivy's registry client does not have.
         #
@@ -152,6 +243,25 @@ jobs:
         # This is deliberately not a trivy version bump. No release note claims
         # a retry here, and a bump would move the ENGINE under a scan whose
         # database already moves every night.
+        #
+        # timeout-minutes: 10, added as a follow-up to #98's own review, which
+        # flagged that this step was unbounded inside the 30m job ceiling: a
+        # pull that goes silent (a stalled connection, unlike the fast
+        # PROTOCOL_ERROR the 3 recorded incidents above produced) would be
+        # absorbed into the JOB timeout and killed with the diagnostic-less
+        # log rule 9 exists to keep the SCAN out of. This step already fails
+        # loud on its own, naming the image, at "could not pull ... in 3
+        # attempts" below - a step timeout gives that failure a bound instead
+        # of GitHub's.
+        #
+        # 10m is NOT read off a measured pull-alone duration: no run in this
+        # file's history isolates the pull from the scan that follows it - the
+        # 13m17s/12m02s pair above (run 32832111998) is PULL AND ANALYSIS
+        # TOGETHER, and splitting it needs a run this repository has not made
+        # yet. 10 is the default this follow-up ships with while that
+        # measurement is unstated: well under the 30m job ceiling with the
+        # scan step still ahead of it, and RAISE IT rather than delete it the
+        # day a real pull-alone duration is measured.
         run: |
           set -Eeuo pipefail
           image="ghcr.io/gophersys/${{ matrix.image }}:latest"
