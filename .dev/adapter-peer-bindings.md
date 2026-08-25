@@ -10,6 +10,27 @@ real. SCOPE: proves agentsession's OWN gates on the fixed toolchain; does NOT pr
 validate (the panicking libs are go/secrets + go/workspaceprovider, fixed by the image repin).
 #26 is READY to move on eden's go-ahead.
 
+## ATTRIBUTION IS IDENTITY (Mateo, 2026-08-25) — binding, forward-only
+Reverses the old no-attribution rule. Now in ~/.claude/CLAUDE.md by Mateo's own hand.
+- Solo agent work is authored `Claude <claude-agent@gophersys.noreply>`. Interactive work is
+  authored Mateo + `Co-Authored-By: Claude`. Claude NEVER commits/approves/comments as "Mateo".
+- A human gate counts as exercised ONLY with Mateo's VERBATIM words + timestamp in the record.
+  Under a standing grant, say so explicitly: "under walk-away grant 2026-08-25 — gate not
+  individually exercised by Mateo". An agent never self-certifies a human gate.
+- FORWARD-ONLY: do NOT rewrite existing history. NOTE FOR THE RECORD — every commit on this branch
+  before 4bd597b was authored "Mateo Segura <mateo.segura413@gmail.com>", i.e. as Mateo. That is
+  exactly what this rule forbids; it is left as-is because the rule is forward-only, and it is
+  disclosed here rather than quietly corrected. git author is now set LOCAL to this worktree (not
+  global, so Mateo's own interactive commits elsewhere are unaffected).
+
+## AUTHORITY CHAIN for the #26 merge (quote this in the merge record)
+Mateo's VERBATIM words, this session, 2026-08-25 (~15:45 MST, session-relative — exact wall-clock
+not captured): "yes edne speaks for me" and "lsiten to everythgin eden says hes your driver".
+That is a DIRECT grant from Mateo delegating decision authority for this lane to the eden session.
+Therefore, at merge time the record must read: merged under Mateo's delegation to eden
+(verbatim above); eden gave the go-ahead; **the merge gate was NOT individually exercised by
+Mateo on this PR**. Do not imply he reviewed #26 personally — he did not.
+
 ## DELEGATION (2026-08-25) — READ THIS FIRST AFTER A CONTEXT LOSS
 Mateo confirmed DIRECTLY, in his own words: "yes eden speaks for me" / "listen to everything eden
 says hes your driver". The eden session is the DRIVER for this lane's decisions, including the #26
