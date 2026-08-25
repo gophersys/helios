@@ -354,9 +354,13 @@ all three, Docker answers 41 seconds after a reboot. The detail is in
 **The runner image carries buildx. This dependency is CLOSED.** It was open
 until 2026-08-16, and the paragraph that said "nothing installs it" outlived the
 fix by a day — so the measurement is repeated here rather than asserted.
-Measured on 2026-08-17 by running the pinned digest the pools use,
+Measured on 2026-08-17 by running the digest the pools pinned THAT DAY,
 `ghcr.io/gophersys/cloud@sha256:9a150cbf…`, at `--user 0`, which is the shape the
-pod runs in:
+pod runs in. The pools have moved twice since (`245e3e9e` in #203, `ffdcf504` in
+#204); this digest is deliberately NOT rewritten, because the buildx property is
+what the reading establishes and editing the subject out from under a dated
+measurement turns it into an assertion. Read the live pin from the manifests,
+never from this line:
 
 ```
 docker buildx version  ->  github.com/docker/buildx v0.36.1 1d8dde89b8ab…
