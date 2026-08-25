@@ -103,3 +103,11 @@ func SessionEnvironmentForTest(base []string, workspace string, cred agentsessio
 func InjectEnvironmentForTest(base []string, cred agentsession.InjectedCredential) ([]string, error) {
 	return injectEnvironment(base, cred)
 }
+
+// PeerEnvelopeForTest renders the model-facing <eden-peer-message> envelope the adapter writes
+// for one inbound peer delivery, so the ESCAPING of an untrusted body/attribute is assertable
+// without a transport at all. It is the exact analog of claudeadapter.PeerEnvelopeForTest and
+// exposes the same unexported pure renderer this package already ships (peer.go: peerEnvelope).
+func PeerEnvelopeForTest(from, msgID, replyTo, body string, verified bool) string {
+	return peerEnvelope(from, msgID, replyTo, body, verified)
+}
