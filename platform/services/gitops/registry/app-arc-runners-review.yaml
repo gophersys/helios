@@ -77,7 +77,7 @@ spec:
               # Seeds /home/runner/externals, which is the runner's own bundled
               # Node. It must be the SAME image as the runner container.
               - name: init-dind-externals
-                image: ghcr.io/gophersys/cloud@sha256:245e3e9efb342bbcefffff1f8ac193be75179a73962a415c4ef67c99bc9c45c2
+                image: ghcr.io/gophersys/cloud@sha256:ffdcf5046c4dc30be32f6388bbe09c055abff03bab78db703432793b8c5da7bd
                 command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
                 volumeMounts:
                   - name: dind-externals
@@ -88,7 +88,7 @@ spec:
                 # Pinned by digest, same ref as arc-org and arc-build. The three
                 # preconditions before changing it are written out once, in
                 # app-arc-runners-org.yaml.
-                image: ghcr.io/gophersys/cloud@sha256:245e3e9efb342bbcefffff1f8ac193be75179a73962a415c4ef67c99bc9c45c2
+                image: ghcr.io/gophersys/cloud@sha256:ffdcf5046c4dc30be32f6388bbe09c055abff03bab78db703432793b8c5da7bd
                 command: ["/home/runner/run.sh"]
                 # This pool mounts no secret volume, so nothing here NEEDS root.
                 # It is declared to keep the repoint a single variable: this pool
