@@ -148,7 +148,24 @@ Verifier method notes accepted: cover-floor first-read void (concurrent breaks),
 re-ran serially 11/11; count is 20 new tests not 21; harness lane authored-not-run
 (claude→omp full mesh proven only vs in-memory plane; real proof owed at eden PR-2).
 
+## Fix round 1 — implementer landed (5c11d37..d9c4643)
+F1 escaping in BOTH adapters (escapePeerBody &→&amp; first then <>,  escapePeerAttr on
+from/msg_id/reply_to) — 7 attack bodies (space/newline/tab/uppercase close, nested tag,
+0x1f, eden:peer:, attr-close) all render INERT; escaping IS the boundary now, the
+exact-byte guard stays defense-in-depth. F4 writeMu moved off Send into the leaf writers
+(matches ompadapter writeFrame). F3 recovered send routed on the DEDICATED deliver
+goroutine (session.recoveredSends chan; deliverLoop→routeRecoveredOnBus→peerLink.Send);
+pump only discriminates + enqueues non-blocking, publishes EventPeerSent VERBATIM.
+Audit: the ONLY peerLink.Send is on the deliver goroutine; no pump-side plane Send; all
+s.emit pump-only. goleak clean; 30x -race stress no hang; bounded Close; apidiff zero.
+BEHAVIOR NOTE (verify-2 + PR-2): the recovered EventPeerSent is now verbatim
+(Accepted:false, Detail:native-send-unreachable, no plane MsgID) — the plane's OWN
+reconciler tracks the bus delivery/bounce, so no info lost; but harness A3 (claude→omp)
+must correlate via RECEIVER ARRIVAL, not the sender's stamp. No in-CI test red today.
+
 ## Next
-Fix round 1: implementer F1-escape + F3 (route off pump) + F4 (queuePeerEvent outside
-writeMu); test author F1-crafted-body-arm + F2 (double-delivery arm) + F5 (leak doc).
-Disjoint. Then re-verify round 2 (Opus, bounded), PR-1c-ii.
+Test author: F1 crafted-body arm (bite vs pre-escape) + F2 double-delivery arm (bite vs
+deleting the Detail clause) + F5 leak doc + the ONE gofumpt fix in peer_canary_test.go
+(newSpecRecordingAdapter first arg on its own line — implementer's file is clean, this
+is a test-file format the impl gate trips on). Then re-verify round 2 (Opus, bounded),
+PR-1c-ii.
