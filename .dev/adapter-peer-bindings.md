@@ -325,7 +325,21 @@ resolver answered CORRECTLY with a frozen value = green-check-that-verifies-noth
 supply chain. Global asks handed to eden: audit ALL github-release rows, add a github-tag datasource,
 and a STALENESS ALARM (fail loudly when a tracker's value is frozen while upstream tags moved).
 
-## BLOCKED — waiting on #102 merge + base:latest rebuild
+## .devcontainer #102 — reviewed, corrected, CI-trigger stuck
+pr-review REQUEST_CHANGES caught a REAL defect in my fix and was RIGHT: my "stale/manual" note sat in
+field 4 (free text) but collect_bumps branches on FIELD 2 only, so the weekly resolver would have
+read releases/latest->1.1.4, diffed vs 1.7.0, and written bump 1.7.0 -> 1.1.4 — silently reverting
+the fix every Monday inside a batched PR. Verified the claim in the resolver source myself before
+accepting. FIXED 2cc503e: field2 -> no-autobump, reason in field4, row moved to its own labelled
+section. PROVEN: resolve-upstream.sh GOVULNCHECK_VERSION refuses loudly, ZERO bump lines, no 1.1.4;
+validate rc=0; upstream-coverage 21/21.
+CI-TRIGGER STUCK: no workflow run fires for 2cc503e or bef951d (both on origin; pull_request trigger,
+no path filter; runner pool healthy, no Terminating pods). gh run rerun only replays the OLD sha
+(5763252), so the PR still shows the pre-fix REQUEST_CHANGES. The correction is NOT yet CI-validated
+— do not read #102's red review as current. Needs a real trigger (or eden/Mateo to investigate the
+Actions trigger gap) before merge.
+
+## BLOCKED — #102 CI trigger + merge + base:latest rebuild
 Blocked on eden repinning the runner image (golangci config reconcile + govulncheck pin). When the
 image is fixed, re-run #26's failed jobs (gh run rerun --failed); expect green. Then phase 8: STOP
 for Mateo's end-review (do NOT merge; delete this state file in the final pre-merge commit + prove gone).
