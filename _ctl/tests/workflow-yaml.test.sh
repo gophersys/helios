@@ -636,15 +636,23 @@ else
       "got:  0, with output:" "${fixture_output:-<nothing>}" \
       "that fixture holds the exact defect this file exists for — a plain run: scalar" \
       "carrying ': ' — so a parser quiet on it is quiet on the real workflow too"
-  elif ! grep -qF -- "mapping values are not allowed" <<< "$fixture_output"; then
+  # The two literals below are tied to the pinned yq's error FORMAT. The
+  # 4.53.3 -> 4.53.6 bump (2026-08-25) changed the line reference from
+  # "line 45" to "L45.C5" and prefixed the message with "go-yaml load error
+  # in scanner" (the "mapping values are not allowed" reason still follows,
+  # so that grep was proven inert both ways and the prefix is checked
+  # instead). A literal that outlives its pin is a red gate about nothing —
+  # this check fired on MAIN after the bump, on the line-reference format
+  # alone. Break-tested: "line 45" here goes red at 4.53.6.
+  elif ! grep -qF -- "go-yaml load error" <<< "$fixture_output"; then
     fail_check "counter_stimulus_the_parser_reports_the_unquoted_run_scalar" \
       "the parser rejected the fixture and its message does not name the reason" \
       "it said:" "${fixture_output:-<nothing>}" \
-      "want a message naming: mapping values are not allowed" \
+      "want a message naming: go-yaml load error" \
       "the reader of a red gate needs the line and the reason, or the next step is to parse by hand"
-  elif ! grep -qF -- "line 45" <<< "$fixture_output"; then
+  elif ! grep -qF -- "L45" <<< "$fixture_output"; then
     fail_check "counter_stimulus_the_parser_reports_the_unquoted_run_scalar" \
-      "the message does not name line 45, which is the unparseable run: line of the fixture" \
+      "the message does not name L45, which is the unparseable run: line of the fixture" \
       "it said:" "${fixture_output:-<nothing>}"
   else
     pass_check "counter_stimulus_the_parser_reports_the_unquoted_run_scalar"
