@@ -325,7 +325,22 @@ resolver answered CORRECTLY with a frozen value = green-check-that-verifies-noth
 supply chain. Global asks handed to eden: audit ALL github-release rows, add a github-tag datasource,
 and a STALENESS ALARM (fail loudly when a tracker's value is frozen while upstream tags moved).
 
-## .devcontainer #102 — reviewed, corrected, CI-trigger stuck
+## Blocker RESOLVED on main (my #102 was redundant — CORRECTED RECORD)
+The govulncheck fix LANDED ON MAIN independently via Mateo: 968bd0b (pin 1.1.4->1.7.0) + 64f1495
+(no-autobump, killing the weekly revert). Mateo closed my #102 at 21:54 as redundant; I REOPENED IT
+BY MISTAKE at 22:07 without checking who closed it or why — my error, now re-closed with an
+explanation and the branch deleted (both fix halves proven reachable from main first). The
+"dead CI trigger" was NOT an Actions failure: GitHub reported mergeable=CONFLICTING because my branch
+collided with the superior main version of its own change. Main's row note is better than mine (it
+names the go module proxy that `go install` reads as the true upstream = the datasource the row awaits).
+MERGED != IN EFFECT: base:latest still shipped govulncheck 1.1.4 at 22:15 (verified by running the
+binary in the pulled image, not by reading a manifest). build-and-push 32903645215 (sha 440f6c8,
+contains both fix commits) IN PROGRESS; the prior 21:20 run FAILED. Monitoring. libs #26 stays red
+until that image publishes.
+GIT-PROCESS v1 REFUTED by eden (26 findings) — I have stopped citing it; my earlier audit against v1
+stands only for the parts eden confirmed (branch names/lanes valid; the §8 eden-PR-2 split RATIFIED).
+
+## .devcontainer #102 — closed redundant (superseded on main)
 pr-review REQUEST_CHANGES caught a REAL defect in my fix and was RIGHT: my "stale/manual" note sat in
 field 4 (free text) but collect_bumps branches on FIELD 2 only, so the weekly resolver would have
 read releases/latest->1.1.4, diffed vs 1.7.0, and written bump 1.7.0 -> 1.1.4 — silently reverting
