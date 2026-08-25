@@ -256,17 +256,29 @@ func verifiedFlag(verified bool) string {
 
 // peerDelivery is one decoded inbound peer frame: what the MODEL is shown, what the STREAM
 // records, and who it was addressed to. The decode happens once, here, for both control verbs.
+// refused marks the third outcome — text that IS a peer frame but did not decode.
 type peerDelivery struct {
 	to       string
 	envelope string
 	event    agentsession.Event
+	refused  bool
 }
 
 // decodePeerDelivery reads an inbound peer control frame the library tunneled through the
 // ordinary control path. ok=false means the text is an ordinary turn and falls through.
+//
+// Text carrying the peer PREFIX that does not decode is NOT a fall-through: it is returned as a
+// refused delivery. A frame reaches here only after EncodePeer produced it, and EncodePeer now
+// refuses an identity field carrying a structural byte, so a failed decode means the frame was
+// corrupted or forged after that boundary. Falling through would write the internal `eden:peer:`
+// grammar straight into the model's context — teaching it the exact frame it could then forge,
+// which is the leak this envelope exists to prevent.
 func decodePeerDelivery(text string) (peerDelivery, bool) {
 	from, to, msgID, replyTo, body, verified, ok := controlframe.DecodePeer(text)
 	if !ok {
+		if strings.HasPrefix(text, controlframe.PeerPrefix) {
+			return peerDelivery{refused: true}, true
+		}
 		return peerDelivery{}, false
 	}
 	return peerDelivery{
@@ -291,6 +303,10 @@ func decodePeerDelivery(text string) (peerDelivery, bool) {
 // name, and injecting another session's prose into this model's context on a misroute is worse
 // than a loud error at the seam.
 func (c *processConn) deliverPeer(delivery *peerDelivery) error {
+	if delivery.refused {
+		return errors.New(errors.KindInvalid,
+			"claudeadapter: inbound peer frame does not decode (corrupt or forged identity field)")
+	}
 	if delivery.to != c.name {
 		return errors.New(errors.KindInvalid,
 			"claudeadapter: peer delivery addressed to another session")
