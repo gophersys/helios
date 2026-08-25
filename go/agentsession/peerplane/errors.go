@@ -7,14 +7,14 @@ import (
 	"github.com/gophersys/libs/go/errors"
 )
 
-// JoinError reports a REFUSED join: a duplicate name, an unknown parent, a cycle, or a liveness
-// handshake that did not complete. The handshake case is the attach-time tripwire against the
-// silent-hold class; the reconciler is the steady-state one. It carries only names, so it is
-// redaction-safe.
+// JoinError reports a REFUSED join: a name or parent that violates the peer field grammar, a
+// duplicate name, an unknown parent, a cycle, or a liveness handshake that did not complete. The
+// handshake case is the attach-time tripwire against the silent-hold class; the reconciler is the
+// steady-state one. It carries only names, so it is redaction-safe.
 type JoinError struct {
 	Name   string
 	Parent string
-	Reason string // duplicate | unknown-parent | cycle | handshake
+	Reason string // invalid-name | invalid-parent | duplicate | unknown-parent | cycle | handshake
 }
 
 // Error renders the operator-safe message (names only, never a body).
