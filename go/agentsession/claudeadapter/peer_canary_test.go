@@ -143,8 +143,12 @@ func reseedSendBody(t *testing.T, line []byte, needle string) []byte {
 	}
 	seeded := false
 	for i := range content {
-		name, _ := content[i]["name"].(string)
-		if !strings.EqualFold(name, "SendMessage") {
+		// A decoded block is map[string]any, so every field read is a type assertion. The `ok`
+		// is CHECKED rather than discarded: a block whose "name" is absent (a text block) or is
+		// not a string is simply not the tool_use we are seeding, and silently treating it as
+		// the empty name would make the "no SendMessage tool_use" failure below unreachable.
+		name, isString := content[i]["name"].(string)
+		if !isString || !strings.EqualFold(name, "SendMessage") {
 			continue
 		}
 		input, ok := content[i]["input"].(map[string]any)

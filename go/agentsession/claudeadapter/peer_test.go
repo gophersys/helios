@@ -40,11 +40,16 @@ const (
 )
 
 // peerFixture names the committed capture fixtures (testdata/), each carrying a "#" header
-// that cites the capture it was copied from and what was measured in it.
+// that cites the capture it was copied from and what was measured in it. Each filename mirrors
+// the capture it came from, so the provenance is readable from the name alone.
 const (
-	fixtureReceiveOrigin  = "peer-receive-origin.jsonl"
-	fixtureReceiveHeld    = "peer-receive-held.jsonl"
-	fixtureReceiveBypass  = "peer-receive-bypass-accept.jsonl"
+	fixtureReceiveOrigin = "peer-receive-origin.jsonl"
+	fixtureReceiveHeld   = "peer-receive-held.jsonl"
+	// The "bypass-accept" segment names the probe run this capture came from (the receiver
+	// bypassed the hold and accepted). gosec's G101 heuristic matches the "pass" inside
+	// "bypass"; this is a fixture FILENAME, and renaming it would break the one-to-one mapping
+	// back to claude-peer-receive-bypass-accept.stream.jsonl.
+	fixtureReceiveBypass  = "peer-receive-bypass-accept.jsonl" // #nosec G101 -- a testdata fixture filename, not a credential
 	fixtureSendReceipt    = "peer-send-receipt.jsonl"
 	fixtureSendNoMsgID    = "peer-send-receipt-no-msgid.jsonl"
 	fixtureSendUnreadable = "peer-send-unreachable.jsonl"
@@ -226,13 +231,15 @@ func TestPeerBuildArguments_NameEnablesNativeInbound(t *testing.T) {
 	}
 
 	withoutName := claudeadapter.BuildArgumentsForTest(
-		agentsession.Spec{Grants: grants}, route)
+		agentsession.Spec{Grants: grants}, route,
+	)
 	if strings.Join(withoutName, "\x00") != strings.Join(todaysArguments, "\x00") {
 		t.Errorf("Spec.Name empty must leave argv BYTE-IDENTICAL to today's.\n got: %#v\nwant: %#v", withoutName, todaysArguments)
 	}
 
 	withName := claudeadapter.BuildArgumentsForTest(
-		agentsession.Spec{Grants: grants, Name: "impl-a"}, route)
+		agentsession.Spec{Grants: grants, Name: "impl-a"}, route,
+	)
 
 	nameAt := indexOfArg(withName, "--name")
 	if nameAt < 0 || nameAt+1 >= len(withName) {
@@ -283,54 +290,67 @@ func TestPeerNormalize_SendReceiptBecomesPeerSent(t *testing.T) {
 
 	t.Run("parsed receipt correlates to Accepted", func(t *testing.T) {
 		t.Parallel()
-		events := normalizePeerStream(t, peerFixtureLines(t, fixtureSendReceipt))
-		sent := eventsOfKind(events, agentsession.EventPeerSent)
-		if len(sent) != 1 {
-			t.Fatalf("the tool_use/tool_result pair must yield exactly 1 EventPeerSent, got %d; kinds: %s",
-				len(sent), renderKinds(events))
-		}
-		message := sent[0].Peer
-		if message == nil {
-			t.Fatalf("EventPeerSent carried a nil Peer payload")
-		}
-		if message.MsgID != peerSendMsgID {
-			t.Errorf("Peer.MsgID = %q, want %q (the minted id in the tool_result — the receiver's origin.msg_id)",
-				message.MsgID, peerSendMsgID)
-		}
-		if message.To != peerSendTo {
-			t.Errorf("Peer.To = %q, want %q (input.to on the tool_use, correlated by tool_use_id %s)",
-				message.To, peerSendTo, peerSendToolUseID)
-		}
-		if !message.Accepted {
-			t.Errorf("Peer.Accepted = false; the receipt says success:true and carries a msg_id, so it was accepted for routing")
-		}
-		if message.Detail != "" {
-			t.Errorf("Peer.Detail = %q, want \"\" on an accepted send", message.Detail)
-		}
+		assertAcceptedReceipt(t, soleSentMessage(t, fixtureSendReceipt,
+			"the tool_use/tool_result pair"))
 	})
 
 	t.Run("unparsed receipt is never a dropped event", func(t *testing.T) {
 		t.Parallel()
-		events := normalizePeerStream(t, peerFixtureLines(t, fixtureSendNoMsgID))
-		sent := eventsOfKind(events, agentsession.EventPeerSent)
-		if len(sent) != 1 {
-			t.Fatalf("a receipt with no msg_id must STILL yield exactly 1 EventPeerSent (never a dropped event), got %d; kinds: %s",
-				len(sent), renderKinds(events))
-		}
-		message := sent[0].Peer
-		if message == nil {
-			t.Fatalf("EventPeerSent carried a nil Peer payload")
-		}
-		if message.Accepted {
-			t.Errorf("Peer.Accepted = true for a receipt carrying no msg_id; nothing corroborates acceptance")
-		}
-		if message.Detail != "send-receipt-unparsed" {
-			t.Errorf("Peer.Detail = %q, want %q — the redacted reason a consumer branches on", message.Detail, "send-receipt-unparsed")
-		}
-		if message.MsgID != "" {
-			t.Errorf("Peer.MsgID = %q, want \"\": there was no id to correlate on", message.MsgID)
-		}
+		assertUnparsedReceipt(t, soleSentMessage(t, fixtureSendNoMsgID,
+			"a receipt with no msg_id (never a dropped event)"))
 	})
+}
+
+// soleSentMessage normalizes a send fixture and returns the ONE EventPeerSent payload it must
+// produce, failing with what did arrive when it produces any other number. `what` names the
+// obligation so each arm's failure still says which one broke.
+func soleSentMessage(t *testing.T, fixture, what string) *agentsession.PeerMessage {
+	t.Helper()
+	events := normalizePeerStream(t, peerFixtureLines(t, fixture))
+	sent := eventsOfKind(events, agentsession.EventPeerSent)
+	if len(sent) != 1 {
+		t.Fatalf("%s must yield exactly 1 EventPeerSent, got %d; kinds: %s", what, len(sent), renderKinds(events))
+	}
+	if sent[0].Peer == nil {
+		t.Fatalf("EventPeerSent carried a nil Peer payload")
+	}
+	return sent[0].Peer
+}
+
+// assertAcceptedReceipt pins the parsed-receipt arm: the destination comes from the tool_use
+// input, the id from the tool_result, and the send is marked accepted for routing with no
+// bounce reason.
+func assertAcceptedReceipt(t *testing.T, message *agentsession.PeerMessage) {
+	t.Helper()
+	if message.MsgID != peerSendMsgID {
+		t.Errorf("Peer.MsgID = %q, want %q (the minted id in the tool_result — the receiver's origin.msg_id)",
+			message.MsgID, peerSendMsgID)
+	}
+	if message.To != peerSendTo {
+		t.Errorf("Peer.To = %q, want %q (input.to on the tool_use, correlated by tool_use_id %s)",
+			message.To, peerSendTo, peerSendToolUseID)
+	}
+	if !message.Accepted {
+		t.Errorf("Peer.Accepted = false; the receipt says success:true and carries a msg_id, so it was accepted for routing")
+	}
+	if message.Detail != "" {
+		t.Errorf("Peer.Detail = %q, want \"\" on an accepted send", message.Detail)
+	}
+}
+
+// assertUnparsedReceipt pins the loudness arm: an uncorrelatable receipt is published, marked
+// not-accepted, and carries the redacted reason a consumer branches on.
+func assertUnparsedReceipt(t *testing.T, message *agentsession.PeerMessage) {
+	t.Helper()
+	if message.Accepted {
+		t.Errorf("Peer.Accepted = true for a receipt carrying no msg_id; nothing corroborates acceptance")
+	}
+	if message.Detail != "send-receipt-unparsed" {
+		t.Errorf("Peer.Detail = %q, want %q — the redacted reason a consumer branches on", message.Detail, "send-receipt-unparsed")
+	}
+	if message.MsgID != "" {
+		t.Errorf("Peer.MsgID = %q, want \"\": there was no id to correlate on", message.MsgID)
+	}
 }
 
 // ── fixture + assertion helpers ───────────────────────────────────────────────────────────────.

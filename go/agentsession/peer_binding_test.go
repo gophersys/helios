@@ -52,7 +52,7 @@ const (
 // declared CapPeerMessaging status, not a hard-coded harness name: a harness whose model can
 // drive Eden's host tools gets them, and one whose peer messaging is only partial (claude, whose
 // model uses its NATIVE SendMessage instead) gets NEITHER — offering a model a tool its harness
-// cannot honour is exactly the "declared but unproven" lie the manifest exists to prevent.
+// cannot honor is exactly the "declared but unproven" lie the manifest exists to prevent.
 //
 // The third arm is the aliasing pin. `append(spec.HostTools, ...)` on a slice with spare
 // capacity writes THROUGH into the CALLER'S backing array — a caller that reuses its Spec for a
@@ -93,31 +93,42 @@ func TestPeerHostTools_InjectedByDeclaredCapability(t *testing.T) {
 			}
 			t.Cleanup(func() { _ = session.Close(context.Background()) }) //nolint:errcheck // best-effort session reap on test cleanup.
 
-			spawned := adapter.spawnedSpec(t)
-			if got := hasHostTool(spawned.HostTools, peerSendToolName); got != tc.wantSend {
-				t.Errorf("%s injected into the spawned Spec = %v, want %v (adapter declares CapPeerMessaging=%v); tools: %v",
-					peerSendToolName, got, tc.wantSend, tc.declared, hostToolNames(spawned.HostTools))
-			}
-			if got := hasHostTool(spawned.HostTools, peerListToolName); got != tc.wantList {
-				t.Errorf("%s injected into the spawned Spec = %v, want %v (adapter declares CapPeerMessaging=%v); tools: %v",
-					peerListToolName, got, tc.wantList, tc.declared, hostToolNames(spawned.HostTools))
-			}
-			// The caller's own tool always survives, whatever the gate decided.
-			if !hasHostTool(spawned.HostTools, "project_lookup") {
-				t.Errorf("the caller's own host tool was dropped; tools: %v", hostToolNames(spawned.HostTools))
-			}
-
-			// The caller's slice — length AND spare capacity — is untouched.
-			if len(callerTools) != 1 {
-				t.Errorf("the caller's HostTools slice grew to %d: Open must never mutate the caller's Spec", len(callerTools))
-			}
-			for i := 1; i < len(backing); i++ {
-				if backing[i].Name != "" {
-					t.Errorf("Open wrote %q into the caller's spare capacity at index %d — append(spec.HostTools, …) aliases the caller's array; copy first",
-						backing[i].Name, i)
-				}
-			}
+			assertInjectedByCapability(t, adapter.spawnedSpec(t).HostTools, tc.declared, tc.wantSend, tc.wantList)
+			assertCallerSliceUnmutated(t, callerTools, backing)
 		})
+	}
+}
+
+// assertInjectedByCapability pins WHICH peer tools the spawned Spec carries for one declared
+// status, and that the caller's own tool survived the injection whatever the gate decided.
+func assertInjectedByCapability(t *testing.T, spawned []agentsession.HostTool, declared agentsession.CapStatus, wantSend, wantList bool) {
+	t.Helper()
+	if got := hasHostTool(spawned, peerSendToolName); got != wantSend {
+		t.Errorf("%s injected into the spawned Spec = %v, want %v (adapter declares CapPeerMessaging=%v); tools: %v",
+			peerSendToolName, got, wantSend, declared, hostToolNames(spawned))
+	}
+	if got := hasHostTool(spawned, peerListToolName); got != wantList {
+		t.Errorf("%s injected into the spawned Spec = %v, want %v (adapter declares CapPeerMessaging=%v); tools: %v",
+			peerListToolName, got, wantList, declared, hostToolNames(spawned))
+	}
+	if !hasHostTool(spawned, "project_lookup") {
+		t.Errorf("the caller's own host tool was dropped; tools: %v", hostToolNames(spawned))
+	}
+}
+
+// assertCallerSliceUnmutated pins the aliasing rule: neither the caller's LENGTH nor its SPARE
+// CAPACITY may change. backing is the caller's whole backing array, taken before Open, so a
+// write past len() is visible here — which is exactly what append-without-copy performs.
+func assertCallerSliceUnmutated(t *testing.T, callerTools, backing []agentsession.HostTool) {
+	t.Helper()
+	if len(callerTools) != 1 {
+		t.Errorf("the caller's HostTools slice grew to %d: Open must never mutate the caller's Spec", len(callerTools))
+	}
+	for i := 1; i < len(backing); i++ {
+		if backing[i].Name != "" {
+			t.Errorf("Open wrote %q into the caller's spare capacity at index %d — append(spec.HostTools, …) aliases the caller's array; copy first",
+				backing[i].Name, i)
+		}
 	}
 }
 
@@ -250,53 +261,73 @@ func TestPeerRecovery_LibraryRoutesTheRecoveredSend(t *testing.T) {
 
 			// review-c: an idle receiving session on the same plane. Its fake adapter records
 			// every control frame the library's deliver goroutine hands it.
-			receiverAdapter := newSpecRecordingAdapter(peerMessagingManifest(agentsession.CapFull),
+			_, receiverAdapter := openBindingSession(t, plane, "review-c", agentsession.CapFull,
 				agentsessiontest.MessageEnd())
-			receiver, err := newBindingPool(t, receiverAdapter, plane).Open(context.Background(), bindingSpec("review-c"))
-			if err != nil {
-				t.Fatalf("Open review-c: %v", err)
-			}
-			t.Cleanup(func() { _ = receiver.Close(context.Background()) }) //nolint:errcheck // best-effort session reap on test cleanup.
 
 			// impl-a: the claude session whose native send failed. CapPartial is what claude
 			// declares — the recovery exists precisely because its plane cannot reach review-c.
-			senderAdapter := newSpecRecordingAdapter(peerMessagingManifest(agentsession.CapPartial),
+			sender, _ := openBindingSession(t, plane, "impl-a", agentsession.CapPartial,
 				agentsessiontest.PeerSentEvent(tc.sent), peerTerminal())
-			sender, err := newBindingPool(t, senderAdapter, plane).Open(context.Background(), bindingSpec("impl-a"))
-			if err != nil {
-				t.Fatalf("Open impl-a: %v", err)
-			}
-			t.Cleanup(func() { _ = sender.Close(context.Background()) }) //nolint:errcheck // best-effort session reap on test cleanup.
 
-			ctx, cancel := context.WithTimeout(context.Background(), peerBindingDeadline)
-			defer cancel()
-			stream := sender.Events(ctx, agentsession.FromSeq(0))
-			if _, err := sender.Control(ctx, agentsession.Command{Kind: agentsession.CommandPrompt, Text: "message review-c"}); err != nil {
-				t.Fatalf("Prompt: %v", err)
-			}
-			for {
-				event, ok := stream.Next(ctx)
-				if !ok || event.IsTerminal() {
-					break
-				}
-			}
+			drivePeerTurnToTerminal(t, sender)
 
 			if !tc.wantRouted {
 				assertNoPeerDelivery(t, receiverAdapter, peerQuietWindow)
 				return
 			}
-			delivered := awaitPeerDelivery(t, receiverAdapter, peerBindingDeadline)
-			from, _, _, _, body, _, ok := controlframe.DecodePeer(delivered)
-			if !ok {
-				t.Fatalf("review-c received %q, which is not a peer control frame", delivered)
-			}
-			if from != "impl-a" {
-				t.Errorf("delivered From = %q, want %q — the library routes it, so From is the SENDING SESSION's name, never the model's claim", from, "impl-a")
-			}
-			if body != tc.wantMessage {
-				t.Errorf("delivered body = %q, want %q — the body recovered from the failed native send, verbatim", body, tc.wantMessage)
-			}
+			assertRoutedDelivery(t, receiverAdapter, tc.wantMessage)
 		})
+	}
+}
+
+// openBindingSession opens one addressable session on the SHARED plane and returns it together
+// with the adapter that recorded its Spec and every control frame it was handed.
+//
+//nolint:ireturn // Session is the contract's returned port; the helper mirrors Pool.Open.
+func openBindingSession(t *testing.T, plane agentsession.PeerPlane, name string, declared agentsession.CapStatus, script ...agentsession.Event) (agentsession.Session, *specRecordingAdapter) {
+	t.Helper()
+	adapter := newSpecRecordingAdapter(peerMessagingManifest(declared), script...)
+	session, err := newBindingPool(t, adapter, plane).Open(context.Background(), bindingSpec(name))
+	if err != nil {
+		t.Fatalf("Open %s: %v", name, err)
+	}
+	t.Cleanup(func() { _ = session.Close(context.Background()) }) //nolint:errcheck // best-effort session reap on test cleanup.
+	return session, adapter
+}
+
+// drivePeerTurnToTerminal prompts a session and drains its stream to the turn's end, so the pump
+// has finished processing every scripted event before a delivery is asserted on the other side.
+func drivePeerTurnToTerminal(t *testing.T, session agentsession.Session) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), peerBindingDeadline)
+	defer cancel()
+	stream := session.Events(ctx, agentsession.FromSeq(0))
+	if _, err := session.Control(ctx, agentsession.Command{Kind: agentsession.CommandPrompt, Text: "message review-c"}); err != nil {
+		t.Fatalf("Prompt: %v", err)
+	}
+	for {
+		event, ok := stream.Next(ctx)
+		if !ok || event.IsTerminal() {
+			return
+		}
+	}
+}
+
+// assertRoutedDelivery decodes the peer frame the receiving harness was handed and pins its
+// sender and its body. From is asserted because the LIBRARY routes the recovered send, so it is
+// stamped from the sending SESSION's name — never from the model's claim in the failed tool_use.
+func assertRoutedDelivery(t *testing.T, adapter *specRecordingAdapter, wantBody string) {
+	t.Helper()
+	delivered := awaitPeerDelivery(t, adapter, peerBindingDeadline)
+	from, _, _, _, body, _, ok := controlframe.DecodePeer(delivered)
+	if !ok {
+		t.Fatalf("review-c received %q, which is not a peer control frame", delivered)
+	}
+	if from != "impl-a" {
+		t.Errorf("delivered From = %q, want %q — the library routes it, so From is the SENDING SESSION's name, never the model's claim", from, "impl-a")
+	}
+	if body != wantBody {
+		t.Errorf("delivered body = %q, want %q — the body recovered from the failed native send, verbatim", body, wantBody)
 	}
 }
 

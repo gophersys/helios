@@ -49,7 +49,7 @@ const claudePeerDeadline = 2 * time.Second
 //	EVENT — exactly one EventPeerMessage is published for the delivery. The library's dedupe
 //	        ring bounds a second arrival; the adapter must not manufacture one.
 //
-// FALSIFICATION: writing command.Text through unchanged (today's behaviour) puts the raw frame
+// FALSIFICATION: writing command.Text through unchanged (the pre-binding behavior) puts the raw frame
 // in front of the model and publishes no peer event at all.
 func TestPeerDelivery_ClaudeUnwrapsControlFrameToEnvelope(t *testing.T) {
 	t.Parallel()
