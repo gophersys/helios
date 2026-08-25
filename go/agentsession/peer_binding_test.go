@@ -41,6 +41,12 @@ const (
 	// marks a send the native plane DID accept and which must never be re-routed.
 	peerRecoveryDetail = "native-send-unreachable"
 
+	// peerUnparsedDetail marks a send the native plane ACCEPTED whose minted id could not be
+	// read. It is the adapters' peerReceiptUnparsedDetail, spelled here as the wire literal the
+	// library branches on. A send carrying it was ALREADY delivered natively, so re-routing it
+	// double-delivers — the exact defect the third recovery arm below guards.
+	peerUnparsedDetail = "send-receipt-unparsed"
+
 	// recoveredBody is the body of the committed unreachable-send fixture.
 	recoveredBody = "PROBE-FULLMESH cross-harness body"
 
@@ -250,6 +256,21 @@ func TestPeerRecovery_LibraryRoutesTheRecoveredSend(t *testing.T) {
 				To:       "review-c",
 				Body:     recoveredBody,
 				Accepted: true,
+			},
+			wantRouted: false,
+		},
+		{
+			// The THIRD discrimination, and the one isRecoveredSend's Detail clause is the only
+			// thing enforcing: an unparsed-receipt send is NOT accepted (Accepted:false) yet the
+			// native plane DID take it — its id was merely unreadable. It carries To and Body, so
+			// dropping the `Detail == peerRecoveredSendDetail` clause would route it, delivering
+			// the message a SECOND time. It must NOT be routed.
+			name: "an unparsed-receipt send is NOT re-routed",
+			sent: agentsession.PeerMessage{
+				To:       "review-c",
+				Body:     recoveredBody,
+				Accepted: false,
+				Detail:   peerUnparsedDetail,
 			},
 			wantRouted: false,
 		},
