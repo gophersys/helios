@@ -546,7 +546,7 @@ release was.
   `shopt -s inherit_errexit` is also set where the shell has it, but nothing
   depends on it — the mac's bash 3.2 runs the same gate.
 - **The version is spelled the way the pin is spelled.** A leading `v` is kept
-  when the pin carries one (`cictl` pins `v0.1.0`) and dropped when it does not;
+  when the pin carries one (`cictl` pins `v0.6.0`) and dropped when it does not;
   `go1.26.5` and `bun-v1.3.14` lose their word prefix the same way. An apt
   version drops the epoch and the debian revision, because `5.9` is what the
   tool reports about itself and what the smoke test compares.

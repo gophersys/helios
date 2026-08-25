@@ -69,7 +69,7 @@
 #
 #       <version>  spelled the way the pin's CURRENT value is spelled: a leading
 #                  `v` is kept when the current value carries one (cictl pins
-#                  v0.1.0) and stripped when it does not (gh pins 2.90.0). An
+#                  v0.6.0) and stripped when it does not (gh pins 2.90.0). An
 #                  apt version drops the epoch and the debian revision, because
 #                  that is what the tool reports about itself and what the smoke
 #                  test compares.
@@ -799,7 +799,7 @@ fi
 # The fields are: <check name>|<pin>|<version>|<row>=<digest> ...|<note>
 RESOLUTION_CASES=(
   "github_release_reads_the_newest_tag_and_the_asset_digest|STUBGITHUB_VERSION|2.4.0|STUBGITHUB_SHA256_AMD64=${ASSET_DIGEST_STUBGITHUB}|the tag is v2.4.0 and the pin is spelled without a v, so the v is stripped; the digest is of the asset the governed file fetches for 2.4.0, and the pair names the row it answers for"
-  "github_release_keeps_the_v_a_pin_is_spelled_with|STUBVPREFIX_VERSION|v0.2.0|${NO_DIGEST}|gophersys/cictl pins v0.1.0, so a resolver that always strips the v writes a version that no release matches"
+  "github_release_keeps_the_v_a_pin_is_spelled_with|STUBVPREFIX_VERSION|v0.2.0|${NO_DIGEST}|gophersys/cictl pins v0.6.0, so a resolver that always strips the v writes a version that no release matches"
   "github_release_reports_a_pin_that_is_already_current|STUBCURRENT_VERSION|6.0.0|${NO_DIGEST}|resolving is not bumping: the pin already holds the newest tag and the value is still reported"
   "pypi_reads_the_version_of_the_newest_release|STUBPYPI_VERSION|3.1.4|${NO_DIGEST}|the pypi json carries info.version; pipx installs it, so there is no asset to digest"
   "npm_reads_the_dist_tag_latest|STUBNPM_VERSION|4.2.1|${NO_DIGEST}|the registry document carries dist-tags.latest"
