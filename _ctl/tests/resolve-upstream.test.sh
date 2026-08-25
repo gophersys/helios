@@ -307,6 +307,7 @@ BASE_MAP="$WORK/map-base.txt"
   printf 'stubowner/stubdual|200|%s\n'    "$RESPONSES/github-release-stubdual.json"
   printf 'stubowner/stubshared|200|%s\n'  "$RESPONSES/github-release-stubshared.json"
   printf 'stubowner/stubnoarch|200|%s\n'  "$RESPONSES/github-release-stubnoarch.json"
+  printf 'stubgoproxy|200|%s\n'           "$RESPONSES/goproxy-stub-go-module.json"
   printf 'stub-pypi-package|200|%s\n'     "$RESPONSES/pypi-stub-pypi-package.json"
   printf 'stub-npm-package|200|%s\n'      "$RESPONSES/npm-stub-npm-package.json"
   printf 'stub-apt-package|200|%s\n'      "$RESPONSES/apt-launchpad-stub-apt-package.json"
@@ -801,6 +802,7 @@ RESOLUTION_CASES=(
   "github_release_reads_the_newest_tag_and_the_asset_digest|STUBGITHUB_VERSION|2.4.0|STUBGITHUB_SHA256_AMD64=${ASSET_DIGEST_STUBGITHUB}|the tag is v2.4.0 and the pin is spelled without a v, so the v is stripped; the digest is of the asset the governed file fetches for 2.4.0, and the pair names the row it answers for"
   "github_release_keeps_the_v_a_pin_is_spelled_with|STUBVPREFIX_VERSION|v0.2.0|${NO_DIGEST}|gophersys/cictl pins v0.6.0, so a resolver that always strips the v writes a version that no release matches"
   "github_release_reports_a_pin_that_is_already_current|STUBCURRENT_VERSION|6.0.0|${NO_DIGEST}|resolving is not bumping: the pin already holds the newest tag and the value is still reported"
+  "go_proxy_reads_the_version_the_module_proxy_serves_as_latest|STUBGOPROXY_VERSION|8.1.0|${NO_DIGEST}|the proxy document carries .Version; go install fetches the module through it, so there is no release asset to digest and the v is stripped to match the pin"
   "pypi_reads_the_version_of_the_newest_release|STUBPYPI_VERSION|3.1.4|${NO_DIGEST}|the pypi json carries info.version; pipx installs it, so there is no asset to digest"
   "npm_reads_the_dist_tag_latest|STUBNPM_VERSION|4.2.1|${NO_DIGEST}|the registry document carries dist-tags.latest"
   "apt_reads_the_upstream_version_without_the_epoch_or_the_revision|STUBAPT_VERSION|5.9|${NO_DIGEST}|the archive publishes 1:5.9-6ubuntu2, and 5.9 is what the tool reports about itself and what the smoke test compares"
@@ -1432,6 +1434,37 @@ assert_resolver_failed_naming "a_resolved_version_with_no_fetchable_asset_fails_
 run_resolver "$BASE_MAP" "$RESOLUTION_WORLD" "${EDEN_SECRET_NAME}=" -- "STUBEDEN_VERSION"
 assert_resolver_failed_naming "an_absent_eden_credential_fails_naming_the_pin_and_the_secret" \
   "STUBEDEN_VERSION" "$EDEN_SECRET_NAME"
+
+# -------- the go proxy answers a PSEUDO-VERSION, and that is a refusal --------
+# A proxy synthesises `v0.0.0-<timestamp>-<hash>` for a module with no tag at
+# all, and the string is a COMMIT rather than a release. Taking it would move
+# the pin on every push to the module's default branch, so `resolve_go_proxy`
+# refuses. BENCHSTAT_REF is the real row this protects: golang.org/x/perf has 0
+# tags and its @latest is exactly this shape, which is why that row is
+# no-autobump and not go-proxy.
+#
+# The map is a copy of the base one with the stub module's document REPLACED, so
+# the pin, the coordinate and the fixture world are identical to the passing
+# case above and the ONLY difference is what the upstream said. A refusal that
+# needed a different pin would not be evidence about this guard.
+GOPROXY_PSEUDO_MAP="$WORK/map-goproxy-pseudo.txt"
+sed 's#|200|.*goproxy-stub-go-module\.json$#|200|'"$RESPONSES"'/goproxy-stub-pseudo-module.json#' \
+  "$BASE_MAP" > "$GOPROXY_PSEUDO_MAP"
+
+# The guard against a silent no-op: if the substitution matched nothing, the map
+# is the base map and the case below would pass for the wrong reason — it would
+# be reading the TAGGED document and reporting a refusal that never happened.
+if grep -qF 'goproxy-stub-pseudo-module.json' "$GOPROXY_PSEUDO_MAP"; then
+  pass_check "the_pseudo_version_map_serves_the_pseudo_version_document"
+else
+  fail_check "the_pseudo_version_map_serves_the_pseudo_version_document" \
+    "the rewritten map still names no pseudo-version document, so the case below" \
+    "would read the tagged one and prove nothing about the guard"
+fi
+
+run_resolver "$GOPROXY_PSEUDO_MAP" "$RESOLUTION_WORLD" -- "STUBGOPROXY_VERSION"
+assert_resolver_failed_naming "a_go_proxy_pseudo_version_fails_naming_the_pin" \
+  "STUBGOPROXY_VERSION"
 
 # The 3 pins whose only home is a Dockerfile, against the REAL repository. A
 # resolver that reads versions.env alone cannot see them at all, and this is the

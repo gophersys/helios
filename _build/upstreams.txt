@@ -17,12 +17,13 @@
 #
 #   <pin>|<datasource>|<coordinate>|<policy or reason>
 #
-# The 12 datasources. 11 of them resolve a version from an upstream and are
+# The 13 datasources. 12 of them resolve a version from an upstream and are
 # driven, 1 stub pin each, by `_ctl/tests/resolve-upstream.test.sh`:
 #
 #   github-release    the newest release github marks latest, of <owner>/<repo>
 #   pypi              info.version of <package> on the index
 #   npm               dist-tags.latest of <package> on the registry
+#   go-proxy          .Version of <module>/@latest on proxy.golang.org
 #   apt               the newest published binary of <package>@<ubuntu series>
 #   go-dl             the newest stable release of the go download index
 #   node-dist         the newest LTS release of the node distribution index
@@ -32,11 +33,11 @@
 #   flutter-releases  the <channel> channel of the flutter linux release index
 #   eden-manifest     the value gophersys/eden pins in <repo>:<path>
 #
-# The 12th is `no-autobump`, which resolves nothing. Its 4th field is the REASON,
+# The 13th is `no-autobump`, which resolves nothing. Its 4th field is the REASON,
 # and it has to be a sentence: `n/a`, `todo` and `-` all pass a non-empty test,
 # and each one is a pin nobody decided about wearing the label of a pin somebody
-# did. 14 pins take it today — this sentence read 16 while the file held 13, so
-# read the rows and never this number.
+# did. 15 pins take it today — this sentence read 16 while the file held 13, and
+# 14 while it held 15, so read the rows and never this number.
 #
 # A reason has to be TRUE, and nothing in the pull request gate can check that.
 # 3 of these rows were corrected after their reasons were measured against the
@@ -59,15 +60,19 @@
 # -------- github-release --------
 BUF_VERSION|github-release|bufbuild/buf|bump to the newest release github marks latest
 BUN_VERSION|github-release|oven-sh/bun|bump to the newest release github marks latest
-DELVE_VERSION|github-release|go-delve/delve|bump to the newest release github marks latest
 DOCKER_BUILDX_VERSION|github-release|docker/buildx|bump to the newest release github marks latest
 DOCKER_COMPOSE_VERSION|github-release|docker/compose|bump to the newest release github marks latest
 GH_VERSION|github-release|cli/cli|bump to the newest release github marks latest
 GITLEAKS_VERSION|github-release|gitleaks/gitleaks|bump to the newest release github marks latest
-GOFUMPT_VERSION|github-release|mvdan/gofumpt|bump to the newest release github marks latest
-GOLANGCI_LINT_VERSION|github-release|golangci/golangci-lint|bump to the newest release github marks latest
-GOSEC_VERSION|github-release|securego/gosec|bump to the newest release github marks latest
-GREMLINS_VERSION|github-release|go-gremlins/gremlins|bump to the newest release github marks latest
+# THE 1 `go install` PIN THAT STAYS HERE, and the row says why so nobody "fixes"
+# it into the section below. Measured 2026-08-25, 3 reads minutes apart:
+# proxy.golang.org/github.com/go-gremlins/gremlins/@latest answers v0.5.1, while
+# `@v/list` DOES carry v0.6.0, github marks v0.6.0 latest, and the pin holds
+# 0.6.0. So the proxy is the datasource that would DOWNGRADE this one, which is
+# the mirror image of what it fixes for govulncheck. The cause is undiagnosed —
+# v0.6.0's .mod declares no retraction and its .info serves — and an undiagnosed
+# divergence is a reason to measure per pin, never to move a whole class at once.
+GREMLINS_VERSION|github-release|go-gremlins/gremlins|bump to the newest release github marks latest; NOT go-proxy — the proxy answers v0.5.1 while the release and the newest tag are v0.6.0, so resolving it there would downgrade the pin
 GRPCURL_VERSION|github-release|fullstorydev/grpcurl|bump to the newest release github marks latest
 HADOLINT_VERSION|github-release|hadolint/hadolint|bump to the newest release github marks latest
 HELM_VERSION|github-release|helm/helm|bump to the newest release github marks latest
@@ -81,6 +86,35 @@ RUNNER_VERSION|github-release|actions/runner|bump to the newest release github m
 UV_VERSION|github-release|astral-sh/uv|bump to the newest release github marks latest
 YQ_VERSION|github-release|mikefarah/yq|bump to the newest release github marks latest
 ZEPHYR_SDK_VERSION|github-release|zephyrproject-rtos/sdk-ng|bump to the newest release github marks latest
+
+# -------- go-proxy --------
+# The pins a Dockerfile installs with `go install <module>@v${PIN}`. The
+# coordinate is the MODULE path and never the package path under it: the proxy
+# serves a module, so `github.com/go-delve/delve` and not
+# `github.com/go-delve/delve/cmd/dlv`, and a `/v2` suffix is PART of the module
+# path rather than decoration.
+#
+# WHY THESE MOVED OFF `github-release`. A release is a document a human writes
+# about a tag; `go install` never reads one. It asks this proxy, so the proxy is
+# the upstream that decides the bytes the build gets, and every other row of
+# this table already follows that rule — the digest is of what the build
+# fetches. GOVULNCHECK_VERSION is what made the difference measurable: its
+# github-release row resolved to v1.1.4 for 7 months after golang/vuln stopped
+# cutting releases and went on tagging to v1.7.0, and no run ever went red,
+# because a resolver that always answers the same thing looks exactly like a
+# pin that is current. Read on 2026-08-25, the proxy answers each of these 5
+# with the value its pin already holds, so this change moves no version.
+#
+# THE CLASS IS NOT THE RULE. GREMLINS_VERSION is a `go install` pin that stays
+# on `github-release`, because the proxy answers v0.5.1 for it against a v0.6.0
+# tag; BENCHSTAT_REF is one that stays on no-autobump, because the proxy answers
+# a pseudo-version. Both rows carry the measurement. `resolve_go_proxy` refuses
+# a pseudo-version outright rather than pinning a commit nobody chose.
+DELVE_VERSION|go-proxy|github.com/go-delve/delve|bump to the version the module proxy serves as latest
+GOFUMPT_VERSION|go-proxy|mvdan.cc/gofumpt|bump to the version the module proxy serves as latest
+GOLANGCI_LINT_VERSION|go-proxy|github.com/golangci/golangci-lint/v2|bump to the version the module proxy serves as latest, and the /v2 is part of the module path
+GOSEC_VERSION|go-proxy|github.com/securego/gosec/v2|bump to the version the module proxy serves as latest, and the /v2 is part of the module path
+GOVULNCHECK_VERSION|go-proxy|golang.org/x/vuln|bump to the version the module proxy serves as latest; this pin is the reason the datasource exists, because golang/vuln froze its github releases at v1.1.4 while tagging on to v1.7.0
 
 # -------- pypi --------
 ANSIBLE_VERSION|pypi|ansible|bump to the newest release on the index
@@ -112,7 +146,11 @@ TAILSCALE_VERSION|tailscale-pkgs|stable|bump to the newest package of the stable
 FLUTTER_VERSION|flutter-releases|stable|bump to the newest release of the stable channel
 UBUNTU_BASE_REF|oci-index|library/ubuntu:24.04|bump to the index digest the tag holds now, never a per-platform one
 
-# -------- no-autobump: the harness pins --------
+# -------- eden-manifest: the harness pins --------
+# THIS HEADING SAID `no-autobump` AND THE 3 ROWS UNDER IT DO NOT. They became
+# `eden-manifest` on 2026-08-17 and the heading did not move with them, so the
+# file's own section titles disagreed with its rows — the same class of stale
+# text a reason that is no longer true belongs to.
 # The 3 harness versions MUST match gophersys/eden harnesses/versions.env, and
 # eden's harness-upgrade-check is the one decision point for them. The
 # eden-manifest datasource that mirrors that file needs a read of a PRIVATE
@@ -137,7 +175,27 @@ KICAD_PPA_VERSION|no-autobump|ppa:kicad/kicad-10.0-releases|the pin is the KiCad
 CHROME_MAJOR_VERSION|no-autobump|dl.google.com/linux/chrome/deb/dists/stable/main/binary-amd64/Packages|the index publishes the full version (151.0.7922.137-1, read 2026-08-18) while this row holds the MAJOR line the AMD64 smoke asserts, and no datasource here reads a google apt index; the coordinate names the amd64 index because that is the leg a run reads, and the arm64 component moves on its own with nothing comparing it; google moves both about every 4 weeks and the browser a gate suite runs is a decision a human takes after reading the release, which the red amd64 smoke asks for by name
 RUST_CHANNEL|no-autobump|stable|rustup takes a channel and not a version, and resolving it to a number would freeze the channel this pin exists to follow
 FLUTTER_CHANNEL|no-autobump|stable|the flutter download url takes a channel and not a version, and FLUTTER_VERSION is the row that moves
-BENCHSTAT_REF|no-autobump|golang.org/x/perf|the module is untagged upstream, so `go install @latest` is the canonical install form and there is no release to compare against
+# THE SECOND HALF OF THIS REASON WAS FALSE, and the go-proxy datasource is what
+# made it measurable. It read "there is no release to compare against". Measured
+# 2026-08-25: golang/perf has 0 tags and 0 releases — so the FIRST half holds —
+# but proxy.golang.org/golang.org/x/perf/@latest answers HTTP 200 with
+# `v0.0.0-20260825160852-19be9d8e6c70`. A proxy synthesises a PSEUDO-VERSION for
+# an untagged module, so there is something to compare against; it is just not a
+# release. The corrected reason is the one below, and it is a stronger reason
+# rather than a weaker one: a pseudo-version names a COMMIT, so resolving this
+# row would move the pin every time anybody pushed to x/perf's default branch.
+# `resolve_go_proxy` refuses a pseudo-version for exactly this case.
+#
+# THE OTHER DEFECT THIS ROW CARRIES IS NOT FIXED HERE, and it should be named
+# rather than left to a reader. `BENCHSTAT_REF=latest` is a FLOATING REF and not
+# a pin: the image installs whatever x/perf's default branch held at build time,
+# so 2 builds of 1 commit can carry 2 benchstats with no diff between them. This
+# repository already refuses that shape by name elsewhere —
+# `_ctl/tests/smoke-contract.test.sh` fails `pnpm@latest` with "pnpm@latest is
+# not a pin; the image content then changes with no diff at all". Closing it
+# means pinning a pseudo-version and accepting a weekly bump, or waiting for a
+# tag; both are Mateo's decision and neither is in this change.
+BENCHSTAT_REF|no-autobump|golang.org/x/perf|the module carries no tag at all (0 tags, 0 releases, measured 2026-08-25), so the proxy answers only a pseudo-version naming a commit, and resolving it would move this pin on every push to the default branch rather than on a release somebody cut
 
 # -------- no-autobump: the android toolchain --------
 # THE INDEX EXISTS. https://dl.google.com/android/repository/repository2-3.xml
@@ -176,32 +234,6 @@ HNSLINT_VERSION|no-autobump|gophersys/hnslint|gophersys-owned and tag-only (zero
 # the coordinate grammar (`bitwarden/clients#cli-v`), which needs a release-LIST
 # fixture this suite does not have; until that lands, an honest no-autobump.
 BW_VERSION|no-autobump|bitwarden/clients|the release stream carries browser, desktop, web and cli together and github marks the newest of ALL of them latest, so resolving it bumps this pin to a version whose cli asset does not exist
-
-# -------- no-autobump: the upstream that STOPPED releasing --------
-# The 3 corrected rows above were coordinates that FAILED — a 404 a run reports.
-# This one is the other shape, and it is worse: the row RESOLVED, every Monday,
-# to the same value, and a resolver that always answers the same thing is
-# indistinguishable from one that is current. golang/vuln cut its last GitHub
-# Release at v1.1.4 on 2025-01-13 and went on TAGGING through v1.7.0
-# (2026-08-13), so `releases/latest` answers 1.1.4 forever. The pin sat 6
-# releases behind for 7 months while the weekly reported "no move", and it broke
-# in the open only when go1.27 arrived and 1.1.4's vendored x/tools panicked on
-# the AST.
-#
-# LEAVING IT `github-release` WOULD NOW DOWNGRADE THE PIN. Measured on
-# 2026-08-25 against this tree with the pin already at 1.7.0:
-# `bash _build/resolve-upstream.sh GOVULNCHECK_VERSION` answers `1.1.4|-` at
-# exit 0, so `collect_bumps` sees 1.1.4 != 1.7.0, writes a mover, and `bump_pin`
-# rewrites the row back to the version that panics. `no-autobump` is what stops
-# that, because `collect_bumps` skips on FIELD 2 and never reads this sentence.
-#
-# THE REAL FIX IS A DATASOURCE, and this row is the honest interim state until
-# it lands. govulncheck is installed with `go install
-# golang.org/x/vuln/cmd/govulncheck@v${PIN}`, so the upstream that decides its
-# bytes is the GO MODULE PROXY and never a release page —
-# proxy.golang.org/golang.org/x/vuln/@latest answered v1.7.0 on 2026-08-25,
-# which is the value this pin holds.
-GOVULNCHECK_VERSION|no-autobump|golang/vuln|github marks v1.1.4 latest forever because golang/vuln stopped cutting releases there and moved to tags alone, so resolving this row DOWNGRADES the pin and reintroduces the go1.27 panic; the true upstream is the go module proxy that go install reads, and a datasource for it is the fix this row waits for
 
 # -------- no-autobump: the ready components --------
 # 2 pins whose component no image calls (ledger #103). A bump of a tool nothing

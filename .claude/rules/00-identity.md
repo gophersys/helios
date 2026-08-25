@@ -493,10 +493,11 @@ release was.
   `_ctl/tests/upstream-coverage.test.sh` holds both directions, reading the pins
   out of the HOMES and never out of the table, because a rule that reads the
   listing goes on reporting coverage after the pin it covers was renamed.
-- **12 datasources, and the 12th resolves nothing.** `github-release`, `pypi`,
-  `npm`, `apt`, `go-dl`, `node-dist`, `oci-index`, `k8s-dl`, `tailscale-pkgs`,
+- **13 datasources, and the 13th resolves nothing.** `github-release`, `pypi`,
+  `npm`, `go-proxy`, `apt`, `go-dl`, `node-dist`, `oci-index`, `k8s-dl`,
+  `tailscale-pkgs`,
   `flutter-releases` and `eden-manifest` each read 1 upstream DOCUMENT;
-  `no-autobump` states, in a sentence, why a pin is not resolved. 14 pins take
+  `no-autobump` states, in a sentence, why a pin is not resolved. 15 pins take
   it today: the 3 `ANDROID_*` rows, `PYTHON_PACKAGE`,
   `JAVA_VERSION`, `KICAD_PPA_VERSION`, `RUST_CHANNEL`, `FLUTTER_CHANNEL`,
   `BENCHSTAT_REF`,
@@ -525,6 +526,30 @@ release was.
   claimed did not exist is `repository2-3.xml`, 408907 bytes of it. All 3 are
   `no-autobump` with the true reason. **Measure a coordinate against the real
   API before you write its row.**
+- **A row that RESOLVES can still be dead, and that is the harder defect.** The
+  3 corrections above were coordinates that FAILED — a 404 a run reports. The
+  4th was silent: `GOVULNCHECK_VERSION|github-release|golang/vuln` resolved
+  every Monday to 1.1.4, because golang/vuln cut its last GitHub Release there
+  and went on TAGGING to v1.7.0. Nothing went red for 7 months, the pin sat 6
+  releases behind, and it surfaced only when go1.27 arrived and 1.1.4's vendored
+  x/tools panicked on the AST in every consumer's `validate`. **A resolver that
+  always answers the same thing is indistinguishable from a pin that is
+  current.**
+- **The upstream of a `go install` pin is the MODULE PROXY**, which is what
+  `go-proxy` reads — `.Version` of `proxy.golang.org/<module>/@latest`, the
+  coordinate being the module path and never the package path under it. A
+  GitHub Release is a document a human writes about a tag and `go install` never
+  reads one, so the proxy is the upstream that decides the bytes. 5 pins take it:
+  `DELVE_VERSION`, `GOFUMPT_VERSION`, `GOLANGCI_LINT_VERSION`, `GOSEC_VERSION`
+  and `GOVULNCHECK_VERSION`.
+  **The class is not the rule, and 2 `go install` pins are deliberately outside
+  it.** `GREMLINS_VERSION` stays on `github-release` because the proxy answers
+  v0.5.1 against a v0.6.0 tag and would DOWNGRADE it — the mirror image of the
+  govulncheck defect, measured 2026-08-25 and undiagnosed. `BENCHSTAT_REF` stays
+  on `no-autobump` because x/perf carries no tag at all, so the proxy answers a
+  PSEUDO-VERSION naming a commit; `resolve_go_proxy` refuses one outright rather
+  than moving a pin on every push to somebody's default branch. Choose the
+  datasource per pin against a measurement, never per language.
 - **The digest is of the asset for the version this run resolved.** The HTTP
   reads are 1 index plus 2 per ASSET — the digest and the re-proof — so the
   property is not "one fetch", and a dual-arch pin costs 2 assets rather than 1.

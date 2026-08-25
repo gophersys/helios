@@ -23,6 +23,7 @@
 STUBGITHUB_VERSION|github-release|stubowner/stubgithub|bump to the newest non-prerelease tag
 STUBVPREFIX_VERSION|github-release|stubowner/stubvprefix|bump to the newest non-prerelease tag
 STUBCURRENT_VERSION|github-release|stubowner/stubcurrent|bump to the newest non-prerelease tag
+STUBGOPROXY_VERSION|go-proxy|stubhost.example/stubgoproxy|bump to the version the module proxy serves as latest
 STUBPYPI_VERSION|pypi|stub-pypi-package|bump to the newest release on the index
 STUBNPM_VERSION|npm|stub-npm-package|bump to the dist-tag latest
 STUBAPT_VERSION|apt|stub-apt-package|bump to the newest published binary of the ubuntu series
