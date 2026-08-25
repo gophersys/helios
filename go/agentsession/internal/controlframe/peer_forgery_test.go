@@ -73,8 +73,9 @@ func TestEncodePeer_HeaderFieldCannotShiftTheFieldBoundaries(t *testing.T) {
 				t.Logf("DecodePeer refused the separator-bearing frame")
 				return
 			}
-			assertPeerFieldsRoundTrip(t, peerFields{testCase.from, testCase.to, testCase.msgID, testCase.replyTo, body, false},
-				peerFields{from, to, msgID, replyTo, decodedBody, verified})
+			assertPeerFieldsRoundTrip(t,
+				&peerFields{testCase.from, testCase.to, testCase.msgID, testCase.replyTo, body, false},
+				&peerFields{from, to, msgID, replyTo, decodedBody, verified})
 		})
 	}
 }
@@ -94,8 +95,9 @@ func TestEncodePeer_BodyMayStillCarryTheSeparator(t *testing.T) {
 	if !ok {
 		t.Fatalf("DecodePeer refused a frame whose BODY carries the separator: %q", frame)
 	}
-	assertPeerFieldsRoundTrip(t, peerFields{"impl-a", "review-c", "msg-9", "", body, true},
-		peerFields{from, to, msgID, replyTo, decodedBody, verified})
+	assertPeerFieldsRoundTrip(t,
+		&peerFields{"impl-a", "review-c", "msg-9", "", body, true},
+		&peerFields{from, to, msgID, replyTo, decodedBody, verified})
 }
 
 // peerFields is one peer frame's six values, so the round-trip assertion names the field that
@@ -112,7 +114,7 @@ type peerFields struct {
 // assertPeerFieldsRoundTrip pins every field of a decoded frame against what was encoded. The
 // verified flag is called out separately: it is the one field a model TRUSTS, so a shift that
 // promotes it is the whole attack rather than a cosmetic drift.
-func assertPeerFieldsRoundTrip(t *testing.T, want, got peerFields) {
+func assertPeerFieldsRoundTrip(t *testing.T, want, got *peerFields) {
 	t.Helper()
 	if got.from != want.from {
 		t.Errorf("from = %q, want %q — a separator in a header field re-spelled the SENDER",

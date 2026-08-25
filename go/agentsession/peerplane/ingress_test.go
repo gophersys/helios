@@ -127,21 +127,19 @@ func TestOrchestrator_RefusesHostileIdentityFieldsOnSend(t *testing.T) {
 				t.Fatalf("Join review-c: %v", err)
 			}
 
-			t.Run("reply_to", func(t *testing.T) {
-				_, sendErr := sender.Send(ctx, agentsession.PeerMessage{
-					From: "impl-a", To: "review-c", ReplyTo: hostile, Body: "hello",
-				})
-				assertInvalidIdentityField(t, sendErr, "ReplyTo", hostile)
-				assertNothingDelivered(t, receiver)
+			// Both slots in ONE subtest, sharing one receiver: the negative assertion is that
+			// NOTHING was ever delivered, so a leftover from either send is a failure of both.
+			_, replyToErr := sender.Send(ctx, agentsession.PeerMessage{
+				From: "impl-a", To: "review-c", ReplyTo: hostile, Body: "hello",
 			})
+			assertInvalidIdentityField(t, replyToErr, "ReplyTo", hostile)
 
-			t.Run("to", func(t *testing.T) {
-				_, sendErr := sender.Send(ctx, agentsession.PeerMessage{
-					From: "impl-a", To: "review-c" + hostile, Body: "hello",
-				})
-				assertInvalidIdentityField(t, sendErr, "To", hostile)
-				assertNothingDelivered(t, receiver)
+			_, toErr := sender.Send(ctx, agentsession.PeerMessage{
+				From: "impl-a", To: "review-c" + hostile, Body: "hello",
 			})
+			assertInvalidIdentityField(t, toErr, "To", hostile)
+
+			assertNothingDelivered(t, receiver)
 		})
 	}
 }
@@ -151,8 +149,9 @@ func TestOrchestrator_RefusesHostileIdentityFieldsOnSend(t *testing.T) {
 func assertInvalidIdentityField(t *testing.T, err error, field, hostile string) {
 	t.Helper()
 	if err == nil {
-		t.Fatalf("Send ACCEPTED a %s carrying hostile identity bytes %q — the receiver's frame boundaries are now the sender's to choose",
+		t.Errorf("Send ACCEPTED a %s carrying hostile identity bytes %q — the receiver's frame boundaries are now the sender's to choose",
 			field, visible(hostile))
+		return
 	}
 	if errors.KindOf(err) != errors.KindInvalid {
 		t.Errorf("%s refusal Kind = %v, want invalid (a malformed address is a rejected INPUT, not a missing peer): %v",

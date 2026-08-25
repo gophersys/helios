@@ -96,7 +96,8 @@ func waitForWedgedDelivery(t *testing.T, completed *atomic.Int64, senderDone <-c
 		}
 		current := completed.Load()
 		if current > 0 && current == last {
-			if stable++; stable >= 5 {
+			stable++
+			if stable >= 5 {
 				return
 			}
 		} else {
@@ -112,13 +113,15 @@ func waitForWedgedDelivery(t *testing.T, completed *atomic.Int64, senderDone <-c
 // it starts draining (which releases the wedged scanner), closes the transport, and asserts both
 // the scanner and the sender actually ended, so a leaked goroutine fails HERE rather than in the
 // package's goleak TestMain against whichever test ran last.
-func newUndrainedClaudeConn(t *testing.T) (agentsession.HarnessConn, func(*testing.T, <-chan struct{})) {
+//
+//nolint:ireturn // HarnessConn is the frozen port the seam returns, exactly as Spawn does.
+func newUndrainedClaudeConn(t *testing.T) (conn agentsession.HarnessConn, stop func(*testing.T, <-chan struct{})) {
 	t.Helper()
 	reader, writer := io.Pipe()
 	stdin := &claudeRecordingStdin{}
-	conn := claudeadapter.PipeConnForTest(agentsession.Spec{Name: claudePeerTo}, reader, stdin)
+	conn = claudeadapter.PipeConnForTest(agentsession.Spec{Name: claudePeerTo}, reader, stdin)
 
-	stop := func(t *testing.T, senderDone <-chan struct{}) {
+	stop = func(t *testing.T, senderDone <-chan struct{}) {
 		t.Helper()
 		drained := make(chan struct{})
 		go func() {

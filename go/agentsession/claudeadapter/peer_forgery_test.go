@@ -146,39 +146,46 @@ func TestPeerDelivery_ClaudeNeverForgesTrustFromASeparatorByte(t *testing.T) {
 				assertLoudFieldRefusal(t, encodeErr, testCase.field)
 				return
 			}
-
-			harness := newClaudePeerHarness(t, agentsession.Spec{Name: claudePeerTo})
-
-			sendErr := harness.conn.Send(context.Background(),
-				agentsession.Command{Kind: agentsession.CommandPrompt, Text: frame})
-
-			// A negative assertion needs a settled window: the write is synchronous but the event
-			// is published by the scanner goroutine.
-			time.Sleep(250 * time.Millisecond)
-
-			// What the MODEL reads is the CONTENT of the user turn, decoded out of the stream-json
-			// line — asserting on the raw line would compare against JSON-escaped bytes and pass
-			// while the forged attribute sits in the model's context.
-			written := harness.userTurnContents(t)
-			events := harness.countKind(agentsession.EventPeerMessage)
-			if sendErr == nil && events == 0 && written == "" {
-				t.Fatalf("the crafted frame was neither delivered nor refused: Send returned nil, nothing was published, and the model saw nothing — a silent drop")
-			}
-			for _, forbidden := range testCase.mustNotAppear {
-				if strings.Contains(written, forbidden) {
-					t.Errorf("the model-facing envelope carries the forged %s: %q", forbidden, written)
-				}
-			}
-			if strings.Contains(written, controlframe.PeerPrefix) {
-				t.Errorf("the internal %q frame reached the model verbatim: %q", controlframe.PeerPrefix, written)
-			}
-			if strings.Contains(written, unitSeparator) {
-				t.Errorf("the boundary shift leaked the internal 0x1f separator into the model-facing envelope: %q",
-					strings.ReplaceAll(written, unitSeparator, "<US>"))
-			}
-			assertNoForgedPeerEvent(t, harness)
+			assertDeliveryForgesNothing(t, frame, testCase.mustNotAppear)
 		})
 	}
+}
+
+// assertDeliveryForgesNothing drives one crafted frame through the REAL conn and pins the
+// DELIVERED half of the disjunction: whatever reaches the model, and whatever the scanner
+// publishes, carries no trust flag and no sender the kernel never vouched for — and the frame is
+// never merely swallowed.
+func assertDeliveryForgesNothing(t *testing.T, frame string, mustNotAppear []string) {
+	t.Helper()
+	harness := newClaudePeerHarness(t, agentsession.Spec{Name: claudePeerTo})
+
+	sendErr := harness.conn.Send(context.Background(),
+		agentsession.Command{Kind: agentsession.CommandPrompt, Text: frame})
+
+	// A negative assertion needs a settled window: the write is synchronous but the event is
+	// published by the scanner goroutine.
+	time.Sleep(250 * time.Millisecond)
+
+	// What the MODEL reads is the CONTENT of the user turn, decoded out of the stream-json line —
+	// asserting on the raw line would compare against JSON-escaped bytes and pass while the forged
+	// attribute sits in the model's context.
+	written := harness.userTurnContents(t)
+	if sendErr == nil && harness.countKind(agentsession.EventPeerMessage) == 0 && written == "" {
+		t.Fatalf("the crafted frame was neither delivered nor refused: Send returned nil, nothing was published, and the model saw nothing — a silent drop")
+	}
+	for _, forbidden := range mustNotAppear {
+		if strings.Contains(written, forbidden) {
+			t.Errorf("the model-facing envelope carries the forged %s: %q", forbidden, written)
+		}
+	}
+	if strings.Contains(written, controlframe.PeerPrefix) {
+		t.Errorf("the internal %q frame reached the model verbatim: %q", controlframe.PeerPrefix, written)
+	}
+	if strings.Contains(written, unitSeparator) {
+		t.Errorf("the boundary shift leaked the internal 0x1f separator into the model-facing envelope: %q",
+			strings.ReplaceAll(written, unitSeparator, "<US>"))
+	}
+	assertNoForgedPeerEvent(t, harness)
 }
 
 // assertLoudFieldRefusal pins the REFUSED half of the disjunction. A refusal that does not say

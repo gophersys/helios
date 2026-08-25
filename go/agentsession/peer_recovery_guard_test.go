@@ -90,7 +90,8 @@ func TestPeerRecovery_PumpAdvancesWhileThePlaneSendBlocks(t *testing.T) {
 // THE CONTRACT this arm defines: every observed send stays on the stream, and a recovery the
 // library did NOT hand to its router is published with a Detail that DIFFERS from the routing
 // discriminator "native-send-unreachable" — one stable literal a consumer can branch on, spelled
-// the same way for every dropped recovery. (Recommended: "recovery-queue-overflow".)
+// the same way for every dropped recovery. The arm pins the PROPERTY rather than the spelling, so
+// the literal stays the library's to choose; it is "native-send-unrecovered" today.
 //
 // FALSIFICATION (the bite): today the published event is verbatim, so all 16 carry
 // Detail="native-send-unreachable" whether they were routed or thrown away, and this arm fails
@@ -206,7 +207,7 @@ func collectPeerSent(t *testing.T, session agentsession.Session) []agentsession.
 // ── the blocking plane ────────────────────────────────────────────────────────────────────────.
 
 // blockingPeerPlane is an agentsession.PeerPlane whose Send accepts the message and then BLOCKS
-// until the test releases it — the documented behaviour of both real planes (a socket handshake, an
+// until the test releases it — the documented behavior of both real planes (a socket handshake, an
 // unbounded inbox push), held open so the library's two hand-off guarantees are observable.
 type blockingPeerPlane struct {
 	released chan struct{}
