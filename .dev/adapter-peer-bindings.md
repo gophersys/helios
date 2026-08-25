@@ -1,11 +1,11 @@
 # adapter-peer-bindings
 
-phase:    verify
+phase:    fix
 repo:     gophersys/libs
 branch:   feat/adapter-peer-bindings
 worktree: ~/code/.worktrees/libs-adapter-peer-bindings
 pr:       -
-attempt:  1/2
+attempt:  2/2
 
 ## Goal
 PR-1c-ii — the deferred half of the peer slice: bind the merged peer plane to the two
@@ -179,5 +179,40 @@ values (inert-in-quotes, upstream name/id validation excludes them); only " asse
 EventPeerSent verbatim form: no existing assertion expected the old re-stamp — nothing
 updated, consistent.
 
+## Verify round 2 — SEND BACK (new root cause, not the same fix)
+Gates all green in-container (impl 5/5, testing 11/11, qa 6/6). F2 CLOSED (bite replicated),
+F4 CLOSED (writeMu leaf-only, 30x -race clean), F5 CLOSED (doc true). BUT the escaping
+closed only the BODY; identity fields stay forgeable — the round-1 fix treated a symptom.
+
+- V1 HIGH (REOPEN F1, decode side): controlframe EncodePeer joins 5 header fields with 0x1f;
+  DecodePeer SplitN on 0x1f. A 0x1f INSIDE a header field (from / reply_to) shifts boundaries
+  → forges verified="true" + from="root" to the receiving model. Reach: peerplane register/
+  serveJoin apply NO grammar check to a joining peer's NAME (peerNameRE guards only local
+  Pool.Open Spec.Name); reply_to free-rides wire→EncodePeer. controlframe.go:85-89 doc ASSERTS
+  0x1f "never appears in a validated peer name" — FALSE. This PR is DecodePeer's first caller.
+- V2 HIGH (REOPEN, attr side): escapePeerAttr leaves < > RAW; the "upstream validation excludes
+  them" stance is false (V1). A > in from/msg_id/reply_to forges a 2nd opening tag + live
+  unquoted verified=true. Existing attr arm only greps QUOTED verified="true" — blind to it.
+- V3 MED (test gap): removing the F3 or F4 fix stays GREEN — neither deadlock fix is guarded.
+- V4 MED (F3 residue, PRE-EXISTING): pump-side s.peerLink.Received (pump.go:116→client.go:184)
+  takes a mutex + synchronous conn.Write — the port contract says it MUST NOT block. client.go
+  not in this diff → scope call: bound it or record accepted+follow-up.
+- V5 MED (silent drop = FAIL-LOUDLY violation): recoveredSends 8-buffer overflow drops with NO
+  event/log/bounce; D1's verbatim EventPeerSent makes a dropped recovery byte-identical to a
+  delivered one — the exact silent-hold the plane exists to prevent. MUST go loud.
+- V6 MED (D1 stale doc): types.go:262 + peer.go:23-24 say Accepted==false means "accepted but
+  bounced"; now it has 3 meanings, 2 contradict that. Detail literals are branched-on contract,
+  documented as "redacted reason" — fix the exported doc.
+
+## The fix (root cause, ONE abstraction)
+Body = free text → ESCAPE (done, holds per D2). Identity fields (from,to,msg_id,reply_to) =
+VALIDATE to a safe alphabet at INGRESS (no 0x1f, < > " &), so neither serializer (controlframe
+0x1f wire OR model envelope) can read a field byte as structure. Escaping one serializer is the
+fix-that-must-be-repeated; validating at the boundary is the fix that isn't.
+
 ## Next
-Verify round 2 (Opus, bounded to the 5 findings + the 2 flagged deltas), then PR-1c-ii.
+Fix round 2 (attempt 2/2): implementer — ingress field validation in peerplane register/
+serveJoin/serveSend + defensive reject in DecodePeer (V1), escape < > in escapePeerAttr both
+adapters (V2), overflow-goes-loud bounce (V5), V4 bound-or-accept, V6 doc. Test author — hostile
+0x1f/</>/" join+reply_to arms bite vs pre-fix (V1), attr < > arm (V2), F3+F4 removal-guards (V3),
+overflow-loud arm (V5). If verify round 3 still finds a HIGH → STOP, escalate to Mateo (budget spent).
