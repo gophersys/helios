@@ -1,0 +1,64 @@
+schema: sfd.soc/v0
+name: esp32c6
+family: espressif_esp32
+series: esp32c6
+soc_yml: soc/espressif/soc.yml
+dtsi_files:
+    - dts/riscv/espressif/esp32c6/esp32c6_common.dtsi
+    - dts/riscv/espressif/esp32c6/esp32c6_lpcore.dtsi
+    - dts/riscv/espressif/esp32c6/esp32c6_lpcore_wroom_n4.dtsi
+    - dts/riscv/espressif/esp32c6/esp32c6_wroom_n4.dtsi
+    - dts/riscv/espressif/esp32c6/esp32c6_wroom_n8.dtsi
+    - dts/vendor/espressif/partitions_0x0_default.dtsi
+    - dts/vendor/espressif/partitions_0x0_default_4M.dtsi
+compatibles:
+    - espressif,esp32-adc
+    - espressif,esp32-bt-hci
+    - espressif,esp32-clock
+    - espressif,esp32-counter
+    - espressif,esp32-flash-controller
+    - espressif,esp32-gdma
+    - espressif,esp32-gpio
+    - espressif,esp32-i2c
+    - espressif,esp32-i2s
+    - espressif,esp32-ieee802154
+    - espressif,esp32-intc
+    - espressif,esp32-ledc
+    - espressif,esp32-lpuart
+    - espressif,esp32-mcpwm
+    - espressif,esp32-pcnt
+    - espressif,esp32-pinctrl
+    - espressif,esp32-rtc_timer
+    - espressif,esp32-spi
+    - espressif,esp32-systimer
+    - espressif,esp32-temp
+    - espressif,esp32-timer
+    - espressif,esp32-trng
+    - espressif,esp32-twai
+    - espressif,esp32-uart
+    - espressif,esp32-usb-serial
+    - espressif,esp32-watchdog
+    - espressif,esp32-wifi
+    - espressif,riscv
+    - fixed-partitions
+    - mmio-sram
+    - simple-bus
+    - soc-nv-flash
+    - zephyr,memory-region
+    - zephyr,power-state
+power_states:
+    - name: standby
+      min_residency_us: 200
+      exit_latency_us: 60
+    - name: soft-off
+      min_residency_us: 2000
+      exit_latency_us: 212
+boards:
+    - boards/espressif/esp32c6_devkitc
+    - boards/seeed/xiao_esp32c6
+depth: D1
+part_numbers: []
+provenance:
+    zephyr_sha: 413b789deb391d3a37d06b463288a5fe765ee57e
+    extracted: "2026-08-26"
+    tool: sfd/v0

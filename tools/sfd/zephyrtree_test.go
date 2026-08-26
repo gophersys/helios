@@ -40,6 +40,22 @@ func TestFindBindingsRefusesUnknown(t *testing.T) {
 	}
 }
 
+// The bme280 lesson: most device bindings carry no literal `on-bus:` —
+// the bus arrives via `include: [i2c-device.yaml]`. Bus derivation must
+// resolve binding includes or buses report empty.
+func TestFindBindingsResolvesBusFromInclude(t *testing.T) {
+	refs, err := FindBindings(fixture, "test,incsensor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(refs) != 1 {
+		t.Fatalf("want 1 binding, got %d", len(refs))
+	}
+	if refs[0].OnBus != "i2c" {
+		t.Fatalf("on-bus via include: want i2c, got %q", refs[0].OnBus)
+	}
+}
+
 func TestFindDrivers(t *testing.T) {
 	dirs, err := FindDrivers(fixture, "test,fakesensor")
 	if err != nil {
@@ -107,6 +123,27 @@ func TestFindSocDtsiFailsLoudlyOnNoHit(t *testing.T) {
 	}
 }
 
+// The RT1052 lesson: a SoC dtsi is often a thin wrapper whose peripherals
+// live in an included family dtsi (nxp_rt1050.dtsi -> nxp_rt10xx.dtsi,
+// 1 vs 137 compatibles). Inventory MUST resolve the include closure, or the
+// record silently lies.
+func TestDtsiInventoryFollowsIncludes(t *testing.T) {
+	compat, _, err := DtsiInventory(fixture,
+		[]string{filepath.Join("dts", "arm", "testvendor", "testsoc1.dtsi")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, c := range compat {
+		if c == "testvendor,spi" { // declared ONLY in the included family dtsi
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("inventory missed testvendor,spi from the included family dtsi; got %v", compat)
+	}
+}
+
 func TestDtsiInventory(t *testing.T) {
 	compat, states, err := DtsiInventory(fixture,
 		[]string{filepath.Join("dts", "arm", "testvendor", "testsoc1.dtsi")})
@@ -116,6 +153,7 @@ func TestDtsiInventory(t *testing.T) {
 	wantCompat := map[string]bool{
 		"arm,cortex-m4": true, "zephyr,power-state": true,
 		"testvendor,uart": true, "testvendor,i2c": true, "generic-i2c": true,
+		"testvendor,spi": true, // via the include closure
 	}
 	if len(compat) != len(wantCompat) {
 		t.Fatalf("compatibles: want %d, got %d: %v", len(wantCompat), len(compat), compat)

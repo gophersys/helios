@@ -184,6 +184,9 @@ func cmdSocAdd(name string, args []string) error {
 			return err
 		}
 	}
+	// Record the full include closure, not just the seeds: it is what was
+	// actually read, and verify then catches drift in any of it.
+	dtsi = expandIncludes(c.zephyr, dtsi)
 	compatibles, states, err := DtsiInventory(c.zephyr, dtsi)
 	if err != nil {
 		return err

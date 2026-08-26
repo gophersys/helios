@@ -50,10 +50,63 @@ func ZephyrSHA(root string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-// bindingDoc is the subset of a devicetree binding YAML we read.
+// bindingDoc is the subset of a devicetree binding YAML we read. Include
+// is `any`: bindings write it as a string, a list of strings, or a list of
+// maps with a name key.
 type bindingDoc struct {
 	Compatible string `yaml:"compatible"`
 	OnBus      string `yaml:"on-bus"`
+	Include    any    `yaml:"include"`
+}
+
+// includeNames flattens a binding's include field into file names.
+func (b bindingDoc) includeNames() []string {
+	var out []string
+	switch v := b.Include.(type) {
+	case string:
+		out = append(out, v)
+	case []any:
+		for _, item := range v {
+			switch it := item.(type) {
+			case string:
+				out = append(out, it)
+			case map[string]any:
+				if n, _ := it["name"].(string); n != "" {
+					out = append(out, n)
+				}
+			}
+		}
+	}
+	return out
+}
+
+// resolveOnBus returns the binding's bus, following includes recursively
+// when the file itself carries no `on-bus:`. Most device bindings get
+// their bus this way (include: [i2c-device.yaml]); without resolution the
+// extracted bus list reports empty and the record lies. Include names are
+// unique across dts/bindings, so resolution is by basename index.
+func resolveOnBus(doc bindingDoc, byName map[string]string, depth int) string {
+	if doc.OnBus != "" || depth > 4 {
+		return doc.OnBus
+	}
+	for _, name := range doc.includeNames() {
+		path, ok := byName[name]
+		if !ok {
+			continue
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		var inc bindingDoc
+		if yaml.Unmarshal(raw, &inc) != nil {
+			continue
+		}
+		if bus := resolveOnBus(inc, byName, depth+1); bus != "" {
+			return bus
+		}
+	}
+	return ""
 }
 
 // FindBindings walks dts/bindings and returns every binding whose
@@ -63,11 +116,19 @@ func FindBindings(root, compatible string) ([]BindingRef, error) {
 	if _, err := os.Stat(base); err != nil {
 		return nil, fmt.Errorf("no dts/bindings under %s: %w", root, err)
 	}
-	var refs []BindingRef
+	// One walk builds both the match list and the name index that include
+	// resolution needs (include names are unique basenames by convention).
+	byName := map[string]string{}
+	type match struct {
+		doc  bindingDoc
+		path string
+	}
+	var matches []match
 	err := filepath.WalkDir(base, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".yaml") {
 			return err
 		}
+		byName[filepath.Base(path)] = path
 		raw, err := os.ReadFile(path)
 		if err != nil {
 			return err
@@ -76,17 +137,20 @@ func FindBindings(root, compatible string) ([]BindingRef, error) {
 		if yaml.Unmarshal(raw, &doc) != nil {
 			return nil // not every yaml under bindings is a binding; skip unparseable
 		}
-		if doc.Compatible != compatible {
-			return nil
+		if doc.Compatible == compatible {
+			matches = append(matches, match{doc, path})
 		}
-		rel, _ := filepath.Rel(root, path)
+		return nil
+	})
+	var refs []BindingRef
+	for _, m := range matches {
+		rel, _ := filepath.Rel(root, m.path)
 		class := "unknown"
 		if parts := strings.Split(rel, string(filepath.Separator)); len(parts) > 3 {
 			class = parts[2] // dts/bindings/<class>/...
 		}
-		refs = append(refs, BindingRef{Path: rel, OnBus: doc.OnBus, Class: class})
-		return nil
-	})
+		refs = append(refs, BindingRef{Path: rel, OnBus: resolveOnBus(m.doc, byName, 0), Class: class})
+	}
 	sort.Slice(refs, func(i, j int) bool { return refs[i].Path < refs[j].Path })
 	return refs, err
 }
@@ -362,10 +426,60 @@ func FindSocDtsi(root, socName string, boards []string) ([]string, error) {
 	return out, nil
 }
 
+// expandIncludes resolves the dtsi include closure of the seed files.
+// A SoC dtsi is often a thin wrapper whose peripherals live in an included
+// family dtsi (nxp_rt1050.dtsi → nxp_rt10xx.dtsi: 1 vs 137 compatibles) —
+// without the closure the extracted record silently lies. Resolution
+// mirrors Zephyr's dts include roots: the including file's directory, then
+// dts/<inc>, dts/*/<inc>, dts/*/*/<inc>. Cycle-safe via the seen set.
+func expandIncludes(root string, seed []string) []string {
+	inc := regexp.MustCompile(`#include\s+[<"]([^">]+\.dtsi)[">]`)
+	dtsBase := filepath.Join(root, "dts")
+	seen := map[string]bool{}
+	var order []string
+	var visit func(rel string)
+	visit = func(rel string) {
+		if seen[rel] {
+			return
+		}
+		seen[rel] = true
+		order = append(order, rel)
+		raw, err := os.ReadFile(filepath.Join(root, rel))
+		if err != nil {
+			return
+		}
+		for _, m := range inc.FindAllStringSubmatch(string(raw), -1) {
+			var candidates []string
+			local := filepath.Join(filepath.Dir(rel), m[1])
+			if _, err := os.Stat(filepath.Join(root, local)); err == nil {
+				candidates = append(candidates, filepath.Join(root, local))
+			}
+			for _, pat := range []string{
+				filepath.Join(dtsBase, m[1]),
+				filepath.Join(dtsBase, "*", m[1]),
+				filepath.Join(dtsBase, "*", "*", m[1]),
+			} {
+				hits, _ := filepath.Glob(pat)
+				candidates = append(candidates, hits...)
+			}
+			for _, c := range candidates {
+				if crel, err := filepath.Rel(root, c); err == nil {
+					visit(crel)
+				}
+			}
+		}
+	}
+	for _, s := range seed {
+		visit(s)
+	}
+	return order
+}
+
 // DtsiInventory extracts the declared compatibles and power states from
-// dtsi files. Text-level extraction, declared-not-supported: everything it
-// returns is depth D1 by definition.
+// dtsi files AND their include closure. Text-level extraction,
+// declared-not-supported: everything it returns is depth D1 by definition.
 func DtsiInventory(root string, dtsiFiles []string) (compatibles []string, states []PowerState, err error) {
+	dtsiFiles = expandIncludes(root, dtsiFiles)
 	compatRe := regexp.MustCompile(`compatible\s*=\s*(.+);`)
 	quoted := regexp.MustCompile(`"([^"]+)"`)
 	nameRe := regexp.MustCompile(`power-state-name\s*=\s*"([^"]+)"`)

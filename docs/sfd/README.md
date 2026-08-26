@@ -21,6 +21,7 @@ The machine behind the docs:
 | catalog | [`catalog/`](../../catalog/) | extracted records — versioned, reviewed, cited by SHA |
 | workspace | `ws/` (git-ignored) + [`ws/west.yml`](../../ws/west.yml) | the pinned Zephyr the records cite |
 | devcontainer | [`.devcontainer/`](../../.devcontainer/) | rides `ghcr.io/gophersys/embedded` by digest; consume-only |
+| gate | [`gate.sh`](../../gate.sh) | the whole safety net (repo has zero CI): vet + tests + `sfd verify`, devcontainer-only, FAIL-NOT-SKIP |
 
 Numbering leaves room: `30-` P0 interrogation schema, `40-` P1 feasibility
 metrics, `50-` P4 part selection, `60-` P5 hardware handoff — each lands in a

@@ -27,12 +27,19 @@ PROPOSED ─▸ SOURCED ─▸ EXERCISED ─▸ SELECTABLE ─▸ BOUND (per pro
 |---|---|---|---|
 | PROPOSED | someone named a capability need | none yet | D0 |
 | SOURCED | Zephyr carries a binding (and ideally a driver) for it | `sfd component add` succeeded: binding path(s) + driver path(s) @ SHA | D1–D2 |
-| EXERCISED | it builds/runs in this repo's workspace | a `west build`/twister run recorded against the record | D3 |
+| EXERCISED | it builds/runs in this repo's workspace | a recorded `west build` **per (component, board) pair** — D3 is a set of per-target proofs, never one bit. "Exercised on esp32c6" says nothing about mimxrt1052. | D3 |
 | SELECTABLE | eligible for P4 part selection | record at D2+ and `sfd verify` green | — |
 | BOUND | a part number attached, for one product | P4 fit-matrix decision, recorded in the product's SDHR | — |
 
 Transitions only move forward. A Zephyr pin bump can DEMOTE: `sfd verify`
 red on drift drops a record out of SELECTABLE until re-proven.
+
+## Catalog scope (decided 2026-08-26)
+
+The catalog is **global and product-agnostic**: one per repository, versioned
+with the Zephyr pin. A product never copies a record — its SDHR **cites**
+catalog entries by identity. Eden later serves this same catalog to every
+project.
 
 ## The tool runs that enforce it
 

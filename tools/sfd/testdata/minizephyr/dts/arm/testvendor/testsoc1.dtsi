@@ -1,3 +1,4 @@
+#include <testvendor/testfam_common.dtsi>
 / {
     cpus {
         cpu0: cpu@0 {
