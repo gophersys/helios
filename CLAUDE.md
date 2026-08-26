@@ -7,7 +7,8 @@ tools and framework for blind dense-UI layout. **Nothing outside
 ## Instrumentation precedence (read at session start)
 
 1. `~/.claude/CLAUDE.md` — Mateo's personal defaults (fail-loud, Conventional
-   Commits, no AI attribution trailers, always push, ultracode).
+   Commits, always push, ultracode; attribution rule lives in eden
+   `.claude/rules/git-process.md` §13).
 2. `~/code/.claude/` — org-level; **does not exist today**. If it appears, it
    outranks personal defaults inside `~/code`.
 3. This file + `.claude/` here — outranks both inside this repository.
