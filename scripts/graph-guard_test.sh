@@ -21,11 +21,15 @@
 #      which is the state of eden `main` and was the state of the run used to justify merging it.
 #   2. The pattern set is COMPLETE over the 3 file types that define an nx project here. A set that
 #      lists only `project.json` is RED.
-#   3. The verb's own directory vocabulary is a strict SUPERSET of the directory names spelled in
-#      `.nxignore`. That is the direction that fails safe: a fixture directory nobody wrote a pattern
-#      for is caught by the verb as a red gate instead of entering the graph quietly.
-#   4. The verb asserts graph resolution with a command that REFUSES a duplicate-name graph. It
-#      greps `.ci/ctl.sh` for the strict reader, because this is the defect that shipped.
+#   3. The verb's directory vocabulary is a strict SUPERSET of the names spelled in `.nxignore`, and
+#      EVERY entry of it is exercised by planting a real fixture in that directory and requiring the
+#      verb to go red. A vocabulary narrowed to one entry is caught, because each entry has its own
+#      assertion rather than one representative standing in for all of them.
+#   4. The verb's `.nxignore` COVERAGE clause is exercised by removing one pattern from the file and
+#      requiring the verb to go red. That clause is the only one with anything to say on a tree that
+#      carries no fixture, which is the state of eden `main`.
+#   5. The verb REFUSES a duplicate project name, and REFUSES a submodule that is not checked out.
+#      Both are executed against planted inputs, never inferred from the source text.
 #
 # SCOPE — read this before you read a green run as more than it is.
 #   COVERED: the contract between `.ci/ctl.sh graph-guard` and `.nxignore`, by reading both files.
@@ -52,10 +56,11 @@ ctl="${repository_root}/.ci/ctl.sh"
 submodules=(".devcontainer" "libs" "infrastructure")
 ignored_dirs=("fixture" "fixtures" "__fixtures__" "testdata")
 project_files=("project.json" "package.json" "tsconfig*.json")
-# The directory the escape assertion plants into. It must NOT be covered by .nxignore — that is what
-# makes it an escape — and check 5 below asserts exactly that, so this literal and the planted path
-# cannot drift apart.
-escape_dir="_fixtures"
+# The directory names the VERB must recognise that `.nxignore` does NOT spell. Each one is an ESCAPE:
+# a fixture placed there reaches the graph, and the verb is the only thing that can catch it. Every
+# entry gets its own executed assertion below — a single representative was not enough, because the
+# verb's vocabulary could be narrowed to that one entry with nothing going red.
+uncovered_dirs=("_fixtures" "test-fixtures")
 
 fails=0
 
@@ -141,31 +146,21 @@ else
   report_ok "no negation line re-includes an excluded fixture file"
 fi
 
-# 5. The escape directory is genuinely UNCOVERED by .nxignore. If somebody adds a pattern for it, the
-#    planted escape below would be excluded, assertion 7 would go red, and the reason would be
-#    obscure. Asserting it here names the cause.
-covered_escape=()
-for p in "${patterns[@]}"; do
-  [[ "$p" == *"/${escape_dir}/"* ]] && covered_escape+=("$p")
-done
-if [[ ${#covered_escape[@]} -gt 0 ]]; then
-  report_fail "the escape directory '${escape_dir}' is uncovered by .nxignore" \
-    "it now has ${#covered_escape[@]} pattern(s), so it is no longer an escape: ${covered_escape[0]}"
-else
-  report_ok "the escape directory '${escape_dir}' is genuinely uncovered by .nxignore"
-fi
-
 printf -- '-- the verb, EXECUTED --\n'
 
-# WHY THESE RUN THE VERB INSTEAD OF GREPPING IT. The previous version of this section asked whether
-# `.ci/ctl.sh` CONTAINED the string `nx_cmd show projects`, and whether it contained `$root/.git`.
-# A refutation defeated both by moving the string into a comment: the verb was regressed to exactly
-# the two defects the checks existed to stop, and this file still printed
-# "ok  the verb asserts resolution with 'nx show projects'" — a certification that was false at the
-# moment it was printed. A check that a comment can satisfy is not a check.
+# WHY THESE RUN THE VERB INSTEAD OF READING IT. An earlier version of this section grepped
+# `.ci/ctl.sh` for marker strings, and a refutation defeated it by moving each string into a comment:
+# the verb was regressed to the very defects the checks existed to stop, and this file stayed green
+# while printing a certification that was false as it printed. A check a comment can satisfy is not
+# a check.
 #
-# So each assertion below PLANTS a real input, RUNS `bash .ci/ctl.sh graph-guard`, and reads its exit
-# status. Everything planted is swept by the EXIT trap, whatever happens.
+# A LATER refutation defeated the first fix too, and that is why the loops below are loops. The
+# executed assertions covered 2 of the verb's 4 clauses, so narrowing the verb's directory vocabulary
+# to a single entry — or neutering its `.nxignore` coverage clause outright — left every assertion
+# green. One representative input cannot hold a rule that quantifies over a set. So EVERY entry of
+# the vocabulary gets its own planted fixture, and the coverage clause gets a mangled `.nxignore`.
+#
+# Everything planted is swept by the trap, on every signal that can be trapped.
 
 guard() { ( cd "$repository_root" && bash .ci/ctl.sh graph-guard ) >/dev/null 2>&1; }
 
@@ -178,81 +173,140 @@ if [[ ! -x "${repository_root}/node_modules/.bin/nx" ]] && ! command -v nx >/dev
   exit 1
 fi
 
-planted=()
+selftest_root="${repository_root}/libs/.graph-guard-selftest"
 hidden_git=""
+nxignore_backup=""
+
+interrupted=0
 sweep() {
-  local p
-  for p in "${planted[@]}"; do rm -rf "$p"; done
+  local rc=$?
+  rm -rf "$selftest_root"
+  if [[ -n "$nxignore_backup" && -f "$nxignore_backup" ]]; then
+    cp "$nxignore_backup" "$nxignore"
+    rm -f "$nxignore_backup"
+  fi
   if [[ -n "$hidden_git" && -e "${hidden_git}.graph-guard-selftest" ]]; then
     mv "${hidden_git}.graph-guard-selftest" "$hidden_git"
   fi
-  # The restore is VERIFIED, not assumed. Leaving a submodule without its .git would break the
-  # developer's checkout, so a failed restore must be loud.
+  # The restore is VERIFIED, not assumed. Leaving a submodule without its .git breaks the checkout.
   if [[ -n "$hidden_git" && ! -e "$hidden_git" ]]; then
     printf 'graph-guard_test: FATAL — could not restore %s. Run: mv %s.graph-guard-selftest %s\n' \
       "$hidden_git" "$hidden_git" "$hidden_git" >&2
   fi
+  # A run cut short is a run that judged nothing, and it must never report success. bash runs this
+  # EXIT trap on a trapped signal too, and the trap's own status would otherwise become the script's:
+  # measured, an interrupted run exited 0 after 2 of its 13 assertions. The signal traps below record
+  # the conventional 128+n status and this line forces it.
+  if [[ $interrupted -ne 0 ]]; then
+    printf 'graph-guard_test: INTERRUPTED before it finished — reporting %d, never success\n' "$interrupted" >&2
+    exit "$interrupted"
+  fi
+  return "$rc"
 }
+# EXIT alone made an INTERRUPTED run exit 0: bash runs the EXIT trap on SIGINT and the trap's own
+# status becomes the script's, so a test killed after 2 of its assertions reported SUCCESS — a skip
+# reading as a pass, which is the failure this repository refuses everywhere else. Each signal is
+# trapped explicitly and re-raises the conventional 128+n status.
 trap sweep EXIT
+trap 'interrupted=130; exit 130' INT
+trap 'interrupted=143; exit 143' TERM
+trap 'interrupted=129; exit 129' HUP
 
-# ANTI-VACUITY FIRST. If the verb does not pass on the untouched tree, every red below could be red
-# for an unrelated reason and this whole section would prove nothing.
+# plant <relative-path-under-selftest_root> <project-name> [extra-file-basename]
+plant() {
+  local rel="$1" name="$2" extra="${3:-}"
+  mkdir -p "${selftest_root}/${rel}"
+  printf '{"name":"%s"}\n' "$name" > "${selftest_root}/${rel}/project.json"
+  if [[ -n "$extra" ]]; then
+    printf '{"name":"%s-pkg","version":"0.0.0"}\n' "$name" > "${selftest_root}/${rel}/${extra}"
+  fi
+}
+
+# ANTI-VACUITY FIRST, AND IT ABORTS. If the verb does not pass on the untouched tree, every red below
+# could be red for that unrelated reason, and each would print `ok` while proving nothing. A previous
+# round measured exactly that: 3 assertions certified themselves against a failure they had not
+# caused. So this one exits the section rather than continuing.
 if guard; then
   report_ok "the verb PASSES on the untouched tree (so the reds below mean something)"
 else
   report_fail "the verb passes on the untouched tree" \
-    "graph-guard exited non-zero before anything was planted — the reds below prove nothing"
+    "graph-guard exited non-zero before anything was planted — the rest of this section is ABORTED, because a red it cannot explain would certify itself"
+  printf '\n'
+  printf 'graph-guard_test: %d failure(s)\n' "$fails" >&2
+  exit 1
 fi
 
-# 6. A duplicate project NAME must be REFUSED. This is the eden#14 collision, and the defect this
-#    replaces: `nx graph --file` exits 0 and silently deduplicates it, so a verb asserting with that
-#    reader tolerates the very thing it exists to catch.
-dup_a="${repository_root}/libs/.graph-guard-selftest-dup-a"
-dup_b="${repository_root}/libs/.graph-guard-selftest-dup-b"
-planted+=("$dup_a" "$dup_b")
-mkdir -p "$dup_a" "$dup_b"
-printf '{"name":"graph-guard-selftest-dup"}\n' > "${dup_a}/project.json"
-printf '{"name":"graph-guard-selftest-dup"}\n' > "${dup_b}/project.json"
+# A. EVERY UNCOVERED directory of the verb's vocabulary is exercised, one assertion each.
+#    These have no `.nxignore` pattern, so the VERB is their only defence — narrowing its regex to
+#    one entry must not leave the others silent.
+for d in "${uncovered_dirs[@]}"; do
+  covering=()
+  for p in "${patterns[@]}"; do
+    [[ "$p" == *"/${d}/"* ]] && covering+=("$p")
+  done
+  if [[ ${#covering[@]} -gt 0 ]]; then
+    report_fail "'${d}' is uncovered by .nxignore (so the verb is its only defence)" \
+      "it now has a pattern, so this assertion no longer tests the verb: ${covering[0]}"
+    continue
+  fi
+  rm -rf "$selftest_root"
+  plant "esc-${d}/${d}/one" "graph-guard-selftest-esc-${d}"
+  if guard; then
+    report_fail "a fixture in the UNCOVERED directory '${d}' is caught by the verb" \
+      "it entered eden's graph and graph-guard exited 0 — the verb's fixture vocabulary has lost '${d}'"
+  else
+    report_ok "a fixture in the UNCOVERED directory '${d}' is caught by the verb"
+  fi
+  rm -rf "$selftest_root"
+done
+
+# B. EVERY COVERED directory is excluded by `.nxignore`, and the verb still passes. Planted together
+#    in one run: they are held by the pattern file, not by the verb's regex, so one run is enough to
+#    prove the globs match and no run of them can be traded against another.
+rm -rf "$selftest_root"
+for d in "${ignored_dirs[@]}"; do
+  plant "cov/${d}/one" "graph-guard-selftest-cov-${d}" "package.json"
+done
+if guard; then
+  report_ok "a fixture in each of the ${#ignored_dirs[@]} COVERED directories is excluded, and the verb passes"
+else
+  report_fail "a fixture in each COVERED directory is excluded" \
+    "one of ${ignored_dirs[*]} was not excluded by .nxignore and graph-guard exited non-zero"
+fi
+rm -rf "$selftest_root"
+
+# C. The verb's `.nxignore` COVERAGE clause really runs. On a tree with no fixture this is the ONLY
+#    clause with anything to say, and it was possible to neuter it in the verb while every assertion
+#    here stayed green — because assertions 1-5 read the FILE and none of them read the VERB.
+nxignore_backup="${nxignore}.graph-guard-selftest-backup"
+cp "$nxignore" "$nxignore_backup"
+grep -v '^libs/\*\*/testdata/\*\*/package\.json$' "$nxignore_backup" > "$nxignore"
+if guard; then
+  report_fail "the verb REFUSES a .nxignore that is missing a required pattern" \
+    "one of the 36 patterns was removed and graph-guard exited 0 — its coverage clause is not running"
+else
+  report_ok "the verb REFUSES a .nxignore that is missing a required pattern"
+fi
+cp "$nxignore_backup" "$nxignore"
+rm -f "$nxignore_backup"
+nxignore_backup=""
+
+# D. A duplicate project NAME is REFUSED. This is the eden#14 collision. `nx graph --file` exits 0
+#    and silently deduplicates it, so a verb asserting with that reader tolerates the very defect it
+#    exists to catch; only `nx show projects` refuses.
+rm -rf "$selftest_root"
+plant "dup-a" "graph-guard-selftest-dup"
+plant "dup-b" "graph-guard-selftest-dup"
 if guard; then
   report_fail "a duplicate project name is REFUSED" \
     "two projects both named graph-guard-selftest-dup, and graph-guard exited 0"
 else
   report_ok "a duplicate project name is REFUSED"
 fi
-rm -rf "$dup_a" "$dup_b"
+rm -rf "$selftest_root"
 
-# 7. A fixture in a directory .nxignore does NOT cover must be caught by the verb. This is the
-#    strict-superset property: an escape is a red gate, never a quiet hole.
-esc="${repository_root}/libs/.graph-guard-selftest-esc/${escape_dir}/one"
-planted+=("${repository_root}/libs/.graph-guard-selftest-esc")
-mkdir -p "$esc"
-printf '{"name":"graph-guard-selftest-escape"}\n' > "${esc}/project.json"
-if guard; then
-  report_fail "a fixture in an UNCOVERED directory is caught by the verb" \
-    "libs/.graph-guard-selftest-esc/${escape_dir}/one entered the graph and graph-guard exited 0"
-else
-  report_ok "a fixture in an UNCOVERED directory is caught by the verb"
-fi
-rm -rf "${repository_root}/libs/.graph-guard-selftest-esc"
-
-# 8. A fixture in a COVERED directory must be excluded, and the verb must still pass. Without this
-#    the suite could be satisfied by a verb that simply always fails.
-cov="${repository_root}/libs/.graph-guard-selftest-cov/testdata/one"
-planted+=("${repository_root}/libs/.graph-guard-selftest-cov")
-mkdir -p "$cov"
-printf '{"name":"graph-guard-selftest-covered"}\n' > "${cov}/project.json"
-printf '{"name":"graph-guard-selftest-covered-pkg","version":"0.0.0"}\n' > "${cov}/package.json"
-if guard; then
-  report_ok "a fixture in a COVERED directory is excluded and the verb passes"
-else
-  report_fail "a fixture in a COVERED directory is excluded" \
-    "libs/.graph-guard-selftest-cov/testdata/one should have been ignored, and graph-guard exited non-zero"
-fi
-rm -rf "${repository_root}/libs/.graph-guard-selftest-cov"
-
-# 9. A submodule that is PRESENT but not CHECKED OUT must be refused. `git clone` without
-#    --recursive leaves the mount point as an empty directory, which a `[[ -d ]]` test passes while
-#    39 of the 49 projects are absent.
+# E. A submodule PRESENT but not CHECKED OUT is refused. `git clone` without --recursive leaves the
+#    mount point as an empty directory, which a bare `[[ -d ]]` passes while 39 projects are absent.
 hidden_git="${repository_root}/.devcontainer/.git"
 if [[ -e "$hidden_git" ]]; then
   mv "$hidden_git" "${hidden_git}.graph-guard-selftest"
