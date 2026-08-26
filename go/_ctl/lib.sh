@@ -1243,6 +1243,11 @@ phase_implementation() {
 phase_testing() {
   _gate_reset
   log_info "PHASE 3 — TESTING (the 8-dimension taxonomy)"
+  # This races, and it must. phase_implementation drops -race by setting EDEN_UNIT_NO_RACE=1 as a
+  # COMMAND PREFIX on its own _gate_run call, so the value lives only for that call and is gone
+  # before this line runs. Hoisting that assignment to a plain `export` would silently un-race this
+  # dimension — the whole unit suite would stop being race-checked and nothing would go red to say
+  # so. If you ever move it, move it to an explicit argument, not an exported variable.
   _gate_run "unit + fake conformance (-race)" cmd_test
   _gate_run "property (rapid)" cmd_property
   _gate_run "leak (goleak, zero leaks)" cmd_leak
