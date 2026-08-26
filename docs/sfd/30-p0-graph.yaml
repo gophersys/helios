@@ -382,7 +382,7 @@ conventions:
   enum-values-as-given: "enum/multi answers record the selected VALUES, including none-like values ([nothing] stays [nothing], never [])"
   declared-none-general: "declared-none covers an explicit statement that THE ASKED VALUE does not exist or bind ('no deadline' answers the date asked; 'no lowest threshold' answers the floor asked). A statement made about a DIFFERENT question's subject (users, volume, regions) NEVER satisfies it for this one — run 3 proved the loose form splits the verdict"
   pair-completeness: "a pair-typed question is complete only when both halves are answered or one is explicitly declared-none; the runner pursues the missing half; a half-answer is a runner error and the missing half is UNKNOWN"
-  carry-placement: "for q.phys.carry, hidden/tucked placement counts as mounted (both are fixed installations); the concealment detail goes to notes"
+  carry-placement: "for q.phys.carry, hidden/tucked placement counts as mounted (both are fixed installations); the concealment detail goes to the record-keeping notes field (declared in the contract's record-keeping list, not in pir_fields)"
   rate-attachment: "an adaptive q.fn.rate answer attaches to its function item as a rate: sub-object {periods per condition, configurable: bool} carrying its own question/quote/at; configurable defaults to false when the answer does not state it (a stated-absent property, not an UNKNOWN)"
 
 # ── the volunteered-technology oracle (constraint ask-back trigger) ─────

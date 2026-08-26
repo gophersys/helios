@@ -166,7 +166,12 @@ blind instances independently invented near-identical shapes):
 
 - top-level: `product` (slug), `source` (transcript ref), `g0`
   ({status, blockers[]}), `runner_errors[]` (multi-affirmation convention
-  violations and missed ask-backs), `consistency[]` (per-rule result).
+  violations and missed ask-backs), `consistency[]` (per-rule result),
+  `notes[]` (details a convention routes out of a typed field, e.g.
+  carry-placement's concealment detail — record-keeping, never a
+  substitute for a typed answer). Record-keeping fields are deliberately
+  NOT in `pir_fields`: that list is the FEEDS authority, and G10 demands
+  every entry be produced by a feed or derivation.
 - `unknowns[]`: `{field, blocks[], tier, gate?, note?}` — `gate: G0` says
   a required-tier UNKNOWN blocks the gate even when `blocks` is empty.
 - `constraints[]`: `{tech, strength, quote, volunteered_quote, at}` —

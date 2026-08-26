@@ -19,7 +19,12 @@ spent on downstream. (Mateo, 2026-08-26.)
    unanimity, per-class agreement rates, and the verdict split. The tool
    compares canonical content (sorted sets), never string renderings —
    the instrument must be more deterministic than the process it measures.
-4. **CLASSIFY every divergence.** (a) contract ambiguity → tighten the
+4. **CLASSIFY every divergence — and READ the instances'
+   underdetermination lists as required input.** A gap a blind reader
+   wrote down and the fix pass did not act on is a finding against the
+   fix pass (proven: run 4's iL named the notes-field gap in its landed
+   list; the closure shipped without acting on it; the judge caught it
+   from the list). (a) contract ambiguity → tighten the
    written contract; (b) input ambiguity → the interrogation/extraction
    should have asked; (c) operator drift → the runner deviated from the
    contracts (measured separately from blind agreement); (d) instrument
