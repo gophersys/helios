@@ -1,0 +1,215 @@
+# The P1 metric registry — the far side of R2's two-way trace.
+# Contract: 40-p1-metrics.md. Counts: 16 metrics (13 consumer P1-verdict,
+# 3 consumer P2-class) + 2 derived flags. Every metric id the P0 graph
+# (30-p0-graph.yaml) feeds is defined here; every fed_by names a graph
+# question. Scale levels refine the global semantics in the contract.
+schema: sfd.metrics/v0
+decided_with: Mateo, 2026-08-26
+
+metrics:
+  # ── VIABILITY (verdict axis) ──────────────────────────────────────────
+  - id: metric.viability.clarity
+    asks: "Can the product be stated crisply?"
+    fed_by: [q.intent.what]
+    consumer: P1-verdict
+    verdict_weight: minor
+    scored_by: agent
+    scale:
+      green: "one sentence says what it does and for whom"
+      amber: "needs a paragraph; the core is findable"
+      red: "cannot be stated without contradiction"
+
+  - id: metric.viability.outcome
+    asks: "Is success defined and plausible?"
+    fed_by: [q.intent.win]
+    consumer: P1-verdict
+    verdict_weight: minor
+    scored_by: agent
+    scale:
+      green: "a measurable outcome a working product could plausibly reach"
+      amber: "vague outcome, or plausible only under strong assumptions"
+      red: "success as stated cannot follow from the product as stated"
+
+  - id: metric.viability.economics
+    asks: "Do build cost, sell price, and volume make sense together?"
+    fed_by: [q.scale.units, q.scale.cost]
+    consumer: P1-verdict
+    verdict_weight: core
+    scored_by: derived
+    scale:
+      green: "sell > build with margin at y1 volume; y3 improves it"
+      amber: "margin thin or dependent on y3 volume materializing"
+      red: "sell <= build at stated volume"
+
+  - id: metric.viability.novelty
+    asks: "Is the differentiation real — and survivable?"
+    fed_by: [q.intent.exists]
+    consumer: P1-verdict
+    verdict_weight: minor
+    scored_by: agent
+    scale:
+      green: "clear difference from named existing products"
+      amber: "difference is incremental or unverified"
+      red: "an existing product already is this"
+
+  # ── TECH-EXISTS (verdict axis) ────────────────────────────────────────
+  - id: metric.tech.exists
+    asks: "Does the technology this product depends on exist today?"
+    fed_by: [q.novel.magic]
+    consumer: P1-verdict
+    verdict_weight: core
+    scored_by: agent+catalog
+    scale:
+      green: "every needed capability has a proven path (catalog D2+ or a shipped product)"
+      amber: "a path exists but unproven here (catalog D1, or driver-work flagged)"
+      red: "the core capability has no known working example"
+
+  # ── FEASIBILITY (verdict axis) ────────────────────────────────────────
+  - id: metric.feasibility.env-risk
+    asks: "Do the stated conditions threaten the build?"
+    fed_by: [q.env.where, q.env.conditions]
+    consumer: P1-verdict
+    verdict_weight: minor
+    scored_by: agent
+    scale:
+      green: "benign environment"
+      amber: "one or more hard conditions (`washing-or-hosing`, `vibration`, extremes) — costed, known art"
+      red: "conditions demand engineering this team/process has no path to"
+
+  - id: metric.feasibility.connectivity
+    asks: "Is the stated link (counterpart + distance) achievable?"
+    fed_by: [q.fn.talks]
+    consumer: P1-verdict
+    verdict_weight: core
+    scored_by: agent+catalog
+    scale:
+      green: "the derived link is covered by the supported-SoC lanes (catalog D1+)"
+      amber: "achievable but outside current lanes, or coverage only at D1 with risk"
+      red: "no radio/link reaches the stated counterpart at the stated distance and power"
+
+  - id: metric.feasibility.power-risk
+    asks: "Does the physics of source, life target, and duty add up?"
+    fed_by: [q.power.source, q.power.life, q.power.duty]
+    consumer: P1-verdict
+    verdict_weight: core
+    scored_by: derived
+    scale:
+      green: "floor target comfortably plausible for the power class and duty"
+      amber: "delight target requires aggressive sleep design; floor reachable"
+      red: "floor target violates the stated power class (always-on radio on a coin cell)"
+
+  - id: metric.feasibility.head-start
+    asks: "How much already exists?"
+    fed_by: [q.time.exists]
+    consumer: P1-verdict
+    verdict_weight: minor
+    scored_by: agent
+    scale:
+      green: "working code/prototype or factory path in hand"
+      amber: "rough sketches or a 3D model/technical drawings only"
+      red: "nothing — and the timeline assumes otherwise"
+
+  # ── RISK (verdict axis) ───────────────────────────────────────────────
+  - id: metric.risk.schedule
+    asks: "Do proto and production dates fit the work between them?"
+    fed_by: [q.time.proto, q.time.prod]
+    consumer: P1-verdict
+    verdict_weight: minor
+    scored_by: derived
+    scale:
+      green: "dates fit known lead times with slack"
+      amber: "tight; single-sourced steps have no buffer"
+      red: "dates precede physically possible lead times"
+
+  - id: metric.risk.self-assessed
+    asks: "What does the founder fear — and is the fear placed right?"
+    fed_by: [q.novel.hard]
+    consumer: P1-verdict
+    verdict_weight: minor
+    scored_by: agent
+    scale:
+      green: "the fear matches the actual hard part and has a plan"
+      amber: "the fear is real but unplanned-for"
+      red: "the feared part is not the hard part — the hard part is unseen"
+
+  - id: metric.risk.safety
+    asks: "Could failure hurt someone?"
+    fed_by: [q.comp.safety]
+    consumer: P1-verdict
+    verdict_weight: core
+    scored_by: derived
+    human_gate_when: serious   # F5 — no recommendation until a human clears
+    scale:
+      green: "no plausible harm path"
+      amber: "minor harm possible; standard practice covers it"
+      red: "serious harm possible — human gate, always"
+
+  - id: metric.risk.privacy
+    asks: "Does the data it collects carry regulatory weight?"
+    fed_by: [q.comp.data]
+    consumer: P1-verdict
+    verdict_weight: minor
+    scored_by: derived
+    scale:
+      green: "no personal data"
+      amber: "personal data with known regimes (location, voice)"
+      red: "health/identity data without a compliance plan"
+
+  # ── PLATFORM (consumer: P2 — never the P1 verdict) ────────────────────
+  - id: metric.platform.edge-autonomy
+    asks: "How much must work with no internet?"
+    fed_by: [q.fn.offline]
+    consumer: P2-class
+    scored_by: agent
+    absent_when: "q.fn.talks == nothing (its only feed is closed) — ABSENT is a defined non-state, distinct from unknown"
+    scale:
+      green: "device is fine offline (or offline-first)"
+      amber: "degrades offline in acceptable ways"
+      red: "product is dead without the cloud — P2 must weigh that"
+
+  - id: metric.platform.hmi-class
+    asks: "How rich is the on-device human interface?"
+    fed_by: [q.fn.shows, q.phys.controls]
+    consumer: P2-class
+    scored_by: derived
+    scale:
+      green: "none/LED/sound — lane B territory"
+      amber: "small screen or many controls — boundary case"
+      red: "rich screen — lane A or MPU territory"
+
+  - id: metric.platform.compute-demand
+    asks: "Do the rates and reactions demand real compute?"
+    fed_by: [q.fn.rate]
+    consumer: P2-class
+    scored_by: derived
+    absent_when: "q.fn.rate never spawned (nothing sensed or acted) — ABSENT, not unknown"
+    scale:
+      green: "low-rate sense/act — any lane"
+      amber: "fast control loops or signal processing — size carefully"
+      red: "vision/audio pipelines or hard-real-time beyond MCU comfort"
+
+# ── derived flags (consumer: P2) ────────────────────────────────────────
+derived_flags:
+  - id: needs_hardware
+    rule: "any sensing, actuation, on-device HMI, or physical function in pir.functions"
+  - id: needs_firmware
+    rule: "needs_hardware AND any on-device logic (always true when needs_hardware, unless purely passive/analog)"
+
+# ── lint contract (same `sfd graph lint` increment, PLANNED) ────────────
+lint:
+  - every metric id referenced by a 30-p0-graph.yaml feeds exists here
+  - every fed_by entry names a question or adaptive id in 30-p0-graph.yaml
+  - metric ids unique
+  - consumer in [P1-verdict, P2-class]
+  - verdict_weight in [core, minor], present iff consumer is P1-verdict
+  - scale defines green, amber, red (unknown is global, R5; ABSENT via
+    absent_when)
+  - every fed_by list is NON-EMPTY (an empty fed_by would read as "all
+    feeds conditional" to the absent_when rule — vacuous truth)
+  - every metric whose every fed_by entry is conditional or adaptive
+    declares absent_when
+  - every key on a metric record is one of [id, asks, fed_by, consumer,
+    verdict_weight, scored_by, scale, absent_when, human_gate_when] —
+    an unknown key is red
+  - every BACKTICKED token in a scale text is a value id in the graph
+    (plain prose is never checked; naming a value means backticking it)

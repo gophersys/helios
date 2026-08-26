@@ -11,7 +11,7 @@ These apply to every phase. They are dimensions, not steps.
 | Axis | Values | Rule |
 |---|---|---|
 | DEPTH | D0 sketch → D1 sourced → D2 derived → D3 proven | see `README.md`. No fact rises without evidence. |
-| POWER CLASS | PC0 harvest/coin-cell · PC1 rechargeable battery · PC2 mains | set in P0, binds harder as PC decreases |
+| POWER CLASS | PC0 primary battery or harvest (cannot recharge) · PC1 rechargeable · PC2 mains | set in P0 (derived from `q.power.source`, mapping in `30-p0-graph.yaml`), binds harder as PC decreases |
 | OWNER | EDEN (agent) · HUMAN · PAIR | every artifact names its owner |
 | PROVENANCE | claim + source path @ SHA + proof | applies to every fact in every artifact |
 
@@ -25,19 +25,28 @@ P0 INTAKE ─▸ P1 FEASIBILITY ─▸ P2 PLATFORM CLASS ─▸ P3 SW ARCHITECTU
 
 ### P0 — INTAKE
 
-- Method: a fixed question set plus adaptive chat interrogation. Eden runs it
-  when a new project declares (or hints at) a physical product.
-- Output: **PIR** — Product Intent Record. Functions, environment, battery-life
-  target, cost target, volume, novelty, constraints the user already knows.
-- Gate **G0**: the PIR is complete enough to score. Missing answers are
-  recorded as UNKNOWN, never silently defaulted.
+- Method: a fixed question graph plus adaptive chat interrogation. Eden runs
+  it when a new project declares (or hints at) a physical product. The graph,
+  its rules and the full PIR field list live in
+  [`30-p0-interrogation.md`](30-p0-interrogation.md) +
+  [`30-p0-graph.yaml`](30-p0-graph.yaml).
+- Output: **PIR** — Product Intent Record (spec: `sfd.pir/v0` in the P0
+  contract).
+- Gate **G0**: every reachable required question answered; UNKNOWNs recorded
+  with the metrics they block, never silently defaulted; consistency rules
+  green.
 
 ### P1 — FEASIBILITY
 
-- Method: score the PIR. Metrics: viable? does the technology exist today?
-  does it need hardware? does it need firmware? risk class.
-- Output: scorecard with a verdict — go / pivot / kill.
-- Gate **G1**: go.
+- Method: score the PIR against the metric registry
+  ([`40-p1-metrics.md`](40-p1-metrics.md) +
+  [`40-p1-registry.yaml`](40-p1-registry.yaml)): viability, tech-exists,
+  feasibility, risk — plus platform metrics consumed by P2. "Needs
+  hardware?" and "needs firmware?" are DERIVED FLAGS computed from the
+  PIR's functions, not question-fed metrics.
+- Output: scorecard; the system recommends go / pivot / kill with reasons.
+- Gate **G1**: the HUMAN decides, recorded with their words. A safety human
+  gate blocks any recommendation until cleared.
 
 ### P2 — PLATFORM CLASS
 
