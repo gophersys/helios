@@ -211,16 +211,25 @@ function cmd_graph_guard() {
   local -a project_files=("project.json" "package.json" "tsconfig*.json")
   local -a ignored_dirs=("fixture" "fixtures" "__fixtures__" "testdata")
 
-  # LIVENESS 1 — every tree this gate judges must be ON DISK. With the submodules uninitialised the
-  # graph holds no submodule project at all, and every assertion below would pass having read
-  # nothing of the tree it exists to read.
+  # LIVENESS 1 — every tree this gate judges must be CHECKED OUT, not merely present.
+  # `[[ -d ]]` is NOT that test and reading it as one was a defect: `git submodule init` without
+  # `update`, and a plain `git clone` with no `--recursive`, both leave the mount point as an EMPTY
+  # DIRECTORY. It exists, so a `-d` test passes, while 39 of the 49 projects are simply not there —
+  # and every assertion below then passes having read nothing of the tree it exists to read. An
+  # initialised submodule always carries a `.git` entry (a gitfile in a superproject checkout, a
+  # directory in a standalone clone), so that is what is tested.
   local root
   local -a absent=()
   for root in "${submodule_roots[@]}"; do
-    [[ -d "$REPO_ROOT/$root" ]] || absent+=("$root")
+    if [[ ! -d "$REPO_ROOT/$root" ]]; then
+      absent+=("$root (no such directory)")
+    elif [[ ! -e "$REPO_ROOT/$root/.git" ]]; then
+      absent+=("$root (present but NOT checked out — no .git entry)")
+    fi
   done
   if [[ ${#absent[@]} -gt 0 ]]; then
-    log_error "graph-guard: submodule tree(s) absent: ${absent[*]}"
+    log_error "graph-guard: submodule tree(s) not usable:"
+    for root in "${absent[@]}"; do log_error "  $root"; done
     log_error "graph-guard: run 'git submodule update --init --recursive' — an uninitialised submodule makes this gate read nothing and report OK"
     return 1
   fi
@@ -250,21 +259,50 @@ function cmd_graph_guard() {
   fi
   log_info "graph-guard: .nxignore covers all $(( ${#submodule_roots[@]} * ${#ignored_dirs[@]} * ${#project_files[@]} )) required patterns"
 
-  # ── 2. THE GRAPH, WITH ROOTS ─────────────────────────────────────────────────────────────────
-  # `nx graph --file` is what carries each project ROOT; `nx show projects` carries names only.
-  # A graph that does not build is BLOCKER-1's symptom directly: nx refuses a graph holding two
-  # projects of one name, and every affected lane dies with it before selecting a single task.
-  log_info "graph-guard: building the nx project graph"
-  local graph_file graph_err
-  # The `.json` suffix is REQUIRED, not cosmetic: `nx graph --file` refuses a name that does not end
-  # in .json or .html, and a bare mktemp name makes every run of this gate a false RED.
-  graph_file="$(mktemp -t graph-guard.XXXXXX)".json
-  # shellcheck disable=SC2064
-  # $graph_file is expanded NOW on purpose: the trap must name this run's file.
-  trap "rm -f '$graph_file'" RETURN
+  # ── 2a. THE GRAPH RESOLVES — asserted with `nx show projects`, NOT with `nx graph` ────────────
+  # THESE TWO COMMANDS DISAGREE, and picking the wrong one made this clause a lie.
+  # Measured on this workspace against `.devcontainer` 404e83a, which declares `first` and `second`
+  # twice each — the exact defect that blocked gophersys/eden#14:
+  #
+  #     nx show projects   -> rc=1, "Failed to process project graph ... defined in multiple
+  #                           locations", naming both pairs
+  #     nx graph --file    -> rc=0, silently DEDUPLICATED to 56 nodes, `first` and `second` present
+  #
+  # So a build assertion written on `nx graph` tolerates the very collision this gate exists to
+  # catch, and which of the two same-named projects survives is nx's discovery order. The strict
+  # command is what decides; `nx graph` is used below only to READ roots out of a graph already
+  # proven to resolve.
+  log_info "graph-guard: resolving the nx project graph"
+  local show_out show_rc=0
+  show_out="$( (cd "$REPO_ROOT" && nx_cmd show projects) 2>&1 )" || show_rc=$?
+  if [[ $show_rc -ne 0 ]]; then
+    log_error "graph-guard: the nx project graph does not resolve (nx show projects exited $show_rc)"
+    printf '%s\n' "$show_out" >&2
+    return 1
+  fi
+  local -a project_names=()
+  mapfile -t project_names < <(printf '%s\n' "$show_out" | grep -vE '^\s*$' || true)
+  # LIVENESS 2 — a graph of zero projects satisfies every assertion below for the wrong reason.
+  if [[ ${#project_names[@]} -eq 0 ]]; then
+    log_error "graph-guard: the graph resolved but holds ZERO projects — nothing here judged anything"
+    return 1
+  fi
+
+  # ── 2b. THE ROOTS ────────────────────────────────────────────────────────────────────────────
+  # `nx graph --file` is the only reader that carries each project's ROOT; `show projects` carries
+  # names alone.
+  local graph_dir graph_file graph_err
+  # A temp DIRECTORY, not a temp file, and the reason is a measured leak rather than taste.
+  # `nx graph --file` refuses a name that does not end in .json or .html, so the previous spelling
+  # was `graph_file="$(mktemp -t graph-guard.XXXXXX)".json` — which leaves mktemp's OWN
+  # extension-less file behind and writes beside it. Three runs left four files in /tmp. A directory
+  # has one owner and `rm -rf` on it removes whatever nx chose to write inside.
+  graph_dir="$(mktemp -d -t graph-guard.XXXXXX)"
+  graph_file="$graph_dir/graph.json"
   if ! graph_err="$( (cd "$REPO_ROOT" && nx_cmd graph --file="$graph_file") 2>&1 )"; then
-    log_error "graph-guard: the nx project graph does not build"
+    log_error "graph-guard: 'nx graph --file' failed after the graph had already resolved"
     printf '%s\n' "$graph_err" >&2
+    rm -rf "$graph_dir"
     return 1
   fi
   # The shape is asserted before it is trusted. `jq -r .[]` over an OBJECT silently pretty-prints
@@ -272,16 +310,21 @@ function cmd_graph_guard() {
   if ! jq -e 'type=="object" and (.graph.nodes|type=="object")' "$graph_file" >/dev/null 2>&1; then
     log_error "graph-guard: 'nx graph --file' did not produce a graph with an object at .graph.nodes"
     head -c 400 "$graph_file" >&2 || true
+    rm -rf "$graph_dir"
     return 1
   fi
   local -a roots=()
   mapfile -t roots < <(jq -r '.graph.nodes | to_entries[] | "\(.key)\t\(.value.data.root // "")"' "$graph_file")
-  # LIVENESS 2 — a graph of zero projects satisfies every assertion below for the wrong reason.
-  if [[ ${#roots[@]} -eq 0 ]]; then
-    log_error "graph-guard: the graph built but holds ZERO projects — nothing here judged anything"
+  rm -rf "$graph_dir"
+  # The two readers must agree on how many projects there are. They disagree exactly when `nx graph`
+  # has deduplicated a name collision that `show projects` would have refused, so this is the second
+  # line of defence on 2a rather than a tidiness check.
+  if [[ ${#roots[@]} -ne ${#project_names[@]} ]]; then
+    log_error "graph-guard: the 2 graph readers disagree — 'show projects' reports ${#project_names[@]} project(s), 'graph --file' reports ${#roots[@]}"
+    log_error "graph-guard: that gap is what a deduplicated name collision looks like"
     return 1
   fi
-  log_info "graph-guard: the graph builds and holds ${#roots[@]} project(s)"
+  log_info "graph-guard: the graph resolves and holds ${#roots[@]} project(s)"
 
   # ── 3. NO PROJECT IS ROOTED IN A SUBMODULE FIXTURE TREE ──────────────────────────────────────
   local line name prj_root sm
@@ -307,12 +350,19 @@ function cmd_graph_guard() {
 
   # Reported for the reader, and never used as the pass condition: an empty fixture set is a real
   # state of the tree (eden main carries none), not a reason to weaken clause 1.
+  #
+  # The wording is deliberately narrow. An earlier line said "all excluded", which claimed more than
+  # the count can support: this `find` sees only the file NAMES this verb knows about, so a fixture
+  # that becomes a project by some other means is outside the number and "all" was a promise about
+  # files nobody had enumerated. Clause 3 is what actually holds the property, over ROOTS, and it
+  # says so on its own line.
   local fixture_count=0
   local -a fixture_dirs_abs=()
   for root in "${submodule_roots[@]}"; do fixture_dirs_abs+=("$REPO_ROOT/$root"); done
   fixture_count="$(find "${fixture_dirs_abs[@]}" -type f \( -name project.json -o -name package.json -o -name 'tsconfig*.json' \) 2>/dev/null \
     | grep -cE "/${fixture_dir_re}/" || true)"
-  log_success "graph-guard: OK — ${#roots[@]} project(s), 0 rooted in a submodule fixture tree (${fixture_count} fixture project file(s) on disk, all excluded)"
+  log_success "graph-guard: OK — ${#roots[@]} project(s) resolved, 0 rooted in a submodule fixture tree"
+  log_info "graph-guard: ${fixture_count} project-shaped file(s) sit under a submodule fixture directory and produced no project"
 }
 
 # cmd_affected_gate_substrate — the careful-orchestration lanes on the real docker+k3d host:
