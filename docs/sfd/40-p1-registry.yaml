@@ -204,6 +204,8 @@ lint:
   - verdict_weight in [core, minor], present iff consumer is P1-verdict
   - scale defines green, amber, red (unknown is global, R5; ABSENT via
     absent_when)
+  - every fed_by list is NON-EMPTY (an empty fed_by would read as "all
+    feeds conditional" to the absent_when rule — vacuous truth)
   - every metric whose every fed_by entry is conditional or adaptive
     declares absent_when
   - every key on a metric record is one of [id, asks, fed_by, consumer,

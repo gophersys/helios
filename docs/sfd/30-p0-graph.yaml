@@ -460,4 +460,8 @@ lint:
     subset of question_keys.optional; adaptive records likewise against
     adaptive_keys — an unknown or missing key is red (the oracle is the
     machine-readable lists above, never prose)
+  - every feeds list is NON-EMPTY (a present-but-empty key is not a feed;
+    "a question feeding nothing is dead" must be enforceable, not a name)
+  - values is present and non-empty iff type is enum or multi (an enum
+    without values is unanswerable; a text with values is a lie)
   - no two questions share an id

@@ -34,9 +34,9 @@ product is both "human gate open" and "core red"; precedence resolves it:
 the gate wins.)
 
 1. Any human gate open → verdict **blocked** (recorded as such, with the
-   gate named in `blocked_by`) until a human clears it.
+   gate named in `blockers`) until a human clears it.
 2. Any core metric `unknown` → verdict **blocked**; the blocking UNKNOWNs
-   are listed in `blocked_by` (G0 should have prevented this — reaching
+   are listed in `blockers` (G0 should have prevented this — reaching
    P1 with one is itself a defect to report).
 3. Any **core** metric red → recommend **pivot**. Recommend **kill** only
    when the red metric IS the product's stated magic
@@ -66,9 +66,12 @@ derived:
   needs_firmware: true           # needs_hardware AND on-device logic
 human_gates: []                  # e.g. {gate: safety-serious, cleared_by: ...}
 recommendation:
-  verdict: go | pivot | kill | blocked   # blocked = precedence rules 1-2:
-  blocked_by: []                         # open human gates and/or core
-  reasons: []                            # unknowns, each named
+  verdict: go | pivot | kill | blocked
+  blockers: []                           # verdict-level: open human gates
+  reasons: []                            # and/or core unknowns, each named
+  # NOTE the distinct name: scores[].blocked_by lists the UNKNOWN PIR
+  # fields behind ONE score; recommendation.blockers lists what blocks
+  # the VERDICT. Different levels, different names, never conflated.
 decision:                        # F4 — the human call, with provenance
   verdict: ...
   by: ...
