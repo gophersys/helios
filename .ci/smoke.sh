@@ -463,7 +463,7 @@ PIN_CLASS_TABLE
 
 # CHROME_MAJOR_VERSION takes `prefix` because the pin is a MAJOR line, the way
 # KICAD_PPA_VERSION and JAVA_VERSION are: `google-chrome-stable --version`
-# reports 151.0.7922.137 and the row holds 151, so an exact comparison would
+# reports 152.0.7977.64 and the row holds 152, so an exact comparison would
 # demand a pin that moves with every point release Google ships.
 #
 # It reads the browser through ${DENSUI_CHROME} ON PURPOSE, and that is why the

@@ -543,18 +543,25 @@ images:
     # entry was planned as the 2nd narrower image, on the premise that
     # `google-chrome-stable` is published for amd64 alone — the premise
     # research-ui states in ci/Dockerfile, in ADR-0003 (risk R3) and in
-    # docs/image-notes.md section 3. The premise is FALSE as of 2026-08-18, so
+    # docs/image-notes.md section 3. The premise is FALSE as of 2026-08-26, so
     # writing the key would have narrowed this image on a reason that is not
     # true. Read from Google's own repo metadata on that day:
     #
     #   https://dl.google.com/linux/chrome/deb/dists/stable/Release
-    #   (1666 bytes, Date: Sat, 15 Aug 2026 09:04:10 UTC) declares
+    #   (1666 bytes, Date: Tue, 25 Aug 2026 20:49:50 UTC) declares
     #   `Architectures: amd64 arm64` and lists a Packages index for each.
     #
     #   Both indexes carry google-chrome-stable at the SAME version,
-    #   151.0.7922.137-1, and both .debs answer 200 with the Content-Length the
-    #   index states: .../google-chrome-stable_151.0.7922.137-1_amd64.deb is
-    #   140,080,344 bytes and the _arm64.deb is 132,287,036.
+    #   152.0.7977.64-1, and both .debs answer 200 with the Content-Length the
+    #   index states: .../google-chrome-stable_152.0.7977.64-1_amd64.deb is
+    #   140,878,652 bytes and the _arm64.deb is 133,127,140.
+    #
+    #   This record moved with CHROME_MAJOR_VERSION 151 -> 152. The 2026-08-18
+    #   reading it replaces said the same thing one major earlier: Release 1666
+    #   bytes dated Sat, 15 Aug 2026 09:04:10 UTC, both indexes at
+    #   151.0.7922.137-1, the amd64 .deb 140,080,344 bytes and the arm64
+    #   132,287,036. The premise has now held across a major move, which is
+    #   stronger evidence for the absent key than either reading alone.
     #
     # So the sanctioned set is the correct set here, and it is taken by ABSENCE
     # the way 4 of the other images take it. 2 consequences a reader should

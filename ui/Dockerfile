@@ -81,7 +81,7 @@ USER root
 # repo somebody else moves — `docker-ce-cli` is installed the same way. Google's
 # stable component carries exactly ONE version of google-chrome-stable at a
 # time, so a version constraint would not hold an old browser: it would fail the
-# build with "Version '151.*' not found" about 4 weeks after it was written. The
+# build with "Version '152.*' not found" about 4 weeks after it was written. The
 # pin that MEANS something is CHROME_MAJOR_VERSION in versions.env, which the
 # amd64 smoke compares against the browser this layer installed — on the arm64
 # leg this line resolves a browser that nothing afterwards reads.
