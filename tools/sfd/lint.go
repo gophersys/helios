@@ -364,7 +364,7 @@ func LintGraph(graph, registry rawDoc) []Finding {
 	regKeys := map[string]bool{
 		"id": true, "asks": true, "fed_by": true, "consumer": true,
 		"verdict_weight": true, "scored_by": true, "scale": true,
-		"absent_when": true, "human_gate_when": true,
+		"absent_when": true, "human_gate_when": true, "derivation": true,
 	}
 	backtick := regexp.MustCompile("`([^`]+)`")
 	mseen := map[string]int{}

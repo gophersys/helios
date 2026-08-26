@@ -36,14 +36,18 @@ the gate wins.)
 1. Any human gate open → verdict **blocked** (recorded as such, with the
    gate named in `blockers`) until a human clears it.
 2. Any core metric `unknown` → verdict **blocked**; the blocking UNKNOWNs
-   are listed in `blockers` (G0 should have prevented this — reaching
-   P1 with one is itself a defect to report).
+   are listed in `blockers`, each with what answers it. This is a DESIGNED
+   outcome, not a defect: a core metric may be fed by scoring-tier
+   questions (economics, tech-exists), so an UNKNOWN can legitimately pass
+   G0 and stop here. `reasons` is populated on a blocked verdict too —
+   with everything rules 3–4 would have said.
 3. Any **core** metric red → recommend **pivot**. Recommend **kill** only
    when the red metric IS the product's stated magic
    (`metric.tech.exists` red ∧ `pir.novelty.magic` IS the differentiation
    stated in `pir.novelty.different`).
 4. Otherwise → recommend **go**; every amber AND every minor-metric
-   `unknown` is named in the reasons.
+   `unknown` is named in the reasons. P2-class metrics never bear on the
+   verdict; their ambers may be appended marked non-verdict-bearing.
 
 `minor` metrics never change the verdict; they color the reasons. A metric
 that is ABSENT (its `absent_when` holds) is skipped by every rule — a
@@ -79,6 +83,14 @@ decision:                        # F4 — the human call, with provenance
   at: <iso8601>
 ```
 
+Record-keeping (adopted from reproduction runs): `recommendation` carries
+`rule_applied` (which precedence rule stopped evaluation); `scores[]`
+entries mirror `scored_by`/`verdict_weight`/`consumer` from the registry
+for auditability; `derived` flags carry a sibling `derived_evidence`
+block (F3 applies to them too); `pir.hash` is `sha256:` of the PIR file
+bytes; a PIR that failed G0 is still scoreable — its G0 state rides in
+`reasons[0]`, never hidden.
+
 ## scored_by — the three scorer kinds
 
 | Value | Meaning |
@@ -98,6 +110,13 @@ capability vocabulary, then queries the capability index — supported SoCs,
 component records, per-record depth. A capability the catalog covers at
 D2+ scores green on availability; D1 scores amber; no coverage and no
 known example scores red, and the gap becomes a named research task.
+
+The evidence bar for "known example" (decided after reproduction run 2 —
+this line is verdict-capable): a known example is a shipped product class
+or an upstream Zephyr-supported implementation the scorer can NAME in the
+evidence. Named example + zero catalog coverage = amber with a research
+task; red requires that the scorer searched and can name nothing. The
+citation is mandatory either way.
 P1 is thereby the catalog's second consumer, after P4.
 
 ## Enforcement status (stated exactly)

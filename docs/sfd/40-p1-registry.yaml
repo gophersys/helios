@@ -35,11 +35,12 @@ metrics:
     fed_by: [q.scale.units, q.scale.cost]
     consumer: P1-verdict
     verdict_weight: core
-    scored_by: derived
+    scored_by: agent            # the not-for-sale limb needs a BOM-class
+                                # judgment; 'derived' overclaimed (run 3)
     scale:
-      green: "sell > build with margin at y1 volume; y3 improves it"
-      amber: "margin thin or dependent on y3 volume materializing"
-      red: "sell <= build at stated volume"
+      green: "sell > build with margin at y1 volume; y3 improves it — or, not-for-sale (sell ABSENT): stated build budget is plausible for the BOM class"
+      amber: "margin thin or dependent on y3 volume materializing — or, not-for-sale: budget tight for the BOM class"
+      red: "sell <= build at stated volume — or, not-for-sale: budget cannot buy the required parts"
 
   - id: metric.viability.novelty
     asks: "Is the differentiation real — and survivable?"
@@ -83,7 +84,7 @@ metrics:
     verdict_weight: core
     scored_by: agent+catalog
     scale:
-      green: "the derived link is covered by the supported-SoC lanes (catalog D1+)"
+      green: "the derived link is covered by the supported-SoC lanes at D2+ (D1-only coverage is amber, per the catalog seam)"
       amber: "achievable but outside current lanes, or coverage only at D1 with risk"
       red: "no radio/link reaches the stated counterpart at the stated distance and power"
 
@@ -93,6 +94,7 @@ metrics:
     consumer: P1-verdict
     verdict_weight: core
     scored_by: derived
+    derivation: "score against the BINDING target: the floor when declared, else the delight target (a none-declared floor never makes green vacuous — run 3, iI finding 13); red only when the binding target violates the power class physically"
     scale:
       green: "floor target comfortably plausible for the power class and duty"
       amber: "delight target requires aggressive sleep design; floor reachable"
@@ -106,7 +108,7 @@ metrics:
     scored_by: agent
     scale:
       green: "working code/prototype or factory path in hand"
-      amber: "rough sketches or a 3D model/technical drawings only"
+      amber: "rough sketches or a 3D model/technical drawings only — or nothing exists but the timeline carries no pressure"
       red: "nothing — and the timeline assumes otherwise"
 
   # ── RISK (verdict axis) ───────────────────────────────────────────────
@@ -117,7 +119,7 @@ metrics:
     verdict_weight: minor
     scored_by: derived
     scale:
-      green: "dates fit known lead times with slack"
+      green: "dates fit known lead times with slack — or no dates declared (none-declared: no schedule risk asserted, stated as such in evidence)"
       amber: "tight; single-sourced steps have no buffer"
       red: "dates precede physically possible lead times"
 
@@ -183,9 +185,10 @@ metrics:
     consumer: P2-class
     scored_by: derived
     absent_when: "q.fn.rate never spawned (nothing sensed or acted) — ABSENT, not unknown"
+    derivation: "green when every stated rate period >= 1 s and no continuous stream processing; amber on sub-second loops or high-rate streaming; red on vision/audio pipelines or hard real time"
     scale:
-      green: "low-rate sense/act — any lane"
-      amber: "fast control loops or signal processing — size carefully"
+      green: "low-rate sense/act (all rate periods >= 1 s) — any lane"
+      amber: "sub-second loops or high-rate stream processing — size carefully"
       red: "vision/audio pipelines or hard-real-time beyond MCU comfort"
 
 # ── derived flags (consumer: P2) ────────────────────────────────────────
@@ -209,7 +212,7 @@ lint:
   - every metric whose every fed_by entry is conditional or adaptive
     declares absent_when
   - every key on a metric record is one of [id, asks, fed_by, consumer,
-    verdict_weight, scored_by, scale, absent_when, human_gate_when] —
-    an unknown key is red
+    verdict_weight, scored_by, scale, absent_when, human_gate_when,
+    derivation] — an unknown key is red
   - every BACKTICKED token in a scale text is a value id in the graph
     (plain prose is never checked; naming a value means backticking it)

@@ -1,0 +1,40 @@
+# FROZEN INPUT — interrogation transcript, product "tracker", 2026-08-26.
+# Question ids from docs/sfd/30-p0-graph.yaml; answers VERBATIM (typos kept).
+# This file is the only product-specific input an instance receives.
+answers:
+  - {q: q.intent.what,        a: "a motorcycle gps tracker so that i know where my bike is at all times"}
+  - {q: q.intent.who,         a: "its just for me"}
+  - {q: q.intent.exists,      a: "yes, others exist, but i wanna just build my own to be more powerful and use cool technologies to get accurate locations and alamr and things like that"}
+  - {q: q.intent.win,         a: "it must be installed and running in my bike sending notificaitons to my phone and tracking the bikes locaiton in the cloud"}
+  - {q: q.env.where,          a: "in the vehicle, hopefully tucked away somehwere hidden so that its not visible and is protecetd from wethar, as well as not easily seen by someone if the bike is stolen so i can track it"}
+  - {q: q.env.conditions,     a: "yes all the ones suggested", note: "runner had proposed: water, dust, heat, cold, vibration, washing-or-hosing"}
+  - {q: q.env.body,           a: "nope"}
+  - {q: q.followup.range,     a: "", note: "asked (how hot / how cold), not answered"}
+  - {q: q.fn.senses,          a: "ideally the positon accruately, and other env things like altitude, speed, velocity, tilt, things like that"}
+  - {q: q.fn.acts,            a: "it does not do anything to the bike"}
+  - {q: q.fn.talks,           a: "from anywehre, ideally i want my pohone to easily connect to it nearby, but also always know the locaiton based on cellular or smth like that"}
+  - {q: q.fn.shows,           a: "no screen, maybe a multicolo led to signal states, simople is best, naybe 1 multipurpos ebutton too"}
+  - {q: q.fn.stores,          a: "yes it must remember htings, and even hit low power modes and save things if no location, then backtrack to the cloud"}
+  - {q: q.constraint.strength, a: "requiemrnt", note: "ask-back for volunteered technology: cellular"}
+  - {q: q.fn.offline,         a: "no alerts but yes everything else"}
+  - {q: q.fn.rate,            a: "parked every 1 hour, moving, ever 30 sec, or ideally a configurable thing where the software can change it based on power prefeernces", note: "spawned for: position"}
+  - {q: q.fn.rate,            a: "within seconds, if an alert it must be as quick as possible", note: "spawned for: tilt/motion"}
+  - {q: q.power.source,       a: "battery powered ideally, but easily rechargeable/updatetbale all things over a usb c connection"}
+  - {q: q.power.duty,         a: "wake on event, and akwas on schel and only when used, theres a clear way in which it can use sensors to best leverage poweres in combination with user prefernecs"}
+  - {q: q.power.life,         a: "ideally last 1 month + in battery power, with an optional on-bike chrager from bikes battery -> usb c power, that way the device is always cajhrged in thi scenario, or if the user doesnt wanan do that, they can just cahrge it every so foten"}
+  - {q: q.constraint.strength, a: "requirement", note: "ask-back for volunteered technology: usb-c"}
+  - {q: q.phys.size,          a: "no bigger than a small phone ideally, deck of cards is ok"}
+  - {q: q.phys.carry,         a: "it can be mounted with an adapter, but also just hidden and \"tucked\" somewhere, ideally antenann \"just works\""}
+  - {q: q.phys.controls,      a: "1 button and 1 led/led ring, something clean that will lookj high end"}
+  - {q: q.power.life,         a: "no lowest threshold, device can also be used as a high perfomancr tracker, with expected batter y life in the hours, could be used for racing", note: "floor follow-up"}
+  - {q: q.scale.units,        a: "2, and maybe 10 for my freinds"}
+  - {q: q.scale.cost,         a: "i dont wanna spend more than $100 on components + pcb + assembly per unit at 10 unit qty."}
+  - {q: q.time.proto,         a: "no rush we are just testing out the system, correctness over speed, can optimize later"}
+  - {q: q.time.prod,          a: "no deadline"}
+  - {q: q.time.exists,        a: "nothing"}
+  - {q: q.novel.hard,         a: "antenna placement, multipel protocols, pjone connecton and poower"}
+  - {q: q.novel.magic,        a: "not really. i just wanan use the latest tech avialnle in the embedded world and using zephyr rtos as a poc for ai hardware building"}
+  - {q: q.novel.moat,         a: "no compettiors"}
+  - {q: q.comp.region,        a: "us only"}
+  - {q: q.comp.safety,        a: "no, just hopefully not explode lol"}
+  - {q: q.comp.data,          a: "yes, whatver info it has about location bascially"}
