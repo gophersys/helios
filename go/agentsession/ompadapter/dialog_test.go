@@ -1,24 +1,36 @@
 // The `--mode rpc` TRANSPORT + DIALOG contract, derived from the PINNED harness source
-// (omp 17.2.5, src/modes/rpc/). Three measured defects are pinned here:
+// (omp 17.2.5, src/modes/rpc/). Three defects were measured here and are held closed:
 //
-//	D1 chunking  — the adapter negotiates protocol 2 (rpc.go:346-348) and then cannot decode what
-//	               protocol 2 licenses omp to send. rpc-frame.ts:284 makes protocol 2 the ONLY
-//	               thing that turns an over-1-MiB logical frame into `rpc_chunk` lines, and this
-//	               package has no reassembler (the Go twin of rpc-frame.ts:136-189), so an
-//	               oversized `agent_end` — the frame that ENDS THE TURN — dissolves into
-//	               EventExtension and the turn never ends.
-//	D2/D3 dialog — only `select` is answered (rpc.go:381). `confirm` and `input` ride
-//	               requestRpcDialog (rpc-mode.ts:609), whose promise settles solely on a matching
-//	               `extension_ui_response` (rpc-mode.ts:279-284) and whose timer is armed ONLY
-//	               when the request carries a `timeout` field (rpc-mode.ts:640) — the adapter's
-//	               asks never do. `editor` rides requestRpcEditor (rpc-mode.ts:544-606), which
-//	               arms no timer on ANY path. An unanswered one of those three blocks omp until
-//	               the client disconnects (rejectAll, rpc-mode.ts:81) — i.e. session teardown.
+//	D1 chunking  — the adapter must not claim a protocol whose frames it cannot rebuild.
+//	               rpc-frame.ts:284 makes protocol 2 the ONLY thing that turns an over-1-MiB
+//	               logical frame into `rpc_chunk` lines, and this package ships no reassembler
+//	               (the Go twin of rpc-frame.ts:136-189), so under protocol 2 an oversized
+//	               `agent_end` — the frame that ENDS THE TURN — dissolved into EventExtension and
+//	               the turn never ended. The negotiate is gone; omp's own default is 1.
+//	D2/D3 dialog — every verb omp BLOCKS on must be answered, not only `select`. `select`,
+//	               `confirm` and `input` all ride requestRpcDialog (rpc-mode.ts:609): its promise
+//	               settles on a matching `extension_ui_response` (rpc-mode.ts:279-284), on an
+//	               abort, or on a timeout — and that timeout is armed from the `dialogOptions` the
+//	               omp-side RAISER passes (`opts?.timeout`, rpc-mode.ts:640), never from anything
+//	               the host does. The same value is echoed onto the request as a `timeout` field
+//	               (rpc-mode.ts:754, :766, :788) so the host can SEE it, but whether a timer exists
+//	               at all is decided entirely on omp's side by whichever extension or tool raised
+//	               the dialog. `editor` alone rides requestRpcEditor (rpc-mode.ts:544-606), which
+//	               arms NO timer on ANY path, so it is the one verb that can never self-release.
+//	               Otherwise an unanswered dialog waits for rejectAll on client disconnect
+//	               (rpc-mode.ts:81) — i.e. session teardown.
+//
+// These are omp's asks TO the host. The adapter never raises one and never supplies its
+// dialogOptions, so it cannot rely on a timer existing: answering is the only release it controls.
 //
 // The oversize proof does not hand-write a chunk stream. It drives a MIRROR of omp's own
 // RpcFrameEncoder (rpc-frame.ts:263-316) that reads the conn's stdin recorder and branches on
-// what the ADAPTER asked for, exactly as the real encoder branches on what it was told — so the
-// same test proves the defect today and the fix tomorrow, without either side being scripted.
+// what the ADAPTER asked for, exactly as the real encoder branches on what it was told — so one
+// test proved the defect and now proves the fix, without either side being scripted.
+//
+// Citations into omp are by LINE because the harness is version-pinned (rule 22); citations into
+// this package are by SYMBOL because a sibling line number goes stale on the next edit, and this
+// file has already been rewritten once for exactly that.
 package ompadapter_test
 
 import (
@@ -74,7 +86,8 @@ const oversizeAssistantTextBytes = maxRPCFrameBytes + 200<<10
 //     (rpc-frame.ts:29-37, :46-50), and exactly ONE parseable line — still `type:"agent_end"`,
 //     still carrying an assistant message, so normalize.go:155 yields EventTurnEnd.
 //
-// Today the adapter negotiates, so the mirror chunks and no turn boundary is ever published.
+// Before the fix the adapter negotiated, the mirror chunked, and no turn boundary was ever
+// published. Restoring the negotiate write turns this red again with no edit here.
 func TestRPC_OversizeAgentEndStillEndsTheTurn(t *testing.T) {
 	t.Parallel()
 	harness := newRPCHarness(t, agentsession.Spec{})
@@ -115,9 +128,9 @@ func TestRPC_OversizeAgentEndStillEndsTheTurn(t *testing.T) {
 // TestRPC_HandshakeClaimsNoProtocolItCannotDecode is D1's cause, pinned on its own: the host must
 // not claim a protocol whose frames it cannot rebuild.
 //
-// The gate is the Initializing->Ready event, not a sleep: handshake() (rpc.go:344) returns that
-// event AFTER its writes, so observing it orders this assertion behind every frame the host emits
-// on `ready`.
+// The gate is the Initializing->Ready event, not a sleep: rpc.go's handshake() returns that event
+// AFTER its writes, so observing it orders this assertion behind every frame the host emits on
+// `ready`.
 func TestRPC_HandshakeClaimsNoProtocolItCannotDecode(t *testing.T) {
 	t.Parallel()
 	harness := newRPCHarness(t, agentsession.Spec{})
@@ -139,7 +152,10 @@ func TestRPC_HandshakeClaimsNoProtocolItCannotDecode(t *testing.T) {
 // fail SAFE on it — no value, not confirmed. It is the third variant of RpcExtensionUIResponse
 // (rpc-types.ts:536-538).
 //
-// Today rpc.go:381 returns nil for every method that is not `select`, so nothing is written back.
+// Before the fix rpc.go's dialog() returned nil for every method that was not `select`, so
+// nothing was written back and omp waited out the session.
+//
+//nolint:misspell // the double-L is omp's wire spelling of this field and of the source expression quoted verbatim above, not this repository's prose; the US-locale linter flags the only spelling that resolves the dialog (rpc.go's answerDismissField carries the same exemption).
 func TestRPC_EveryBlockingDialogVerbIsAnswered(t *testing.T) {
 	t.Parallel()
 	for _, dialog := range blockingDialogs() {
@@ -167,7 +183,7 @@ func TestRPC_EveryBlockingDialogVerbIsAnswered(t *testing.T) {
 //
 // The guard is NON-VACUOUS by construction, not by a sleep: each case emits a `select` on the SAME
 // conn AFTER the fire-and-forget frame, and waits for the answer the adapter DOES owe it. Frames
-// are serviced in wire order (rpc.go:289 publishLine), and an inline answer is written inside that
+// are serviced in wire order (rpc.go's publishLine), and an inline answer is written inside that
 // same service call, so any answer to the fire-and-forget verb would already be recorded by the
 // time the control's answer lands. The window is therefore bounded by an event that HAPPENED.
 func TestRPC_FireAndForgetVerbsAreNeverAnswered(t *testing.T) {
@@ -195,7 +211,7 @@ func TestRPC_FireAndForgetVerbsAreNeverAnswered(t *testing.T) {
 // TestRPC_NonPermissionVerbsAnswerWithoutTheFallbackWindow proves the bound on the three new
 // answers is IMMEDIATE, not the deny-on-timeout net.
 //
-// defaultDialogFallback (rpc.go:126) exists to give THE LIBRARY time to decide, and only `select`
+// rpc.go's defaultDialogFallback exists to give THE LIBRARY time to decide, and only `select`
 // has a decider — confirm/input/editor are not permission asks and the permission chain holds no
 // verdict for them. Arming a window for them would buy minutes of stalled turn for a decision that
 // can never arrive. The conn here is built with a one-HOUR window, so an answer that rode the
@@ -238,7 +254,7 @@ type blockingDialog struct {
 }
 
 // blockingDialogs is the set this change must start answering: the blocking verbs OTHER than
-// `select`, which is already routed through the library's permission chain (rpc.go:380-393).
+// `select`, which rpc.go's dialog() routes through the library's permission chain instead.
 func blockingDialogs() []blockingDialog {
 	return []blockingDialog{
 		{
@@ -248,7 +264,7 @@ func blockingDialogs() []blockingDialog {
 				"title":   "Overwrite eden.yaml?",
 				"message": "The file already exists in the workspace.",
 			},
-			blocks: "rpc-mode.ts:760-776 -> requestRpcDialog, whose timer is armed only for a request carrying `timeout` (rpc-mode.ts:640) and this one carries none",
+			blocks: "rpc-mode.ts:760-776 -> requestRpcDialog, whose timer exists only when the omp-side raiser passed dialogOptions.timeout (rpc-mode.ts:640) — not the host's call, and this ask carries none",
 		},
 		{
 			method: "input",
@@ -257,7 +273,7 @@ func blockingDialogs() []blockingDialog {
 				"title":       "Name the release branch",
 				"placeholder": "release/2026-08",
 			},
-			blocks: "rpc-mode.ts:778-791 -> requestRpcDialog, same timerless path as confirm",
+			blocks: "rpc-mode.ts:778-791 -> requestRpcDialog, the same raiser-armed timer as confirm, again absent here",
 		},
 		{
 			method: "editor",
@@ -340,6 +356,8 @@ func (v fireAndForgetVerb) frame(t *testing.T) string {
 // `cancelled` first on every one of the four blocking paths, and a `value` or `confirmed` riding
 // alongside it would be a verdict the adapter has no standing to give — it is dismissing a
 // question nobody in Eden can answer, not answering it.
+//
+//nolint:misspell // the double-L is omp's wire spelling of this field, not this repository's prose; the US-locale linter flags the only spelling that resolves the dialog (rpc.go's answerDismissField carries the same exemption).
 func assertDismissal(t *testing.T, answer map[string]any, dialog blockingDialog) {
 	t.Helper()
 	if !boolField(answer, dialogDismissField) {
@@ -450,7 +468,7 @@ type ompFrameEncoder struct {
 	// chunkCounter is #chunkCounter (rpc-frame.ts:266), the `rpc-N` chunkId source.
 	chunkCounter int
 
-	// arm names the branch the last encodeFrames took, so a failure says WHICH omp behaviour it
+	// arm names the branch the last encodeFrames took, so a failure says WHICH omp behavior it
 	// was measured against.
 	arm string
 }

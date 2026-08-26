@@ -378,8 +378,11 @@ func (c *rpcConn) handshake() []agentsession.Event {
 //
 // A pending entry is recorded BEFORE the ask is published, because the autonomous chain resolves
 // synchronously on receipt: the decision Send arrives while this call's event is still being
-// delivered, and resolveDialog must find the entry. The deny-on-timeout timer is armed here so
-// omp's timerless `select` (rpc-mode.ts:640) cannot stall the turn if the library never resolves.
+// delivered, and resolveDialog must find the entry. The deny-on-timeout timer is armed here
+// because the adapter cannot count on omp arming one: a `select` CAN carry a timeout
+// (rpc-mode.ts:640), but that is the raising caller's choice, and the approval dialog this adapter
+// receives under `--approval-mode always-ask` arrives without one — MEASURED in q3-probe5 (45s,
+// no agent_end), not assumed. An ask the library never resolves would stall the turn.
 //
 // The other three BLOCKING verbs are dismissed on arrival instead. They are not permission asks,
 // so the permission chain holds no verdict for them and a headless session has no human to raise
@@ -415,11 +418,19 @@ func (c *rpcConn) dialog(frame *rpcFrame) []agentsession.Event {
 	}
 }
 
-// The four extension-UI verbs omp BLOCKS on: each settles a promise that waits for a matching
-// `extension_ui_response` and nothing else short of client disconnect (rejectAll, rpc-mode.ts:81).
-// Only `select` and `input` carry an armable timeout (rpc-mode.ts:640), and the adapter's asks
-// never do; `editor` (requestRpcEditor, rpc-mode.ts:544-606) arms no timer on ANY path. This set is
-// the whole of what dialog answers.
+// The four extension-UI verbs omp BLOCKS on, and the whole of what dialog answers. Each registers
+// a pending request that settles when a matching `extension_ui_response` arrives
+// (dispatchRpcControlFrame, rpc-mode.ts:280-284 — an id with no pending entry resolves nothing).
+//
+// Every OTHER settlement is omp's to trigger, never the host's, so the host can rely on none of
+// them: an abort on the raising caller's signal (rpc-mode.ts:628-637, and :574-582 for editor),
+// and a timeout. select, confirm and input alike route through requestRpcDialog, whose ONE
+// setTimeout (rpc-mode.ts:640-646) arms iff the caller that raised the dialog set
+// dialogOptions.timeout (select :745-756, confirm :761-775, input :783-790) — a choice made on
+// omp's side by the tool or extension behind the dialog, which the host neither makes nor sees in
+// advance. `editor` goes through requestRpcEditor (rpc-mode.ts:544-606) and arms no timer on ANY
+// path. The last resort is rejectAll (rpc-mode.ts:81), whose sole call site is the stdin-closed
+// path at rpc-mode.ts:1507 — session teardown.
 const (
 	dialogSelect  = "select"  // rpc-mode.ts:740
 	dialogConfirm = "confirm" // rpc-mode.ts:760
