@@ -2,45 +2,53 @@
 #
 # scripts/graph-guard_test.sh — the holder of `.ci/ctl.sh graph-guard` and of `.nxignore`.
 #
-# WHY THIS FILE EXISTS. `graph-guard` is a gate, and a gate with no test is a claim. This one landed
-# once with none, and an adversarial refutation then found three defects in it that a test of this
-# shape would have caught on the commit that introduced them:
+# WHY THIS FILE EXISTS. `graph-guard` is a gate, and a gate with no test is a claim. Five adversarial
+# refutations have now attacked this pair, and every one of them found the same SHAPE of defect in
+# the holder rather than in the verb: a check that could not fail. In order —
 #
-#   - its "the graph builds" clause was written on `nx graph --file`, which exits 0 and SILENTLY
-#     DEDUPLICATES a duplicate-name graph — the exact collision the gate exists to catch;
-#   - its liveness clause tested `[[ -d ]]` on each submodule, which passes on the EMPTY DIRECTORY
-#     that `git clone` without `--recursive` leaves behind, so 39 missing projects read as OK;
-#   - it covered `project.json` alone while `nx.json` enables `@nx/js/typescript`, which infers a
-#     project from `package.json` + `tsconfig*.json`.
+#   1. the patterns covered `project.json` only, so a `package.json` + `tsconfig.json` fixture that
+#      `@nx/js/typescript` INFERS entered the graph untouched;
+#   2. the verb guessed project NAMES instead of reading roots, so a fixture named from a sibling
+#      `package.json` was invisible to it;
+#   3. the holder GREPPED `.ci/ctl.sh` for marker strings, so moving a string into a comment
+#      regressed the verb while this file printed a certification that was false as it printed;
+#   4. the holder ran the verb but its assertions reached only 2 of the verb's 5 clauses, so two
+#      whole clauses could be deleted with the suite green;
+#   5. the surviving assertions each held their clause by ONE representative input, so the verb's
+#      directory vocabulary could be cut from 6 names to 2, the resolution clause could be neutered
+#      while the duplicate-name assertion still passed (it was reddening on a DIFFERENT clause), and
+#      the count-agreement clause could be deleted outright because nothing could reach it.
 #
-# WHAT A GREEN RUN PROVES — and every one of these is an ANTI-VACUITY assertion, because the failure
-# mode of this gate is passing while reading nothing:
+# THE RULE THIS FILE NOW OBEYS, AND IT IS THE WHOLE DESIGN:
+#   (a) never read the verb's SOURCE — plant a real input, run the verb, read its exit status;
+#   (b) assert WHICH clause fired, by matching its message — a red for the wrong reason is a false
+#       pass wearing a red hat, and that is exactly how the resolution clause escaped;
+#   (c) quantify over the SET a rule covers, never one member of it;
+#   (d) every clause must be REACHABLE and proven able to fire, including the two that no ordinary
+#       repository state can trigger. Those use a shim rather than being left as decoration.
 #
-#   1. `.nxignore` exists and holds every one of the 36 patterns the verb requires. Deleting the
-#      file, or dropping one line of it, is RED — including on a tree that carries no fixture at all,
-#      which is the state of eden `main` and was the state of the run used to justify merging it.
-#   2. The pattern set is COMPLETE over the 3 file types that define an nx project here. A set that
-#      lists only `project.json` is RED.
-#   3. The verb's directory vocabulary is a strict SUPERSET of the names spelled in `.nxignore`, and
-#      EVERY entry of it is exercised by planting a real fixture in that directory and requiring the
-#      verb to go red. A vocabulary narrowed to one entry is caught, because each entry has its own
-#      assertion rather than one representative standing in for all of them.
-#   4. The verb's `.nxignore` COVERAGE clause is exercised by removing one pattern from the file and
-#      requiring the verb to go red. That clause is the only one with anything to say on a tree that
-#      carries no fixture, which is the state of eden `main`.
-#   5. The verb REFUSES a duplicate project name, and REFUSES a submodule that is not checked out.
-#      Both are executed against planted inputs, never inferred from the source text.
+# WHAT A GREEN RUN PROVES — each of the verb's 5 clauses is present, reachable, and load-bearing:
+#   clause 1  `.nxignore` coverage      — remove one of the 36 patterns, the verb must red
+#   clause 2  the graph RESOLVES        — plant a duplicate name, the verb must red NAMING resolution
+#   clause 2b the 2 readers AGREE       — shim nx so they disagree, the verb must red naming the gap
+#   clause 3  no fixture-rooted project — plant into EVERY one of the 6 vocabulary directories
+#   clause 4  submodules checked out    — hide a `.git` entry, the verb must red
+#   plus the exclusion path itself: fixtures in COVERED directories must be excluded, verb green.
 #
-# SCOPE — read this before you read a green run as more than it is.
-#   COVERED: the contract between `.ci/ctl.sh graph-guard` and `.nxignore`, by reading both files.
-#   NOT COVERED: the CONTENT of eden's real graph, and whether nx itself is correct. This file
-#     plants synthetic projects and reads the verb's exit status; it does not audit the 49 real
-#     projects. It DOES run nx, because the earlier "reads files only" scope was exactly the hole an
-#     adversarial refutation walked through — see "WHY THESE RUN THE VERB" below.
+# SCOPE — read this before reading a green run as more than it is.
+#   COVERED: the 5 clauses above, executed.
+#   NOT COVERED: the CONTENT of eden's 49 real projects, and whether nx itself is correct. This file
+#     plants synthetic projects; it does not audit real ones.
 #
-# It plants synthetic projects under `libs/`, runs the verb, and sweeps them under an EXIT trap.
-# Run it directly:
-#   bash scripts/graph-guard_test.sh
+# HOW IT KEEPS THE TREE SAFE. It plants under `libs/.graph-guard-selftest/`, temporarily edits
+# `.nxignore`, and temporarily moves a submodule's `.git` aside. It NEVER writes a backup FILE for
+# `.nxignore`: an earlier version did, and a hard kill left that backup behind as untracked residue
+# while the mutated `.nxignore` stayed in place. Recovery is `git checkout -- .nxignore`, which needs
+# no surviving process — so a SIGKILL leaves a mutation that git itself both reveals and undoes. The
+# preflight refuses to run at all if `.nxignore` is already dirty, so that checkout can never destroy
+# an edit somebody meant to keep.
+#
+# Run it directly:  bash scripts/graph-guard_test.sh
 # It exits non-zero on any failure. shellcheck-clean at -S style.
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -50,31 +58,25 @@ repository_root="$(cd "${here}/.." && pwd)"
 nxignore="${repository_root}/.nxignore"
 ctl="${repository_root}/.ci/ctl.sh"
 
-# The contract, written here as LITERALS and never read out of the files under test. A test that
-# derives its expectation from its subject agrees with a wrong subject too — the same rule
-# `_ctl/tests/platform-policy.test.sh` states in the .devcontainer submodule.
+# The contract, as LITERALS, never read out of the files under test. A test that derives its
+# expectation from its subject agrees with a wrong subject too.
 submodules=(".devcontainer" "libs" "infrastructure")
 ignored_dirs=("fixture" "fixtures" "__fixtures__" "testdata")
 project_files=("project.json" "package.json" "tsconfig*.json")
-# The directory names the VERB must recognise that `.nxignore` does NOT spell. Each one is an ESCAPE:
-# a fixture placed there reaches the graph, and the verb is the only thing that can catch it. Every
-# entry gets its own executed assertion below — a single representative was not enough, because the
-# verb's vocabulary could be narrowed to that one entry with nothing going red.
+# EVERY directory name the verb's `fixture_dir_re` must recognise. The 4 above are also spelled in
+# `.nxignore`; these 2 are deliberately NOT, so the verb is their only defence. Clause 3 is exercised
+# against ALL SIX below, because a vocabulary is a SET and one member cannot stand for it.
+vocabulary_dirs=("fixture" "fixtures" "__fixtures__" "testdata" "_fixtures" "test-fixtures")
 uncovered_dirs=("_fixtures" "test-fixtures")
 
 fails=0
-
 report_fail() {
-  local name="$1"
-  shift
+  local name="$1"; shift
   printf '  FAIL  %s\n' "$name" >&2
   local problem
-  for problem in "$@"; do
-    printf '          %s\n' "$problem" >&2
-  done
+  for problem in "$@"; do printf '          %s\n' "$problem" >&2; done
   fails=$((fails + 1))
 }
-
 report_ok() { printf '  ok    %s\n' "$1"; }
 
 for f in "$nxignore" "$ctl"; do
@@ -84,12 +86,10 @@ for f in "$nxignore" "$ctl"; do
   fi
 done
 
-# The lines of .nxignore that are patterns: comments and blanks are not.
 mapfile -t patterns < <(grep -vE '^\s*(#|$)' "$nxignore" || true)
 
-printf -- '-- .nxignore coverage --\n'
+printf -- '-- .nxignore, as a file --\n'
 
-# 1. Every required pattern is present. 3 x 4 x 3 = 36.
 expected_total=$(( ${#submodules[@]} * ${#ignored_dirs[@]} * ${#project_files[@]} ))
 missing=()
 for sm in "${submodules[@]}"; do
@@ -101,14 +101,11 @@ for sm in "${submodules[@]}"; do
   done
 done
 if [[ ${#missing[@]} -gt 0 ]]; then
-  report_fail "every required pattern is present" \
-    "${#missing[@]} of ${expected_total} missing, first: ${missing[0]}"
+  report_fail "every required pattern is present" "${#missing[@]} of ${expected_total} missing, first: ${missing[0]}"
 else
   report_ok "every required pattern is present (${expected_total})"
 fi
 
-# 2. ANTI-VACUITY on the count. A file that somehow satisfied the loop above with far fewer lines
-#    than the contract needs would mean the loop stopped judging.
 if [[ ${#patterns[@]} -lt $expected_total ]]; then
   report_fail "the pattern file is not smaller than the contract" \
     "${#patterns[@]} pattern line(s) for ${expected_total} required patterns"
@@ -116,56 +113,42 @@ else
   report_ok "the pattern file holds at least the contracted ${expected_total} pattern(s)"
 fi
 
-# 3. All 3 project-defining file types are covered. This is BLOCKS-1 from the refutation, written as
-#    a standing check: a set that lists project.json alone leaves package.json + tsconfig*.json to
-#    infer a project through @nx/js/typescript.
 for pf in "${project_files[@]}"; do
   count=0
-  for p in "${patterns[@]}"; do
-    [[ "$p" == *"/${pf}" ]] && count=$((count + 1))
-  done
+  for p in "${patterns[@]}"; do [[ "$p" == *"/${pf}" ]] && count=$((count + 1)); done
   if [[ $count -lt $(( ${#submodules[@]} * ${#ignored_dirs[@]} )) ]]; then
-    report_fail "the file type '${pf}' is covered for every submodule and directory" \
-      "found ${count} pattern(s), need $(( ${#submodules[@]} * ${#ignored_dirs[@]} ))"
+    report_fail "the file type '${pf}' is covered everywhere" \
+      "found ${count}, need $(( ${#submodules[@]} * ${#ignored_dirs[@]} ))"
   else
     report_ok "the file type '${pf}' is covered ${count} time(s)"
   fi
 done
 
-# 4. No negation line. `.nxignore` takes gitignore syntax, so a later `!pattern` RE-INCLUDES what an
-#    earlier line excluded. The verb's coverage check greps for the positive line and would still
-#    pass, so the hole would be invisible to it. Nothing in this repository needs a negation here.
+# A committed negation would re-include what an earlier line excluded, and the verb's own coverage
+# clause greps for the positive line, so it would not see the hole. (This file USES a negation as a
+# temporary probe below; what is forbidden is one being committed.)
 negations=()
-for p in "${patterns[@]}"; do
-  [[ "$p" == '!'* ]] && negations+=("$p")
-done
+for p in "${patterns[@]}"; do [[ "$p" == '!'* ]] && negations+=("$p"); done
 if [[ ${#negations[@]} -gt 0 ]]; then
-  report_fail "no negation re-includes an excluded fixture file" \
-    "${#negations[@]} negation line(s), first: ${negations[0]}"
+  report_fail "no negation is COMMITTED in .nxignore" "${#negations[@]} found, first: ${negations[0]}"
 else
-  report_ok "no negation line re-includes an excluded fixture file"
+  report_ok "no negation is committed in .nxignore"
 fi
+
+for d in "${uncovered_dirs[@]}"; do
+  covering=()
+  for p in "${patterns[@]}"; do [[ "$p" == *"/${d}/"* ]] && covering+=("$p"); done
+  if [[ ${#covering[@]} -gt 0 ]]; then
+    report_fail "'${d}' is uncovered by .nxignore, so the verb is its only defence" \
+      "it now has a pattern: ${covering[0]}"
+  else
+    report_ok "'${d}' is uncovered by .nxignore — the verb is its only defence"
+  fi
+done
 
 printf -- '-- the verb, EXECUTED --\n'
 
-# WHY THESE RUN THE VERB INSTEAD OF READING IT. An earlier version of this section grepped
-# `.ci/ctl.sh` for marker strings, and a refutation defeated it by moving each string into a comment:
-# the verb was regressed to the very defects the checks existed to stop, and this file stayed green
-# while printing a certification that was false as it printed. A check a comment can satisfy is not
-# a check.
-#
-# A LATER refutation defeated the first fix too, and that is why the loops below are loops. The
-# executed assertions covered 2 of the verb's 4 clauses, so narrowing the verb's directory vocabulary
-# to a single entry — or neutering its `.nxignore` coverage clause outright — left every assertion
-# green. One representative input cannot hold a rule that quantifies over a set. So EVERY entry of
-# the vocabulary gets its own planted fixture, and the coverage clause gets a mangled `.nxignore`.
-#
-# Everything planted is swept by the trap, on every signal that can be trapped.
-
-guard() { ( cd "$repository_root" && bash .ci/ctl.sh graph-guard ) >/dev/null 2>&1; }
-
-# nx is required. A missing tool is a FAILURE, never a skip: this suite runs inside
-# ghcr.io/gophersys/base in the `fast` lane, where the workspace is installed.
+# PREFLIGHT 1 — nx must be here. A missing tool is a FAILURE, never a skip.
 if [[ ! -x "${repository_root}/node_modules/.bin/nx" ]] && ! command -v nx >/dev/null 2>&1; then
   printf '  FAIL  nx is available to execute the verb\n' >&2
   printf '          no nx on PATH and no node_modules/.bin/nx — this gate cannot be tested, which is a failure, not a skip\n' >&2
@@ -173,153 +156,190 @@ if [[ ! -x "${repository_root}/node_modules/.bin/nx" ]] && ! command -v nx >/dev
   exit 1
 fi
 
-selftest_root="${repository_root}/libs/.graph-guard-selftest"
-hidden_git=""
-nxignore_backup=""
+# PREFLIGHT 2 — `.nxignore` must be clean in git, because `git checkout --` is how every probe below
+# is undone. Refusing here is what makes that restore incapable of destroying somebody's edit.
+if ! git -C "$repository_root" diff --quiet -- .nxignore 2>/dev/null; then
+  printf '  FAIL  .nxignore is clean in git before any probe runs\n' >&2
+  printf '          it has uncommitted changes. This test restores it with git checkout, which would\n' >&2
+  printf '          destroy them. Commit or stash them first.\n' >&2
+  printf 'graph-guard_test: 1 failure(s)\n' >&2
+  exit 1
+fi
 
+selftest_root="${repository_root}/libs/.graph-guard-selftest"
+shim_dir=""
+hidden_git=""
 interrupted=0
+
+# PREFLIGHT 3 — sweep a probe tree left by a run that died where no trap could reach it. SIGKILL and
+# a killed container run no handler, so the one thing this file cannot promise is that its own sweep
+# always executes. It CAN promise the residue is namespaced, untracked, and cleared by the next run.
+# Measured: after `kill -9` mid-run the probe tree survives while `.nxignore` is left visibly dirty
+# in git — the mutation is recoverable by `git checkout` and this line removes the rest.
+if [[ -d "$selftest_root" ]]; then
+  printf '  note  removing a probe tree left by an earlier run that was killed: %s\n' "${selftest_root#"${repository_root}"/}"
+  rm -rf "$selftest_root"
+fi
+
 sweep() {
   local rc=$?
   rm -rf "$selftest_root"
-  if [[ -n "$nxignore_backup" && -f "$nxignore_backup" ]]; then
-    cp "$nxignore_backup" "$nxignore"
-    rm -f "$nxignore_backup"
-  fi
+  [[ -n "$shim_dir" ]] && rm -rf "$shim_dir"
+  # No backup file, by design. git holds the pristine copy, so this survives anything that kills the
+  # process — and if even this does not run, `git status` shows the mutation and `git checkout` undoes
+  # it. A backup FILE would instead survive as residue beside a still-mutated .nxignore.
+  git -C "$repository_root" checkout -- .nxignore 2>/dev/null || true
   if [[ -n "$hidden_git" && -e "${hidden_git}.graph-guard-selftest" ]]; then
     mv "${hidden_git}.graph-guard-selftest" "$hidden_git"
   fi
-  # The restore is VERIFIED, not assumed. Leaving a submodule without its .git breaks the checkout.
   if [[ -n "$hidden_git" && ! -e "$hidden_git" ]]; then
     printf 'graph-guard_test: FATAL — could not restore %s. Run: mv %s.graph-guard-selftest %s\n' \
       "$hidden_git" "$hidden_git" "$hidden_git" >&2
   fi
-  # A run cut short is a run that judged nothing, and it must never report success. bash runs this
-  # EXIT trap on a trapped signal too, and the trap's own status would otherwise become the script's:
-  # measured, an interrupted run exited 0 after 2 of its 13 assertions. The signal traps below record
-  # the conventional 128+n status and this line forces it.
   if [[ $interrupted -ne 0 ]]; then
     printf 'graph-guard_test: INTERRUPTED before it finished — reporting %d, never success\n' "$interrupted" >&2
     exit "$interrupted"
   fi
   return "$rc"
 }
-# EXIT alone made an INTERRUPTED run exit 0: bash runs the EXIT trap on SIGINT and the trap's own
-# status becomes the script's, so a test killed after 2 of its assertions reported SUCCESS — a skip
-# reading as a pass, which is the failure this repository refuses everywhere else. Each signal is
-# trapped explicitly and re-raises the conventional 128+n status.
 trap sweep EXIT
 trap 'interrupted=130; exit 130' INT
 trap 'interrupted=143; exit 143' TERM
 trap 'interrupted=129; exit 129' HUP
 
-# plant <relative-path-under-selftest_root> <project-name> [extra-file-basename]
-plant() {
-  local rel="$1" name="$2" extra="${3:-}"
-  mkdir -p "${selftest_root}/${rel}"
-  printf '{"name":"%s"}\n' "$name" > "${selftest_root}/${rel}/project.json"
-  if [[ -n "$extra" ]]; then
-    printf '{"name":"%s-pkg","version":"0.0.0"}\n' "$name" > "${selftest_root}/${rel}/${extra}"
+guard_rc=0
+guard_out=""
+run_guard() {
+  guard_rc=0
+  guard_out="$( ( cd "$repository_root" && bash .ci/ctl.sh graph-guard ) 2>&1 )" || guard_rc=$?
+}
+
+# expect_red <label> <regex> — the verb must fail AND fail for the named reason. Matching the reason
+# is the point: refutation 5 neutered the resolution clause and the duplicate-name assertion still
+# passed, because the verb was reddening on the zero-projects clause instead. A red is not a pass.
+expect_red() {
+  local label="$1" want="$2"
+  if [[ $guard_rc -eq 0 ]]; then
+    report_fail "$label" "graph-guard exited 0"
+  elif ! printf '%s' "$guard_out" | grep -qE "$want"; then
+    report_fail "$label" \
+      "it went red, but for the WRONG reason — no line matching: ${want}" \
+      "first error was: $(printf '%s' "$guard_out" | grep -aE '\[error\]' | head -1 | cut -c1-150)"
+  else
+    report_ok "$label"
   fi
 }
 
-# ANTI-VACUITY FIRST, AND IT ABORTS. If the verb does not pass on the untouched tree, every red below
-# could be red for that unrelated reason, and each would print `ok` while proving nothing. A previous
-# round measured exactly that: 3 assertions certified themselves against a failure they had not
-# caused. So this one exits the section rather than continuing.
-if guard; then
+plant() {
+  local rel="$1" name="$2"
+  mkdir -p "${selftest_root}/${rel}"
+  printf '{"name":"%s"}\n' "$name" > "${selftest_root}/${rel}/project.json"
+}
+
+# ANTI-VACUITY, AND IT ABORTS. If the verb does not pass on the untouched tree, every red below could
+# be that unrelated failure, and each would print `ok` while proving nothing.
+run_guard
+if [[ $guard_rc -eq 0 ]]; then
   report_ok "the verb PASSES on the untouched tree (so the reds below mean something)"
 else
   report_fail "the verb passes on the untouched tree" \
-    "graph-guard exited non-zero before anything was planted — the rest of this section is ABORTED, because a red it cannot explain would certify itself"
+    "graph-guard exited ${guard_rc} before anything was planted — the rest of this section is ABORTED"
   printf '\n'
   printf 'graph-guard_test: %d failure(s)\n' "$fails" >&2
   exit 1
 fi
 
-# A. EVERY UNCOVERED directory of the verb's vocabulary is exercised, one assertion each.
-#    These have no `.nxignore` pattern, so the VERB is their only defence — narrowing its regex to
-#    one entry must not leave the others silent.
-for d in "${uncovered_dirs[@]}"; do
-  covering=()
-  for p in "${patterns[@]}"; do
-    [[ "$p" == *"/${d}/"* ]] && covering+=("$p")
-  done
-  if [[ ${#covering[@]} -gt 0 ]]; then
-    report_fail "'${d}' is uncovered by .nxignore (so the verb is its only defence)" \
-      "it now has a pattern, so this assertion no longer tests the verb: ${covering[0]}"
-    continue
-  fi
+# CLAUSE 3, over the WHOLE vocabulary. A fixture in a COVERED directory is held by `.nxignore`, so to
+# put it in front of the verb's regex the pattern is suspended with a temporary negation line rather
+# than by deleting a pattern — deleting one would trip clause 1 first and red for the wrong reason.
+for d in "${vocabulary_dirs[@]}"; do
   rm -rf "$selftest_root"
-  plant "esc-${d}/${d}/one" "graph-guard-selftest-esc-${d}"
-  if guard; then
-    report_fail "a fixture in the UNCOVERED directory '${d}' is caught by the verb" \
-      "it entered eden's graph and graph-guard exited 0 — the verb's fixture vocabulary has lost '${d}'"
-  else
-    report_ok "a fixture in the UNCOVERED directory '${d}' is caught by the verb"
+  needs_negation=1
+  for u in "${uncovered_dirs[@]}"; do [[ "$d" == "$u" ]] && needs_negation=0; done
+  if [[ $needs_negation -eq 1 ]]; then
+    printf '!libs/**/%s/**/project.json\n' "$d" >> "$nxignore"
   fi
+  plant "voc-${d}/${d}/one" "graph-guard-selftest-voc-${d}"
+  run_guard
+  expect_red "clause 3 catches a fixture in '${d}' (vocabulary entry $(( $(printf '%s\n' "${vocabulary_dirs[@]}" | grep -nxF -- "$d" | cut -d: -f1) )) of ${#vocabulary_dirs[@]})" \
+    "rooted in a submodule fixture tree|submodule fixture project"
+  git -C "$repository_root" checkout -- .nxignore
   rm -rf "$selftest_root"
 done
 
-# B. EVERY COVERED directory is excluded by `.nxignore`, and the verb still passes. Planted together
-#    in one run: they are held by the pattern file, not by the verb's regex, so one run is enough to
-#    prove the globs match and no run of them can be traded against another.
+# THE EXCLUSION PATH ITSELF. Without this the suite could be satisfied by a verb that always fails.
 rm -rf "$selftest_root"
 for d in "${ignored_dirs[@]}"; do
-  plant "cov/${d}/one" "graph-guard-selftest-cov-${d}" "package.json"
+  plant "cov/${d}/one" "graph-guard-selftest-cov-${d}"
+  printf '{"name":"graph-guard-selftest-cov-%s-pkg","version":"0.0.0"}\n' "$d" \
+    > "${selftest_root}/cov/${d}/one/package.json"
 done
-if guard; then
-  report_ok "a fixture in each of the ${#ignored_dirs[@]} COVERED directories is excluded, and the verb passes"
+run_guard
+if [[ $guard_rc -eq 0 ]]; then
+  report_ok "fixtures in all ${#ignored_dirs[@]} COVERED directories are excluded, and the verb passes"
 else
-  report_fail "a fixture in each COVERED directory is excluded" \
-    "one of ${ignored_dirs[*]} was not excluded by .nxignore and graph-guard exited non-zero"
+  report_fail "fixtures in all COVERED directories are excluded" \
+    "graph-guard exited ${guard_rc}: $(printf '%s' "$guard_out" | grep -aE '\[error\]' | head -1 | cut -c1-150)"
 fi
 rm -rf "$selftest_root"
 
-# C. The verb's `.nxignore` COVERAGE clause really runs. On a tree with no fixture this is the ONLY
-#    clause with anything to say, and it was possible to neuter it in the verb while every assertion
-#    here stayed green — because assertions 1-5 read the FILE and none of them read the VERB.
-nxignore_backup="${nxignore}.graph-guard-selftest-backup"
-cp "$nxignore" "$nxignore_backup"
-grep -v '^libs/\*\*/testdata/\*\*/package\.json$' "$nxignore_backup" > "$nxignore"
-if guard; then
-  report_fail "the verb REFUSES a .nxignore that is missing a required pattern" \
-    "one of the 36 patterns was removed and graph-guard exited 0 — its coverage clause is not running"
-else
-  report_ok "the verb REFUSES a .nxignore that is missing a required pattern"
-fi
-cp "$nxignore_backup" "$nxignore"
-rm -f "$nxignore_backup"
-nxignore_backup=""
-
-# D. A duplicate project NAME is REFUSED. This is the eden#14 collision. `nx graph --file` exits 0
-#    and silently deduplicates it, so a verb asserting with that reader tolerates the very defect it
-#    exists to catch; only `nx show projects` refuses.
+# CLAUSE 2 — resolution. The message is asserted, not merely the exit status.
 rm -rf "$selftest_root"
 plant "dup-a" "graph-guard-selftest-dup"
 plant "dup-b" "graph-guard-selftest-dup"
-if guard; then
-  report_fail "a duplicate project name is REFUSED" \
-    "two projects both named graph-guard-selftest-dup, and graph-guard exited 0"
-else
-  report_ok "a duplicate project name is REFUSED"
-fi
+run_guard
+expect_red "clause 2 REFUSES a duplicate project name, naming resolution" "does not resolve"
 rm -rf "$selftest_root"
 
-# E. A submodule PRESENT but not CHECKED OUT is refused. `git clone` without --recursive leaves the
-#    mount point as an empty directory, which a bare `[[ -d ]]` passes while 39 projects are absent.
+# CLAUSE 1 — `.nxignore` coverage. The only clause with anything to say on a tree carrying no fixture,
+# which is the state of eden main. Restored by git, never by a backup file.
+# Remove a real PATTERN line, named explicitly. An earlier probe used `head -n -1`, which stripped
+# the file's trailing BLANK line, left all 36 patterns in place, and reported a false pass.
+victim_pattern="${patterns[0]}"
+grep -vxF -- "$victim_pattern" "$nxignore" > "${nxignore}.tmp" && mv "${nxignore}.tmp" "$nxignore"
+run_guard
+expect_red "clause 1 REFUSES a .nxignore missing the pattern ${victim_pattern}" "missing [0-9]+ required pattern"
+git -C "$repository_root" checkout -- .nxignore
+
+# CLAUSE 2b — the 2 readers must agree. No repository state can trigger this: a duplicate name is
+# refused by clause 2 above, so control never reaches it. A refutation deleted the clause outright
+# with the suite still green. A shim is therefore the ONLY way to prove it is reachable and fires —
+# it returns nx's real answers, then drops one node from the graph file.
+shim_dir="$(mktemp -d -t graph-guard-shim.XXXXXX)"
+real_nx="${repository_root}/node_modules/.bin/nx"
+if [[ -x "$real_nx" ]]; then
+  cat > "${shim_dir}/nx" <<SHIM
+#!/bin/bash
+if [[ "\$1" == "graph" ]]; then
+  "${real_nx}" "\$@" || exit \$?
+  f=""
+  for a in "\$@"; do [[ "\$a" == --file=* ]] && f="\${a#--file=}"; done
+  jq 'del(.graph.nodes[(.graph.nodes|keys_unsorted)[0]])' "\$f" > "\$f.t" && mv "\$f.t" "\$f"
+  exit 0
+fi
+exec "${real_nx}" "\$@"
+SHIM
+  chmod +x "${shim_dir}/nx"
+  guard_rc=0
+  guard_out="$( ( cd "$repository_root" && PATH="${shim_dir}:$PATH" bash .ci/ctl.sh graph-guard ) 2>&1 )" || guard_rc=$?
+  expect_red "clause 2b fires when the 2 graph readers disagree" "2 graph readers disagree"
+else
+  report_fail "clause 2b fires when the 2 graph readers disagree" \
+    "node_modules/.bin/nx is absent, so the shim could not be built and this clause was not exercised"
+fi
+rm -rf "$shim_dir"; shim_dir=""
+
+# CLAUSE 4 — liveness. `git clone` without --recursive leaves an EMPTY DIRECTORY that a bare `-d`
+# test passes while 39 of the 49 projects are absent.
 hidden_git="${repository_root}/.devcontainer/.git"
 if [[ -e "$hidden_git" ]]; then
   mv "$hidden_git" "${hidden_git}.graph-guard-selftest"
-  if guard; then
-    report_fail "an uninitialised submodule is REFUSED" \
-      ".devcontainer has no .git entry and graph-guard exited 0"
-  else
-    report_ok "an uninitialised submodule is REFUSED"
-  fi
+  run_guard
+  expect_red "clause 4 REFUSES a submodule that is not checked out" "NOT checked out"
   mv "${hidden_git}.graph-guard-selftest" "$hidden_git"
   hidden_git=""
 else
-  report_fail "an uninitialised submodule is REFUSED" \
+  report_fail "clause 4 REFUSES a submodule that is not checked out" \
     ".devcontainer/.git does not exist, so this assertion could not be made"
 fi
 
@@ -328,5 +348,5 @@ if [[ $fails -gt 0 ]]; then
   printf 'graph-guard_test: %d failure(s)\n' "$fails" >&2
   exit 1
 fi
-printf 'graph-guard_test: all assertions passed (%d pattern(s), %d file type(s))\n' \
-  "${#patterns[@]}" "${#project_files[@]}"
+printf 'graph-guard_test: all assertions passed (%d pattern(s), %d vocabulary dir(s), 5 verb clause(s) proven able to fire)\n' \
+  "${#patterns[@]}" "${#vocabulary_dirs[@]}"

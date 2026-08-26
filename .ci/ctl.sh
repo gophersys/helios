@@ -326,12 +326,26 @@ function cmd_graph_guard() {
   local -a roots=()
   mapfile -t roots < <(jq -r '.graph.nodes | to_entries[] | "\(.key)\t\(.value.data.root // "")"' "$graph_file")
   rm -rf "$work_dir"
-  # The two readers must agree on how many projects there are. They disagree exactly when `nx graph`
-  # has deduplicated a name collision that `show projects` would have refused, so this is the second
-  # line of defence on 2a rather than a tidiness check.
+  # The two readers must agree on how many projects there are.
+  #
+  # WHAT THIS DOES AND DOES NOT GUARD, stated exactly, because the previous comment here was wrong
+  # and the error message below still carries the older reading. It said this was "the second line of
+  # defence" on a deduplicated name collision. It is NOT reachable that way: `show projects` REFUSES
+  # a duplicate-name graph, so clause 2a returns above and control never arrives here. A refutation
+  # showed the clause could therefore be deleted outright with the whole suite still green — a check
+  # that cannot fire, which is the worst thing a check can be.
+  #
+  # What it really guards is READER DIVERGENCE: the graph resolves for `show projects`, and
+  # `nx graph --file` nonetheless reports a different set. That is an nx-side inconsistency rather
+  # than a repository defect, and it matters because every root judged below comes from the SECOND
+  # reader while the resolution proof came from the FIRST. If they describe different graphs, clause
+  # 3 is auditing something that was never proven to resolve.
+  #
+  # It is REACHABLE and PROVEN ABLE TO FIRE: `scripts/graph-guard_test.sh` puts an `nx` shim on PATH
+  # that drops one node from the graph file and requires this clause to red, naming both counts.
   if [[ ${#roots[@]} -ne ${#project_names[@]} ]]; then
     log_error "graph-guard: the 2 graph readers disagree — 'show projects' reports ${#project_names[@]} project(s), 'graph --file' reports ${#roots[@]}"
-    log_error "graph-guard: that gap is what a deduplicated name collision looks like"
+    log_error "graph-guard: the roots judged below come from 'graph --file', but only 'show projects' proved the graph resolves — a gap between them means clause 3 would audit a graph nothing verified"
     return 1
   fi
   log_info "graph-guard: the graph resolves and holds ${#roots[@]} project(s)"
