@@ -226,6 +226,33 @@ currently the only limiter, and will not be until #134 ships.
 
 ---
 
+## 8a. D7 — the ARCHITECTURE placement and the turn cap, RATIFIED
+
+**Relayed to this session by the eden orchestrator, 2026-08-26.** Mateo's words as
+that session recorded them:
+
+> **Mateo, 2026-08-26 ~01:30 MST:** "ok ytes go with the recommended"
+
+Given in response to a round-10 presentation covering two items, and ratifying
+both as recommended:
+
+- **The ARCHITECTURE placement: OPTION A** — gate the architecture phase in eden's
+  conformance lane, where the contracts live. §8 below states both options and why
+  A was recommended; this is that recommendation accepted.
+- **The reviewer turn cap: raise it** (40 → 500, cost as the limiter). §7 above
+  records the directive and the measured state separately; this ratifies the
+  directive. It does **not** change the measurement — the cap is still 40 in the
+  shipped binary until the cictl change lands.
+
+**Provenance, stated precisely because §13 rule 4 turns on it.** This session did
+**not** receive these words. They were spoken to the eden orchestrator session and
+relayed here, exactly as the second walk-away-grant quote in §1 was received by
+this session and relayed the other way. Recorded as a relayed verbatim quote with
+the relaying session named — not as a gate this session witnessed. Anyone auditing
+the D7 gate should read it against the orchestrator's own record.
+
+---
+
 ## 8. Open — the ARCHITECTURE-phase placement (no ruling yet)
 
 Recorded here because it was living only in a libs pull request body, and libs has
