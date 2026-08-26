@@ -97,10 +97,18 @@ the command refuses and explains how to propagate from brain.
 
 ## Commit identity
 
-All commits MUST be authored by `Mateo Segura
-<mateo.segura413@gmail.com>`. Messages follow Conventional Commits,
-subject ≤72 chars imperative mood, no trailing period, no AI / LLM
-attribution. Local git config is captured in `.claude/rules/00-identity.md`.
+**ATTRIBUTION IS IDENTITY** (Mateo, 2026-08-25). This paragraph previously
+required every commit to be authored `Mateo Segura` and forbade AI / LLM
+attribution. That ruling is **REVERSED**: an unattributed agent commit reads as a
+human's, and that is a false record. Solo agent work is authored
+`Claude <claude-agent@gophersys.noreply>`; joint interactive work is authored
+Mateo with a `Co-Authored-By: Claude` trailer; an agent never commits, approves
+or comments as "Mateo". The single home of the rule is eden
+`.claude/rules/git-process.md` §13 (ADR-0032); this repository's copy is
+`.claude/rules/00-identity.md`, which this paragraph had contradicted.
+
+Messages follow Conventional Commits, subject ≤72 chars imperative mood, no
+trailing period.
 
 ## Getting started as a consumer
 
