@@ -273,11 +273,22 @@ function cmd_graph_guard() {
   # command is what decides; `nx graph` is used below only to READ roots out of a graph already
   # proven to resolve.
   log_info "graph-guard: resolving the nx project graph"
+  local work_dir
+  work_dir="$(mktemp -d -t graph-guard.XXXXXX)"
+  local show_err="$work_dir/show.err"
   local show_out show_rc=0
-  show_out="$( (cd "$REPO_ROOT" && nx_cmd show projects) 2>&1 )" || show_rc=$?
+  # STDERR IS KEPT OUT OF $show_out DELIBERATELY. Every non-blank line of it is counted as a project
+  # name below, and the count is compared against the graph's. Folding stderr in with `2>&1` made one
+  # incidental line a FALSE RED on a healthy tree — measured: under `npx`, `nx show projects 2>&1`
+  # yields 51 lines against 49 real projects, the 2 extra being `npm notice` banners. That path is
+  # live: `nx_cmd`'s third branch runs `yarn nx` with no `--silent`, whatever the comment above it
+  # claims. Diagnostics still reach the operator; they just never become project names.
+  show_out="$( (cd "$REPO_ROOT" && nx_cmd show projects) 2>"$show_err" )" || show_rc=$?
   if [[ $show_rc -ne 0 ]]; then
     log_error "graph-guard: the nx project graph does not resolve (nx show projects exited $show_rc)"
     printf '%s\n' "$show_out" >&2
+    cat "$show_err" >&2 || true
+    rm -rf "$work_dir"
     return 1
   fi
   local -a project_names=()
@@ -285,24 +296,23 @@ function cmd_graph_guard() {
   # LIVENESS 2 — a graph of zero projects satisfies every assertion below for the wrong reason.
   if [[ ${#project_names[@]} -eq 0 ]]; then
     log_error "graph-guard: the graph resolved but holds ZERO projects — nothing here judged anything"
+    rm -rf "$work_dir"
     return 1
   fi
 
   # ── 2b. THE ROOTS ────────────────────────────────────────────────────────────────────────────
   # `nx graph --file` is the only reader that carries each project's ROOT; `show projects` carries
   # names alone.
-  local graph_dir graph_file graph_err
-  # A temp DIRECTORY, not a temp file, and the reason is a measured leak rather than taste.
-  # `nx graph --file` refuses a name that does not end in .json or .html, so the previous spelling
-  # was `graph_file="$(mktemp -t graph-guard.XXXXXX)".json` — which leaves mktemp's OWN
-  # extension-less file behind and writes beside it. Three runs left four files in /tmp. A directory
-  # has one owner and `rm -rf` on it removes whatever nx chose to write inside.
-  graph_dir="$(mktemp -d -t graph-guard.XXXXXX)"
-  graph_file="$graph_dir/graph.json"
+  local graph_file graph_err
+  # The graph goes in the SAME temp directory as the stderr capture above, so this verb owns exactly
+  # one path in /tmp and removes it on every exit. `nx graph --file` refuses a name not ending in
+  # .json or .html, so an earlier spelling was `"$(mktemp -t X.XXXXXX)".json` — which leaves mktemp's
+  # own extension-less file behind and writes beside it. Three runs left four files in /tmp.
+  graph_file="$work_dir/graph.json"
   if ! graph_err="$( (cd "$REPO_ROOT" && nx_cmd graph --file="$graph_file") 2>&1 )"; then
     log_error "graph-guard: 'nx graph --file' failed after the graph had already resolved"
     printf '%s\n' "$graph_err" >&2
-    rm -rf "$graph_dir"
+    rm -rf "$work_dir"
     return 1
   fi
   # The shape is asserted before it is trusted. `jq -r .[]` over an OBJECT silently pretty-prints
@@ -310,12 +320,12 @@ function cmd_graph_guard() {
   if ! jq -e 'type=="object" and (.graph.nodes|type=="object")' "$graph_file" >/dev/null 2>&1; then
     log_error "graph-guard: 'nx graph --file' did not produce a graph with an object at .graph.nodes"
     head -c 400 "$graph_file" >&2 || true
-    rm -rf "$graph_dir"
+    rm -rf "$work_dir"
     return 1
   fi
   local -a roots=()
   mapfile -t roots < <(jq -r '.graph.nodes | to_entries[] | "\(.key)\t\(.value.data.root // "")"' "$graph_file")
-  rm -rf "$graph_dir"
+  rm -rf "$work_dir"
   # The two readers must agree on how many projects there are. They disagree exactly when `nx graph`
   # has deduplicated a name collision that `show projects` would have refused, so this is the second
   # line of defence on 2a rather than a tidiness check.
