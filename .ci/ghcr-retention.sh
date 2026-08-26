@@ -20,9 +20,15 @@
 #
 # The cause is in build-and-push.yml and it is not a leak: every publish pushes
 # `<image>:latest` and `<image>:<short sha>`, and nothing has ever pruned. A
-# permanent tag per merge, forever. Measured 2026-08-26 through the packages
-# API — base 316 versions, cloud 157, embedded 115, ui 99, hardware 89,
-# mobile 43.
+# permanent tag per merge, forever — 753 versions across the 6 images and 242 of
+# them created in the 7 days to 2026-08-26, which is ~34 a day.
+#
+# READ THE PER-IMAGE COUNTS OUT OF A RUN, never out of this comment. An earlier
+# version of this paragraph listed all 6, and 2 of them were 45% high within the
+# hour: the estate moved WHILE it was being measured — an unrelated cleanup was
+# deleting versions between one read and the next — so `embedded 115, ui 99`
+# and `embedded 79, ui 69` were both true on 2026-08-26 and the pair read as a
+# contradiction. Every run prints the live number for every package it touches.
 #
 # ============================================================================
 # THE FOOTGUN: AN UNTAGGED VERSION IS USUALLY A LIVE CHILD
@@ -905,28 +911,45 @@ function retention_plan() {
   local delete_count
   delete_count="$(wc -l < "${directory}/plan" | tr -d ' ')"
 
-  # THE ACCOUNTING GUARD. Every version of the package is either kept or
-  # planned for deletion, and the 2 numbers are computed by 2 different
-  # expressions over the same document — the kept set by an intersection, the
-  # delete plan by a difference. A silent failure anywhere above leaves an empty
-  # or partial file, and an empty delete plan is indistinguishable from a
-  # healthy steady-state week until this line compares it against something.
+  # THE SECOND OPINION. The delete set is recomputed by a DIFFERENT TOOL over
+  # the same 2 inputs, and the 2 answers must agree.
   #
-  # This is the check the first real run did not have. It reported DELETE 0 on a
-  # package holding 316 versions of which 15 were protected, and exited 0.
-  # shellcheck disable=SC2016  # $tags/$seed/$safe/$v are jq variables, not shell ones
-  jq_to_file "${directory}/kept" -r --rawfile keep "${directory}/protected" '
-      ($keep | split("\n") | map(select(length > 0))) as $safe
-      | .[] | . as $v | select(($safe | index($v.name)) != null) | .name
-    ' "${directory}/versions.json" || return 1
-  local kept_count
-  kept_count="$(wc -l < "${directory}/kept" | tr -d ' ')"
-  if [[ $((kept_count + delete_count)) -ne "$total" ]]; then
-    log_error "${package}: ${kept_count} kept + ${delete_count} planned != ${total} versions"
-    log_error "the 2 sets are computed by 2 expressions over 1 document, so a disagreement"
-    log_error "means one of them read something it should not have — nothing is deleted"
+  # An earlier version of this block compared `kept + planned == versions`, and
+  # the review agent was right to refuse it. `kept` and `planned` were 2 jq
+  # selections partitioning ONE array by ONE predicate, so their sum was that
+  # array's length for every possible input, a corrupted `$safe` included. It
+  # passed on the exact DELETE-0 regression it was advertised to catch:
+  # simulated 2026-08-26, a plan predicate that is always false leaves every
+  # version in `kept`, and `316 + 0 == 316` holds. A check that cannot fail,
+  # presented in 3 places as the safety net.
+  #
+  # THE REAL CATCH FOR THAT REGRESSION IS `jq_to_file`, which reads jq's own
+  # exit status, and it is sufficient for a jq that ERRORS. What it cannot see
+  # is a jq expression that exits 0 and answers wrongly, and that is this
+  # block's job: `comm` cannot share a bug with a jq filter, so a disagreement
+  # between them is a real one.
+  jq_to_file "${directory}/all-digests" -r '.[].name' "${directory}/versions.json" || return 1
+  LC_ALL=C sort -u "${directory}/all-digests" -o "${directory}/all-digests"
+  LC_ALL=C sort -u "${directory}/protected" -o "${directory}/protected"
+  LC_ALL=C comm -23 "${directory}/all-digests" "${directory}/protected" \
+    > "${directory}/delete-digests"
+
+  local second_opinion
+  second_opinion="$(wc -l < "${directory}/delete-digests" | tr -d ' ')"
+  if [[ "$second_opinion" -ne "$delete_count" ]]; then
+    log_error "${package}: the plan holds ${delete_count} versions and set arithmetic over the"
+    log_error "same 2 files says ${second_opinion} — 2 tools disagree about what is unprotected,"
+    log_error "so one of them is wrong and nothing is deleted"
     return 1
   fi
+
+  # Every protected digest ought to be a version this package lists. One that is
+  # not means the closure walked to a manifest the packages API does not report.
+  # It is REPORTED and not fatal: it protects something that does not exist,
+  # which costs nothing, and a reader is better off seeing the number than
+  # having it asserted away. Measured 0 on every package, 2026-08-26.
+  local unlisted_protected
+  unlisted_protected="$(LC_ALL=C comm -13 "${directory}/all-digests" "${directory}/protected" | wc -l | tr -d ' ')"
 
   printf '\n'
   log_info "package ${package}"
@@ -941,8 +964,8 @@ function retention_plan() {
   retention_row "protect: margin" "$margin_count" "the ${RETENTION_KEEP} most recent left over"
   retention_row "protected parents" "$seed_count" ""
   retention_row "protected children" "$child_count" "from ${reads} manifest reads"
-  retention_row "PROTECTED total" "$protected_count" ""
-  retention_row "DELETE" "$delete_count" ""
+  retention_row "PROTECTED total" "$protected_count" "${unlisted_protected} not listed as a version"
+  retention_row "DELETE" "$delete_count" "agreed by set arithmetic"
 
   local version_id digest tags
   while IFS='|' read -r version_id digest tags; do

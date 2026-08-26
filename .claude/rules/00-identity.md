@@ -736,8 +736,17 @@ run before anything is deleted. What is NOT asserted is a non-empty delete plan:
 once the backlog is gone an empty plan is the policy working, and a red every
 Monday that nobody can act on is how a reader is taught to ignore red — the same
 reasoning that keeps HIGH CVEs outside the nightly's gate. The guards assert
-that each mechanism RAN, and a per-package accounting check holds
-`kept + planned == versions` so an empty plan cannot pass as a clean estate.
+that each mechanism RAN, and every stage prints its count.
+
+**What catches a wrong answer is 2 different tools, never 2 spellings of one.**
+The first version of that safety net compared `kept + planned == versions`, and
+those were 2 jq selections partitioning 1 array by 1 predicate — so the sum was
+that array's length for every input, and the check passed on the exact DELETE-0
+regression it was named for. The real catch for a jq that ERRORS is reading jq's
+own exit status; for a jq that exits 0 and answers wrongly it is recomputing the
+delete set with `comm` and refusing to act when the 2 disagree. A check that
+cannot fail is worse here than no check, because this one was cited in 3 places
+as the reason an empty plan could be trusted.
 
 **The credential is `GHCR_RETENTION_TOKEN` and the workflow token cannot stand
 in.** `GITHUB_TOKEN` carries no `delete:packages`, and it is scoped to this
