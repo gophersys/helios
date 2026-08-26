@@ -59,7 +59,8 @@ that it runs inside.
 ├── .ci/                         # the CI layer — .ci/README.md lists every file
 │   ├── affected.sh              # which images this commit changes — 1 home for the answer
 │   ├── buildx-node.sh           # the builder every image build uses; owns the arm64 switch
-│   └── mirror-buildkit.sh       # keeps ghcr.io holding the BuildKit index the builder boots from
+│   ├── mirror-buildkit.sh       # keeps ghcr.io holding the BuildKit index the builder boots from
+│   └── ghcr-retention.sh        # what may be deleted from ghcr.io, and what may never be
 ├── base/          { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── cloud/         { devcontainer.json, Dockerfile, project.json, ctl.sh }
 ├── mobile/       { devcontainer.json, Dockerfile, project.json, ctl.sh }
@@ -71,7 +72,8 @@ that it runs inside.
     ├── security-nightly.yml  # the nightly trivy scan + the base-OS currency probe
     ├── weekly-bumps.yml      # the weekly upstream resolution + the 1 bump pull request
     ├── validate.yml          # the pull request gate: ctl.sh validate + ctl.sh test + BUILD_ORDER
-    └── pr-review.yml         # the review agent, shared from gophersys/cictl
+    ├── pr-review.yml         # the review agent, shared from gophersys/cictl
+    └── ghcr-retention.yml    # the weekly prune; DRY RUN until its mode is changed
 ```
 
 ## Conventions
@@ -646,6 +648,117 @@ release was.
   secret absent the resolver FAILS naming the pin and the secret, and never
   reports the current value as current — a missing credential is a red
   Monday, not a quiet one.
+
+## GHCR retention
+
+`.github/workflows/ghcr-retention.yml` runs at 11:00 UTC on Monday — 04:00 MST,
+1 hour after the weekly bump and 2 after the nightly, so the 3 scheduled runs
+never race. The policy is `.ci/ghcr-retention.sh`, and nothing about what is safe
+to delete is decided in the workflow.
+
+**It is DRY RUN as it lands, and flipping it is a 1-word edit.** The schedule
+supplies no inputs, so the `RETENTION_MODE: ${{ inputs.mode || 'dry-run' }}`
+fallback IS the scheduled run's policy. A delete is irreversible and no job here
+rolls one back, which is the same ordering rule that puts the smoke before the
+push: read one real log first. `workflow_dispatch` with `mode=enforce` runs a
+single enforcing pass without changing the file.
+
+**An untagged version is almost always a LIVE CHILD, not an orphan.** A tagged
+image here is an OCI index and its per-platform and attestation manifests appear
+in the packages API as separate untagged versions. Measured on `base`
+2026-08-26: 91 tagged, 225 untagged, and **all 225 are children of a live tag** —
+zero orphans. The prune every retention example performs, "delete all untagged",
+would have destroyed the content of all 91 tags. A child also has more than 1
+parent — 300 references over 225 distinct digests — so the delete set is
+`all versions - protected closure` and never a walk down from the doomed.
+
+**A tag is not safe to delete because it is old.** 6 protection classes, each
+with its measurement in the script's header: `latest`; every `v<semver>`; every
+short-SHA tag a live submodule pointer names, reading eden's default branch AND
+its open pull requests; every tag or digest a consumer pins; the transitive
+children of all of those; and a margin of the `RETENTION_KEEP` most recent left
+over. **The classes are not decoration, and that is measured rather than
+argued**: `ghcr.io/gophersys/cloud@sha256:ffdcf504…` is the ARC image-warmer
+DaemonSet's pin and ranks 3rd by recency, `cloud:997bb6b` ranks 35th of 43 and
+`base:e0c6bc5` 56th of 91. A keep-the-10-most-recent rule with no pin sweep
+deletes the last 2 outright and the first after 8 more publishes, and every ARC
+pool in the homelab runs the image that DaemonSet warms.
+
+**THE PROTECTED SET IS BUILT FROM RESOLVED DIGESTS, NEVER FROM TAG NAMES.** A
+pin can name both — `ghcr.io/gophersys/hardware:latest@sha256:ad5851…` in
+research-hardware, `ghcr.io/gophersys/ui:latest@sha256:26547a…` in research-ui —
+and the digest is what is served while the tag beside it drifts. Read
+2026-08-26, both of those digests carried only the tag `efe48e1` and `:latest`
+had already moved to `449d5f4`. A reader that believed the tag half would call
+both pins covered by class 1 and delete the digests anyway. The sweep therefore
+takes every `sha256:<64 hex>` token of every swept tree, whatever syntax
+surrounds it.
+
+**The consumer list is MAINTAINED, and a missing row is the failure mode.** No
+API answers "who pins me", so `RETENTION_PIN_REPOS` is a default in the script:
+infrastructure, eden, research-hardware and research-ui. The first dry run
+planned to delete `ad5851…` and `26547a…` because the 2 research repositories
+were not in it — the mechanism was right and its input set was short by 2. **A
+new consumer of these images is a new row there, in the same change that adds
+the consumer.**
+
+**A digest referenced only by a test fixture is protected and SAID SO.**
+`cloud@sha256:9a150cbf…` appears only in
+`infrastructure/scripts/test-verify-warmer-pins.sh`, whose own header says the
+suite never reads a real manifest. The run reports it as fixture-only and keeps
+it: a path heuristic that dropped it would trade a bounded cost — 1 index and
+its children kept — for the unbounded one, a real pin in a file whose name
+happens to say `test`. The fix belongs in the fixture, which should spell a
+digest that cannot be mistaken for a live one.
+
+**`Accept: */*` reads a live index as absent.** ghcr.io answers 404
+MANIFEST_UNKNOWN for a manifest it serves when the Accept header does not name
+its media type, and curl sends `*/*` by default. The closure walk therefore
+sends the explicit OCI and docker media types, and a non-200 during the walk is
+FATAL rather than an empty child list — an under-protection of this shape looks
+exactly like a clean read.
+
+**The sweep reads the CONSUMERS and deliberately not this repository.** A sweep
+is a grep over a tree, so it reads prose as readily as configuration: the
+script's own header names `ghcr.io/gophersys/base:e0c6bc5` while explaining that
+infrastructure pins it, and that sentence alone protected the tag until the
+counter-stimulus refused to fire. This document carries the same hazard
+independently — it names `ghcr.io/gophersys/base:69b4f11` in a sentence about an
+old incident. Nothing is lost: every reference this repository makes to its own
+images is `:latest`, which is class 1.
+
+**A read that fails is fatal, and "deleted nothing" is not asserted against.**
+Every class is a read of something outside this repository, and a quiet failure
+does not weaken a class — it EMPTIES it, and the run then deletes exactly what
+the class existed to keep. So an unreadable consumer, an unreadable manifest, an
+absent `GHCR_RETENTION_TOKEN` and a tag of an unrecognised shape each stop the
+run before anything is deleted. What is NOT asserted is a non-empty delete plan:
+once the backlog is gone an empty plan is the policy working, and a red every
+Monday that nobody can act on is how a reader is taught to ignore red — the same
+reasoning that keeps HIGH CVEs outside the nightly's gate. The guards assert
+that each mechanism RAN, and a per-package accounting check holds
+`kept + planned == versions` so an empty plan cannot pass as a clean estate.
+
+**The credential is `GHCR_RETENTION_TOKEN` and the workflow token cannot stand
+in.** `GITHUB_TOKEN` carries no `delete:packages`, and it is scoped to this
+repository, so it can read none of the 4 consumers. The secret needs
+`read:packages` + `delete:packages` on the organization and `contents:read` on
+each repository of `RETENTION_PIN_REPOS` and `RETENTION_SUBMODULE_REPOS`.
+gophersys/infrastructure solves the same problem with a GitHub App
+(`ARC_APP_ID` / `ARC_APP_PRIVATE_KEY`), and that route is NOT open here:
+measured 2026-08-26, this repository is exposed to 0 organization secrets and
+holds exactly 2 of its own, `BUMP_PR_TOKEN` and `EDEN_MANIFEST_READ`.
+
+**This policy EXTENDS gophersys/infrastructure's, and does not replace it.**
+`infrastructure/.github/workflows/ghcr-retention.yml` plus
+`.github/scripts/prune-ghcr.py` already prune `workspaces-api` — keep `:latest`
+and the 8 most recent — and that workflow says in its own header that it is
+"Scoped to OUR package". So the rule is the one this organization already
+applies to builds: **a repository prunes the packages it publishes.** The 2
+systems share a registry and no package. Worth knowing about the other one: its
+keep-newest-N rule is safe because `workspaces-api` is single-arch, and it
+acquires the untagged-child footgun documented above on the day that image
+becomes multi-arch.
 
 ## Sanctioned-platform policy
 
