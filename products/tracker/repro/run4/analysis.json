@@ -1,0 +1,14 @@
+{
+ "disagreements": [
+  {
+   "field": "fn.item_count",
+   "values": {
+    "iJ": "12",
+    "iK": "13",
+    "iL": "13"
+   }
+  }
+ ],
+ "unanimous": 36,
+ "total": 37
+}

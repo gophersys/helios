@@ -374,21 +374,19 @@ conventions:
   multi-opens: "an opens branch on a multi question fires when its key value is SELECTED"
   multi-affirmation: "an answer to a multi question binds only to the values the runner PRESENTED; the runner must present every value — a partial presentation is a runner error recorded in the PIR"
   bound-asks: "when an ask requests a bound (at most / at least) and the answer names several values, record the stated bound (e.g. 'no bigger than a small phone, deck of cards is ok' → phone)"
-  declared-none: "an explicit 'no deadline / no threshold' is an ANSWER with value none-declared — never UNKNOWN. Field-PRESENCE statements ('not for sale') are NOT declared-none: they are governed by conditional_fields and yield ABSENT for the field they close (run-4 harmonization of a same-commit contradiction)"
+  declared-none: "an explicit 'no deadline / no threshold / not for sale' is an ANSWER with value none-declared — never UNKNOWN, never ABSENT"
   negative-function: "a required function question answered 'none' produces NO function item; the answer lives in provenance.pir.functions and satisfies the feed"
   derived-items: "derived capabilities enter pir.functions as {capability, detail, source: derived, rule: <derivation name>} — no quote, no question"
   timestamps: "R4 timestamps use the best available precision; date-only ISO 8601 is legal when the transcript carries no clock"
   unknown-addressing: "unknowns[].field uses the leaf path (pir.targets.unit_cost.sell) and per-item paths for list entries (pir.constraints[<tech>].strength)"
   enum-values-as-given: "enum/multi answers record the selected VALUES, including none-like values ([nothing] stays [nothing], never [])"
-  declared-none-general: "declared-none covers an explicit statement that THE ASKED VALUE does not exist or bind ('no deadline' answers the date asked; 'no lowest threshold' answers the floor asked). A statement made about a DIFFERENT question's subject (users, volume, regions) NEVER satisfies it for this one — run 3 proved the loose form splits the verdict"
-  pair-completeness: "a pair-typed question is complete only when both halves are answered or one is explicitly declared-none; the runner pursues the missing half; a half-answer is a runner error and the missing half is UNKNOWN"
-  carry-placement: "for q.phys.carry, hidden/tucked placement counts as mounted (both are fixed installations); the concealment detail goes to the record-keeping notes field (declared in the contract's record-keeping list, not in pir_fields)"
-  rate-attachment: "an adaptive q.fn.rate answer attaches to its function item as a rate: sub-object {periods per condition, configurable: bool} carrying its own question/quote/at; configurable defaults to false when the answer does not state it (a stated-absent property, not an UNKNOWN)"
+  declared-none-general: "declared-none covers ANY explicit statement that no value exists or binds (no deadline, no rush, no threshold, not for sale) — the three phrases in its definition are examples, not an allowlist"
+  carry-placement: "for q.phys.carry, hidden/tucked placement counts as mounted (both are fixed installations); the concealment detail goes to notes"
+  rate-attachment: "an adaptive q.fn.rate answer attaches to its function item as a rate: sub-object {periods per condition, configurable: bool} carrying its own question/quote/at"
 
 # ── the volunteered-technology oracle (constraint ask-back trigger) ─────
 constraint_oracle:
-  volunteered_when: "a token names an implementation choice the system could otherwise derive: radios/protocols (cellular, lora, ble, wifi), connectors (usb-c), silicon/modules, operating systems (zephyr-rtos)"
-  canonical_tokens: "constraint tech tokens are kebab-case slugs (zephyr-rtos, usb-c); the slug, not the verbatim spelling, addresses pir.constraints[<tech>]"
+  volunteered_when: "a token names an implementation choice the system could otherwise derive: radios/protocols (cellular, lora, ble, wifi), connectors (usb-c), silicon/modules, operating systems (zephyr rtos)"
   excluded:
     - "category nouns inside q.intent.what's product noun phrase ('gps tracker' names the product, not a part choice)"
     - "UI primitives already captured by enum values (led, button, screen)"
@@ -460,7 +458,7 @@ conditional_questions:         # the INDEPENDENT declaration of the
 
 conditional_fields:            # branch-closed fields are ABSENT, not UNKNOWN
   pir.targets.battery_life: "present iff pir.power_class in [PC0, PC1]"
-  pir.targets.unit_cost.sell: "present iff the founder states an intent to sell; ABSENT only on an explicit statement about THE SALE ITSELF ('not for sale', 'never selling these') — 'just for me', unit volumes, or regions never qualify; silence is UNKNOWN and the runner must ask (pair-completeness)"
+  pir.targets.unit_cost.sell: "present iff the founder states an intent to sell; an explicit not-for-sale is ABSENT (declared-none convention); silence is UNKNOWN and the runner must ask"
 
 # ── G0 lint contract (enforced by `sfd graph lint`, PLANNED) ────────────
 lint:
@@ -482,8 +480,6 @@ lint:
   - every question id and value (where the question has a value domain)
     referenced inside a rule-style derivation or consistency rule exists
   - every glosses key is a value of its question's values list
-  - every exclusive entry is a value of its question's values list, and
-    exclusive appears only on multi questions
   - every routing key is in its record's spawned_by and every routing
     target is one of its feeds entries and a pir_fields id
   - every question record carries exactly question_keys.required and a

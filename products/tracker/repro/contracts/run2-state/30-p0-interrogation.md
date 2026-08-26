@@ -70,8 +70,8 @@ it three ways, stated exactly:
 | actuation | `q.fn.acts` |
 | connectivity | `q.fn.talks` |
 | storage | `q.fn.stores` |
-| hmi | `q.fn.shows` (functions); `q.phys.controls` expresses hmi INPUT via `pir.physical.controls`, not via `pir.functions` — `feeds` is the authority (R2) |
-| compute | adaptive `q.fn.rate` (rates/reactions → demand) + `q.fn.offline` (edge autonomy = on-device logic) |
+| hmi | `q.fn.shows` + `q.phys.controls` |
+| compute | adaptive `q.fn.rate` (rates/reactions → demand) |
 | power | DERIVED from S4 (`pir.power_class` + `pir.modes`) — always present |
 | security | DERIVED: baseline whenever the product talks to anything or collects personal data (`derivations.capability.security`) |
 | time | DERIVED: whenever duty is wakes-on-schedule (`derivations.capability.time`) |
@@ -160,25 +160,6 @@ provenance:                      # R4 — per field; a LIST when multi-fed
   pir.power_class:
     - {question: q.power.source, quote: "it charges on a dock at night", at: "2026-08-26T17:40:00Z"}
 ```
-
-Record-keeping fields (adopted from reproduction runs 1–2, where all
-blind instances independently invented near-identical shapes):
-
-- top-level: `product` (slug), `source` (transcript ref), `g0`
-  ({status, blockers[]}), `runner_errors[]` (multi-affirmation convention
-  violations and missed ask-backs), `consistency[]` (per-rule result),
-  `notes[]` (details a convention routes out of a typed field, e.g.
-  carry-placement's concealment detail — record-keeping, never a
-  substitute for a typed answer). Record-keeping fields are deliberately
-  NOT in `pir_fields`: that list is the FEEDS authority, and G10 demands
-  every entry be produced by a feed or derivation.
-- `unknowns[]`: `{field, blocks[], tier, gate?, note?}` — `gate: G0` says
-  a required-tier UNKNOWN blocks the gate even when `blocks` is empty.
-- `constraints[]`: `{tech, strength, quote, volunteered_quote, at}` —
-  both verbatims: the classification answer AND the sentence that
-  volunteered the technology.
-- ABSENT is written as the literal value `ABSENT` with a comment naming
-  why (unspawned adaptive, closed branch, declared not-for-sale).
 
 The flat field list, the required subset, and the conditional fields are
 declared machine-readably in the graph (`pir_fields`, `pir_required`,
