@@ -200,7 +200,12 @@ func TestIntegration_LiveOmp_Gated(t *testing.T) {
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "Reply with exactly: ok"}); err != nil {
 		t.Fatalf("live Prompt: %v", err)
 	}
-	events, drainErr := drainToTurnBoundaryWithin(session, liveDrainBounds)
+	events, progress, drainErr := drainToTurnBoundaryWithin(session, liveDrainBounds)
+	// The max inter-event gap goes out on EVERY outcome. On a bound trip drainFault carries it in
+	// the error; on a PASS nothing else would, and the passing run is the one that finally says
+	// what Idle should be re-tightened to (see liveDrainBounds). Logged before the Fatal below so
+	// the figure survives a failure too.
+	t.Logf("live omp drain: %s", progress.describe())
 	if drainErr != nil {
 		t.Fatal(drainErr)
 	}
