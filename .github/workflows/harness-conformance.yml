@@ -145,10 +145,12 @@ jobs:
           # verified against the contract's real Status line every run: a registered contract that
           # HAS been frozen is a stale entry and FAILS until the row is deleted. Adding a row is a
           # process change and needs the pending-decision citation, like the one below.
-          #   codeinsight — "NOT frozen — still the 09 §4 step-1/2 negotiation draft ... the
-          #   DRAFT->Frozen flip is the outstanding step" (contracts/codeinsight.md, 2026-06-17)
-          #   errors — "Status: Draft for negotiation (WS1, not frozen)" (contracts/errors.md)
-          DRAFT_REGISTER="codeinsight errors"
+          # EMPTY since 2026-08-26: codeinsight and errors were the only rows, and both were
+          # verify-then-frozen under Mateo's ruling (eden #22, merged 4bf18c43 — 13 and 7 false
+          # claims amended first). The register stays as the mechanism for the next draft that
+          # ships code ahead of its ceremony; an entry needs the pending-decision citation, like
+          # the two that used to sit here.
+          DRAFT_REGISTER=""
           gated=0 debt=0
           for contract in docs/architecture/contracts/*.md; do
             lib="$(basename "${contract%.md}")"
