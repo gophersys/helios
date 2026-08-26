@@ -81,14 +81,18 @@ with it.
 
 ## Question record vocabulary
 
+The machine-readable oracle is the graph's `question_keys` /
+`adaptive_keys` lists — lint reads those, never this prose. Mandatory on
+every question: `id`, `section`, `tier`, `mode`, `ask`, `type`, `feeds`.
 `mode`: `fixed` (always in the graph) — adaptive mechanisms live in the
-`adaptive:` block instead and carry `spawned_by`. `type`: `text` · `enum`
+`adaptive:` block instead and carry `spawned_by` (mandatory there: `id`,
+`tier`, `spawned_by`, `ask`, `type`, `feeds`). `type`: `text` · `enum`
 · `multi` (multi-select enum) · `bool` (unused in v0; `q.env.body` is an
 enum to keep opens keys string-typed) · `date` · `number-unit` ·
 `pair-number` · `pair-number-unit`. Optional keys: `values` (enum/multi),
 `opens`, `adaptive` (spawn ref), `glosses` (per-value plain-language
 gloss, keys ⊆ values), `routing` (adaptive only: spawn source → target
-field). All keys are linted; an unknown key is an error.
+field). An unknown or missing key is a lint error.
 
 ## Gate G0 — pass condition
 

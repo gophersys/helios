@@ -11,7 +11,7 @@ every registry metric names the questions that feed it.
 | # | Rule | Meaning |
 |---|---|---|
 | F1 | **The registry is the contract** | One record per metric id. Graph lint checks BOTH directions: graph feeds ⊆ registry ids, registry fed_by ⊆ graph question ids. |
-| F2 | **Scores are coarse on purpose** | Scale: `green · amber · red · unknown`. The MEANING of each level is written per metric in the registry, never implied. Numbers wait until P1 has measured history. |
+| F2 | **Scores are coarse on purpose** | Scale: `green · amber · red · unknown · absent`. The MEANING of each level is written per metric in the registry, never implied. Numbers wait until P1 has measured history. |
 | F3 | **Evidence over vibes** | Every score carries evidence lines. Where a function maps to a capability the catalog covers, the score is a QUERY — records + depth (D1/D2/D3) cited. Outside coverage → a named research task, cited at D1+. |
 | F4 | **The machine recommends, the human decides G1** | Scorecard computed; go/pivot/kill recommended with reasons; the DECISION is the human's, recorded with their verbatim words (R4). |
 | F5 | **Human gates are structural** | `q.comp.safety = serious` raises a human gate the system cannot score around: no recommendation until a human clears it. |
@@ -24,6 +24,7 @@ every registry metric names the questions that feed it.
 | amber | a path exists but is unproven or tight; named as a risk in the recommendation |
 | red | evidence against it as stated; forces pivot consideration |
 | unknown | blocked by an UNKNOWN answer — the blocking PIR field is named (R5) |
+| absent | the metric's `absent_when` condition holds — its feeds are closed or unspawned; skipped by every verdict rule. A defined non-state, distinct from unknown. |
 
 ## Verdict rules v0 (recommendation only — F4)
 
@@ -32,15 +33,17 @@ stops there. (Two rules could otherwise fire at once — a safety-serious
 product is both "human gate open" and "core red"; precedence resolves it:
 the gate wins.)
 
-1. Any human gate open → **no recommendation** until a human clears it.
-2. Any core metric `unknown` → **no recommendation**; the blocking
-   UNKNOWNs are listed (G0 should have prevented this — reaching P1 with
-   one is itself a defect to report).
+1. Any human gate open → verdict **blocked** (recorded as such, with the
+   gate named in `blocked_by`) until a human clears it.
+2. Any core metric `unknown` → verdict **blocked**; the blocking UNKNOWNs
+   are listed in `blocked_by` (G0 should have prevented this — reaching
+   P1 with one is itself a defect to report).
 3. Any **core** metric red → recommend **pivot**. Recommend **kill** only
    when the red metric IS the product's stated magic
-   (`metric.tech.exists` red ∧ the magic is the differentiation in
-   `pir.novelty`).
-4. Otherwise → recommend **go**; every amber is named in the reasons.
+   (`metric.tech.exists` red ∧ `pir.novelty.magic` IS the differentiation
+   stated in `pir.novelty.different`).
+4. Otherwise → recommend **go**; every amber AND every minor-metric
+   `unknown` is named in the reasons.
 
 `minor` metrics never change the verdict; they color the reasons. A metric
 that is ABSENT (its `absent_when` holds) is skipped by every rule — a
@@ -63,8 +66,9 @@ derived:
   needs_firmware: true           # needs_hardware AND on-device logic
 human_gates: []                  # e.g. {gate: safety-serious, cleared_by: ...}
 recommendation:
-  verdict: go | pivot | kill
-  reasons: []
+  verdict: go | pivot | kill | blocked   # blocked = precedence rules 1-2:
+  blocked_by: []                         # open human gates and/or core
+  reasons: []                            # unknowns, each named
 decision:                        # F4 — the human call, with provenance
   verdict: ...
   by: ...

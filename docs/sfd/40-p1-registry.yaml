@@ -73,7 +73,7 @@ metrics:
     scored_by: agent
     scale:
       green: "benign environment"
-      amber: "one or more hard conditions (washing-or-hosing, vibration, extremes) — costed, known art"
+      amber: "one or more hard conditions (`washing-or-hosing`, `vibration`, extremes) — costed, known art"
       red: "conditions demand engineering this team/process has no path to"
 
   - id: metric.feasibility.connectivity
@@ -206,4 +206,8 @@ lint:
     absent_when)
   - every metric whose every fed_by entry is conditional or adaptive
     declares absent_when
-  - every enum value a scale text names exists in the graph it cites
+  - every key on a metric record is one of [id, asks, fed_by, consumer,
+    verdict_weight, scored_by, scale, absent_when, human_gate_when] —
+    an unknown key is red
+  - every BACKTICKED token in a scale text is a value id in the graph
+    (plain prose is never checked; naming a value means backticking it)

@@ -417,6 +417,13 @@ pir_required:                  # gives lint bullet "required fields fed by
   - pir.compliance.safety
   - pir.compliance.personal_data
 
+question_keys:                 # the key oracle for lint (machine-readable,
+  required: [id, section, tier, mode, ask, type, feeds]
+  optional: [values, opens, adaptive, glosses]
+adaptive_keys:
+  required: [id, tier, spawned_by, ask, type, feeds]
+  optional: [values, routing]
+
 conditional_questions:         # the INDEPENDENT declaration of the
   - q.fn.offline               # conditional set — lint checks SET EQUALITY
   - q.power.life               # against computed opens targets, so adding
@@ -447,6 +454,10 @@ lint:
   - every question id and value referenced inside a rule-style derivation
     or consistency rule exists
   - every glosses key is a value of its question's values list
-  - every key on a question or adaptive record is documented in the
-    contract's "Question record vocabulary" section — an unknown key is red
+  - every routing key is in its record's spawned_by and every routing
+    target is one of its feeds entries and a pir_fields id
+  - every question record carries exactly question_keys.required and a
+    subset of question_keys.optional; adaptive records likewise against
+    adaptive_keys — an unknown or missing key is red (the oracle is the
+    machine-readable lists above, never prose)
   - no two questions share an id
