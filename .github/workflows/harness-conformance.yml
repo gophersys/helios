@@ -138,24 +138,55 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          gated=0
+          # DRAFT debt register — the libs MODULE_GRAPH_EXEMPT pattern: explicit, loud, and it MAY
+          # ONLY SHRINK. A contract here is one whose own text records the DRAFT->Frozen flip as a
+          # pending Mateo decision (§5: a contract PROMISE is human-gated, so this gate cannot
+          # freeze it and must not fail the whole lane on a decision it cannot make). An entry is
+          # verified against the contract's real Status line every run: a registered contract that
+          # HAS been frozen is a stale entry and FAILS until the row is deleted. Adding a row is a
+          # process change and needs the pending-decision citation, like the one below.
+          #   codeinsight — "NOT frozen — still the 09 §4 step-1/2 negotiation draft ... the
+          #   DRAFT->Frozen flip is the outstanding step" (contracts/codeinsight.md, 2026-06-17)
+          #   errors — "Status: Draft for negotiation (WS1, not frozen)" (contracts/errors.md)
+          DRAFT_REGISTER="codeinsight errors"
+          gated=0 debt=0
           for contract in docs/architecture/contracts/*.md; do
             lib="$(basename "${contract%.md}")"
             [ "$lib" = "README" ] && continue
             [ -f "libs/go/$lib/ctl.sh" ] || continue
-            echo "::group::phase-gate architecture — $lib"
-            ( cd "libs/go/$lib" && bash ./ctl.sh phase-gate architecture )
-            echo "::endgroup::"
-            gated=$((gated + 1))
+            # Strip markdown emphasis before classifying: workspaceprovider writes
+            # '> Status: **Frozen — revised ...**' and a plain grep misreads bold as not-frozen.
+            status="$(grep -m1 '^> Status:' "$contract" | tr -d '*')"
+            if [[ "$status" == "> Status: Frozen"* ]]; then
+              if grep -qw "$lib" <<<"$DRAFT_REGISTER"; then
+                echo "::error::$lib is FROZEN but still in DRAFT_REGISTER — the register may only shrink; delete the row" >&2
+                exit 1
+              fi
+              echo "::group::phase-gate architecture — $lib"
+              ( cd "libs/go/$lib" && bash ./ctl.sh phase-gate architecture )
+              echo "::endgroup::"
+              gated=$((gated + 1))
+            elif [[ "$status" == *[Dd]"raft"* ]] || [[ "$status" == *"DRAFT"* ]]; then
+              if grep -qw "$lib" <<<"$DRAFT_REGISTER"; then
+                echo "::warning::REGISTERED DEBT — $lib contract is DRAFT by recorded pending decision; its ARCHITECTURE gate does not run until Mateo freezes it (§5 contract PROMISE)"
+                debt=$((debt + 1))
+              else
+                echo "::error::contract $lib is DRAFT and not in DRAFT_REGISTER — freeze it or register it with its pending-decision citation" >&2
+                exit 1
+              fi
+            else
+              echo "::error::contract $lib has a Status line this gate cannot classify: '$status'" >&2
+              exit 1
+            fi
           done
           # A gate that selected nothing is not evidence. Say so and fail, rather than reporting a
           # green that checked no contract at all.
           if [ "$gated" -eq 0 ]; then
             echo "no library was gated: every contract in docs/architecture/contracts/ lacks a" >&2
-            echo "matching libs/go/<lib>/ctl.sh, so this step verified nothing" >&2
+            echo "matching libs/go/<lib>/ctl.sh or is registered debt, so this step verified nothing" >&2
             exit 1
           fi
-          echo "frozen-contract gate: $gated librar(y/ies) gated"
+          echo "frozen-contract gate: $gated gated, $debt registered-debt (target 0)"
 
       - name: Adapter conformance + live gated tests against the pinned versions
         env:
