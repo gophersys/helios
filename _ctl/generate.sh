@@ -446,7 +446,7 @@ JOB_BUILD_HEAD
   printf '%s\n' "$build_args_block"
   printf '          tags: ${{ env.SMOKE_REF }}\n'
   printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache\n' "$name"
-  printf '          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache,mode=max\n' "$name"
+  printf '          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache,mode=min\n' "$name"
 
   printf '      - name: smoke test (native amd64)\n'
   emit_note '        ' "$name" smoke
@@ -632,13 +632,33 @@ FILE_BANNER
 # type=gha is the Actions cache service, 10 GB per repository across all scopes,
 FILE_HEADER_A
 
-  printf '# which %s images at mode=max cannot fit — the measured hit rate was not worth\n' "$count"
+  printf '# which %s multi-GB images cannot fit at any export mode — the measured\n# hit rate was not worth the quota.\n' "$count"
   cat <<'FILE_HEADER_B'
-# the quota. type=registry puts each image's cache in its own ghcr package,
+# type=registry puts each image's cache in its own ghcr package,
 # ghcr.io/gophersys/<image>-cache, which the pool can read and write with the
 # same GITHUB_TOKEN it already pushes with. Those packages do not exist until
 # the first run creates them, so the first build logs a cache-from miss and that
 # is expected exactly once per image.
+#
+# THE EXPORT IS mode=min, AND THE READING IS FREE. The two directions of this
+# cache cost wildly different amounts, measured on this repository:
+#
+#   cache-from  the import costs 2.0s (cloud) / 3.5s (base). It is the half that
+#               serves every layer, and it stays.
+#   cache-to    the export under mode=max measured 511.6s (base) / 606.6s
+#               (cloud) — 8.5 and 10.1 minutes, paid on EVERY run.
+#
+# mode=max exists to cache the steps of stages that do NOT reach the final
+# image. Every Dockerfile of this repository is SINGLE-stage: 1 FROM, no named
+# stage, no COPY --from anywhere in the 6 files. So there is no discarded stage
+# for mode=max to keep, and it was paying that export for nothing. mode=min
+# writes the layers the final image is made of, which is exactly the set
+# cache-from serves a later build.
+#
+# NOT "drop cache-to". A frozen cache decays: with nothing refreshing it the
+# hit rate falls to zero, and then every run pays a full rebuild AND a full set
+# of upstream fetches — the cost this lever exists to avoid. The export has to
+# keep happening; it only has to stop carrying what nothing reads.
 #
 # base-runner is retired. All 3 ARC pools run `cloud` now, so nothing pulls the
 # image and no job builds it. `runner/` is deleted (D2, 2026-08-18); the CI fold

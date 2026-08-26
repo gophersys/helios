@@ -89,12 +89,33 @@ name: build-and-push
 # ============================================================================
 #
 # type=gha is the Actions cache service, 10 GB per repository across all scopes,
-# which 6 images at mode=max cannot fit — the measured hit rate was not worth
-# the quota. type=registry puts each image's cache in its own ghcr package,
+# which 6 multi-GB images cannot fit at any export mode — the measured
+# hit rate was not worth the quota.
+# type=registry puts each image's cache in its own ghcr package,
 # ghcr.io/gophersys/<image>-cache, which the pool can read and write with the
 # same GITHUB_TOKEN it already pushes with. Those packages do not exist until
 # the first run creates them, so the first build logs a cache-from miss and that
 # is expected exactly once per image.
+#
+# THE EXPORT IS mode=min, AND THE READING IS FREE. The two directions of this
+# cache cost wildly different amounts, measured on this repository:
+#
+#   cache-from  the import costs 2.0s (cloud) / 3.5s (base). It is the half that
+#               serves every layer, and it stays.
+#   cache-to    the export under mode=max measured 511.6s (base) / 606.6s
+#               (cloud) — 8.5 and 10.1 minutes, paid on EVERY run.
+#
+# mode=max exists to cache the steps of stages that do NOT reach the final
+# image. Every Dockerfile of this repository is SINGLE-stage: 1 FROM, no named
+# stage, no COPY --from anywhere in the 6 files. So there is no discarded stage
+# for mode=max to keep, and it was paying that export for nothing. mode=min
+# writes the layers the final image is made of, which is exactly the set
+# cache-from serves a later build.
+#
+# NOT "drop cache-to". A frozen cache decays: with nothing refreshing it the
+# hit rate falls to zero, and then every run pays a full rebuild AND a full set
+# of upstream fetches — the cost this lever exists to avoid. The export has to
+# keep happening; it only has to stop carrying what nothing reads.
 #
 # base-runner is retired. All 3 ARC pools run `cloud` now, so nothing pulls the
 # image and no job builds it. `runner/` is deleted (D2, 2026-08-18); the CI fold
@@ -309,7 +330,7 @@ jobs:
           build-args: ${{ steps.versions.outputs.args }}
           tags: ${{ env.SMOKE_REF }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache,mode=max
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/base-cache,mode=min
       - name: smoke test (native amd64)
         # The Dockerfile deliberately runs no --version checks: they could not
         # run while this image was cross-built under QEMU. This is where every
@@ -482,7 +503,7 @@ jobs:
             BASE_TAG=${{ env.BASE_TAG }}
           tags: ${{ env.SMOKE_REF }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/mobile-cache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/mobile-cache,mode=max
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/mobile-cache,mode=min
       - name: smoke test (native amd64)
         # mobile inherits every tool of base, so the pins of versions.env are
         # compared here too, and the Flutter SDK is checked on top of them.
@@ -651,7 +672,7 @@ jobs:
             BASE_TAG=${{ env.BASE_TAG }}
           tags: ${{ env.SMOKE_REF }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/embedded-cache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/embedded-cache,mode=max
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/embedded-cache,mode=min
       - name: smoke test (native amd64)
         # embedded inherits every tool of base, so the pins of versions.env are
         # compared here too. Its own home adds 6 rows on top of them, of which 3
@@ -831,7 +852,7 @@ jobs:
           build-args: ${{ steps.versions.outputs.args }}
           tags: ${{ env.SMOKE_REF }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/cloud-cache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/cloud-cache,mode=max
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/cloud-cache,mode=min
       - name: smoke test (native amd64)
         # Content checks for every kept tool group, the CI fold, the harness
         # bake, the absent-Go-cache assertion, and the size gate at the budget
@@ -1017,7 +1038,7 @@ jobs:
             ${{ steps.versions.outputs.args }}
           tags: ${{ env.SMOKE_REF }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/hardware-cache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/hardware-cache,mode=max
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/hardware-cache,mode=min
       - name: smoke test (native amd64)
         # hardware inherits every tool of cloud, so the pins of versions.env are
         # compared here too, and kicad-cli plus the 3 library floors are checked on
@@ -1209,7 +1230,7 @@ jobs:
             ${{ steps.versions.outputs.args }}
           tags: ${{ env.SMOKE_REF }}
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/ui-cache
-          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/ui-cache,mode=max
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/ui-cache,mode=min
       - name: smoke test (native amd64)
         # ui inherits every tool of cloud, so the pins of versions.env are compared
         # here too, and the browser major is compared through the baked
