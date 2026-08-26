@@ -32,6 +32,15 @@ on:
       # change to the job's own honesty, so it is proven by the job it guards.
       - "scripts/assert-harness-conformance-preconditions.sh"
       - "scripts/assert-peer-messaging-available.sh"
+      # This file itself, by the same argument as the 2 asserts above. Without it, a change to
+      # this workflow could not run this workflow: the frozen-contract step below was added in a
+      # pull request that never executed it, and its green came entirely from the affected-gate.
+      # A gate step that has never run is exactly the defect this job exists to catch.
+      - ".github/workflows/harness-conformance.yml"
+      # The frozen-contract step iterates these, so adding or removing one CHANGES WHAT IS GATED.
+      # A new contract with no matching library, or a deleted contract that silently shrinks the
+      # set, must be caught here rather than by a later reader noticing the count moved.
+      - "docs/architecture/contracts/**"
   workflow_dispatch:
 
 concurrency:
