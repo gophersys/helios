@@ -183,7 +183,7 @@ func TestIntegration_LiveClaude_Gated(t *testing.T) {
 		t.Skip("claude binary not on PATH: skipping the live arm")
 	}
 
-	pool := newPoolWithToken(t, claudeadapter.MustNewForTest(t, claudeadapter.Config{}), token)
+	pool := newLivePool(t, token)
 	session, err := pool.Open(context.Background(), agentsession.Spec{
 		Workspace:  t.TempDir(),
 		Routing:    agentsession.RouteKey{Role: "assistant"},
@@ -198,7 +198,7 @@ func TestIntegration_LiveClaude_Gated(t *testing.T) {
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "Reply with exactly: ok"}); err != nil {
 		t.Fatalf("live Prompt: %v", err)
 	}
-	events, drainErr := drainToTurnBoundary(session)
+	events, drainErr := drainToTurnBoundaryWithin(session, liveDrainDeadline)
 	if drainErr != nil {
 		t.Fatal(drainErr)
 	}
@@ -371,7 +371,7 @@ func TestIntegration_LiveClaude_HostToolRoundTrip(t *testing.T) {
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: prompt}); err != nil {
 		t.Fatalf("live Prompt: %v", err)
 	}
-	events, drainErr := drainToTurnBoundary(session)
+	events, drainErr := drainToTurnBoundaryWithin(session, liveDrainDeadline)
 	if drainErr != nil {
 		t.Fatal(drainErr)
 	}
@@ -620,6 +620,12 @@ func (integrationClock) Now() time.Time { return time.Date(2026, time.June, 13, 
 // drainDeadline bounds a live harness run. Exceeding it is a FAILURE that says
 // so, never a quiet return of a partial event list.
 const drainDeadline = 15 * time.Second
+
+// liveDrainDeadline bounds a drain against the REAL harness. A live turn takes tens of
+// seconds; the 15s default above is sized for the in-repo stub and cut real runs off
+// mid-turn, which reads as a hang rather than as a deadline that was never live-sized.
+// 120s matches the other live arm in this file; the multi-turn lane uses 90s and omp 60s.
+const liveDrainDeadline = 120 * time.Second
 
 // Re-pinned for contract revision R1: the drain stops on the boundary PAYLOAD
 // (`event.Terminal != nil`), which is the SAME event on both sides of the revision — a success
