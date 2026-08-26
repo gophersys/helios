@@ -3,9 +3,12 @@
 // threads the OpenRouter provider key (an opaque secrets.Reference resolved server-side) onto
 // the CHILD process env under OPENROUTER_API_KEY ONLY (never Eden's env, never a log), and
 // NORMALIZES omp's frame stream into the Eden Event taxonomy. The wiring (arg/env
-// construction, json parsing) is unit-tested with fixtures captured from a live omp run; a
-// LIVE run against real omp + OpenRouter + DeepSeek-v4-flash is GATED on the OpenRouter key
-// being present (TestIntegration_LiveOmp_Gated) and is otherwise SKIPPED.
+// construction, json parsing) is unit-tested with fixtures captured from a live omp run and
+// against the stub subprocess under `-tags integration`. The LIVE omp turn is proven in the
+// harness/acceptance lane only — agentsession/omp_turn_harness_test.go under
+// `//go:build harness` (run via `ctl.sh harness`), FAIL-NOT-SKIP by that lane's contract.
+// This package carries no live arm and no skip (Mateo's ruling, 2026-08-26; task #24 tracks
+// the omp 17.2.5 rpc deadlock).
 //
 // Mode choice: rpc, not json. `--mode json` is a clean ONE-WAY stream, but it is also ONE
 // PROCESS PER TURN — a session that exits after its turn cannot serve a second Prompt, cannot
