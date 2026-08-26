@@ -51,12 +51,25 @@ authoring recipe.
 
 ## Commit identity
 
-All commits in this repository MUST be authored by:
+**ATTRIBUTION IS IDENTITY** (Mateo, 2026-08-25). This section previously
+required every commit to be authored `Mateo Segura` and forbade AI attribution
+"of any kind". That ruling has been **REVERSED** and this text is superseded by
+`eden/.claude/rules/git-process.md` §13, which is the single home for the rule.
+The reason for the reversal: an unattributed agent commit reads as a human's,
+and that is a false record.
 
-- **Name:** `Mateo Segura`
-- **Email:** `mateo.segura413@gmail.com`
+- **Solo agent work** is authored `Claude <claude-agent@gophersys.noreply>`,
+  with no trailer.
+- **Joint interactive work** is authored Mateo, with a `Co-Authored-By: Claude`
+  trailer.
+- **An agent NEVER commits, approves or comments as "Mateo."** An agent's pull
+  request comment identifies itself and names the authority it acts under.
+- These govern the git **author** field only. The **committer** stays the human
+  account whose credential pushes, because an agent has no GitHub identity yet —
+  so a commit today honestly reads `author=Claude`, `committer=Mateo Segura`.
 
-Configure via repo-local `git config user.name` / `user.email` when
-cloning fresh. Commit messages follow Conventional Commits; subject
-lines are imperative, ≤72 chars, no trailing period. Commit messages
-MUST NOT contain AI / LLM / assistant attribution of any kind.
+Where this file and `git-process.md` §13 ever disagree, **§13 wins**: the later
+process supersedes the earlier one, and the rule lives in one home, not two.
+
+Commit messages follow Conventional Commits; subject lines are imperative,
+≤72 chars, no trailing period.
