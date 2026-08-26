@@ -37,4 +37,9 @@ recommendation:
     - "P2-class ambers (non-verdict-bearing): edge-autonomy"
     - "minor unknowns: none"
     - "safety note for G1: LiPo + heat + vibration — founder answered none; pack/thermal care is a named P5 item"
-decision: {}   # F4 — Mateo's, recorded verbatim when made
+decision:
+  verdict: go
+  by: Mateo
+  quote: "go"
+  at: 2026-08-26
+  context: "G1 closed against the recommendation above; ambers accepted as P2-P5 work items, led by the cellular+GNSS catalog task
