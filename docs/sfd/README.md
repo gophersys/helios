@@ -13,6 +13,8 @@ and hardware — firmware derives it first, hardware must then satisfy it.**
 | [`20-component-process.md`](20-component-process.md) | How anything enters the system; part numbers bind LAST | D1 |
 | [`30-p0-interrogation.md`](30-p0-interrogation.md) | P0: rules R1–R5, tiers, constraints channel, G0, PIR v0 | D1 |
 | [`30-p0-graph.yaml`](30-p0-graph.yaml) | The interrogation graph Eden runs — 30 typed questions + 2 adaptive | D1 |
+| [`40-p1-metrics.md`](40-p1-metrics.md) | P1: scorecard frame F1–F5, verdict rules, catalog seam | D1 |
+| [`40-p1-registry.yaml`](40-p1-registry.yaml) | The metric registry — 16 metrics + 2 flags; closes R2's two-way trace | D1 |
 | [`capability-index.schema.yaml`](capability-index.schema.yaml) | The catalog record shapes (doc copy; truth is `tools/sfd/record.go`) | D1 |
 
 The machine behind the docs:
@@ -25,8 +27,8 @@ The machine behind the docs:
 | devcontainer | [`.devcontainer/`](../../.devcontainer/) | rides `ghcr.io/gophersys/embedded` by digest; consume-only |
 | gate | [`gate.sh`](../../gate.sh) | the whole safety net (repo has zero CI): vet + tests + `sfd verify`, devcontainer-only, FAIL-NOT-SKIP |
 
-Numbering leaves room: `40-` P1 feasibility metrics, `50-` P4 part
-selection, `60-` P5 hardware handoff — each lands in a later round.
+Numbering leaves room: `50-` P4 part selection, `60-` P5 hardware
+handoff — each lands in a later round.
 
 ## Depth scale (used everywhere)
 
