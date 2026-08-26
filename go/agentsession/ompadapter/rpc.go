@@ -17,12 +17,6 @@ import (
 	"github.com/gophersys/libs/go/errors"
 )
 
-// rpcProtocolVersion is the protocol the host negotiates on the `ready` frame. omp runs
-// protocol 1 until the host asks for another and offers [1,2] in supportedProtocolVersions;
-// the rpc wire schema is byte-identical across 17.2.5 and 17.3.7 (rpc-types.ts, sha1
-// f3a62ed4), so 2 is safe on the pinned harness.
-const rpcProtocolVersion = 2
-
 // errRPCSessionClosed is the ONE sticky error every caller of a closed session gets — the one
 // blocked in flight when Close landed and every one after it. It mirrors what omp does on its
 // side of the same event: on stdin EOF its host-tool bridge closes with a sticky #closedError
@@ -337,15 +331,27 @@ func (c *rpcConn) service(line []byte) []agentsession.Event {
 }
 
 // handshake answers omp's `ready` — its ONLY readiness signal, unconditional and first
-// (rpc-mode.ts:690) — by negotiating the protocol, registering the session's host tools, and
-// publishing the Initializing->Ready transition the library's Open blocks on. Readiness is
-// therefore MEASURED: a child that never came up publishes nothing, and Open fails rather than
-// returning a live session for a harness that is not there.
+// (rpc-mode.ts:690) — by registering the session's host tools and publishing the
+// Initializing->Ready transition the library's Open blocks on. Readiness is therefore MEASURED: a
+// child that never came up publishes nothing, and Open fails rather than returning a live session
+// for a harness that is not there.
+//
+// It deliberately negotiates NO protocol. omp's RpcFrameEncoder defaults to protocol 1
+// (rpc-frame.ts:265) and flips to 2 only on a `success===true` negotiate response
+// (rpc-mode.ts:701-702), so writing nothing IS protocol 1 — the state omp already starts in.
+// Protocol 2 is the ONE thing that licenses omp to split an over-1-MiB logical frame into
+// `rpc_chunk` lines (rpc-frame.ts:284), and this package reassembles none of them: a chunked
+// `agent_end` would dissolve into EventExtension and the turn would never end. omp's own
+// reference host treats the two as one indivisible capability — rpc-client.ts:409-419 enables
+// chunk reassembly BEFORE it sends the negotiate, and rpc-client.ts:345-346 throws
+// "RPC chunk received before protocol negotiation" on a chunk that arrives without it.
+//
+// Sending `protocolVersion: 1` is NOT the alternative: rpc-mode.ts:979-983 answers any version
+// other than 2 with `success:false`, buying an error frame on the wire for the same outcome.
+//
+// FOLLOW-UP: re-enable the negotiate in the SAME change that adds the `rpc_chunk` reassembler
+// (the Go twin of rpc-frame.ts:136-189) — never before it, and never in a change of its own.
 func (c *rpcConn) handshake() []agentsession.Event {
-	//nolint:errcheck // best-effort handshake: a transport that cannot take these frames ends the pump, and the missing Ready is the actionable outcome.
-	_ = c.writeFrame(map[string]any{
-		"id": c.nextFrameID(), "type": "negotiate_protocol", "protocolVersion": rpcProtocolVersion,
-	})
 	if definitions := c.hostTools.definitions(); len(definitions) > 0 {
 		//nolint:errcheck // best-effort registration; an unregistered host tool surfaces as a failed call, not a broken transport.
 		_ = c.writeFrame(map[string]any{
@@ -375,22 +381,51 @@ func (c *rpcConn) handshake() []agentsession.Event {
 // delivered, and resolveDialog must find the entry. The deny-on-timeout timer is armed here so
 // omp's timerless `select` (rpc-mode.ts:640) cannot stall the turn if the library never resolves.
 //
-// Only `select` — the approval gate — is routed. The widget/status/notify verbs are fire-and-forget
-// (rpc-mode.ts:824): omp never waits for them, and answering one would be a frame nobody asked for.
+// The other three BLOCKING verbs are dismissed on arrival instead. They are not permission asks,
+// so the permission chain holds no verdict for them and a headless session has no human to raise
+// them to; arming the fallback would only buy minutes of stalled turn for a decision that can
+// never arrive. Dismissal fails safe on every one of them, each verified on its own omp code path:
+// confirm returns false (rpc-mode.ts:767-774), select and input return undefined
+// (parseValueDialogResponse, rpc-mode.ts:521-531), editor calls finish(undefined) (the resolver in
+// requestRpcEditor, rpc-mode.ts:586-594).
+//
+// The routing rule is a CLOSED ALLOWLIST, and that is the point: every other method — notify
+// (rpc-mode.ts:798), setStatus (:809), setWidget (:824), setTitle (:847), set_editor_text (:868),
+// the cancel WITHDRAWAL (:628, :574), and anything omp adds later — is fire-and-forget, registers
+// no pending request, and stays unanswered BY CONSTRUCTION rather than by being excluded one at a
+// time. An unsolicited extension_ui_response correlates with nothing on omp's side.
 func (c *rpcConn) dialog(frame *rpcFrame) []agentsession.Event {
-	if frame.Method != "select" {
+	switch frame.Method {
+	case dialogSelect:
+		c.recordDialog(frame.ID, frame.Options)
+		return []agentsession.Event{{
+			Kind: agentsession.EventPermissionRequest,
+			Permission: &agentsession.PermissionPayload{
+				RequestID: frame.ID,
+				Tool:      foldToolScope(dialogTool(frame.Title), dialogCommand(frame.Title)),
+				Reason:    c.digest([]byte(frame.Title)),
+			},
+		}}
+	case dialogConfirm, dialogInput, dialogEditor:
+		//nolint:errcheck // best-effort dismissal: a transport that cannot take the answer has already ended the session, and the block it would otherwise cause is what this write exists to prevent.
+		_ = c.writeFrame(dismissAnswer(frame.ID))
+		return nil
+	default:
 		return nil
 	}
-	c.recordDialog(frame.ID, frame.Options)
-	return []agentsession.Event{{
-		Kind: agentsession.EventPermissionRequest,
-		Permission: &agentsession.PermissionPayload{
-			RequestID: frame.ID,
-			Tool:      foldToolScope(dialogTool(frame.Title), dialogCommand(frame.Title)),
-			Reason:    c.digest([]byte(frame.Title)),
-		},
-	}}
 }
+
+// The four extension-UI verbs omp BLOCKS on: each settles a promise that waits for a matching
+// `extension_ui_response` and nothing else short of client disconnect (rejectAll, rpc-mode.ts:81).
+// Only `select` and `input` carry an armable timeout (rpc-mode.ts:640), and the adapter's asks
+// never do; `editor` (requestRpcEditor, rpc-mode.ts:544-606) arms no timer on ANY path. This set is
+// the whole of what dialog answers.
+const (
+	dialogSelect  = "select"  // rpc-mode.ts:740
+	dialogConfirm = "confirm" // rpc-mode.ts:760
+	dialogInput   = "input"   // rpc-mode.ts:778
+	dialogEditor  = "editor"  // rpc-mode.ts:884
+)
 
 // fallbackDenyBy is the deciding identity the adapter stamps on a deny-on-timeout resolution — the
 // last-resort safety net, distinct from any library verdict so the audit record shows the library
@@ -471,22 +506,29 @@ func (c *rpcConn) cancelDialogs() {
 	c.dialogs = nil
 }
 
-// wireAnswer renders the RpcExtensionUIResponse for a resolved select (rpc-types.ts:535): the
-// library's verdict mapped to the dialog's OWN option label (omp matches the answer's value against
-// its options array). When the expected label is absent the answer is the dismissal variant, which
-// fails safe — a dismissed dialog is a denial, never a fabricated approval.
+// wireAnswer renders the VALUE variant of RpcExtensionUIResponse for a resolved select
+// (rpc-types.ts:536): the library's verdict mapped to the dialog's OWN option label (omp matches
+// the answer's value against its options array). When the expected label is absent it falls back to
+// dismissAnswer, which fails safe — a dismissed dialog is a denial, never a fabricated approval.
 func wireAnswer(id string, options []string, allow bool) map[string]any {
-	answer := map[string]any{"type": "extension_ui_response", "id": id}
 	want := denyOption
 	if allow {
 		want = approveOption
 	}
-	if option, found := optionLabeled(options, want); found {
-		answer["value"] = option
-		return answer
+	option, found := optionLabeled(options, want)
+	if !found {
+		return dismissAnswer(id)
 	}
-	answer[answerDismissField] = true
-	return answer
+	return map[string]any{"type": "extension_ui_response", "id": id, "value": option}
+}
+
+// dismissAnswer renders the DISMISSAL variant of RpcExtensionUIResponse (rpc-types.ts:538) — the
+// one variant of the three that carries no verdict, and the ONE home for the shape. It is the whole
+// answer to a blocking verb Eden cannot decide, and wireAnswer's fail-safe when a select's options
+// carry no matching label. `timedOut` is deliberately absent: setting it would fire omp's own
+// onTimeout hook (rpc-mode.ts:526, :769), and this is a dismissal, not an expiry.
+func dismissAnswer(id string) map[string]any {
+	return map[string]any{"type": "extension_ui_response", "id": id, answerDismissField: true}
 }
 
 // The two option labels omp's approval dialog offers, matched case-insensitively against the
@@ -497,7 +539,7 @@ const (
 )
 
 // answerDismissField is the dismissal variant's field name, spelled as omp spells it on the wire
-// (rpc-types.ts:535). An answer whose key does not match resolves no dialog.
+// (rpc-types.ts:538). An answer whose key does not match resolves no dialog.
 //
 //nolint:misspell // the double-L is omp's wire spelling of this field, not this repository's prose; the US-locale linter flags the only spelling that resolves the dialog.
 const answerDismissField = "cancelled"
@@ -573,8 +615,8 @@ func (c *rpcConn) writeFrame(frame any) error {
 }
 
 // nextFrameID returns the next host-chosen correlation id. omp echoes it on the matching
-// response frame ("1" for the negotiate, "2" for set_host_tools, "3" for the first prompt — the
-// ids the probe captures carry).
+// response frame ("1" for set_host_tools, "2" for the first prompt — the probe captures carry
+// the ids one higher, from the negotiate this host no longer sends: see handshake()).
 func (c *rpcConn) nextFrameID() string {
 	return strconv.FormatInt(c.frameID.Add(1), 10)
 }

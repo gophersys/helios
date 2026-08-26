@@ -83,13 +83,17 @@ const (
 const dialogDismissField = "cancelled"
 
 // TestRPC_ReadyWaitsForTheReadyFrame proves the readiness handshake is MEASURED, not assumed: no
-// Ready is published while omp has said nothing, and the host answers the `ready` frame by
-// negotiating protocol 2 on stdin.
+// Ready is published while omp has said nothing, and the Initializing->Ready transition follows
+// omp's own `ready` frame.
 //
 // The pre-rewrite conn signaled Initializing->Ready from a goroutine started inside Spawn,
 // before any process existed — so the library's Open returned a live session for a harness that
 // might never have started. omp's `ready` is unconditional and FIRST (rpc-mode.ts:690), which is
 // exactly why it is a usable readiness signal and a synthesized one is not.
+//
+// What the host may write BACK on `ready` is a separate contract, pinned next door in
+// dialog_test.go (TestRPC_HandshakeClaimsNoProtocolItCannotDecode): it must not negotiate a
+// protocol whose frames it cannot rebuild. This test is about the timing, not the reply.
 func TestRPC_ReadyWaitsForTheReadyFrame(t *testing.T) {
 	t.Parallel()
 	harness := newRPCHarness(t, agentsession.Spec{})
@@ -101,21 +105,8 @@ func TestRPC_ReadyWaitsForTheReadyFrame(t *testing.T) {
 		t.Fatalf("Ready was published %s before omp emitted its `ready` frame (%+v) — a session that is ready by assumption is the silent-bad-token trap",
 			readyGrace, event.State)
 	}
-	if frame, found := harness.stdin.find(hasType("negotiate_protocol")); found {
-		t.Fatalf("the host negotiated the protocol before omp announced itself: %v", frame)
-	}
 
-	harness.emit(frames[0]) // the `ready` frame, alone
-
-	negotiate := harness.waitFrame("negotiate_protocol", hasType("negotiate_protocol"))
-	if !numberIs(negotiate["protocolVersion"], 2) {
-		t.Errorf("negotiate_protocol protocolVersion = %v, want 2 — 1 is what omp runs until the host negotiates, and the rpc wire schema is byte-identical 17.2.5<->17.3.7, so 2 is safe on the pin",
-			negotiate["protocolVersion"])
-	}
-	if id := stringField(negotiate, "id"); id == "" {
-		t.Errorf("negotiate_protocol carries no id; omp correlates its response on it (captured: id \"1\"): %v", negotiate)
-	}
-
+	harness.emit(frames[0])     // the `ready` frame, alone
 	harness.emit(frames[1:]...) // setWidget, available_commands_update, the negotiate response
 	harness.waitEvent("the Initializing->Ready transition", isReady)
 }
@@ -485,15 +476,21 @@ func (h *rpcHarness) emit(frames ...string) {
 	}
 }
 
-// completeHandshake drives the captured startup exchange to Ready: the `ready` frame, the host's
-// negotiate_protocol, then the rest of the captured startup burst.
+// completeHandshake drives the captured startup exchange to Ready: the `ready` frame — omp's ONLY
+// readiness signal (rpc-mode.ts:690) — then the rest of the captured startup burst.
+//
+// The gate is the Initializing->Ready EVENT, not a frame the host writes back, because on a
+// session with no host tools the host writes NOTHING on `ready`: it must not negotiate a protocol
+// whose frames it cannot rebuild (dialog_test.go
+// TestRPC_HandshakeClaimsNoProtocolItCannotDecode). handshake() (rpc.go:344) returns that event
+// AFTER its writes, so waiting on it orders every later assertion behind them without pinning any
+// particular frame.
 func (h *rpcHarness) completeHandshake() {
 	h.t.Helper()
 	frames := rpcFixture(h.t, handshakeFixture)
 	h.emit(frames[0])
-	h.waitFrame("negotiate_protocol", hasType("negotiate_protocol"))
-	h.emit(frames[1:]...)
 	h.waitEvent("the Initializing->Ready transition", isReady)
+	h.emit(frames[1:]...)
 }
 
 // waitFrame returns the first frame the conn wrote on omp's stdin that matches, or FAILS naming

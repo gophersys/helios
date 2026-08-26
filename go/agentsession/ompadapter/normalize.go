@@ -138,10 +138,10 @@ func (n *normalizer) normalize(line []byte) []agentsession.Event {
 		return []agentsession.Event{extension(line)}
 	case "ready", "response", "notice", "available_commands_update",
 		"extension_ui_request", "host_tool_call", "host_tool_cancel":
-		// The rpc CONTROL plane. rpc.go acts on these (readiness + protocol negotiation, the
-		// host-tool round trip, the dialog answer); the taxonomy has no distinct kind for a
-		// control frame, so each is ALSO surfaced verbatim as Extension — known and preserved,
-		// rather than silently consumed by the layer that serviced it.
+		// The rpc CONTROL plane. rpc.go acts on these (readiness, the host-tool round trip, the
+		// blocking-dialog answer); the taxonomy has no distinct kind for a control frame, so each
+		// is ALSO surfaced verbatim as Extension — known and preserved, rather than silently
+		// consumed by the layer that serviced it.
 		return []agentsession.Event{extension(line)}
 	case "message_start":
 		return n.messageStart(&f, line)
