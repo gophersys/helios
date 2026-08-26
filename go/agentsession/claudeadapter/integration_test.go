@@ -71,7 +71,7 @@ func TestIntegration_StubBinary_RealSubprocessLifecycle(t *testing.T) {
 		t.Fatalf("Prompt: %v", err)
 	}
 
-	events, drainErr := drainToTurnBoundaryWithin(session, liveDrainDeadline)
+	events, drainErr := drainToTurnBoundary(session)
 	if drainErr != nil {
 		t.Fatal(drainErr)
 	}
@@ -198,7 +198,7 @@ func TestIntegration_LiveClaude_Gated(t *testing.T) {
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "Reply with exactly: ok"}); err != nil {
 		t.Fatalf("live Prompt: %v", err)
 	}
-	events, drainErr := drainToTurnBoundary(session)
+	events, drainErr := drainToTurnBoundaryWithin(session, liveDrainDeadline)
 	if drainErr != nil {
 		t.Fatal(drainErr)
 	}
@@ -371,7 +371,7 @@ func TestIntegration_LiveClaude_HostToolRoundTrip(t *testing.T) {
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: prompt}); err != nil {
 		t.Fatalf("live Prompt: %v", err)
 	}
-	events, drainErr := drainToTurnBoundary(session)
+	events, drainErr := drainToTurnBoundaryWithin(session, liveDrainDeadline)
 	if drainErr != nil {
 		t.Fatal(drainErr)
 	}
