@@ -11,6 +11,8 @@ and hardware — firmware derives it first, hardware must then satisfy it.**
 | [`00-process.md`](00-process.md) | The full process: phases P0–P6, gates G0–G6, cross-cutting axes | D0 |
 | [`10-p3-pipeline.md`](10-p3-pipeline.md) | P3 in depth: the Zephyr-truth compiler, six stages | D0–D1 |
 | [`20-component-process.md`](20-component-process.md) | How anything enters the system; part numbers bind LAST | D1 |
+| [`30-p0-interrogation.md`](30-p0-interrogation.md) | P0: rules R1–R5, tiers, constraints channel, G0, PIR v0 | D1 |
+| [`30-p0-graph.yaml`](30-p0-graph.yaml) | The interrogation graph Eden runs — 30 typed questions + 2 adaptive | D1 |
 | [`capability-index.schema.yaml`](capability-index.schema.yaml) | The catalog record shapes (doc copy; truth is `tools/sfd/record.go`) | D1 |
 
 The machine behind the docs:
@@ -23,9 +25,8 @@ The machine behind the docs:
 | devcontainer | [`.devcontainer/`](../../.devcontainer/) | rides `ghcr.io/gophersys/embedded` by digest; consume-only |
 | gate | [`gate.sh`](../../gate.sh) | the whole safety net (repo has zero CI): vet + tests + `sfd verify`, devcontainer-only, FAIL-NOT-SKIP |
 
-Numbering leaves room: `30-` P0 interrogation schema, `40-` P1 feasibility
-metrics, `50-` P4 part selection, `60-` P5 hardware handoff — each lands in a
-later round.
+Numbering leaves room: `40-` P1 feasibility metrics, `50-` P4 part
+selection, `60-` P5 hardware handoff — each lands in a later round.
 
 ## Depth scale (used everywhere)
 

@@ -1,0 +1,313 @@
+# The P0 interrogation graph — the machine-readable artifact Eden runs.
+# Contract: 30-p0-interrogation.md (rules R1-R5, tiers, G0, lint).
+# Counts: 30 fixed questions — 11 required, 18 scoring, 1 color — plus 2
+# adaptive mechanisms. "required" binds only when the question is reachable.
+schema: sfd.interrogation/v0
+decided_with: Mateo, 2026-08-26
+
+questions:
+  # ── S1 INTENT ─────────────────────────────────────────────────────────
+  - id: q.intent.what
+    section: S1
+    tier: required
+    mode: fixed
+    ask: "What does the product do? One or two sentences."
+    type: text
+    feeds: [pir.summary, metric.viability.clarity]
+
+  - id: q.intent.who
+    section: S1
+    tier: required
+    mode: fixed
+    ask: "Who uses it, and where do they meet it?"
+    type: text
+    feeds: [pir.users]
+
+  - id: q.intent.exists
+    section: S1
+    tier: scoring
+    mode: fixed
+    ask: "Does something like it exist today? What is different about yours?"
+    type: text
+    feeds: [pir.novelty.different, metric.novelty]
+
+  - id: q.intent.win
+    section: S1
+    tier: scoring
+    mode: fixed
+    ask: "A year from launch: what must be true for you to call it a success?"
+    type: text
+    feeds: [pir.targets.success, metric.viability.outcome]
+
+  # ── S2 ENVIRONMENT ────────────────────────────────────────────────────
+  - id: q.env.where
+    section: S2
+    tier: scoring
+    mode: fixed
+    ask: "Where does it live?"
+    type: enum
+    values: [indoor, outdoor, on-body, vehicle, industrial, several]
+    feeds: [pir.environment.where, metric.feasibility.env-risk]
+
+  - id: q.env.conditions
+    section: S2
+    tier: scoring
+    mode: fixed
+    ask: "Which of these will it meet?"
+    type: multi
+    values: [water, dust, heat, cold, vibration, drops, washdown, none]
+    feeds: [pir.environment.conditions, metric.feasibility.env-risk]
+    adaptive: range-followups   # extreme picks spawn "how hot?"-style asks
+
+  - id: q.env.body
+    section: S2
+    tier: scoring
+    mode: fixed
+    ask: "Does it touch skin, or is it worn?"
+    type: bool
+    feeds: [pir.environment.on_body]
+    opens:
+      "true": [q.comp.safety, q.comp.data]   # hardens the S9 branch
+
+  # ── S3 FUNCTIONS — maps 1:1 onto S1's capability vocabulary ──────────
+  - id: q.fn.senses
+    section: S3
+    tier: required
+    mode: fixed
+    ask: "What does it need to notice about the world? (movement, temperature, sound, light, touch, location…)"
+    type: text
+    feeds: [pir.functions]      # capability sensing.*
+    adaptive: spawns-rate       # each named sense spawns q.fn.rate
+
+  - id: q.fn.acts
+    section: S3
+    tier: required
+    mode: fixed
+    ask: "What does it move, switch, or change?"
+    type: text
+    feeds: [pir.functions]      # capability actuation.*
+    adaptive: spawns-rate
+
+  - id: q.fn.talks
+    section: S3
+    tier: required
+    mode: fixed
+    ask: "What does it talk to — and how far away is that thing?"
+    type: enum
+    values: [phone-nearby, home-or-office-network, far-away-anywhere, other-devices-like-it, nothing]
+    feeds: [pir.functions, metric.feasibility.connectivity]
+    # THE radio derivation seed: counterpart + distance derive the radio in
+    # P3/P4; the user never names one (R3).
+
+  - id: q.fn.offline
+    section: S3
+    tier: required
+    mode: fixed
+    ask: "When the internet is gone, what must still work?"
+    type: text
+    feeds: [pir.functions, metric.platform.edge-autonomy]
+    # drives P2 MCU-vs-MPU
+
+  - id: q.fn.shows
+    section: S3
+    tier: required
+    mode: fixed
+    ask: "What does the user see or hear on the device itself?"
+    type: enum
+    values: [nothing, a-light, sound, small-screen, rich-screen]
+    feeds: [pir.functions, metric.platform.hmi-class]
+    # drives lane A vs lane B
+
+  - id: q.fn.stores
+    section: S3
+    tier: required
+    mode: fixed
+    ask: "What must it still remember after losing power?"
+    type: text
+    feeds: [pir.functions]      # capability storage.*
+
+  # ── S4 POWER — seeds the P3 power-state budget ───────────────────────
+  - id: q.power.source
+    section: S4
+    tier: required
+    mode: fixed
+    ask: "How does it get power where it lives?"
+    type: enum
+    values: [wall-power, charges-on-dock-or-cable, batteries-you-replace, no-battery-harvests, unknown]
+    feeds: [pir.power_class, metric.feasibility.power-risk]
+    opens:
+      charges-on-dock-or-cable: [q.power.life]
+      batteries-you-replace: [q.power.life]
+      no-battery-harvests: [q.power.life]
+
+  - id: q.power.life
+    section: S4
+    tier: required            # when reachable
+    mode: fixed
+    ask: "How long between charges or battery changes would DELIGHT the user — and what is UNACCEPTABLE?"
+    type: pair-number-unit    # {delight, floor}
+    feeds: [pir.targets.battery_life, metric.feasibility.power-risk]
+
+  - id: q.power.duty
+    section: S4
+    tier: required
+    mode: fixed
+    ask: "Is it always watching, or asleep until something happens?"
+    type: enum
+    values: [always-on, wakes-on-event, wakes-on-schedule, only-when-used]
+    feeds: [pir.modes, metric.feasibility.power-risk]
+    # becomes the product-mode set {active/idle/sleep/ship} in P3
+
+  # ── S5 PHYSICAL ───────────────────────────────────────────────────────
+  - id: q.phys.size
+    section: S5
+    tier: scoring
+    mode: fixed
+    ask: "At most, how big can it be? Compare it to an object."
+    type: enum
+    values: [matchbox, deck-of-cards, phone, book, shoebox, bigger]
+    feeds: [pir.physical.size_class]
+    adaptive: range-followups   # tight picks open exact-dimension asks
+
+  - id: q.phys.carry
+    section: S5
+    tier: scoring
+    mode: fixed
+    ask: "Is it held, worn, mounted, or does it sit somewhere?"
+    type: enum
+    values: [held, worn, mounted, sits, moves-on-its-own]
+    feeds: [pir.physical.carry]
+
+  - id: q.phys.controls
+    section: S5
+    tier: scoring
+    mode: fixed
+    ask: "How does the user control it?"
+    type: enum
+    values: [nothing, one-button, a-few-buttons, knobs, touch, only-an-app, voice]
+    feeds: [pir.physical.controls, metric.platform.hmi-class]
+    asserts:
+      only-an-app: connectivity.app_link   # an app IS a connectivity fact
+
+  # ── S6 SCALE + COST ───────────────────────────────────────────────────
+  - id: q.scale.units
+    section: S6
+    tier: scoring
+    mode: fixed
+    ask: "How many do you hope to build in year one — and in year three if it works?"
+    type: pair-number           # {y1, y3}
+    feeds: [pir.targets.volume, metric.viability.economics]
+
+  - id: q.scale.cost
+    section: S6
+    tier: scoring
+    mode: fixed
+    ask: "What should one unit cost you to build — and what price sells it?"
+    type: pair-number           # {build, sell}
+    feeds: [pir.targets.unit_cost, metric.viability.economics]
+
+  # ── S7 TIMELINE + EXISTING ────────────────────────────────────────────
+  - id: q.time.proto
+    section: S7
+    tier: scoring
+    mode: fixed
+    ask: "When do you need something working in your hand?"
+    type: date
+    feeds: [pir.timeline.proto, metric.risk.schedule]
+
+  - id: q.time.prod
+    section: S7
+    tier: scoring
+    mode: fixed
+    ask: "When must real units reach real users?"
+    type: date
+    feeds: [pir.timeline.production, metric.risk.schedule]
+
+  - id: q.time.exists
+    section: S7
+    tier: scoring
+    mode: fixed
+    ask: "What exists today — sketches, a breadboard, working code, a factory contact?"
+    type: multi
+    values: [nothing, sketches, cad, breadboard, working-code, app, factory-contact, funding]
+    feeds: [pir.assets, metric.feasibility.head-start]
+
+  # ── S8 NOVELTY / THE HARD PART ────────────────────────────────────────
+  - id: q.novel.hard
+    section: S8
+    tier: scoring
+    mode: fixed
+    ask: "Which part of this do you lose sleep over?"
+    type: text
+    feeds: [pir.novelty.hard, metric.risk.self-assessed]
+
+  - id: q.novel.magic
+    section: S8
+    tier: scoring
+    mode: fixed
+    ask: "Is anything here something you've never seen work anywhere?"
+    type: text
+    feeds: [pir.novelty.magic, metric.tech-exists]
+
+  - id: q.novel.moat
+    section: S8
+    tier: color
+    mode: fixed
+    ask: "What do you know that competitors don't?"
+    type: text
+    feeds: [pir.novelty.moat]
+
+  # ── S9 COMPLIANCE + SAFETY ────────────────────────────────────────────
+  - id: q.comp.region
+    section: S9
+    tier: scoring
+    mode: fixed
+    ask: "Where will it be sold first?"
+    type: multi
+    values: [us, eu, uk, ca, other]
+    feeds: [pir.compliance.regions]
+    # certifications (FCC/CE/UKCA) are DERIVED from region — never asked (R3)
+
+  - id: q.comp.safety
+    section: S9
+    tier: scoring
+    mode: fixed
+    ask: "Could a failure hurt someone or damage property?"
+    type: enum
+    values: [no, minor, serious]
+    feeds: [pir.compliance.safety, metric.risk.safety]
+    # serious → HUMAN GATE flag in P1; the system never scores that alone
+
+  - id: q.comp.data
+    section: S9
+    tier: scoring
+    mode: fixed
+    ask: "Does it collect anything personal — voice, video, health, location?"
+    type: multi
+    values: [none, voice, video, health, location, identity]
+    feeds: [pir.compliance.personal_data, metric.risk.privacy]
+
+# ── adaptive mechanisms (R4: chat discovers, only the schema records) ───
+adaptive:
+  - id: q.fn.rate
+    spawned_by: [q.fn.senses, q.fn.acts]     # once per named sense/act
+    ask: "How often? How fast must it react?"
+    type: number-unit
+    feeds: [pir.functions, metric.platform.compute-demand]
+
+  - id: q.constraint.strength
+    spawned_by: volunteered-technology        # any tech token in any answer
+    ask: "Is that a requirement, or a preference?"
+    type: enum
+    values: [hard, preference]
+    feeds: [pir.constraints]
+    # hard filters the P4 fit matrix; preference breaks ties only. Both
+    # recorded with the verbatim quote.
+
+# ── G0 lint contract (enforced by `sfd graph lint`, PLANNED) ────────────
+lint:
+  - every question feeds >= 1 existing PIR field or P1 metric id
+  - every opens target id exists in this file
+  - every opens branch key is a value of the question's own enum/bool
+  - every required PIR field is fed by >= 1 required-tier question
+  - no two questions share an id
