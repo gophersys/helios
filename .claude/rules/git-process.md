@@ -209,23 +209,19 @@ Verified 11/11 on 2026-08-25: `allow_squash_merge=false`,
 (`libs`); eden has none; the schema decodes with `KnownFields(true)`, so a new
 key is a hard failure until cictl ships it.
 
-**The reviewer turn cap is 40, and the dollar budget is NOT the only limiter.**
-Measured 2026-08-25: `review/review.sh:34` reads
-`MAX_TURNS="${REVIEW_MAX_TURNS:-40}"` at cictl `origin/main`, at `v0.5.1` and at
-`v0.6.0`, and no caller anywhere sets `REVIEW_MAX_TURNS`.
-
-**Correction, 2026-08-26: `.devcontainer` pins `v0.5.1`, not `v0.6.0`.** This
-paragraph called `v0.6.0` "the version `.devcontainer` pins". That was false.
-Measured by reading the file itself —
-`gh api repos/gophersys/.devcontainer/contents/.github/workflows/pr-review.yml`
-gives `CICTL_VERSION: v0.5.1` at line 59. `v0.6.0` exists as a cictl tag, but
-nothing pins it. Every repository that copies this reviewer therefore pins
-`v0.5.1`, and a copy that claims to be byte-identical to `.devcontainer`'s must
-pin `v0.5.1` too. The turn cap is 40 at both versions, so the correction moves
-no capability; it removes a false claim that made a true byte-identity claim
-look like a contradiction. At 40 turns the agent is cut off mid-tool-call and the run
-dies with NO VERDICT, which is the §5.2 failure mode. Raising it to 500 is a
-DIRECTIVE, not a state: §14 row 12, task #134.
+**The reviewer turn cap is 500 since cictl v0.7.0, and the dollar budget
+(`REVIEW_BUDGET_USD`) is the intended limiter.** Task #134 CLOSED 2026-08-26:
+cictl #24 merged (`faf2352b`, tagged `v0.7.0`), measured in effect on cictl main
+— `review/review.sh:42` reads `MAX_TURNS="${REVIEW_MAX_TURNS:-500}"` — and the
+reviewer copies pin `v0.7.0` in the same wave (`.devcontainer` #110, this
+repository's copy in the same commit as this sentence). History, kept because
+each step was measured: the default was 40 at `v0.5.1`/`v0.6.0` and cut the
+agent off MID-TOOL-CALL on real pull requests — the run dies with NO VERDICT,
+the §5.2 failure mode. An earlier revision of this paragraph also misattributed
+`v0.6.0` as the version `.devcontainer` pins; it pinned `v0.5.1` (its
+`pr-review.yml:59`, read directly, 2026-08-26). The failure mode at the cap is
+unchanged at any cap size: a review that dies with no verdict is a failure,
+never a pass.
 
 ## 11. Coherence — docs match reality, or it is a defect
 
@@ -316,7 +312,7 @@ comment, per rule 3.
 | 9 | EDEN COHERENCE REVIEWER | eden | §11 — light nightly / deep weekly, $200 deep budget, disjoint parallel ownership |
 | 10 | CI instrumentation probe | cictl | §12 — echo the loaded profile into the job summary; FAIL when it is absent |
 | 11 | bot GitHub identity (task #138) | eden + org | §13 — actor-level separation, so the ACTOR carries the agent identity and not only the commit author |
-| 12 | raise the reviewer turn cap (task #134) | cictl | §10 — it is **40** today at main, v0.5.1 and v0.6.0; 500/max is the directive, not the state |
+| 12 | ~~raise the reviewer turn cap (task #134)~~ **DONE 2026-08-26** | cictl | §10 — cictl #24 merged (`faf2352b`, tag `v0.7.0`), default **500** measured on cictl main; copies pinned in the same wave (`.devcontainer` #110, eden #19) |
 | 13 | lint `.githooks/` in CI | eden | **NOTHING gates it today.** `.ci/ctl.sh` shellchecks `ctl.sh` files only, so a hook can regress silently. Proven by this change: deleting the branch-grammar function orphaned `local_ref` and took `pre-push` from shellcheck-clean to SC2034, and no gate in this repository would have caught it. The deleted `branchname_test.sh` header stated the contract — "shellcheck-clean (the hooks authoring contract)" — and deleting a test does not repeal a contract. |
 
 The attribution-sync debt is CLOSED in the same change as ADR-0032, and it took
