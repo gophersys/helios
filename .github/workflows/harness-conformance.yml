@@ -130,6 +130,12 @@ jobs:
       # median, a deep lane proving nothing. Ruled option A 2026-08-25, ratified 2026-08-26.
       # Runs BEFORE the live adapter step so a contract failure costs seconds, not a live turn.
       - name: Frozen-contract gate for the libraries whose contracts live here
+        # shell MUST be bash: the job's default here is POSIX sh (the runner fell back to
+        # `sh -e {0}` in this container), and `set -Eeuo pipefail` is a bashism — under dash it
+        # dies with exit 2 BEFORE running anything, which is how this step failed on its very
+        # first execution. Every other run step in this job dodges that by invoking
+        # `bash scripts/...` explicitly; an inline script has to declare it.
+        shell: bash
         run: |
           set -Eeuo pipefail
           gated=0
