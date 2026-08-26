@@ -189,3 +189,93 @@ func TestTamperBattery(t *testing.T) {
 		})
 	}
 }
+
+// Differential findings (PR #5 refutation): rules that checked ids but not
+// values, and an unvalidated verdict_weight value.
+func TestTamperBatteryDifferential(t *testing.T) {
+	cases := []struct {
+		name   string
+		rule   string
+		needle string
+		mutate func(t *testing.T, g, r rawDoc)
+	}{
+		{"D1 consistency references bogus VALUE", "G8", "bogus-control", func(t *testing.T, g, r rawDoc) {
+			c := asMap(asList(g["consistency"])[0])
+			c["red_when"] = "q.fn.talks == nothing AND q.phys.controls == bogus-control"
+		}},
+		{"D2 rule-derivation references bogus VALUE", "G11", "bogus-duty", func(t *testing.T, g, r rawDoc) {
+			d := asMap(asMap(g["derivations"])["capability.time"])
+			d["rule"] = "timekeeping capability whenever q.power.duty == bogus-duty"
+		}},
+		{"D10 verdict_weight invalid value", "R5", "critical", func(t *testing.T, g, r rawDoc) {
+			metric(t, r, "metric.viability.clarity")["verdict_weight"] = "critical"
+		}},
+		{"N1 id with trailing digit resolves wrongly", "G8", "q.power.duty2", func(t *testing.T, g, r rawDoc) {
+			c := asMap(asList(g["consistency"])[0])
+			c["red_when"] = "q.power.duty2 == always-on AND q.phys.controls == only-an-app"
+		}},
+		{"T4 routing source not in spawned_by", "G13", "q.env.where", func(t *testing.T, g, r rawDoc) {
+			for _, aa := range asList(g["adaptive"]) {
+				a := asMap(aa)
+				if asStr(a["id"]) == "q.followup.range" {
+					asMap(a["routing"])["q.env.where"] = "pir.environment.limits"
+				}
+			}
+		}},
+		{"T16 values present but empty", "G17", "q.phys.carry", func(t *testing.T, g, r rawDoc) {
+			question(t, g, "q.phys.carry")["values"] = []any{}
+		}},
+		{"T17 adaptive empty feeds", "G16", "q.constraint.strength", func(t *testing.T, g, r rawDoc) {
+			for _, aa := range asList(g["adaptive"]) {
+				a := asMap(aa)
+				if asStr(a["id"]) == "q.constraint.strength" {
+					a["feeds"] = []any{}
+				}
+			}
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g, r := loadShipped(t)
+			tc.mutate(t, g, r)
+			assertRule(t, LintGraph(g, r), tc.rule, tc.needle)
+		})
+	}
+}
+
+// False-positive guards (PR #5 refutation D6/D7/D9): legitimate graphs the
+// lint must NOT red.
+func TestLintAcceptsLegitimateShapes(t *testing.T) {
+	cases := []struct {
+		name   string
+		mutate func(t *testing.T, g, r rawDoc)
+	}{
+		{"D6 derivation with from but no map is legal", func(t *testing.T, g, r rawDoc) {
+			d := asMap(asMap(g["derivations"])["capability.time"])
+			d["from"] = "q.power.duty"
+		}},
+		{"D7 rule-style derivation produces a pir field", func(t *testing.T, g, r rawDoc) {
+			asMap(g["derivations"])["pir.derived.example"] = map[string]any{
+				"rule": "computed from pir.power_class and pir.modes",
+			}
+			g["pir_fields"] = append(asList(g["pir_fields"]), "pir.derived.example")
+		}},
+		{"D9 routing on a scalar spawned_by", func(t *testing.T, g, r rawDoc) {
+			for _, aa := range asList(g["adaptive"]) {
+				a := asMap(aa)
+				if asStr(a["id"]) == "q.constraint.strength" {
+					a["routing"] = map[string]any{"volunteered-technology": "pir.constraints"}
+				}
+			}
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			g, r := loadShipped(t)
+			tc.mutate(t, g, r)
+			if fs := LintGraph(g, r); len(fs) != 0 {
+				t.Fatalf("legitimate shape rejected: %v", fs)
+			}
+		})
+	}
+}

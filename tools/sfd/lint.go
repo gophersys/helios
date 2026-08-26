@@ -210,6 +210,11 @@ func LintGraph(graph, registry rawDoc) []Finding {
 		// G13: routing
 		if kind == "adaptive" {
 			spawned := map[string]bool{}
+			// spawned_by is a list OR a scalar (q.constraint.strength uses
+			// `volunteered-technology`) — differential finding D9.
+			if s, ok := q["spawned_by"].(string); ok {
+				spawned[s] = true
+			}
 			for _, s := range strList(q["spawned_by"]) {
 				spawned[s] = true
 			}
@@ -259,55 +264,80 @@ func LintGraph(graph, registry rawDoc) []Finding {
 		}
 	}
 
-	// derivations: G7 maps exact, G11 rule refs; derived fields count as produced
-	qidRe := regexp.MustCompile(`q\.[a-z_.]+[a-z]`)
+	// derivations: G7 maps exact, G11 rule refs; derived fields count as produced.
+	// The id charset includes digits/hyphens/uppercase so q.power.duty2 can
+	// never silently resolve to q.power.duty (differential finding N1).
+	qidRe := regexp.MustCompile(`q\.[A-Za-z0-9_.-]*[A-Za-z0-9]`)
+	// Rule texts compare ids to VALUES (q.x == value); the contract demands
+	// both sides exist. Checked for every question that has a value domain.
+	opRe := regexp.MustCompile(`(q\.[A-Za-z0-9_.-]*[A-Za-z0-9])\s*(?:==|!=)\s*([A-Za-z0-9-]+)`)
+	checkRuleText := func(rule, owner, text string) {
+		for _, ref := range qidRe.FindAllString(text, -1) {
+			if !qids[ref] {
+				add(rule, "%s references unknown question %s", owner, ref)
+			}
+		}
+		for _, m := range opRe.FindAllStringSubmatch(text, -1) {
+			qid, val := m[1], m[2]
+			if !qids[qid] {
+				continue // already reported above
+			}
+			if vs := values[qid]; len(vs) > 0 {
+				found := false
+				for _, v := range vs {
+					if v == val {
+						found = true
+					}
+				}
+				if !found {
+					add(rule, "%s compares %s to %q — not one of its values", owner, qid, val)
+				}
+			}
+		}
+	}
 	for name, da := range derivations {
 		d := asMap(da)
+		// Any pir.-named derivation produces its field, map-style or
+		// rule-style (differential finding D7).
+		if strings.HasPrefix(name, "pir.") {
+			producedFields[name] = true
+		}
 		if from := asStr(d["from"]); from != "" {
 			if !qids[from] {
 				add("G7", "derivation %s from unknown question %s", name, from)
 				continue
 			}
-			if strings.HasPrefix(name, "pir.") {
-				producedFields[name] = true
-				if tiers[from] == "required" {
-					requiredFeeders[name] = true
+			if strings.HasPrefix(name, "pir.") && tiers[from] == "required" {
+				requiredFeeders[name] = true
+			}
+			// Map coverage applies only to derivations that carry a map —
+			// `from` without `map` is legal (differential finding D6).
+			if mp := asMap(d["map"]); len(mp) > 0 {
+				srcVals := map[string]bool{}
+				for _, v := range values[from] {
+					srcVals[v] = true
 				}
-			}
-			mp := asMap(d["map"])
-			srcVals := map[string]bool{}
-			for _, v := range values[from] {
-				srcVals[v] = true
-			}
-			for k := range mp {
-				if !srcVals[k] {
-					add("G7", "derivation %s maps unknown value %q", name, k)
+				for k := range mp {
+					if !srcVals[k] {
+						add("G7", "derivation %s maps unknown value %q", name, k)
+					}
 				}
-			}
-			for v := range srcVals {
-				if _, ok := mp[v]; !ok {
-					add("G7", "derivation %s misses value %q of %s", name, v, from)
+				for v := range srcVals {
+					if _, ok := mp[v]; !ok {
+						add("G7", "derivation %s misses value %q of %s", name, v, from)
+					}
 				}
 			}
 		}
 		if rule := asStr(d["rule"]); rule != "" {
-			for _, ref := range qidRe.FindAllString(rule, -1) {
-				if !qids[ref] {
-					add("G11", "derivation %s references unknown question %s", name, ref)
-				}
-			}
+			checkRuleText("G11", "derivation "+name, rule)
 		}
 	}
 
 	// G8: consistency refs
 	for _, ca := range asList(graph["consistency"]) {
 		c := asMap(ca)
-		id := asStr(c["id"])
-		for _, ref := range qidRe.FindAllString(asStr(c["red_when"]), -1) {
-			if !qids[ref] {
-				add("G8", "consistency %s references unknown question %s", id, ref)
-			}
-		}
+		checkRuleText("G8", "consistency "+asStr(c["id"]), asStr(c["red_when"]))
 	}
 
 	// G10: every pir_fields produced
@@ -375,9 +405,14 @@ func LintGraph(graph, registry rawDoc) []Finding {
 			add("R4", "metric %s consumer %q invalid", id, consumer)
 		}
 		// R5: verdict_weight iff P1-verdict
-		_, hasWeight := m["verdict_weight"]
+		weight, hasWeight := m["verdict_weight"]
 		if (consumer == "P1-verdict") != hasWeight {
 			add("R5", "metric %s verdict_weight presence wrong for consumer %s", id, consumer)
+		}
+		if hasWeight {
+			if w := asStr(weight); w != "core" && w != "minor" {
+				add("R5", "metric %s verdict_weight %q not in [core, minor]", id, w)
+			}
 		}
 		// R6: scale complete
 		scale := asMap(m["scale"])
