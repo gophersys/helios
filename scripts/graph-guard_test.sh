@@ -306,11 +306,40 @@ rm -rf "$selftest_root"
 # actually targets is a directory area, so that is the set worth quantifying over, and the roster's
 # own COMPLETENESS is asserted separately below against the live graph.
 roster="${repository_root}/.ci/graph-roster.txt"
-if [[ ! -f "$roster" ]]; then
-  report_fail "the committed roster exists" "absent: .ci/graph-roster.txt"
-else
-  report_ok "the committed roster exists"
-fi
+
+# load_roster <path> — fill `roster_pairs`, and be LOUD about every reason it could not.
+#
+# The read used to end `... || true`, which swallowed grep's rc=2 on an absent or unreadable file and
+# left the array empty. Nothing exited, so the 8 pairs below were then judged against ZERO rows and
+# every one of them reported "the roster holds neither the name … the project is GONE from it" —
+# about a file that had never been read. Loud and WRONG is not better than silent: it sent the reader
+# to look at 8 projects instead of at the one path that was wrong.
+roster_pairs=()
+load_roster() {
+  local path="$1" body rc
+  # The status is grep's own. Read after `|| true` it is always 0, and that is the form that hid rc=2.
+  set +e
+  body="$(grep -vE '^\s*(#|$)' "$path" 2>&1)"
+  rc=$?
+  set -e
+  if [[ $rc -gt 1 ]]; then
+    report_fail "the committed roster reads: ${path#"${repository_root}"/}" \
+      "grep exited ${rc}: ${body}" \
+      "no pair below is judged against it — an unread roster holds no name and no root, so every pair would look GONE"
+    return 1
+  fi
+  if [[ $rc -eq 1 || -z "$body" ]]; then
+    report_fail "the committed roster holds project rows: ${path#"${repository_root}"/}" \
+      "it reads, and holds no row that is not a comment or blank" \
+      "no pair below is judged against it — an empty roster holds no name and no root, so every pair would look GONE"
+    return 1
+  fi
+  mapfile -t roster_pairs <<< "$body"
+  report_ok "the committed roster exists and reads (${#roster_pairs[@]} project row(s))"
+  return 0
+}
+roster_is_loaded=0
+if load_roster "$roster"; then roster_is_loaded=1; fi
 
 # One project per area, as LITERALS. A pair that stops matching the tree is a red that names itself,
 # which is what a test reading its own subject could never give.
@@ -326,19 +355,29 @@ area_probes=(
 )
 # STALENESS PREFLIGHT, run for EVERY pair before that pair is used. The comment above promises a
 # dead pair is "a red that names itself"; until this block it was not one. `.devcontainer` renamed
-# `flutter/` to `mobile/` in ec59789, the pointer bump carrying that rename regenerated the roster
-# (`-images-flutter .devcontainer/flutter`, `+images-mobile .devcontainer/mobile`) and left this list
-# untouched, so the probe appended a pattern matching nothing, the graph did not change, and clause 5
-# red with `graph-guard exited 0` — naming neither the dead pair nor the file holding it.
+# `flutter/` to `mobile/` in ec59789, and the pointer bump ae506bd regenerated the roster with FIVE
+# rows out and FIVE in — measured with `git show ae506bd -- .ci/graph-roster.txt`, and not only the
+# `images-flutter` -> `images-mobile` row that this list happened to name — while leaving the list
+# untouched. So the probe appended a pattern matching nothing, the graph did not change, and clause 5
+# red with `graph-guard exited 0`, naming neither the dead pair nor the file holding it. A list of
+# literals goes stale one pointer bump at a time, and only this block turns that into a red that
+# points at this file.
 #
 # The roster is committed DATA that clause 5 diffs against, never the verb's SOURCE, so rule (a)
 # holds: each assertion below still runs the verb and matches its message, and the anti-vacuity abort
 # has already proven this roster agrees with the live graph.
-mapfile -t roster_pairs < <(grep -vE '^\s*(#|$)' "$roster" || true)
 probe_is_fresh() {
   local pattern="$1" expected_name="$2"
   local expected_root="${pattern%/\*\*}"
   local row row_name row_root name_root="" root_name="" exact=0 under=0
+  # With zero rows loaded, EVERY pair looks GONE — which is a fact about the read, never about the
+  # project. Diagnosing it as the project's fault is what made an unreadable roster print 8 reds that
+  # all pointed away from the single line that was wrong.
+  if [[ ${#roster_pairs[@]} -eq 0 ]]; then
+    report_fail "the probe pair '${pattern}:${expected_name}' is judged against .ci/graph-roster.txt" \
+      "the roster loaded ZERO rows — the failure above says why — so this pair was compared with nothing"
+    return 1
+  fi
   for row in "${roster_pairs[@]}"; do
     row_name="${row%%$'\t'*}"
     row_root="${row#*$'\t'}"
@@ -378,6 +417,70 @@ probe_is_fresh() {
   return 1
 }
 
+# THE PREFLIGHT'S OWN FAILURE HALF, EXECUTED. On a green run every real pair is exact, so only the
+# `exact=1` and `under>0` success paths ever run and the whole MOVED / RENAMED / GONE / vacuity
+# diagnosis above is unreachable — vouched for by a commit message and by nothing that executes. A
+# refutation proved the cost: changing the GONE branch's `report_fail` to `report_ok` and planting a
+# dead pair produced a FULLY GREEN suite that printed "all assertions passed … 6 verb clause(s)
+# proven able to fire" while carrying a dead probe. That is refutation #3's shape a second time — a
+# holder printing a certification that was false as it printed — and a breach of rule (d) above.
+#
+# It MUTATES NOTHING: no file, no `.nxignore`, no probe tree. It calls the function with pairs
+# invented to reach each branch of the REAL roster already in `roster_pairs`, and the three that
+# pivot on `.devcontainer/base` + `images-base` pivot on a row the first area probe asserts anyway,
+# so a roster that loses it reds twice and both reds name it.
+#
+# IT ASSERTS THE MARKER AS WELL AS THE RETURN CODE, and that is the load-bearing half. `return 1`
+# sits OUTSIDE the if/elif/else, so turning a `report_fail` into a `report_ok` keeps the return code
+# AND every word of the message: only "is this line a FAIL line?" tells the neutered branch from the
+# live one. `fails` cannot be asserted on — `report_fail` increments it inside this command
+# substitution, i.e. inside a subshell, so it never propagates. That same subshell is why these
+# synthetic lines reach neither the real counter nor the real report.
+selfcheck_cases=(
+  # <label>|<pattern>|<expected name>|<want rc>|<want marker>|<words the line must carry>
+  "FRESH|.devcontainer/base/**|images-base|0|ok|still matches .ci/graph-roster.txt"
+  "MOVED|.devcontainer/graph-guard-selftest-elsewhere/**|images-base|1|FAIL|the project MOVED"
+  "RENAMED|.devcontainer/base/**|graph-guard-selftest-no-such-name|1|FAIL|it was RENAMED"
+  "GONE|graph-guard-selftest-no-such-root/**|graph-guard-selftest-no-such-name|1|FAIL|is GONE from it"
+  "VACUOUS|graph-guard-selftest-no-such-root/**||1|FAIL|excludes nothing"
+)
+selfcheck_failures=()
+selfcheck_probe() {
+  local label="$1" pattern="$2" expected_name="$3" want_rc="$4" want_marker="$5" want_words="$6"
+  local other_marker="ok" out rc flat
+  [[ "$want_marker" == "ok" ]] && other_marker="FAIL"
+  # The mandated capture: the status is the function's own, never one read after `|| true`.
+  set +e
+  out="$(probe_is_fresh "$pattern" "$expected_name" 2>&1)"
+  rc=$?
+  set -e
+  flat="$(printf '%s' "$out" | tr '\n' ' ')"
+  if [[ $rc -ne "$want_rc" ]]; then
+    selfcheck_failures+=("${label}: returned ${rc}, wanted ${want_rc} —${flat}")
+  elif ! printf '%s\n' "$out" | grep -qE "^[[:space:]]+${want_marker}[[:space:]]"; then
+    selfcheck_failures+=("${label}: it printed no '${want_marker}' line —${flat}")
+  elif printf '%s\n' "$out" | grep -qE "^[[:space:]]+${other_marker}[[:space:]]"; then
+    selfcheck_failures+=("${label}: it also printed a '${other_marker}' line —${flat}")
+  elif ! printf '%s' "$out" | grep -qF -- "$want_words"; then
+    selfcheck_failures+=("${label}: its ${want_marker} line never says '${want_words}' —${flat}")
+  fi
+}
+if [[ $roster_is_loaded -ne 1 ]]; then
+  report_fail "the staleness preflight diagnoses all ${#selfcheck_cases[@]} of its paths" \
+    "the roster did not load, so not one of them could be driven — a check that cannot run is a failure, never a skip"
+else
+  for selfcheck_case in "${selfcheck_cases[@]}"; do
+    IFS='|' read -r sc_label sc_pattern sc_name sc_rc sc_marker sc_words <<< "$selfcheck_case"
+    selfcheck_probe "$sc_label" "$sc_pattern" "$sc_name" "$sc_rc" "$sc_marker" "$sc_words"
+  done
+  if [[ ${#selfcheck_failures[@]} -gt 0 ]]; then
+    report_fail "the staleness preflight diagnoses all ${#selfcheck_cases[@]} of its paths" \
+      "${selfcheck_failures[@]}"
+  else
+    report_ok "the staleness preflight diagnoses all ${#selfcheck_cases[@]} of its paths (FRESH, MOVED, RENAMED, GONE, VACUOUS), each proven by its return code AND its FAIL/ok marker"
+  fi
+fi
+
 for probe in "${area_probes[@]}"; do
   pat="${probe%%:*}"
   expect_name="${probe#*:}"
@@ -404,12 +507,14 @@ expect_red "clause 5 catches a project that is NOT in the roster" "NOT IN the ro
 rm -rf "$selftest_root"
 
 # The roster must be non-trivial and COMPLETE against the live graph. An empty or truncated roster
-# would match a graph that had lost half its projects.
-roster_rows="$(grep -cvE '^\s*(#|$)' "$roster" || true)"
-if [[ "${roster_rows:-0}" -lt 40 ]]; then
-  report_fail "the roster is not truncated" "it holds ${roster_rows} row(s); the graph has ~49 projects"
+# would match a graph that had lost half its projects. The count is the array the probes above were
+# judged against, not a second read of the file: a second read could disagree with the first, and the
+# `|| true` it used to end with swallowed its own error exactly as the load did.
+if [[ ${#roster_pairs[@]} -lt 40 ]]; then
+  report_fail "the roster is not truncated" \
+    "it holds ${#roster_pairs[@]} row(s); the graph has ~49 projects"
 else
-  report_ok "the roster holds ${roster_rows} project rows"
+  report_ok "the roster holds ${#roster_pairs[@]} project rows"
 fi
 
 # CLAUSE 2 — resolution. The message is asserted, not merely the exit status.
@@ -428,22 +533,61 @@ rm -rf "$selftest_root"
 # `project.json` alone — restoring refutation #1's original defect — and the suite stayed green both
 # times. A grid is a SET; one cell cannot stand for it. Each iteration is cheap because clause 1
 # returns before the graph is ever built.
+#
+# TWO OUTCOMES, TWO SENTENCES. A verb that stays GREEN after a removal is a coverage HOLE. A verb
+# that REDS with another clause's message is not a hole — it is a red for another reason, and in one
+# of these 36 subprocesses that reason can be environmental. Collapsing the two printed a sentence
+# that was NOT TRUE: `affected-gate (fast)` at e40ceef failed with "1 removal(s) did not red, first:
+# infrastructure/**/fixtures/**/package.json" (run 33002356484, job 98287181831), and a re-run of the
+# SAME SHA with no change of any kind printed "ok … every one of the 36" (job 98295378366). The 36
+# lines are unique, so no coverage differed between the two runs; the verb had red for a reason this
+# loop discarded with `guard_out`. `expect_red` above already draws exactly this distinction and
+# prints the verb's first `[error]` line, and clause 1 was the only probe here that did not.
+#
+# NEITHER MODE IS FORGIVEN. There is no retry, no tolerance and no threshold: both are failures, and
+# the only change is that each now says which one happened.
 c1_missed=()
+c1_wrong_reason=()
+c1_unbuildable=()
 for victim in "${patterns[@]}"; do
-  grep -vxF -- "$victim" "$nxignore" > "${selftest_root}_c1" 2>/dev/null || true
+  # The status is grep's own, and its stderr is read rather than sent to /dev/null. rc=1 is
+  # legitimate — it means the victim was the only line — and anything above 1 means the mutated file
+  # was never built, which is not a statement about coverage either.
+  set +e
+  c1_grep_error="$(grep -vxF -- "$victim" "$nxignore" 2>&1 > "${selftest_root}_c1")"
+  c1_grep_rc=$?
+  set -e
+  if [[ $c1_grep_rc -gt 1 ]]; then
+    rm -f "${selftest_root}_c1"
+    c1_unbuildable+=("${victim} — grep exited ${c1_grep_rc}: ${c1_grep_error}")
+    continue
+  fi
   mkdir -p "$selftest_root"
   cp "${selftest_root}_c1" "$nxignore"
   rm -f "${selftest_root}_c1"
   run_guard
-  if [[ $guard_rc -eq 0 ]] || ! printf '%s' "$guard_out" | grep -qE "missing [0-9]+ required pattern"; then
+  if [[ $guard_rc -eq 0 ]]; then
     c1_missed+=("$victim")
+  elif ! printf '%s' "$guard_out" | grep -qE "missing [0-9]+ required pattern"; then
+    c1_wrong_reason+=("${victim} — first error was: $(printf '%s' "$guard_out" | grep -aE '\[error\]' | head -1 | cut -c1-150)")
   fi
   git -C "$repository_root" checkout -- .nxignore
 done
+if [[ ${#c1_unbuildable[@]} -gt 0 ]]; then
+  report_fail "the clause-1 probe builds all ${#patterns[@]} mutated .nxignore file(s)" \
+    "${#c1_unbuildable[@]} could not be built, so those removals were never put to the verb:" \
+    "${c1_unbuildable[@]}"
+fi
 if [[ ${#c1_missed[@]} -gt 0 ]]; then
   report_fail "clause 1 REFUSES the removal of EVERY one of the ${#patterns[@]} required patterns" \
-    "${#c1_missed[@]} removal(s) did not red, first: ${c1_missed[0]}"
-else
+    "${#c1_missed[@]} removal(s) left the verb GREEN — a real coverage hole, first: ${c1_missed[0]}"
+fi
+if [[ ${#c1_wrong_reason[@]} -gt 0 ]]; then
+  report_fail "CLAUSE 1 is the clause that fires for every one of the ${#patterns[@]} removals" \
+    "${#c1_wrong_reason[@]} removal(s) RED for another reason, which is not a coverage hole:" \
+    "${c1_wrong_reason[@]}"
+fi
+if [[ ${#c1_unbuildable[@]} -eq 0 && ${#c1_missed[@]} -eq 0 && ${#c1_wrong_reason[@]} -eq 0 ]]; then
   report_ok "clause 1 REFUSES the removal of every one of the ${#patterns[@]} required patterns"
 fi
 
