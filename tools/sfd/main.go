@@ -21,6 +21,7 @@ usage:
   sfd component add <compatible> --zephyr <path> [--catalog <dir>] [--force]
   sfd soc       add <soc-name>   --zephyr <path> [--catalog <dir>] [--force] [--dtsi f1,f2]
   sfd verify                     --zephyr <path> [--catalog <dir>]
+  sfd graph lint [--graph <file>] [--registry <file>]
 
 The identity of a component is its Zephyr compatible string; the identity
 of a SoC is its Zephyr SoC name. Part numbers are a late binding (P4) and
@@ -47,6 +48,11 @@ func main() {
 		err = cmdSocAdd(os.Args[3], os.Args[4:])
 	case "verify":
 		err = cmdVerify(os.Args[2:])
+	case "graph":
+		if len(os.Args) < 3 || os.Args[2] != "lint" {
+			usage()
+		}
+		err = cmdGraphLint(os.Args[3:])
 	default:
 		usage()
 	}
@@ -242,6 +248,41 @@ func cmdVerify(args []string) error {
 		return fmt.Errorf("%d failure(s) across %d record(s)", len(failures), checked)
 	}
 	fmt.Printf("verify OK: %d record(s) reproduced from zephyr @ %.12s\n", checked, sha)
+	return nil
+}
+
+// cmdGraphLint runs the 26-rule P0/P1 lint contract. Exit 0 means every
+// rule passed on a non-empty domain; any finding is named with its rule id.
+func cmdGraphLint(args []string) error {
+	fs := flag.NewFlagSet("graph lint", flag.ExitOnError)
+	var graphPath, registryPath string
+	fs.StringVar(&graphPath, "graph", "docs/sfd/30-p0-graph.yaml", "interrogation graph file")
+	fs.StringVar(&registryPath, "registry", "docs/sfd/40-p1-registry.yaml", "metric registry file")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	graph, err := loadYAMLMap(graphPath)
+	if err != nil {
+		return err
+	}
+	registry, err := loadYAMLMap(registryPath)
+	if err != nil {
+		return err
+	}
+	nq := len(asList(graph["questions"]))
+	nm := len(asList(registry["metrics"]))
+	if nq == 0 || nm == 0 {
+		return fmt.Errorf("lint selected %d questions and %d metrics — an empty scope is not a pass", nq, nm)
+	}
+	findings := LintGraph(graph, registry)
+	for _, f := range findings {
+		fmt.Fprintln(os.Stderr, "LINT:", f.String())
+	}
+	if len(findings) > 0 {
+		return fmt.Errorf("%d lint finding(s)", len(findings))
+	}
+	fmt.Printf("graph lint OK: %d questions + %d adaptive vs %d metrics, all rules green\n",
+		nq, len(asList(graph["adaptive"])), nm)
 	return nil
 }
 

@@ -103,9 +103,8 @@ field). An unknown or missing key is a lint error.
    product controlled only by an app cannot talk to nothing). A rule fires
    only when every answer it references is present; UNKNOWN or closed
    answers cannot make a rule red — R5 already surfaces them.
-4. The graph itself lints clean (the `lint:` contract in the graph;
-   enforcement by `sfd graph lint` is PLANNED — until it exists the check
-   runs in review, named as such).
+4. The graph itself lints clean — enforced by `sfd graph lint`
+   (tools/sfd), which runs in `gate.sh`.
 5. `q.comp.safety = serious` flags a **human gate** in P1 — and because
    `q.comp.safety` is tier `required`, the answer cannot be skipped; the
    guarantee holds as authored.
@@ -171,6 +170,6 @@ declared machine-readably in the graph (`pir_fields`, `pir_required`,
 |---|---|
 | the graph (30 questions, 3 adaptive, derivations, consistency, PIR field authority) | **AUTHORED v0** — `30-p0-graph.yaml` |
 | the metric registry (far side of R2) | **AUTHORED v0** — `40-p1-registry.yaml` |
-| graph lint (the `lint:` contract, both directions) | PLANNED (`sfd graph lint`) |
+| graph lint (the `lint:` contract, both directions) | **TOOL v0** — `sfd graph lint`, wired into `gate.sh`; the tamper battery from the refutation rounds is its test suite |
 | PIR record type + provenance verification | PLANNED (tool) |
 | Eden runner (fixed set + adaptive chat) | PLANNED (Eden-side) |

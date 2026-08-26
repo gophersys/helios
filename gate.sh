@@ -26,4 +26,7 @@ echo "── build sfd"
 echo "── catalog verify against the pinned tree"
 ./tools/sfd/sfd verify --zephyr ws/zephyr --catalog catalog
 
+echo "── P0/P1 graph lint (26 rules)"
+./tools/sfd/sfd graph lint
+
 echo "GATE OK"
