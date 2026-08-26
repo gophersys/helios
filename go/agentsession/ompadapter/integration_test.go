@@ -200,7 +200,7 @@ func TestIntegration_LiveOmp_Gated(t *testing.T) {
 	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "Reply with exactly: ok"}); err != nil {
 		t.Fatalf("live Prompt: %v", err)
 	}
-	events, drainErr := drainToTurnBoundaryWithin(session, liveDrainDeadline)
+	events, drainErr := drainToTurnBoundaryWithin(session, liveDrainBounds)
 	if drainErr != nil {
 		t.Fatal(drainErr)
 	}
