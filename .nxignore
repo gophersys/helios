@@ -1,50 +1,82 @@
 # .nxignore — what eden's project graph must never glob in.
 #
-# Eden carries `.devcontainer/`, `libs/` and `infrastructure/` as git submodules, and it builds
-# ONE nx graph over the whole checkout. A submodule's TEST FIXTURES are not eden's projects, but
-# a fixture that needs a `project.json` to be a realistic stand-in looks exactly like one.
+# Eden carries `.devcontainer/`, `libs/` and `infrastructure/` as git submodules and builds ONE nx
+# graph over the whole checkout. A submodule's TEST FIXTURES are not eden's projects, but a fixture
+# realistic enough to be useful looks exactly like one.
 #
-# WHY THIS FILE HAS TO EXIST, rather than the submodules simply naming their fixtures well.
-# A fixture `project.json` inside a submodule is invisible to BOTH repositories' gates:
+# WHY THIS FILE HAS TO EXIST. A fixture project file inside a submodule is invisible to BOTH
+# repositories' gates: the submodule builds no nx graph, so its own CI never reads the name
+# (`.devcontainer`'s `cmd_validate` runs `jq empty` and nothing more); and eden never sees the file
+# until its POINTER MOVES. So the first thing in the estate able to observe a collision is a
+# submodule pointer bump — the worst possible place. gophersys/eden#14 carried 847 commits and zero
+# TypeScript and died at `NX Failed to process project graph`, because `.devcontainer` grew a second
+# `first`/`second` fixture pair in `40edaaf`.
 #
-#   - the submodule builds no nx graph, so its own CI cannot see the name. `.devcontainer`'s
-#     `cmd_validate` runs `jq empty` over such a file and reads no field of it;
-#   - eden never sees the file at all until its POINTER MOVES.
+# THREE FILE TYPES, NOT ONE. `nx.json` enables the `@nx/js/typescript` plugin, so a project is
+# inferred from `package.json` + `tsconfig*.json` as well as declared by `project.json`. An earlier
+# draft of this file listed `project.json` alone and called the class closed; an adversarial
+# refutation planted a fixture with NO `project.json` — a bare `package.json` + `tsconfig.json` —
+# and it entered the graph while the gate reported clean. Every pattern below therefore comes in a
+# set of three, and the guard derives that same set rather than trusting this comment.
 #
-# So the first thing in the estate able to observe a collision is a submodule pointer bump — the
-# worst place for it. gophersys/eden#14 carried 787 commits and zero TypeScript and died at
-# `NX Failed to process project graph`, because `.devcontainer` had grown a SECOND `first`/`second`
-# fixture pair in `40edaaf`. That bump SURFACED the defect and could not have caused it. Naming the
-# fixtures uniquely (gophersys/.devcontainer#105) fixes THAT collision; this file is what makes the
-# CLASS impossible, so the next fixture somebody adds in any of the three submodules cannot reach
-# eden's graph at all.
+# WHY THE PATTERNS END IN A FILE NAME rather than excluding the fixture trees whole. `.nxignore`
+# hides a path from nx completely — from project detection AND from the file reads behind
+# `nx affected`. Excluding `**/testdata/` whole would stop a change to a Go testdata file from
+# marking its library affected, and the gate would quietly stop covering it: the FAIL-NOT-SKIP
+# failure, traded in to fix a graph error. Hiding the project-DEFINING files alone removes the
+# phantom project and leaves every other fixture file visible to affected. Measured: a `data.txt`
+# sitting beside an ignored fixture `project.json` still resolves to its owning project.
 #
-# WHY THE PATTERNS END IN `project.json` INSTEAD OF EXCLUDING THE FIXTURE TREES WHOLE.
-# `.nxignore` hides a path from nx completely — from project detection AND from the file-change
-# reads behind `nx affected`. Excluding `**/testdata/` whole would therefore stop a change to a Go
-# testdata file from marking its library affected, and the gate would quietly stop covering it.
-# That is the FAIL-NOT-SKIP failure — a check believed to run that no longer does — traded in to
-# fix a graph error. Hiding the `project.json` FILE alone removes the phantom project and leaves
-# every other fixture file visible to affected, which is the whole intent and nothing more.
+# EDEN'S OWN TREE IS DELIBERATELY ABSENT. A duplicate name eden itself commits is caught by eden's
+# own gate on the pull request that adds it. The submodules are the blind spot; eden is not.
 #
-# EDEN'S OWN TREE IS DELIBERATELY ABSENT from this file. A duplicate project name that eden itself
-# commits is caught by eden's own gate on the pull request that adds it. The submodules are the
-# blind spot; eden is not.
-#
-# THIS FILE HAS A HOLDER: `bash .ci/ctl.sh graph-guard`, run by the `fast` job of on-pr.yml. A glob
-# here that silently stopped matching would restore the whole defect class with nothing going red.
-# The guard searches `fixtures?|testdata` — deliberately ONE case wider than the patterns below,
-# which spell the singular `fixture/` out. If the two ever drift, the guard goes RED rather than
-# the hole opening quietly, and that direction is the point.
+# THIS FILE HAS A HOLDER: `bash .ci/ctl.sh graph-guard`, run by `on-pr.yml` and `on-push.yml`. It
+# does two things this file cannot do for itself. It asserts every pattern below is PRESENT, so
+# deleting or mangling this file goes RED even on a tree that currently holds no fixture at all.
+# And it judges the graph by project ROOT rather than by name, so a fixture that nx infers through
+# any mechanism — present or future — is caught even if no pattern here matches it. The guard's
+# directory vocabulary is deliberately WIDER than the list below; an escape is a RED gate, never a
+# quiet hole.
 
+# --- .devcontainer ---
 .devcontainer/**/fixture/**/project.json
+.devcontainer/**/fixture/**/package.json
+.devcontainer/**/fixture/**/tsconfig*.json
 .devcontainer/**/fixtures/**/project.json
+.devcontainer/**/fixtures/**/package.json
+.devcontainer/**/fixtures/**/tsconfig*.json
+.devcontainer/**/__fixtures__/**/project.json
+.devcontainer/**/__fixtures__/**/package.json
+.devcontainer/**/__fixtures__/**/tsconfig*.json
 .devcontainer/**/testdata/**/project.json
+.devcontainer/**/testdata/**/package.json
+.devcontainer/**/testdata/**/tsconfig*.json
 
+# --- libs ---
 libs/**/fixture/**/project.json
+libs/**/fixture/**/package.json
+libs/**/fixture/**/tsconfig*.json
 libs/**/fixtures/**/project.json
+libs/**/fixtures/**/package.json
+libs/**/fixtures/**/tsconfig*.json
+libs/**/__fixtures__/**/project.json
+libs/**/__fixtures__/**/package.json
+libs/**/__fixtures__/**/tsconfig*.json
 libs/**/testdata/**/project.json
+libs/**/testdata/**/package.json
+libs/**/testdata/**/tsconfig*.json
 
+# --- infrastructure ---
 infrastructure/**/fixture/**/project.json
+infrastructure/**/fixture/**/package.json
+infrastructure/**/fixture/**/tsconfig*.json
 infrastructure/**/fixtures/**/project.json
+infrastructure/**/fixtures/**/package.json
+infrastructure/**/fixtures/**/tsconfig*.json
+infrastructure/**/__fixtures__/**/project.json
+infrastructure/**/__fixtures__/**/package.json
+infrastructure/**/__fixtures__/**/tsconfig*.json
 infrastructure/**/testdata/**/project.json
+infrastructure/**/testdata/**/package.json
+infrastructure/**/testdata/**/tsconfig*.json
+
