@@ -316,7 +316,7 @@ fi
 # which is what a test reading its own subject could never give.
 area_probes=(
   ".devcontainer/base/**:images-base"
-  ".devcontainer/flutter/**:images-flutter"
+  ".devcontainer/mobile/**:images-mobile"
   "libs/go/agentruntime/**:agentruntime"
   "libs/typescript/primitives/**:primitives"
   "libs/templates/go/http-gateway/**:http-gateway-template"
@@ -324,9 +324,66 @@ area_probes=(
   "apps/frontend/**:frontend"
   "tools/**:"
 )
+# STALENESS PREFLIGHT, run for EVERY pair before that pair is used. The comment above promises a
+# dead pair is "a red that names itself"; until this block it was not one. `.devcontainer` renamed
+# `flutter/` to `mobile/` in ec59789, the pointer bump carrying that rename regenerated the roster
+# (`-images-flutter .devcontainer/flutter`, `+images-mobile .devcontainer/mobile`) and left this list
+# untouched, so the probe appended a pattern matching nothing, the graph did not change, and clause 5
+# red with `graph-guard exited 0` — naming neither the dead pair nor the file holding it.
+#
+# The roster is committed DATA that clause 5 diffs against, never the verb's SOURCE, so rule (a)
+# holds: each assertion below still runs the verb and matches its message, and the anti-vacuity abort
+# has already proven this roster agrees with the live graph.
+mapfile -t roster_pairs < <(grep -vE '^\s*(#|$)' "$roster" || true)
+probe_is_fresh() {
+  local pattern="$1" expected_name="$2"
+  local expected_root="${pattern%/\*\*}"
+  local row row_name row_root name_root="" root_name="" exact=0 under=0
+  for row in "${roster_pairs[@]}"; do
+    row_name="${row%%$'\t'*}"
+    row_root="${row#*$'\t'}"
+    [[ "$row_name" == "$expected_name" ]] && name_root="$row_root"
+    [[ "$row_root" == "$expected_root" ]] && root_name="$row_name"
+    [[ "$row_name" == "$expected_name" && "$row_root" == "$expected_root" ]] && exact=1
+    [[ "$row_root" == "$expected_root" || "$row_root" == "${expected_root}/"* ]] && under=$((under + 1))
+  done
+  local fix="the fix is the area_probes list of scripts/graph-guard_test.sh, updated in the same change that moves the submodule pointer"
+  # The generic pair names no project, so it is quantified instead. Left unchecked it could go
+  # vacuous the same way, excluding nothing while its assertion read like a clause-5 proof.
+  if [[ -z "$expected_name" ]]; then
+    if [[ $under -eq 0 ]]; then
+      report_fail "the probe pattern '${pattern}' still matches .ci/graph-roster.txt" \
+        "no rostered project is rooted at or under '${expected_root}', so this pattern excludes nothing" "$fix"
+      return 1
+    fi
+    report_ok "the probe pattern '${pattern}' covers ${under} rostered project(s)"
+    return 0
+  fi
+  if [[ $exact -eq 1 ]]; then
+    report_ok "the probe pair '${pattern}:${expected_name}' still matches .ci/graph-roster.txt"
+    return 0
+  fi
+  # Which half moved is the difference between a relocation and a rename, so it is diagnosed rather
+  # than reported as one undifferentiated mismatch.
+  if [[ -n "$name_root" ]]; then
+    report_fail "the probe pair '${pattern}:${expected_name}' still matches .ci/graph-roster.txt" \
+      "the roster roots '${expected_name}' at '${name_root}', not at '${expected_root}' — the project MOVED" "$fix"
+  elif [[ -n "$root_name" ]]; then
+    report_fail "the probe pair '${pattern}:${expected_name}' still matches .ci/graph-roster.txt" \
+      "the roster calls the project at '${expected_root}' '${root_name}', not '${expected_name}' — it was RENAMED" "$fix"
+  else
+    report_fail "the probe pair '${pattern}:${expected_name}' still matches .ci/graph-roster.txt" \
+      "the roster holds neither the name '${expected_name}' nor the root '${expected_root}' — the project is GONE from it" "$fix"
+  fi
+  return 1
+}
+
 for probe in "${area_probes[@]}"; do
   pat="${probe%%:*}"
   expect_name="${probe#*:}"
+  # A dead pair is skipped, not run: its clause-5 red would be `graph-guard exited 0`, which points
+  # at the verb while the defect is in the line above.
+  probe_is_fresh "$pat" "$expect_name" || continue
   printf '%s\n' "$pat" >> "$nxignore"
   run_guard
   if [[ -n "$expect_name" ]]; then
