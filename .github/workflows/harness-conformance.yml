@@ -113,6 +113,35 @@ jobs:
           CLAUDEADAPTER_LIVE_TOKEN: ${{ secrets.CLAUDEADAPTER_LIVE_TOKEN }}
         run: bash scripts/assert-peer-messaging-available.sh
 
+      # ARCHITECTURE is gated HERE and not in libs' own nightly. The frozen contracts live in
+      # this repository (docs/architecture/contracts/), and libs' _eden_monorepo_root resolves to
+      # eden only when libs is a SUBMODULE — which it is here and is not in libs' standalone CI.
+      # There the dimension could never pass, and because `phase-gate all` short-circuits at phase
+      # 1 it took implementation, testing and qa down with it: 14 of 18 nightly runs red, ~20s
+      # median, a deep lane proving nothing. Ruled option A 2026-08-25, ratified 2026-08-26.
+      # Runs BEFORE the live adapter step so a contract failure costs seconds, not a live turn.
+      - name: Frozen-contract gate for the libraries whose contracts live here
+        run: |
+          set -Eeuo pipefail
+          gated=0
+          for contract in docs/architecture/contracts/*.md; do
+            lib="$(basename "${contract%.md}")"
+            [ "$lib" = "README" ] && continue
+            [ -f "libs/go/$lib/ctl.sh" ] || continue
+            echo "::group::phase-gate architecture — $lib"
+            ( cd "libs/go/$lib" && bash ./ctl.sh phase-gate architecture )
+            echo "::endgroup::"
+            gated=$((gated + 1))
+          done
+          # A gate that selected nothing is not evidence. Say so and fail, rather than reporting a
+          # green that checked no contract at all.
+          if [ "$gated" -eq 0 ]; then
+            echo "no library was gated: every contract in docs/architecture/contracts/ lacks a" >&2
+            echo "matching libs/go/<lib>/ctl.sh, so this step verified nothing" >&2
+            exit 1
+          fi
+          echo "frozen-contract gate: $gated librar(y/ies) gated"
+
       - name: Adapter conformance + live gated tests against the pinned versions
         env:
           CLAUDEADAPTER_LIVE_TOKEN: ${{ secrets.CLAUDEADAPTER_LIVE_TOKEN }}
