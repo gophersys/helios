@@ -174,8 +174,12 @@ function run_phase_gate_over_affected() {
     ran=$((ran + 1))
     case "$selector" in
       substrate)
-        log_info "gate(substrate): $proj → integration + lifecycle + load (REAL docker+k3d+kind)"
-        ( cd "$proj_dir" && bash ./ctl.sh integration && bash ./ctl.sh lifecycle && bash ./ctl.sh load )
+        # `test` runs FIRST and RACED. The pr tier now runs the unit suite without -race (Mateo's
+        # 2026-08-25 tiering ruling), so this is where a unit data race is caught before a merge —
+        # without it the detector would not see the unit suite until the nightly, and the nightly
+        # has its own history of being red for weeks unread. Cheapest lane first also fails fast.
+        log_info "gate(substrate): $proj → raced unit + integration + lifecycle + load (REAL docker+k3d+kind)"
+        ( cd "$proj_dir" && bash ./ctl.sh test && bash ./ctl.sh integration && bash ./ctl.sh lifecycle && bash ./ctl.sh load )
         ;;
       *)
         log_info "gate: $proj → phase-gate $selector"

@@ -176,8 +176,18 @@ cmd_build() {
 
 cmd_test() {
   require_cmd go
-  log_info "test: go test ./... -race -count=1 (unit + fake conformance)"
-  go_in_lib test ./... -race -count=1
+  # -race is the DEFAULT here and everywhere a human runs `ctl.sh test`. The PR tier alone opts
+  # out (EDEN_UNIT_NO_RACE=1), per Mateo's 2026-08-25 tiering ruling: the push lane stays in
+  # minutes, and the detector runs at merge and nightly. This is not a coverage cut — the merge
+  # tier runs this same verb RACED before anything lands, so a unit race still blocks the merge.
+  local -a race_flag=(-race)
+  if [[ "${EDEN_UNIT_NO_RACE:-0}" == "1" ]]; then
+    race_flag=()
+    log_info "test: go test ./... -count=1 (unit + fake conformance; -race runs at merge + nightly)"
+  else
+    log_info "test: go test ./... -race -count=1 (unit + fake conformance)"
+  fi
+  go_in_lib test ./... "${race_flag[@]}" -count=1
   log_success "test: OK"
 }
 
@@ -1181,7 +1191,24 @@ phase_architecture() {
 _gate_contract_frozen() {
   local contract="$1"
   if [[ ! -f "$contract" ]]; then
+    # Name WHICH of the two causes this is. They need opposite fixes, and reporting only the
+    # missing path made a structural lane defect read as a missing document: the nightly tier
+    # failed on it for weeks (14 of 18 runs, ~20s each) while every PR stayed green, because the
+    # ARCHITECTURE phase runs under gate-all only.
+    local super
+    super="$(cd "$PROJECT_ROOT" && git rev-parse --show-superproject-working-tree 2>/dev/null)" || true
     log_error "contract file missing: ${contract}"
+    if [[ -z "$super" ]]; then
+      log_error "  this checkout has NO superproject, so the path resolved to the STANDALONE repository"
+      log_error "  root — but the frozen contracts live in the eden monorepo (docs/architecture/contracts/)."
+      log_error "  A standalone checkout cannot see them, so this dimension can NEVER pass in this lane."
+      log_error "  Fix the LANE, not the document: gate the architecture phase where the contract lives,"
+      log_error "  or carry the contract into this repository. Writing a new file here would create a"
+      log_error "  second home for a document eden already owns."
+    else
+      log_error "  resolved through the superproject at ${super}, so the lane is correct and the"
+      log_error "  document itself is genuinely absent — it must be written and frozen (ADR-0016)."
+    fi
     return 1
   fi
   # Require the status VALUE to be Frozen — match `Status: ... Frozen` but reject a "not frozen"
@@ -1209,7 +1236,7 @@ phase_implementation() {
   _gate_run "golangci-lint full + hnslint + cohesion" cmd_maintainability
   _gate_run "apidiff: no break vs .apibaseline" cmd_apidiff
   _gate_run "go vet" cmd_vet
-  _gate_run "unit + fake conformance GREEN (-race)" cmd_test
+  EDEN_UNIT_NO_RACE=1 _gate_run "unit + fake conformance GREEN (fast; -race at merge)" cmd_test
   _gate_summary
 }
 
