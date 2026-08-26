@@ -84,7 +84,7 @@ const oversizeAssistantTextBytes = maxRPCFrameBytes + 200<<10
 //     no reassembler — the turn boundary is inside a frame nobody rebuilds;
 //   - nothing written -> protocol 1, omp's own default: compact, then the SHRINK_PASSES ladder
 //     (rpc-frame.ts:29-37, :46-50), and exactly ONE parseable line — still `type:"agent_end"`,
-//     still carrying an assistant message, so normalize.go:155 yields EventTurnEnd.
+//     still carrying an assistant message, so normalize.go's agentEnd yields EventTurnEnd.
 //
 // Before the fix the adapter negotiated, the mirror chunked, and no turn boundary was ever
 // published. Restoring the negotiate write turns this red again with no edit here.
@@ -96,7 +96,7 @@ func TestRPC_OversizeAgentEndStillEndsTheTurn(t *testing.T) {
 	encoder := newOMPFrameEncoder(t, harness)
 
 	// The streamed half of the turn: a small assistant message omp already put on the wire as
-	// message_start/message_end. It gives the normalizer a lastMsg (normalize.go:225) and it gives
+	// message_start/message_end. It gives the normalizer its lastMsg (normalize.go's messageEnd) and
 	// the encoder its #streamedMessages entry (rpc-frame.ts:299-306), which is what compaction
 	// slices off the terminal aggregate.
 	streamed := assistantMessageValue("Read the build log; summarizing it now.", false)
@@ -383,7 +383,7 @@ func isDialogAnswerFor(id string) func(map[string]any) bool {
 	}
 }
 
-// isTurnEnd matches the turn boundary normalize.go:155 derives from a clean `agent_end`.
+// isTurnEnd matches the turn boundary normalize.go's agentEnd derives from a clean `agent_end`.
 func isTurnEnd(event *agentsession.Event) bool {
 	return event.Kind == agentsession.EventTurnEnd
 }
