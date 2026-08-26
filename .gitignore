@@ -71,3 +71,6 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+
+# Agent /dev process state — never committed (gated in ctl.sh validate)
+.dev/

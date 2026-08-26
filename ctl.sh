@@ -301,6 +301,33 @@ function cmd_validate() {
     fi
   done
 
+  # Agent process state (.dev/<slug>.md) is working scratch for the /dev process: merge-authority
+  # chains, operational notes, CI diagnostics. This repository is published standalone as
+  # github.com/gophersys/libs and consumed as a submodule by every project monorepo, so anything
+  # tracked here travels to all of them. The /dev process deletes that file before merge, but a
+  # process step is not a gate: nothing fails when it is forgotten, which is the check-that-cannot-
+  # fail this organization keeps shipping. This makes the guarantee mechanical instead.
+  if ! git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # NOT a silent skip: ctl_test.sh drives this verb against synthetic fixture trees that are
+    # deliberately not git repositories, so "is it tracked" has no meaning there. That is a
+    # property of the environment, stated out loud, which is what FAIL-NOT-SKIP requires — and
+    # the real repository is always a work tree, so the gate still holds everywhere it matters.
+    log_info "  n/a: $PROJECT_ROOT is not a git work tree (synthetic fixture); the tracked-.dev/ check does not apply here"
+  else
+    local dev_tracked
+    dev_tracked="$(git -C "$PROJECT_ROOT" ls-files -- '.dev' '.dev/*')"
+    if [[ -n "$dev_tracked" ]]; then
+      log_error "agent process state is tracked in this repository; .dev/ must never be committed:"
+      while IFS= read -r tracked; do
+        [[ -z "$tracked" ]] && continue
+        log_error "    $tracked"
+      done <<<"$dev_tracked"
+      failures=$((failures + 1))
+    else
+      log_info "  ok: no .dev/ agent process state is tracked"
+    fi
+  fi
+
   if [[ "$failures" -gt 0 ]]; then
     log_error "validate: $failures issue(s)"
     exit 1
