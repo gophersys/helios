@@ -5,3 +5,7 @@ ws/*
 
 # Go build output
 tools/sfd/sfd
+
+# macOS Finder droppings — catalogScan flags any stray in catalog/, and a
+# .DS_Store must not be able to turn the gate red
+.DS_Store

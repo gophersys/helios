@@ -230,7 +230,9 @@ func cmdVerify(args []string) error {
 		report(f, stored.Provenance.ZephyrSHA, diff)
 	}
 
-	if checked == 0 {
+	// Order matters: when every record is unreadable, the failures name
+	// the real cause; the zero-scope guard is only for a truly empty scope.
+	if checked == 0 && len(failures) == 0 {
 		return fmt.Errorf("verify selected ZERO records under %s — an empty scope is not a pass", c.catalog)
 	}
 	if len(failures) > 0 {
