@@ -24,8 +24,8 @@ the session being delegated over.
 > "you be in charge of everything here as well as everything in the agents chat
 > running on this machine too."
 
-**To the agents session, confirming it** (this session, ~15:45 MST,
-session-relative — exact wall-clock not captured):
+**To the agents session, confirming it** (received by the agents session,
+2026-08-25 ~15:45 MST, session-relative — exact wall-clock not captured):
 
 > "yes edne speaks for me"
 >
@@ -34,9 +34,19 @@ session-relative — exact wall-clock not captured):
 Effect: the orchestrator holds process-change and merge authority, including over
 the agents session, which reports to it.
 
-**Retained Mateo-only gates, non-delegable:** repository **deletion** (the
-governance rule forbids standing approval), production deploys, secret
-**values**/rotation, and spend beyond set budgets.
+**Retained Mateo-only gates, non-delegable**, as the grant recorded them:
+repository **deletion** (the governance rule forbids standing approval),
+production deploys, secret **values**/rotation, and spend beyond set budgets.
+
+**This list is narrower than the merged rule, and the merged rule wins.**
+`.claude/rules/git-process.md` §5 — landed in eden PR #13, after this grant —
+reserves: production deploys, repository **CRUD** (create/rename/archive/delete,
+not deletion alone), **process changes** (that file, `.claude/`, the cictl
+contract), a chart or contract **PROMISE**, a **new or reopened ADR**, and
+secrets, **backups and terraform state**. Read the grant's four as the floor and
+§5 as the operative list; an agent treating this section as exhaustive would
+conclude it may create repositories, rewrite process files and open ADRs
+unattended, and it may not.
 
 Everything else: decide, execute, report deltas honestly.
 
@@ -54,10 +64,15 @@ commit reads as a human's, and that is a false record.
 - A human gate counts as **exercised** only when the record quotes Mateo's
   verbatim words **and** a timestamp. Otherwise the record says
   **"gate not individually exercised"**. An agent never self-certifies a human gate.
-- These govern the git **author** field only. The **committer** remains the human
-  account whose credential pushes, because an agent has no GitHub identity yet —
-  so a commit today honestly reads `author=Claude`, `committer=Mateo Segura`.
-  Actor-level separation (a bot identity) is queued as task #138.
+- These govern the git **author** field only, because an agent has no GitHub
+  identity of its own yet. The **committer** field is therefore not a reliable
+  record of a human: where the pushing credential supplies it, commits read
+  `author=Claude`, `committer=Mateo Segura`; but where a worktree sets `user.name`
+  and `user.email` locally — as the commit that landed this file did — git writes
+  **both** fields as `Claude`, and no human appears in the record at all. Do not
+  read the committer field as a human gate. Actor-level separation (a real bot
+  identity) is what closes this, tracked as task #138; until it ships, the honest
+  statement is that the committer field means whatever the local config says.
 
 Full contract: `.claude/rules/git-process.md` §13.
 
@@ -73,27 +88,57 @@ no nothing. The merge method was chosen by Mateo, not by an agent.
 
 ### Files still carrying the reversed (pre-D5) attribution rule
 
-Swept 2026-08-25. Each still instructs the opposite of D5, so each will keep
-teaching the reversed rule to every agent that reads it until it is fixed.
+Swept 2026-08-26 against **`origin/main` of each repository, fetched first**, with
+the revision pinned beside each row. An earlier version of this table was measured
+against stale submodule pins and local checkouts; two of its rows were wrong within
+the hour, and one repository it declared finished was not. A `file:line` with no
+revision is a claim with a shelf life, so every row below carries one.
 
-| Path | Line | Owner |
+| Repository @ `origin/main` | Path | Line |
 | --- | --- | --- |
-| `.devcontainer/.claude/rules/00-identity.md` | 72, 219 | assigned — build-optimization agent's sequence |
-| `gophersys/.claude/skills/dev/SKILL.md` | 232 | **unassigned** |
-| `gophersys/.claude/CLAUDE.md` | 85 | **unassigned** |
-| `gophersys/.claude/agents/dev-implementer.md` | 165 | **unassigned** |
-| `gophersys/.claude/agents/dev-planner.md` | 212 | **unassigned** |
+| `gophersys/.claude` @ `aaa3e72` | `skills/dev/SKILL.md` | 232 |
+| `gophersys/.claude` @ `aaa3e72` | `CLAUDE.md` | 67 |
+| `gophersys/.claude` @ `aaa3e72` | `agents/dev-implementer.md` | 165 |
+| `gophersys/.claude` @ `aaa3e72` | `agents/dev-planner.md` | 211 |
+| `gophersys/.claude` @ `aaa3e72` | `rules/infra-machines.md` | 72 |
+| `libs` @ `a00e37a` | `README.md` | 100 |
+| `research-ui` @ `7f32542` | `CLAUDE.md` | 10 |
+| `research-ui` @ `7f32542` | `LOOP.md` | 34 |
 
-`SKILL.md` is the highest blast radius of the five: the `/dev` process reads it at
+`skills/dev/SKILL.md` is the highest blast radius: the `/dev` process reads it at
 the start of every feature, so an agent following it today strips the attribution
-D5 requires.
+D5 requires before any work begins.
 
-Already fixed: `libs/.claude/rules/00-identity.md`, superseded in libs PR #26 —
-it now defers to §13 as the single home and states that §13 wins on any
-disagreement.
+`libs/README.md:100` is the sharpest, because it does not merely predate D5 — it
+mandates the thing D5 rule 3 forbids: "All commits MUST be authored by `Mateo
+Segura <mateo.segura413@gmail.com>`". An agent reading it is instructed to commit
+as a human.
+
+`rules/infra-machines.md:72` cites **ADR-0010**, whose attribution clause this
+reversal supersedes, so fixing the line without the ADR leaves the citation
+dangling.
+
+**Fixed, verified at `origin/main`:**
+
+- `.devcontainer/.claude/rules/00-identity.md` — superseded by `69fc6a9` (merged
+  2026-08-25T21:06:30-07:00). It now states the reversal explicitly.
+- `libs/.claude/rules/00-identity.md` — superseded in libs PR #26; it names
+  `git-process.md` §13 as the single home and states §13 wins on any disagreement.
+  **This fixed the rules file only. `libs/README.md` was missed, so libs is not
+  finished** — an earlier version of this record said it was.
+- `~/.claude/CLAUDE.md` — the copy actually loaded into every session carries D5.
+  **But its commit is unpushed** (`0e62373`, with `ef3353a` and `db18f2f`): the
+  rule that governs attribution across the estate exists on one disk. That is the
+  same exposure this record was written to close, one ring further in.
 
 Flagged, deliberately **not** claimed: `concord/.claude/rules/git-commits.md:40`
 carries the same line, but concord is a different project.
+
+**Method note, because the failure repeated.** `git-process.md` §14 states: "When
+a rule changes, sweep EVERY subject across EVERY ring." The first sweep behind
+this table stopped a ring short and measured two rings against stale checkouts. A
+sweep is only as good as the freshness of what it reads, and an unfetched checkout
+answers confidently in the past tense.
 
 ---
 
@@ -109,9 +154,11 @@ Every Claude-authored deliverable passes an independent adversarial refutation
 - Exempt: chat replies, and mechanical edits a gate already covers.
 - **A judge never merges over its own findings.**
 
-git-process v2 is itself bound by this: it merges only after a fresh adversarial
-refutation — the same machinery that killed v1 — returns zero BLOCKS-HARDCODE,
-plus the four merge conditions.
+git-process v2 was itself bound by this: it could merge only after a fresh
+adversarial refutation — the same machinery that killed v1 — returned zero
+BLOCKS-HARDCODE, plus the four merge conditions, and the grant added
+**"No Mateo stop."** That condition is now spent: v2 merged as eden PR #13 on
+2026-08-25T23:35:24Z and is the live `.claude/rules/git-process.md`.
 
 ---
 
@@ -134,6 +181,14 @@ deferred.
 ---
 
 ## 6. Final rulings — Mateo, 2026-08-25 ("ok go with the recommended")
+
+> **Label warning: there are TWO unrelated D-series in this register.** §2 and §3
+> use D5/D6 from the **git-process** ruling series (D1 human gates, D2 enforcement,
+> D3 review pricing, D4 folds-26-findings, D5 attribution, D6 no-legacy) — those
+> live in `.claude/rules/git-process.md`. The D1–D4 below are the **blueprint**
+> series and are a different set entirely. "D3" therefore has two answers depending
+> on which series you mean. They are not renumbered here because both are quoted
+> elsewhere under their own labels; always name the series.
 
 Blueprint **CERTIFIED** at 19.25 agent-days after 10 adversarial passes. All four
 decisions as recommended:
@@ -160,7 +215,9 @@ let cost be the limiter. Tracked as task #134.
 
 **The measured state** (2026-08-25): the cap is **40**. `review/review.sh:34`
 reads `MAX_TURNS="${REVIEW_MAX_TURNS:-40}"` at cictl `origin/main`, at `v0.5.1`,
-and at `v0.6.0` — the version `.devcontainer` pins — and **no caller anywhere sets
+and at `v0.6.0` — `.devcontainer` pins two, `CICTL_VERSION=v0.6.0` for the image
+and `v0.5.1` in its `pr-review.yml` for the reviewer that actually runs, and the
+cap reads 40 at both — and **no caller anywhere sets
 `REVIEW_MAX_TURNS`**. At 40 turns the agent is cut off mid-tool-call.
 
 So: **500/max is the directive, not the state.** Anything that records the cap as
@@ -180,9 +237,13 @@ reasoning would evaporate and the loop it described would continue past it.
 `_eden_monorepo_root()` returns eden **only when libs is a submodule**, and falls
 back to the standalone repository root otherwise. All 16 contracts live in eden;
 libs holds none. libs CI checks out standalone, so the dimension **cannot pass
-there**. Measured: the last 18 libs nightly runs were 14 failure / 4 success, each
-20–21 seconds — the tier paid to start docker, k3d, kind, postgres, minio and nats,
-then died on this one dimension. It stayed invisible because the PR tier runs
+there**. Measured over the last 18 libs nightly runs: **14 failure / 4 success**, with a
+failure duration **median of ~20 s across a 0–52 s range** (successes ~11 s). An
+earlier version of this record wrote "each 20–21 seconds", which hardened a median
+into a universal — only five of the fourteen failures fall in that band. On the
+run inspected (`32817700525`) the substrate step itself took four seconds and the
+whole job seventeen, so the tier did not pay much for the substrate before dying;
+the cost is the lost coverage, not the wasted minutes. It stayed invisible because the PR tier runs
 `phase-gate implementation` only; `ARCHITECTURE` runs under `gate-all`, which is
 nightly-only. Green PRs, red nightly, unread, for weeks.
 
@@ -190,7 +251,11 @@ nightly-only. Green PRs, red nightly, unread, for weeks.
 lane), leaving libs' nightly the deep work whose inputs it owns. Cost: libs' own
 nightly stops proving its contracts; that proof moves to the eden pointer bump.
 
-**Option B — carry the 16 contracts into libs** so the gate resolves standalone.
+**Option B — carry the contracts into libs** so the gate resolves standalone.
+**As stated this does not actually work:** libs gates 16 libraries, and one of them
+— `forge` — has no contract in eden at all, so it would still fail
+`contract file missing` after every other document had been copied. Option B needs
+a decision about `forge` before it is even a complete option.
 Cost: two homes for one document. Eden owns those contracts, so every future edit
 must land twice or they silently diverge — and a *diverged* frozen-contract header
 is worse than a missing one, because it passes. That is the same defect class D5's
@@ -203,7 +268,8 @@ for a quiet drift.
 remains fully dead, because `phase-gate all` short-circuits at architecture, so
 testing, qa and updatability never run. An in-repo alternative worth weighing:
 report the contract absence **without** aborting the recoverable dimensions, so
-the deep lane resumes providing value — while still surfacing the failure. Not by
+the deep lane resumes providing value — today it runs **none** of testing, load,
+security, mutation or updatability, not merely the one dimension that fails — while still surfacing the failure. Not by
 silencing it; that reintroduces a check that cannot fail.
 
 ---
