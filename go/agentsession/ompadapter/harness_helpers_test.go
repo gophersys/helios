@@ -101,6 +101,13 @@ func (integrationClock) Now() time.Time { return time.Date(2026, time.June, 13, 
 // so, never a quiet return of a partial event list.
 const drainDeadline = 60 * time.Second
 
+// liveDrainDeadline bounds a drain against the REAL omp harness. The 60s above is sized
+// for the in-repo stub, and the first live run that ever reached this code died on it
+// with 18 events still streaming — a healthy-but-slow turn reported as a hang, which is
+// the failure mode drainToTurnBoundaryWithin exists to name rather than cause. 120s
+// matches the claudeadapter live arms.
+const liveDrainDeadline = 120 * time.Second
+
 // Re-pinned for contract revision R1: the drain stops on the boundary PAYLOAD
 // (`event.Terminal != nil`), which is the SAME event on both sides of the revision — a clean
 // `agent_end` today, and the non-terminal turn-end it becomes once a session survives its own
