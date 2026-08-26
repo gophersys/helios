@@ -632,9 +632,9 @@ FILE_BANNER
 # type=gha is the Actions cache service, 10 GB per repository across all scopes,
 FILE_HEADER_A
 
-  printf '# which %s images at mode=max cannot fit — the measured hit rate was not worth\n' "$count"
+  printf '# which %s multi-GB images cannot fit at any export mode — the measured\n# hit rate was not worth the quota.\n' "$count"
   cat <<'FILE_HEADER_B'
-# the quota. type=registry puts each image's cache in its own ghcr package,
+# type=registry puts each image's cache in its own ghcr package,
 # ghcr.io/gophersys/<image>-cache, which the pool can read and write with the
 # same GITHUB_TOKEN it already pushes with. Those packages do not exist until
 # the first run creates them, so the first build logs a cache-from miss and that

@@ -89,8 +89,9 @@ name: build-and-push
 # ============================================================================
 #
 # type=gha is the Actions cache service, 10 GB per repository across all scopes,
-# which 6 images at mode=max cannot fit — the measured hit rate was not worth
-# the quota. type=registry puts each image's cache in its own ghcr package,
+# which 6 multi-GB images cannot fit at any export mode — the measured
+# hit rate was not worth the quota.
+# type=registry puts each image's cache in its own ghcr package,
 # ghcr.io/gophersys/<image>-cache, which the pool can read and write with the
 # same GITHUB_TOKEN it already pushes with. Those packages do not exist until
 # the first run creates them, so the first build logs a cache-from miss and that
