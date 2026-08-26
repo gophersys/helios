@@ -55,18 +55,20 @@ type PowerState struct {
 // SocRecord is the catalog entry for one SoC, identified by its Zephyr SoC
 // name (soc.yml), never by an orderable part number.
 type SocRecord struct {
-	Schema      string       `yaml:"schema"` // sfd.soc/v0
-	Name        string       `yaml:"name"`
-	Family      string       `yaml:"family"`
-	Series      string       `yaml:"series,omitempty"`
-	SocYML      string       `yaml:"soc_yml"` // path that declared it
-	DtsiFiles   []string     `yaml:"dtsi_files"`
-	Compatibles []string     `yaml:"compatibles"` // declared peripheral inventory
-	PowerStates []PowerState `yaml:"power_states"`
-	Boards      []string     `yaml:"boards"` // in-tree boards declaring this SoC
-	Depth       string       `yaml:"depth"`  // D1: declared inventory only
-	PartNumbers []string     `yaml:"part_numbers"` // empty until P4
-	Provenance  Provenance   `yaml:"provenance"`
+	Schema        string       `yaml:"schema"` // sfd.soc/v0
+	Name          string       `yaml:"name"`
+	Family        string       `yaml:"family"`
+	Series        string       `yaml:"series,omitempty"`
+	SocYML        string       `yaml:"soc_yml"`        // path that declared it
+	DtsiDiscovery string       `yaml:"dtsi_discovery"` // auto | manual (--dtsi)
+	DtsiSeeds     []string     `yaml:"dtsi_seeds"`     // pre-closure inputs
+	DtsiFiles     []string     `yaml:"dtsi_files"`     // full include closure
+	Compatibles   []string     `yaml:"compatibles"`    // declared peripheral inventory
+	PowerStates   []PowerState `yaml:"power_states"`
+	Boards        []string     `yaml:"boards"`       // in-tree boards declaring this SoC
+	Depth         string       `yaml:"depth"`        // D1: declared inventory only
+	PartNumbers   []string     `yaml:"part_numbers"` // empty until P4
+	Provenance    Provenance   `yaml:"provenance"`
 }
 
 // componentPath returns the catalog file for a compatible.

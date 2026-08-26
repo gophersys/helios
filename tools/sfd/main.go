@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -98,52 +99,17 @@ func cmdComponentAdd(compatible string, args []string) error {
 	if err != nil {
 		return err
 	}
-	bindings, err := FindBindings(c.zephyr, compatible)
+	rec, err := buildComponentRecord(c.zephyr, compatible)
 	if err != nil {
 		return err
 	}
-	if len(bindings) == 0 {
-		return fmt.Errorf("no binding for %q in %s — this component is DRIVER-WORK, not SOURCED", compatible, c.zephyr)
-	}
-	drivers, err := FindDrivers(c.zephyr, compatible)
-	if err != nil {
-		return err
-	}
-	exercisers, err := FindExercisers(c.zephyr, compatible, 20)
-	if err != nil {
-		return err
-	}
-
-	depth := "D1"
-	if len(drivers) > 0 {
-		depth = "D2"
-	}
-	buses := map[string]bool{}
-	var busList []string
-	for _, b := range bindings {
-		if b.OnBus != "" && !buses[b.OnBus] {
-			buses[b.OnBus] = true
-			busList = append(busList, b.OnBus)
-		}
-	}
-	rec := ComponentRecord{
-		Schema:      "sfd.component/v0",
-		Compatible:  compatible,
-		Class:       bindings[0].Class,
-		Buses:       busList,
-		Bindings:    bindings,
-		Drivers:     drivers,
-		ExercisedBy: exercisers,
-		Depth:       depth,
-		PartNumbers: []string{},
-		Provenance:  prov,
-	}
+	rec.Provenance = prov
 	path := componentPath(c.catalog, compatible)
-	if err := writeRecord(path, &rec, c.force); err != nil {
+	if err := writeRecord(path, rec, c.force); err != nil {
 		return err
 	}
 	fmt.Printf("SOURCED %s → %s (depth %s, %d binding(s), %d driver dir(s), %d exerciser(s))\n",
-		compatible, path, depth, len(bindings), len(drivers), len(exercisers))
+		compatible, path, rec.Depth, len(rec.Bindings), len(rec.Drivers), len(rec.ExercisedBy))
 	return nil
 }
 
@@ -159,93 +125,33 @@ func cmdSocAdd(name string, args []string) error {
 	if err != nil {
 		return err
 	}
-	decl, err := FindSoc(c.zephyr, name)
-	if err != nil {
-		return err
-	}
-	boards, err := FindBoardsForSoc(c.zephyr, name)
-	if err != nil {
-		return err
-	}
-	var dtsi []string
+	var seeds []string // nil = auto-discovery
 	if dtsiFlag != "" {
-		dtsi = filepath.SplitList(dtsiFlag)
-		if len(dtsi) == 1 {
-			dtsi = splitComma(dtsiFlag)
-		}
-		for _, f := range dtsi {
-			if _, err := os.Stat(filepath.Join(c.zephyr, f)); err != nil {
-				return fmt.Errorf("--dtsi %s: %w", f, err)
+		for _, p := range strings.Split(dtsiFlag, ",") {
+			if p = strings.TrimSpace(p); p != "" {
+				seeds = append(seeds, p)
 			}
 		}
-	} else {
-		dtsi, err = FindSocDtsi(c.zephyr, name, boards)
-		if err != nil {
-			return err
-		}
 	}
-	// Record the full include closure, not just the seeds: it is what was
-	// actually read, and verify then catches drift in any of it.
-	dtsi = expandIncludes(c.zephyr, dtsi)
-	compatibles, states, err := DtsiInventory(c.zephyr, dtsi)
+	rec, err := buildSocRecord(c.zephyr, name, seeds)
 	if err != nil {
 		return err
 	}
-	rec := SocRecord{
-		Schema:      "sfd.soc/v0",
-		Name:        name,
-		Family:      decl.Family,
-		Series:      decl.Series,
-		SocYML:      decl.SocYML,
-		DtsiFiles:   dtsi,
-		Compatibles: compatibles,
-		PowerStates: states,
-		Boards:      boards,
-		Depth:       "D1",
-		PartNumbers: []string{},
-		Provenance:  prov,
-	}
+	rec.Provenance = prov
 	path := socPath(c.catalog, name)
-	if err := writeRecord(path, &rec, c.force); err != nil {
+	if err := writeRecord(path, rec, c.force); err != nil {
 		return err
 	}
 	fmt.Printf("SOURCED soc %s → %s (%d dtsi, %d compatibles, %d power state(s), %d board(s))\n",
-		name, path, len(dtsi), len(compatibles), len(states), len(boards))
+		name, path, len(rec.DtsiFiles), len(rec.Compatibles), len(rec.PowerStates), len(rec.Boards))
 	return nil
 }
 
-func splitComma(s string) []string {
-	var out []string
-	for _, p := range filepath.SplitList(s) {
-		out = append(out, p)
-	}
-	if len(out) == 1 {
-		out = nil
-		for _, p := range splitOn(s, ',') {
-			if p != "" {
-				out = append(out, p)
-			}
-		}
-	}
-	return out
-}
-
-func splitOn(s string, sep rune) []string {
-	var out []string
-	cur := ""
-	for _, r := range s {
-		if r == sep {
-			out = append(out, cur)
-			cur = ""
-			continue
-		}
-		cur += string(r)
-	}
-	return append(out, cur)
-}
-
-// cmdVerify re-checks every catalog record against the tree. Any drift is
-// red and named. Exit 0 means: every record matches the pinned tree.
+// cmdVerify RE-EXTRACTS every catalog record through the same builders
+// `add` uses and diffs the full content, field by field. A verify that
+// only checked the SHA string and path existence passed every content
+// falsification (proven by refutation, 2026-08-26) — that check is dead.
+// Exit 0 now means: re-running the extraction reproduces every record.
 func cmdVerify(args []string) error {
 	c, err := parseCommon(flag.NewFlagSet("verify", flag.ExitOnError), args)
 	if err != nil {
@@ -258,42 +164,56 @@ func cmdVerify(args []string) error {
 	var failures []string
 	checked := 0
 
-	checkPaths := func(record string, recSHA string, paths []string) {
+	report := func(record string, recSHA string, diff []string) {
 		if recSHA != sha {
 			failures = append(failures, fmt.Sprintf("%s: extracted at %.12s, tree is at %.12s — re-extract", record, recSHA, sha))
 		}
-		for _, p := range paths {
-			if _, err := os.Stat(filepath.Join(c.zephyr, p)); err != nil {
-				failures = append(failures, fmt.Sprintf("%s: cited path missing: %s", record, p))
-			}
+		for _, d := range diff {
+			failures = append(failures, fmt.Sprintf("%s: %s", record, d))
 		}
 	}
 
 	comps, _ := filepath.Glob(filepath.Join(c.catalog, "components", "*.yaml"))
 	for _, f := range comps {
-		var rec ComponentRecord
-		if err := readYAML(f, &rec); err != nil {
+		var stored ComponentRecord
+		if err := readYAML(f, &stored); err != nil {
 			failures = append(failures, fmt.Sprintf("%s: unreadable: %v", f, err))
 			continue
 		}
 		checked++
-		var paths []string
-		for _, b := range rec.Bindings {
-			paths = append(paths, b.Path)
+		rebuilt, err := buildComponentRecord(c.zephyr, stored.Compatible)
+		if err != nil {
+			failures = append(failures, fmt.Sprintf("%s: rebuild failed: %v", f, err))
+			continue
 		}
-		paths = append(paths, rec.Drivers...)
-		checkPaths(f, rec.Provenance.ZephyrSHA, paths)
+		diff, err := recordDiff(&stored, rebuilt)
+		if err != nil {
+			return err
+		}
+		report(f, stored.Provenance.ZephyrSHA, diff)
 	}
 	socs, _ := filepath.Glob(filepath.Join(c.catalog, "socs", "*.yaml"))
 	for _, f := range socs {
-		var rec SocRecord
-		if err := readYAML(f, &rec); err != nil {
+		var stored SocRecord
+		if err := readYAML(f, &stored); err != nil {
 			failures = append(failures, fmt.Sprintf("%s: unreadable: %v", f, err))
 			continue
 		}
 		checked++
-		paths := append([]string{rec.SocYML}, rec.DtsiFiles...)
-		checkPaths(f, rec.Provenance.ZephyrSHA, paths)
+		var seeds []string // auto-discovery unless the record was manual
+		if stored.DtsiDiscovery == "manual" {
+			seeds = stored.DtsiSeeds
+		}
+		rebuilt, err := buildSocRecord(c.zephyr, stored.Name, seeds)
+		if err != nil {
+			failures = append(failures, fmt.Sprintf("%s: rebuild failed: %v", f, err))
+			continue
+		}
+		diff, err := recordDiff(&stored, rebuilt)
+		if err != nil {
+			return err
+		}
+		report(f, stored.Provenance.ZephyrSHA, diff)
 	}
 
 	if checked == 0 {
@@ -305,7 +225,7 @@ func cmdVerify(args []string) error {
 		}
 		return fmt.Errorf("%d failure(s) across %d record(s)", len(failures), checked)
 	}
-	fmt.Printf("verify OK: %d record(s) match zephyr @ %.12s\n", checked, sha)
+	fmt.Printf("verify OK: %d record(s) reproduced from zephyr @ %.12s\n", checked, sha)
 	return nil
 }
 

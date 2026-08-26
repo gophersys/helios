@@ -3,6 +3,14 @@ name: esp32c6
 family: espressif_esp32
 series: esp32c6
 soc_yml: soc/espressif/soc.yml
+dtsi_discovery: auto
+dtsi_seeds:
+    - dts/riscv/espressif/esp32c6/esp32c6_common.dtsi
+    - dts/riscv/espressif/esp32c6/esp32c6_lpcore.dtsi
+    - dts/riscv/espressif/esp32c6/esp32c6_lpcore_wroom_n4.dtsi
+    - dts/riscv/espressif/esp32c6/esp32c6_wroom_n4.dtsi
+    - dts/riscv/espressif/esp32c6/esp32c6_wroom_n8.dtsi
+    - dts/vendor/espressif/partitions_0x0_default.dtsi
 dtsi_files:
     - dts/riscv/espressif/esp32c6/esp32c6_common.dtsi
     - dts/riscv/espressif/esp32c6/esp32c6_lpcore.dtsi

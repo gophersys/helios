@@ -119,6 +119,7 @@ func FindBindings(root, compatible string) ([]BindingRef, error) {
 	// One walk builds both the match list and the name index that include
 	// resolution needs (include names are unique basenames by convention).
 	byName := map[string]string{}
+	var unparseable []string
 	type match struct {
 		doc  bindingDoc
 		path string
@@ -134,14 +135,21 @@ func FindBindings(root, compatible string) ([]BindingRef, error) {
 			return err
 		}
 		var doc bindingDoc
-		if yaml.Unmarshal(raw, &doc) != nil {
-			return nil // not every yaml under bindings is a binding; skip unparseable
+		if uerr := yaml.Unmarshal(raw, &doc); uerr != nil {
+			rel, _ := filepath.Rel(root, path)
+			unparseable = append(unparseable, fmt.Sprintf("%s (%v)", rel, uerr))
+			return nil
 		}
 		if doc.Compatible == compatible {
 			matches = append(matches, match{doc, path})
 		}
 		return nil
 	})
+	if len(unparseable) > 0 {
+		// FAIL-NOT-SKIP: a skipped binding would surface as "no binding →
+		// DRIVER-WORK" — the hardest refusal, fired on a parser miss.
+		return nil, fmt.Errorf("unparseable YAML under dts/bindings: %s", strings.Join(unparseable, "; "))
+	}
 	var refs []BindingRef
 	for _, m := range matches {
 		rel, _ := filepath.Rel(root, m.path)
@@ -191,8 +199,11 @@ func FindDrivers(root, compatible string) ([]string, error) {
 
 // FindExercisers returns files under samples/, tests/ and boards/ that
 // reference the compatible in devicetree sources. Capped: the point is
-// evidence that it is exercised, not an exhaustive census.
+// evidence that it is exercised, not an exhaustive census. The needle
+// carries its quotes: devicetree writes compatibles as quoted strings, so
+// `"aosong,dht"` cannot inherit evidence from `"aosong,dht20"`.
 func FindExercisers(root, compatible string, cap int) ([]string, error) {
+	needle := `"` + compatible + `"`
 	var out []string
 	for _, top := range []string{"samples", "tests", "boards"} {
 		base := filepath.Join(root, top)
@@ -209,7 +220,7 @@ func FindExercisers(root, compatible string, cap int) ([]string, error) {
 			if err != nil {
 				return err
 			}
-			if strings.Contains(string(raw), compatible) {
+			if strings.Contains(string(raw), needle) {
 				rel, _ := filepath.Rel(root, path)
 				out = append(out, rel)
 			}
@@ -235,6 +246,7 @@ type SocDecl struct {
 func FindSoc(root, name string) (*SocDecl, error) {
 	base := filepath.Join(root, "soc")
 	var found *SocDecl
+	var unparseable []string
 	err := filepath.WalkDir(base, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || d.Name() != "soc.yml" || found != nil {
 			return err
@@ -244,7 +256,9 @@ func FindSoc(root, name string) (*SocDecl, error) {
 			return err
 		}
 		var doc map[string]any
-		if yaml.Unmarshal(raw, &doc) != nil {
+		if uerr := yaml.Unmarshal(raw, &doc); uerr != nil {
+			rel, _ := filepath.Rel(root, path)
+			unparseable = append(unparseable, fmt.Sprintf("%s (%v)", rel, uerr))
 			return nil
 		}
 		rel, _ := filepath.Rel(root, path)
@@ -255,6 +269,9 @@ func FindSoc(root, name string) (*SocDecl, error) {
 	})
 	if err != nil {
 		return nil, err
+	}
+	if len(unparseable) > 0 {
+		return nil, fmt.Errorf("unparseable YAML under soc/: %s", strings.Join(unparseable, "; "))
 	}
 	if found == nil {
 		return nil, fmt.Errorf("soc %q not declared in any soc/**/soc.yml under %s", name, root)
@@ -330,6 +347,7 @@ type boardYML struct {
 func FindBoardsForSoc(root, socName string) ([]string, error) {
 	base := filepath.Join(root, "boards")
 	var out []string
+	var unparseable []string
 	err := filepath.WalkDir(base, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || d.Name() != "board.yml" {
 			return err
@@ -339,7 +357,9 @@ func FindBoardsForSoc(root, socName string) ([]string, error) {
 			return err
 		}
 		var doc boardYML
-		if yaml.Unmarshal(raw, &doc) != nil {
+		if uerr := yaml.Unmarshal(raw, &doc); uerr != nil {
+			rel, _ := filepath.Rel(root, path)
+			unparseable = append(unparseable, fmt.Sprintf("%s (%v)", rel, uerr))
 			return nil
 		}
 		match := false
@@ -361,6 +381,9 @@ func FindBoardsForSoc(root, socName string) ([]string, error) {
 		}
 		return nil
 	})
+	if err == nil && len(unparseable) > 0 {
+		err = fmt.Errorf("unparseable YAML under boards/: %s", strings.Join(unparseable, "; "))
+	}
 	sort.Strings(out)
 	return out, err
 }
@@ -373,13 +396,29 @@ func FindBoardsForSoc(root, socName string) ([]string, error) {
 func FindSocDtsi(root, socName string, boards []string) ([]string, error) {
 	hits := map[string]bool{}
 
-	// Strategy 1: name match under dts/.
+	// Strategy 1: name match under dts/. The match is exact or at a
+	// separator boundary — never a bare prefix: `esp32` must not swallow
+	// esp32c6/esp32s3 (a bare-prefix match once produced a record spanning
+	// five chips and two ISAs).
 	dtsBase := filepath.Join(root, "dts")
+	matchesSoc := func(base string) bool {
+		stem := strings.TrimSuffix(base, ".dtsi")
+		if stem == socName {
+			return true
+		}
+		if rest, ok := strings.CutPrefix(stem, socName); ok {
+			switch rest[0] {
+			case '_', '-', '.':
+				return true
+			}
+		}
+		return false
+	}
 	_ = filepath.WalkDir(dtsBase, func(path string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(path, ".dtsi") {
 			return err
 		}
-		if strings.Contains(filepath.Base(path), socName) {
+		if matchesSoc(filepath.Base(path)) {
 			rel, _ := filepath.Rel(root, path)
 			hits[rel] = true
 		}

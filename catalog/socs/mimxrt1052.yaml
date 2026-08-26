@@ -3,6 +3,9 @@ name: mimxrt1052
 family: nxp_imxrt
 series: imxrt10xx
 soc_yml: soc/nxp/imxrt/soc.yml
+dtsi_discovery: auto
+dtsi_seeds:
+    - dts/arm/nxp/nxp_rt1050.dtsi
 dtsi_files:
     - dts/arm/nxp/nxp_rt1050.dtsi
     - dts/arm/nxp/nxp_rt10xx.dtsi

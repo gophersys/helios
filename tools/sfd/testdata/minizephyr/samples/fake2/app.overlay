@@ -1,0 +1,3 @@
+&i2c0 {
+    othersensor@77 { compatible = "test,fakesensor2"; reg = <0x77>; };
+};

@@ -3,6 +3,7 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -117,6 +118,44 @@ func TestFindSocDtsi(t *testing.T) {
 	}
 }
 
+// Refuter finding: `soc add esp32` swallowed esp32c2/c3/c6/s2/s3 — 75 dtsi
+// across five chips and two ISAs, ten contradictory power states — because
+// discovery was substring-based. A SoC name must match a dtsi basename
+// exactly or at a separator boundary, never as a bare prefix.
+func TestFindSocDtsiRejectsPrefixCollision(t *testing.T) {
+	dtsi, err := FindSocDtsi(fixture, "testsoc1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range dtsi {
+		if strings.Contains(f, "testsoc12") {
+			t.Fatalf("testsoc1 discovery swallowed testsoc12's dtsi: %v", dtsi)
+		}
+	}
+	if len(dtsi) == 0 {
+		t.Fatal("discovery lost the genuine testsoc1.dtsi")
+	}
+}
+
+// Refuter finding: exercised_by used bare substring match — 81 compatibles
+// in the real tree would inherit evidence from a longer sibling
+// (aosong,dht ← aosong,dht20). Evidence must match the exact quoted
+// devicetree string.
+func TestFindExercisersExactMatchOnly(t *testing.T) {
+	hits, err := FindExercisers(fixture, "test,fakesensor", 20)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, h := range hits {
+		if strings.Contains(h, "fake2") {
+			t.Fatalf("substring false positive: fakesensor credited with fakesensor2's overlay: %v", hits)
+		}
+	}
+	if len(hits) != 1 {
+		t.Fatalf("want exactly the genuine overlay, got %v", hits)
+	}
+}
+
 func TestFindSocDtsiFailsLoudlyOnNoHit(t *testing.T) {
 	if _, err := FindSocDtsi(fixture, "ghostsoc", nil); err == nil {
 		t.Fatal("want loud failure when no dtsi found, got nil (silent empty is forbidden)")
@@ -169,6 +208,26 @@ func TestDtsiInventory(t *testing.T) {
 	s := states[0]
 	if s.Name != "suspend-to-idle" || s.MinResidencyUS != 5000 || s.ExitLatencyUS != 120 {
 		t.Errorf("power state mismatch: %+v", s)
+	}
+}
+
+// Refuter finding: unparseable YAML was silently skipped. A skipped
+// binding turns into "no binding → DRIVER-WORK" — the process's hardest
+// refusal fired on a parser miss. FAIL-NOT-SKIP: a file that cannot be
+// read is an error that names the file.
+func TestBrokenYAMLFailsLoudly(t *testing.T) {
+	broken := "testdata/broken"
+	if _, err := FindBindings(broken, "any,thing"); err == nil ||
+		!strings.Contains(err.Error(), "unparseable") || !strings.Contains(err.Error(), "bad.yaml") {
+		t.Errorf("FindBindings: want unparseable error naming bad.yaml, got %v", err)
+	}
+	if _, err := FindSoc(broken, "anysoc"); err == nil ||
+		!strings.Contains(err.Error(), "unparseable") || !strings.Contains(err.Error(), "soc.yml") {
+		t.Errorf("FindSoc: want unparseable error naming soc.yml, got %v", err)
+	}
+	if _, err := FindBoardsForSoc(broken, "anysoc"); err == nil ||
+		!strings.Contains(err.Error(), "unparseable") || !strings.Contains(err.Error(), "board.yml") {
+		t.Errorf("FindBoardsForSoc: want unparseable error naming board.yml, got %v", err)
 	}
 }
 

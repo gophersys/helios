@@ -88,8 +88,8 @@ Power class picks the lane. One flat list would hide the conflict between
 
 | Lane | Part | Why it is here | Depth |
 |---|---|---|---|
-| A — performance | NXP `MIMXRT1052CVL5B` | crossover M7; HMI/DSP-heavy products; **no internal flash** — external boot flash is mandatory hardware | D1 (pending extraction) |
-| B — low-power wireless | Espressif `ESP32-C6` | Wi-Fi 6 (2.4 GHz) + BLE + 802.15.4; HP core + LP core | D1 (pending extraction) |
+| A — performance | NXP `MIMXRT1052CVL5B` | crossover M7; HMI/DSP-heavy products; **no internal flash** — external boot flash is mandatory hardware | D1 — `catalog/socs/mimxrt1052.yaml` |
+| B — low-power wireless | Espressif `ESP32-C6` | Wi-Fi 6 (2.4 GHz) + BLE + 802.15.4; HP core + LP core | D1 — `catalog/socs/esp32c6.yaml` |
 | B — low-power wireless | other Espressif BLE/Wi-Fi parts | family breadth; exact parts enter via the capability index only | D0 |
 
 A part is "supported" only when its capability-index record exists at D1+.

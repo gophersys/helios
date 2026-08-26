@@ -75,13 +75,15 @@ artifact. A stage never reaches around its neighbor.
 
 ## The power model — "low-power" as data, not vibe
 
-Zephyr encodes power as devicetree data. Extraction pulls, per SoC:
+Zephyr encodes power as devicetree data. Per SoC, with implementation
+status stated (a table in the present tense that is not implemented is a
+lie — refuted 2026-08-26):
 
-| Source | What it yields |
-|---|---|
-| `zephyr,power-state` nodes (binding: `dts/bindings/power/`) referenced by `cpu-power-states` | states, `min-residency-us`, `exit-latency-us` |
-| `wakeup-source` property on device nodes | what can wake the SoC from which state |
-| `CONFIG_PM` / `CONFIG_PM_DEVICE` / `CONFIG_PM_DEVICE_RUNTIME` coverage in drivers | which drivers can power-manage their device, which cannot |
+| Source | What it yields | Status |
+|---|---|---|
+| `zephyr,power-state` nodes (binding: `dts/bindings/power/`) | states, `min-residency-us`, `exit-latency-us` | **EXTRACTED v0** — every such node in the include closure; `cpu-power-states` phandles are NOT followed yet, so states are not attributed to a CPU cluster |
+| `wakeup-source` property on device nodes | what can wake the SoC from which state | PLANNED |
+| `CONFIG_PM` / `CONFIG_PM_DEVICE` / `CONFIG_PM_DEVICE_RUNTIME` coverage in drivers | which drivers can power-manage their device, which cannot | PLANNED |
 
 The SDHR then carries a **power-state budget**: for each product mode
 (active / idle / sleep / ship) → the required SoC state, the wake sources,
@@ -102,22 +104,32 @@ a hole that is not named is a defect in this pipeline, not in P5.
 
 ## Extraction spec — where truth lives in the Zephyr tree
 
-The capability index is EXTRACTED, never hand-written. Sources, per SoC
-(paths follow Zephyr hardware model v2, Zephyr ≥ 3.7):
+The capability index is EXTRACTED, never hand-written. Sources, per SoC,
+with implementation status. Path notes are measured at v4.2.0
+(413b789deb39), not idealized: 13 of 102 `soc.yml` sit at vendor level
+(`soc/espressif/soc.yml` declares esp32c6), and SoC dtsi locations vary
+(`dts/riscv/espressif/esp32c6/…`, but mimxrt1052's file is
+`dts/arm/nxp/nxp_rt1050.dtsi` — neither vendor-prefixed nor SoC-named).
+Discovery therefore never trusts one path pattern: it matches dtsi
+basenames at separator boundaries AND follows the `.dts` includes of
+boards that declare the SoC, then resolves the full dtsi include closure.
 
-| Zephyr path | Yields | Index section |
+| Zephyr source | Yields | Status → record field |
 |---|---|---|
-| `soc/<vendor>/<family>/soc.yml`, `Kconfig.soc` | identity, series, cores | `identity`, `compute` |
-| `dts/<arch>/<vendor>/<soc>*.dtsi` | peripheral inventory, memory map, buses | `peripherals`, `memory`, `buses` |
-| `dts/bindings/**/*.yaml` | per-peripheral requirements (`on-bus`, required properties) | `peripherals[].needs` |
-| `boards/<vendor>/<board>/` | proven pin muxings, board-level defaults | `pins.proven_sources` |
-| `samples/`, `tests/` | what is EXERCISED, not just declared | per-field depth promotion D1→D3 |
-| west blob metadata (`hal_espressif` etc.) | binary-blob dependency | `blobs` |
+| `soc/**/soc.yml` | identity, family, series | **EXTRACTED v0** → `name`, `family`, `series`, `soc_yml` |
+| SoC dtsi include closure | declared peripheral inventory (compatibles), power states | **EXTRACTED v0** → `dtsi_files`, `compatibles`, `power_states` |
+| `dts/bindings/**/*.yaml` | per-component binding paths, class, bus (through `include:` chains) | **EXTRACTED v0** → `bindings`, `class`, `buses` |
+| `drivers/**` (`DT_DRV_COMPAT`) | driver existence | **EXTRACTED v0** → `drivers`, `depth` D1→D2 |
+| `boards/**/board.yml` | boards declaring the SoC | **EXTRACTED v0** → `boards` |
+| `samples/`, `tests/`, `boards/` dts sources | exercise evidence (exact quoted-compatible match) | **EXTRACTED v0** → `exercised_by` |
+| `Kconfig.soc` (cores, FPU), memory map, pinctrl | compute + memory + pin detail | PLANNED |
+| west blob metadata (`hal_espressif` etc.) | binary-blob dependency | PLANNED |
 
 Two rules:
 
 1. **Declared ≠ supported.** A peripheral that appears in a `.dtsi` enters at
    D1. It reaches D2 with a matching in-tree driver, D3 only with build/run
-   proof. The index stores depth PER FIELD.
+   proof. Per-field depth is the v1 goal; v0 depth is per record.
 2. **The SHA moves atomically.** Re-extract at each Zephyr release bump; the
-   diff is reviewed; every record in the index cites the same SHA.
+   diff is reviewed; every record in the index cites the same SHA, and
+   `sfd verify` re-extracts and diffs every record against the tree.

@@ -7,25 +7,33 @@
 # for components, a SoC name for SoCs. Part numbers are a late binding
 # (P4) — the field exists and stays empty until then.
 
+# Every example value below is taken from a REAL record in catalog/ at
+# zephyr v4.2.0 (413b789deb39) — never an invented path.
+
 sfd.component/v0:
   example:
     schema: sfd.component/v0
     compatible: bosch,bme280          # THE identity
     class: sensor                     # dts/bindings/<class>/
-    buses: [i2c, spi]                 # union of binding on-bus values
+    buses: [i2c, spi]                 # binding on-bus, resolved through
+                                      # binding `include:` chains
     bindings:
       - path: dts/bindings/sensor/bosch,bme280-i2c.yaml
         on_bus: i2c
         class: sensor
+      - path: dts/bindings/sensor/bosch,bme280-spi.yaml
+        on_bus: spi
+        class: sensor
     drivers:                          # dirs declaring DT_DRV_COMPAT
       - drivers/sensor/bosch/bme280
-    exercised_by:                     # capped evidence, not a census
-      - tests/drivers/sensor/generic/app.overlay
+    exercised_by:                     # capped evidence, not a census;
+                                      # exact quoted-string match only
+      - boards/ezurio/bl654_sensor_board/bl654_sensor_board.dts
     depth: D2                         # D1 binding only · D2 +driver ·
                                       # D3 only via a recorded build/run
     part_numbers: []                  # EMPTY until P4, per product
     provenance:
-      zephyr_sha: <40-hex>            # sfd verify fails on drift
+      zephyr_sha: <40-hex>
       extracted: YYYY-MM-DD
       tool: sfd/v0
 
@@ -33,17 +41,26 @@ sfd.soc/v0:
   example:
     schema: sfd.soc/v0
     name: esp32c6                     # THE identity (soc.yml name)
-    family: espressif
+    family: espressif_esp32
     series: esp32c6
-    soc_yml: soc/espressif/esp32c6/soc.yml
-    dtsi_files:
+    soc_yml: soc/espressif/soc.yml    # NOTE: some vendors declare at
+                                      # vendor level, not per-SoC dirs
+    dtsi_discovery: auto              # auto | manual (--dtsi)
+    dtsi_seeds:                       # discovery output, pre-closure
       - dts/riscv/espressif/esp32c6/esp32c6_common.dtsi
+    dtsi_files:                       # FULL include closure — what was
+                                      # actually read; includes board-level
+                                      # partition dtsi where the closure
+                                      # pulls them
+      - dts/riscv/espressif/esp32c6/esp32c6_common.dtsi
+      - dts/vendor/espressif/partitions_0x0_default.dtsi
     compatibles: []                   # declared inventory — D1 by definition:
                                       # declared ≠ supported
-    power_states:
-      - name: suspend-to-idle
-        min_residency_us: 5000
-        exit_latency_us: 120
+    power_states:                     # every zephyr,power-state in the
+                                      # closure (see limits below)
+      - name: standby
+        min_residency_us: 200
+        exit_latency_us: 60
     boards: []                        # in-tree boards declaring this SoC
     depth: D1
     part_numbers: []                  # e.g. MIMXRT1052CVL5B — only in P4
@@ -52,8 +69,24 @@ sfd.soc/v0:
       extracted: YYYY-MM-DD
       tool: sfd/v0
 
-# Known v0 limits (honest):
-# - dtsi extraction is text-level: no include resolution, no /delete-node/,
-#   no C preprocessor. Inventory is DECLARED-in-file only → D1 ceiling.
-# - memory map, pinctrl and clock topology are not yet extracted.
+# Verification contract: `sfd verify` RE-EXTRACTS every record through the
+# same builders `add` uses and diffs the full content, field by field, plus
+# the SHA. Exit 0 means: re-running the extraction reproduces the record.
+# Hand-edits (a promoted depth, a part number, an invented compatible) are
+# named drift and fail the gate.
+
+# Known v0 limits (honest — kept current with the code, checked in review):
+# - dtsi extraction is text-level WITH include-closure resolution, but:
+#   no /delete-node/ handling (deleted nodes may still appear declared),
+#   no C-preprocessor conditionals, no node-level structure. → D1 ceiling.
+# - power_states takes EVERY zephyr,power-state node in the closure; it
+#   does not follow cpu-power-states phandles, so it cannot attribute a
+#   state to a CPU cluster.
+# - wakeup-source, driver PM coverage (CONFIG_PM_DEVICE*), west blob
+#   metadata, memory map, pinctrl and clock topology: NOT yet extracted.
+# - the include closure may pull board-level dtsi (partition tables) into
+#   a SoC record's inventory (e.g. fixed-partitions).
+# - binding include resolution inside resolveOnBus is lenient (an
+#   unreadable include yields no bus rather than an error); the top-level
+#   walkers fail loudly on unparseable YAML.
 # - depth is per-record in v0; per-field depth is the v1 goal.
