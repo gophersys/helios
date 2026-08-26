@@ -29,7 +29,9 @@
         "{workspaceRoot}/.githooks/**",
         "{workspaceRoot}/.nxignore",
         "{workspaceRoot}/.ci/graph-roster.txt",
-        "{workspaceRoot}/.ci/ctl.sh"
+        "{workspaceRoot}/.ci/ctl.sh",
+        "{workspaceRoot}/.github/workflows/**",
+        "{workspaceRoot}/.ci/providers/**"
       ],
       "cache": false
     }
