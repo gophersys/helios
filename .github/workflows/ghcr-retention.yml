@@ -1,0 +1,167 @@
+name: ghcr-retention
+
+# Bounds what this repository leaves behind in ghcr.io.
+#
+# GitHub Actions and GitHub Packages share ONE storage quota and it is
+# exhausted, which is why every `review` job in gophersys now goes red with
+# `Failed to CreateArtifact: Artifact storage quota has been hit` AFTER posting
+# a verdict it computed correctly. The Actions artifacts are ~5 MB across the
+# organization; the containers are the consumer, and build-and-push.yml has
+# added a permanent tag per merge since the first publish with nothing ever
+# pruning.
+#
+# THIS WORKFLOW DELETES NOTHING UNTIL SOMEBODY CHANGES `mode` BELOW. It lands
+# with `dry-run` as the schedule's mode on purpose: the delete plan is
+# irreversible, and the first thing a human should do is read one real log of
+# what it WOULD remove. Flipping it to enforcing is a 1-word edit to the `mode`
+# default, or a `workflow_dispatch` run with mode=enforce for a single pass.
+#
+# THIS FILE IS PROVIDER-NATIVE and has no copy under .ci/providers/github/.
+# That directory is the source of truth for a pipeline that could be expressed
+# on another CI system; this one prunes GitHub Packages through the GitHub
+# packages API, so there is no gitlab or buildkite spelling of it to abstract.
+# validate.yml and pr-review.yml sit outside that directory for the same reason,
+# and .ci/providers/README.md states the direction: provider -> workflow, never
+# the reverse.
+#
+# The policy itself, every protection class and every measurement behind them,
+# is in .ci/ghcr-retention.sh. Nothing about WHAT is safe to delete is decided
+# here.
+
+on:
+  schedule:
+    # 11:00 UTC on Monday, which is 04:00 MST. cron is UTC and America/Phoenix
+    # keeps no DST, so that local hour is the same one every week.
+    #
+    # It is 1 hour after weekly-bumps and 2 after the nightly scan, so the 3
+    # scheduled runs of this repository never race for a slot of the pool. A
+    # retention run reads the open pull requests of every consumer to decide
+    # what is pinned, so it also wants to run AFTER the weekly bump has opened
+    # its own — a pull request this run cannot see is a pin it does not protect.
+    - cron: "0 11 * * 1"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "dry-run reports and deletes nothing; enforce deletes the plan"
+        type: choice
+        options:
+          - dry-run
+          - enforce
+        default: dry-run
+      keep:
+        description: "how many recent tagged versions to keep beyond the pins"
+        type: string
+        default: "10"
+
+# It QUEUES, and it is the only scheduled workflow here that declares a group.
+# The nightly and the weekly declare none because they cannot overlap
+# themselves; this one can, because `workflow_dispatch` exists and a human runs
+# it exactly when a schedule is already going. Two enforcing prunes racing would
+# each compute a plan from the same registry and then both DELETE it, and the
+# loser gets a 404 on a version the winner already removed — which this script
+# treats as the failure it is, so the race surfaces as a red about a delete that
+# was actually fine.
+#
+# cancel-in-progress is FALSE for build-and-push.yml's reason, and more sharply:
+# a cancelled prune has deleted some versions and not others, and nothing rolls
+# one back.
+concurrency:
+  group: ghcr-retention-${{ github.ref }}
+  cancel-in-progress: false
+
+# The notifier opens, comments on and closes 1 issue. Nothing here writes to the
+# repository, and the DELETE goes through GHCR_RETENTION_TOKEN rather than the
+# workflow token — `packages: write` on GITHUB_TOKEN does not carry
+# delete:packages, and it could not read eden or infrastructure either.
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  retention:
+    # A job with no limit inherits GitHub's 360-minute default, and a hung
+    # registry read would hold a slot of the pool for 6 hours.
+    #
+    # 30 minutes is sized on the measured shape of the work: 1 packages-API
+    # listing per image, 1 tarball plus 1 patch read per consumer repository,
+    # and 1 registry manifest read per PROTECTED version. The largest package on
+    # 2026-08-26 was base at 61 protected versions, so the whole 6-image set is
+    # a few hundred small requests. It is a ceiling and not a measurement of the
+    # pool; the first Monday is what measures that.
+    timeout-minutes: 30
+    runs-on: arc-build
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: report the retention plan, and act on it only in enforce mode
+        env:
+          # A schedule supplies no inputs, so the fallbacks ARE the scheduled
+          # run's policy. `dry-run` is deliberate: this workflow must be able to
+          # land, run on a Monday and delete nothing until a human has read one
+          # real log.
+          #
+          # TO MAKE IT ENFORCING: change the literal `dry-run` on the line below
+          # to `enforce`. That is the whole edit, and it is reviewable as one
+          # word in a diff.
+          RETENTION_MODE: ${{ inputs.mode || 'dry-run' }}
+          RETENTION_KEEP: ${{ inputs.keep || '10' }}
+          # read:packages + delete:packages on the organization, and
+          # contents:read on the 4 consumers whose submodule pointers and digest
+          # pins are protection classes 3 and 4: eden, infrastructure,
+          # research-hardware and research-ui. With the secret absent the script
+          # FAILS naming it and never reports an empty plan as a clean estate —
+          # a run that cannot read the consumers deletes exactly what they pin.
+          #
+          # gophersys/infrastructure does this with a GitHub App
+          # (ARC_APP_ID / ARC_APP_PRIVATE_KEY) and that route is not open here:
+          # measured 2026-08-26, this repository is exposed to 0 organization
+          # secrets and holds 2 of its own, BUMP_PR_TOKEN and EDEN_MANIFEST_READ.
+          # So this secret has to be minted before the first run can do anything
+          # but fail, and failing is the correct behaviour until it is.
+          GHCR_RETENTION_TOKEN: ${{ secrets.GHCR_RETENTION_TOKEN }}
+        run: bash .ci/ghcr-retention.sh
+
+  notify:
+    # A SECOND job, for the reason weekly-bumps.yml gives: `if: failure()` on a
+    # step cannot fire when the job holding it is cancelled for exceeding its
+    # own timeout, and a timeout is the failure a budgeted job makes likely.
+    #
+    # !cancelled() rather than always(), the stricter half of the pair: a run a
+    # human stopped reduces to a non-success verdict like any other, and under
+    # always() this job would file a red issue about that.
+    if: ${{ !cancelled() }}
+    needs: [retention]
+    timeout-minutes: 10
+    runs-on: arc-build
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: reduce the verdict of the job above to this job's own status
+        # GitHub scopes failure() in a step to the STEPS of its own job. This
+        # job runs under !cancelled(), so its own steps succeed whatever the
+        # retention job did, and a notifier guarded by failure() would never
+        # fire. This step fails when the retention job did not succeed — its
+        # timeout and its cancellation included — which is what gives the 2
+        # steps below a status to read.
+        run: |
+          retention='${{ needs.retention.result }}'
+          printf 'retention=%s\n' "$retention"
+          [[ "$retention" == "success" ]]
+      - name: file the failure
+        if: ${{ failure() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Its OWN label. A retention failure filed under ci-nightly-red would
+          # comment on the security scan's issue and read as the scan going red;
+          # ci-weekly-red is the bump's for the same reason.
+          ISSUE_LABEL: ci-retention-red
+        # QUOTED, and it has to be. The argument carries ': ', and a PLAIN
+        # scalar holding that is read as the start of a mapping value where a
+        # mapping cannot start: the document is rejected, GitHub refuses the
+        # whole workflow, and a workflow that never runs never fails.
+        run: 'bash .ci/notify-failure.sh "ghcr retention: ${{ needs.retention.result }}" "the retention job log names the class of pin it could not read"'
+      - name: close the issue on a green run
+        if: ${{ success() }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_LABEL: ci-retention-red
+        run: bash .ci/notify-failure.sh --resolve

@@ -41,8 +41,15 @@ renaming a file here means editing `EXPECTED_PROVIDER_FILES` in
 `_ctl/tests/platform-policy.test.sh` in the same change.**
 
 The direction of the rule is provider → workflow. `.github/workflows/` may hold
-a file this directory does not: `validate.yml` and `pr-review.yml` are
-provider-native and have no source-of-truth copy.
+a file this directory does not: `validate.yml`, `pr-review.yml` and
+`ghcr-retention.yml` are provider-native and have no source-of-truth copy.
+
+**Provider-native is a property of the WORK, not a shortcut.** A file belongs
+here when the pipeline it describes could be spelled on another CI system, and
+the abstraction is what saves the second spelling. `ghcr-retention.yml` prunes
+GitHub Packages through the GitHub packages API: there is no gitlab or
+buildkite version of deleting a ghcr.io version, so a provider directory copy
+would be an abstraction over a set of 1 with a `cmp` to keep it honest.
 
 ## Current providers
 

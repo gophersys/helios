@@ -26,6 +26,7 @@ job calls the purpose-built script it needs, because a job gates each step on
 ├── buildx-node.sh      the builder every image build uses; owns the arm64 switch
 ├── mirror-buildkit.sh  keeps ghcr.io holding the pinned BuildKit index the builder boots from
 ├── notify-failure.sh   the 1 labelled issue a scheduled run opens, comments on and closes
+├── ghcr-retention.sh   what may be deleted from ghcr.io, and what may never be
 ├── fixtures/           what the functional checks read: a Go module, a Dockerfile,
 │                       a compose file, a proto and its buf module
 ├── trivyignore.yaml    the CVE waivers, each with a statement and an expiry
@@ -146,6 +147,26 @@ purpose-built script CI calls, for the 1 image they changed.
 
 What this directory owns is therefore the SCRIPTS, not an aggregate verb: which
 images a commit affects, the builder, the BuildKit mirror, the smoke driver and
-its guest half, the failure notifier, and the provider YAMLs that are the source
-of truth for each CI system. `ctl.sh` keeps `validate` alone, because that 1
-gate really does act on the whole tree at once.
+its guest half, the failure notifier, the retention policy, and the provider
+YAMLs that are the source of truth for each CI system. `ctl.sh` keeps `validate`
+alone, because that 1 gate really does act on the whole tree at once.
+
+## Retention is the one aggregate script, and it says why
+
+`ghcr-retention.sh` walks every image of `images.yaml` in a single run, which
+reads like the opposite of the affected-only rule above. It is not: the unit of
+a BUILD is 1 image because a commit changes 1 image, and the unit of a PRUNE is
+the whole registry because the protected set is computed from things that live
+OUTSIDE any one image — a consumer's submodule pointer, a digest pinned in
+`gophersys/infrastructure`. There is no per-image gate that could answer "is
+this version pinned", so there is nothing to gate per image.
+
+It is also the 1 script here whose failure mode is destructive, so its whole
+design is about refusing to act on a read it could not make. An untagged version
+in this registry is almost always the live child of a tag — 225 of 225 on `base`,
+measured 2026-08-26 — so the prune every retention example performs would delete
+the content of the tags it is keeping. The file's header carries the
+measurements, the 6 protection classes and the reason each one is not optional.
+
+`bash .ci/ghcr-retention.sh [image...]` dry runs and deletes nothing.
+`RETENTION_MODE=enforce` is what makes it act.
