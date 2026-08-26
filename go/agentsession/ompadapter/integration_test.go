@@ -4,10 +4,12 @@
 // and the REAL omp json parser on an ACTUAL process — a trivial scripted stub binary
 // (internal/stubharness), NOT omp — so the spawn/scan/Close ladder is proven on a genuine
 // process WITHOUT a live OpenRouter call. The credential is a FAKE secret (a canary), threaded
-// through Secret.Use exactly as production does, asserted never to leak. A SEPARATE, GATED test
-// (TestIntegration_LiveOmp_Gated) drives the REAL `omp` binary + OpenRouter + DeepSeek-v4-flash
-// only when the OpenRouter key env is supplied — it is SKIPPED otherwise and never logs/embeds
-// the key.
+// through Secret.Use exactly as production does, asserted never to leak. Those stub arms are
+// untouched by the ruling below: they are what gates the omp protocol, and they still run.
+//
+// A SEPARATE test (TestIntegration_LiveOmp_Gated) holds the REAL `omp` + OpenRouter +
+// DeepSeek-v4-flash arm. It is UNCONDITIONALLY SKIPPED per Mateo's 2026-08-26 ruling; its body
+// is kept compiled as the re-entry point for task #24. Nothing here logs or embeds the key.
 //
 //	go test -tags integration ./ompadapter/... -race
 //
@@ -168,16 +170,38 @@ func TestIntegration_StubBinary_CloseReapsBetweenTurns(t *testing.T) {
 	}
 }
 
-// TestIntegration_LiveOmp_Gated drives the REAL `omp` binary end-to-end against OpenRouter +
-// DeepSeek-v4-flash — but ONLY when the OpenRouter key is readable from the env or the
-// gitignored dev-secret. It is SKIPPED otherwise. It threads the key through the SAME injection
-// path (Secret.Use -> child env under OPENROUTER_API_KEY, with inherited copies scrubbed),
-// drives Open -> Prompt "Reply with exactly: ok" -> drain to a REAL turn boundary, and asserts
-// the boundary carries a non-empty ledger AND the key appears in NO event. The key is NEVER
-// logged. Re-pinned for contract revision R1: a live turn ends on a boundary, and the session
-// stays alive for the next Prompt.
+// TestIntegration_LiveOmp_Gated is UNCONDITIONALLY SKIPPED.
+//
+// Mateo's ruling, 2026-08-26, verbatim: "skip the omp, as lomg as claude works thats waht we
+// really actaulyl acre about". The live omp arm is red on every real run: omp 17.2.5 emits its
+// burst (last frame an `extension`) and then never writes `agent_end` — 8m of silence after a
+// 2.881s max inter-event gap, measured in eden run 33012361974. The protocol itself is proven
+// correct locally end-to-end against the pinned binary, so the defect is upstream (task #24:
+// omp defers the wire `agent_end` while promptInFlightCount > 0 and the release never fires).
+// The harness lane rides on claude, which works; omp does not hold it hostage.
+//
+// The BODY below is deliberately kept, whole and compiled. Deleting it would lose the re-entry
+// point for task #24 and would stop compiling the credential-never-leaks assertions with the
+// rest of the lane. What it drives when it is re-enabled: the key threaded through the SAME
+// injection path (Secret.Use -> child env under OPENROUTER_API_KEY, with inherited copies
+// scrubbed), Open -> Prompt "Reply with exactly: ok" -> drain to a REAL turn boundary, then the
+// boundary carries a non-empty ledger AND the key appears in NO event. The key is NEVER logged.
+// Re-pinned for contract revision R1: a live turn ends on a boundary, and the session stays
+// alive for the next Prompt.
+//
+// The STUB arms in this file are untouched — they still gate the omp protocol on a real
+// subprocess. This skip removes the live vendor call, not the coverage.
+//
+// Cross-repo: eden's conformance lane runs `scripts/assert-no-skipped-tests.sh`, which fails on
+// ANY skipped test, so this skip needs eden's SKIP_REGISTER to name it (eden #18). The two are
+// halves of one ruling and both must be in effect before that lane greens.
 func TestIntegration_LiveOmp_Gated(t *testing.T) {
 	t.Parallel()
+	// Unconditional, and BEFORE the credential check on purpose: the arm is off by ruling, not by
+	// what this host happens to have. A skip that still depended on the env would read as "the
+	// credential was missing" on a machine that has one.
+	t.Skip("omp live arm deliberately not gated — Mateo's ruling 2026-08-26: 'skip the omp, as long as claude works that's what we actually care about'; the known 17.2.5 rpc deadlock is task #24, and this skip is the re-entry point when it reopens")
+
 	key := liveOpenRouterKey()
 	if key == "" {
 		t.Skip("OPENROUTER_API_KEY not set and no dev-secret readable: the live omp run is gated and skipped")
