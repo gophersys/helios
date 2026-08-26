@@ -1,5 +1,5 @@
 {
-  "//": "A fixture project.json. `validate` runs `jq empty` over it and reads nothing else.",
-  "name": "only",
+  "//": "A fixture project.json. `validate` runs `jq empty` over it and reads nothing else, so no gate of THIS repository can see the name. A CONSUMER can: gophersys/eden carries this repository as a submodule and builds an Nx graph over the whole tree, and Nx refuses a graph that holds 2 projects of 1 name. `only` did not collide on the day this was written — it is renamed with `first` and `second` because a bare directory word is the SHAPE that collided, not an unlucky spelling, and a rule with an exception in it is a rule the next author reads as optional. The name is NAMESPACED to its fixture tree: `<fixture-tree>-fixture-<directory>`. Spell a new fixture directory the same way.",
+  "name": "toolchain-parity-fixture-only",
   "targets": {}
 }
