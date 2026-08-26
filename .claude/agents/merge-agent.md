@@ -46,8 +46,11 @@ trailers, it is stale text and you report it rather than obey it.
       EMPTY — record "no content evidence; merged on \<name\>'s reading" and do
       not claim a gate that did not run.
    2. Read the review verdict as its own call. APPROVE merges. A repo with no
-      reviewer merges and you STATE it has none. A bare round-limit skip does not
-      block; a review that DIES with no verdict is a failure, never a pass.
+      reviewer merges and you STATE it has none. A round-limit skip does not
+      block ONLY when a prior round posted a verdict for the CURRENT head; with
+      no verdict covering the head it is a review that DIED with no verdict — a
+      failure, never a pass. Re-run it or get a human read (§5.2, Mateo's
+      ruling 2026-08-26).
    3. No open decision in the PR body — a line starting `DECISION:`.
    4. **`--merge`, never `--squash`.** Delete the branch, remove the worktree.
       For a FEATURE PR, archive `.dev/<slug>.md` into the PR body, delete it in
