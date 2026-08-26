@@ -14,7 +14,6 @@ agentgateway	apps/agentgateway
 agentruntime	libs/go/agentruntime
 agentsession	libs/go/agentsession
 ci-devcontainer	.devcontainer/.ci
-ci-infrastructure	infrastructure/.ci
 ci-libs	libs/.ci
 ci-monorepo	.ci
 clusters	infrastructure/clusters
@@ -34,10 +33,11 @@ http-gateway-template	libs/templates/go/http-gateway
 http-gateway-template-client-go	libs/templates/go/http-gateway/clients/go
 http-gateway-template-persistence	libs/templates/go/http-gateway/persistence
 images-base	.devcontainer/base
-images-flutter	.devcontainer/flutter
-images-runner	.devcontainer/runner
-images-zephyr	.devcontainer/zephyr
-images-zephyr-devbox	.devcontainer/zephyr-devbox
+images-cloud	.devcontainer/cloud
+images-embedded	.devcontainer/embedded
+images-hardware	.devcontainer/hardware
+images-mobile	.devcontainer/mobile
+images-ui	.devcontainer/ui
 infrastructure	infrastructure
 libs	libs
 machines	infrastructure/machines
