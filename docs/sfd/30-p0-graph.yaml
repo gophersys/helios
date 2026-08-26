@@ -131,7 +131,7 @@ questions:
     section: S3
     tier: required
     mode: fixed
-    ask: "What does the user see or hear on the device itself? A light, sounds, a small readout (numbers, words, icons), or a rich screen (pages, video, animation)?"
+    ask: "What does the user see or hear on the device itself? Nothing at all, a light, sounds, a small readout (numbers, words, icons), or a rich screen (pages, video, animation)?"
     type: enum
     values: [nothing, a-light, sound, small-readout, rich-screen]
     feeds: [pir.functions, metric.platform.hmi-class]
@@ -158,8 +158,9 @@ questions:
       charges-on-dock-or-cable: [q.power.life]
       batteries-you-replace: [q.power.life]
       powers-itself: [q.power.life]
-    # powers-itself = energy harvesting (light, motion, heat) — the ask-back
-    # in chat glosses it. There is no `unknown` value: a founder who does
+    glosses:
+      powers-itself: "from light, motion, or heat — no battery to change or charge"
+    # There is no `unknown` value: a founder who does
     # not know leaves the question UNANSWERED and R5 records the UNKNOWN,
     # which hard-blocks G0 (required tier). An enum member named unknown
     # would collide with the R5 sentinel and pass the gate empty.
@@ -252,9 +253,9 @@ questions:
     section: S7
     tier: scoring
     mode: fixed
-    ask: "What exists today — drawings, a rough prototype, software that runs, a factory contact?"
+    ask: "What exists today? Pick everything that is true."
     type: multi
-    values: [nothing, sketches, a-3d-model-or-drawings, a-rough-prototype, software-that-runs, a-phone-app, a-factory-contact, funding]
+    values: [nothing, rough-sketches, a-3d-model-or-technical-drawings, a-rough-prototype, software-that-runs, a-phone-app, a-factory-contact, funding]
     feeds: [pir.assets, metric.feasibility.head-start]
 
   # ── S8 NOVELTY / THE HARD PART ────────────────────────────────────────
@@ -329,6 +330,9 @@ adaptive:
     ask: "How much, exactly? (how hot, how cold, how small…)"
     type: number-unit
     feeds: [pir.environment.limits, pir.physical.dims]
+    routing:                    # spawn source → the ONE field that spawn fills
+      q.env.conditions: pir.environment.limits
+      q.phys.size: pir.physical.dims
 
   - id: q.constraint.strength
     tier: required            # a volunteered tech left unclassified blocks G0
@@ -365,6 +369,8 @@ derivations:
     rule: "power capability = pir.power_class + pir.modes (always present)"
 
 # ── consistency rules — cross-answer contradictions are G0 red ──────────
+# A rule fires only when EVERY answer it references is present; an UNKNOWN
+# or closed answer cannot make a rule red (it is already surfaced by R5).
 consistency:
   - id: c.app-needs-link
     red_when: "q.fn.talks == nothing AND q.phys.controls == only-an-app"
@@ -411,6 +417,13 @@ pir_required:                  # gives lint bullet "required fields fed by
   - pir.compliance.safety
   - pir.compliance.personal_data
 
+conditional_questions:         # the INDEPENDENT declaration of the
+  - q.fn.offline               # conditional set — lint checks SET EQUALITY
+  - q.power.life               # against computed opens targets, so adding
+                               # an opens edge to an unconditional question
+                               # (the round-1 #1 bug class) goes red instead
+                               # of silently re-defining reachability
+
 conditional_fields:            # branch-closed fields are ABSENT, not UNKNOWN
   pir.targets.battery_life: "present iff pir.power_class in [PC0, PC1]"
 
@@ -420,8 +433,8 @@ lint:
     or a metric id defined in 40-p1-registry.yaml
   - every metric id in 40-p1-registry.yaml is referenced by >= 1 feeds
     entry here (two-way, both directions)
-  - every opens target id exists and IS a conditional question; no
-    unconditional question may be an opens target
+  - conditional_questions EQUALS (set equality) the computed set of all
+    opens targets — a divergence in either direction is red
   - every opens branch key is a value of the question's own values list
   - every enum/multi value parses as a YAML string (quote YAML-1.1
     booleans like "yes"/"no"/"none")
@@ -430,4 +443,10 @@ lint:
   - every derivation map covers every value of its `from` question
   - every consistency rule references existing question ids and values
   - every per-question `adaptive:` value is an id in the adaptive block
+  - every pir_fields entry is produced by >= 1 feeds entry or derivation
+  - every question id and value referenced inside a rule-style derivation
+    or consistency rule exists
+  - every glosses key is a value of its question's values list
+  - every key on a question or adaptive record is documented in the
+    contract's "Question record vocabulary" section — an unknown key is red
   - no two questions share an id

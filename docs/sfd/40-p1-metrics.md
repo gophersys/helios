@@ -27,16 +27,25 @@ every registry metric names the questions that feed it.
 
 ## Verdict rules v0 (recommendation only — F4)
 
-1. Any **core** metric red → recommend **pivot**. Recommend **kill** only
+The rules are a PRECEDENCE LIST: the first matching rule wins, evaluation
+stops there. (Two rules could otherwise fire at once — a safety-serious
+product is both "human gate open" and "core red"; precedence resolves it:
+the gate wins.)
+
+1. Any human gate open → **no recommendation** until a human clears it.
+2. Any core metric `unknown` → **no recommendation**; the blocking
+   UNKNOWNs are listed (G0 should have prevented this — reaching P1 with
+   one is itself a defect to report).
+3. Any **core** metric red → recommend **pivot**. Recommend **kill** only
    when the red metric IS the product's stated magic
    (`metric.tech.exists` red ∧ the magic is the differentiation in
    `pir.novelty`).
-2. No reds → recommend **go**; every amber is named in the reasons.
-3. Any human gate open → **no recommendation** until a human clears it.
-4. Any core metric `unknown` → no recommendation; the blocking UNKNOWNs
-   are listed (G0 should have prevented this — reaching P1 with one is
-   itself a defect to report).
-5. `minor` metrics never change the verdict; they color the reasons.
+4. Otherwise → recommend **go**; every amber is named in the reasons.
+
+`minor` metrics never change the verdict; they color the reasons. A metric
+that is ABSENT (its `absent_when` holds) is skipped by every rule — a
+defined non-state, the registry-side mirror of the graph's
+`conditional_fields`.
 
 ## The scorecard record
 
@@ -62,6 +71,17 @@ decision:                        # F4 — the human call, with provenance
   quote: "..."
   at: <iso8601>
 ```
+
+## scored_by — the three scorer kinds
+
+| Value | Meaning |
+|---|---|
+| `derived` | computed mechanically from PIR values; no judgment |
+| `agent` | judged by the scoring agent from the PIR, with cited reasoning |
+| `agent+catalog` | judged with the capability index as the evidence base (below) |
+
+`human_gate_when` names the answer value that raises a structural human
+gate (F5); it appears only on `metric.risk.safety` in v0.
 
 ## The catalog seam (decided: locked)
 

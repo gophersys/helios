@@ -73,7 +73,7 @@ metrics:
     scored_by: agent
     scale:
       green: "benign environment"
-      amber: "one or more hard conditions (washdown, vibration, extremes) — costed, known art"
+      amber: "one or more hard conditions (washing-or-hosing, vibration, extremes) — costed, known art"
       red: "conditions demand engineering this team/process has no path to"
 
   - id: metric.feasibility.connectivity
@@ -106,7 +106,7 @@ metrics:
     scored_by: agent
     scale:
       green: "working code/prototype or factory path in hand"
-      amber: "sketches/CAD only"
+      amber: "rough sketches or a 3D model/technical drawings only"
       red: "nothing — and the timeline assumes otherwise"
 
   # ── RISK (verdict axis) ───────────────────────────────────────────────
@@ -161,6 +161,7 @@ metrics:
     fed_by: [q.fn.offline]
     consumer: P2-class
     scored_by: agent
+    absent_when: "q.fn.talks == nothing (its only feed is closed) — ABSENT is a defined non-state, distinct from unknown"
     scale:
       green: "device is fine offline (or offline-first)"
       amber: "degrades offline in acceptable ways"
@@ -181,6 +182,7 @@ metrics:
     fed_by: [q.fn.rate]
     consumer: P2-class
     scored_by: derived
+    absent_when: "q.fn.rate never spawned (nothing sensed or acted) — ABSENT, not unknown"
     scale:
       green: "low-rate sense/act — any lane"
       amber: "fast control loops or signal processing — size carefully"
@@ -200,4 +202,8 @@ lint:
   - metric ids unique
   - consumer in [P1-verdict, P2-class]
   - verdict_weight in [core, minor], present iff consumer is P1-verdict
-  - scale defines green, amber, red (unknown is global, R5)
+  - scale defines green, amber, red (unknown is global, R5; ABSENT via
+    absent_when)
+  - every metric whose every fed_by entry is conditional or adaptive
+    declares absent_when
+  - every enum value a scale text names exists in the graph it cites

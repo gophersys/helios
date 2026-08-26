@@ -20,7 +20,7 @@ the role of the pinned SHA.
 
 | # | Rule | Meaning |
 |---|---|---|
-| R1 | **Graph, not list** | A question that appears as an `opens` target is CONDITIONAL — asked only when opened; closed means N/A, never UNKNOWN. Every other question is unconditional. v0 has exactly two conditional questions: `q.power.life` (opened by battery-class power sources) and `q.fn.offline` (opened by any connectivity; a product that talks to nothing gets no internet question). |
+| R1 | **Graph, not list** | A question that appears as an `opens` target is CONDITIONAL — asked only when opened; closed means N/A, never UNKNOWN. Every other question is unconditional. The conditional set is declared machine-readably (`conditional_questions` in the graph) and lint checks SET EQUALITY against the computed opens targets — so silently making a question conditional goes red. v0: `q.power.life` (opened by battery-class power sources) and `q.fn.offline` (opened by any connectivity; a product that talks to nothing gets no internet question). |
 | R2 | **Every question earns its place** | Each `feeds` ENTRY (per-feed, not per-question) names an existing PIR field (`pir_fields` in the graph) or a registry metric. Both directions lint: no dead feeds, no unfed metrics. |
 | R3 | **The user states intent, never technology** | The user never picks "BLE"; they say "talks to a phone nearby". The system derives the radio, the certification (from region), the power class (from source), security and timekeeping (from answers) — see the graph's `derivations:` block. |
 | R4 | **Quotes are provenance** | Every PIR value cites the question id + the user's verbatim words + a timestamp. Multi-fed fields (like `functions`) carry provenance PER ITEM, inline. Chat may DISCOVER; only the schema RECORDS. |
@@ -79,13 +79,26 @@ it three ways, stated exactly:
 No word is silently unfed; the derivations are in the graph, versioned
 with it.
 
+## Question record vocabulary
+
+`mode`: `fixed` (always in the graph) — adaptive mechanisms live in the
+`adaptive:` block instead and carry `spawned_by`. `type`: `text` · `enum`
+· `multi` (multi-select enum) · `bool` (unused in v0; `q.env.body` is an
+enum to keep opens keys string-typed) · `date` · `number-unit` ·
+`pair-number` · `pair-number-unit`. Optional keys: `values` (enum/multi),
+`opens`, `adaptive` (spawn ref), `glosses` (per-value plain-language
+gloss, keys ⊆ values), `routing` (adaptive only: spawn source → target
+field). All keys are linted; an unknown key is an error.
+
 ## Gate G0 — pass condition
 
 1. Every reachable **required** question is answered; every spawned
    required adaptive is answered.
 2. Every UNKNOWN is listed with the metrics it blocks (R5).
 3. No consistency rule is red (the graph's `consistency:` block — e.g. a
-   product controlled only by an app cannot talk to nothing).
+   product controlled only by an app cannot talk to nothing). A rule fires
+   only when every answer it references is present; UNKNOWN or closed
+   answers cannot make a rule red — R5 already surfaces them.
 4. The graph itself lints clean (the `lint:` contract in the graph;
    enforcement by `sfd graph lint` is PLANNED — until it exists the check
    runs in review, named as such).
@@ -141,7 +154,7 @@ unknowns:                        # R5 — first-class
   - {field: ..., blocks: [metric ids]}
 provenance:                      # R4 — per field; a LIST when multi-fed
   pir.power_class:
-    - {question: q.power.source, quote: "it charges on a dock at night", at: 2026-08-26T17:40:00Z}
+    - {question: q.power.source, quote: "it charges on a dock at night", at: "2026-08-26T17:40:00Z"}
 ```
 
 The flat field list, the required subset, and the conditional fields are
