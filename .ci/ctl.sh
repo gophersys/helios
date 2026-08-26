@@ -162,6 +162,122 @@ function cmd_affected_gate_fast() {
      --base="$NX_BASE" --output-style=stream)
 }
 
+# cmd_graph_guard — eden's project graph holds EDEN's projects and its submodules' REAL projects,
+# and never a test fixture's stand-in project.json.
+#
+# THE ASYMMETRY THIS GATE EXISTS FOR. A fixture project.json inside a submodule is invisible to
+# BOTH repositories' gates. The submodule builds no nx graph of its own — `.devcontainer`'s
+# `cmd_validate` runs `jq empty` over such a file and reads no field of it — so its CI cannot see
+# the name. Eden never sees the file at all until its POINTER MOVES. So the first thing in the
+# estate able to observe a collision is a submodule pointer bump, which is the worst possible
+# place for it: gophersys/eden#14 carried 787 commits and zero TypeScript, and died at
+# `NX Failed to process project graph` because `.devcontainer` had grown a SECOND `first`/`second`
+# fixture pair (`40edaaf`). The bump SURFACED that defect and could not have caused it.
+#
+# `.nxignore` is the structural fix — a submodule's fixtures are never eden's projects, so eden
+# stops globbing them into its graph. This verb is that file's HOLDER. A glob that silently
+# stopped matching would restore the whole defect class with nothing going red, which is the
+# FAIL-NOT-SKIP failure in its purest form: a check that is believed and did not run.
+#
+# It reports rather than assumes. An empty fixture set is a MEASUREMENT of the tree at the current
+# pointers (eden `main` carries none today — every fixture project.json entered `.devcontainer` in
+# the range #14 bumps over), not a skipped check — and the two liveness clauses below are what
+# keep the difference honest.
+function cmd_graph_guard() {
+  require_cmd jq find
+  # FAIL-NOT-SKIP. The sibling verbs in this file warn and return 0 when nx is absent, because they
+  # are RUNNERS and a fresh scaffold has no nx. This is a GATE, and a gate that cannot run is a
+  # failure, never a pass.
+  if ! has_nx; then
+    log_error "graph-guard: nx is not available, so this gate cannot run — that is a FAILURE, never a skip"
+    return 1
+  fi
+
+  # The submodule trees this verb judges. Eden's OWN tree is deliberately not among them: a
+  # duplicate project name that eden itself commits is caught by eden's own gate on the very pull
+  # request that adds it, so it needs no structural exclusion. The submodules are the blind spot.
+  local -a submodule_roots=(".devcontainer" "libs" "infrastructure")
+
+  # LIVENESS 1 — every tree this gate judges must be ON DISK. With the submodules uninitialised the
+  # search below matches nothing, and the guard would report a clean graph having read no file of
+  # the tree it exists to read. That green is the one this clause makes impossible.
+  local root
+  local -a absent=()
+  for root in "${submodule_roots[@]}"; do
+    [[ -d "$REPO_ROOT/$root" ]] || absent+=("$root")
+  done
+  if [[ ${#absent[@]} -gt 0 ]]; then
+    log_error "graph-guard: submodule tree(s) absent: ${absent[*]}"
+    log_error "graph-guard: run 'git submodule update --init --recursive' — an uninitialised submodule makes this gate read nothing and report OK"
+    return 1
+  fi
+
+  # The graph itself. This is BLOCKER-1's symptom directly: nx refuses to BUILD a graph that holds
+  # two projects of one name, and every affected lane dies with it before selecting a single task.
+  log_info "graph-guard: building the nx project graph"
+  local graph_json
+  if ! graph_json="$(cd "$REPO_ROOT" && nx_cmd show projects --json 2>&1)"; then
+    log_error "graph-guard: the nx project graph does not build"
+    printf '%s\n' "$graph_json" >&2
+    return 1
+  fi
+  local -a graph_names=()
+  if ! mapfile -t graph_names < <(printf '%s' "$graph_json" | jq -r '.[]' 2>/dev/null); then
+    log_error "graph-guard: 'nx show projects --json' did not return a JSON array"
+    printf '%s\n' "$graph_json" >&2
+    return 1
+  fi
+  # LIVENESS 2 — a graph of zero projects would satisfy every assertion below for the wrong reason.
+  if [[ ${#graph_names[@]} -eq 0 ]]; then
+    log_error "graph-guard: the graph built but holds ZERO projects — nothing here judged anything"
+    return 1
+  fi
+  log_info "graph-guard: the graph builds and holds ${#graph_names[@]} project(s)"
+
+  # Every project.json living under a fixture tree of a submodule. `find` walks the real directories
+  # rather than reading a listing, so a fixture directory added tomorrow is covered the day it is
+  # added. `|| true` guards grep's no-match exit under `pipefail`, which is a legitimate result here
+  # and not an error.
+  local -a fixture_roots=()
+  for root in "${submodule_roots[@]}"; do fixture_roots+=("$REPO_ROOT/$root"); done
+  local -a fixture_files=()
+  mapfile -t fixture_files < <(
+    find "${fixture_roots[@]}" -type f -name project.json 2>/dev/null \
+      | grep -E '/(fixtures?|testdata)/' || true
+  )
+
+  if [[ ${#fixture_files[@]} -eq 0 ]]; then
+    log_success "graph-guard: OK — no submodule fixture project.json exists at these pointers, and the graph builds"
+    return 0
+  fi
+
+  # A fixture project may reach the graph under either of two names: the one it DECLARES, and the
+  # basename of its directory, which is what nx infers when a project.json declares none. Both are
+  # asserted, because `.nxignore` removes the FILE and therefore must remove both.
+  local -a leaked=()
+  local file rel name dirname_candidate candidate
+  for file in "${fixture_files[@]}"; do
+    rel="${file#"$REPO_ROOT"/}"
+    name="$(jq -r '.name // empty' "$file" 2>/dev/null || true)"
+    dirname_candidate="$(basename "$(dirname "$file")")"
+    for candidate in "$name" "$dirname_candidate"; do
+      [[ -n "$candidate" ]] || continue
+      if printf '%s\n' "${graph_names[@]}" | grep -qxF -- "$candidate"; then
+        leaked+=("$rel -> '$candidate'")
+      fi
+    done
+  done
+
+  if [[ ${#leaked[@]} -gt 0 ]]; then
+    log_error "graph-guard: ${#leaked[@]} submodule fixture project(s) reached eden's graph:"
+    for rel in "${leaked[@]}"; do log_error "  $rel"; done
+    log_error "graph-guard: a submodule's test fixtures are never eden's projects — widen .nxignore to cover them"
+    return 1
+  fi
+
+  log_success "graph-guard: OK — ${#fixture_files[@]} submodule fixture project.json found, 0 in the graph of ${#graph_names[@]}"
+}
+
 # cmd_affected_gate_substrate — the careful-orchestration lanes on the real docker+k3d host:
 # integration/load/lifecycle/bench-guard, plus cover-floor and mutate. cover-floor lives here (not in
 # the fast lane) because a substrate lib's coverage profile is built with the integration tag
@@ -225,6 +341,7 @@ Commands:
   affected-test   nx affected -t test
   affected-check  nx affected -t lint,typecheck,test (canonical PR gate)
   affected-gate   nx affected -t <full ADR-0020 taxonomy> (lint..maintainability)
+  graph-guard     the nx graph builds, and holds no submodule test-fixture project
   affected-gate-fast       the minutes subset (no real-substrate lanes)
   affected-gate-substrate  integration/load/lifecycle on the real docker+k3d host
   lib-gate <lib>  per-lib SDLC sequence: ctl.sh phase-gate all (1→4)
@@ -246,6 +363,7 @@ function main() {
     affected-test)   cmd_affected_test   "$@" ;;
     affected-check)  cmd_affected_check  "$@" ;;
     affected-gate)             cmd_affected_gate           "$@" ;;
+    graph-guard)               cmd_graph_guard             "$@" ;;
     affected-gate-fast)        cmd_affected_gate_fast      "$@" ;;
     affected-gate-substrate)   cmd_affected_gate_substrate "$@" ;;
     lib-gate)                  cmd_lib_gate                "$@" ;;
