@@ -31,8 +31,8 @@
 #   clause 1  `.nxignore` coverage      — remove one of the 36 patterns, the verb must red
 #   clause 2  the graph RESOLVES        — plant a duplicate name, the verb must red NAMING resolution
 #   clause 2b the 2 readers AGREE       — shim nx so they disagree, the verb must red naming the gap
-#   clause 4  the REAL projects remain  — over-broad .nxignore must red, both floor and anchors
-#   clause 5  no fixture-rooted project — plant into EVERY one of the 6 vocabulary directories
+#   clause 4  no fixture-rooted project — plant into EVERY one of the 6 vocabulary directories
+#   clause 5  the graph MATCHES the roster — over-broad .nxignore reds, and so does an extra project
 #   clause 6  submodules checked out    — hide a `.git` entry, the verb must red
 #   plus the exclusion path itself: fixtures in COVERED directories must be excluded, verb green.
 #
@@ -53,6 +53,14 @@
 # git itself both reveals and undoes. PREFLIGHT 2 refuses to run at all when `.nxignore` is already
 # dirty, so that checkout can never destroy an edit somebody meant to keep, and PREFLIGHT 3 sweeps a
 # probe tree left by a run killed where no trap could reach it.
+#
+# WHERE THE PROBE TREE LIVES, AND WHY IT IS NOT MOVED. `libs/.graph-guard-selftest/` sits inside the
+# `libs` SUBMODULE working tree, so `git -C libs status` shows it while a run is in flight and a
+# concurrent gate in that submodule asserting its own tree is clean would see it. That is a real cost
+# and it is accepted deliberately: clause 4 judges roots UNDER a submodule, so a probe that proves it
+# has to be under one — moving to `.devcontainer` or `infrastructure` relocates the exposure without
+# removing it. It is namespaced, dot-prefixed, untracked, swept by `sweep()` on every trappable exit,
+# and swept again by PREFLIGHT 3 after a kill that no trap can catch.
 #
 # Run it directly:  bash scripts/graph-guard_test.sh
 # It exits non-zero on any failure. shellcheck-clean at -S style.
@@ -267,7 +275,7 @@ for d in "${vocabulary_dirs[@]}"; do
   fi
   plant "voc-${d}/${d}/one" "graph-guard-selftest-voc-${d}"
   run_guard
-  expect_red "clause 5 catches a fixture in '${d}' (vocabulary entry $(( $(printf '%s\n' "${vocabulary_dirs[@]}" | grep -nxF -- "$d" | cut -d: -f1) )) of ${#vocabulary_dirs[@]})" \
+  expect_red "clause 4 catches a fixture in '${d}' (vocabulary entry $(( $(printf '%s\n' "${vocabulary_dirs[@]}" | grep -nxF -- "$d" | cut -d: -f1) )) of ${#vocabulary_dirs[@]})" \
     "submodule fixture project\\(s\\) reached"
   git -C "$repository_root" checkout -- .nxignore
   rm -rf "$selftest_root"
@@ -289,23 +297,63 @@ else
 fi
 rm -rf "$selftest_root"
 
-# CLAUSE 4 — the real projects must still be there, proven in BOTH directions. This is the hole
-# round 6 found: `.nxignore` was checked one way only, so a pattern could be added that excluded 16
-# REAL projects and every clause stayed green while `nx affected` quietly stopped selecting them.
+# CLAUSE 5 — the graph must MATCH the committed roster, proven in BOTH directions and over every
+# AREA a `.nxignore` pattern can target.
 #
-# BROAD, caught by the COUNT floor: `libs/go/**` takes the graph 49 -> 33.
-printf 'libs/go/**\n' >> "$nxignore"
-run_guard
-expect_red "clause 4 (count floor) REFUSES an .nxignore that excludes a whole subtree" "below the floor of"
-git -C "$repository_root" checkout -- .nxignore
+# WHY AREAS AND NOT ALL 49 ROWS. The roster check is an EQUALITY computed in one `comm`, not 49
+# independent predicates, so there is no per-row code path that could be broken while its neighbours
+# survive — the thing that made the old anchor LIST need quantifying. What a `.nxignore` pattern
+# actually targets is a directory area, so that is the set worth quantifying over, and the roster's
+# own COMPLETENESS is asserted separately below against the live graph.
+roster="${repository_root}/.ci/graph-roster.txt"
+if [[ ! -f "$roster" ]]; then
+  report_fail "the committed roster exists" "absent: .ci/graph-roster.txt"
+else
+  report_ok "the committed roster exists"
+fi
 
-# NARROW, caught by the ANCHORS and invisible to the floor: excluding one project keeps the count at
-# 48, comfortably above 45, so only a named anchor can see it. Without this the floor would look
-# sufficient and the anchors would be decoration.
-printf 'libs/typescript/primitives/**\n' >> "$nxignore"
+# One project per area, as LITERALS. A pair that stops matching the tree is a red that names itself,
+# which is what a test reading its own subject could never give.
+area_probes=(
+  ".devcontainer/base/**:images-base"
+  ".devcontainer/flutter/**:images-flutter"
+  "libs/go/agentruntime/**:agentruntime"
+  "libs/typescript/primitives/**:primitives"
+  "libs/templates/go/http-gateway/**:http-gateway-template"
+  "infrastructure/clusters/**:clusters"
+  "apps/frontend/**:frontend"
+  "tools/**:"
+)
+for probe in "${area_probes[@]}"; do
+  pat="${probe%%:*}"
+  expect_name="${probe#*:}"
+  printf '%s\n' "$pat" >> "$nxignore"
+  run_guard
+  if [[ -n "$expect_name" ]]; then
+    expect_red "clause 5 catches '${pat}' removing ${expect_name} from the graph" \
+      "MISSING from the graph: ${expect_name}[[:space:]]"
+  else
+    expect_red "clause 5 catches '${pat}' removing real projects from the graph" "MISSING from the graph"
+  fi
+  git -C "$repository_root" checkout -- .nxignore
+done
+
+# THE OTHER DIRECTION. A floor could never do this half: a project that APPEARS is drift too, and it
+# is how a fixture that becomes a real project by a route clause 5 does not model would surface.
+mkdir -p "${selftest_root}/roster-extra"
+printf '{"name":"graph-guard-selftest-unrostered"}\n' > "${selftest_root}/roster-extra/project.json"
 run_guard
-expect_red "clause 4 (anchors) REFUSES an .nxignore that excludes ONE real project the floor cannot see" "anchor project\(s\) missing or moved"
-git -C "$repository_root" checkout -- .nxignore
+expect_red "clause 5 catches a project that is NOT in the roster" "NOT IN the roster"
+rm -rf "$selftest_root"
+
+# The roster must be non-trivial and COMPLETE against the live graph. An empty or truncated roster
+# would match a graph that had lost half its projects.
+roster_rows="$(grep -cvE '^\s*(#|$)' "$roster" || true)"
+if [[ "${roster_rows:-0}" -lt 40 ]]; then
+  report_fail "the roster is not truncated" "it holds ${roster_rows} row(s); the graph has ~49 projects"
+else
+  report_ok "the roster holds ${roster_rows} project rows"
+fi
 
 # CLAUSE 2 — resolution. The message is asserted, not merely the exit status.
 rm -rf "$selftest_root"
@@ -315,19 +363,32 @@ run_guard
 expect_red "clause 2 REFUSES a duplicate project name, naming resolution" "does not resolve"
 rm -rf "$selftest_root"
 
-# CLAUSE 1 — `.nxignore` coverage. The only clause with anything to say on a tree carrying no fixture,
-# which is the state of eden main. Restored by git, never by a backup file.
-# Remove a real PATTERN line, named explicitly. An earlier probe used `head -n -1`, which stripped
-# the file's trailing BLANK line, left all 36 patterns in place, and reported a false pass.
-victim_pattern="${patterns[0]}"
-# The scratch file goes INSIDE the probe tree, which sweep() and PREFLIGHT 3 both remove. Written
-# beside `.nxignore` it was residue no sweep knew about, contradicting this file's own header.
-mkdir -p "$selftest_root"
-grep -vxF -- "$victim_pattern" "$nxignore" > "${selftest_root}/nxignore.mangled" \
-  && cp "${selftest_root}/nxignore.mangled" "$nxignore"
-run_guard
-expect_red "clause 1 REFUSES a .nxignore missing the pattern ${victim_pattern}" "missing [0-9]+ required pattern"
-git -C "$repository_root" checkout -- .nxignore
+# CLAUSE 1 — `.nxignore` coverage, over ALL 36 required patterns.
+#
+# The probe used to remove `patterns[0]` and nothing else, so exactly one cell of the verb's
+# 3 submodules x 4 directories x 3 file types requirement grid was load-bearing. A refutation
+# narrowed the verb's `ignored_dirs` to one name, and separately its `project_files` to
+# `project.json` alone — restoring refutation #1's original defect — and the suite stayed green both
+# times. A grid is a SET; one cell cannot stand for it. Each iteration is cheap because clause 1
+# returns before the graph is ever built.
+c1_missed=()
+for victim in "${patterns[@]}"; do
+  grep -vxF -- "$victim" "$nxignore" > "${selftest_root}_c1" 2>/dev/null || true
+  mkdir -p "$selftest_root"
+  cp "${selftest_root}_c1" "$nxignore"
+  rm -f "${selftest_root}_c1"
+  run_guard
+  if [[ $guard_rc -eq 0 ]] || ! printf '%s' "$guard_out" | grep -qE "missing [0-9]+ required pattern"; then
+    c1_missed+=("$victim")
+  fi
+  git -C "$repository_root" checkout -- .nxignore
+done
+if [[ ${#c1_missed[@]} -gt 0 ]]; then
+  report_fail "clause 1 REFUSES the removal of EVERY one of the ${#patterns[@]} required patterns" \
+    "${#c1_missed[@]} removal(s) did not red, first: ${c1_missed[0]}"
+else
+  report_ok "clause 1 REFUSES the removal of every one of the ${#patterns[@]} required patterns"
+fi
 
 # CLAUSE 2b — the 2 readers must agree. No repository state can trigger this: a duplicate name is
 # refused by clause 2 above, so control never reaches it. A refutation deleted the clause outright

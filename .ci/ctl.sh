@@ -323,6 +323,7 @@ function cmd_graph_guard() {
     rm -rf "$work_dir"
     return 1
   fi
+  local line
   local -a roots=()
   mapfile -t roots < <(jq -r '.graph.nodes | to_entries[] | "\(.key)\t\(.value.data.root // "")"' "$graph_file")
   rm -rf "$work_dir"
@@ -350,68 +351,8 @@ function cmd_graph_guard() {
   fi
   log_info "graph-guard: the graph resolves and holds ${#roots[@]} project(s)"
 
-  # ── 4. THE REAL PROJECTS ARE STILL THERE ─────────────────────────────────────────────────────
-  # Clause 3 is one-way: it proves nothing that SHOULD be excluded got in. Nothing above proves the
-  # graph still holds what it MUST. That asymmetry was a live hole, measured: appending `libs/go/**`
-  # to .nxignore takes the graph from 49 projects to 33 and every clause above stays green, while
-  # `nx affected` silently stops selecting 16 real projects — `affected-gate-fast` then covers a
-  # third less of the repository with nothing red anywhere. `infrastructure/**` gives 42, equally
-  # green. That is the FAIL-NOT-SKIP shape: a gate that is believed and has quietly stopped looking.
-  #
-  # Two independent floors, because each catches what the other misses.
-  #
-  # THE COUNT floor catches a broad pattern that wipes a whole subtree. It is a MINIMUM and not an
-  # equality: projects are added and removed legitimately, and an equality check would red on every
-  # such change and teach the reader to edit the number. 45 sits below today's 49 — room for normal
-  # churn — and above both measured over-breadth cases (42 and 33), which is the property that
-  # decides the value. Re-measure it, never guess it: `nx show projects | wc -l`.
-  #
-  # THE ANCHORS catch a NARROW pattern that removes only one or two projects, which the count floor
-  # would sail past. Each names a project and the root it must be rooted at, one per area a
-  # `.nxignore` pattern could reach — the 3 submodules and each of their internal trees. A rename
-  # makes this red, and that is correct: a renamed anchor is a deliberate edit to a deliberate list.
-  local -i project_floor=45
-  local -a anchors=(
-    "devcontainer:.devcontainer"
-    "ci-devcontainer:.devcontainer/.ci"
-    "images-base:.devcontainer/base"
-    "libs:libs"
-    "agentruntime:libs/go/agentruntime"
-    "primitives:libs/typescript/primitives"
-    "http-gateway-template:libs/templates/go/http-gateway"
-    "infrastructure:infrastructure"
-    "ci-infrastructure:infrastructure/.ci"
-  )
-  if [[ ${#roots[@]} -lt $project_floor ]]; then
-    log_error "graph-guard: the graph holds only ${#roots[@]} project(s), below the floor of ${project_floor}"
-    log_error "graph-guard: a .nxignore pattern is excluding REAL projects — nx affected has silently stopped selecting them"
-    return 1
-  fi
-  local anchor anchor_name anchor_root found_root
-  local -a lost=()
-  for anchor in "${anchors[@]}"; do
-    anchor_name="${anchor%%:*}"
-    anchor_root="${anchor#*:}"
-    found_root=""
-    for line in "${roots[@]}"; do
-      if [[ "${line%%$'\t'*}" == "$anchor_name" ]]; then found_root="${line#*$'\t'}"; break; fi
-    done
-    if [[ -z "$found_root" ]]; then
-      lost+=("$anchor_name — ABSENT from the graph (expected at $anchor_root)")
-    elif [[ "$found_root" != "$anchor_root" ]]; then
-      lost+=("$anchor_name — rooted at '$found_root', expected '$anchor_root'")
-    fi
-  done
-  if [[ ${#lost[@]} -gt 0 ]]; then
-    log_error "graph-guard: ${#lost[@]} anchor project(s) missing or moved:"
-    for anchor in "${lost[@]}"; do log_error "  $anchor"; done
-    log_error "graph-guard: a .nxignore pattern is excluding REAL projects, or an anchor was renamed — if the rename is deliberate, update the anchors list"
-    return 1
-  fi
-  log_info "graph-guard: ${#roots[@]} project(s) (floor ${project_floor}), all ${#anchors[@]} anchors present at their roots"
-
-  # ── 5. NO PROJECT IS ROOTED IN A SUBMODULE FIXTURE TREE ──────────────────────────────────────
-  local line name prj_root sm
+  # ── 4. NO PROJECT IS ROOTED IN A SUBMODULE FIXTURE TREE ──────────────────────────────────────
+  local name prj_root sm
   local -a leaked=()
   for line in "${roots[@]}"; do
     name="${line%%$'\t'*}"
@@ -432,6 +373,67 @@ function cmd_graph_guard() {
     return 1
   fi
 
+  # ── 5. THE GRAPH MATCHES THE COMMITTED ROSTER ────────────────────────────────────────────────
+  # Clause 4 above is one-way: it proves nothing that should be EXCLUDED got in. This clause is the
+  # other way: it proves nothing that should be INCLUDED went out.
+  #
+  # IT RUNS AFTER CLAUSE 4 ON PURPOSE. A leaked fixture is BOTH a fixture-rooted project and a
+  # project absent from the roster, so whichever clause runs first is the diagnosis the operator
+  # reads. "a submodule fixture reached the graph, here is the path" is actionable; "the graph does
+  # not match the roster" sends them to regenerate a roster that was never the problem. Ordering
+  # decides which is printed, so it is a decision rather than an accident — the test asserts each
+  # clause by its MESSAGE and caught this exact inversion when the roster ran first.
+  #
+  # WHY A ROSTER AND NOT A FLOOR. The first attempt at this clause was a minimum project count plus a
+  # list of named anchor projects. A refutation walked straight through it: append two real
+  # non-anchor roots to `.nxignore`, the graph drops 49 -> 47, and the verb prints
+  # `47 project(s) (floor 45), all 9 anchors present` and exits 0 — two real projects deleted from
+  # every affected lane, everything green. Raising the floor or naming more anchors does not fix
+  # that, and the reason is structural: the floor must sit BELOW today's count to survive a
+  # legitimate removal, and ABOVE it to catch a small exclusion. Those two pressures point in
+  # opposite directions, so any value satisfies one and betrays the other. A sampled list of anchors
+  # has the same defect one project at a time.
+  #
+  # A ROSTER HAS NO SUCH GAP because it is an EQUALITY, not a threshold. `.ci/graph-roster.txt` is
+  # the committed truth about which projects exist and where they are rooted; this clause diffs the
+  # live graph against it and reports BOTH directions. A project that disappears is a red naming it.
+  # A project that appears is also a red naming it — which is the half a floor can never do, and is
+  # what catches a fixture that becomes a real project by some route clause 5 does not model.
+  #
+  # This is the `versions.env` pattern of the .devcontainer submodule: committed truth, diffed
+  # against reality, drift is a DEFECT rather than a surprise. There is no tunable number in it.
+  #
+  # ADDING OR REMOVING A PROJECT IS A DELIBERATE, VISIBLE DIFF: run `bash .ci/ctl.sh graph-roster-update`
+  # and commit the change. A roster edited by hand to silence a red is a lie a reviewer can SEE in
+  # the diff, which is the property the floor never had.
+  local roster="$REPO_ROOT/.ci/graph-roster.txt"
+  if [[ ! -f "$roster" ]]; then
+    log_error "graph-guard: the roster is absent: .ci/graph-roster.txt"
+    log_error "graph-guard: generate it with 'bash .ci/ctl.sh graph-roster-update' and commit it"
+    return 1
+  fi
+  local -a roster_rows=()
+  mapfile -t roster_rows < <(grep -vE '^\s*(#|$)' "$roster" | LC_ALL=C sort)
+  if [[ ${#roster_rows[@]} -eq 0 ]]; then
+    log_error "graph-guard: the roster holds ZERO rows — it would match any graph at all"
+    return 1
+  fi
+  local -a live_rows=()
+  mapfile -t live_rows < <(printf '%s\n' "${roots[@]}" | LC_ALL=C sort)
+  local -a gone=() extra=()
+  mapfile -t gone  < <(comm -23 <(printf '%s\n' "${roster_rows[@]}") <(printf '%s\n' "${live_rows[@]}"))
+  mapfile -t extra < <(comm -13 <(printf '%s\n' "${roster_rows[@]}") <(printf '%s\n' "${live_rows[@]}"))
+  if [[ ${#gone[@]} -gt 0 || ${#extra[@]} -gt 0 ]]; then
+    log_error "graph-guard: the project graph does not match .ci/graph-roster.txt"
+    local row
+    for row in "${gone[@]}";  do log_error "  MISSING from the graph: ${row//$'\t'/  ->  }"; done
+    for row in "${extra[@]}"; do log_error "  NOT IN the roster:      ${row//$'\t'/  ->  }"; done
+    log_error "graph-guard: a MISSING project means a .nxignore pattern is excluding real work from every affected lane"
+    log_error "graph-guard: if this change is deliberate, run 'bash .ci/ctl.sh graph-roster-update' and commit the roster with it"
+    return 1
+  fi
+  log_info "graph-guard: the graph matches the roster exactly (${#roster_rows[@]} project(s))"
+
   # Reported for the reader, and never used as the pass condition: an empty fixture set is a real
   # state of the tree (eden main carries none), not a reason to weaken clause 1.
   #
@@ -447,6 +449,52 @@ function cmd_graph_guard() {
     | grep -cE "/${fixture_dir_re}/" || true)"
   log_success "graph-guard: OK — ${#roots[@]} project(s) resolved, 0 rooted in a submodule fixture tree"
   log_info "graph-guard: ${fixture_count} project-shaped file(s) sit under a submodule fixture directory and produced no project"
+}
+
+# cmd_graph_roster_update — regenerate `.ci/graph-roster.txt` from the live graph.
+#
+# The roster is the committed truth `graph-guard` clause 4 diffs against, and this is the ONLY
+# sanctioned way to move it. Adding or removing a project is then a deliberate, reviewable diff in
+# the same pull request as the change that caused it — the `versions.env` discipline, applied to the
+# project graph.
+#
+# It deliberately does NOT run inside graph-guard. A gate that repairs its own expectation cannot
+# fail: it would rewrite the roster to match whatever the graph had become and report OK, which is
+# the defect this whole file exists to make impossible.
+function cmd_graph_roster_update() {
+  require_cmd jq
+  if ! has_nx; then
+    log_error "graph-roster-update: nx is not available, so the roster cannot be regenerated"
+    return 1
+  fi
+  local work_dir graph_file
+  work_dir="$(mktemp -d -t graph-roster.XXXXXX)"
+  graph_file="$work_dir/graph.json"
+  if ! (cd "$REPO_ROOT" && nx_cmd graph --file="$graph_file") >/dev/null 2>&1; then
+    log_error "graph-roster-update: the nx project graph does not build"
+    rm -rf "$work_dir"
+    return 1
+  fi
+  local roster="$REPO_ROOT/.ci/graph-roster.txt"
+  # shellcheck disable=SC2016
+  # The backticks below are LITERAL text of the generated header, not command substitution, and the
+  # `$` in the format line is likewise literal. Single quotes are what keeps them so.
+  {
+    printf '# .ci/graph-roster.txt — every project of eden'"'"'s nx graph, and the root it sits at.\n'
+    printf '#\n'
+    printf '# COMMITTED TRUTH. `bash .ci/ctl.sh graph-guard` diffs the live graph against this file and\n'
+    printf '# fails on ANY difference, in either direction. A project that vanishes is caught, which is what\n'
+    printf '# an over-broad `.nxignore` pattern does; a project that appears is caught too.\n'
+    printf '#\n'
+    printf '# DO NOT HAND-EDIT. Run `bash .ci/ctl.sh graph-roster-update` and commit the diff in the same\n'
+    printf '# change that adds or removes the project. A row edited by hand to silence a red is a lie a\n'
+    printf '# reviewer can see in the diff, and that visibility is the point.\n'
+    printf '#\n'
+    printf '# Format: <project name><TAB><project root>, LC_ALL=C sorted.\n'
+    jq -r '.graph.nodes | to_entries[] | "\(.key)\t\(.value.data.root)"' "$graph_file" | LC_ALL=C sort
+  } > "$roster"
+  rm -rf "$work_dir"
+  log_success "graph-roster-update: wrote $(grep -cvE '^\s*(#|$)' "$roster") project(s) to .ci/graph-roster.txt"
 }
 
 # cmd_affected_gate_substrate — the careful-orchestration lanes on the real docker+k3d host:
@@ -512,7 +560,8 @@ Commands:
   affected-test   nx affected -t test
   affected-check  nx affected -t lint,typecheck,test (canonical PR gate)
   affected-gate   nx affected -t <full ADR-0020 taxonomy> (lint..maintainability)
-  graph-guard     the nx graph builds, and holds no submodule test-fixture project
+  graph-guard     the nx graph resolves, matches .ci/graph-roster.txt, and holds no submodule fixture
+  graph-roster-update      regenerate .ci/graph-roster.txt (commit the diff with your change)
   affected-gate-fast       the minutes subset (no real-substrate lanes)
   affected-gate-substrate  integration/load/lifecycle on the real docker+k3d host
   lib-gate <lib>  per-lib SDLC sequence: ctl.sh phase-gate all (1→4)
@@ -535,6 +584,7 @@ function main() {
     affected-check)  cmd_affected_check  "$@" ;;
     affected-gate)             cmd_affected_gate           "$@" ;;
     graph-guard)               cmd_graph_guard             "$@" ;;
+    graph-roster-update)       cmd_graph_roster_update     "$@" ;;
     affected-gate-fast)        cmd_affected_gate_fast      "$@" ;;
     affected-gate-substrate)   cmd_affected_gate_substrate "$@" ;;
     lib-gate)                  cmd_lib_gate                "$@" ;;
