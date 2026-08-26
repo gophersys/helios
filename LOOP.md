@@ -31,7 +31,8 @@ follow it exactly.
      `demos/operator/`;
    - PLAN box ticked, LOG.md entry appended (time, task, what was proven,
      what surprised you);
-   - Conventional Commit, no AI attribution trailers, pushed.
+   - Conventional Commit, pushed; attribution rule: eden
+     `.claude/rules/git-process.md` §13.
 6. If the task cannot finish in ~8 minutes, land a complete sub-step (tests
    green) and leave the box ⏳ with a one-line handoff in LOG.md.
 7. If genuinely blocked on a decision only Mateo can make: write the exact
