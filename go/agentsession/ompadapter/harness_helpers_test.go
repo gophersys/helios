@@ -97,49 +97,18 @@ type integrationClock struct{}
 
 func (integrationClock) Now() time.Time { return time.Date(2026, time.June, 13, 12, 0, 0, 0, time.UTC) }
 
-// drainDeadline bounds the STUB arm's drain. A scripted stub is instant or broken, so one
-// absolute bound is the whole story there and no inactivity window is needed. Exceeding it is a
-// FAILURE that says so, never a quiet return of a partial event list. The LIVE arms do NOT use
-// it — they carry liveDrainBounds below.
+// drainDeadline bounds the STUB arm's drain — the only drain left in this package. A scripted
+// stub is instant or broken, so one absolute bound is the whole story here and no inactivity
+// window is needed. Exceeding it is a FAILURE that says so, never a quiet return of a partial
+// event list.
+//
+// The live-arm two-clock bound (`liveDrainBounds`, Idle 8m / Total 10m, libs #33) used to live
+// here. It moved WITH the live omp turn into the harness lane
+// (`agentsession/omp_turn_harness_test.go`), which is now its only reader; keeping a copy here
+// would be a bound nothing bounds. The Idle MECHANISM stays fully exercised in this file — the
+// drainBounds type, drainToTurnBoundaryWithin's per-wait child, and the five
+// TestDrainToTurnBoundary_* cases below all still drive it on sub-second fixtures.
 const drainDeadline = 60 * time.Second
-
-// liveDrainBounds is the live arm's two-clock bound, cited by every live call site. The LIVE arm
-// is bounded by INACTIVITY, not by a total: an absolute total cannot tell a harness that is
-// streaming steadily from one that is dead, and CI proved that twice, both times in the EDEN
-// monorepo (`gophersys/eden`, not this repository): 18 events by 60s in eden run 32935203884
-// and, after the constant was raised, 27 by 120s in eden run 32998558460. Both harnesses were
-// progressing, so raising the constant only moves the flake threshold.
-//
-// Idle is the longest a REAL turn may go silent between events; Total is the absolute safety net
-// so a harness that streams forever cannot pin CI. omp can carry the IDLE window because
-// ompadapter's normalizer preserves every unmodeled frame as an extension, so the idle clock can
-// actually SEE the harness being alive. The claudeadapter twin deliberately runs Total-only; the
-// reason is documented on its own liveDrainTotal.
-//
-// The two figures are inlined rather than named constants: under `-tags lifecycle|load` this
-// shared file compiles without the live arm that reads them, and each extra name would be one
-// more `unused` finding in a lane that legitimately does not use it.
-//
-// Idle is 8m as a DIAGNOSTIC WIDENING, not as a considered bound. The first live run under the
-// 60s idle window — eden run 33007043055 — failed at 70.36s with "no event for 1m0s (the IDLE
-// bound): 32 event(s) seen, last = extension". So the real harness emits a burst and then goes
-// quiet for longer than 60s, and NO run has ever observed the live omp turn boundary: we cannot
-// yet tell "one long gap, then it finishes" from "hung forever", and the true gap has never been
-// measured. Guessing a tighter number costs another ~13-minute conformance cycle per guess, so
-// the bound is opened wide enough that the run reports data instead of tripping, and the drain
-// now records the max inter-event gap on every outcome (drainProgress.maxGap) so ONE run answers
-// both questions. The three outcomes:
-//
-//	(a) PASS, with the max gap logged  -> re-tighten Idle from that measurement, in a PR that
-//	    quotes the run. This bound is provisional until then.
-//	(b) the IDLE bound trips at 8m     -> the harness stalls for >= 8m; treat it as HUNG and
-//	    investigate omp's rpc mode at the pinned version, not the bound.
-//	(c) the Total cap trips at 10m with events still arriving -> the turn genuinely runs past
-//	    10m, which is a different conversation (cap, model, or prompt).
-//
-// Total stays 10m: it is the safety net that keeps a hung harness from pinning CI, and nothing
-// observed so far argues about it.
-var liveDrainBounds = drainBounds{Idle: 8 * time.Minute, Total: 10 * time.Minute}
 
 // drainBounds bounds a drain by two INDEPENDENT clocks. Idle is the maximum gap between
 // CONSECUTIVE events — a harness that is still producing never trips it, however long the whole

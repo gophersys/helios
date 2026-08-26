@@ -4,12 +4,16 @@
 // and the REAL omp json parser on an ACTUAL process — a trivial scripted stub binary
 // (internal/stubharness), NOT omp — so the spawn/scan/Close ladder is proven on a genuine
 // process WITHOUT a live OpenRouter call. The credential is a FAKE secret (a canary), threaded
-// through Secret.Use exactly as production does, asserted never to leak. Those stub arms are
-// untouched by the ruling below: they are what gates the omp protocol, and they still run.
+// through Secret.Use exactly as production does, asserted never to leak.
 //
-// A SEPARATE test (TestIntegration_LiveOmp_Gated) holds the REAL `omp` + OpenRouter +
-// DeepSeek-v4-flash arm. It is UNCONDITIONALLY SKIPPED per Mateo's 2026-08-26 ruling; its body
-// is kept compiled as the re-entry point for task #24. Nothing here logs or embeds the key.
+// There is NO live-omp arm in this lane, by Mateo's ruling of 2026-08-26 (verbatim: "skip the
+// omp, as lomg as claude works thats waht we really actaulyl acre about"). What `-tags
+// integration` gates is the omp PROTOCOL — these real-subprocess arms plus the parser
+// conformance fixtures — and, in the sibling claudeadapter package, claude's live arms. The REAL
+// `omp` TURN lives in the harness lane instead: `agentsession/omp_turn_harness_test.go`, under
+// `//go:build harness`, run on demand by `ctl.sh harness` with the vendor credentials. It fails
+// there today because of task #24 (omp 17.2.5 bursts and then never writes `agent_end`), which
+// is the honest result for an acceptance lane and is why it does not belong in a gate lane.
 //
 //	go test -tags integration ./ompadapter/... -race
 //
@@ -18,9 +22,6 @@ package ompadapter_test
 
 import (
 	"context"
-	"os"
-	"os/exec"
-	"strings"
 	"testing"
 	"time"
 
@@ -168,111 +169,4 @@ func TestIntegration_StubBinary_CloseReapsBetweenTurns(t *testing.T) {
 	if err := session.Close(context.Background()); err != nil {
 		t.Errorf("second Close must be idempotent: %v", err)
 	}
-}
-
-// TestIntegration_LiveOmp_Gated is UNCONDITIONALLY SKIPPED.
-//
-// Mateo's ruling, 2026-08-26, verbatim: "skip the omp, as lomg as claude works thats waht we
-// really actaulyl acre about". The live omp arm is red on every real run: omp 17.2.5 emits its
-// burst (last frame an `extension`) and then never writes `agent_end` — 8m of silence after a
-// 2.881s max inter-event gap, measured in eden run 33012361974. The protocol itself is proven
-// correct locally end-to-end against the pinned binary, so the defect is upstream (task #24:
-// omp defers the wire `agent_end` while promptInFlightCount > 0 and the release never fires).
-// The harness lane rides on claude, which works; omp does not hold it hostage.
-//
-// The BODY below is deliberately kept, whole and compiled. Deleting it would lose the re-entry
-// point for task #24 and would stop compiling the credential-never-leaks assertions with the
-// rest of the lane. What it drives when it is re-enabled: the key threaded through the SAME
-// injection path (Secret.Use -> child env under OPENROUTER_API_KEY, with inherited copies
-// scrubbed), Open -> Prompt "Reply with exactly: ok" -> drain to a REAL turn boundary, then the
-// boundary carries a non-empty ledger AND the key appears in NO event. The key is NEVER logged.
-// Re-pinned for contract revision R1: a live turn ends on a boundary, and the session stays
-// alive for the next Prompt.
-//
-// The STUB arms in this file are untouched — they still gate the omp protocol on a real
-// subprocess. This skip removes the live vendor call, not the coverage.
-//
-// Cross-repo: eden's conformance lane runs `scripts/assert-no-skipped-tests.sh`, which fails on
-// ANY skipped test, so this skip needs eden's SKIP_REGISTER to name it (eden #18). The two are
-// halves of one ruling and both must be in effect before that lane greens.
-func TestIntegration_LiveOmp_Gated(t *testing.T) {
-	t.Parallel()
-	// Unconditional, and BEFORE the credential check on purpose: the arm is off by ruling, not by
-	// what this host happens to have. A skip that still depended on the env would read as "the
-	// credential was missing" on a machine that has one.
-	t.Skip("omp live arm deliberately not gated — Mateo's ruling 2026-08-26: 'skip the omp, as long as claude works that's what we actually care about'; the known 17.2.5 rpc deadlock is task #24, and this skip is the re-entry point when it reopens")
-
-	key := liveOpenRouterKey()
-	if key == "" {
-		t.Skip("OPENROUTER_API_KEY not set and no dev-secret readable: the live omp run is gated and skipped")
-	}
-	if _, err := exec.LookPath("omp"); err != nil {
-		t.Skip("omp binary not on PATH: skipping the live arm")
-	}
-
-	pool := newPoolWithKey(t, ompadapter.MustNewForTest(t, ompadapter.Config{}), key, "openrouter/deepseek/deepseek-v4-flash")
-	session, err := pool.Open(context.Background(), agentsession.Spec{
-		Workspace:  t.TempDir(),
-		Routing:    agentsession.RouteKey{Role: "assistant"},
-		Credential: secrets.Ref(vaultReference),
-	})
-	if err != nil {
-		t.Fatalf("live Open: %v", err)
-	}
-	t.Cleanup(func() { _ = session.Close(context.Background()) }) //nolint:errcheck // best-effort session reap on test cleanup.
-
-	if _, err := session.Control(context.Background(), agentsession.Command{Kind: agentsession.CommandPrompt, Text: "Reply with exactly: ok"}); err != nil {
-		t.Fatalf("live Prompt: %v", err)
-	}
-	events, progress, drainErr := drainToTurnBoundaryWithin(session, liveDrainBounds)
-	// The max inter-event gap goes out on EVERY outcome. On a bound trip drainFault carries it in
-	// the error; on a PASS nothing else would, and the passing run is the one that finally says
-	// what Idle should be re-tightened to (see liveDrainBounds). Logged before the Fatal below so
-	// the figure survives a failure too.
-	t.Logf("live omp drain: %s", progress.describe())
-	if drainErr != nil {
-		t.Fatal(drainErr)
-	}
-	if len(events) == 0 {
-		t.Fatal("live omp session produced no events")
-	}
-	// R1: a live turn ends on a TURN boundary and the session stays alive for the next Prompt,
-	// so what proves the turn completed is the boundary payload, not a session terminal.
-	boundary := events[len(events)-1]
-	if boundary.Terminal == nil {
-		t.Fatalf("live omp session did not reach a turn boundary carrying a ledger; last = %s", boundary.Kind)
-	}
-	if boundary.IsTerminal() {
-		t.Fatalf("the live omp turn ended the SESSION (kind %s, Detail %q); a clean `agent_end` is a TURN boundary — check OpenRouter credit/route if the stop was an error",
-			boundary.Kind, boundary.Terminal.Detail)
-	}
-	if got := boundary.Kind.String(); got != turnEndToken {
-		t.Fatalf("live turn-boundary token = %q (Detail %q); want %q — check OpenRouter credit/route",
-			got, boundary.Terminal.Detail, turnEndToken)
-	}
-	ledger := boundary.Terminal.Ledger
-	if ledger.InputTokens == 0 && ledger.OutputTokens == 0 {
-		t.Errorf("live turn-boundary ledger is empty: %+v", ledger)
-	}
-	if ledger.Harness != "omp" {
-		t.Errorf("live ledger harness = %q, want omp", ledger.Harness)
-	}
-	if !readyObserved(events) {
-		t.Errorf("live omp did not produce the Ready handshake")
-	}
-	// The OpenRouter key must appear in NO event field (redaction by construction, on the real
-	// stream). The key is never passed to t.Log / Errorf below.
-	for i := range events {
-		agentsessiontest.AssertNoSecretInEvent(t, events[i], key)
-	}
-	t.Logf("live omp turn boundary: kind=%s result=%q tokens(in/out)=%d/%d costMicros=%d",
-		boundary.Kind, boundary.Terminal.ResultText, ledger.InputTokens, ledger.OutputTokens, ledger.CostMicros)
-}
-
-// liveOpenRouterKey resolves the OpenRouter key for the gated live arm from the OPENROUTER_API_KEY
-// env var. The standard .env convention (ADR-0022) loads it from the gitignored .env.development
-// into the process env; `deploy local` additionally seeds it into the real Vault. It NEVER logs
-// the value; an empty result SKIPS the live arm.
-func liveOpenRouterKey() string {
-	return strings.TrimSpace(os.Getenv("OPENROUTER_API_KEY"))
 }
