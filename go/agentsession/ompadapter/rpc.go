@@ -349,8 +349,27 @@ func (c *rpcConn) service(line []byte) []agentsession.Event {
 // Sending `protocolVersion: 1` is NOT the alternative: rpc-mode.ts:979-983 answers any version
 // other than 2 with `success:false`, buying an error frame on the wire for the same outcome.
 //
-// FOLLOW-UP: re-enable the negotiate in the SAME change that adds the `rpc_chunk` reassembler
-// (the Go twin of rpc-frame.ts:136-189) — never before it, and never in a change of its own.
+// This is a TRADE, and it is not free — say so plainly, because a reader weighing the follow-up
+// below needs the cost. Protocol 1 does not refuse an over-ceiling frame, it SHRINKS one:
+// encodeRpcFrame (rpc-frame.ts:243-260) compacts, then walks the SHRINK_PASSES ladder
+// (rpc-frame.ts:29-37), so a string past the pass's cap comes back cut and carrying omp's own
+// "…[N chars elided for RPC frame]" marker (rpc-frame.ts:46-50) — an over-long array gets
+// "…[N items elided for RPC frame]" (:58) — and only if the whole ladder still will not fit does
+// overflowFrame (rpc-frame.ts:217-240) reduce an `agent_end` to an empty messages list. Measured
+// by running omp's OWN encoder over the T1 fixture: a 1,253,376-char assistant text comes back as
+// 262,101 chars on one 262,367-byte line, ~21% retained; the same fixture on protocol 2 becomes 5
+// `rpc_chunk` lines this package would turn into 5 anonymous EventExtensions.
+//
+// So the choice is not correct-vs-broken, it is WHICH failure. Protocol 2 loses the whole logical
+// frame — the turn boundary with it — silently and completely. Protocol 1 truncates the oversized
+// CONTENT and still ends the turn, and it leaves omp's marker behind saying that it did. Even the
+// overflowFrame worst case still ends the turn, because finalAssistant falls back to the threaded
+// lastMsg when the messages list comes back empty. Silent total loss traded for visible truncation.
+//
+// FOLLOW-UP — worth doing, not optional, and that trade is the whole reason: re-enable the
+// negotiate in the SAME change that adds the `rpc_chunk` reassembler (the Go twin of
+// rpc-frame.ts:136-189), which is the only option that ends the turn AND keeps the content intact.
+// Never before it, and never in a change of its own.
 func (c *rpcConn) handshake() []agentsession.Event {
 	if definitions := c.hostTools.definitions(); len(definitions) > 0 {
 		//nolint:errcheck // best-effort registration; an unregistered host tool surfaces as a failed call, not a broken transport.
