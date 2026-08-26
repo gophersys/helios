@@ -31,8 +31,9 @@
 #   clause 1  `.nxignore` coverage      — remove one of the 36 patterns, the verb must red
 #   clause 2  the graph RESOLVES        — plant a duplicate name, the verb must red NAMING resolution
 #   clause 2b the 2 readers AGREE       — shim nx so they disagree, the verb must red naming the gap
-#   clause 3  no fixture-rooted project — plant into EVERY one of the 6 vocabulary directories
-#   clause 4  submodules checked out    — hide a `.git` entry, the verb must red
+#   clause 4  the REAL projects remain  — over-broad .nxignore must red, both floor and anchors
+#   clause 5  no fixture-rooted project — plant into EVERY one of the 6 vocabulary directories
+#   clause 6  submodules checked out    — hide a `.git` entry, the verb must red
 #   plus the exclusion path itself: fixtures in COVERED directories must be excluded, verb green.
 #
 # SCOPE — read this before reading a green run as more than it is.
@@ -41,12 +42,17 @@
 #     plants synthetic projects; it does not audit real ones.
 #
 # HOW IT KEEPS THE TREE SAFE. It plants under `libs/.graph-guard-selftest/`, temporarily edits
-# `.nxignore`, and temporarily moves a submodule's `.git` aside. It NEVER writes a backup FILE for
-# `.nxignore`: an earlier version did, and a hard kill left that backup behind as untracked residue
-# while the mutated `.nxignore` stayed in place. Recovery is `git checkout -- .nxignore`, which needs
-# no surviving process — so a SIGKILL leaves a mutation that git itself both reveals and undoes. The
-# preflight refuses to run at all if `.nxignore` is already dirty, so that checkout can never destroy
-# an edit somebody meant to keep.
+# `.nxignore`, and temporarily moves a submodule's `.git` aside.
+#
+# It writes NO BACKUP of `.nxignore`, and no temporary file beside it. An earlier version kept a
+# `.nxignore.graph-guard-selftest-backup`, and a hard kill left that backup behind as untracked
+# residue next to a still-mutated `.nxignore` — residue guarding residue. A later version still
+# wrote `.nxignore.tmp` at the repository root for the width of one `grep`, which no sweep knew
+# about; that scratch file now lives inside the swept probe tree. Recovery is
+# `git checkout -- .nxignore`, which needs no surviving process, so a SIGKILL leaves a mutation that
+# git itself both reveals and undoes. PREFLIGHT 2 refuses to run at all when `.nxignore` is already
+# dirty, so that checkout can never destroy an edit somebody meant to keep, and PREFLIGHT 3 sweeps a
+# probe tree left by a run killed where no trap could reach it.
 #
 # Run it directly:  bash scripts/graph-guard_test.sh
 # It exits non-zero on any failure. shellcheck-clean at -S style.
@@ -261,8 +267,8 @@ for d in "${vocabulary_dirs[@]}"; do
   fi
   plant "voc-${d}/${d}/one" "graph-guard-selftest-voc-${d}"
   run_guard
-  expect_red "clause 3 catches a fixture in '${d}' (vocabulary entry $(( $(printf '%s\n' "${vocabulary_dirs[@]}" | grep -nxF -- "$d" | cut -d: -f1) )) of ${#vocabulary_dirs[@]})" \
-    "rooted in a submodule fixture tree|submodule fixture project"
+  expect_red "clause 5 catches a fixture in '${d}' (vocabulary entry $(( $(printf '%s\n' "${vocabulary_dirs[@]}" | grep -nxF -- "$d" | cut -d: -f1) )) of ${#vocabulary_dirs[@]})" \
+    "submodule fixture project\\(s\\) reached"
   git -C "$repository_root" checkout -- .nxignore
   rm -rf "$selftest_root"
 done
@@ -283,6 +289,24 @@ else
 fi
 rm -rf "$selftest_root"
 
+# CLAUSE 4 — the real projects must still be there, proven in BOTH directions. This is the hole
+# round 6 found: `.nxignore` was checked one way only, so a pattern could be added that excluded 16
+# REAL projects and every clause stayed green while `nx affected` quietly stopped selecting them.
+#
+# BROAD, caught by the COUNT floor: `libs/go/**` takes the graph 49 -> 33.
+printf 'libs/go/**\n' >> "$nxignore"
+run_guard
+expect_red "clause 4 (count floor) REFUSES an .nxignore that excludes a whole subtree" "below the floor of"
+git -C "$repository_root" checkout -- .nxignore
+
+# NARROW, caught by the ANCHORS and invisible to the floor: excluding one project keeps the count at
+# 48, comfortably above 45, so only a named anchor can see it. Without this the floor would look
+# sufficient and the anchors would be decoration.
+printf 'libs/typescript/primitives/**\n' >> "$nxignore"
+run_guard
+expect_red "clause 4 (anchors) REFUSES an .nxignore that excludes ONE real project the floor cannot see" "anchor project\(s\) missing or moved"
+git -C "$repository_root" checkout -- .nxignore
+
 # CLAUSE 2 — resolution. The message is asserted, not merely the exit status.
 rm -rf "$selftest_root"
 plant "dup-a" "graph-guard-selftest-dup"
@@ -296,7 +320,11 @@ rm -rf "$selftest_root"
 # Remove a real PATTERN line, named explicitly. An earlier probe used `head -n -1`, which stripped
 # the file's trailing BLANK line, left all 36 patterns in place, and reported a false pass.
 victim_pattern="${patterns[0]}"
-grep -vxF -- "$victim_pattern" "$nxignore" > "${nxignore}.tmp" && mv "${nxignore}.tmp" "$nxignore"
+# The scratch file goes INSIDE the probe tree, which sweep() and PREFLIGHT 3 both remove. Written
+# beside `.nxignore` it was residue no sweep knew about, contradicting this file's own header.
+mkdir -p "$selftest_root"
+grep -vxF -- "$victim_pattern" "$nxignore" > "${selftest_root}/nxignore.mangled" \
+  && cp "${selftest_root}/nxignore.mangled" "$nxignore"
 run_guard
 expect_red "clause 1 REFUSES a .nxignore missing the pattern ${victim_pattern}" "missing [0-9]+ required pattern"
 git -C "$repository_root" checkout -- .nxignore
@@ -335,11 +363,11 @@ hidden_git="${repository_root}/.devcontainer/.git"
 if [[ -e "$hidden_git" ]]; then
   mv "$hidden_git" "${hidden_git}.graph-guard-selftest"
   run_guard
-  expect_red "clause 4 REFUSES a submodule that is not checked out" "NOT checked out"
+  expect_red "clause 6 REFUSES a submodule that is not checked out" "NOT checked out"
   mv "${hidden_git}.graph-guard-selftest" "$hidden_git"
   hidden_git=""
 else
-  report_fail "clause 4 REFUSES a submodule that is not checked out" \
+  report_fail "clause 6 REFUSES a submodule that is not checked out" \
     ".devcontainer/.git does not exist, so this assertion could not be made"
 fi
 
@@ -348,5 +376,5 @@ if [[ $fails -gt 0 ]]; then
   printf 'graph-guard_test: %d failure(s)\n' "$fails" >&2
   exit 1
 fi
-printf 'graph-guard_test: all assertions passed (%d pattern(s), %d vocabulary dir(s), 5 verb clause(s) proven able to fire)\n' \
+printf 'graph-guard_test: all assertions passed (%d pattern(s), %d vocabulary dir(s), 6 verb clause(s) proven able to fire)\n' \
   "${#patterns[@]}" "${#vocabulary_dirs[@]}"

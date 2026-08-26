@@ -350,7 +350,67 @@ function cmd_graph_guard() {
   fi
   log_info "graph-guard: the graph resolves and holds ${#roots[@]} project(s)"
 
-  # ── 3. NO PROJECT IS ROOTED IN A SUBMODULE FIXTURE TREE ──────────────────────────────────────
+  # ── 4. THE REAL PROJECTS ARE STILL THERE ─────────────────────────────────────────────────────
+  # Clause 3 is one-way: it proves nothing that SHOULD be excluded got in. Nothing above proves the
+  # graph still holds what it MUST. That asymmetry was a live hole, measured: appending `libs/go/**`
+  # to .nxignore takes the graph from 49 projects to 33 and every clause above stays green, while
+  # `nx affected` silently stops selecting 16 real projects — `affected-gate-fast` then covers a
+  # third less of the repository with nothing red anywhere. `infrastructure/**` gives 42, equally
+  # green. That is the FAIL-NOT-SKIP shape: a gate that is believed and has quietly stopped looking.
+  #
+  # Two independent floors, because each catches what the other misses.
+  #
+  # THE COUNT floor catches a broad pattern that wipes a whole subtree. It is a MINIMUM and not an
+  # equality: projects are added and removed legitimately, and an equality check would red on every
+  # such change and teach the reader to edit the number. 45 sits below today's 49 — room for normal
+  # churn — and above both measured over-breadth cases (42 and 33), which is the property that
+  # decides the value. Re-measure it, never guess it: `nx show projects | wc -l`.
+  #
+  # THE ANCHORS catch a NARROW pattern that removes only one or two projects, which the count floor
+  # would sail past. Each names a project and the root it must be rooted at, one per area a
+  # `.nxignore` pattern could reach — the 3 submodules and each of their internal trees. A rename
+  # makes this red, and that is correct: a renamed anchor is a deliberate edit to a deliberate list.
+  local -i project_floor=45
+  local -a anchors=(
+    "devcontainer:.devcontainer"
+    "ci-devcontainer:.devcontainer/.ci"
+    "images-base:.devcontainer/base"
+    "libs:libs"
+    "agentruntime:libs/go/agentruntime"
+    "primitives:libs/typescript/primitives"
+    "http-gateway-template:libs/templates/go/http-gateway"
+    "infrastructure:infrastructure"
+    "ci-infrastructure:infrastructure/.ci"
+  )
+  if [[ ${#roots[@]} -lt $project_floor ]]; then
+    log_error "graph-guard: the graph holds only ${#roots[@]} project(s), below the floor of ${project_floor}"
+    log_error "graph-guard: a .nxignore pattern is excluding REAL projects — nx affected has silently stopped selecting them"
+    return 1
+  fi
+  local anchor anchor_name anchor_root found_root
+  local -a lost=()
+  for anchor in "${anchors[@]}"; do
+    anchor_name="${anchor%%:*}"
+    anchor_root="${anchor#*:}"
+    found_root=""
+    for line in "${roots[@]}"; do
+      if [[ "${line%%$'\t'*}" == "$anchor_name" ]]; then found_root="${line#*$'\t'}"; break; fi
+    done
+    if [[ -z "$found_root" ]]; then
+      lost+=("$anchor_name — ABSENT from the graph (expected at $anchor_root)")
+    elif [[ "$found_root" != "$anchor_root" ]]; then
+      lost+=("$anchor_name — rooted at '$found_root', expected '$anchor_root'")
+    fi
+  done
+  if [[ ${#lost[@]} -gt 0 ]]; then
+    log_error "graph-guard: ${#lost[@]} anchor project(s) missing or moved:"
+    for anchor in "${lost[@]}"; do log_error "  $anchor"; done
+    log_error "graph-guard: a .nxignore pattern is excluding REAL projects, or an anchor was renamed — if the rename is deliberate, update the anchors list"
+    return 1
+  fi
+  log_info "graph-guard: ${#roots[@]} project(s) (floor ${project_floor}), all ${#anchors[@]} anchors present at their roots"
+
+  # ── 5. NO PROJECT IS ROOTED IN A SUBMODULE FIXTURE TREE ──────────────────────────────────────
   local line name prj_root sm
   local -a leaked=()
   for line in "${roots[@]}"; do
