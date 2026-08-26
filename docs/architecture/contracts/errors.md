@@ -11,8 +11,9 @@
 > entry point named `RunErrorsSuite`; the `errorstest` receiver named `tb`; the two conformance
 > properties the suite runs beyond the nine listed; `FromContext`'s KindUnknown arm (it does NOT
 > return nil for every non-cancel ctx); `Error()`'s empty-message and nil-receiver shapes; and §6.9's
-> claim about the only interface in the surface. Frozen under **Mateo's ruling, 2026-08-26** (decision
-> prompt in the coordinating session), verbatim: *"Verify-then-freeze (Recommended)"* — mechanical diff
+> claim about the only interface in the surface. Frozen under **Mateo's ruling, 2026-08-26**
+> (AskUserQuestion decision prompt in the interactive session on his MacBook, session f9c810a8 —
+> not the eden orchestrator session), verbatim: *"Verify-then-freeze (Recommended)"* — mechanical diff
 > of contract vs the library's real exported surface; clean → freeze; drift → amend the doc to match
 > reality first, then freeze. A breaking change to the surface requires a contract revision
 > (ADR-0016 §1) + re-recording the `.apibaseline` — the cardinal sin otherwise (10 §9).
