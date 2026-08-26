@@ -45,12 +45,14 @@ that must also sense on a battery while asleep.
 `edge-autonomy` never selects the class; it colors the P3 architecture
 (where logic lives) and rides into the PCR's `context` field.
 
-**ABSENT inputs (the registry declares both platform metrics can be):**
-an ABSENT `compute-demand` or `hmi-class` counts as the ABSENCE OF DEMAND
-— it satisfies no red condition and satisfies the lane-B condition (a
-product that demands nothing cannot demand a performance lane). This is
-stated here so the fifth absent-vs-value gap in this repository is closed
-in the doc that would otherwise host the sixth.
+**ABSENT inputs:** the registry declares `absent_when` on two of the
+three platform metrics — `compute-demand` and `edge-autonomy`;
+`hmi-class` can never be ABSENT (both its feeds are unconditional). An
+ABSENT `compute-demand` counts as the ABSENCE OF DEMAND — it satisfies no
+red condition and satisfies the lane-B condition (a product that demands
+nothing cannot demand a performance lane). An ABSENT `edge-autonomy` is
+simply absent context. Stated here so the absent-vs-value gap class stays
+closed in this doc.
 
 ## Lane (decided: derived, in the PCR)
 
