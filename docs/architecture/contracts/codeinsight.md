@@ -24,7 +24,7 @@
 > primitive-token registry yet (§5). §7 also now transcribes the rest of `.apibaseline` —
 > `Config`, `Deps`, the ports, `Analyze`, and the error taxonomy — because a cardinal-sin guard the
 > contract text does not carry cannot be read against it. Frozen under **Mateo's ruling, 2026-08-26**
-> (decision prompt in the coordinating session), verbatim: *"Verify-then-freeze (Recommended)"* —
+> (AskUserQuestion decision prompt in the interactive session on his MacBook, session f9c810a8 — not the eden orchestrator session), verbatim: *"Verify-then-freeze (Recommended)"* —
 > mechanical diff of contract vs the library's real exported surface; clean → freeze; drift → amend
 > the doc to match reality first, then freeze. A breaking change to the surface requires a contract
 > revision (ADR-0016 §1) + re-recording the `.apibaseline` — the cardinal sin otherwise (10 §9).
