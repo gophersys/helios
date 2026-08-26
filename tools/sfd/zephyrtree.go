@@ -28,7 +28,13 @@ func ZephyrSHA(root string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	top, err := exec.Command("git", "-C", root, "rev-parse", "--show-toplevel").Output()
+	// The caller pointed the tool at this tree explicitly, so trust is
+	// scoped to exactly it via -c safe.directory — no global git state,
+	// nothing a container recreate can lose. Without it, a uid change
+	// (recreated container, bind-mount remap) turns every provenance call
+	// into "dubious ownership" exit 128.
+	safe := "safe.directory=" + abs
+	top, err := exec.Command("git", "-c", safe, "-C", root, "rev-parse", "--show-toplevel").Output()
 	if err != nil {
 		return "", fmt.Errorf("cannot resolve git toplevel of %s: %w (provenance is mandatory)", root, err)
 	}
@@ -43,7 +49,7 @@ func ZephyrSHA(root string) (string, error) {
 	if topAbs != absReal {
 		return "", fmt.Errorf("%s is not its own git checkout (toplevel is %s) — refusing to cite a foreign SHA", root, topAbs)
 	}
-	out, err := exec.Command("git", "-C", root, "rev-parse", "HEAD").Output()
+	out, err := exec.Command("git", "-c", safe, "-C", root, "rev-parse", "HEAD").Output()
 	if err != nil {
 		return "", fmt.Errorf("cannot resolve HEAD of %s: %w (provenance is mandatory)", root, err)
 	}

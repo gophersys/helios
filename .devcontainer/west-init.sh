@@ -19,12 +19,19 @@ west update --narrow
 # The workspace repos may be fetched by a different uid than later runs
 # (container recreate, exec user change). Git then refuses with "dubious
 # ownership" — mark each fetched repo safe, explicitly and only them,
-# never a blanket '*'.
+# never a blanket '*'. Two subtleties, both learned the hard way:
+# - operate on the config FILE directly: from the workspace cwd, git's
+#   repo discovery hits the worktree's .git file (a host path that does
+#   not exist in-container) and `git config --global` fatals;
+# - the sfd tool additionally self-scopes trust per call (-c
+#   safe.directory), so its provenance never depends on this file
+#   surviving a container recreate. This block is for west/git use.
+cfg="$HOME/.gitconfig"
 while read -r p; do
     [ "$p" = "ws" ] && continue
     dir="$(pwd)/$p"
-    if ! git config --global --get-all safe.directory 2>/dev/null | grep -qx "$dir"; then
-        git config --global --add safe.directory "$dir"
+    if ! git config --file "$cfg" --get-all safe.directory 2>/dev/null | grep -qx "$dir"; then
+        git config --file "$cfg" --add safe.directory "$dir"
     fi
 done < <(west list -f '{path}')
 

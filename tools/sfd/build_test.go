@@ -1,6 +1,8 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -119,6 +121,51 @@ func TestRecordDiffCatchesSocTamper(t *testing.T) {
 	joined := strings.Join(diff, "\n")
 	if !strings.Contains(joined, "acme,fusion-reactor") || !strings.Contains(joined, "999999") {
 		t.Fatalf("soc tamper not named in diff:\n%s", joined)
+	}
+}
+
+// Round-3 refuter finding: readYAML accepted unknown keys, so a record
+// could carry un-gated assertions ("verified_by: mateo",
+// "safe_for_pc0: true") that verify never checks — the exact failure mode
+// the provenance thesis exists to prevent.
+func TestReadYAMLRejectsUnknownKeys(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "x.yaml")
+	content := "schema: sfd.component/v0\ncompatible: a,b\nverified_by: mateo\n"
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var rec ComponentRecord
+	if err := readYAML(p, &rec); err == nil {
+		t.Fatal("unknown key 'verified_by' accepted — un-gated assertions can ride inside a record")
+	}
+}
+
+// Round-3 refuter finding: the catalog glob was non-recursive *.yaml only —
+// a .yml file or a subdirectory was silently out of scope while verify
+// reported OK. A stray in the catalog is a failure that names the file.
+func TestCatalogScanFlagsStrays(t *testing.T) {
+	dir := t.TempDir()
+	for _, d := range []string{"components", "socs", filepath.Join("components", "sub")} {
+		if err := os.MkdirAll(filepath.Join(dir, d), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write := func(rel string) {
+		if err := os.WriteFile(filepath.Join(dir, rel), []byte("x: 1\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(filepath.Join("components", "good.yaml"))
+	write(filepath.Join("components", "stray.yml"))            // wrong extension
+	write(filepath.Join("components", "sub", "hidden.yaml"))   // out-of-scope subdir
+	write(filepath.Join("socs", "notes.txt"))                  // stray file
+	comps, socs, problems := catalogScan(dir)
+	if len(comps) != 1 || len(socs) != 0 {
+		t.Fatalf("scan: want 1 component, 0 socs; got %v / %v", comps, socs)
+	}
+	if len(problems) != 3 {
+		t.Fatalf("want 3 named strays (stray.yml, sub/hidden.yaml, notes.txt), got %v", problems)
 	}
 }
 

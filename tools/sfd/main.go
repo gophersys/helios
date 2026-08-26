@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -148,10 +149,13 @@ func cmdSocAdd(name string, args []string) error {
 }
 
 // cmdVerify RE-EXTRACTS every catalog record through the same builders
-// `add` uses and diffs the full content, field by field. A verify that
-// only checked the SHA string and path existence passed every content
-// falsification (proven by refutation, 2026-08-26) — that check is dead.
-// Exit 0 now means: re-running the extraction reproduces every record.
+// `add` uses and compares the full serialized content positionally —
+// permutations included. A verify that only checked the SHA string and
+// path existence passed every content falsification (proven by
+// refutation, 2026-08-26) — that check is dead. Exit 0 means: re-running
+// the extraction reproduces every record's canonical serialization, the
+// filenames match the identities, records carry no unknown keys, and the
+// catalog holds no stray files.
 func cmdVerify(args []string) error {
 	c, err := parseCommon(flag.NewFlagSet("verify", flag.ExitOnError), args)
 	if err != nil {
@@ -181,7 +185,8 @@ func cmdVerify(args []string) error {
 		}
 	}
 
-	comps, _ := filepath.Glob(filepath.Join(c.catalog, "components", "*.yaml"))
+	comps, socFiles, strays := catalogScan(c.catalog)
+	failures = append(failures, strays...)
 	for _, f := range comps {
 		var stored ComponentRecord
 		if err := readYAML(f, &stored); err != nil {
@@ -201,8 +206,7 @@ func cmdVerify(args []string) error {
 		}
 		report(f, stored.Provenance.ZephyrSHA, diff)
 	}
-	socs, _ := filepath.Glob(filepath.Join(c.catalog, "socs", "*.yaml"))
-	for _, f := range socs {
+	for _, f := range socFiles {
 		var stored SocRecord
 		if err := readYAML(f, &stored); err != nil {
 			failures = append(failures, fmt.Sprintf("%s: unreadable: %v", f, err))
@@ -239,10 +243,44 @@ func cmdVerify(args []string) error {
 	return nil
 }
 
+// readYAML decodes a catalog record STRICTLY: an unknown key is an error.
+// A field no gate checks is an un-gated assertion riding on the catalog's
+// credibility (refuted 2026-08-26: "verified_by: mateo" passed green).
 func readYAML(path string, out any) error {
-	raw, err := os.ReadFile(path)
+	f, err := os.Open(path)
 	if err != nil {
 		return err
 	}
-	return yaml.Unmarshal(raw, out)
+	defer f.Close()
+	dec := yaml.NewDecoder(f)
+	dec.KnownFields(true)
+	return dec.Decode(out)
+}
+
+// catalogScan enumerates the catalog. Exactly components/*.yaml and
+// socs/*.yaml are in scope; EVERY other file below the catalog dir is a
+// named problem — a stray .yml or a subdirectory silently out of scope
+// read as verified when it never was (refuted 2026-08-26).
+func catalogScan(catalogDir string) (comps, socs, problems []string) {
+	filepath.WalkDir(catalogDir, func(path string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return nil
+		}
+		rel, _ := filepath.Rel(catalogDir, path)
+		parts := strings.Split(rel, string(filepath.Separator))
+		ok := len(parts) == 2 && strings.HasSuffix(parts[1], ".yaml")
+		switch {
+		case ok && parts[0] == "components":
+			comps = append(comps, path)
+		case ok && parts[0] == "socs":
+			socs = append(socs, path)
+		default:
+			problems = append(problems, fmt.Sprintf("unexpected file in catalog scope: %s", rel))
+		}
+		return nil
+	})
+	sort.Strings(comps)
+	sort.Strings(socs)
+	sort.Strings(problems)
+	return comps, socs, problems
 }

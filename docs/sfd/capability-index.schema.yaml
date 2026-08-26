@@ -72,9 +72,13 @@ sfd.soc/v0:
 # Verification contract: `sfd verify` RE-EXTRACTS every record through the
 # same builders `add` uses and compares the FULL serialized content,
 # positionally — order included, so permutations (values traded between
-# entries) are drift too — plus the SHA, and the filename must match the
-# record's identity. Exit 0 means: re-running the extraction reproduces
-# the record byte-for-byte (provenance aside).
+# entries) are drift too — plus the SHA. The filename must match the
+# record's identity; records are decoded STRICTLY (an unknown key is an
+# error, so no un-gated assertion can ride inside a record); any stray
+# file in the catalog is a failure. Exit 0 means: re-running the
+# extraction reproduces each record's canonical serialization (provenance
+# aside — the comparison is of parsed content, not file bytes, so
+# comments and key order in the file are not covered).
 # Hand-edits (a promoted depth, a part number, an invented compatible) are
 # named drift and fail the gate.
 
