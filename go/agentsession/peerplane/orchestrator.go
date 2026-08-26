@@ -143,11 +143,29 @@ func (o *Orchestrator) Close(_ context.Context) error {
 	return nil
 }
 
-// register admits a node under the tree rules: a live duplicate name, an unknown parent, or a
-// cycle is a JoinError. deliver is the routed-message callback (nil == an in-process node, which
-// is given a buffered inbound channel and a push callback). Re-attach bumps Generation so a
-// restart is distinguishable from a duplicate.
+// register admits a node under the tree rules: a name or parent that violates the peer field
+// grammar, a live duplicate name, an unknown parent, or a cycle is a JoinError. deliver is the
+// routed-message callback (nil == an in-process node, which is given a buffered inbound channel
+// and a push callback). Re-attach bumps Generation so a restart is distinguishable from a
+// duplicate.
+//
+// The grammar check is the tree's INGRESS, and it is here rather than in each caller because
+// BOTH joins land here: Join (in-process) and serveJoin (a socket member, whose name arrives off
+// the wire and was checked by nobody). Every frame this node ever sends is encoded FROM these
+// names, so a name carrying the frame's 0x1f separator re-spells the whole header and lets the
+// sender choose what the receiver reads as `from` and as `verified`. Refusing it at the join is
+// what keeps that name out of the roster, out of eden_peer_list, and off the wire.
+//
+// Its Kind is KindInvalid, NOT the KindConflict a bare JoinError carries: a malformed name is a
+// rejected INPUT, not a registration to retry under a different tree edge. The JoinError stays
+// the cause, so serveJoin still answers the member with its Reason.
 func (o *Orchestrator) register(name, parent, harness string, deliver func(agentsession.PeerMessage) error) (*node, error) {
+	if controlframe.ValidatePeerField("name", name) != nil {
+		return nil, errors.Wrap(errors.KindInvalid, "peerplane: join", JoinError{Name: name, Parent: parent, Reason: "invalid-name"})
+	}
+	if controlframe.ValidatePeerField("parent", parent) != nil {
+		return nil, errors.Wrap(errors.KindInvalid, "peerplane: join", JoinError{Name: name, Parent: parent, Reason: "invalid-parent"})
+	}
 	o.mu.Lock()
 	defer o.mu.Unlock()
 	if existing, ok := o.nodes[name]; ok && existing != nil {
@@ -198,9 +216,13 @@ func (o *Orchestrator) wouldCycle(name, parent string) bool {
 	return false
 }
 
-// route validates the body, mints the MsgID, records the ledger row, and delivers to the
+// route validates the message, mints the MsgID, records the ledger row, and delivers to the
 // addressee. An unknown or departed To is a typed UnreachableError; a body over the bound or one
 // carrying the envelope terminator is a loud KindInvalid — never a silent truncation.
+//
+// The EncodePeer call below is the validation, not a render: it is the grammar's one home, so
+// calling it here checks the body AND the identity fields (a To or a ReplyTo off the socket wire
+// is checked by nobody else) against the same rules the real encode will apply later.
 //
 //nolint:gocritic // PeerMessage is the contract's copyable value record.
 func (o *Orchestrator) route(message agentsession.PeerMessage) (string, error) {

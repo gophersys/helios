@@ -78,6 +78,13 @@ func (p *Pool) Open(ctx context.Context, spec Spec) (Session, error) {
 	// it at Spawn via Secret.Use); it is zeroized on session Close. We must NOT zeroize
 	// here on the happy path.
 
+	// The peer host tools are the LIBRARY's, injected here because an Adapter cannot reach
+	// the plane. They must be in the Spec the adapter is SPAWNED with, and Spawn necessarily
+	// precedes joinPeer below — so the toolset is handed its link afterwards, and until then
+	// every handler answers KindUnavailable.
+	peerTools := newPeerToolset(spec.Name, p.dependencies.Peer, nil)
+	spec.HostTools = p.injectPeerHostTools(spec.HostTools, peerTools, adapter)
+
 	conn, err := adapter.Spawn(ctx, spec, route, cred)
 	if err != nil {
 		cred.zeroize()
@@ -98,6 +105,7 @@ func (p *Pool) Open(ctx context.Context, spec Spec) (Session, error) {
 		_ = conn.Close(ctx) //nolint:errcheck // best-effort reap; the join error is the actionable outcome.
 		return nil, err
 	}
+	peerTools.bind(link)
 
 	session, err := newSession(ctx, spec, route, conn, cred, p.dependencies, link)
 	if err != nil {
@@ -109,6 +117,23 @@ func (p *Pool) Open(ctx context.Context, spec Spec) (Session, error) {
 		return nil, err
 	}
 	return session, nil
+}
+
+// injectPeerHostTools returns the host-tool set the adapter is spawned with. The gate is the
+// adapter's OWN declared CapPeerMessaging status, never a hard-coded harness name: a harness
+// whose model drives Eden's host tools gets them, and one whose peer messaging is only partial
+// (claude, whose model uses its NATIVE send) gets NEITHER — offering a model a tool its harness
+// cannot honor is the "declared but unproven" lie the manifest exists to prevent, and widening
+// that harness's allowlist to make it work is not the adapter's authority.
+func (p *Pool) injectPeerHostTools(callerTools []HostTool, peerTools *peerToolset, adapter Adapter) []HostTool {
+	if adapter.Manifest().Status(CapPeerMessaging) != CapFull {
+		return callerTools
+	}
+	injected := peerTools.hostTools()
+	if len(injected) == 0 {
+		return callerTools
+	}
+	return withPeerHostTools(callerTools, injected)
 }
 
 // resolveRoute looks up the (harness, model) Route for a RouteKey and the Adapter

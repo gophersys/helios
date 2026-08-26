@@ -76,6 +76,13 @@ func New(configuration Config) (*Adapter, error) {
 // the live substrate does not yet honor. Promoting to CapFull is a later slice once the
 // handshake-completion gap is resolved (the SDK sends more at initialize than the minimal
 // sdkMcpServers list this slice advertises).
+//
+// PeerMessaging is CapPartial: a named session is a real member of the mesh — it is addressable
+// and its arrivals normalize to EventPeerMessage — but the OUTBOUND half rides claude's own
+// SendMessage, which reaches only another claude session. So Eden injects NO peer host tools
+// here (the model already has a send, and widening --allowedTools to add a second one is not
+// this adapter's authority), and a cross-harness send is recovered by the LIBRARY from the
+// failed tool call rather than made natively. That is a partial capability, declared as one.
 func (a *Adapter) Manifest() agentsession.CapabilityManifest {
 	return agentsession.CapabilityManifest{Capabilities: map[agentsession.Capability]agentsession.CapStatus{
 		agentsession.CapSteer:              agentsession.CapPartial,
@@ -85,6 +92,7 @@ func (a *Adapter) Manifest() agentsession.CapabilityManifest {
 		agentsession.CapNativeBudget:       agentsession.CapFull,
 		agentsession.CapPermissionPrompt:   agentsession.CapFull,
 		agentsession.CapPartialToolResults: agentsession.CapAbsent,
+		agentsession.CapPeerMessaging:      agentsession.CapPartial,
 	}}
 }
 
@@ -115,6 +123,13 @@ func buildArguments(spec agentsession.Spec, route agentsession.Route) []string {
 		// finished message. The normalizer streams those deltas and suppresses the now-duplicate
 		// text in the final complete `assistant` line (it keeps only its tool_use blocks + usage).
 		"--include-partial-messages",
+	}
+	if spec.Name != "" {
+		// A peer address turns the session into an addressable member of claude's OWN
+		// cross-session plane, which needs exactly these two additions — and ONLY when the
+		// session has a name, so every existing non-peer session is spawned byte-identically
+		// and no unnamed session collides on the host's socket namespace.
+		arguments = append(arguments, "--name", spec.Name, "--settings", peerSettingsArgument)
 	}
 	if route.Model != "" {
 		arguments = append(arguments, "--model", route.Model)

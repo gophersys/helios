@@ -2,6 +2,7 @@ package claudeadapter
 
 import (
 	"context"
+	"io"
 	"testing"
 
 	"github.com/gophersys/libs/go/agentsession"
@@ -98,6 +99,40 @@ func HostToolRouteForTest(tools []agentsession.HostTool, jsonrpc []byte) (respon
 // an array) is pinned without a live claude. Compiled only in tests.
 func InitializeFrameForTest(tools []agentsession.HostTool) ([]byte, error) {
 	return initializeFrame("eden-init-test", hostToolNames(tools))
+}
+
+// PipeConnForTest builds the REAL conn over an INJECTED transport instead of a spawned process:
+// stdout supplies the stream-json lines the child would print, and every line the conn writes to
+// the child's stdin is written to stdin. The returned conn is already scanning — Spawn adds only
+// the child process and its two pipes on top of it — so the peer DELIVERY path (Send unwraps the
+// internal eden:peer frame into the model-facing envelope AND the scanner publishes the matching
+// EventPeerMessage) is provable in the fast unit lane with NO process.
+//
+// It takes the Spec because the peer binding needs the session's own Name: an inbound delivery is
+// addressed to this session, and a conn that does not know its own address cannot tell a delivery
+// meant for it from one that is not. It is the exact analog of ompadapter.RPCConnForTest.
+//
+// stdin is a WriteCloser because the EOF is load-bearing rather than incidental: closing it is
+// what ends the headless CLI's turn. Compiled only in tests.
+//
+// SEAM REQUIRED FROM THE IMPLEMENTER: the unexported constructor
+//
+//	newPipeConn(spec agentsession.Spec, stdout io.Reader, stdin io.WriteCloser) *processConn
+//
+//nolint:gocritic,ireturn // contract §2: Spec is the frozen copyable session input and the seam returns the frozen HarnessConn port — exactly the shapes Spawn takes and returns.
+func PipeConnForTest(spec agentsession.Spec, stdout io.Reader, stdin io.WriteCloser) agentsession.HarnessConn {
+	return newPipeConn(spec, stdout, stdin)
+}
+
+// PeerEnvelopeForTest renders the model-facing <eden-peer-message> envelope the adapter writes
+// for one inbound peer delivery, so the wire shape is assertable without a transport at all.
+// It is the pure half of what PipeConnForTest proves end to end.
+//
+// SEAM REQUIRED FROM THE IMPLEMENTER: the unexported pure renderer
+//
+//	peerEnvelope(from, msgID, replyTo, body string, verified bool) string
+func PeerEnvelopeForTest(from, msgID, replyTo, body string, verified bool) string {
+	return peerEnvelope(from, msgID, replyTo, body, verified)
 }
 
 // ConnProcessPIDForTest exposes the OS process id the conn's subprocess was started with,

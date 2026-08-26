@@ -2,9 +2,11 @@ package agentsession
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/gophersys/libs/go/agentsession/internal/controlframe"
 	"github.com/gophersys/libs/go/errors"
 )
 
@@ -29,12 +31,13 @@ type session struct {
 	// peerLink is the session's attachment to the injected peer plane (nil == no plane). The
 	// pump calls Received after emitting an inbound EventPeerMessage; the deliver goroutine
 	// drains its Inbound. peerSeen/peerRing are the bounded 256-id dedupe ring (guarded by mu).
-	peerLink     PeerLink
-	deliverStop  chan struct{} // closed by Close to stop the deliver goroutine (only when peerLink != nil)
-	deliverDone  chan struct{} // closed by the deliver goroutine when it exits
-	peerSeen     map[string]struct{}
-	peerRing     []string
-	peerRingNext int
+	peerLink       PeerLink
+	deliverStop    chan struct{}    // closed by Close to stop the deliver goroutine (only when peerLink != nil)
+	deliverDone    chan struct{}    // closed by the deliver goroutine when it exits
+	recoveredSends chan PeerMessage // full-mesh recovered sends handed OFF the pump to deliverLoop (the pump must never block on the plane)
+	peerSeen       map[string]struct{}
+	peerRing       []string
+	peerRingNext   int
 
 	mu            sync.Mutex // guards state, seq, turn, pending permissions, the session grant set, closed
 	state         State
@@ -73,21 +76,24 @@ var _ Session = (*session)(nil)
 //nolint:gocritic // contract §2: Spec is the frozen, copyable session input (the configuration pattern); the port takes it by value.
 func newSession(ctx context.Context, spec Spec, route Route, conn HarnessConn, cred InjectedCredential, dependencies Deps, link PeerLink) (*session, error) {
 	s := &session{
-		id:            sessionID(spec, route),
-		spec:          spec,
-		route:         route,
-		conn:          conn,
-		credential:    cred,
-		transcript:    dependencies.Transcript,
-		clock:         dependencies.Clock,
-		manifest:      adapterManifest(dependencies, route.Harness),
-		advisor:       dependencies.Advisor,
-		broadcaster:   newBroadcaster(),
-		peerLink:      link,
-		state:         StateInitializing,
-		pending:       make(map[string]*pendingPermission),
-		sessionGrants: cloneGrants(spec.Grants),
-		pumpDone:      make(chan struct{}),
+		id:          sessionID(spec, route),
+		spec:        spec,
+		route:       route,
+		conn:        conn,
+		credential:  cred,
+		transcript:  dependencies.Transcript,
+		clock:       dependencies.Clock,
+		manifest:    adapterManifest(dependencies, route.Harness),
+		advisor:     dependencies.Advisor,
+		broadcaster: newBroadcaster(),
+		peerLink:    link,
+		// Allocated up front (before the pump starts) so a recovered EventPeerSent can be enqueued
+		// without a nil-channel race; drained only when a plane is wired (deliverLoop).
+		recoveredSends: make(chan PeerMessage, peerRecoveredSendBuffer),
+		state:          StateInitializing,
+		pending:        make(map[string]*pendingPermission),
+		sessionGrants:  cloneGrants(spec.Grants),
+		pumpDone:       make(chan struct{}),
 	}
 
 	ready := make(chan error, 1)
@@ -266,6 +272,24 @@ func (s *session) checkControl(command Command) error {
 	default:
 		return errors.Wrap(errors.KindInvalid, "agentsession: control",
 			StateError{From: state, Op: "Control"})
+	}
+
+	// A Prompt/Steer carries the caller's text verbatim to the harness, where the adapter's Send
+	// content-sniffs it for the library's OWN internal control frames — a tunneled permission
+	// answer (eden:permission:) or an inbound peer delivery (eden:peer:). Caller text that BEGINS
+	// with one of those prefixes would be decoded as a trusted, library-minted frame and rendered
+	// to the model as a forged permission verdict or a verified peer message, synthesizing the
+	// whole trusted envelope from caller text and bypassing the plane's ingress wall. The library's
+	// own frames never reach this path (deliverToHarness and forwardDecision call conn.Send
+	// directly, not Control), so Control is the caller's ONLY channel into Send — a Prompt/Steer
+	// opening with an internal prefix can only be a forged frame, refused here at the one ingress
+	// every caller command shares. The prefix set is the grammar's, cited from its one home.
+	if command.Kind == CommandPrompt || command.Kind == CommandSteer {
+		if strings.HasPrefix(command.Text, controlframe.PeerPrefix) ||
+			strings.HasPrefix(command.Text, controlframe.PermissionPrefix) {
+			return errors.New(errors.KindInvalid,
+				"agentsession: control text may not begin with an internal control-frame prefix")
+		}
 	}
 
 	// CapSteer absence is a CAPABILITY fault (KindInvalid), checked BEFORE the state membership so an

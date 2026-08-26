@@ -20,8 +20,35 @@ type PeerMessage struct {
 	ReplyTo  string // the MsgID this answers; "" == not a reply
 	Body     string // UNTRUSTED agent prose, at most MaxPeerBodyBytes, redacted at the normalization boundary
 	Verified bool   // kernel-verified sender: claude verifiedPeerPid, or STAMPED by the peerplane orchestrator from the SO_PEERCRED connection (never the client's claim)
-	Accepted bool   // EventPeerSent only: false == accepted for routing but NEVER delivered (the root reconciler's bounce)
-	Detail   string // EventPeerSent, Accepted==false: the redacted reason
+
+	// Accepted (EventPeerSent only) reports whether SOME plane took the send. false does NOT
+	// mean one thing, and in particular it does not mean "not delivered": it has FOUR meanings,
+	// told apart by Detail.
+	Accepted bool
+
+	// Detail (EventPeerSent) is a BRANCHED-ON CONTRACT literal, not a redacted reason string:
+	// the library's own recovery router switches on the exact bytes, so a consumer may too, and
+	// changing one is a wire break rather than a wording change. The four Accepted==false
+	// literals, and what each says actually happened:
+	//
+	//	"native-send-unreachable"  the harness's OWN plane refused it (claude cannot reach a
+	//	                           non-claude peer). It was accepted NOWHERE — and the library,
+	//	                           which holds the PeerLink, is routing the recovered payload
+	//	                           over the bus underneath this event. Correlate the delivery by
+	//	                           the RECEIVER's arrival; this event carries no plane MsgID.
+	//	"native-send-unrecovered"  the same native refusal, but the recovery could not be handed
+	//	                           to the deliver goroutine. NOTHING is routing it. Library-owned;
+	//	                           no adapter produces it.
+	//	"send-receipt-unparsed"    the native plane ACCEPTED and delivered it; only the minted id
+	//	                           was unreadable, so there is no MsgID to correlate on. It is
+	//	                           never re-routed — routing it again would deliver it twice.
+	//	"undelivered: …"           the root reconciler's bounce: accepted for routing, then no
+	//	                           receipt inside DeliveryDeadline (peerplane.UndeliveredError).
+	//	                           This is the only one of the four that means "accepted, never
+	//	                           delivered".
+	//
+	// It carries a reason and a discriminator, never a body, so it stays redaction-safe.
+	Detail string
 }
 
 // SubagentMessage is a message that crossed the parent<->child boundary inside ONE harness

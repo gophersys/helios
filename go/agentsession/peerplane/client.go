@@ -19,6 +19,10 @@ type DialConfig struct {
 	JoinTimeout time.Duration
 }
 
+// receiptBuffer bounds the queue of delivery receipts waiting to go out on the wire. It is
+// generous because a receipt is one msg id and dropping one costs a reconciler bounce.
+const receiptBuffer = 64
+
 // Client is a member process's attachment to the root over the unix socket. It implements
 // agentsession.PeerPlane identically to *Orchestrator, so a session cannot tell them apart.
 type Client struct {
@@ -30,6 +34,8 @@ type Client struct {
 
 	response  chan frame
 	inbound   chan agentsession.PeerMessage
+	receipts  chan string   // delivery receipts queued OFF the caller; drained by forwardReceipts
+	closed    chan struct{} // closed by Close to reap forwardReceipts
 	closeOnce sync.Once
 }
 
@@ -49,8 +55,11 @@ func Dial(configuration DialConfig, _ Deps) (*Client, error) {
 		conn:          conn,
 		response:      make(chan frame, 1),
 		inbound:       make(chan agentsession.PeerMessage, 64),
+		receipts:      make(chan string, receiptBuffer),
+		closed:        make(chan struct{}),
 	}
 	go client.read()
+	go client.forwardReceipts()
 	return client, nil
 }
 
@@ -101,9 +110,37 @@ func (c *Client) Roster(_ context.Context, _ string) ([]agentsession.Peer, error
 	return resp.Peers, nil
 }
 
-// Close leaves the tree and drops the connection. Idempotent.
+// forwardReceipts is the client's receipt writer. It exists so Received can be a queue push and
+// nothing else: the library calls Received from the PUMP goroutine, which owns Seq, and a
+// synchronous socket write there takes writeMu behind any in-flight request — one slow root
+// wedges the whole session. The port contract says Received MUST NOT block, and this is what
+// makes that true over a socket. It exits on Close.
+func (c *Client) forwardReceipts() {
+	for {
+		select {
+		case <-c.closed:
+			return
+		case msgID := <-c.receipts:
+			_ = c.writeFrame(&frame{Type: frameReceived, MsgID: msgID}) //nolint:errcheck // best-effort receipt; the root's reconciler bounces a row that never gets one.
+		}
+	}
+}
+
+// queueReceipt hands one receipt to the writer goroutine WITHOUT blocking the caller. A full
+// queue does not stall it either: the receipt is not sent, and the root's reconciler bounces the
+// uncorroborated row in band at DeliveryDeadline. That is the plane's OWN loudness path — a
+// missing receipt is the exact thing the reconciler exists to observe — not a silent loss.
+func (c *Client) queueReceipt(msgID string) {
+	select {
+	case c.receipts <- msgID:
+	default:
+	}
+}
+
+// Close leaves the tree, reaps the receipt writer, and drops the connection. Idempotent.
 func (c *Client) Close(_ context.Context) error {
 	c.closeOnce.Do(func() {
+		close(c.closed)
 		_ = c.writeFrame(&frame{Type: frameLeave}) //nolint:errcheck // best-effort leave; the conn close is the reap.
 		_ = c.conn.Close()                         //nolint:errcheck // best-effort reap; the reader goroutine exits on the closed conn.
 	})
@@ -180,10 +217,11 @@ func (l *clientLink) Send(_ context.Context, message agentsession.PeerMessage) (
 	return ack.MsgID, nil
 }
 
-// Received corroborates delivery to the root (a fire-and-forget frame, no response).
-func (l *clientLink) Received(msgID string) {
-	_ = l.client.writeFrame(&frame{Type: frameReceived, MsgID: msgID}) //nolint:errcheck // best-effort receipt; the reconciler bounces if it never lands.
-}
+// Received corroborates delivery to the root. It QUEUES the receipt and returns — it does not
+// write the socket — because the port contract forbids it to block and the caller is the pump
+// goroutine (agentsession/peer.go: "It MUST NOT block ... the plane buffers"). This is the plane
+// buffering.
+func (l *clientLink) Received(msgID string) { l.client.queueReceipt(msgID) }
 
 // Close leaves the tree by closing the client connection. Idempotent.
 func (l *clientLink) Close(ctx context.Context) error { return l.client.Close(ctx) }

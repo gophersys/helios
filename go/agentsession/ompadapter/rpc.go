@@ -65,6 +65,10 @@ type rpcConn struct {
 	hostTools  *hostToolRouter
 	digest     digester
 
+	// name is this session's peer address; "" == not addressable. A conn that does not know
+	// its own name cannot tell a delivery meant for it from one that is not.
+	name string
+
 	// fallback bounds how long a surfaced dialog waits for the library to resolve it before the
 	// adapter answers Deny itself, so omp's timerless `select` (rpc-mode.ts:640) cannot stall.
 	fallback time.Duration
@@ -83,6 +87,10 @@ type rpcConn struct {
 	// (the library's Send goroutine, or the fallback timer) to the pump — the ONE events sender.
 	// Buffered so a resolution never blocks its caller; the pump is the only reader.
 	resolved chan agentsession.Event
+
+	// peerEvents carries an inbound delivery's EventPeerMessage from Send to the pump, for the
+	// same reason and on the same terms as resolved.
+	peerEvents chan agentsession.Event
 
 	mu      sync.Mutex
 	closed  bool
@@ -137,10 +145,12 @@ func newRPCConnWithFallback(spec agentsession.Spec, fromOMP io.Reader, toOMP io.
 		toOMP:      toOMP,
 		normalizer: newNormalizer(),
 		digest:     defaultDigester,
+		name:       spec.Name,
 		fallback:   fallback,
 		events:     make(chan agentsession.Event),
 		dialogs:    make(map[string]*pendingDialog),
 		resolved:   make(chan agentsession.Event, dialogResolveBuffer),
+		peerEvents: make(chan agentsession.Event, peerDeliveryBuffer),
 		done:       make(chan struct{}),
 		drained:    make(chan struct{}),
 	}
@@ -175,8 +185,17 @@ func (c *rpcConn) Send(ctx context.Context, command agentsession.Command) error 
 			c.resolveDialog(requestID, allow, by)
 			return nil
 		}
+		// The library's deliver goroutine steers an inbound peer message into a RUNNING turn,
+		// so the delivery path is on both turn-taking verbs, not only Prompt. It is UNWRAPPED
+		// here: the internal frame never reaches the model.
+		if delivery, isPeer := decodePeerDelivery(command.Text); isPeer {
+			return c.deliverPeer("steer", &delivery)
+		}
 		return c.writeFrame(map[string]any{"id": c.nextFrameID(), "type": "steer", "message": command.Text})
 	case agentsession.CommandPrompt:
+		if delivery, isPeer := decodePeerDelivery(command.Text); isPeer {
+			return c.deliverPeer("prompt", &delivery)
+		}
 		return c.writeFrame(map[string]any{"id": c.nextFrameID(), "type": "prompt", "message": command.Text})
 	default:
 		return errors.New(errors.KindInvalid, "ompadapter: unknown control kind")
@@ -216,36 +235,62 @@ func (c *rpcConn) pump() {
 	lines := make(chan []byte)
 	go c.readLines(lines)
 	for {
-		// A ready resolution goes out FIRST, so the session leaves StateAwaitingPermission before
-		// the tool frames that follow the answer — a turn_end reached while still awaiting a
-		// permission would strand the session there.
+		pending, alive := c.publishPending()
+		if !alive {
+			return
+		}
+		if pending {
+			continue
+		}
 		select {
 		case resolved := <-c.resolved:
 			if !c.publish([]agentsession.Event{resolved}) {
 				return
 			}
-			continue
-		default:
-		}
-		select {
-		case resolved := <-c.resolved:
-			if !c.publish([]agentsession.Event{resolved}) {
+		case delivered := <-c.peerEvents:
+			if !c.publish([]agentsession.Event{delivered}) {
 				return
 			}
 		case line, ok := <-lines:
 			if !ok {
 				return
 			}
-			if !c.publish(c.service(line)) {
-				return
-			}
-			if !c.publish(c.normalizer.normalize(line)) {
+			if !c.publishLine(line) {
 				return
 			}
 		case <-c.done:
 			return
 		}
 	}
+}
+
+// publishPending fans out a resolution or a peer delivery that is ALREADY waiting, ahead of
+// omp's own frames. A ready resolution goes out FIRST so the session leaves
+// StateAwaitingPermission before the tool frames that follow the answer — a turn_end reached
+// while still awaiting a permission would strand the session there. An inbound peer delivery
+// takes the same priority, so the arrival precedes the frames of the turn it caused.
+//
+// pending reports whether one went out; alive is false once Close ended the session, so the pump
+// returns instead of blocking on a stream nobody will read.
+func (c *rpcConn) publishPending() (pending, alive bool) {
+	select {
+	case resolved := <-c.resolved:
+		return true, c.publish([]agentsession.Event{resolved})
+	case delivered := <-c.peerEvents:
+		return true, c.publish([]agentsession.Event{delivered})
+	default:
+		return false, true
+	}
+}
+
+// publishLine services one omp frame (the rpc control plane — readiness, host tools, the dialog
+// ask) and then normalizes it onto the taxonomy, fanning out what each produced. It reports
+// false when Close ended the session first.
+func (c *rpcConn) publishLine(line []byte) bool {
+	if !c.publish(c.service(line)) {
+		return false
+	}
+	return c.publish(c.normalizer.normalize(line))
 }
 
 // readLines scans omp's stdout into whole NDJSON lines and hands COPIES to the pump (the scanner

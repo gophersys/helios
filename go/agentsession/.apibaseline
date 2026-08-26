@@ -122,6 +122,7 @@ func DecodePeer(frame string) (from, to, msgID, replyTo, body string, verified, 
 func DecodePermission(frame string) (requestID string, allow bool, by, rationale string, ok bool)
 func EncodePeer(from, to, msgID, replyTo, body string, verified bool) (string, error)
 func EncodePermission(requestID string, allow bool, by, rationale string) string
+func ValidatePeerField(name, value string) error
 ## github.com/gophersys/libs/go/agentsession/ompadapter
     func New(configuration Config) (*Adapter, error)
 type Adapter struct{ ... }

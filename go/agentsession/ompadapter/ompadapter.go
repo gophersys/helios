@@ -101,6 +101,10 @@ func New(configuration Config) (*Adapter, error) {
 //     session's own standing grant applied at arrival: omp arms no timer on a `select`
 //     (rpc-mode.ts:640), so a dialog held open for an out-of-band decision stalls the turn
 //     forever (q3-probe5 measured 45s and no agent_end).
+//   - PeerMessaging is CapFull: omp has no cross-session plane of its own, so Eden owns BOTH
+//     ends — the library's eden_peer_send / eden_peer_list host tools ride the same rpc bridge
+//     the line above declares full, and an arrival is unwrapped onto the model-facing envelope
+//     here. Nothing about this capability depends on a vendor feature.
 func (a *Adapter) Manifest() agentsession.CapabilityManifest {
 	return agentsession.CapabilityManifest{Capabilities: map[agentsession.Capability]agentsession.CapStatus{
 		agentsession.CapSteer:              agentsession.CapFull,
@@ -110,6 +114,7 @@ func (a *Adapter) Manifest() agentsession.CapabilityManifest {
 		agentsession.CapNativeBudget:       agentsession.CapAbsent,
 		agentsession.CapPermissionPrompt:   agentsession.CapFull,
 		agentsession.CapPartialToolResults: agentsession.CapFull,
+		agentsession.CapPeerMessaging:      agentsession.CapFull,
 	}}
 }
 
