@@ -24,7 +24,8 @@
 > primitive-token registry yet (§5). §7 also now transcribes the rest of `.apibaseline` —
 > `Config`, `Deps`, the ports, `Analyze`, and the error taxonomy — because a cardinal-sin guard the
 > contract text does not carry cannot be read against it. Frozen under **Mateo's ruling, 2026-08-26**
-> (AskUserQuestion decision prompt in the interactive session on his MacBook, session f9c810a8 — not the eden orchestrator session), verbatim: *"Verify-then-freeze (Recommended)"* —
+> (AskUserQuestion decision prompt in the interactive session on his MacBook, session f9c810a8 —
+> not the eden orchestrator session), verbatim: *"Verify-then-freeze (Recommended)"* —
 > mechanical diff of contract vs the library's real exported surface; clean → freeze; drift → amend
 > the doc to match reality first, then freeze. A breaking change to the surface requires a contract
 > revision (ADR-0016 §1) + re-recording the `.apibaseline` — the cardinal sin otherwise (10 §9).
@@ -38,7 +39,8 @@
 commit/window selector), it computes the metrics catalog of research-note §2 and returns a single
 `Report` value. It owns three concepts, each with one home (10 §9):
 
-- **the metric computations** — static (complexity, maintainability, coverage ingest) and
+- **the metric computations** — static (complexity, maintainability; coverage ingest is contract but
+  is NOT computed in v1, §4) and
   **behavioral/temporal** (churn, change-frequency, hotspot score, logical coupling, code age,
   ownership/bus-factor). The behavioral layer is the spine (research §3): hotspots out-predict static
   properties for defects, so temporal mining is first-class, not an add-on.
