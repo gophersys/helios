@@ -1,0 +1,30 @@
+schema: sfd.component/v0
+compatible: st,lsm6dso
+class: sensor
+buses:
+    - i2c
+    - spi
+bindings:
+    - path: dts/bindings/sensor/st,lsm6dso-i2c.yaml
+      on_bus: i2c
+      class: sensor
+    - path: dts/bindings/sensor/st,lsm6dso-spi.yaml
+      on_bus: spi
+      class: sensor
+drivers:
+    - drivers/sensor/st/lsm6dso
+exercised_by:
+    - boards/arduino/nicla_vision/arduino_nicla_vision_stm32h747xx_m7.dts
+    - boards/shields/x_nucleo_iks01a3/x_nucleo_iks01a3.overlay
+    - boards/shields/x_nucleo_iks01a3/x_nucleo_iks01a3_shub.overlay
+    - boards/st/sensortile_box/sensortile_box.dts
+    - boards/st/stm32l562e_dk/stm32l562e_dk_common.dtsi
+    - samples/sensor/lsm6dso_i2c_on_i3c/boards/mimxrt685_evk_mimxrt685s_cm33.overlay
+    - tests/drivers/build_all/sensor/i2c.dtsi
+    - tests/drivers/build_all/sensor/spi.dtsi
+depth: D2
+part_numbers: []
+provenance:
+    zephyr_sha: 413b789deb391d3a37d06b463288a5fe765ee57e
+    extracted: "2026-08-26"
+    tool: sfd/v0

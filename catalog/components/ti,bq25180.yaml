@@ -1,0 +1,20 @@
+schema: sfd.component/v0
+compatible: ti,bq25180
+class: charger
+buses:
+    - i2c
+bindings:
+    - path: dts/bindings/charger/ti,bq25180.yaml
+      on_bus: i2c
+      class: charger
+drivers:
+    - drivers/charger
+exercised_by:
+    - boards/norik/octopus_io_board/octopus_io_board_common.dtsi
+    - tests/drivers/build_all/charger/i2c.dtsi
+depth: D2
+part_numbers: []
+provenance:
+    zephyr_sha: 413b789deb391d3a37d06b463288a5fe765ee57e
+    extracted: "2026-08-26"
+    tool: sfd/v0

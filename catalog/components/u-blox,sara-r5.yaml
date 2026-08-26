@@ -1,0 +1,19 @@
+schema: sfd.component/v0
+compatible: u-blox,sara-r5
+class: modem
+buses:
+    - uart
+bindings:
+    - path: dts/bindings/modem/u-blox,sara-r5.yaml
+      on_bus: uart
+      class: modem
+drivers:
+    - drivers/modem
+exercised_by:
+    - boards/shields/sparkfun_carrier_asset_tracker/sparkfun_carrier_asset_tracker.overlay
+depth: D2
+part_numbers: []
+provenance:
+    zephyr_sha: 413b789deb391d3a37d06b463288a5fe765ee57e
+    extracted: "2026-08-26"
+    tool: sfd/v0

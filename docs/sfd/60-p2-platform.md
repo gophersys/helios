@@ -29,13 +29,28 @@ F4 pattern as G1).
 |---|---|---|
 | 1 | `needs_hardware = false` | `none` |
 | 2 | `needs_firmware = false` (passive/analog hardware) | `analog-only` |
-| 3 | a hard OS constraint (e.g. `zephyr-rtos`) | that OS's class — UNLESS rule 4's condition also holds, which is a **CONFLICT** (hard-Zephyr vs an MPU-demanding product), surfaced to the human |
+| 3 | a hard OS constraint (e.g. `zephyr-rtos`) | that OS's class — UNLESS rule 4's OR rule 6's condition also holds, which is a **CONFLICT** (a hard OS constraint on an MPU-demanding or hybrid-shaped product), surfaced to the human. A hybrid under a hard-Zephyr constraint is DELIBERATELY a human call, never auto-derived. |
+| 6 | rule 4's condition AND the hybrid discriminator (below) | `hybrid` (MPU + companion MCU) |
 | 4 | `hmi-class` red OR `compute-demand` red | `mpu-linux` |
 | 5 | otherwise | `mcu-zephyr` |
-| 6 | rule 4's condition AND a low-power always-sensing function set | `hybrid` (MPU + companion MCU) — evaluated before 4 when both hold |
+
+Evaluation order is the row order shown: 1, 2, 3, 6, 4, 5.
+
+**The hybrid discriminator (derived, not judged):** a product is
+hybrid-shaped when rule 4's condition holds AND `pir.modes` includes
+`wakes-on-event` or `wakes-on-schedule` AND `power_class` ∈ [PC0, PC1] AND
+at least one `sensing` function item exists — an MPU-demanding product
+that must also sense on a battery while asleep.
 
 `edge-autonomy` never selects the class; it colors the P3 architecture
-(where logic lives) and rides into the PCR as context.
+(where logic lives) and rides into the PCR's `context` field.
+
+**ABSENT inputs (the registry declares both platform metrics can be):**
+an ABSENT `compute-demand` or `hmi-class` counts as the ABSENCE OF DEMAND
+— it satisfies no red condition and satisfies the lane-B condition (a
+product that demands nothing cannot demand a performance lane). This is
+stated here so the fifth absent-vs-value gap in this repository is closed
+in the doc that would otherwise host the sixth.
 
 ## Lane (decided: derived, in the PCR)
 
@@ -60,6 +75,7 @@ derived: true        # false only when a conflict forced a human decision
 rules_fired: []      # table row numbers, in firing order
 derived_from: []     # the exact metric/constraint/field ids consumed
 conflicts: []        # empty on a clean derivation
+context: {}          # non-selecting inputs carried forward (edge-autonomy)
 decision: {}         # populated ONLY on conflict — verdict/by/quote/at
 provenance:
   pir: {ref: ..., hash: ...}

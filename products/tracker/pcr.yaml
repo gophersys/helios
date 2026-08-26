@@ -22,4 +22,4 @@ context:
     P3 concern, not a class selector
 provenance:
   pir: {ref: products/tracker/pir.yaml, hash: "sha256:dfcab1b177474769249021ee43ce5f3c06caad10819b7f856d6d36f2c54a40ca"}
-  scorecard: {ref: products/tracker/scorecard.yaml, hash: "sha256:89d6ac763ead44cce97036171787de92a12ac1d6a8f0e1ee31528527a32c720c"}
+  scorecard: {ref: products/tracker/scorecard.yaml, hash: "sha256:0248d391df08db0c85f4456d5f85e050eede70a1d09a2596c11ead75974bdd46"}

@@ -52,9 +52,12 @@ P0 INTAKE ─▸ P1 FEASIBILITY ─▸ P2 PLATFORM CLASS ─▸ P3 SW ARCHITECTU
 
 - Decision: none · analog-only · MCU + Zephyr · MPU + embedded Linux · hybrid.
 - Scope now: the Zephyr lane only. The Linux lane is a named hole.
-- Output: **PCR** — Platform Class Record, with the why.
-- Gate **G2**: class fixed. Judgment-heavy → independent architecture review
-  slot (reviewer intentionally unnamed here).
+- Output: **PCR** — Platform Class Record, with the why. The derivation
+  table lives in [`60-p2-platform.md`](60-p2-platform.md): derived-binding
+  when clean; conflicts stop the machine.
+- Gate **G2**: class fixed — by derivation or recorded human decision. The
+  independent architecture review slot applies to the judgment-bearing
+  outcomes: conflicts and `hybrid` (reviewer intentionally unnamed here).
 
 ### P3 — SOFTWARE ARCHITECTURE (Zephyr is the source of truth)
 
