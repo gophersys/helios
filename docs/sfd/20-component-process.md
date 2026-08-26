@@ -9,7 +9,7 @@ discipline wearing a tool's name — refuted 2026-08-26):
 | Transition / rule | Enforced by | Status |
 |---|---|---|
 | PROPOSED → SOURCED | `sfd component add` / `sfd soc add` (refuses without a binding / declaration) | **TOOL v0** |
-| record content = tree content | `sfd verify` re-extracts and diffs every field; hand-edits (promoted depth, added part number, invented compatible) are named drift | **TOOL v0** |
+| record content = tree content | `sfd verify` re-extracts and compares the full serialized content positionally (permutations included); hand-edits (promoted depth, added part number, invented compatible, values traded between entries) are named drift | **TOOL v0** |
 | part numbers empty before P4 | `sfd verify` (rebuild always emits `part_numbers: []`) | **TOOL v0** |
 | SOURCED → EXERCISED (per-board `west build` proof) | nothing yet | **PLANNED** |
 | EXERCISED → SELECTABLE, SELECTABLE → BOUND | nothing yet | **PLANNED** |

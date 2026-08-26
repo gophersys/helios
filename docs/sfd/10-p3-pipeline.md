@@ -109,7 +109,7 @@ with implementation status. Path notes are measured at v4.2.0
 (413b789deb39), not idealized: 13 of 102 `soc.yml` sit at vendor level
 (`soc/espressif/soc.yml` declares esp32c6), and SoC dtsi locations vary
 (`dts/riscv/espressif/esp32c6/…`, but mimxrt1052's file is
-`dts/arm/nxp/nxp_rt1050.dtsi` — neither vendor-prefixed nor SoC-named).
+`dts/arm/nxp/nxp_rt1050.dtsi` — vendor-prefixed, but not SoC-named).
 Discovery therefore never trusts one path pattern: it matches dtsi
 basenames at separator boundaries AND follows the `.dts` includes of
 boards that declare the SoC, then resolves the full dtsi include closure.

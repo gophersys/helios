@@ -231,6 +231,16 @@ func TestBrokenYAMLFailsLoudly(t *testing.T) {
 	}
 }
 
+// Round-2 refuter finding: FindSoc short-circuited on the first match, so
+// an unparseable soc.yml walked AFTER the match was never seen — the
+// loud-failure guarantee was walk-order-dependent.
+func TestFindSocBrokenAfterMatchStillFails(t *testing.T) {
+	if _, err := FindSoc("testdata/brokenafter", "goodsoc"); err == nil ||
+		!strings.Contains(err.Error(), "unparseable") || !strings.Contains(err.Error(), "zzz") {
+		t.Errorf("want unparseable error naming soc/zzz even though goodsoc matched first, got %v", err)
+	}
+}
+
 func TestZephyrSHARefusesNonGit(t *testing.T) {
 	if _, err := ZephyrSHA(fixture); err == nil {
 		t.Fatal("want error for a non-git tree (provenance is mandatory), got nil")

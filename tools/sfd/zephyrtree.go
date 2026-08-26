@@ -248,7 +248,7 @@ func FindSoc(root, name string) (*SocDecl, error) {
 	var found *SocDecl
 	var unparseable []string
 	err := filepath.WalkDir(base, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() || d.Name() != "soc.yml" || found != nil {
+		if err != nil || d.IsDir() || d.Name() != "soc.yml" {
 			return err
 		}
 		raw, err := os.ReadFile(path)
@@ -262,7 +262,7 @@ func FindSoc(root, name string) (*SocDecl, error) {
 			return nil
 		}
 		rel, _ := filepath.Rel(root, path)
-		if decl := searchSocDoc(doc, name, rel); decl != nil {
+		if decl := searchSocDoc(doc, name, rel); decl != nil && found == nil {
 			found = decl
 		}
 		return nil

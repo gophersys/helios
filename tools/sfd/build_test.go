@@ -35,6 +35,57 @@ func TestRecordDiffCatchesComponentTamper(t *testing.T) {
 	}
 }
 
+// Round-2 refuter finding: a line-multiset diff is blind to PERMUTATIONS.
+// Swapping which power state owns which numbers, or which binding owns
+// which bus, changes no line — only their arrangement — and verified
+// green. The comparison must be positional, full serialized content.
+func TestRecordDiffCatchesPermutation(t *testing.T) {
+	rebuilt, err := buildSocRecord(fixture, "testsoc1", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Two states so a name swap is a pure permutation of existing lines.
+	rebuilt.PowerStates = []PowerState{
+		{Name: "standby", MinResidencyUS: 200, ExitLatencyUS: 60},
+		{Name: "soft-off", MinResidencyUS: 2000, ExitLatencyUS: 212},
+	}
+	tampered := *rebuilt
+	tampered.PowerStates = []PowerState{
+		{Name: "soft-off", MinResidencyUS: 200, ExitLatencyUS: 60},
+		{Name: "standby", MinResidencyUS: 2000, ExitLatencyUS: 212},
+	}
+	diff, err := recordDiff(&tampered, rebuilt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diff) == 0 {
+		t.Fatal("power-state name swap verified green — permutation blindness")
+	}
+}
+
+func TestRecordDiffCatchesBusSwap(t *testing.T) {
+	rebuilt, err := buildComponentRecord(fixture, "test,fakesensor")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rebuilt.Bindings = []BindingRef{
+		{Path: "dts/bindings/sensor/a-i2c.yaml", OnBus: "i2c", Class: "sensor"},
+		{Path: "dts/bindings/sensor/a-spi.yaml", OnBus: "spi", Class: "sensor"},
+	}
+	tampered := *rebuilt
+	tampered.Bindings = []BindingRef{
+		{Path: "dts/bindings/sensor/a-i2c.yaml", OnBus: "spi", Class: "sensor"},
+		{Path: "dts/bindings/sensor/a-spi.yaml", OnBus: "i2c", Class: "sensor"},
+	}
+	diff, err := recordDiff(&tampered, rebuilt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(diff) == 0 {
+		t.Fatal("on_bus swap between bindings verified green — permutation blindness")
+	}
+}
+
 func TestRecordDiffCleanOnTruth(t *testing.T) {
 	a, err := buildComponentRecord(fixture, "test,fakesensor")
 	if err != nil {

@@ -70,8 +70,11 @@ sfd.soc/v0:
       tool: sfd/v0
 
 # Verification contract: `sfd verify` RE-EXTRACTS every record through the
-# same builders `add` uses and diffs the full content, field by field, plus
-# the SHA. Exit 0 means: re-running the extraction reproduces the record.
+# same builders `add` uses and compares the FULL serialized content,
+# positionally — order included, so permutations (values traded between
+# entries) are drift too — plus the SHA, and the filename must match the
+# record's identity. Exit 0 means: re-running the extraction reproduces
+# the record byte-for-byte (provenance aside).
 # Hand-edits (a promoted depth, a part number, an invented compatible) are
 # named drift and fail the gate.
 
@@ -90,3 +93,7 @@ sfd.soc/v0:
 #   unreadable include yields no bus rather than an error); the top-level
 #   walkers fail loudly on unparseable YAML.
 # - depth is per-record in v0; per-field depth is the v1 goal.
+# - soc dtsi discovery matches basenames at separator boundaries; a
+#   sibling SoC literally named <name>_<suffix> with its own dtsi would
+#   still be swallowed (0 such collisions among all 1157 soc names at
+#   v4.2.0 — bounded, not eliminated).

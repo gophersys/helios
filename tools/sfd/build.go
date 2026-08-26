@@ -138,6 +138,14 @@ func recordDiff(stored, rebuilt any) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The VERDICT is positional equality of the full serialization. A
+	// line-multiset comparison verified permutations green (power-state
+	// names swapped onto other states' numbers, on_bus values traded
+	// between bindings) — refuted twice, 2026-08-26.
+	if strings.Join(a, "\n") == strings.Join(b, "\n") {
+		return nil, nil
+	}
+	// Reporting: name the multiset differences first (most readable)…
 	inB := map[string]int{}
 	for _, l := range b {
 		inB[l]++
@@ -159,6 +167,26 @@ func recordDiff(stored, rebuilt any) ([]string, error) {
 			diff = append(diff, "rebuilt-only: "+l)
 		} else {
 			inA[l]--
+		}
+	}
+	// …and when the multisets agree (a pure permutation), name the first
+	// positions where the serializations diverge.
+	if len(diff) == 0 {
+		for i := 0; i < len(a) || i < len(b); i++ {
+			la, lb := "", ""
+			if i < len(a) {
+				la = a[i]
+			}
+			if i < len(b) {
+				lb = b[i]
+			}
+			if la != lb {
+				diff = append(diff, fmt.Sprintf("line %d reordered: stored %q, rebuilt %q", i+1, strings.TrimSpace(la), strings.TrimSpace(lb)))
+				if len(diff) >= 8 {
+					diff = append(diff, "… (more reordered lines elided)")
+					break
+				}
+			}
 		}
 	}
 	return diff, nil

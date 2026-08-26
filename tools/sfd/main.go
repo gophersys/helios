@@ -173,6 +173,14 @@ func cmdVerify(args []string) error {
 		}
 	}
 
+	// Filename IS identity: a truthful record under a lying filename
+	// misleads everything that selects by name (refuted 2026-08-26).
+	checkName := func(f, want string) {
+		if filepath.Base(f) != filepath.Base(want) {
+			failures = append(failures, fmt.Sprintf("%s: filename does not match record identity (want %s)", f, filepath.Base(want)))
+		}
+	}
+
 	comps, _ := filepath.Glob(filepath.Join(c.catalog, "components", "*.yaml"))
 	for _, f := range comps {
 		var stored ComponentRecord
@@ -181,6 +189,7 @@ func cmdVerify(args []string) error {
 			continue
 		}
 		checked++
+		checkName(f, componentPath(c.catalog, stored.Compatible))
 		rebuilt, err := buildComponentRecord(c.zephyr, stored.Compatible)
 		if err != nil {
 			failures = append(failures, fmt.Sprintf("%s: rebuild failed: %v", f, err))
@@ -200,6 +209,7 @@ func cmdVerify(args []string) error {
 			continue
 		}
 		checked++
+		checkName(f, socPath(c.catalog, stored.Name))
 		var seeds []string // auto-discovery unless the record was manual
 		if stored.DtsiDiscovery == "manual" {
 			seeds = stored.DtsiSeeds
