@@ -1,0 +1,7 @@
+# West workspace — everything under ws/ is fetched, except the manifest.
+.west/
+ws/*
+!ws/west.yml
+
+# Go build output
+tools/sfd/sfd

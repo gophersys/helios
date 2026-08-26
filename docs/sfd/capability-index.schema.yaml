@@ -1,0 +1,59 @@
+# The catalog record schemas — documentation copy.
+# SOURCE OF TRUTH: the Go types in tools/sfd/record.go. If this file and
+# the Go types disagree, the Go types win and this file is the bug.
+#
+# Records live in catalog/{components,socs}/*.yaml. They are EXTRACTED by
+# `sfd`, never hand-written. Identity is Zephyr-native: a compatible string
+# for components, a SoC name for SoCs. Part numbers are a late binding
+# (P4) — the field exists and stays empty until then.
+
+sfd.component/v0:
+  example:
+    schema: sfd.component/v0
+    compatible: bosch,bme280          # THE identity
+    class: sensor                     # dts/bindings/<class>/
+    buses: [i2c, spi]                 # union of binding on-bus values
+    bindings:
+      - path: dts/bindings/sensor/bosch,bme280-i2c.yaml
+        on_bus: i2c
+        class: sensor
+    drivers:                          # dirs declaring DT_DRV_COMPAT
+      - drivers/sensor/bosch/bme280
+    exercised_by:                     # capped evidence, not a census
+      - tests/drivers/sensor/generic/app.overlay
+    depth: D2                         # D1 binding only · D2 +driver ·
+                                      # D3 only via a recorded build/run
+    part_numbers: []                  # EMPTY until P4, per product
+    provenance:
+      zephyr_sha: <40-hex>            # sfd verify fails on drift
+      extracted: YYYY-MM-DD
+      tool: sfd/v0
+
+sfd.soc/v0:
+  example:
+    schema: sfd.soc/v0
+    name: esp32c6                     # THE identity (soc.yml name)
+    family: espressif
+    series: esp32c6
+    soc_yml: soc/espressif/esp32c6/soc.yml
+    dtsi_files:
+      - dts/riscv/espressif/esp32c6/esp32c6_common.dtsi
+    compatibles: []                   # declared inventory — D1 by definition:
+                                      # declared ≠ supported
+    power_states:
+      - name: suspend-to-idle
+        min_residency_us: 5000
+        exit_latency_us: 120
+    boards: []                        # in-tree boards declaring this SoC
+    depth: D1
+    part_numbers: []                  # e.g. MIMXRT1052CVL5B — only in P4
+    provenance:
+      zephyr_sha: <40-hex>
+      extracted: YYYY-MM-DD
+      tool: sfd/v0
+
+# Known v0 limits (honest):
+# - dtsi extraction is text-level: no include resolution, no /delete-node/,
+#   no C preprocessor. Inventory is DECLARED-in-file only → D1 ceiling.
+# - memory map, pinctrl and clock topology are not yet extracted.
+# - depth is per-record in v0; per-field depth is the v1 goal.
