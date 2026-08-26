@@ -88,8 +88,17 @@ An agent may merge when ALL FOUR hold.
    PR. For a light-lane change the evidence is the REVIEW plus the named checks,
    because a no-op affected gate is the normal result there.
 2. **Read the review verdict as its own call.** APPROVE merges. A repo with no
-   reviewer merges, and you STATE it has none. **A bare round-limit skip does not
-   block.** A review that DIES with no verdict is a failure, never a pass.
+   reviewer merges, and you STATE it has none. **A round-limit skip does not
+   block ONLY when a prior round posted a verdict for the CURRENT head; with no
+   verdict covering the head, it is a review that DIED with no verdict — a
+   failure, never a pass. Re-run it or get a human read.**
+   (Mateo's ruling, 2026-08-26, selecting *"Condition the skip on a verdict"*:
+   an earlier wording carried "a bare round-limit skip does not block" and "a
+   review that DIES with no verdict is a failure" side by side — the same facts
+   permitted and forbidden, since a bare skip IS a no-verdict death. The skip
+   clause's one honest use survives: eden #19 merged legitimately on a
+   round-limit skip precisely because round 4 had posted APPROVE for that exact
+   head before dying at an artifact upload.)
 
    **WHEN THE REPO HAS NO REVIEWER AND THE GATES NO-OP, THE EVIDENCE SET IS
    EMPTY, AND YOU MAY NOT CALL IT SATISFIED.** In eden today both fire at once on
