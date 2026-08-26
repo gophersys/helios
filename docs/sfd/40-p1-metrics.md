@@ -105,7 +105,7 @@ P1 is thereby the catalog's second consumer, after P4.
 | Piece | Status |
 |---|---|
 | metric registry (16 metrics + 2 derived flags, typed) | **AUTHORED v0** — `40-p1-registry.yaml` |
-| two-way trace lint (graph ↔ registry) | PLANNED — same `sfd graph lint` increment as G0's |
+| two-way trace lint (graph ↔ registry) | **TOOL v0** — `sfd graph lint`, wired into `gate.sh` |
 | scorer (`sfd score <pir>`) | PLANNED |
 | catalog query for tech-exists/connectivity | PLANNED — needs the S2 subsystem map to bind functions → capabilities mechanically |
 | recommendation + decision recording | PLANNED (Eden-side) |

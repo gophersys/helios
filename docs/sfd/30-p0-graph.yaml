@@ -451,8 +451,8 @@ lint:
   - every consistency rule references existing question ids and values
   - every per-question `adaptive:` value is an id in the adaptive block
   - every pir_fields entry is produced by >= 1 feeds entry or derivation
-  - every question id and value referenced inside a rule-style derivation
-    or consistency rule exists
+  - every question id and value (where the question has a value domain)
+    referenced inside a rule-style derivation or consistency rule exists
   - every glosses key is a value of its question's values list
   - every routing key is in its record's spawned_by and every routing
     target is one of its feeds entries and a pir_fields id
