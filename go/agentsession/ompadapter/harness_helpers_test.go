@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
@@ -118,7 +119,27 @@ const drainDeadline = 60 * time.Second
 // The two figures are inlined rather than named constants: under `-tags lifecycle|load` this
 // shared file compiles without the live arm that reads them, and each extra name would be one
 // more `unused` finding in a lane that legitimately does not use it.
-var liveDrainBounds = drainBounds{Idle: 60 * time.Second, Total: 10 * time.Minute}
+//
+// Idle is 8m as a DIAGNOSTIC WIDENING, not as a considered bound. The first live run under the
+// 60s idle window — eden run 33007043055 — failed at 70.36s with "no event for 1m0s (the IDLE
+// bound): 32 event(s) seen, last = extension". So the real harness emits a burst and then goes
+// quiet for longer than 60s, and NO run has ever observed the live omp turn boundary: we cannot
+// yet tell "one long gap, then it finishes" from "hung forever", and the true gap has never been
+// measured. Guessing a tighter number costs another ~13-minute conformance cycle per guess, so
+// the bound is opened wide enough that the run reports data instead of tripping, and the drain
+// now records the max inter-event gap on every outcome (drainProgress.maxGap) so ONE run answers
+// both questions. The three outcomes:
+//
+//	(a) PASS, with the max gap logged  -> re-tighten Idle from that measurement, in a PR that
+//	    quotes the run. This bound is provisional until then.
+//	(b) the IDLE bound trips at 8m     -> the harness stalls for >= 8m; treat it as HUNG and
+//	    investigate omp's rpc mode at the pinned version, not the bound.
+//	(c) the Total cap trips at 10m with events still arriving -> the turn genuinely runs past
+//	    10m, which is a different conversation (cap, model, or prompt).
+//
+// Total stays 10m: it is the safety net that keeps a hung harness from pinning CI, and nothing
+// observed so far argues about it.
+var liveDrainBounds = drainBounds{Idle: 8 * time.Minute, Total: 10 * time.Minute}
 
 // drainBounds bounds a drain by two INDEPENDENT clocks. Idle is the maximum gap between
 // CONSECUTIVE events — a harness that is still producing never trips it, however long the whole
@@ -144,14 +165,23 @@ type drainBounds struct {
 // not be reached by any test, and it shipped unproven.
 func drainToTurnBoundary(session agentsession.Session) ([]agentsession.Event, error) {
 	// The STUB arm keeps an absolute bound and no idle bound: a stub is instant or broken.
-	return drainToTurnBoundaryWithin(session, drainBounds{Total: drainDeadline})
+	// The progress record is dropped here on purpose: a scripted stub emits its whole script as
+	// fast as the pipe carries it, so its inter-event gaps measure this machine's scheduler, not
+	// a harness thinking. The LIVE arm is where that number means something, and it takes it.
+	events, _, err := drainToTurnBoundaryWithin(session, drainBounds{Total: drainDeadline})
+	return events, err
 }
 
 // drainToTurnBoundaryWithin takes the bounds as a parameter so a test can drive each timeout
 // branch in seconds instead of waiting out the production bound. It derives ONE total-scoped
 // context for the stream and a FRESH per-wait child for EACH Next, so an arriving event resets
 // the idle clock and only a genuine silence trips it.
-func drainToTurnBoundaryWithin(session agentsession.Session, bounds drainBounds) ([]agentsession.Event, error) {
+//
+// It returns the drainProgress alongside the events because a drain that SUCCEEDS has no error to
+// carry the telemetry, and the successful live run is precisely the one whose max gap tells us
+// what the Idle bound should be re-tightened to. A figure the caller cannot reach cannot be
+// logged, and an unlogged figure is one more live run spent to learn nothing.
+func drainToTurnBoundaryWithin(session agentsession.Session, bounds drainBounds) ([]agentsession.Event, drainProgress, error) {
 	totalCtx, cancelTotal := boundedContext(context.Background(), bounds.Total)
 	defer cancelTotal()
 	stream := session.Events(totalCtx, agentsession.FromSeq(0))
@@ -161,12 +191,14 @@ func drainToTurnBoundaryWithin(session agentsession.Session, bounds drainBounds)
 	for {
 		event, ok, idleExpired := nextWithin(totalCtx, stream, bounds.Idle)
 		if !ok {
-			return progress.events, drainFault(totalCtx, stream, idleExpired, bounds, progress)
+			// Bound to a name first: drainFault takes progress by pointer, so evaluating it inside
+			// the return expression would leave the order of the three results unpinned.
+			fault := drainFault(totalCtx, stream, idleExpired, bounds, &progress)
+			return progress.events, progress, fault
 		}
-		progress.events = append(progress.events, event)
-		progress.lastEvent = time.Now()
+		progress.observe(event, time.Now())
 		if event.Terminal != nil || event.IsTerminal() {
-			return progress.events, nil
+			return progress.events, progress, nil
 		}
 	}
 }
@@ -197,21 +229,67 @@ type drainProgress struct {
 	events    []agentsession.Event
 	started   time.Time
 	lastEvent time.Time
+
+	// maxGap is the widest silence between CONSECUTIVE events, and maxGapFrom/maxGapTo are the
+	// kinds that bracketed it. This is the ONE figure the live lane has never recorded: eden run
+	// 33007043055 reported "32 event(s) seen, last = extension" against a 60s idle bound, which
+	// says only that the LAST gap exceeded 60s. Without the widest COMPLETED gap, a harness that
+	// is slow (a long gap, then it finishes) and one that is hung (silent forever) produce the
+	// same message, and the idle bound can only be re-tightened by guessing. Meaningless below
+	// two events — there is no gap between one event and nothing.
+	maxGap     time.Duration
+	maxGapFrom agentsession.EventKind
+	maxGapTo   agentsession.EventKind
 }
 
-// describe renders the progress for a bound message, rounded so the line reads at a glance.
-func (p drainProgress) describe() string {
-	return fmt.Sprintf("%d event(s) seen, last = %s %s ago, %s elapsed",
+// observe records one arriving event at time at: it appends the event, advances the inactivity
+// clock, and — from the SECOND event on — widens the max-gap telemetry.
+//
+// The FIRST event is deliberately not a gap. Nothing bracketed it, so its latency is the prompt
+// round trip, not the harness falling silent mid-turn, and an Idle bound re-tightened from it
+// would be bounding the wrong thing. `elapsed` already carries that number.
+//
+//nolint:gocritic // Event is the contract's copyable value record (§2); the drain observes it by value.
+func (p *drainProgress) observe(event agentsession.Event, at time.Time) {
+	if len(p.events) > 0 {
+		if gap := at.Sub(p.lastEvent); gap > p.maxGap {
+			p.maxGap = gap
+			p.maxGapFrom = p.events[len(p.events)-1].Kind
+			p.maxGapTo = event.Kind
+		}
+	}
+	p.events = append(p.events, event)
+	p.lastEvent = at
+}
+
+// describe renders the progress for a bound message, rounded so the line reads at a glance. Pointer
+// receiver: the record now carries the gap telemetry too, which puts it over gocritic's hugeParam
+// threshold, and a diagnostic renderer has no reason to copy 88 bytes.
+func (p *drainProgress) describe() string {
+	return fmt.Sprintf("%d event(s) seen, last = %s %s ago, %s elapsed, %s",
 		len(p.events), lastKind(p.events),
 		time.Since(p.lastEvent).Round(time.Millisecond),
-		time.Since(p.started).Round(time.Millisecond))
+		time.Since(p.started).Round(time.Millisecond),
+		p.describeMaxGap())
+}
+
+// describeMaxGap renders the widest observed inter-event silence. Below two events it says there
+// was nothing to measure rather than printing "max gap 0s", which would read as "the harness was
+// never quiet" — the opposite of the truth, and the zero EventKind would name a bracket that
+// never happened.
+func (p *drainProgress) describeMaxGap() string {
+	if len(p.events) < 2 {
+		return "max gap none (fewer than 2 events)"
+	}
+	return fmt.Sprintf("max gap %s between %s and %s",
+		p.maxGap.Round(time.Millisecond), p.maxGapFrom, p.maxGapTo)
 }
 
 // drainFault classifies an ended wait, in the ONE order that cannot mislabel a bound: a stream
 // fault, then the ABSOLUTE cap — whose expiry cancels the per-wait child too, so reading the
 // child first would report every cap as an idle window — then the idle window, then a clean end
 // of stream, which stays exactly what it was: no error.
-func drainFault(totalCtx context.Context, stream agentsession.Stream, idleExpired bool, bounds drainBounds, progress drainProgress) error {
+func drainFault(totalCtx context.Context, stream agentsession.Stream, idleExpired bool, bounds drainBounds, progress *drainProgress) error {
 	if err := stream.Err(); err != nil {
 		return fmt.Errorf("stream fault: %w", err)
 	}
@@ -527,12 +605,25 @@ func TestDrainToTurnBoundary_SlowButProgressingSurvivesTheIdleWindow(t *testing.
 	)
 	session := openPromptedSession(t, newDripAdapter(gap, dripCount))
 
-	events, drainErr := drainToTurnBoundaryWithin(session, drainBounds{Idle: idleWindow, Total: 30 * time.Second})
+	events, progress, drainErr := drainToTurnBoundaryWithin(session, drainBounds{Idle: idleWindow, Total: 30 * time.Second})
 	if drainErr != nil {
 		t.Fatalf("a harness that never stopped producing tripped a bound: %v", drainErr)
 	}
 	if len(events) == 0 {
 		t.Fatal("the dripping harness produced no events")
+	}
+	// A drain that SUCCEEDS carries the max-gap telemetry too, and this is the outcome that
+	// matters most: a passing live run is the only thing that can tell us what Idle should be
+	// re-tightened to, and a number that is never returned to the caller cannot be logged.
+	// The bounds are wide because this reads a real clock, but they still discriminate: the whole
+	// drain takes ~1.8s, so the total elapsed, the idle window and a hard-coded zero all fall out.
+	if progress.maxGap < gap/2 || progress.maxGap > gap*3 {
+		t.Fatalf("the successful drain reports max gap %s, want about the %s drip (allowed %s..%s): %s",
+			progress.maxGap, gap, gap/2, gap*3, progress.describeMaxGap())
+	}
+	// Every drip is an extension, so whichever gap won, the event that ENDED it is one.
+	if progress.maxGapTo != agentsession.EventExtension {
+		t.Fatalf("the max gap ended on %s, want the extension drip: %s", progress.maxGapTo, progress.describeMaxGap())
 	}
 	if events[len(events)-1].Terminal == nil {
 		t.Fatalf("the drain ended on %s, not on a turn boundary (%d event(s) seen)", lastKind(events), len(events))
@@ -584,7 +675,7 @@ func TestDrainToTurnBoundary_AnIdleHarnessTripsTheIdleBound(t *testing.T) {
 		agentsessiontest.Extension([]byte(`{"type":"rate_limit_event"}`)),
 	))
 
-	events, drainErr := drainToTurnBoundaryWithin(session, drainBounds{Idle: idleWindow, Total: 20 * time.Second})
+	events, _, drainErr := drainToTurnBoundaryWithin(session, drainBounds{Idle: idleWindow, Total: 20 * time.Second})
 	if drainErr == nil {
 		t.Fatalf("a harness that went silent drained cleanly; got %d event(s)", len(events))
 	}
@@ -630,7 +721,7 @@ func TestDrainToTurnBoundary_AnEndlessStreamTripsTheAbsoluteCap(t *testing.T) {
 	)
 	session := openPromptedSession(t, newDripAdapter(50*time.Millisecond, 0)) // 0 == drip forever
 
-	events, drainErr := drainToTurnBoundaryWithin(session, drainBounds{Idle: idleWindow, Total: absoluteCap})
+	events, _, drainErr := drainToTurnBoundaryWithin(session, drainBounds{Idle: idleWindow, Total: absoluteCap})
 	if drainErr == nil {
 		t.Fatalf("an endless stream drained cleanly; got %d event(s)", len(events))
 	}
@@ -672,7 +763,7 @@ func TestDrainToTurnBoundary_ADeadlineNamesItself(t *testing.T) {
 	// real harness is given.
 	const testDeadline = 2 * time.Second
 	// Idle left zero — the STUB arm's shape: one absolute bound, no inactivity window.
-	events, drainErr := drainToTurnBoundaryWithin(session, drainBounds{Total: testDeadline})
+	events, _, drainErr := drainToTurnBoundaryWithin(session, drainBounds{Total: testDeadline})
 	if drainErr == nil {
 		t.Fatalf("a session that drew no turn boundary drained cleanly; got %d event(s)", len(events))
 	}
@@ -681,5 +772,115 @@ func TestDrainToTurnBoundary_ADeadlineNamesItself(t *testing.T) {
 	}
 	if !strings.Contains(drainErr.Error(), testDeadline.String()) {
 		t.Fatalf("the error does not carry the deadline value %s: %v", testDeadline, drainErr)
+	}
+}
+
+// maxGapPattern extracts the drain's max-inter-event-gap telemetry from a rendered progress line:
+// the duration and the two event kinds that bracketed it. One home for the shape, cited by every
+// assertion below, so a format change breaks in ONE place instead of four.
+var maxGapPattern = regexp.MustCompile(`max gap (\d[0-9a-zµ.]*) between ([a-z-]+) and ([a-z-]+)`)
+
+// TestDrainToTurnBoundary_ABoundMessageCarriesTheMaxObservedGap pins the ONE figure no live run
+// has ever recorded. eden run 33007043055 failed with "no event for 1m0s (the IDLE bound): 32
+// event(s) seen, last = extension" — which says the harness went silent for AT LEAST 60s and
+// nothing more. The gaps between the 32 events it DID see were never measured, so "slow but
+// progressing with a long gap" and "hung forever" read identically, and the idle bound can only
+// be re-tightened by guessing. Every bound message must carry the largest gap actually observed
+// and the two event kinds that bracketed it.
+//
+// The fixture drips forever at a known gap, so the cap is the only way out and the largest
+// completed gap between consecutive events is dripGap. The `to` kind is pinned and the `from`
+// kind is not: both the first drip (session-state -> extension) and every later one
+// (extension -> extension) are one dripGap apart, so which of the two wins is a scheduler race.
+// The deterministic bracket assertion is TestDrainProgress_ReportsTheMaxObservedGap.
+func TestDrainToTurnBoundary_ABoundMessageCarriesTheMaxObservedGap(t *testing.T) {
+	t.Parallel()
+
+	const (
+		dripGap     = 300 * time.Millisecond
+		absoluteCap = 1400 * time.Millisecond
+		idleWindow  = 1 * time.Second
+	)
+	session := openPromptedSession(t, newDripAdapter(dripGap, 0)) // 0 == drip forever
+
+	events, _, drainErr := drainToTurnBoundaryWithin(session, drainBounds{Idle: idleWindow, Total: absoluteCap})
+	if drainErr == nil {
+		t.Fatalf("an endless stream drained cleanly; got %d event(s)", len(events))
+	}
+	if len(events) < 3 {
+		t.Fatalf("the fixture produced %d event(s), too few for a gap between consecutive events; kinds = %v", len(events), kindsOf(events))
+	}
+	message := drainErr.Error()
+	match := maxGapPattern.FindStringSubmatch(message)
+	if match == nil {
+		t.Fatalf("the bound message carries no max-observed-gap telemetry (want %q): %v", maxGapPattern, drainErr)
+	}
+	reported, parseErr := time.ParseDuration(match[1])
+	if parseErr != nil {
+		t.Fatalf("the reported max gap %q does not parse as a duration: %v", match[1], parseErr)
+	}
+	// The figure must be a MEASUREMENT, not a constant: it lies within one drip of dripGap and
+	// below the cap. A hard-coded zero, the elapsed total, or the idle bound all land outside.
+	if reported < dripGap/2 || reported > dripGap*2 {
+		t.Fatalf("reported max gap %s is not the observed %s drip (allowed %s..%s); message = %v",
+			reported, dripGap, dripGap/2, dripGap*2, drainErr)
+	}
+	// Every drip is an extension, so whichever gap won, the event that ENDED it is one.
+	if match[3] != "extension" {
+		t.Fatalf("the max gap ended on %q, want the extension drip; message = %v", match[3], drainErr)
+	}
+}
+
+// TestDrainProgress_ReportsTheMaxObservedGap pins the telemetry deterministically, on injected
+// timestamps rather than a real clock, so the exact rendered line — the one a live eden run will
+// print and a human will read the next Idle bound off — has exactly ONE right answer.
+//
+// The fixture is built so a wrong implementation cannot pass by luck:
+//   - the LARGEST gap is in the middle, so reporting the LAST gap fails;
+//   - the FIRST event arrives 90s after the drain started, LONGER than the true max, so counting
+//     the drain-start latency as a gap fails. It is not a gap: no event bracketed it, and an Idle
+//     bound re-tightened from it would be measuring the prompt round trip, not the harness going
+//     quiet mid-turn. `elapsed` already carries that number.
+func TestDrainProgress_ReportsTheMaxObservedGap(t *testing.T) {
+	t.Parallel()
+
+	started := time.Date(2026, time.June, 13, 12, 0, 0, 0, time.UTC)
+	progress := drainProgress{started: started, lastEvent: started}
+	// at drain-start +90s: the first event. No predecessor, so no gap.
+	progress.observe(agentsession.Event{Kind: agentsession.EventSessionState}, started.Add(90*time.Second))
+	progress.observe(agentsession.Event{Kind: agentsession.EventExtension}, started.Add(93*time.Second))   // gap 3s
+	progress.observe(agentsession.Event{Kind: agentsession.EventTextDelta}, started.Add(166*time.Second))  // gap 1m13s — the max
+	progress.observe(agentsession.Event{Kind: agentsession.EventMessageEnd}, started.Add(168*time.Second)) // gap 2s
+
+	const wantMaxGap = "max gap 1m13s between extension and text-delta"
+	line := progress.describe()
+	if !strings.Contains(line, wantMaxGap) {
+		t.Fatalf("describe() = %q\nwant it to carry %q", line, wantMaxGap)
+	}
+	if len(progress.events) != 4 {
+		t.Fatalf("observe recorded %d event(s), want 4; kinds = %v", len(progress.events), kindsOf(progress.events))
+	}
+}
+
+// TestDrainProgress_ReportsNoGapBelowTwoEvents is the boundary the fixture above cannot reach: a
+// drain that ends on 0 or 1 events has no gap BETWEEN events at all, and rendering a bare "max gap
+// 0s" there would read as "the harness was never quiet" — the opposite of the truth. Say there was
+// nothing to measure.
+func TestDrainProgress_ReportsNoGapBelowTwoEvents(t *testing.T) {
+	t.Parallel()
+
+	started := time.Date(2026, time.June, 13, 12, 0, 0, 0, time.UTC)
+	for _, count := range []int{0, 1} {
+		progress := drainProgress{started: started, lastEvent: started}
+		for i := 0; i < count; i++ {
+			progress.observe(agentsession.Event{Kind: agentsession.EventSessionState}, started.Add(time.Duration(i+1)*time.Second))
+		}
+		line := progress.describe()
+		if !strings.Contains(line, "max gap none") {
+			t.Fatalf("with %d event(s) describe() = %q, want it to say the gap could not be measured", count, line)
+		}
+		if maxGapPattern.MatchString(line) {
+			t.Fatalf("with %d event(s) describe() = %q reports a measured gap that does not exist", count, line)
+		}
 	}
 }
