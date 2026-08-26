@@ -201,7 +201,15 @@ SETTINGS
   # turn. KILL follows 30s later, so the step is bounded whatever claude does with the signal. 124
   # is the TERM timeout and 137 the KILL, and both arrive below as a named non-zero turn status.
   local turn_output='' turn_status=0
-  turn_output="$(timeout -k 30 120 claude -p 'Reply with the single word: ready.' --settings "$settings" 2>&1)" ||
+  # INJECT the credential this preflight just validated. It checked ${PEER_MESSAGING_CREDENTIAL}
+  # (CLAUDEADAPTER_LIVE_TOKEN) was non-empty and then invoked claude without passing it, so the turn
+  # ran unauthenticated: the check proved the token EXISTS and proved nothing about whether it WORKS.
+  # CLAUDE_CODE_OAUTH_TOKEN is the name the CLI actually reads — the same constant claudeadapter
+  # injects (claudeadapter.go:13). ANTHROPIC_API_KEY is scrubbed for the same reason the adapter
+  # scrubs it: an inherited key would authenticate the turn by a DIFFERENT path, and the preflight
+  # would pass while the credential it is supposed to prove was never exercised.
+  turn_output="$(ANTHROPIC_API_KEY='' CLAUDE_CODE_OAUTH_TOKEN="${!PEER_MESSAGING_CREDENTIAL}" \
+    timeout -k 30 120 claude -p 'Reply with the single word: ready.' --settings "$settings" 2>&1)" ||
     turn_status=$?
 
   local receipt_text=''
