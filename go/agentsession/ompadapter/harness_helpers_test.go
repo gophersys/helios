@@ -191,7 +191,10 @@ func drainToTurnBoundaryWithin(session agentsession.Session, bounds drainBounds)
 	for {
 		event, ok, idleExpired := nextWithin(totalCtx, stream, bounds.Idle)
 		if !ok {
-			return progress.events, progress, drainFault(totalCtx, stream, idleExpired, bounds, progress)
+			// Bound to a name first: drainFault takes progress by pointer, so evaluating it inside
+			// the return expression would leave the order of the three results unpinned.
+			fault := drainFault(totalCtx, stream, idleExpired, bounds, &progress)
+			return progress.events, progress, fault
 		}
 		progress.observe(event, time.Now())
 		if event.Terminal != nil || event.IsTerminal() {
@@ -259,8 +262,10 @@ func (p *drainProgress) observe(event agentsession.Event, at time.Time) {
 	p.lastEvent = at
 }
 
-// describe renders the progress for a bound message, rounded so the line reads at a glance.
-func (p drainProgress) describe() string {
+// describe renders the progress for a bound message, rounded so the line reads at a glance. Pointer
+// receiver: the record now carries the gap telemetry too, which puts it over gocritic's hugeParam
+// threshold, and a diagnostic renderer has no reason to copy 88 bytes.
+func (p *drainProgress) describe() string {
 	return fmt.Sprintf("%d event(s) seen, last = %s %s ago, %s elapsed, %s",
 		len(p.events), lastKind(p.events),
 		time.Since(p.lastEvent).Round(time.Millisecond),
@@ -272,7 +277,7 @@ func (p drainProgress) describe() string {
 // was nothing to measure rather than printing "max gap 0s", which would read as "the harness was
 // never quiet" — the opposite of the truth, and the zero EventKind would name a bracket that
 // never happened.
-func (p drainProgress) describeMaxGap() string {
+func (p *drainProgress) describeMaxGap() string {
 	if len(p.events) < 2 {
 		return "max gap none (fewer than 2 events)"
 	}
@@ -284,7 +289,7 @@ func (p drainProgress) describeMaxGap() string {
 // fault, then the ABSOLUTE cap — whose expiry cancels the per-wait child too, so reading the
 // child first would report every cap as an idle window — then the idle window, then a clean end
 // of stream, which stays exactly what it was: no error.
-func drainFault(totalCtx context.Context, stream agentsession.Stream, idleExpired bool, bounds drainBounds, progress drainProgress) error {
+func drainFault(totalCtx context.Context, stream agentsession.Stream, idleExpired bool, bounds drainBounds, progress *drainProgress) error {
 	if err := stream.Err(); err != nil {
 		return fmt.Errorf("stream fault: %w", err)
 	}
@@ -773,7 +778,7 @@ func TestDrainToTurnBoundary_ADeadlineNamesItself(t *testing.T) {
 // maxGapPattern extracts the drain's max-inter-event-gap telemetry from a rendered progress line:
 // the duration and the two event kinds that bracketed it. One home for the shape, cited by every
 // assertion below, so a format change breaks in ONE place instead of four.
-var maxGapPattern = regexp.MustCompile(`max gap ([0-9][0-9a-zµ.]*) between ([a-z-]+) and ([a-z-]+)`)
+var maxGapPattern = regexp.MustCompile(`max gap (\d[0-9a-zµ.]*) between ([a-z-]+) and ([a-z-]+)`)
 
 // TestDrainToTurnBoundary_ABoundMessageCarriesTheMaxObservedGap pins the ONE figure no live run
 // has ever recorded. eden run 33007043055 failed with "no event for 1m0s (the IDLE bound): 32
