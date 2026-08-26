@@ -161,7 +161,7 @@ type Entity struct {
 type Coupling struct {
     EntityA     string  `json:"entityA"`
     EntityB     string  `json:"entityB"`
-    Degree      float64 `json:"degree"`              // 0–100 = sharedRevisions / averageRevisions
+    Degree      float64 `json:"degree"`              // 0–100 = 100 × sharedRevisions / averageRevisions
     SharedRevs  int     `json:"sharedRevisions"`     // the gated field: an edge needs
                                                      // SharedRevs ≥ Config.CouplingMinShared
     AverageRevs float64 `json:"averageRevisions"`    // the Degree denominator, not a gate
