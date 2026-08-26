@@ -127,9 +127,12 @@ dangling.
   **This fixed the rules file only. `libs/README.md` was missed, so libs is not
   finished** — an earlier version of this record said it was.
 - `~/.claude/CLAUDE.md` — the copy actually loaded into every session carries D5.
-  **But its commit is unpushed** (`0e62373`, with `ef3353a` and `db18f2f`): the
-  rule that governs attribution across the estate exists on one disk. That is the
-  same exposure this record was written to close, one ring further in.
+  Its commit was **unpushed** when this record was written (`0e62373`, with
+  `ef3353a` and `db18f2f`) — the rule governing attribution across the estate
+  existed on one disk, the same exposure this record was written to close, one
+  ring further in. **Cured 2026-08-26:** pushed to `origin/rules-sync-2026-08-25`,
+  verified on the remote. Not on `main`, because the curated-main/personal split
+  is still Mateo's open decision.
 
 Flagged, deliberately **not** claimed: `concord/.claude/rules/git-commits.md:40`
 carries the same line, but concord is a different project.
@@ -253,7 +256,7 @@ the D7 gate should read it against the orchestrator's own record.
 
 ---
 
-## 8. Open — the ARCHITECTURE-phase placement (no ruling yet)
+## 8. The ARCHITECTURE-phase placement — RULED (option A, see §8a)
 
 Recorded here because it was living only in a libs pull request body, and libs has
 no decision register. Its own reviewer flagged that: once that PR merged, the
