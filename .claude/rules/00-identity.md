@@ -145,8 +145,11 @@ that it runs inside.
    not the URLs.
 3. **Do not add a `CLAUDE.md` file.** The conventions of this repository stay
    here, in `.claude/rules/`.
-4. **A human writes the text.** Do not put an AI or LLM attribution of any kind
-   in a commit, in a comment or in a document.
+4. **Attribution is identity.** The record must say who did the work. This
+   REVERSES the no-attribution rule this line used to carry — see "Attribution"
+   under Git hygiene below. `gophersys/eden` `.claude/rules/git-process.md` §13
+   is the single home of the rule (ADR-0032); what follows is this repository
+   obeying it, never a second copy to be maintained.
 
 ## Nx caching
 
@@ -1640,4 +1643,34 @@ Mateo's approval like any other merge.
 - Set `commit.gpgsign = false` for each repository.
 - Use Conventional Commits for every commit.
 - Do not force-push to `main`.
-- Do not put an AI or LLM attribution anywhere.
+
+### Attribution — identity in the record
+
+**Mateo's ruling, 2026-08-25 (D5): ATTRIBUTION IS IDENTITY.** It REVERSES the
+rule this section used to carry, which forbade every AI trailer. An unattributed
+agent commit reads as a human's, and that is a false record.
+
+- **Solo agent work** is authored `Claude <claude-agent@gophersys.noreply>`,
+  with no trailer.
+- **Joint interactive work** is authored Mateo, with a `Co-Authored-By: Claude`
+  trailer.
+- **An agent NEVER commits, approves or comments as "Mateo".** An agent's pull
+  request comment identifies itself and NAMES THE AUTHORITY it acts under.
+- These govern the git AUTHOR field and only that field. The COMMITTER stays the
+  human account whose credential does the push, because an agent has no GitHub
+  identity of its own yet. A commit today therefore reads `author=Claude`,
+  `committer=Mateo Segura`. That is the honest current state and not an
+  oversight; actor-level separation is eden task #138.
+
+**The single home is `gophersys/eden` `.claude/rules/git-process.md` §13
+(ADR-0032).** Read it there. The lines above are this repository obeying that
+rule, not a second home for it — if the two ever disagree, §13 wins and this
+section is the stale one.
+
+**Why this file needed the edit at all.** §13's own closing lesson is "when a
+rule changes, sweep EVERY subject across EVERY ring — root files first, because
+the root is what loads". The D5 sweep closed four files inside eden and stopped
+at that repository's edge. This file is the next ring: Convention 3 forbids a
+`CLAUDE.md` here, so `.claude/rules/00-identity.md` IS this repository's
+always-loaded root, and it carried the reversed rule after the reversal. An
+agent reading only what is loaded for it would have obeyed the dead rule.
