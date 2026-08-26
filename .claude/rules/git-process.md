@@ -212,8 +212,18 @@ key is a hard failure until cictl ships it.
 **The reviewer turn cap is 40, and the dollar budget is NOT the only limiter.**
 Measured 2026-08-25: `review/review.sh:34` reads
 `MAX_TURNS="${REVIEW_MAX_TURNS:-40}"` at cictl `origin/main`, at `v0.5.1` and at
-`v0.6.0` — the version `.devcontainer` pins — and no caller anywhere sets
-`REVIEW_MAX_TURNS`. At 40 turns the agent is cut off mid-tool-call and the run
+`v0.6.0`, and no caller anywhere sets `REVIEW_MAX_TURNS`.
+
+**Correction, 2026-08-26: `.devcontainer` pins `v0.5.1`, not `v0.6.0`.** This
+paragraph called `v0.6.0` "the version `.devcontainer` pins". That was false.
+Measured by reading the file itself —
+`gh api repos/gophersys/.devcontainer/contents/.github/workflows/pr-review.yml`
+gives `CICTL_VERSION: v0.5.1` at line 59. `v0.6.0` exists as a cictl tag, but
+nothing pins it. Every repository that copies this reviewer therefore pins
+`v0.5.1`, and a copy that claims to be byte-identical to `.devcontainer`'s must
+pin `v0.5.1` too. The turn cap is 40 at both versions, so the correction moves
+no capability; it removes a false claim that made a true byte-identity claim
+look like a contradiction. At 40 turns the agent is cut off mid-tool-call and the run
 dies with NO VERDICT, which is the §5.2 failure mode. Raising it to 500 is a
 DIRECTIVE, not a state: §14 row 12, task #134.
 
