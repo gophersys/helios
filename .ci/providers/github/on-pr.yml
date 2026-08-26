@@ -74,6 +74,14 @@ jobs:
           for lib in scale theme visualization primitives; do
             (cd "libs/typescript/$lib" && bash ./ctl.sh build)
           done
+      # The graph must BUILD, and must hold no submodule test-fixture project, before any affected
+      # lane tries to select work from it. `nx affected` already dies on a poisoned graph — that is
+      # how gophersys/eden#14 surfaced BLOCKER-1 — but it dies with nx's generic message 787 commits
+      # into a pointer bump, naming neither the submodule nor the remedy. This step names both, and
+      # it is the holder of `.nxignore`: a glob there that silently stopped matching would restore
+      # the defect class with nothing going red.
+      - name: Guard the project graph (.nxignore holder)
+        run: bash .ci/ctl.sh graph-guard
       - name: Run affected-gate (fast)
         env:
           NX_BASE: origin/${{ github.base_ref }}

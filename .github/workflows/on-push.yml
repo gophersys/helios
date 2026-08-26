@@ -71,6 +71,11 @@ jobs:
           for lib in scale theme visualization primitives; do
             (cd "libs/typescript/$lib" && bash ./ctl.sh build)
           done
+      # The same guard the pull-request lane runs. This lane calls `nx affected` too, so it dies the
+      # same way on a poisoned graph — and a pointer bump that reaches `main` is exactly where that
+      # happens. Without this step the merge tier would report nx's generic message with no cause.
+      - name: Guard the project graph (.nxignore holder)
+        run: bash .ci/ctl.sh graph-guard
       - name: Run affected-check
         env:
           NX_BASE: ${{ github.event.before }}

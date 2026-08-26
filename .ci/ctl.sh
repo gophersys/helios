@@ -162,6 +162,341 @@ function cmd_affected_gate_fast() {
      --base="$NX_BASE" --output-style=stream)
 }
 
+# cmd_graph_guard — eden's project graph holds EDEN's projects and its submodules' REAL projects,
+# and never a submodule's test fixture.
+#
+# THE ASYMMETRY THIS GATE EXISTS FOR. A fixture project file inside a submodule is invisible to BOTH
+# repositories' gates. The submodule builds no nx graph of its own — `.devcontainer`'s `cmd_validate`
+# runs `jq empty` over such a file and reads no field of it — so its CI cannot see the name. Eden
+# never sees the file at all until its POINTER MOVES. So the first thing in the estate able to
+# observe a collision is a submodule pointer bump, the worst possible place for it: gophersys/eden#14
+# carried 847 commits and zero TypeScript and died at `NX Failed to process project graph`, because
+# `.devcontainer` had grown a SECOND `first`/`second` fixture pair in `40edaaf`.
+#
+# IT JUDGES BY PROJECT ROOT, NOT BY NAME, and that is the whole design. An earlier draft read each
+# fixture `project.json`, guessed the 1 or 2 names nx might give it, and asked whether those names
+# were in the graph. An adversarial refutation broke it twice in one sitting: a fixture whose
+# `project.json` carries no `name` but whose sibling `package.json` does is named by neither guess
+# and passed clean; and a fixture with NO `project.json` at all — a bare `package.json` +
+# `tsconfig.json`, which `@nx/js/typescript` infers — was never even looked for. Reading the ROOT of
+# every project nx actually built inverts that: whatever mechanism nx used to infer a project,
+# present or future, its root is still a path, and a path under a submodule fixture directory is
+# still wrong. There is no name to guess and no inference path to enumerate.
+#
+# IT BINDS ON A TREE WITH NO FIXTURES. `.nxignore` is checked for COVERAGE first, so deleting or
+# mangling that file is RED even at pointers carrying no fixture at all. Without that clause the
+# gate asserted nothing on exactly the run used to justify merging it — the whole file could be
+# removed and the verdict was byte-identical.
+function cmd_graph_guard() {
+  require_cmd jq find
+  # FAIL-NOT-SKIP. The sibling verbs in this file warn and return 0 when nx is absent, because they
+  # are RUNNERS and a fresh scaffold has no nx. This is a GATE, and a gate that cannot run is a
+  # failure, never a pass.
+  if ! has_nx; then
+    log_error "graph-guard: nx is not available, so this gate cannot run — that is a FAILURE, never a skip"
+    return 1
+  fi
+
+  # The submodule trees this verb judges. Eden's OWN tree is deliberately not among them: a duplicate
+  # project name that eden itself commits is caught by eden's own gate on the very pull request that
+  # adds it, so it needs no structural exclusion. The submodules are the blind spot.
+  local -a submodule_roots=(".devcontainer" "libs" "infrastructure")
+  # The directory vocabulary. This list is deliberately WIDER than the directory names spelled in
+  # .nxignore: `_fixtures` and `test-fixtures` have no patterns of their own, so a fixture placed in
+  # one reaches the graph and is caught HERE, as a red gate rather than as a quiet hole.
+  local fixture_dir_re='(fixtures?|__fixtures__|_fixtures|test-fixtures|testdata)'
+  # The 3 file types that DEFINE an nx project in this workspace. nx.json enables
+  # @nx/js/typescript, so package.json + tsconfig*.json infer a project exactly as project.json
+  # declares one. .nxignore must cover all 3 for every directory name it spells.
+  local -a project_files=("project.json" "package.json" "tsconfig*.json")
+  local -a ignored_dirs=("fixture" "fixtures" "__fixtures__" "testdata")
+
+  # LIVENESS 1 — every tree this gate judges must be CHECKED OUT, not merely present.
+  # `[[ -d ]]` is NOT that test and reading it as one was a defect: `git submodule init` without
+  # `update`, and a plain `git clone` with no `--recursive`, both leave the mount point as an EMPTY
+  # DIRECTORY. It exists, so a `-d` test passes, while 39 of the 49 projects are simply not there —
+  # and every assertion below then passes having read nothing of the tree it exists to read. An
+  # initialised submodule always carries a `.git` entry (a gitfile in a superproject checkout, a
+  # directory in a standalone clone), so that is what is tested.
+  local root
+  local -a absent=()
+  for root in "${submodule_roots[@]}"; do
+    if [[ ! -d "$REPO_ROOT/$root" ]]; then
+      absent+=("$root (no such directory)")
+    elif [[ ! -e "$REPO_ROOT/$root/.git" ]]; then
+      absent+=("$root (present but NOT checked out — no .git entry)")
+    fi
+  done
+  if [[ ${#absent[@]} -gt 0 ]]; then
+    log_error "graph-guard: submodule tree(s) not usable:"
+    for root in "${absent[@]}"; do log_error "  $root"; done
+    log_error "graph-guard: run 'git submodule update --init --recursive' — an uninitialised submodule makes this gate read nothing and report OK"
+    return 1
+  fi
+
+  # ── 1. .nxignore COVERAGE ────────────────────────────────────────────────────────────────────
+  # Derived here rather than read from the file, so the file is judged against this verb and never
+  # against itself. This is the clause that binds when the fixture set is empty.
+  local nxignore="$REPO_ROOT/.nxignore"
+  if [[ ! -f "$nxignore" ]]; then
+    log_error "graph-guard: .nxignore is absent — a submodule's fixtures would be globbed into eden's graph"
+    return 1
+  fi
+  local dir pf want
+  local -a uncovered=()
+  for root in "${submodule_roots[@]}"; do
+    for dir in "${ignored_dirs[@]}"; do
+      for pf in "${project_files[@]}"; do
+        want="$root/**/$dir/**/$pf"
+        grep -qxF -- "$want" "$nxignore" || uncovered+=("$want")
+      done
+    done
+  done
+  if [[ ${#uncovered[@]} -gt 0 ]]; then
+    log_error "graph-guard: .nxignore is missing ${#uncovered[@]} required pattern(s):"
+    for want in "${uncovered[@]}"; do log_error "  $want"; done
+    return 1
+  fi
+  log_info "graph-guard: .nxignore covers all $(( ${#submodule_roots[@]} * ${#ignored_dirs[@]} * ${#project_files[@]} )) required patterns"
+
+  # ── 2a. THE GRAPH RESOLVES — asserted with `nx show projects`, NOT with `nx graph` ────────────
+  # THESE TWO COMMANDS DISAGREE, and picking the wrong one made this clause a lie.
+  # Measured on this workspace against `.devcontainer` 404e83a, which declares `first` and `second`
+  # twice each — the exact defect that blocked gophersys/eden#14:
+  #
+  #     nx show projects   -> rc=1, "Failed to process project graph ... defined in multiple
+  #                           locations", naming both pairs
+  #     nx graph --file    -> rc=0, silently DEDUPLICATED to 56 nodes, `first` and `second` present
+  #
+  # So a build assertion written on `nx graph` tolerates the very collision this gate exists to
+  # catch, and which of the two same-named projects survives is nx's discovery order. The strict
+  # command is what decides; `nx graph` is used below only to READ roots out of a graph already
+  # proven to resolve.
+  log_info "graph-guard: resolving the nx project graph"
+  local work_dir
+  work_dir="$(mktemp -d -t graph-guard.XXXXXX)"
+  local show_err="$work_dir/show.err"
+  local show_out show_rc=0
+  # STDERR IS KEPT OUT OF $show_out DELIBERATELY. Every non-blank line of it is counted as a project
+  # name below, and the count is compared against the graph's. Folding stderr in with `2>&1` made one
+  # incidental line a FALSE RED on a healthy tree — measured: under `npx`, `nx show projects 2>&1`
+  # yields 51 lines against 49 real projects, the 2 extra being `npm notice` banners. That path is
+  # live: `nx_cmd`'s third branch runs `yarn nx` with no `--silent`, whatever the comment above it
+  # claims. Diagnostics still reach the operator; they just never become project names.
+  show_out="$( (cd "$REPO_ROOT" && nx_cmd show projects) 2>"$show_err" )" || show_rc=$?
+  if [[ $show_rc -ne 0 ]]; then
+    log_error "graph-guard: the nx project graph does not resolve (nx show projects exited $show_rc)"
+    printf '%s\n' "$show_out" >&2
+    cat "$show_err" >&2 || true
+    rm -rf "$work_dir"
+    return 1
+  fi
+  local -a project_names=()
+  mapfile -t project_names < <(printf '%s\n' "$show_out" | grep -vE '^\s*$' || true)
+  # LIVENESS 2 — a graph of zero projects satisfies every assertion below for the wrong reason.
+  if [[ ${#project_names[@]} -eq 0 ]]; then
+    log_error "graph-guard: the graph resolved but holds ZERO projects — nothing here judged anything"
+    rm -rf "$work_dir"
+    return 1
+  fi
+
+  # ── 2b. THE ROOTS ────────────────────────────────────────────────────────────────────────────
+  # `nx graph --file` is the only reader that carries each project's ROOT; `show projects` carries
+  # names alone.
+  local graph_file graph_err
+  # The graph goes in the SAME temp directory as the stderr capture above, so this verb owns exactly
+  # one path in /tmp and removes it on every exit. `nx graph --file` refuses a name not ending in
+  # .json or .html, so an earlier spelling was `"$(mktemp -t X.XXXXXX)".json` — which leaves mktemp's
+  # own extension-less file behind and writes beside it. Three runs left four files in /tmp.
+  graph_file="$work_dir/graph.json"
+  if ! graph_err="$( (cd "$REPO_ROOT" && nx_cmd graph --file="$graph_file") 2>&1 )"; then
+    log_error "graph-guard: 'nx graph --file' failed after the graph had already resolved"
+    printf '%s\n' "$graph_err" >&2
+    rm -rf "$work_dir"
+    return 1
+  fi
+  # The shape is asserted before it is trusted. `jq -r .[]` over an OBJECT silently pretty-prints
+  # its values into lines that read like project names, so a wrong shape has to fail HERE.
+  if ! jq -e 'type=="object" and (.graph.nodes|type=="object")' "$graph_file" >/dev/null 2>&1; then
+    log_error "graph-guard: 'nx graph --file' did not produce a graph with an object at .graph.nodes"
+    head -c 400 "$graph_file" >&2 || true
+    rm -rf "$work_dir"
+    return 1
+  fi
+  local line
+  local -a roots=()
+  mapfile -t roots < <(jq -r '.graph.nodes | to_entries[] | "\(.key)\t\(.value.data.root // "")"' "$graph_file")
+  rm -rf "$work_dir"
+  # The two readers must agree on how many projects there are.
+  #
+  # WHAT THIS DOES AND DOES NOT GUARD, stated exactly, because the previous comment here was wrong
+  # and the error message below still carries the older reading. It said this was "the second line of
+  # defence" on a deduplicated name collision. It is NOT reachable that way: `show projects` REFUSES
+  # a duplicate-name graph, so clause 2a returns above and control never arrives here. A refutation
+  # showed the clause could therefore be deleted outright with the whole suite still green — a check
+  # that cannot fire, which is the worst thing a check can be.
+  #
+  # What it really guards is READER DIVERGENCE: the graph resolves for `show projects`, and
+  # `nx graph --file` nonetheless reports a different set. That is an nx-side inconsistency rather
+  # than a repository defect, and it matters because every root judged below comes from the SECOND
+  # reader while the resolution proof came from the FIRST. If they describe different graphs, clause
+  # 3 is auditing something that was never proven to resolve.
+  #
+  # It is REACHABLE and PROVEN ABLE TO FIRE: `scripts/graph-guard_test.sh` puts an `nx` shim on PATH
+  # that drops one node from the graph file and requires this clause to red, naming both counts.
+  if [[ ${#roots[@]} -ne ${#project_names[@]} ]]; then
+    log_error "graph-guard: the 2 graph readers disagree — 'show projects' reports ${#project_names[@]} project(s), 'graph --file' reports ${#roots[@]}"
+    log_error "graph-guard: the roots judged below come from 'graph --file', but only 'show projects' proved the graph resolves — a gap between them means clause 3 would audit a graph nothing verified"
+    return 1
+  fi
+  log_info "graph-guard: the graph resolves and holds ${#roots[@]} project(s)"
+
+  # ── 4. NO PROJECT IS ROOTED IN A SUBMODULE FIXTURE TREE ──────────────────────────────────────
+  local name prj_root sm
+  local -a leaked=()
+  for line in "${roots[@]}"; do
+    name="${line%%$'\t'*}"
+    prj_root="${line#*$'\t'}"
+    [[ -n "$prj_root" ]] || continue
+    for sm in "${submodule_roots[@]}"; do
+      [[ "$prj_root" == "$sm/"* ]] || continue
+      if printf '%s' "$prj_root" | grep -qE "/${fixture_dir_re}(/|\$)"; then
+        leaked+=("$prj_root -> '$name'")
+      fi
+    done
+  done
+
+  if [[ ${#leaked[@]} -gt 0 ]]; then
+    log_error "graph-guard: ${#leaked[@]} submodule fixture project(s) reached eden's graph:"
+    for line in "${leaked[@]}"; do log_error "  $line"; done
+    log_error "graph-guard: a submodule's test fixtures are never eden's projects — widen .nxignore to cover them"
+    return 1
+  fi
+
+  # ── 5. THE GRAPH MATCHES THE COMMITTED ROSTER ────────────────────────────────────────────────
+  # Clause 4 above is one-way: it proves nothing that should be EXCLUDED got in. This clause is the
+  # other way: it proves nothing that should be INCLUDED went out.
+  #
+  # IT RUNS AFTER CLAUSE 4 ON PURPOSE. A leaked fixture is BOTH a fixture-rooted project and a
+  # project absent from the roster, so whichever clause runs first is the diagnosis the operator
+  # reads. "a submodule fixture reached the graph, here is the path" is actionable; "the graph does
+  # not match the roster" sends them to regenerate a roster that was never the problem. Ordering
+  # decides which is printed, so it is a decision rather than an accident — the test asserts each
+  # clause by its MESSAGE and caught this exact inversion when the roster ran first.
+  #
+  # WHY A ROSTER AND NOT A FLOOR. The first attempt at this clause was a minimum project count plus a
+  # list of named anchor projects. A refutation walked straight through it: append two real
+  # non-anchor roots to `.nxignore`, the graph drops 49 -> 47, and the verb prints
+  # `47 project(s) (floor 45), all 9 anchors present` and exits 0 — two real projects deleted from
+  # every affected lane, everything green. Raising the floor or naming more anchors does not fix
+  # that, and the reason is structural: the floor must sit BELOW today's count to survive a
+  # legitimate removal, and ABOVE it to catch a small exclusion. Those two pressures point in
+  # opposite directions, so any value satisfies one and betrays the other. A sampled list of anchors
+  # has the same defect one project at a time.
+  #
+  # A ROSTER HAS NO SUCH GAP because it is an EQUALITY, not a threshold. `.ci/graph-roster.txt` is
+  # the committed truth about which projects exist and where they are rooted; this clause diffs the
+  # live graph against it and reports BOTH directions. A project that disappears is a red naming it.
+  # A project that appears is also a red naming it — which is the half a floor can never do, and is
+  # what catches a fixture that becomes a real project by some route clause 5 does not model.
+  #
+  # This is the `versions.env` pattern of the .devcontainer submodule: committed truth, diffed
+  # against reality, drift is a DEFECT rather than a surprise. There is no tunable number in it.
+  #
+  # ADDING OR REMOVING A PROJECT IS A DELIBERATE, VISIBLE DIFF: run `bash .ci/ctl.sh graph-roster-update`
+  # and commit the change. A roster edited by hand to silence a red is a lie a reviewer can SEE in
+  # the diff, which is the property the floor never had.
+  local roster="$REPO_ROOT/.ci/graph-roster.txt"
+  if [[ ! -f "$roster" ]]; then
+    log_error "graph-guard: the roster is absent: .ci/graph-roster.txt"
+    log_error "graph-guard: generate it with 'bash .ci/ctl.sh graph-roster-update' and commit it"
+    return 1
+  fi
+  local -a roster_rows=()
+  mapfile -t roster_rows < <(grep -vE '^\s*(#|$)' "$roster" | LC_ALL=C sort)
+  if [[ ${#roster_rows[@]} -eq 0 ]]; then
+    log_error "graph-guard: the roster holds ZERO rows — it would match any graph at all"
+    return 1
+  fi
+  local -a live_rows=()
+  mapfile -t live_rows < <(printf '%s\n' "${roots[@]}" | LC_ALL=C sort)
+  local -a gone=() extra=()
+  mapfile -t gone  < <(comm -23 <(printf '%s\n' "${roster_rows[@]}") <(printf '%s\n' "${live_rows[@]}"))
+  mapfile -t extra < <(comm -13 <(printf '%s\n' "${roster_rows[@]}") <(printf '%s\n' "${live_rows[@]}"))
+  if [[ ${#gone[@]} -gt 0 || ${#extra[@]} -gt 0 ]]; then
+    log_error "graph-guard: the project graph does not match .ci/graph-roster.txt"
+    local row
+    for row in "${gone[@]}";  do log_error "  MISSING from the graph: ${row//$'\t'/  ->  }"; done
+    for row in "${extra[@]}"; do log_error "  NOT IN the roster:      ${row//$'\t'/  ->  }"; done
+    log_error "graph-guard: a MISSING project means a .nxignore pattern is excluding real work from every affected lane"
+    log_error "graph-guard: if this change is deliberate, run 'bash .ci/ctl.sh graph-roster-update' and commit the roster with it"
+    return 1
+  fi
+  log_info "graph-guard: the graph matches the roster exactly (${#roster_rows[@]} project(s))"
+
+  # Reported for the reader, and never used as the pass condition: an empty fixture set is a real
+  # state of the tree (eden main carries none), not a reason to weaken clause 1.
+  #
+  # The wording is deliberately narrow. An earlier line said "all excluded", which claimed more than
+  # the count can support: this `find` sees only the file NAMES this verb knows about, so a fixture
+  # that becomes a project by some other means is outside the number and "all" was a promise about
+  # files nobody had enumerated. Clause 3 is what actually holds the property, over ROOTS, and it
+  # says so on its own line.
+  local fixture_count=0
+  local -a fixture_dirs_abs=()
+  for root in "${submodule_roots[@]}"; do fixture_dirs_abs+=("$REPO_ROOT/$root"); done
+  fixture_count="$(find "${fixture_dirs_abs[@]}" -type f \( -name project.json -o -name package.json -o -name 'tsconfig*.json' \) 2>/dev/null \
+    | grep -cE "/${fixture_dir_re}/" || true)"
+  log_success "graph-guard: OK — ${#roots[@]} project(s) resolved, 0 rooted in a submodule fixture tree"
+  log_info "graph-guard: ${fixture_count} project-shaped file(s) sit under a submodule fixture directory and produced no project"
+}
+
+# cmd_graph_roster_update — regenerate `.ci/graph-roster.txt` from the live graph.
+#
+# The roster is the committed truth `graph-guard` clause 4 diffs against, and this is the ONLY
+# sanctioned way to move it. Adding or removing a project is then a deliberate, reviewable diff in
+# the same pull request as the change that caused it — the `versions.env` discipline, applied to the
+# project graph.
+#
+# It deliberately does NOT run inside graph-guard. A gate that repairs its own expectation cannot
+# fail: it would rewrite the roster to match whatever the graph had become and report OK, which is
+# the defect this whole file exists to make impossible.
+function cmd_graph_roster_update() {
+  require_cmd jq
+  if ! has_nx; then
+    log_error "graph-roster-update: nx is not available, so the roster cannot be regenerated"
+    return 1
+  fi
+  local work_dir graph_file
+  work_dir="$(mktemp -d -t graph-roster.XXXXXX)"
+  graph_file="$work_dir/graph.json"
+  if ! (cd "$REPO_ROOT" && nx_cmd graph --file="$graph_file") >/dev/null 2>&1; then
+    log_error "graph-roster-update: the nx project graph does not build"
+    rm -rf "$work_dir"
+    return 1
+  fi
+  local roster="$REPO_ROOT/.ci/graph-roster.txt"
+  # shellcheck disable=SC2016
+  # The backticks below are LITERAL text of the generated header, not command substitution, and the
+  # `$` in the format line is likewise literal. Single quotes are what keeps them so.
+  {
+    printf '# .ci/graph-roster.txt — every project of eden'"'"'s nx graph, and the root it sits at.\n'
+    printf '#\n'
+    printf '# COMMITTED TRUTH. `bash .ci/ctl.sh graph-guard` diffs the live graph against this file and\n'
+    printf '# fails on ANY difference, in either direction. A project that vanishes is caught, which is what\n'
+    printf '# an over-broad `.nxignore` pattern does; a project that appears is caught too.\n'
+    printf '#\n'
+    printf '# DO NOT HAND-EDIT. Run `bash .ci/ctl.sh graph-roster-update` and commit the diff in the same\n'
+    printf '# change that adds or removes the project. A row edited by hand to silence a red is a lie a\n'
+    printf '# reviewer can see in the diff, and that visibility is the point.\n'
+    printf '#\n'
+    printf '# Format: <project name><TAB><project root>, LC_ALL=C sorted.\n'
+    jq -r '.graph.nodes | to_entries[] | "\(.key)\t\(.value.data.root)"' "$graph_file" | LC_ALL=C sort
+  } > "$roster"
+  rm -rf "$work_dir"
+  log_success "graph-roster-update: wrote $(grep -cvE '^\s*(#|$)' "$roster") project(s) to .ci/graph-roster.txt"
+}
+
 # cmd_affected_gate_substrate — the careful-orchestration lanes on the real docker+k3d host:
 # integration/load/lifecycle/bench-guard, plus cover-floor and mutate. cover-floor lives here (not in
 # the fast lane) because a substrate lib's coverage profile is built with the integration tag
@@ -225,6 +560,8 @@ Commands:
   affected-test   nx affected -t test
   affected-check  nx affected -t lint,typecheck,test (canonical PR gate)
   affected-gate   nx affected -t <full ADR-0020 taxonomy> (lint..maintainability)
+  graph-guard     the nx graph resolves, matches .ci/graph-roster.txt, and holds no submodule fixture
+  graph-roster-update      regenerate .ci/graph-roster.txt (commit the diff with your change)
   affected-gate-fast       the minutes subset (no real-substrate lanes)
   affected-gate-substrate  integration/load/lifecycle on the real docker+k3d host
   lib-gate <lib>  per-lib SDLC sequence: ctl.sh phase-gate all (1→4)
@@ -246,6 +583,8 @@ function main() {
     affected-test)   cmd_affected_test   "$@" ;;
     affected-check)  cmd_affected_check  "$@" ;;
     affected-gate)             cmd_affected_gate           "$@" ;;
+    graph-guard)               cmd_graph_guard             "$@" ;;
+    graph-roster-update)       cmd_graph_roster_update     "$@" ;;
     affected-gate-fast)        cmd_affected_gate_fast      "$@" ;;
     affected-gate-substrate)   cmd_affected_gate_substrate "$@" ;;
     lib-gate)                  cmd_lib_gate                "$@" ;;
