@@ -270,7 +270,10 @@ func LintGraph(graph, registry rawDoc) []Finding {
 	qidRe := regexp.MustCompile(`q\.[A-Za-z0-9_.-]*[A-Za-z0-9]`)
 	// Rule texts compare ids to VALUES (q.x == value); the contract demands
 	// both sides exist. Checked for every question that has a value domain.
-	opRe := regexp.MustCompile(`(q\.[A-Za-z0-9_.-]*[A-Za-z0-9])\s*(?:==|!=)\s*([A-Za-z0-9-]+)`)
+	// Value charset includes `_` (underscores are idiomatic on the schema's
+	// field side) but excludes `.` so a sentence-final period never joins a
+	// token — both halves proven by differential probes Q1/Q4.
+	opRe := regexp.MustCompile(`(q\.[A-Za-z0-9_.-]*[A-Za-z0-9])\s*(?:==|!=)\s*([A-Za-z0-9_-]+)`)
 	checkRuleText := func(rule, owner, text string) {
 		for _, ref := range qidRe.FindAllString(text, -1) {
 			if !qids[ref] {
@@ -302,17 +305,20 @@ func LintGraph(graph, registry rawDoc) []Finding {
 		if strings.HasPrefix(name, "pir.") {
 			producedFields[name] = true
 		}
-		if from := asStr(d["from"]); from != "" {
-			if !qids[from] {
-				add("G7", "derivation %s from unknown question %s", name, from)
-				continue
-			}
+		if from := asStr(d["from"]); from != "" && !qids[from] {
+			add("G7", "derivation %s from unknown question %s", name, from)
+			// no continue: a ghost `from` must not hide a ghost rule ref —
+			// one lint pass reports everything (differential note N1).
+		} else if from != "" {
 			if strings.HasPrefix(name, "pir.") && tiers[from] == "required" {
 				requiredFeeders[name] = true
 			}
-			// Map coverage applies only to derivations that carry a map —
-			// `from` without `map` is legal (differential finding D6).
-			if mp := asMap(d["map"]); len(mp) > 0 {
+			// Map coverage applies to derivations that CARRY the map key —
+			// `from` without `map` is legal (D6), but `map: {}` present-and-
+			// empty is a declared mapping covering nothing and must red
+			// (absent-vs-empty, the fifth instance of that bug class).
+			if mv, has := d["map"]; has && mv != nil {
+				mp := asMap(mv)
 				srcVals := map[string]bool{}
 				for _, v := range values[from] {
 					srcVals[v] = true

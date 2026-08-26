@@ -207,6 +207,15 @@ func TestTamperBatteryDifferential(t *testing.T) {
 			d := asMap(asMap(g["derivations"])["capability.time"])
 			d["rule"] = "timekeeping capability whenever q.power.duty == bogus-duty"
 		}},
+		{"Q6 map present but empty skips coverage", "G7", "wall-power", func(t *testing.T, g, r rawDoc) {
+			d := asMap(asMap(g["derivations"])["pir.power_class"])
+			d["map"] = map[string]any{}
+		}},
+		{"N1b ghost from does not hide ghost rule ref", "G11", "q.ghost.ref", func(t *testing.T, g, r rawDoc) {
+			asMap(g["derivations"])["capability.broken"] = map[string]any{
+				"from": "q.ghost.src", "rule": "whenever q.ghost.ref == never",
+			}
+		}},
 		{"D10 verdict_weight invalid value", "R5", "critical", func(t *testing.T, g, r rawDoc) {
 			metric(t, r, "metric.viability.clarity")["verdict_weight"] = "critical"
 		}},
@@ -259,6 +268,12 @@ func TestLintAcceptsLegitimateShapes(t *testing.T) {
 				"rule": "computed from pir.power_class and pir.modes",
 			}
 			g["pir_fields"] = append(asList(g["pir_fields"]), "pir.derived.example")
+		}},
+		{"Q1 value with underscore in a rule text", func(t *testing.T, g, r rawDoc) {
+			q := question(t, g, "q.power.duty")
+			q["values"] = []any{"always-on", "wakes-on-event", "wakes_on_schedule", "only-when-used"}
+			d := asMap(asMap(g["derivations"])["capability.time"])
+			d["rule"] = "timekeeping capability whenever q.power.duty == wakes_on_schedule"
 		}},
 		{"D9 routing on a scalar spawned_by", func(t *testing.T, g, r rawDoc) {
 			for _, aa := range asList(g["adaptive"]) {
