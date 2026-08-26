@@ -13,6 +13,17 @@
 # #25 did, using the hand-written form because eden's CI is hand-written and the
 # cictl contract cannot reach it (§14 row 7).
 #
+# KNOWN LIMIT OF THIS REVIEWER, and read it before treating a quiet result as a
+# pass: the pinned cictl's turn cap is 40, and no caller raises it. §10 states
+# what happens at the cap — "the agent is cut off mid-tool-call and the run dies
+# with NO VERDICT, which is the §5.2 failure mode." So this workflow closes the
+# §5.2 gap for a review that FITS in 40 turns and reproduces it for one that does
+# not: an empty result here means the review DIED, never that it passed. A
+# substantive pull request is the likely case. cictl #24 raises the default to
+# 500; until that ships and this pin is raised, expect silent-death runs and
+# treat them as a failed review, per §5.2's "a review that DIES with no verdict
+# is a failure, never a pass."
+#
 # It is a COPY of the .devcontainer workflow, deliberately: that file carries
 # lessons paid for in outages — a duplicated timeout-minutes that made the YAML
 # invalid so no check attached at all, and an unpinned clone that made reviews
