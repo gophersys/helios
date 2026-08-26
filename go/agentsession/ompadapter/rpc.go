@@ -398,10 +398,11 @@ func (c *rpcConn) handshake() []agentsession.Event {
 // A pending entry is recorded BEFORE the ask is published, because the autonomous chain resolves
 // synchronously on receipt: the decision Send arrives while this call's event is still being
 // delivered, and resolveDialog must find the entry. The deny-on-timeout timer is armed here
-// because the adapter cannot count on omp arming one: a `select` CAN carry a timeout
-// (rpc-mode.ts:640), but that is the raising caller's choice, and the approval dialog this adapter
-// receives under `--approval-mode always-ask` arrives without one — MEASURED in q3-probe5 (45s,
-// no agent_end), not assumed. An ask the library never resolves would stall the turn.
+// because the adapter cannot count on omp arming one: requestRpcDialog creates a timer only when
+// the raising caller passed dialogOptions.timeout (rpc-mode.ts:640-646), a per-dialog choice made
+// entirely on omp's side before the ask is even written, so a `select` can reach this adapter with
+// no expiry behind it at all. That is why this net is unconditional — an ask the library never
+// resolves would otherwise stall the turn.
 //
 // The other three BLOCKING verbs are dismissed on arrival instead. They are not permission asks,
 // so the permission chain holds no verdict for them and a headless session has no human to raise
