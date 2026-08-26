@@ -107,7 +107,7 @@ func TestRPC_ReadyWaitsForTheReadyFrame(t *testing.T) {
 	}
 
 	harness.emit(frames[0])     // the `ready` frame, alone
-	harness.emit(frames[1:]...) // setWidget, available_commands_update, the negotiate response
+	harness.emit(frames[1:]...) // the fire-and-forget setWidget, then available_commands_update
 	harness.waitEvent("the Initializing->Ready transition", isReady)
 }
 
@@ -482,7 +482,7 @@ func (h *rpcHarness) emit(frames ...string) {
 // The gate is the Initializing->Ready EVENT, not a frame the host writes back, because on a
 // session with no host tools the host writes NOTHING on `ready`: it must not negotiate a protocol
 // whose frames it cannot rebuild (dialog_test.go
-// TestRPC_HandshakeClaimsNoProtocolItCannotDecode). handshake() (rpc.go:344) returns that event
+// TestRPC_HandshakeClaimsNoProtocolItCannotDecode). rpc.go's handshake() returns that event
 // AFTER its writes, so waiting on it orders every later assertion behind them without pinning any
 // particular frame.
 func (h *rpcHarness) completeHandshake() {

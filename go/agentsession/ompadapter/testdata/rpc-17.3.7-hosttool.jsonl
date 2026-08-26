@@ -8,11 +8,20 @@
 #
 # <- q3-probe3-hosttool-roundtrip.txt:10. Registering a host tool mounts it as an xd:// URI.
 {"type":"notice","level":"info","message":"xd://: mounted eden_ping","source":"xdev"}
-# <- q3-probe3-hosttool-roundtrip.txt:11. The set_host_tools acknowledgement, correlated on the
-#    host-chosen id "2" and echoing the accepted tool names.
+# <- q3-probe3-hosttool-roundtrip.txt:11. The set_host_tools acknowledgement, echoing the accepted
+#    tool names and correlated on the host-chosen id the CAPTURED session used, "2".
+#
+#    THE IDS BELOW ARE ONE HIGHER THAN A CURRENT SESSION PRODUCES, and they are left that way on
+#    purpose: at capture time the host spent id "1" on a negotiate_protocol it no longer sends, so
+#    set_host_tools was "2" and the first prompt "3". Today rpc.go's nextFrameID hands out "1" to
+#    set_host_tools and "2" to the first prompt. These are omp ECHOING ids back, and no assertion
+#    correlates on them (the host-tool contract correlates on the host_tool_call's own id, further
+#    down), so they are inert — but they are a capture, not a template, and rewriting the bytes to
+#    match today's wire would forge a session that never ran.
 {"id":"2","type":"response","command":"set_host_tools","success":true,"data":{"toolNames":["eden_ping"]}}
 # <- q3-probe3-hosttool-roundtrip.txt:12. The prompt command is ACCEPTED here; the turn's
-#    frames follow. The turn text rode the stdin `prompt` frame, never argv.
+#    frames follow. The turn text rode the stdin `prompt` frame, never argv. Captured id "3"; a
+#    current session numbers this one "2" (see the note above).
 {"id":"3","type":"response","command":"prompt","success":true}
 # <- q3-probe3-hosttool-roundtrip.txt:13-14.
 {"type":"agent_start"}

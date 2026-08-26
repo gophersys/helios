@@ -181,11 +181,23 @@ func TestRPC_EveryBlockingDialogVerbIsAnswered(t *testing.T) {
 // answered or abandoned (rpc-mode.ts:628-634, :574-582). An unsolicited extension_ui_response for
 // one of those resolves nothing on omp's side and is noise on a correlated channel.
 //
-// The guard is NON-VACUOUS by construction, not by a sleep: each case emits a `select` on the SAME
-// conn AFTER the fire-and-forget frame, and waits for the answer the adapter DOES owe it. Frames
-// are serviced in wire order (rpc.go's publishLine), and an inline answer is written inside that
-// same service call, so any answer to the fire-and-forget verb would already be recorded by the
-// time the control's answer lands. The window is therefore bounded by an event that HAPPENED.
+// WHAT THIS GUARD CATCHES, AND WHAT IT CANNOT. An earlier version of this comment claimed the
+// window was bounded "by construction, not by a sleep". That was FALSE, and it was refuted by
+// execution rather than by reading: a deferred answer (a time.AfterFunc inside dialog()) writing
+// the same frame lands at 101ms and this test goes RED (rc=1), lands at 400ms and it stays GREEN
+// (rc=0). An overclaimed guard is the "check that cannot fail" defect this suite exists to catch,
+// so the claim is now stated at its true width:
+//
+//   - CAUGHT, by construction — an INLINE answer, which is the realistic widen: a new `case` in
+//     dialog()'s switch. rpc.go's publishLine services a line and THEN normalizes it, so the
+//     EventExtension republishing this very request is published strictly AFTER dialog() returned
+//     for it (normalize.go keeps `extension_ui_request` on the control-plane arm). Waiting for that
+//     event is an exact causal bound: at that instant an inline answer is already in the recorder.
+//   - CAUGHT — any answer written inside the observed window, which the positive control below
+//     extends to the fallback deny.
+//   - NOT CAUGHT — an answer deliberately deferred past the window. No finite test can bound an
+//     arbitrary delay, and pretending otherwise is how a guard starts lying. Closing that gap needs
+//     a different instrument (a mutation run over dialog(), rule 21 §h), not a longer sleep here.
 func TestRPC_FireAndForgetVerbsAreNeverAnswered(t *testing.T) {
 	t.Parallel()
 	for _, verb := range fireAndForgetVerbs() {
@@ -195,8 +207,13 @@ func TestRPC_FireAndForgetVerbsAreNeverAnswered(t *testing.T) {
 			harness.completeHandshake()
 
 			harness.emit(verb.frame(t))
+			// The exact causal bound on the inline case: this event is published only after
+			// dialog() has returned for this same line.
+			harness.waitEvent("the EventExtension republishing the `"+verb.method+"` request, which follows dialog() returning for it", carriesFrameID(verb.id))
 			// The positive control: a `select`, which the adapter answers through the injected
-			// short fallback (permission_fallback_test.go's F1 TIMEOUT contract).
+			// short fallback (permission_fallback_test.go's F1 TIMEOUT contract). It proves the
+			// recorder DOES observe an extension_ui_response, so the assertion below is not
+			// vacuously green on a broken observation path.
 			harness.emit(selectDialogFrame(t, dialogID, "bash", "ls -la"))
 			harness.waitFrame("positive-control fallback deny for the `select` dialog", isDialogAnswerFor(dialogID))
 
@@ -380,6 +397,16 @@ func assertDismissal(t *testing.T, answer map[string]any, dialog blockingDialog)
 func isDialogAnswerFor(id string) func(map[string]any) bool {
 	return func(frame map[string]any) bool {
 		return stringField(frame, "type") == "extension_ui_response" && stringField(frame, "id") == id
+	}
+}
+
+// carriesFrameID matches the verbatim EventExtension normalize.go republishes for a control-plane
+// frame, found by the frame id inside its raw bytes. Publishing it is strictly downstream of
+// rpc.go's service() returning for that same line, which is what makes it a causal bound rather
+// than a delay.
+func carriesFrameID(id string) func(*agentsession.Event) bool {
+	return func(event *agentsession.Event) bool {
+		return event.Kind == agentsession.EventExtension && bytes.Contains(event.Extension, []byte(id))
 	}
 }
 
