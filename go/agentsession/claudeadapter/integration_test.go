@@ -183,7 +183,8 @@ func TestIntegration_LiveClaude_Gated(t *testing.T) {
 		t.Skip("claude binary not on PATH: skipping the live arm")
 	}
 
-	pool := newPoolWithToken(t, claudeadapter.MustNewForTest(t, claudeadapter.Config{}), token)
+	// Empty model: the live arm must use claude's own default REAL model.
+	pool := newPoolWithToken(t, claudeadapter.MustNewForTest(t, claudeadapter.Config{}), token, "")
 	session, err := pool.Open(context.Background(), agentsession.Spec{
 		Workspace:  t.TempDir(),
 		Routing:    agentsession.RouteKey{Role: "assistant"},
@@ -585,17 +586,23 @@ func stubSourceDir(t *testing.T) string {
 // newPool constructs a Pool over the adapter with a FAKE seeded credential (the canary).
 func newPool(t *testing.T, adapter agentsession.Adapter) *agentsession.Pool {
 	t.Helper()
-	return newPoolWithToken(t, adapter, fakeCanary)
+	return newPoolWithToken(t, adapter, fakeCanary, "stub-fable")
 }
 
 // newPoolWithToken constructs a Pool whose provider resolves the credential reference to
 // the given token (a fake canary in the stub arm; the operator-supplied token in the gated
 // live arm — never minted here).
-func newPoolWithToken(t *testing.T, adapter agentsession.Adapter, token string) *agentsession.Pool {
+// newPoolWithToken takes the MODEL explicitly because the same helper serves two
+// callers with opposite needs, and a hardcoded default silently served the wrong one:
+// the live arm routed the REAL claude binary to "stub-fable", a model that does not
+// exist. Empty means claude's own default real model; a stub name is only ever correct
+// against the in-repo stub harness. Naming it at the call site makes the mismatch
+// visible instead of inherited.
+func newPoolWithToken(t *testing.T, adapter agentsession.Adapter, token, model string) *agentsession.Pool {
 	t.Helper()
 	pool, err := agentsession.New(
 		agentsession.Config{Routing: map[agentsession.RouteKey]agentsession.Route{
-			{Role: "assistant"}: {Harness: "claude-code", Model: "stub-fable"},
+			{Role: "assistant"}: {Harness: "claude-code", Model: model},
 		}},
 		agentsession.Deps{
 			Adapters:   map[string]agentsession.Adapter{"claude-code": adapter},
@@ -620,6 +627,12 @@ func (integrationClock) Now() time.Time { return time.Date(2026, time.June, 13, 
 // drainDeadline bounds a live harness run. Exceeding it is a FAILURE that says
 // so, never a quiet return of a partial event list.
 const drainDeadline = 15 * time.Second
+
+// liveDrainDeadline bounds a drain against the REAL harness. A live turn takes tens of
+// seconds; the 15s default above is sized for the in-repo stub and cut real runs off
+// mid-turn, which reads as a hang rather than as a deadline that was never live-sized.
+// 120s matches the other live arm in this file; the multi-turn lane uses 90s and omp 60s.
+const liveDrainDeadline = 120 * time.Second
 
 // Re-pinned for contract revision R1: the drain stops on the boundary PAYLOAD
 // (`event.Terminal != nil`), which is the SAME event on both sides of the revision — a success
