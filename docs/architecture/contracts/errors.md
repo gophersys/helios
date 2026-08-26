@@ -1,6 +1,22 @@
-# Contract draft — errors
+# Contract — errors
 
-> Status: Draft for negotiation (WS1, not frozen) · 2026-06-12 · Reconciled from independent producer/consumer drafts (09 §4). Freezes at the contract-PR gate after review.
+> Status: Frozen (ADR-0020, verify-then-freeze) · 2026-08-26 · Reconciled from independent
+> producer/consumer drafts (09 §4) and frozen with the library built: the exported surface is
+> mechanically recorded at `libs/go/errors/.apibaseline` (the freeze made mechanical, ADR-0020) and
+> the ADR-0020 8-dimension test taxonomy is green (`bash ./ctl.sh phase-gate qa`). This text was
+> diffed claim-by-claim against that baseline at libs `1b8f668` — which is AHEAD of eden's submodule
+> pin `50940e1d` (the pointer bump is eden #14, in flight; the two libraries' surfaces are byte-identical
+> at both commits) — then the diff was ADVERSARIALLY REFUTED, which found drift the first pass had
+> missed. Every claim found false was AMENDED before the flip: `IsType` added to §2; the conformance
+> entry point named `RunErrorsSuite`; the `errorstest` receiver named `tb`; the two conformance
+> properties the suite runs beyond the nine listed; `FromContext`'s KindUnknown arm (it does NOT
+> return nil for every non-cancel ctx); `Error()`'s empty-message and nil-receiver shapes; and §6.9's
+> claim about the only interface in the surface. Frozen under **Mateo's ruling, 2026-08-26**
+> (AskUserQuestion decision prompt in the interactive session on his MacBook, session f9c810a8 —
+> not the eden orchestrator session), verbatim: *"Verify-then-freeze (Recommended)"* — mechanical diff
+> of contract vs the library's real exported surface; clean → freeze; drift → amend the doc to match
+> reality first, then freeze. A breaking change to the surface requires a contract revision
+> (ADR-0016 §1) + re-recording the `.apibaseline` — the cardinal sin otherwise (10 §9).
 
 ## 1. Scope
 
@@ -80,7 +96,9 @@ type Error struct {
 }
 
 // Error implements error. It renders the operator-safe message and, if a cause
-// is present, ": <cause>". The message is never a secret value.
+// is present, ": <cause>"; an empty message renders the bare cause, and a nil
+// *Error renders "<nil>" rather than panicking. The message is never a secret
+// value. Every accessor below is nil-receiver-safe for the same reason.
 func (e *Error) Error() string
 
 // Unwrap exposes the wrapped cause for errors.Is / errors.AsType / errors.Join.
@@ -129,8 +147,10 @@ func (e *Error) WithCode(code string) *Error
 func (e *Error) WithField(key string, value any) *Error
 
 // FromContext maps a canceled/expired context to the right Kind
-// (KindCanceled / KindDeadline) from ctx.Err(), else returns nil. Pure given
-// ctx.Err().
+// (KindCanceled / KindDeadline) from ctx.Err(). It returns nil ONLY for a live
+// context (ctx.Err() == nil); a ctx.Err() that is neither canonical sentinel
+// yields a KindUnknown *Error rather than nil, so a non-standard Context
+// implementation can never be read as "no error". Pure given ctx.Err().
 func FromContext(ctx context.Context) *Error
 
 // --- Inspection (AsType-first, Go 1.26) + re-exported verbs ---------------
@@ -144,6 +164,13 @@ func KindOf(err error) Kind
 // every call site imports ONE errors package and never reaches for stdlib
 // errors.As. Prefer this over Is for typed extraction.
 func AsType[E error](err error) (E, bool) { return stderrors.AsType[E](err) }
+
+// IsType is the boolean form of AsType for the "is there one?" inspection where
+// the extracted value is not needed. It is the ONE home of the typed-inspect
+// boolean: no other library may re-derive `_, ok := AsType[E](err)` as a local
+// wrapper (the cross-lib duplicate-wrapper detector fails a lib that does). By
+// construction IsType[E](err) == the ok of AsType[E](err).
+func IsType[E error](err error) bool { _, ok := AsType[E](err); return ok }
 
 // Is and Join are re-exported for sentinel comparison and aggregation (swarm /
 // fan-out FileLease verification, 02 §2). Is reports whether the chain matches a
@@ -177,16 +204,16 @@ func Wrapping(outer errors.Kind, inner error) *errors.Error
 
 // RequireKind fails the test unless errors.KindOf(err) == want, reporting the
 // actual Kind and the rendered error.
-func RequireKind(t testing.TB, err error, want errors.Kind)
+func RequireKind(tb testing.TB, err error, want errors.Kind)
 
 // RequireNoSecret fails if err.Error() or any attached Field's rendered value
 // contains any of the needles. It walks the whole Unwrap chain — the canonical
 // redaction-safety conformance check every consumer runs over its error paths.
-func RequireNoSecret(t testing.TB, err error, needles ...string)
+func RequireNoSecret(tb testing.TB, err error, needles ...string)
 
 // AssertUnwrapsTo asserts the cause is reachable via errors.AsType[E] and returns
 // the extracted value for further assertions.
-func AssertUnwrapsTo[E error](t testing.TB, err error) E
+func AssertUnwrapsTo[E error](tb testing.TB, err error) E
 ```
 
 ## 4. Conformance suite
@@ -195,8 +222,8 @@ The suite is exported from `errorstest` so any future adapter or alternative
 construction path proves substitutability against the same properties.
 
 ```go
-// RunConformance asserts the errors contract holds for the production verbs.
-func RunConformance(t *testing.T)
+// RunErrorsSuite asserts the errors contract holds for the production verbs.
+func RunErrorsSuite(t *testing.T)
 ```
 
 Properties asserted:
@@ -208,8 +235,10 @@ Properties asserted:
 - **Kind inheritance** — `Wrap(KindUnknown, msg, cause)` where `cause` carries an `*Error` Kind reports the cause's Kind via `KindOf`; an explicit Kind always overrides.
 - **Immutability / copy-on-write** — `WithCode`/`WithField` leave the receiver unchanged and return a distinct `*Error`; `Fields()` returns a copy (mutating it does not affect the source).
 - **Redaction safety** — a constructed/wrapped/field-annotated `*Error` never renders a needle passed only as a structured value; `WithField` of a non-scalar yields `"[unredactable]"`, not the value.
-- **Context mapping** — `FromContext` yields `KindCanceled` / `KindDeadline` for a canceled / deadline-exceeded ctx and `nil` otherwise.
+- **Context mapping** — `FromContext` yields `KindCanceled` / `KindDeadline` for a canceled / deadline-exceeded ctx and `nil` for a live one. The suite asserts those three cases; the `KindUnknown` arm for a non-canonical `ctx.Err()` is contract but is NOT yet a conformance case.
 - **AsType re-export equivalence** — `errors.AsType[E]` agrees with `stderrors.AsType[E]` over the same chain.
+- **Typed-nil hazard** — the concrete `*Error` return makes `Wrap`/`FromContext`'s nil a TYPED nil; the suite pins the hazard so the documented guarded idiom is the one callers copy.
+- **Nil-receiver safety** — every accessor on a nil `*Error` (`Error`/`Unwrap`/`Kind`/`Code`/`Fields`/`WithCode`/`WithField`) is total and never panics, so a leaked typed nil cannot crash a render or derivation site.
 
 ## 5. Usage
 
@@ -325,8 +354,9 @@ func run(ctx context.Context) error {
    severity to logging, the numeric wire code to transport, i18n to presentation. Speculative
    generality excluded.
 9. **The concrete type carries 7 methods; the 5-method cap does not bind it.** `interfacebloat(max 5)`
-   governs *interfaces* (10 §9). `*Error` is concrete (accept interfaces, return concrete); the only
-   interface in the surface is `errorstest`'s use of `testing.TB`. No interface split needed.
+   governs *interfaces* (10 §9). `*Error` is concrete (accept interfaces, return concrete), and this
+   library DECLARES no interface of its own — the interfaces in its signatures are the standard
+   library's (`error`, `context.Context`, and `errorstest`'s `testing.TB`). No interface split needed.
 
 ## 7. Open questions
 
