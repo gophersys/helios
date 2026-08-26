@@ -14,10 +14,13 @@
 // PROCESS PER TURN — a session that exits after its turn cannot serve a second Prompt, cannot
 // hold set_host_tools, and cannot take an injected turn. `--mode rpc` keeps one process alive
 // across every turn: NDJSON commands on stdin, frames on stdout, readiness announced by omp's
-// own `ready` frame. Its bidirectional traffic is answered rather than avoided (rpc.go):
-// the fire-and-forget widget requests are ignored, and the dialogs — which carry no timeout
-// and therefore wait forever — are answered on arrival. Never `--mode rpc-ui`: that mode
-// installs the tool UI context (main.ts:1570) and is the plane a tool can block on.
+// own `ready` frame. Its bidirectional traffic is answered rather than avoided (rpc.go): the
+// fire-and-forget verbs draw no reply, `confirm`/`input`/`editor` are dismissed on arrival, and
+// the approval `select` goes to the library's permission chain — answered on its verdict, or on
+// the adapter's own deny-on-timeout net, since omp arms a dialog timer only when the caller that
+// raised it asks for one. dialog() and handshake() carry the argument and the omp citations.
+// Never `--mode rpc-ui`: that mode installs the tool UI context (main.ts:1570) and is the plane
+// a tool can block on.
 package ompadapter
 
 import (

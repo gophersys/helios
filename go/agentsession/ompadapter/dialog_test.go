@@ -272,6 +272,10 @@ type blockingDialog struct {
 
 // blockingDialogs is the set this change must start answering: the blocking verbs OTHER than
 // `select`, which rpc.go's dialog() routes through the library's permission chain instead.
+//
+// These three plus `select` are ALL FOUR blocking variants of omp 17.2.5's RpcExtensionUIRequest
+// union (rpc-types.ts:372-428); fireAndForgetVerbs below carries the other seven, and together the
+// two tables account for every variant the union declares.
 func blockingDialogs() []blockingDialog {
 	return []blockingDialog{
 		{
@@ -319,7 +323,18 @@ type fireAndForgetVerb struct {
 	source string
 }
 
-// fireAndForgetVerbs is every non-blocking `extension_ui_request` method omp 17.2.5 can print.
+// fireAndForgetVerbs is every non-blocking variant of omp 17.2.5's RpcExtensionUIRequest union
+// (rpc-types.ts:372-428) — all SEVEN. The union declares eleven: four BLOCKING (select, confirm,
+// input, editor; see blockingDialogs above) and these seven, which register no pending request and
+// are therefore awaited by nobody.
+//
+// The enumeration is derived from the TYPE UNION, not from grepping the emission sites, and the
+// distinction is load-bearing: an earlier version of this comment claimed "every non-blocking
+// method omp can print" while carrying only SIX, because `open_url` is emitted from omp's `login`
+// handler (rpc-mode.ts:1409-1416) — a command this adapter never sends, so it appears on no path
+// this package exercises. A verb missing from this table is a verb the guard waves through:
+// widening dialog() to answer `open_url` left the whole package GREEN. An exhaustiveness claim
+// that is off by one is the same defect class as a guard bounded "by construction" that is not.
 func fireAndForgetVerbs() []fireAndForgetVerb {
 	return []fireAndForgetVerb{
 		{
@@ -351,6 +366,16 @@ func fireAndForgetVerbs() []fireAndForgetVerb {
 			id:     "155cde478590c005",
 			fields: map[string]any{"text": "go test ./..."},
 			source: "rpc-mode.ts:868-876, a void method",
+		},
+		{
+			method: "open_url",
+			id:     "155cde478590c007",
+			fields: map[string]any{
+				"url":          "https://openrouter.example/auth?code=stub",
+				"launchUrl":    "http://127.0.0.1:1455/auth",
+				"instructions": "Open the URL to finish signing in.",
+			},
+			source: "rpc-mode.ts:1409-1416, a bare output({...}) in the login handler's onAuth callback with NO pendingRequests.set, so nothing on omp's side awaits it",
 		},
 		{
 			method: "cancel",
