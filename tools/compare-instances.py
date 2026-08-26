@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """Determinism measurement: N independent (pir.yaml, scorecard.yaml) pairs
--> per-field agreement matrix + overall rates. Pure comparison, no judgment."""
+-> per-field agreement matrix + overall rates. Pure comparison, no judgment.
+
+COVERAGE DISCLOSURE: the comparison is a CANONICAL PROJECTION — enums,
+sets, derived fields, the 16 score levels, verdict, and item counts. It
+deliberately excludes free-text leaves (summary, users, novelty.*,
+targets.success/battery_life/unit_cost.build, timeline.*, notes), where
+blind readers phrase rather than diverge. "PIR agreement" means agreement
+on the projection, not byte-identity of the records."""
 import sys, yaml, json
 from pathlib import Path
 from collections import Counter
@@ -42,6 +49,7 @@ def pir_features(p):
       "assets": norm_set(p.get("assets")),
       "fn.capabilities": frozenset(Counter(norm_scalar((f or {}).get("capability"))
                                for f in (p.get("functions") or [])).keys()),
+      "fn.item_count": norm_scalar(len(p.get("functions") or [])),
     }
     return feats
 

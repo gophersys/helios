@@ -1,7 +1,11 @@
-# Scorecard #1 — tracker. Scored by the session agent (instance-0) against
-# 40-p1-registry.yaml, BEFORE the reproduction instances reported (blind).
+# Scorecard #1 — tracker. THIS record is the post-addendum rescoring by
+# the session agent against contracts v3 (it cites v2/v3 scale text and
+# the addendum answers, and could not have existed before the
+# reproduction runs). The agent's original BLIND run-1 scoring is
+# preserved unchanged at products/tracker/repro/run1/i0/ — that file, not
+# this one, is the blindness evidence.
 schema: sfd.scorecard/v0
-pir: {ref: products/tracker/pir.yaml, hash: pending-commit}
+pir: {ref: products/tracker/pir.yaml, hash: "sha256:dfcab1b177474769249021ee43ce5f3c06caad10819b7f856d6d36f2c54a40ca"}
 scores:
   - {id: metric.viability.clarity,        score: green, evidence: ["one sentence states product and purpose"]}
   - {id: metric.viability.outcome,        score: green, evidence: ["success measurable: installed + notifying + cloud-tracking"]}
@@ -25,10 +29,12 @@ derived:
 human_gates: []
 recommendation:
   verdict: go
+  rule_applied: 4
   blockers: []
   reasons:
-    - "amber tech.exists/connectivity: cellular+GNSS not in catalog — first P4 task is sourcing that part through the component process"
-    - "amber power-risk: month+ guard mode requires aggressive sleep design; proven class"
-    - "amber economics: $100 @10qty is tight with a cellular module"
-    - "minor ambers: env conditions, novelty, self-assessed risk (no plan yet), privacy(location), edge-autonomy, compute"
+    - "core ambers: tech.exists + connectivity (cellular+GNSS not in catalog — first P4 task: source the part through the component process); power-risk (month+ guard needs aggressive sleep; proven class); economics ($100 @10qty tight with a cellular module; not-for-sale limb)"
+    - "minor ambers: env-risk (hard conditions; limits UNKNOWN degrades precision), novelty (incremental vs existing trackers), head-start (nothing exists, no timeline pressure), self-assessed risk (fear well-placed, no plan yet), privacy (location)"
+    - "P2-class ambers (non-verdict-bearing): edge-autonomy"
+    - "minor unknowns: none"
+    - "safety note for G1: LiPo + heat + vibration — founder answered none; pack/thermal care is a named P5 item"
 decision: {}   # F4 — Mateo's, recorded verbatim when made

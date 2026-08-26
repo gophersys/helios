@@ -207,6 +207,16 @@ func TestTamperBatteryDifferential(t *testing.T) {
 			d := asMap(asMap(g["derivations"])["capability.time"])
 			d["rule"] = "timekeeping capability whenever q.power.duty == bogus-duty"
 		}},
+		{"PR6-F6 'includes' phrasing gets value checking too", "G11", "bogus-membership", func(t *testing.T, g, r rawDoc) {
+			d := asMap(asMap(g["derivations"])["capability.time"])
+			d["rule"] = "timekeeping capability whenever q.power.duty includes bogus-membership"
+		}},
+		{"PR6-N1 exclusive entry not a value", "G18", "warp-speed", func(t *testing.T, g, r rawDoc) {
+			question(t, g, "q.fn.talks")["exclusive"] = []any{"warp-speed"}
+		}},
+		{"PR6-N1 exclusive on a non-multi question", "G18", "q.intent.what", func(t *testing.T, g, r rawDoc) {
+			question(t, g, "q.intent.what")["exclusive"] = []any{}
+		}},
 		{"Q6 map present but empty skips coverage", "G7", "wall-power", func(t *testing.T, g, r rawDoc) {
 			d := asMap(asMap(g["derivations"])["pir.power_class"])
 			d["map"] = map[string]any{}

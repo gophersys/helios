@@ -195,6 +195,17 @@ func LintGraph(graph, registry rawDoc) []Finding {
 				add("G12", "%s gloss key %q is not one of its values", id, k)
 			}
 		}
+		// G18: exclusive — only on multi, entries must be values
+		if excl, has := q["exclusive"]; has {
+			if typ != "multi" {
+				add("G18", "%s carries exclusive but is type %s — exclusive is multi-only", id, typ)
+			}
+			for _, e := range strList(excl) {
+				if !vals[e] {
+					add("G18", "%s exclusive entry %q is not one of its values", id, e)
+				}
+			}
+		}
 		// G9: per-question adaptive ref
 		if aref := asStr(q["adaptive"]); kind == "question" && aref != "" {
 			found := false
@@ -273,7 +284,7 @@ func LintGraph(graph, registry rawDoc) []Finding {
 	// Value charset includes `_` (underscores are idiomatic on the schema's
 	// field side) but excludes `.` so a sentence-final period never joins a
 	// token — both halves proven by differential probes Q1/Q4.
-	opRe := regexp.MustCompile(`(q\.[A-Za-z0-9_.-]*[A-Za-z0-9])\s*(?:==|!=)\s*([A-Za-z0-9_-]+)`)
+	opRe := regexp.MustCompile(`(q\.[A-Za-z0-9_.-]*[A-Za-z0-9])\s*(?:==|!=|\s+includes\s+)\s*([A-Za-z0-9_-]+)`)
 	checkRuleText := func(rule, owner, text string) {
 		for _, ref := range qidRe.FindAllString(text, -1) {
 			if !qids[ref] {

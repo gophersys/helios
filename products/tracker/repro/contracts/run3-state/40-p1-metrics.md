@@ -100,10 +100,7 @@ bytes; a PIR that failed G0 is still scoreable — its G0 state rides in
 | `agent+catalog` | judged with the capability index as the evidence base (below) |
 
 `human_gate_when` names the answer value that raises a structural human
-gate (F5); it appears only on `metric.risk.safety` in v0. `derivation`
-(optional, `scored_by: derived` metrics) writes the mechanical rule the
-score follows — a derived metric WITHOUT one is only as mechanical as its
-scale text, which run 3 showed is not always enough.
+gate (F5); it appears only on `metric.risk.safety` in v0.
 
 ## The catalog seam (decided: locked)
 

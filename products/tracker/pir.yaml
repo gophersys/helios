@@ -1,11 +1,43 @@
 # PIR #1 — tracker. The first real Product Intent Record in the system.
-# Extracted from Mateo's interrogation (2026-08-26, first traversal of
-# 30-p0-graph.yaml). Every value cites the question and the VERBATIM quote
-# — typos preserved: the quote is the source of truth (R4), the field is
-# the extraction. Timestamps are date-precision (session date); ISO 8601.
+# Extracted from Mateo's interrogation (2026-08-26) + the dated addendum.
+# Every quoted value cites the question and the VERBATIM words (typos
+# preserved); derived values carry source/rule per the derived-items
+# convention. Record shape: sfd.pir/v0 as amended (contracts v3).
 schema: sfd.pir/v0
 product: tracker
-interrogated: "Mateo, 2026-08-26 (runner: Claude, in-chat — Eden runner is PLANNED)"
+source:
+  transcript: products/tracker/repro/transcript.yaml
+  addendum: products/tracker/transcript-addendum.yaml
+  runner: "Claude, in-chat (Eden runner is PLANNED)"
+  interrogated: Mateo
+  date: 2026-08-26
+
+g0:
+  status: green                # post-addendum; pre-addendum it was BLOCKED
+  blockers: []                 # (zephyr-rtos strength unclassified — see
+                               # runner_errors re.2, closed by the addendum)
+  checks:
+    - {check: required-answered, result: green}
+    - {check: unknowns-listed, result: green}
+    - {check: consistency, result: green}
+    - {check: graph-lint, result: "green (sfd graph lint, this commit)"}
+
+runner_errors:
+  - id: re.1
+    what: "q.env.conditions presented 6 of 8 values (drops, none never offered) — multi-affirmation violation"
+    state: open — the two unpresented values are unestablished
+  - id: re.2
+    what: "volunteered technology 'zephyr rtos' (q.novel.magic) never got the q.constraint.strength ask-back"
+    state: closed by addendum (strength=hard)
+  - id: re.3
+    what: "the sell half of q.scale.cost was never pursued — pair-completeness violation"
+    state: closed by addendum (explicit not-for-sale)
+  - id: re.4
+    what: "q.fn.rate spawned for 2 of 5 named senses (position, tilt; not altitude/speed/velocity)"
+    state: open — unspawned rates are ABSENT
+
+consistency:
+  - {rule: c.app-needs-link, result: green, reason: "talks includes phone-nearby and far-away-anywhere; controls is one-button"}
 
 summary: a motorcycle GPS tracker; the owner knows where the bike is at all times
 users: the owner only (personal build; up to ~10 units for friends)
@@ -16,31 +48,35 @@ functions:
     question: q.fn.senses
     quote: "ideally the positon accruately, and other env things like altitude, speed, velocity, tilt, things like that"
     at: 2026-08-26
+    rate:
+      periods: {parked: "1/h", moving: "1/30s"}
+      configurable: true
+      question: q.fn.rate
+      quote: "parked every 1 hour, moving, ever 30 sec, or ideally a configurable thing where the software can change it based on power prefeernces"
+      at: 2026-08-26
   - capability: sensing
     detail: altitude
     question: q.fn.senses
     quote: "altitude"
     at: 2026-08-26
+    rate: ABSENT               # unspawned adaptive (runner_errors re.4)
   - capability: sensing
     detail: speed / velocity
     question: q.fn.senses
     quote: "speed, velocity"
     at: 2026-08-26
+    rate: ABSENT               # unspawned adaptive (runner_errors re.4)
   - capability: sensing
     detail: tilt / motion (theft wake + race telemetry)
     question: q.fn.senses
     quote: "tilt, things like that"
     at: 2026-08-26
-  - capability: sensing
-    detail: "rates: parked 1 fix/h · moving 1 fix/30 s · software-configurable by power policy"
-    question: q.fn.rate
-    quote: "parked every 1 hour, moving, ever 30 sec, or ideally a configurable thing where the software can change it based on power prefeernces"
-    at: 2026-08-26
-  - capability: sensing
-    detail: "motion reaction within seconds; alert as quick as possible"
-    question: q.fn.rate
-    quote: "within seconds, if an alert it must be as quick as possible"
-    at: 2026-08-26
+    rate:
+      periods: {reaction: "within seconds; alert as quick as possible"}
+      configurable: false      # not stated — convention default
+      question: q.fn.rate
+      quote: "within seconds, if an alert it must be as quick as possible"
+      at: 2026-08-26
   - capability: connectivity
     detail: phone nearby, easy local connection
     question: q.fn.talks
@@ -56,8 +92,8 @@ functions:
     question: q.fn.stores
     quote: "yes it must remember htings, and even hit low power modes and save things if no location, then backtrack to the cloud"
     at: 2026-08-26
-  - capability: storage
-    detail: "offline behavior: no alerts required offline; everything else keeps working"
+  - capability: compute
+    detail: "offline behavior (edge autonomy): no alerts required offline; everything else keeps working"
     question: q.fn.offline
     quote: "no alerts but yes everything else"
     at: 2026-08-26
@@ -71,66 +107,65 @@ functions:
     question: q.fn.shows
     quote: "naybe 1 multipurpos ebutton too"
     at: 2026-08-26
-  # Discovered by chat, no graph question covers it (traversal finding 3):
+  # Discovered by chat; no graph question covers firmware update yet
+  # (traversal finding 3 — graph vNEXT):
   - capability: security
     detail: firmware update over USB-C ("updatable")
-    question: q.power.source        # where it surfaced
+    question: q.power.source
     quote: "easily rechargeable/updatetbale all things over a usb c connection"
     at: 2026-08-26
-  # Derived capabilities (graph derivations block):
+  # Derived capabilities — derived-items convention:
   - capability: security
     detail: baseline (connected product + personal data)
-    question: derivation:capability.security
-    quote: "(derived)"
-    at: 2026-08-26
+    source: derived
+    rule: capability.security
   - capability: time
     detail: scheduled wake (guard-mode fix schedule)
-    question: derivation:capability.time
-    quote: "(derived)"
-    at: 2026-08-26
+    source: derived
+    rule: capability.time
   - capability: power
     detail: power_class + modes (always present)
-    question: derivation:capability.power
-    quote: "(derived)"
-    at: 2026-08-26
+    source: derived
+    rule: capability.power
 
 environment:
   where: vehicle
   conditions: [water, dust, heat, cold, vibration, washing-or-hosing]
-  limits: {}                     # UNKNOWN — see unknowns
+  limits: {}                   # UNKNOWN — see unknowns
   on_body: "no"
 
-power_class: PC1                 # derived: charges-on-dock-or-cable → PC1
+power_class: PC1               # derived: charges-on-dock-or-cable → PC1
 
-modes:                           # traversal finding 2: duty is a POLICY
-  - guard    # parked: 1 fix/h, wake-on-motion armed, month+ battery
-  - stolen   # moving after motion wake: 1 fix/30 s, alert fast
-  - race     # high-rate telemetry logging, battery life in hours accepted
-  - policy: software-adaptive, sensor + user-preference driven
+modes:                         # q.power.duty selections, as given
+  - wakes-on-event
+  - wakes-on-schedule
+  - only-when-used
+  # product-mode translation (P3 consumes): guard / stolen / race,
+  # software-adaptive policy — see notes
 
 targets:
   success: installed and running on the bike, notifications reaching the phone, location tracked in the cloud
-  battery_life:                  # traversal finding 4: life is PER MODE
+  battery_life:
     delight: "1 month+ (guard mode)"
-    floor: none-declared         # declared-none convention; race mode accepts hours
+    floor: none-declared       # declared-none; race mode accepts hours
   unit_cost:
     build: "≤ $100 (components + PCB + assembly) @ 10-unit qty"
-    # sell: ABSENT — declared not-for-sale (conditional_fields), see provenance
+    sell: ABSENT               # explicit not-for-sale (ADDENDUM) — a
+                               # statement about the sale itself
+                               # (conditional_fields)
   volume: {y1: 2, y3: 10}
 
 physical:
-  size_class: phone              # bound-asks convention: the ask requests the
-                                 # at-most bound; his words name phone as the
-                                 # ceiling, deck-of-cards as comfortable
-  dims: {}
-  carry: mounted                 # with adapter, or tucked/hidden
+  size_class: phone            # bound-asks convention: the stated at-most
+  dims: {}                     # ABSENT — range adaptive never spawned
+  carry: mounted               # carry-placement convention; concealment → notes
   controls: one-button
 
 timeline:
-  proto: none-declared           # "no rush ... correctness over speed"
+  proto: none-declared         # "no rush ... correctness over speed"
   production: none-declared
 
-assets: [nothing]
+assets: [nothing]              # enum-values-as-given
 
 novelty:
   different: own build, more powerful, latest technologies, accurate location + alarm
@@ -142,32 +177,34 @@ compliance:
   regions: [us]
   safety: "none"
   personal_data: [location]
-  certifications: [fcc]          # derived from regions
+  certifications: [fcc]        # derived from regions
 
 constraints:
-  - tech: cellular
+  - tech: cellular             # canonical_tokens slug
     strength: hard
-    question: q.constraint.strength
     quote: "requiemrnt"
+    volunteered_quote: "always know the locaiton based on cellular or smth like that"
     at: 2026-08-26
   - tech: usb-c
     strength: hard
-    question: q.constraint.strength
     quote: "requirement"
+    volunteered_quote: "easily rechargeable/updatetbale all things over a usb c connection"
     at: 2026-08-26
   - tech: zephyr-rtos
     strength: hard
-    question: q.constraint.strength
-    quote: "Requirement"         # ask-back fired post-interrogation (the run
-    at: 2026-08-26               # missed it; caught by reproduction instances)
+    quote: "Requirement"       # ADDENDUM — ask-back fired post-interrogation
+    volunteered_quote: "using zephyr rtos as a poc for ai hardware building"
+    at: 2026-08-26
   # gps: excluded by the constraint oracle — category noun in q.intent.what
 
 unknowns:
   - field: pir.environment.limits
-    blocks: [metric.feasibility.env-risk (precision only)]
-    note: q.followup.range (how hot / how cold) was asked and not answered; scoring tier — G0 passes
+    blocks: []
+    tier: scoring
+    note: q.followup.range (how hot / how cold) was asked and not answered; degrades env-risk precision, blocks nothing formally
 
-notes:                           # recorded intent that is out of DEVICE scope
+notes:
+  - product modes (P3 seed) — guard (parked, 1 fix/h, motion-armed, month+ battery) · stolen (1 fix/30 s, alert fast) · race (high-rate telemetry, hours accepted) · policy software-adaptive ("theres a clear way in which it can use sensors to best leverage poweres in combination with user prefernecs")
   - optional accessory, bike battery → USB-C trickle charger ("that way the device is always cajhrged")
   - concealment vs antenna performance is a named P5 hole ("ideally antenann \"just works\"")
   - industrial design aspiration: "something clean that will lookj high end"
@@ -189,7 +226,7 @@ provenance:
   pir.environment.on_body:
     - {question: q.env.body, quote: "nope", at: 2026-08-26}
   pir.functions:
-    - see inline provenance per item above
+    - {question: q.fn.acts, quote: "it does not do anything to the bike", at: 2026-08-26, note: "negative-function convention — no actuation item produced"}
   pir.power_class:
     - {question: q.power.source, quote: "battery powered ideally, but easily rechargeable/updatetbale all things over a usb c connection", at: 2026-08-26}
   pir.modes:
@@ -207,9 +244,7 @@ provenance:
     - {question: q.scale.units, quote: "2, and maybe 10 for my freinds", at: 2026-08-26}
   pir.targets.unit_cost:
     - {question: q.scale.cost, quote: "i dont wanna spend more than $100 on components + pcb + assembly per unit at 10 unit qty.", at: 2026-08-26}
-    - {question: q.scale.cost, quote: "Not for sale", at: 2026-08-26}
-  pir.constraints:
-    - {question: q.constraint.strength, quote: "Requirement", at: 2026-08-26}
+    - {question: q.scale.cost, quote: "Not for sale", at: 2026-08-26, note: "ADDENDUM — obtained post-interrogation (runner_errors re.3)"}
   pir.timeline.proto:
     - {question: q.time.proto, quote: "no rush we are just testing out the system, correctness over speed, can optimize later", at: 2026-08-26}
   pir.timeline.production:
@@ -228,3 +263,7 @@ provenance:
     - {question: q.comp.safety, quote: "no, just hopefully not explode lol", at: 2026-08-26}
   pir.compliance.personal_data:
     - {question: q.comp.data, quote: "yes, whatver info it has about location bascially", at: 2026-08-26}
+  pir.constraints:
+    - {question: q.constraint.strength, quote: "requiemrnt", at: 2026-08-26}
+    - {question: q.constraint.strength, quote: "requirement", at: 2026-08-26}
+    - {question: q.constraint.strength, quote: "Requirement", at: 2026-08-26, note: "ADDENDUM (runner_errors re.2)"}
