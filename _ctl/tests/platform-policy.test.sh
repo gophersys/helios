@@ -101,7 +101,7 @@ SANCTIONED="linux/amd64,linux/arm64"
 # for amd64 alone, and a narrowing key written on that premise would have
 # narrowed this image on a reason that is FALSE. Google's stable component
 # declares `Architectures: amd64 arm64` and carries google-chrome-stable at ONE
-# version, 151.0.7922.137-1, in both indexes (read 2026-08-18; the record with
+# version, 152.0.7977.64-1, in both indexes (read 2026-08-26; the record with
 # its byte counts sits beside the images.yaml entry). So the absence of a key is
 # a measurement here, and this row is the literal that says so.
 IMAGE_PLATFORM_TABLE=(

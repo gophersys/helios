@@ -907,7 +907,7 @@ for asserted_row in "${UI_ASSERTED_ROWS[@]}"; do
   check_name="the_ui_payload_asserts_${asserted_pin}"
   # $3 and not $2: field 2 is the expected VERSION, which this file does not
   # state, and field 4 is the `prefix` extractor this pin needs because the row
-  # holds a MAJOR line while the browser reports 151.0.7922.137.
+  # holds a MAJOR line while the browser reports 152.0.7977.64.
   matched_row=""
   matched_row="$(awk -F'|' -v pin="$asserted_pin" -v want="$asserted_command" \
     '$1 == pin && $3 == want { print; exit }' <<< "$RUN_PAYLOAD")"
