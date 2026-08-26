@@ -1106,7 +1106,7 @@ cmd_apidiff() {
 }
 
 # ── the SDLC phase-gate sequencer (ADR-0020) ────────────────────────────────────────────────
-# `phase-gate <architecture|implementation|testing|qa|all>` — runs the mechanical gate for one
+# `phase-gate <architecture|implementation|testing|qa|deep|all>` — runs the mechanical gate for one
 # SDLC phase. Each gate short-circuits on the first failing dimension and prints a per-dimension
 # PASS/FAIL summary so a blind gate is visible (ADR-0020 §enforcement: "NOTHING silently skips").
 # "phase" here is the SDLC step — NEVER the environment "stage" (CLAUDE.md vocabulary rule).
@@ -1319,6 +1319,22 @@ cmd_phase_gate() {
     implementation) phase_implementation ;;
     testing)        phase_testing ;;
     qa)             phase_qa ;;
+    deep)
+      # The phases a STANDALONE checkout can actually prove. ARCHITECTURE is deliberately absent:
+      # it gates a frozen contract that lives in the eden monorepo, and _eden_monorepo_root falls
+      # back to this repository's own root when libs is checked out alone — so the dimension can
+      # never pass in a standalone lane, and for weeks it failed the nightly before implementation,
+      # testing or qa ever ran. Ruled 2026-08-25 (option A): gate ARCHITECTURE where its evidence
+      # lives, in eden's conformance lane, where libs IS a submodule and the contract resolves.
+      # `all` below is unchanged and remains correct inside eden.
+      log_info "phase-gate deep: implementation → testing → qa (architecture runs in eden's conformance lane)"
+      local dstep drc=0
+      for dstep in phase_implementation phase_testing phase_qa; do
+        "$dstep" || drc=1
+        [[ "$drc" -eq 0 ]] || break
+      done
+      return "$drc"
+      ;;
     all)
       log_info "phase-gate all: architecture → implementation → testing → qa (short-circuit on first failure)"
       # Each phase runs in a NEUTRAL position with errexit disabled around it, for the reason
@@ -1339,7 +1355,7 @@ cmd_phase_gate() {
       log_success "phase-gate all: GREEN — library is done (past phase-gate qa)"
       ;;
     *)
-      log_error "unknown phase: '$phase' (want architecture|implementation|testing|qa|all)"
+      log_error "unknown phase: '$phase' (want architecture|implementation|testing|qa|deep|all)"
       exit 1
       ;;
   esac
@@ -1384,7 +1400,7 @@ ADR-0020 test-taxonomy verbs (the 8 dimensions):
   apidiff-record   Record the frozen surface (architecture gate / revision)
 
 ADR-0020 SDLC sequencer:
-  phase-gate       <architecture|implementation|testing|qa|all> — the mechanical gate
+  phase-gate       <architecture|implementation|testing|qa|deep|all> — the mechanical gate
   help             Show this message
 EOF
 }
