@@ -29,7 +29,7 @@ every registry metric names the questions that feed it.
 
 1. Any **core** metric red → recommend **pivot**. Recommend **kill** only
    when the red metric IS the product's stated magic
-   (`metric.tech-exists` red ∧ the magic is the differentiation in
+   (`metric.tech.exists` red ∧ the magic is the differentiation in
    `pir.novelty`).
 2. No reds → recommend **go**; every amber is named in the reasons.
 3. Any human gate open → **no recommendation** until a human clears it.
@@ -44,7 +44,7 @@ every registry metric names the questions that feed it.
 schema: sfd.scorecard/v0
 pir: {ref: ..., hash: ...}       # the exact PIR scored
 scores:
-  - id: metric.tech-exists
+  - id: metric.tech.exists
     score: amber
     evidence:
       - "catalog: connectivity capability D1 on esp32c6 @ zephyr 413b789d"
@@ -65,7 +65,7 @@ decision:                        # F4 — the human call, with provenance
 
 ## The catalog seam (decided: locked)
 
-`metric.tech-exists` and `metric.feasibility.connectivity` are scored
+`metric.tech.exists` and `metric.feasibility.connectivity` are scored
 `agent+catalog`: the scorer maps the product's functions onto S1's
 capability vocabulary, then queries the capability index — supported SoCs,
 component records, per-record depth. A capability the catalog covers at

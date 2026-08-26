@@ -41,7 +41,7 @@ metrics:
       amber: "margin thin or dependent on y3 volume materializing"
       red: "sell <= build at stated volume"
 
-  - id: metric.novelty
+  - id: metric.viability.novelty
     asks: "Is the differentiation real — and survivable?"
     fed_by: [q.intent.exists]
     consumer: P1-verdict
@@ -53,7 +53,7 @@ metrics:
       red: "an existing product already is this"
 
   # ── TECH-EXISTS (verdict axis) ────────────────────────────────────────
-  - id: metric.tech-exists
+  - id: metric.tech.exists
     asks: "Does the technology this product depends on exist today?"
     fed_by: [q.novel.magic]
     consumer: P1-verdict

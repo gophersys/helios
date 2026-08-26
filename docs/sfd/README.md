@@ -12,7 +12,7 @@ and hardware — firmware derives it first, hardware must then satisfy it.**
 | [`10-p3-pipeline.md`](10-p3-pipeline.md) | P3 in depth: the Zephyr-truth compiler, six stages | D0–D1 |
 | [`20-component-process.md`](20-component-process.md) | How anything enters the system; part numbers bind LAST | D1 |
 | [`30-p0-interrogation.md`](30-p0-interrogation.md) | P0: rules R1–R5, tiers, constraints channel, G0, PIR v0 | D1 |
-| [`30-p0-graph.yaml`](30-p0-graph.yaml) | The interrogation graph Eden runs — 30 typed questions + 2 adaptive | D1 |
+| [`30-p0-graph.yaml`](30-p0-graph.yaml) | The interrogation graph Eden runs — 30 typed questions + 3 adaptive, derivations, consistency rules | D1 |
 | [`40-p1-metrics.md`](40-p1-metrics.md) | P1: scorecard frame F1–F5, verdict rules, catalog seam | D1 |
 | [`40-p1-registry.yaml`](40-p1-registry.yaml) | The metric registry — 16 metrics + 2 flags; closes R2's two-way trace | D1 |
 | [`capability-index.schema.yaml`](capability-index.schema.yaml) | The catalog record shapes (doc copy; truth is `tools/sfd/record.go`) | D1 |
