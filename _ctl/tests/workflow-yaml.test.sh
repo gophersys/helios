@@ -118,7 +118,7 @@
 # no reader. A rule that judged every workflow by the publish workflow's answer
 # would have flipped it, and the 3 files that declare no group at all would have
 # grown one nobody asked for. What the table forbids is a SILENT change to any
-# of the 5.
+# of the 6.
 #
 # ============================================================================
 # THE PARSER, AND WHY A MISSING ONE IS A FAILURE
@@ -227,6 +227,17 @@ HOSTED_ONLY_ACTIONS=(
 #                   skipped are skipped for good. Measured 2026-08-19: mobile
 #                   was never created and hardware:latest stayed stale, behind
 #                   6 green badges.
+#   ghcr-retention  QUEUES, and it is the 1 SCHEDULED workflow here that
+#                   declares a group at all — the other 2 cannot overlap
+#                   themselves, and this one can, because `workflow_dispatch`
+#                   lets a human start a prune while the Monday run is going.
+#                   2 enforcing runs would each compute a plan from the same
+#                   registry and then both DELETE it, and the loser gets a 404
+#                   on a version the winner already removed — which
+#                   .ci/ghcr-retention.sh treats as the failure it is. It does
+#                   not cancel for build-and-push's reason and 1 sharper: a
+#                   cancelled prune has deleted some versions and not others,
+#                   and nothing rolls one back.
 #   pr-review       CANCELS. A review is a read of a diff, the diff has already
 #                   changed, and nothing it publishes is irreversible.
 #   the other 3     declare NO group. The nightly and the weekly are scheduled
@@ -245,6 +256,7 @@ HOSTED_ONLY_ACTIONS=(
 # shellcheck disable=SC2016
 CONCURRENCY_CONTRACT=(
   'build-and-push.yml|build-and-push-${{ github.ref }}|false'
+  'ghcr-retention.yml|ghcr-retention-${{ github.ref }}|false'
   'pr-review.yml|pr-review-${{ github.event.pull_request.number }}|true'
   'security-nightly.yml|<none>'
   'validate.yml|<none>'
