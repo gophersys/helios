@@ -538,7 +538,15 @@ contract revision `agentsession` R2 and guarded by a new gate dimension (below).
 change to a frozen surface is exactly the class of thing a mechanical gate cannot catch, which is
 why the human record has to carry it.
 
-**Schema home** — `libs/protocols/agentfleet/v1/`, which today holds only `.gitkeep` ✅:
+**Schema home** — `libs/protocols/agentfleet/v1/`. ⚠️ **The directory does not exist and must be
+created.** An earlier revision of this document said it "holds only `.gitkeep`", which was read
+from eden's submodule pin `50940e1` — **301 commits stale**. Measured at libs `origin/main`
+(`git ls-tree --name-only origin/main`), the top level is `.ci .claude-plugin .claude .github
+.gitignore .golangci.yml README.md ctl.sh ctl_test.sh go plugins project.json templates testdata
+typescript verb_conservation_test.sh`: `protocols/`, `python/`, `rust/` and `zephyr/` were all
+REMOVED by the `chore/lean-subtrees` change. This is the second time in this program that reading
+the stale pin instead of `origin/main` produced a false ✅, and it is why every libs citation in
+this document set is taken through `git show origin/main:<path>`.
 
 ```
 libs/protocols/agentfleet/v1/
@@ -664,6 +672,8 @@ unmade decision lives there and never in prose alone.
 | F6 | **Bus authn/authz.** No auth, no TLS, no accounts today; any pod on the Service can claim any identity. | (a) validate at the trust boundary now, NATS accounts before any non-Mateo tenant · (b) accounts now | nothing yet; it gates multi-tenancy |
 | F7 | **A wire `SchemaVersion` field?** | (a) no — the version is the schema `$id` and the `v1` path; a v2 is a new subject and stream · (b) a version field, accepting that every reader must branch on it | nothing |
 | F8 | **`ControlMessage.By`.** Its removal is invisible to `.apibaseline` (§9). | (a) retain-and-deprecate, exactly as `Heartbeat.SessionState` is retained · (b) remove it, written into the `agentruntime` R2 revision as a named wire break | the control lane |
+| F9 | **`AgentID` case.** `agent-<ulid>` must be a legal DNS-1123 label, which forbids uppercase — but canonical Crockford base32 ULID is UPPERCASE, and no document states the rule. | (a) lowercase the ULID body at mint, and `Validate` enforces `^agent-[0-9a-hjkmnp-tv-z]{26}$` · (b) a different encoding | identity in every lane |
+| F10 | **Four wire tokens have to be MINTED, not reused.** ⚠️ Measured, correcting an assumption of this program: `ToolOutcome`, `GrantDecision`, `TurnOutcome` and `ErrorReason` have **no `String()` and no token table anywhere** — only `EventKind`, `State`, `CommandKind`, `DecisionScope`, `Capability`, `PermissionResolution` and `RiskLevel` do. So "the tokens already exist" holds for 5 of the 9 reachable enums, not 9. | (a) mint by the house rule (drop the constant prefix, lower-kebab the rest): `ToolOutcome{ok,error,denied}` · `GrantDecision{pending,allowed,denied}` · `TurnOutcome{completed,aborted,failed,max-turns,budget-exceeded}` · `ErrorReason{unknown,auth,rate-limit,budget,max-turns,transport,harness-error}` · (b) name them differently | the serialization slice — **these are frozen the moment they ship** |
 
 ## 12. THE FREEZE QUESTION — for Mateo, and for nobody else
 
