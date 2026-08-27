@@ -74,6 +74,27 @@ spec:
               - name: ghcr-pull
 
             initContainers:
+              # Kubernetes Secret volumes are read-only, while Codex may refresh
+              # its ChatGPT credential. Seed a pod-private writable profile and
+              # discard it with the runner instead of exposing the source Secret
+              # or sharing refreshed state across jobs.
+              - name: init-codex-home
+                image: ghcr.io/gophersys/cloud@sha256:ffdcf5046c4dc30be32f6388bbe09c055abff03bab78db703432793b8c5da7bd
+                securityContext:
+                  runAsUser: 0
+                command:
+                  - /bin/bash
+                  - -euc
+                  - |
+                    cp /var/run/codex-seed/auth.json /home/runner/.codex/auth.json
+                    chmod 600 /home/runner/.codex/auth.json
+                volumeMounts:
+                  - name: codex-auth-seed
+                    mountPath: /var/run/codex-seed
+                    readOnly: true
+                  - name: codex-home
+                    mountPath: /home/runner/.codex
+
               # Seeds /home/runner/externals, which is the runner's own bundled
               # Node. It must be the SAME image as the runner container.
               - name: init-dind-externals
@@ -113,6 +134,8 @@ spec:
                       secretKeyRef:
                         name: claude-review-token
                         key: token
+                  - name: CODEX_HOME
+                    value: /home/runner/.codex
                 resources:
                   requests:
                     cpu: 500m
@@ -126,6 +149,8 @@ spec:
                 volumeMounts:
                   - name: work
                     mountPath: /home/runner/_work
+                  - name: codex-home
+                    mountPath: /home/runner/.codex
 
             volumes:
               - name: work
@@ -134,6 +159,16 @@ spec:
               - name: dind-externals
                 emptyDir:
                   sizeLimit: 2Gi
+              - name: codex-home
+                emptyDir:
+                  sizeLimit: 64Mi
+              - name: codex-auth-seed
+                secret:
+                  secretName: codex-review-auth
+                  defaultMode: 0400
+                  items:
+                    - key: auth.json
+                      path: auth.json
   destination:
     server: https://kubernetes.default.svc
     namespace: arc-runners
