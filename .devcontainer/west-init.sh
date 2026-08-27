@@ -35,5 +35,9 @@ while read -r p; do
     fi
 done < <(west list -f '{path}')
 
+# zephyr.base as an absolute path — west build resolves Zephyr from it;
+# a relative value left the first tracker build unable to find the tree.
+west config zephyr.base "$(pwd)/ws/zephyr"
+
 echo "west workspace ready:"
 west list -f '{name:20} {revision:12} {path}'

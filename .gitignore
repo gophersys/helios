@@ -4,6 +4,9 @@
 .west/
 ws/
 
+# Zephyr build output
+build/
+
 # Go build output
 tools/sfd/sfd
 
