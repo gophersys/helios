@@ -57,19 +57,20 @@ volumes, because a home-path bind mount fails.
 
 ```sh
 export PATH="/Applications/Docker.app/Contents/Resources/bin:$HOME/bin:$PATH"
+BUILDKIT_IMAGE="moby/buildkit@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8"
 docker volume create eden-bk-certs
-docker create --name bkseed --entrypoint /bin/sh -v eden-bk-certs:/certs moby/buildkit:latest
+docker create --name bkseed --entrypoint /bin/sh -v eden-bk-certs:/certs "$BUILDKIT_IMAGE"
 docker cp ca.pem bkseed:/certs/
 docker cp daemon.pem bkseed:/certs/
 docker cp daemon-key.pem bkseed:/certs/
 docker rm bkseed
 docker volume create eden-bk-config
-docker create --name bkconfig --entrypoint /bin/sh -v eden-bk-config:/config moby/buildkit:latest
+docker create --name bkconfig --entrypoint /bin/sh -v eden-bk-config:/config "$BUILDKIT_IMAGE"
 docker cp buildkitd.toml bkconfig:/config/buildkitd.toml
 docker rm bkconfig
 docker run -d --name eden-buildkitd --restart unless-stopped --privileged -p 1234:1234 \
   -v eden-bk-certs:/certs:ro -v eden-bk-config:/etc/buildkit:ro \
-  moby/buildkit:latest --addr tcp://0.0.0.0:1234 \
+  "$BUILDKIT_IMAGE" --addr tcp://0.0.0.0:1234 \
   --tlscacert /certs/ca.pem --tlscert /certs/daemon.pem --tlskey /certs/daemon-key.pem
 ```
 

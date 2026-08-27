@@ -15,6 +15,11 @@ grep -Eq 'nameservers[[:space:]]*=[[:space:]]*\[[^]]*"1\.1\.1\.1"[^]]*"8\.8\.8\.
   fail 'BuildKit config must use the two approved, network-independent resolvers'
 grep -Fq 'eden-bk-config:/etc/buildkit:ro' "$RUNBOOK" || \
   fail 'runbook does not mount the seeded config volume read-only'
+grep -Eq 'BUILDKIT_IMAGE="moby/buildkit@sha256:[0-9a-f]{64}"' "$RUNBOOK" || \
+  fail 'runbook must reproduce the daemon from a pinned BuildKit image digest'
+if grep -Eq 'moby/buildkit:latest' "$RUNBOOK"; then
+  fail 'runbook still contains the moving moby/buildkit:latest tag'
+fi
 ok 'portable BuildKit DNS configuration is wired into daemon reproduction'
 
 if [[ "${1:-}" != "--live" ]]; then
