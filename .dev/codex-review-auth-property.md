@@ -1,10 +1,10 @@
 # codex-review-auth-property
 
-phase: pr
+phase: wait
 repo: gophersys/infrastructure
 branch: fix/codex-review-auth-property
 worktree: ~/code/.worktrees/infrastructure-codex-review-auth-property
-pr: -
+pr: 206
 attempt: 0/2
 
 ## Goal
@@ -59,4 +59,4 @@ other runner pools, no Claude removal.
 
 ## Next
 
-Commit, push, and open the pull request.
+Poll pull request 206 and inspect every completed check log.
