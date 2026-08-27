@@ -201,7 +201,23 @@ SETTINGS
   # turn. KILL follows 30s later, so the step is bounded whatever claude does with the signal. 124
   # is the TERM timeout and 137 the KILL, and both arrive below as a named non-zero turn status.
   local turn_output='' turn_status=0
-  turn_output="$(timeout -k 30 120 claude -p 'Reply with the single word: ready.' --settings "$settings" 2>&1)" ||
+  # INJECT the credential this preflight just validated. It checked ${PEER_MESSAGING_CREDENTIAL}
+  # (CLAUDEADAPTER_LIVE_TOKEN) was non-empty and then invoked claude without passing it, so the turn
+  # ran unauthenticated: the check proved the token EXISTS and proved nothing about whether it WORKS.
+  # CLAUDE_CODE_OAUTH_TOKEN is the name the CLI actually reads — the same constant claudeadapter
+  # injects (claudeadapter.go:13). Every HIGHER-PRECEDENCE credential is scrubbed first, for the
+  # reason the adapter scrubs them: an inherited key would authenticate the turn by a DIFFERENT
+  # path — ANTHROPIC_AUTH_TOKEN outranks the oauth token by MORE than ANTHROPIC_API_KEY does
+  # (poc/agentsession-spike/README.md:66-73), so scrubbing only one leaves the widest door open,
+  # and the preflight would pass while the credential it exists to prove was never exercised.
+  # The scrub set and the `unset` form both match the proven precedent exactly: the agentsession
+  # contract (contracts/agentsession.md:727-728) and the spike entrypoint (entrypoint.sh:36).
+  # `unset` in a subshell, not VAR='' prefixes: the CLI treats a defined-but-empty key as present.
+  turn_output="$(
+    unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BEARER_TOKEN
+    CLAUDE_CODE_OAUTH_TOKEN="${!PEER_MESSAGING_CREDENTIAL}" \
+      timeout -k 30 120 claude -p 'Reply with the single word: ready.' --settings "$settings" 2>&1
+  )" ||
     turn_status=$?
 
   local receipt_text=''
