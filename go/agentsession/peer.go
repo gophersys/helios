@@ -14,17 +14,17 @@ const MaxPeerBodyBytes = 8 << 10
 // PeerMessage is ONE inter-session message — the single home for the shape, cited by the Event
 // payload AND by the PeerLink port (one concept, one home). It is a plain, copyable value.
 type PeerMessage struct {
-	MsgID    string // minted by the plane at Send; the SENDER's receipt id EQUALS the RECEIVER's origin id
-	From     string // the sender's Spec.Name
-	To       string // the recipient's Spec.Name; "" on an inbound event (it is this session)
-	ReplyTo  string // the MsgID this answers; "" == not a reply
-	Body     string // UNTRUSTED agent prose, at most MaxPeerBodyBytes, redacted at the normalization boundary
-	Verified bool   // kernel-verified sender: claude verifiedPeerPid, or STAMPED by the peerplane orchestrator from the SO_PEERCRED connection (never the client's claim)
+	MsgID    string `json:"msgId"`    // minted by the plane at Send; the SENDER's receipt id EQUALS the RECEIVER's origin id
+	From     string `json:"from"`     // the sender's Spec.Name
+	To       string `json:"to"`       // the recipient's Spec.Name; "" on an inbound event (it is this session)
+	ReplyTo  string `json:"replyTo"`  // the MsgID this answers; "" == not a reply
+	Body     string `json:"body"`     // UNTRUSTED agent prose, at most MaxPeerBodyBytes, redacted at the normalization boundary
+	Verified bool   `json:"verified"` // kernel-verified sender: claude verifiedPeerPid, or STAMPED by the peerplane orchestrator from the SO_PEERCRED connection (never the client's claim)
 
 	// Accepted (EventPeerSent only) reports whether SOME plane took the send. false does NOT
 	// mean one thing, and in particular it does not mean "not delivered": it has FOUR meanings,
 	// told apart by Detail.
-	Accepted bool
+	Accepted bool `json:"accepted"`
 
 	// Detail (EventPeerSent) is a BRANCHED-ON CONTRACT literal, not a redacted reason string:
 	// the library's own recovery router switches on the exact bytes, so a consumer may too, and
@@ -48,7 +48,7 @@ type PeerMessage struct {
 	//	                           delivered".
 	//
 	// It carries a reason and a discriminator, never a body, so it stays redaction-safe.
-	Detail string
+	Detail string `json:"detail"`
 }
 
 // SubagentMessage is a message that crossed the parent<->child boundary inside ONE harness
@@ -56,11 +56,11 @@ type PeerMessage struct {
 // cannot accept one, so the two functions are separated by the compiler rather than by a
 // runtime check that documentation would then misdescribe as compile-checked.
 type SubagentMessage struct {
-	SubagentID string // parent-LOCAL; never a peer address, never in the tree roster
-	ParentTurn string
-	Index      int
-	ToChild    bool   // true == parent -> child; false == child -> parent
-	Digest     string // bounded, redacted
+	SubagentID string `json:"subagentId"` // parent-LOCAL; never a peer address, never in the tree roster
+	ParentTurn string `json:"parentTurn"`
+	Index      int    `json:"index"`
+	ToChild    bool   `json:"toChild"` // true == parent -> child; false == child -> parent
+	Digest     string `json:"digest"`  // bounded, redacted
 }
 
 // Peer is one roster row: who exists, who opened it, which harness serves it, and whether it is

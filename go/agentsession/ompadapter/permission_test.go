@@ -289,8 +289,11 @@ func newLibraryHarness(t *testing.T, spec agentsession.Spec, advisor agentsessio
 		harness.session = session
 		opened <- openErr
 	}()
-	// Feed omp's `ready` — its only readiness signal — so the adapter negotiates and the library's
-	// Open completes.
+	// Feed omp's `ready` — its only readiness signal — so the adapter publishes Initializing->Ready
+	// and the library's Open completes. The adapter answers `ready` by registering host tools when
+	// the Spec carries any, and with nothing at all when it does not: it must not negotiate a
+	// protocol whose frames it cannot rebuild (dialog_test.go
+	// TestRPC_HandshakeClaimsNoProtocolItCannotDecode).
 	harness.emit(rpcFixture(t, handshakeFixture)[0])
 	select {
 	case openErr := <-opened:

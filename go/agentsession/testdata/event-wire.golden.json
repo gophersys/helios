@@ -1,0 +1,340 @@
+[
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 1,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "session-state",
+    "state": { "from": "initializing", "to": "ready" }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 2,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "message-start",
+    "message": { "role": "assistant", "delta": "", "tokens": 0 }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 3,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "thinking-delta",
+    "message": { "role": "assistant", "delta": "weighing the request", "tokens": 0 }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 4,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "text-delta",
+    "message": { "role": "assistant", "delta": "Hello, world", "tokens": 0 }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 5,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "message-end"
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 6,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "tool-start",
+    "tool": {
+      "callId": "call-1",
+      "name": "Write",
+      "grantId": "grant-write",
+      "argsSummary": "path=note.txt",
+      "partialDigest": "",
+      "outcome": "ok",
+      "resultDigest": "",
+      "duration": 0,
+      "isHostTool": false
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 7,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "tool-update",
+    "tool": {
+      "callId": "call-1",
+      "name": "Write",
+      "grantId": "grant-write",
+      "argsSummary": "",
+      "partialDigest": "wrote 6 of 12 bytes",
+      "outcome": "ok",
+      "resultDigest": "",
+      "duration": 0,
+      "isHostTool": false
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 8,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "tool-end",
+    "tool": {
+      "callId": "call-1",
+      "name": "Write",
+      "grantId": "grant-write",
+      "argsSummary": "",
+      "partialDigest": "",
+      "outcome": "ok",
+      "resultDigest": "wrote 12 bytes",
+      "duration": 5000000,
+      "isHostTool": false
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 9,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "permission-request",
+    "permission": {
+      "requestId": "request-1",
+      "tool": "Bash",
+      "reason": "run the test suite",
+      "decision": "pending",
+      "by": ""
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 10,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "permission-resolved",
+    "permission": {
+      "requestId": "request-1",
+      "tool": "Bash",
+      "reason": "run the test suite",
+      "decision": "allowed",
+      "by": "user:mateo"
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 11,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "usage",
+    "usage": {
+      "model": "fake-fable-5",
+      "harness": "fake",
+      "inputTokens": 100,
+      "outputTokens": 40,
+      "cacheReadTokens": 60,
+      "cacheCreationTokens": 20,
+      "costMicros": 1500,
+      "cumulative": true
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 12,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "result",
+    "terminal": {
+      "outcome": "completed",
+      "ledger": {
+        "model": "fake-fable-5",
+        "harness": "fake",
+        "inputTokens": 100,
+        "outputTokens": 40,
+        "cacheReadTokens": 60,
+        "cacheCreationTokens": 20,
+        "costMicros": 1500,
+        "cumulative": true,
+        "turns": 1,
+        "toolUses": 1,
+        "wallTime": 12000000,
+        "toolUsesByName": { "Write": 1 }
+      },
+      "resultText": "Hello, world",
+      "stopReason": "end_turn",
+      "reason": "unknown",
+      "detail": "",
+      "by": ""
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 13,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "failed",
+    "terminal": {
+      "outcome": "failed",
+      "ledger": {
+        "model": "fake-fable-5",
+        "harness": "fake",
+        "inputTokens": 100,
+        "outputTokens": 40,
+        "cacheReadTokens": 60,
+        "cacheCreationTokens": 20,
+        "costMicros": 1500,
+        "cumulative": true,
+        "turns": 1,
+        "toolUses": 1,
+        "wallTime": 12000000,
+        "toolUsesByName": { "Write": 1 }
+      },
+      "resultText": "",
+      "stopReason": "error",
+      "reason": "rate-limit",
+      "detail": "the provider throttled the request",
+      "by": ""
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 14,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "aborted",
+    "terminal": {
+      "outcome": "aborted",
+      "ledger": {
+        "model": "fake-fable-5",
+        "harness": "fake",
+        "inputTokens": 100,
+        "outputTokens": 40,
+        "cacheReadTokens": 60,
+        "cacheCreationTokens": 20,
+        "costMicros": 1500,
+        "cumulative": true,
+        "turns": 1,
+        "toolUses": 1,
+        "wallTime": 12000000,
+        "toolUsesByName": { "Write": 1 }
+      },
+      "resultText": "",
+      "stopReason": "abort",
+      "reason": "unknown",
+      "detail": "",
+      "by": "user:mateo"
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 15,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "extension",
+    "extension": "eyJ0eXBlIjoicmF0ZV9saW1pdF9ldmVudCJ9"
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 16,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "thinking-progress",
+    "message": { "role": "assistant", "delta": "", "tokens": 512 }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 17,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "turn-end",
+    "terminal": {
+      "outcome": "completed",
+      "ledger": {
+        "model": "fake-fable-5",
+        "harness": "fake",
+        "inputTokens": 100,
+        "outputTokens": 40,
+        "cacheReadTokens": 60,
+        "cacheCreationTokens": 20,
+        "costMicros": 1500,
+        "cumulative": true,
+        "turns": 1,
+        "toolUses": 1,
+        "wallTime": 12000000,
+        "toolUsesByName": { "Write": 1 }
+      },
+      "resultText": "Hello, world",
+      "stopReason": "end_turn",
+      "reason": "unknown",
+      "detail": "",
+      "by": ""
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 18,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "peer-message",
+    "peer": {
+      "msgId": "msg-1",
+      "from": "planner",
+      "to": "",
+      "replyTo": "",
+      "body": "what is the current state?",
+      "verified": true,
+      "accepted": false,
+      "detail": ""
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 19,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "peer-sent",
+    "peer": {
+      "msgId": "msg-2",
+      "from": "implementer",
+      "to": "planner",
+      "replyTo": "msg-1",
+      "body": "the suite is green",
+      "verified": false,
+      "accepted": true,
+      "detail": ""
+    }
+  },
+  {
+    "sessionId": "session-canonical",
+    "turnId": "turn-1",
+    "seq": 20,
+    "turn": 1,
+    "time": "2026-06-13T12:00:00Z",
+    "kind": "subagent-message",
+    "subagent": {
+      "subagentId": "subagent-1",
+      "parentTurn": "turn-1",
+      "index": 0,
+      "toChild": true,
+      "digest": "read the plan"
+    }
+  }
+]

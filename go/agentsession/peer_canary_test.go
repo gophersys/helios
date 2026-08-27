@@ -93,7 +93,8 @@ func TestPeerCanary_RosterToolRendersOnlyRosterFields(t *testing.T) {
 func TestPeerCanary_CredentialNeverReachesAPeerEvent(t *testing.T) {
 	t.Parallel()
 	plane := agentsessiontest.NewPeerPlane()
-	adapter := newSpecRecordingAdapter(peerMessagingManifest(agentsession.CapFull),
+	adapter := newSpecRecordingAdapter(
+		peerMessagingManifest(agentsession.CapFull),
 		agentsessiontest.PeerSentEvent(agentsession.PeerMessage{
 			MsgID: "msg-canary", To: "review-c", Body: "an ordinary body", Accepted: true,
 		}),

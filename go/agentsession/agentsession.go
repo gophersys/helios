@@ -80,24 +80,33 @@ type Factory interface {
 // PermissionRequest is the policy decider's input (a non-pointer projection of
 // PermissionPayload's request side, so OnPermission has no stream dependency).
 type PermissionRequest struct {
-	RequestID string
-	Tool      string
-	Input     []byte // the args the harness wants to run with (redaction is the adapter's job before this)
-	Reason    string
+	RequestID string `json:"requestId"`
+	Tool      string `json:"tool"`
+	Input     []byte `json:"input,omitempty"` // the args the harness wants to run with (redaction is the adapter's job before this)
+	Reason    string `json:"reason"`
 }
 
 // Spec is the immutable, fully-resolved input for ONE session (the configuration
 // pattern: parsed at the edge, frozen). It holds NO live handles and NO secret
 // values — only a loggable secrets.Reference.
 type Spec struct {
-	Workspace   string            // the already-provisioned workspace dir (S2 owns its lifecycle); the harness CWD (02 §1)
-	Routing     RouteKey          // selects harness+model via agentconfiguration; routable per phase
-	Grants      []ToolGrant       // the allowlist AS DATA — standing capability the session launches with (07 §3)
-	HostTools   []HostTool        // Eden-provided callback tools (read-scoped project-data tools for AssistantSession)
-	Credential  secrets.Reference // OPAQUE; resolved server-side at Open, injected per the credential-flow diagram — never the value
-	Budget      Budget            // soft ceilings surfaced to the harness + hard ceilings the engine enforces by Abort
-	ResumeFrom  string            // harness-native session id to re-attach (empty == fresh)
-	SystemHints string            // optional system-prompt augmentation (hermetic-context seam; never a secret)
+	Workspace   string            `json:"workspace"`           // the already-provisioned workspace dir (S2 owns its lifecycle); the harness CWD (02 §1)
+	Routing     RouteKey          `json:"routing"`             // selects harness+model via agentconfiguration; routable per phase
+	Grants      []ToolGrant       `json:"grants,omitempty"`    // the allowlist AS DATA — standing capability the session launches with (07 §3)
+	HostTools   []HostTool        `json:"hostTools,omitempty"` // Eden-provided callback tools (read-scoped project-data tools for AssistantSession)
+	Credential  secrets.Reference `json:"credential"`          // OPAQUE; resolved server-side at Open, injected per the credential-flow diagram — never the value
+	Budget      Budget            `json:"budget"`              // soft ceilings surfaced to the harness + hard ceilings the engine enforces by Abort
+	ResumeFrom  string            `json:"resumeFrom"`          // harness-native session id to re-attach (empty == fresh)
+	SystemHints string            `json:"systemHints"`         // optional system-prompt augmentation (hermetic-context seam; never a secret)
+
+	// StateRoot is the directory the harness keeps THIS session's own state under (transcript,
+	// resume index, scratch). It exists so 1..N sessions in ONE pod cannot collide: claude keys
+	// its transcript directory by the CWD it was started in, so two sessions sharing a root make
+	// one session's ResumeFrom re-attach the OTHER's transcript — a silent cross-session bleed,
+	// not a loud failure. Empty == the harness's own default, which is safe only for a
+	// single-session pod. The caller assigns it, as it assigns Name; the library neither creates
+	// nor removes the directory. It is a typed seam in this slice: no adapter consumes it yet.
+	StateRoot string `json:"stateRoot"`
 
 	// OnPermission is the policy decider for out-of-grant requests (the engine's
 	// clean-room auto-resolver). When non-nil it is called synchronously and the
@@ -106,20 +115,23 @@ type Spec struct {
 	// Resolve ever arriving leaves the request pending until ctx/Close — so a batch
 	// session MUST set it. Default-deny is the safe policy. It REMAINS the degrade path:
 	// when no PermissionAdvisor is injected the resolution chain falls back to this.
-	OnPermission func(PermissionRequest) Decision
+	//
+	// It never reaches the wire: encoding/json refuses a func field outright, a nil one
+	// included, so an untagged OnPermission would make the whole Spec unmarshalable.
+	OnPermission func(PermissionRequest) Decision `json:"-"`
 
 	// PermissionResolution selects the per-session out-of-grant chain (the ratified
 	// model). The zero value (ResolveChatHumanThenAdvisor) is the safe human-first chain.
 	// ResolveAutonomousAdvisor consults the injected advisor directly (no human wait) for
 	// an unattended session. Either way the terminal fallback is default-deny, and with no
 	// advisor injected the chain degrades to OnPermission/default-deny (no regression).
-	PermissionResolution PermissionResolution
+	PermissionResolution PermissionResolution `json:"permissionResolution"`
 
 	// PermissionTimeout bounds the human-Resolve wait in the chat chain before the
 	// resolution falls back to the advisor (then default-deny). Zero == the safe default
 	// (defaultPermissionTimeout). It is meaningful only for ResolveChatHumanThenAdvisor;
 	// the autonomous chain consults the advisor immediately.
-	PermissionTimeout time.Duration
+	PermissionTimeout time.Duration `json:"permissionTimeout"`
 
 	// Name is this session's stable peer address AND the harness-native session name. It is
 	// assigned by the CALLER (the orchestrator), never minted by the library, because a peer
@@ -131,12 +143,12 @@ type Spec struct {
 	//	                                    design exists to remove).
 	//	Deps.Peer == nil && Name == ""  ==> opens cleanly; no peer event is ever emitted.
 	//	invalid non-empty               ==> ConfigError, never a mangled argv.
-	Name string
+	Name string `json:"name"`
 
 	// Parent is the opener's Name ("" == a root session, whose parent is the orchestrator).
 	// It is the TREE edge, reported as Peer.Parent. The tree is the registry, parentage,
 	// authorization and audit structure — NEVER a reachability restriction.
-	Parent string
+	Parent string `json:"parent"`
 }
 
 // RouteKey is the opaque key agentconfiguration resolves to a concrete (harness,
@@ -144,8 +156,8 @@ type Spec struct {
 // which harness/model — it is told. This is C22's "right agent for the right phase"
 // selector, kept out of this contract's policy.
 type RouteKey struct {
-	Phase string // "product-design", "implement", "review", ... | "" for interactive
-	Role  string // "assistant" | "implementer" | "reviewer" | ...
+	Phase string `json:"phase"` // "product-design", "implement", "review", ... | "" for interactive
+	Role  string `json:"role"`  // "assistant" | "implementer" | "reviewer" | ...
 }
 
 // ToolGrant is one allowlist entry AS DATA (not code): a capability the session may
@@ -153,10 +165,10 @@ type RouteKey struct {
 // ("Write", "Bash(go *)") and OMP SyncTools. The engine derives the egress endpoints
 // a granted tool needs from the grant set.
 type ToolGrant struct {
-	ID       string   // stable id for audit linkage (ToolPayload.GrantID)
-	Tool     string   // tool name, e.g. "Write", "Read", "Bash"
-	Scopes   []string // sub-scoping, e.g. ["go *", "ls *"] for Bash; nil == whole tool
-	ReadOnly bool     // marks a read-scoped grant (AssistantSession: project-data tools, NO write paths — 07 §3)
+	ID       string   `json:"id"`               // stable id for audit linkage (ToolPayload.GrantID)
+	Tool     string   `json:"tool"`             // tool name, e.g. "Write", "Read", "Bash"
+	Scopes   []string `json:"scopes,omitempty"` // sub-scoping, e.g. ["go *", "ls *"] for Bash; nil == whole tool
+	ReadOnly bool     `json:"readOnly"`         // marks a read-scoped grant (AssistantSession: project-data tools, NO write paths — 07 §3)
 }
 
 // HostTool is an Eden-provided tool the agent calls BACK into (the OMP host-tool
@@ -165,10 +177,12 @@ type ToolGrant struct {
 // read-scoped project-data tools with NO write paths and NO credential access
 // (07 §3). The handler runs in-process, server-side.
 type HostTool struct {
-	Name        string
-	Description string
-	Schema      []byte // JSON-schema of parameters (opaque to this lib; passed to the harness)
-	Handler     func(ctx context.Context, args []byte) (result []byte, err error)
+	Name        string `json:"name"`
+	Description string `json:"description"`
+	Schema      []byte `json:"schema,omitempty"` // JSON-schema of parameters (opaque to this lib; passed to the harness)
+	// Handler never reaches the wire: encoding/json refuses a func field outright, a nil one
+	// included, so an untagged Handler would make the whole Spec unmarshalable.
+	Handler func(ctx context.Context, args []byte) (result []byte, err error) `json:"-"`
 }
 
 // Budget carries the soft ceilings surfaced to the harness AND the hard ceilings the
@@ -176,9 +190,9 @@ type HostTool struct {
 // AUTHORITATIVE enforcement is the engine watching EventUsage against TokenBudget
 // (02 §2) and calling Abort/Close — there is exactly ONE budget authority.
 type Budget struct {
-	MaxCostMicros int64         // 0 == unbounded here (engine still enforces TokenBudget)
-	MaxTurns      int32         // 0 == harness default
-	MaxWall       time.Duration // 0 == ctx bounds it
+	MaxCostMicros int64         `json:"maxCostMicros"` // 0 == unbounded here (engine still enforces TokenBudget)
+	MaxTurns      int32         `json:"maxTurns"`      // 0 == harness default
+	MaxWall       time.Duration `json:"maxWall"`       // 0 == ctx bounds it
 }
 
 // Config is the immutable spine input for the Factory. It holds the routing table;
