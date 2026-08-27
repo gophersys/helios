@@ -1,6 +1,6 @@
 # codex-review-runner
 
-phase:    plan
+phase:    pr
 repo:     gophersys/infrastructure
 branch:   fix/codex-review-runner
 worktree: ~/code/.worktrees/infrastructure-codex-review-runner
@@ -21,9 +21,10 @@ Replace every declared ARC/warmer pin home with the same immutable cloud digest.
 - GREEN — all declared pin homes updated: `bash ctl.sh verify-warmer-pins` reported one digest across 3 pool files + 2 warmer files, no privilege, and 3 control-plane nodes excluded.
 - `bash ctl.sh verify-registry`: 18 checked, 1 external-chart skip, 0 failures.
 - `bash ctl.sh validate`: 6 project files parsed, 35 shell scripts linted, `validate: OK`.
+- `bash ctl.sh verify-runner-image cloud 26be335`: the real ARC+dind pod shape passed all checks, including root/gid 123, Docker API and container run, toolchain, sudo, and `run.sh` readiness.
 
 ## Blocked
 
 
 ## Next
-After the image publish run releases cluster capacity, execute the runner-image pod-shape verification.
+Push the promotion PR, obtain independent review, and use a bounded live review-pool canary to break the old-runner review bootstrap cycle.
