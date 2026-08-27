@@ -1,0 +1,22 @@
+{
+    // research-embedded rides the prebuilt gophersys embedded image.
+    // CONSUME ONLY: this repo never builds or repins the shared image.
+    // Pinned by digest (tag 449d5f4, 2026-08-26); dev and CI must pin the
+    // same digest.
+    "name": "research-embedded",
+    "image": "ghcr.io/gophersys/embedded@sha256:bd0a68d63e208e96dea4169e545320197886b77169090a7b5e6180664ced8da9",
+    "containerEnv": {
+        "GOPHERSYS_DEVCONTAINER": "1"
+    },
+    "postCreateCommand": "bash .devcontainer/west-init.sh",
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "plorefice.devicetree",
+                "golang.go",
+                "ms-python.python"
+            ]
+        }
+    }
+}

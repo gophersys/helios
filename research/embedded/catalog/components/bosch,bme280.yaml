@@ -1,0 +1,42 @@
+schema: sfd.component/v0
+compatible: bosch,bme280
+class: sensor
+buses:
+    - i2c
+    - spi
+bindings:
+    - path: dts/bindings/sensor/bosch,bme280-i2c.yaml
+      on_bus: i2c
+      class: sensor
+    - path: dts/bindings/sensor/bosch,bme280-spi.yaml
+      on_bus: spi
+      class: sensor
+drivers:
+    - drivers/sensor/bosch/bme280
+exercised_by:
+    - boards/antmicro/myra_sip_baseboard/myra_sip_baseboard.dts
+    - boards/ezurio/bl654_sensor_board/bl654_sensor_board.dts
+    - boards/nxp/rddrone_fmuk66/rddrone_fmuk66.dts
+    - boards/olimex/lora_stm32wl_devkit/olimex_lora_stm32wl_devkit.dts
+    - boards/ruuvi/ruuvitag/ruuvi_ruuvitag.dts
+    - samples/sensor/bme280/arduino_i2c.overlay
+    - samples/sensor/bme280/arduino_spi.overlay
+    - samples/sensor/bme280/boards/adafruit_feather_esp32s2.overlay
+    - samples/sensor/bme280/boards/adafruit_feather_esp32s2_tft.overlay
+    - samples/sensor/bme280/boards/adafruit_feather_esp32s2_tft_reverse.overlay
+    - samples/sensor/bme280/boards/adafruit_feather_m0_basic_proto.overlay
+    - samples/sensor/bme280/boards/cy8cproto_041tp.overlay
+    - samples/sensor/bme280/boards/intel_adl_crb.overlay
+    - samples/sensor/bme280/boards/intel_ptl_h_crb.overlay
+    - samples/sensor/bme280/boards/intel_rpl_p_crb.overlay
+    - samples/sensor/bme280/boards/lp_em_cc2340r5.overlay
+    - samples/sensor/bme280/boards/rpi_pico.overlay
+    - samples/sensor/bme280/rpi_pico_spi_pio.overlay
+    - tests/drivers/build_all/sensor/i2c.dtsi
+    - tests/drivers/build_all/sensor/spi.dtsi
+depth: D2
+part_numbers: []
+provenance:
+    zephyr_sha: 684c9e8f32e4373a21098559f748f06915f950c9
+    extracted: "2026-08-27"
+    tool: sfd/v0

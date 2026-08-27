@@ -1,0 +1,98 @@
+# concord-ci — Standalone CI platform for Concord.
+#
+# Deploys into the devops namespace, fully independent of the main
+# Concord platform. Manages its own MinIO, SQLite, dashboard, and
+# CronJobs.
+
+global:
+  namespace: devops
+  imagePullPolicy: Always
+  nodeSelector:
+    concord.corekinect.com/workload: devops
+
+# ── CI MinIO (artifact storage) ─────────────────────────────
+minio:
+  enabled: true
+  image: minio/minio:RELEASE.2024-11-07T00-52-20Z
+  storage: 5Gi
+  storageClass: ""
+  port: 9000
+  consolePort: 9001
+  rootUser: ci-minio
+  rootPassword: ci-minio-changeme
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+# ── Dashboard (SvelteKit + adapter-node) ────────────────────
+admin:
+  enabled: false
+  image:
+    repository: containers.ad.corekinect.com/concord-ci-admin
+    tag: latest
+  replicas: 1
+  port: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# ── Data PVC (SQLite database) ──────────────────────────────
+data:
+  storage: 1Gi
+  storageClass: ""
+
+# ── Nightly CronJob ─────────────────────────────────────────
+nightly:
+  enabled: true
+  schedule: "0 2 * * *"
+  timeZone: "America/Chicago"
+  activeDeadlineSeconds: 7200
+  image: containers.ad.corekinect.com/concord-devcontainer-base:latest
+  resources:
+    runner:
+      requests: { cpu: "4", memory: 8Gi }
+      limits:   { cpu: "6", memory: 12Gi }
+    dind:
+      requests: { cpu: "2", memory: 4Gi }
+      limits:   { cpu: "4", memory: 8Gi }
+
+# ── Weekly CronJob ──────────────────────────────────────────
+weekly:
+  enabled: true
+  schedule: "0 3 * * 6"
+  timeZone: "America/Chicago"
+  activeDeadlineSeconds: 7200
+  image: containers.ad.corekinect.com/concord-devcontainer-base:latest
+  resources:
+    requests: { cpu: "2", memory: 4Gi }
+    limits:   { cpu: "4", memory: 8Gi }
+
+# ── Ingress (Traefik) ──────────────────────────────────────
+ingress:
+  enabled: true
+  host: concord.local
+  className: traefik
+  tls:
+    enabled: true
+    secretName: concord-ci-tls
+
+# ── CI Configuration ────────────────────────────────────────
+config:
+  repoUrl: "git@bitbucket.org:corekinect/concord.git"
+  branch: main
+  minioBucket: ci
+
+# ── External secrets (not managed by this chart) ────────────
+# These must exist in the devops namespace before deploying:
+#   - bitbucket-ssh-key        (git clone auth)
+#   - corekinect-ca-certs      (internal TLS)
+#   - claude-code-oauth        (AI review auth)
+#   - dockerhub-credentials    (Docker Hub rate limit bypass)

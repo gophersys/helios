@@ -1,0 +1,93 @@
+schema: sfd.soc/v0
+name: mimxrt1052
+family: nxp_imxrt
+series: imxrt10xx
+soc_yml: soc/nxp/imxrt/soc.yml
+dtsi_discovery: auto
+dtsi_seeds:
+    - dts/arm/nxp/imxrt/nxp_rt1050.dtsi
+dtsi_files:
+    - dts/arm/nxp/imxrt/nxp_rt1050.dtsi
+    - dts/arm/nxp/imxrt/nxp_rt10xx.dtsi
+    - dts/arm/armv7-m.dtsi
+    - dts/common/skeleton.dtsi
+compatibles:
+    - arm,armv7m-itm
+    - arm,armv7m-mpu
+    - arm,armv7m-systick
+    - arm,cortex-m7
+    - arm,v7m-nvic
+    - fixed-clock
+    - fixed-factor-clock
+    - mmio-sram
+    - nxp,ehci
+    - nxp,enet
+    - nxp,enet-mac
+    - nxp,enet-mdio
+    - nxp,enet-ptp-clock
+    - nxp,flexcan
+    - nxp,flexcan-fd
+    - nxp,flexio
+    - nxp,flexpwm
+    - nxp,flexram
+    - nxp,gpt-hw-timer
+    - nxp,imx-anatop
+    - nxp,imx-ccm
+    - nxp,imx-ccm-fnpll
+    - nxp,imx-csi
+    - nxp,imx-dtcm
+    - nxp,imx-elcdif
+    - nxp,imx-flexspi
+    - nxp,imx-gpio
+    - nxp,imx-gpr
+    - nxp,imx-gpt
+    - nxp,imx-iomuxc
+    - nxp,imx-itcm
+    - nxp,imx-pwm
+    - nxp,imx-qtmr
+    - nxp,imx-semc
+    - nxp,imx-snvs
+    - nxp,imx-snvs-rtc
+    - nxp,imx-src
+    - nxp,imx-tmr
+    - nxp,imx-usdhc
+    - nxp,imx-wdog
+    - nxp,kinetis-trng
+    - nxp,lpi2c
+    - nxp,lpspi
+    - nxp,lpuart
+    - nxp,mcux-12b1msps-sar
+    - nxp,mcux-dcp
+    - nxp,mcux-edma
+    - nxp,mcux-i2s
+    - nxp,mcux-qdec
+    - nxp,mcux-rt-pinctrl
+    - nxp,mcux-xbar
+    - nxp,ocotp
+    - nxp,pit
+    - nxp,pit-channel
+    - nxp,pxp
+    - nxp,tempmon
+    - nxp,uhc-ehci
+    - nxp,usbphy
+    - simple-bus
+    - zephyr,memory-region
+    - zephyr,power-state
+    - zephyr,rtc-counter
+power_states:
+    - name: runtime-idle
+      min_residency_us: 5000
+      exit_latency_us: 4000
+    - name: suspend-to-idle
+      min_residency_us: 10000
+      exit_latency_us: 5000
+    - name: soft-off
+boards:
+    - boards/madmachine/mm_swiftio
+    - boards/nxp/mimxrt1050_evk
+depth: D1
+part_numbers: []
+provenance:
+    zephyr_sha: 684c9e8f32e4373a21098559f748f06915f950c9
+    extracted: "2026-08-27"
+    tool: sfd/v0

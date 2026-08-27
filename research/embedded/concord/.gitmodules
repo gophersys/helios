@@ -1,0 +1,77 @@
+[submodule "libs/zephyr/dns_sec"]
+	path = libs/zephyr/dns_sec
+	url = git@bitbucket.org:corekinect/dns_sec.git
+[submodule "libs/zephyr/iface"]
+	path = libs/zephyr/iface
+	url = git@bitbucket.org:corekinect/iface.git
+[submodule "libs/zephyr/cipher"]
+	path = libs/zephyr/cipher
+	url = git@bitbucket.org:corekinect/cipher.git
+[submodule "libs/zephyr/alt_drv"]
+	path = libs/zephyr/alt_drv
+	url = git@bitbucket.org:corekinect/alt_drv.git
+[submodule "libs/zephyr/mcp4017_drv"]
+	path = libs/zephyr/mcp4017_drv
+	url = git@bitbucket.org:corekinect/mcp4017_drv.git
+[submodule "libs/zephyr/sn74lv051a_drv"]
+	path = libs/zephyr/sn74lv051a_drv
+	url = git@bitbucket.org:corekinect/sn74lv051a_drv.git
+[submodule "libs/zephyr/m24c08_drv"]
+	path = libs/zephyr/m24c08_drv
+	url = git@bitbucket.org:corekinect/m24c08_drv.git
+[submodule "libs/zephyr/accel_drv"]
+	path = libs/zephyr/accel_drv
+	url = git@bitbucket.org:corekinect/accel_drv.git
+[submodule "libs/zephyr/se050_drv"]
+	path = libs/zephyr/se050_drv
+	url = git@bitbucket.org:corekinect/se050_drv.git
+[submodule "libs/zephyr/dut_gpio_config_drv"]
+	path = libs/zephyr/dut_gpio_config_drv
+	url = git@bitbucket.org:corekinect/dut_gpio_config_drv.git
+[submodule "libs/zephyr/mlx90632_drv"]
+	path = libs/zephyr/mlx90632_drv
+	url = git@bitbucket.org:corekinect/mlx90632_drv.git
+[submodule "libs/zephyr/nand_flash_drv"]
+	path = libs/zephyr/nand_flash_drv
+	url = git@bitbucket.org:corekinect/nand_flash_drv.git
+[submodule "libs/zephyr/max32644_drv"]
+	path = libs/zephyr/max32644_drv
+	url = git@bitbucket.org:corekinect/max32644_drv.git
+[submodule "libs/zephyr/pah8151_drv"]
+	path = libs/zephyr/pah8151_drv
+	url = git@bitbucket.org:corekinect/pah8151_drv.git
+[submodule "libs/zephyr/ck_boards"]
+	path = libs/zephyr/ck_boards
+	url = git@bitbucket.org:corekinect/ck_boards.git
+[submodule "libs/zephyr/paf9615_drv"]
+	path = libs/zephyr/paf9615_drv
+	url = git@bitbucket.org:corekinect/paf9615_drv.git
+[submodule "libs/zephyr/vsm_drv"]
+	path = libs/zephyr/vsm_drv
+	url = git@bitbucket.org:corekinect/vsm_drv.git
+[submodule "libs/zephyr/mlx90614_drv"]
+	path = libs/zephyr/mlx90614_drv
+	url = git@bitbucket.org:corekinect/mlx90614_drv.git
+[submodule "libs/zephyr/lsm6dso_drv"]
+	path = libs/zephyr/lsm6dso_drv
+	url = git@bitbucket.org:corekinect/lsm6dso_drv.git
+[submodule "apps/firmware/products/alpha/alpha_fw"]
+	path = apps/firmware/products/alpha/alpha_fw
+	url = git@bitbucket.org:corekinect/alpha_fw.git
+	branch = main
+[submodule "apps/firmware/products/alpha/alpha_mfg_fw"]
+	path = apps/firmware/products/alpha/alpha_mfg_fw
+	url = git@bitbucket.org:corekinect/alpha_mfg_fw.git
+	branch = main
+[submodule "apps/firmware/products/sigma5/sigma5_fw"]
+	path = apps/firmware/products/sigma5/sigma5_fw
+	url = git@bitbucket.org:corekinect/sigma5_fw.git
+	branch = master
+[submodule "apps/firmware/products/sigma5/sigma5_mfg_fw"]
+	path = apps/firmware/products/sigma5/sigma5_mfg_fw
+	url = git@bitbucket.org:corekinect/sigma5_mfg_fw.git
+	branch = main
+[submodule "apps/validation/alpha"]
+	path = apps/validation/alpha
+	url = git@bitbucket.org:corekinect/alpha_validation.git
+	branch = init/seed

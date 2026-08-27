@@ -1,0 +1,118 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: "{{JOB_NAME}}"
+  labels:
+    app: "manufacturing-{{PRODUCT}}"
+    corekinect.com/manufacturing-product: "{{PRODUCT}}"
+    corekinect.com/manufacturing-session-id: "{{SESSION_ID}}"
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels:
+        app: "manufacturing-{{PRODUCT}}"
+        corekinect.com/manufacturing-product: "{{PRODUCT}}"
+        corekinect.com/manufacturing-session-id: "{{SESSION_ID}}"
+    spec:
+      restartPolicy: Never
+      terminationGracePeriodSeconds: 30
+      nodeSelector:
+        kubernetes.io/hostname: "{{NODE_NAME}}"
+      containers:
+      - name: "manufacturing-{{PRODUCT}}"
+        image: "containers.ad.corekinect.com/concord-test-runner:{{IMAGE_TAG}}"
+        imagePullPolicy: Always
+        securityContext:
+          privileged: false
+        env:
+        - name: ENVIRONMENT
+          value: "{{ENVIRONMENT}}"
+        - name: STAGE
+          value: "manufacturing"
+        - name: TEST_PACKAGE_TYPE
+          value: "MANUFACTURING"
+        - name: LOG_LEVEL
+          value: "4"
+        - name: TEST_PACKAGE_VERSION
+          value: "{{TEST_PACKAGE_VERSION}}"
+        - name: PRODUCT
+          value: "{{PRODUCT}}"
+        - name: PRODUCT_SLUG
+          value: "{{PRODUCT_SLUG}}"
+        - name: CONCORD_API_URL
+          value: "{{CONCORD_API_URL}}"
+        - name: CONCORD_RUN_ID
+          value: "{{RUN_ID}}"
+        - name: CONCORD_SESSION_ID
+          value: "{{RUN_ID}}"
+        - name: CONCORD_API_KEY
+          value: "{{CONCORD_API_KEY}}"
+        - name: CONCORD_API_HOST
+          value: "{{CONCORD_API_HOST}}"
+        # ── Storage (MinIO) ──
+        - name: STORAGE_URL
+          value: "{{STORAGE_URL}}"
+        - name: STORAGE_ACCESS_KEY
+          value: "{{STORAGE_ACCESS_KEY}}"
+        - name: STORAGE_SECRET_ACCESS_KEY
+          value: "{{STORAGE_SECRET_ACCESS_KEY}}"
+        - name: STORAGE_BUCKET_NAME
+          value: "{{STORAGE_BUCKET_NAME}}"
+        # ── Multi-slot MTIB addresses ──
+        - name: MTIB_HOSTS
+          value: "{{MTIB_HOSTS}}"
+        - name: MTIB_PORT
+          value: "{{MTIB_PORT}}"
+        # ── Per-slot device identity ──
+        - name: SLOT_SNRS
+          value: "{{SLOT_SNRS}}"
+        - name: SLOT_DEVICE_IDS
+          value: "{{SLOT_DEVICE_IDS}}"
+        # ── Fixture identity ──
+        - name: FIXTURE_ID
+          value: "{{FIXTURE_ID}}"
+        - name: FIXTURE_CONFIG_PATH
+          value: "{{FIXTURE_CONFIG_PATH}}"
+        # ── Firmware AssetSet ──
+        - name: ASSET_SET_ID
+          value: "{{ASSET_SET_ID}}"
+        # ── CoreOps (device personalization) ──
+        - name: COREOPS_SERVER_URL
+          value: "https://coreops.office.corekinect.cloud:2013"
+        - name: COREOPS_AUTH_SERVER_URL
+          value: "https://auth.office.corekinect.cloud:2013"
+        - name: COREOPS_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: coreops-credentials
+              key: api-key
+        - name: COREOPS_AUTH_USER
+          valueFrom:
+            secretKeyRef:
+              name: coreops-credentials
+              key: auth-user
+        - name: COREOPS_AUTH_PASS
+          valueFrom:
+            secretKeyRef:
+              name: coreops-credentials
+              key: auth-pass
+        # ── Loki logging ──
+        - name: LOKI_URL
+          value: "http://10.4.45.3:3100/loki/api/v1/push"
+        # ── Test Artifacts ──
+        - name: ARTIFACTS_DIR
+          value: "/var/log/validation"
+        volumeMounts:
+        - name: artifacts
+          mountPath: /var/log/validation
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "200Mi"
+          limits:
+            cpu: "2000m"
+            memory: "2000Mi"
+      volumes:
+      - name: artifacts
+        emptyDir: {}

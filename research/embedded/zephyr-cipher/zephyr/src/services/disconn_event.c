@@ -1,0 +1,147 @@
+// Standard includes
+#include <stdio.h>
+
+// Zephyr includes
+#include <zephyr/kernel.h>
+#include <zephyr/logging/log.h>
+#include <zephyr/net/socket.h>
+
+// Cipher includes
+#include <corekinect/cipher/protocol.h>
+#include <corekinect/iface/iface.h>
+
+#include "config/default.h"
+#include "daemon/daemon.h"
+#include "daemon/fifo.h"
+#include "daemon/registry.h"
+#include "utils/err.h"
+
+// Private include
+#include "interface.h"
+#include "services.h"
+#include "threads.h"
+
+LOG_MODULE_DECLARE(sd, CONFIG_CK_CIPHER_SD_LOG_LEVEL);
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                    Private Functions
+ *---------------------------------------------------------------------------------------------------*/
+
+/**
+ * @brief Broadcast to all connected interfaces service discovery updates from disconencted iface
+ *
+ * This function loops through each service in the registry, and for each connected interface of the
+ * daemon, it will send a service discovery update for the services offered by the disconnected iface
+ *
+ * @param d The daemon
+ * @param disconn_iface The disconnected interface
+ */
+static void update_affected_interfaces(cipher_daemon_t *d, cipher_iface_t *disconn_iface);
+
+/**
+ * @brief Remove all services in the registry who's interface is the one that disconnected
+ *
+ * @param d The daemon
+ * @param disconn_iface The disconnected interface
+ */
+static void update_registry(cipher_daemon_t *d, cipher_iface_t *disconn_iface);
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                             Iface Disonnection Event
+ *---------------------------------------------------------------------------------------------------*/
+
+void handle_iface_disconn_event(cipher_daemon_t *d) {
+
+    cipher_iface_t *disconn_iface = k_fifo_get(&d->sd.iface_disconn_queue, K_FOREVER);
+    __ASSERT(disconn_iface, "Null item on iface_disconn_queue, daemon %d", d->id);
+    __ASSERT(!disconn_iface->connected, "Expected iface %d for daemon %d to be disconencted", disconn_iface->id, d->id);
+
+    DBG("Iface %d disconnected!, advertising updates", disconn_iface->id);
+
+    update_affected_interfaces(d, disconn_iface);
+    update_registry(d, disconn_iface);
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                  Affected Interfaces
+ *---------------------------------------------------------------------------------------------------*/
+
+static void update_affected_interfaces(cipher_daemon_t *d, cipher_iface_t *disconn_iface) {
+
+    for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
+        cipher_service_entry_t *entry = &d->service_registry.entries[i];
+
+        // Skip empty slots and our own local services — a client disconnecting
+        // never makes a node-local service unavailable, so don't advertise it
+        // as gone.
+        if (!entry->_used || entry->local) {
+            continue;
+        }
+
+        // Skip entry if it cannot be routed to other devices
+        if (entry->service.allowed_hops < 1) {
+            continue;
+        }
+
+        // Only re-advertise services that actually had an endpoint on the iface
+        // that disconnected.
+        bool affected = false;
+        for (size_t j = 0; j < ARRAY_SIZE(entry->end_points); j++) {
+            if (entry->end_points[j]._used && entry->end_points[j].iface == disconn_iface) {
+                affected = true;
+                break;
+            }
+        }
+        if (!affected) {
+            continue;
+        }
+
+        send_service_update(d, entry, NULL, false);
+    }
+}
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                      Registry Update
+ *---------------------------------------------------------------------------------------------------*/
+static void update_registry(cipher_daemon_t *d, cipher_iface_t *disconn_iface) {
+
+    for (size_t i = 0; i < ARRAY_SIZE(d->service_registry.entries); i++) {
+
+        cipher_service_entry_t *entry = &d->service_registry.entries[i];
+
+        // Skip empty slots.
+        if (!entry->_used) {
+            continue;
+        }
+
+        // Local services persist for the lifetime of the node. A client
+        // disconnecting must NEVER remove them — otherwise the first disconnect
+        // wipes our own advertised services and every subsequent client finds
+        // nothing to discover (the reconnect regression this fixes).
+        if (entry->local) {
+            continue;
+        }
+
+        // Remote service: drop only the endpoints that were reachable through
+        // the interface that just disconnected. Endpoints learned via other
+        // interfaces stay put.
+        for (size_t j = 0; j < ARRAY_SIZE(entry->end_points); j++) {
+            cipher_service_end_point_t *ep = &entry->end_points[j];
+            if (ep->_used && ep->iface == disconn_iface) {
+                registry_end_point_rm_from_service(d, entry, ep);
+            }
+        }
+
+        // If the service has no endpoints left, retire the whole entry.
+        bool has_endpoint = false;
+        for (size_t j = 0; j < ARRAY_SIZE(entry->end_points); j++) {
+            if (entry->end_points[j]._used) {
+                has_endpoint = true;
+                break;
+            }
+        }
+        if (!has_endpoint) {
+            registry_service_remove(d, entry);
+        }
+    }
+}

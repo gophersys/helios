@@ -1,0 +1,27 @@
+# West manifest — the pinned Zephyr this repository reasons against.
+# This answers image-notes Q4: the manifest home is research-embedded, here.
+# The pin moves only by a reviewed commit. The capability catalog cites the
+# SHA this pin resolves to; `sfd verify` fails on drift.
+manifest:
+  remotes:
+    - name: zephyrproject-rtos
+      url-base: https://github.com/zephyrproject-rtos
+
+  projects:
+    - name: zephyr
+      remote: zephyrproject-rtos
+      revision: v4.4.0
+      clone-depth: 1
+      import:
+        # Narrow on purpose: only what the supported-SoC lanes need.
+        # A build that misses a module must FAIL and name it — then the
+        # allowlist grows by a reviewed commit, never silently.
+        path-prefix: ws
+        name-allowlist:
+          - cmsis
+          - cmsis_6
+          - hal_espressif
+          - hal_nxp
+
+  self:
+    path: manifest

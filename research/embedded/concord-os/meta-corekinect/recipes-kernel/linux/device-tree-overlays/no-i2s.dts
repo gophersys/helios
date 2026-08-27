@@ -1,0 +1,10 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+	compatible = "toradex,verdin-imx8mm";
+};
+
+&sai2 {
+	status = "disabled";
+};

@@ -1,0 +1,67 @@
+schema: sfd.soc/v0
+name: nrf9151
+family: nordic_nrf
+series: nrf91
+soc_yml: soc/nordic/soc.yml
+dtsi_discovery: auto
+dtsi_seeds:
+    - dts/arm/nordic/nrf9151_laca.dtsi
+    - dts/arm/nordic/nrf9151_ns_laca.dtsi
+dtsi_files:
+    - dts/arm/nordic/nrf9151_laca.dtsi
+    - dts/arm/nordic/nrf91.dtsi
+    - dts/arm/armv8-m.dtsi
+    - dts/common/skeleton.dtsi
+    - dts/vendor/nordic/nrf_common.dtsi
+    - dts/arm/nordic/override.dtsi
+    - dts/arm/nordic/nrf91_peripherals.dtsi
+    - dts/arm/nordic/nrf9151_ns_laca.dtsi
+    - dts/arm/nordic/nrf91_ns.dtsi
+compatibles:
+    - arm,armv8m-mpu
+    - arm,armv8m-systick
+    - arm,cortex-m33f
+    - arm,cryptocell-310
+    - arm,v8m-nvic
+    - mmio-sram
+    - nordic,nrf-clock
+    - nordic,nrf-ctrlapperi
+    - nordic,nrf-dppic
+    - nordic,nrf-egu
+    - nordic,nrf-ficr
+    - nordic,nrf-gpio
+    - nordic,nrf-gpiote
+    - nordic,nrf-gpregret
+    - nordic,nrf-i2s
+    - nordic,nrf-ipc
+    - nordic,nrf-kmu
+    - nordic,nrf-pdm
+    - nordic,nrf-pinctrl
+    - nordic,nrf-power
+    - nordic,nrf-pwm
+    - nordic,nrf-rtc
+    - nordic,nrf-saadc
+    - nordic,nrf-spim
+    - nordic,nrf-spu
+    - nordic,nrf-sw-pwm
+    - nordic,nrf-timer
+    - nordic,nrf-twim
+    - nordic,nrf-uarte
+    - nordic,nrf-uicr
+    - nordic,nrf-vmc
+    - nordic,nrf-wdt
+    - nordic,nrf91-flash-controller
+    - nordic,nrf91x-regulators
+    - simple-bus
+    - soc-nv-flash
+    - zephyr,bt-hci-entropy
+    - zephyr,psa-crypto-rng
+power_states: []
+boards:
+    - boards/nordic/nrf9151dk
+depth: D1
+part_numbers: []
+provenance:
+    zephyr_sha: 684c9e8f32e4373a21098559f748f06915f950c9
+    extracted: "2026-08-27"
+    tool: sfd/v0

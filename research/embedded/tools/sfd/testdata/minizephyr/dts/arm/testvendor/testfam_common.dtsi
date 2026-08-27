@@ -1,0 +1,5 @@
+/ {
+    soc {
+        spi0: spi@6000 { compatible = "testvendor,spi"; };
+    };
+};

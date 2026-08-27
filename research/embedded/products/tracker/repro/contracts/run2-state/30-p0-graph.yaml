@@ -1,0 +1,489 @@
+# The P0 interrogation graph — the machine-readable artifact Eden runs.
+# Contract: 30-p0-interrogation.md (rules R1-R5, tiers, G0, lint).
+# Counts: 30 fixed questions — 13 required (2 of them conditional),
+# 16 scoring, 1 color — plus 3 adaptive mechanisms.
+#
+# CONDITIONALITY (R1, defined): a question that appears as an `opens`
+# target is CONDITIONAL — it is asked only when an answer opens it, and a
+# closed question is N/A (never UNKNOWN). Every other question is
+# unconditional. No unconditional question may appear as an opens target.
+# The two conditional questions in v0: q.power.life, q.fn.offline.
+schema: sfd.interrogation/v0
+decided_with: Mateo, 2026-08-26
+
+questions:
+  # ── S1 INTENT ─────────────────────────────────────────────────────────
+  - id: q.intent.what
+    section: S1
+    tier: required
+    mode: fixed
+    ask: "What does the product do? One or two sentences."
+    type: text
+    feeds: [pir.summary, metric.viability.clarity]
+
+  - id: q.intent.who
+    section: S1
+    tier: required
+    mode: fixed
+    ask: "Who uses it, and where do they meet it?"
+    type: text
+    feeds: [pir.users]
+
+  - id: q.intent.exists
+    section: S1
+    tier: scoring
+    mode: fixed
+    ask: "Does something like it exist today? What is different about yours?"
+    type: text
+    feeds: [pir.novelty.different, metric.viability.novelty]
+
+  - id: q.intent.win
+    section: S1
+    tier: scoring
+    mode: fixed
+    ask: "A year from launch: what must be true for you to call it a success?"
+    type: text
+    feeds: [pir.targets.success, metric.viability.outcome]
+
+  # ── S2 ENVIRONMENT ────────────────────────────────────────────────────
+  - id: q.env.where
+    section: S2
+    tier: scoring
+    mode: fixed
+    ask: "Where does it live?"
+    type: enum
+    values: [indoor, outdoor, on-body, vehicle, industrial, several]
+    feeds: [pir.environment.where, metric.feasibility.env-risk]
+
+  - id: q.env.conditions
+    section: S2
+    tier: scoring
+    mode: fixed
+    ask: "Which of these will it meet?"
+    type: multi
+    values: [water, dust, heat, cold, vibration, drops, washing-or-hosing, "none"]
+    feeds: [pir.environment.conditions, metric.feasibility.env-risk]
+    adaptive: q.followup.range   # extreme picks spawn "how hot?"-style asks
+
+  - id: q.env.body
+    section: S2
+    tier: scoring
+    mode: fixed
+    ask: "Does it touch skin, or is it worn?"
+    type: enum
+    values: ["yes", "no"]
+    feeds: [pir.environment.on_body]
+    # NOTE: on-body once "opened" S9 here — that misused `opens` to mean
+    # tier escalation. S9's safety/data questions are unconditional and
+    # required for everyone (see q.comp.*). A tier-escalation mechanism,
+    # if ever needed, is a versioned schema change — not an opens edge.
+
+  # ── S3 FUNCTIONS ──────────────────────────────────────────────────────
+  # Covers 5 of S1's 9 capability words by direct question (sensing,
+  # actuation, connectivity, storage, hmi); compute arrives via the
+  # adaptive q.fn.rate; power, security and time are DERIVED — see the
+  # `derivations:` block and the contract's coverage table.
+  - id: q.fn.senses
+    section: S3
+    tier: required
+    mode: fixed
+    ask: "What does it need to notice about the world? (movement, temperature, sound, light, touch, location…)"
+    type: text
+    feeds: [pir.functions]      # capability sensing.*
+    adaptive: q.fn.rate         # each named sense spawns a rate ask
+
+  - id: q.fn.acts
+    section: S3
+    tier: required
+    mode: fixed
+    ask: "What does it move, switch, or change?"
+    type: text
+    feeds: [pir.functions]      # capability actuation.*
+    adaptive: q.fn.rate
+
+  - id: q.fn.talks
+    section: S3
+    tier: required
+    mode: fixed
+    ask: "What does it talk to — and how far away is that thing?"
+    type: multi                 # traversal 1: a real founder names several
+    values: [phone-nearby, same-building, far-away-anywhere, other-devices-like-it, nothing]
+    exclusive: [nothing]        # nothing, if selected, must be the sole pick
+    feeds: [pir.functions, metric.feasibility.connectivity]
+    opens:
+      phone-nearby: [q.fn.offline]
+      same-building: [q.fn.offline]
+      far-away-anywhere: [q.fn.offline]
+      other-devices-like-it: [q.fn.offline]
+    # THE radio derivation seed: counterpart + distance derive the radio in
+    # P3/P4; the user never names one (R3). `nothing` closes q.fn.offline —
+    # a product that talks to nothing gets no internet question.
+
+  - id: q.fn.offline
+    section: S3
+    tier: required            # conditional: opened by q.fn.talks
+    mode: fixed
+    ask: "When the internet is gone, what must still work?"
+    type: text
+    feeds: [pir.functions, metric.platform.edge-autonomy]
+    # drives P2 MCU-vs-MPU
+
+  - id: q.fn.shows
+    section: S3
+    tier: required
+    mode: fixed
+    ask: "What does the user see or hear on the device itself? Nothing at all, a light, sounds, a small readout (numbers, words, icons), or a rich screen (pages, video, animation)?"
+    type: enum
+    values: [nothing, a-light, sound, small-readout, rich-screen]
+    feeds: [pir.functions, metric.platform.hmi-class]
+    # small-readout vs rich-screen threshold is IN the ask, not implied
+
+  - id: q.fn.stores
+    section: S3
+    tier: required
+    mode: fixed
+    ask: "What must it still remember after losing power?"
+    type: text
+    feeds: [pir.functions]      # capability storage.*
+
+  # ── S4 POWER — seeds the P3 power-state budget ───────────────────────
+  - id: q.power.source
+    section: S4
+    tier: required
+    mode: fixed
+    ask: "How does it get power where it lives?"
+    type: enum
+    values: [wall-power, charges-on-dock-or-cable, batteries-you-replace, powers-itself]
+    feeds: [pir.power_class, metric.feasibility.power-risk]
+    opens:
+      charges-on-dock-or-cable: [q.power.life]
+      batteries-you-replace: [q.power.life]
+      powers-itself: [q.power.life]
+    glosses:
+      powers-itself: "from light, motion, or heat — no battery to change or charge"
+    # There is no `unknown` value: a founder who does
+    # not know leaves the question UNANSWERED and R5 records the UNKNOWN,
+    # which hard-blocks G0 (required tier). An enum member named unknown
+    # would collide with the R5 sentinel and pass the gate empty.
+
+  - id: q.power.life
+    section: S4
+    tier: required            # conditional: opened by q.power.source
+    mode: fixed
+    ask: "How long between charges or battery changes would DELIGHT the user — and what is UNACCEPTABLE?"
+    type: pair-number-unit    # {delight, floor}
+    feeds: [pir.targets.battery_life, metric.feasibility.power-risk]
+
+  - id: q.power.duty
+    section: S4
+    tier: required
+    mode: fixed
+    ask: "Is it always watching, or asleep until something happens?"
+    type: multi                 # traversal 1: duty is a policy, not one value
+    values: [always-on, wakes-on-event, wakes-on-schedule, only-when-used]
+    feeds: [pir.modes, metric.feasibility.power-risk]
+    # becomes the product-mode set {active/idle/sleep/ship} in P3
+
+  # ── S5 PHYSICAL ───────────────────────────────────────────────────────
+  - id: q.phys.size
+    section: S5
+    tier: scoring
+    mode: fixed
+    ask: "At most, how big can it be? Compare it to an object."
+    type: enum
+    values: [matchbox, deck-of-cards, phone, book, shoebox, bigger]
+    feeds: [pir.physical.size_class]
+    adaptive: q.followup.range   # tight picks open exact-dimension asks
+
+  - id: q.phys.carry
+    section: S5
+    tier: scoring
+    mode: fixed
+    ask: "Is it held, worn, mounted, or does it sit somewhere?"
+    type: enum
+    values: [held, worn, mounted, sits, moves-on-its-own]
+    feeds: [pir.physical.carry]
+
+  - id: q.phys.controls
+    section: S5
+    tier: scoring
+    mode: fixed
+    ask: "How does the user control it?"
+    type: enum
+    values: [nothing, one-button, a-few-buttons, knobs, touch, only-an-app, voice]
+    feeds: [pir.physical.controls, metric.platform.hmi-class]
+    # only-an-app implies connectivity; the graph does not silently assert
+    # it — the consistency rule below turns a contradiction with
+    # q.fn.talks=nothing into a G0 red instead.
+
+  # ── S6 SCALE + COST ───────────────────────────────────────────────────
+  - id: q.scale.units
+    section: S6
+    tier: scoring
+    mode: fixed
+    ask: "How many do you hope to build in year one — and in year three if it works?"
+    type: pair-number           # {y1, y3}
+    feeds: [pir.targets.volume, metric.viability.economics]
+
+  - id: q.scale.cost
+    section: S6
+    tier: scoring
+    mode: fixed
+    ask: "What should one unit cost you to build — and what price sells it?"
+    type: pair-number           # {build, sell}
+    feeds: [pir.targets.unit_cost, metric.viability.economics]
+
+  # ── S7 TIMELINE + EXISTING ────────────────────────────────────────────
+  - id: q.time.proto
+    section: S7
+    tier: scoring
+    mode: fixed
+    ask: "When do you need something working in your hand?"
+    type: date
+    feeds: [pir.timeline.proto, metric.risk.schedule]
+
+  - id: q.time.prod
+    section: S7
+    tier: scoring
+    mode: fixed
+    ask: "When must real units reach real users?"
+    type: date
+    feeds: [pir.timeline.production, metric.risk.schedule]
+
+  - id: q.time.exists
+    section: S7
+    tier: scoring
+    mode: fixed
+    ask: "What exists today? Pick everything that is true."
+    type: multi
+    values: [nothing, rough-sketches, a-3d-model-or-technical-drawings, a-rough-prototype, software-that-runs, a-phone-app, a-factory-contact, funding]
+    feeds: [pir.assets, metric.feasibility.head-start]
+
+  # ── S8 NOVELTY / THE HARD PART ────────────────────────────────────────
+  - id: q.novel.hard
+    section: S8
+    tier: scoring
+    mode: fixed
+    ask: "Which part of this do you lose sleep over?"
+    type: text
+    feeds: [pir.novelty.hard, metric.risk.self-assessed]
+
+  - id: q.novel.magic
+    section: S8
+    tier: scoring
+    mode: fixed
+    ask: "Is anything here something you've never seen work anywhere?"
+    type: text
+    feeds: [pir.novelty.magic, metric.tech.exists]
+
+  - id: q.novel.moat
+    section: S8
+    tier: color
+    mode: fixed
+    ask: "What do you know that competitors don't?"
+    type: text
+    feeds: [pir.novelty.moat]
+
+  # ── S9 COMPLIANCE + SAFETY — required: the human-gate guarantee ──────
+  - id: q.comp.region
+    section: S9
+    tier: scoring
+    mode: fixed
+    ask: "Where will it be sold first?"
+    type: multi
+    values: [us, eu, uk, ca, other]
+    feeds: [pir.compliance.regions]
+    # certifications are DERIVED from region — never asked (R3); see
+    # derivations.pir.compliance.certifications
+
+  - id: q.comp.safety
+    section: S9
+    tier: required            # scoring would let UNKNOWN skip the human
+    mode: fixed               # gate — refuted 2026-08-26
+    ask: "Could a failure hurt someone or damage property?"
+    type: enum
+    values: ["none", minor, serious]
+    feeds: [pir.compliance.safety, metric.risk.safety]
+    # serious → HUMAN GATE in P1; the system never scores that alone
+
+  - id: q.comp.data
+    section: S9
+    tier: required            # personal data carries regulatory weight;
+    mode: fixed               # UNKNOWN must not pass silently
+    ask: "Does it collect anything personal — voice, video, health, location?"
+    type: multi
+    values: ["none", voice, video, health, location, identity]
+    feeds: [pir.compliance.personal_data, metric.risk.privacy]
+
+# ── adaptive mechanisms (R4: chat discovers, only the schema records) ───
+# G0 status: tier binds when spawned; an unspawned adaptive is N/A.
+adaptive:
+  - id: q.fn.rate
+    tier: scoring
+    spawned_by: [q.fn.senses, q.fn.acts]     # once per named sense/act
+    ask: "How often? How fast must it react?"
+    type: number-unit
+    feeds: [pir.functions, metric.platform.compute-demand]
+
+  - id: q.followup.range
+    tier: scoring
+    spawned_by: [q.env.conditions, q.phys.size]   # extreme/tight picks
+    ask: "How much, exactly? (how hot, how cold, how small…)"
+    type: number-unit
+    feeds: [pir.environment.limits, pir.physical.dims]
+    routing:                    # spawn source → the ONE field that spawn fills
+      q.env.conditions: pir.environment.limits
+      q.phys.size: pir.physical.dims
+
+  - id: q.constraint.strength
+    tier: required            # a volunteered tech left unclassified blocks G0
+    spawned_by: volunteered-technology        # any tech token in any answer
+    ask: "Is that a requirement, or a preference?"
+    type: enum
+    values: [hard, preference]
+    feeds: [pir.constraints]
+    # hard filters the P4 fit matrix; preference breaks ties only. Both
+    # recorded with the verbatim quote.
+
+# ── derivations — values computed, never asked (R3) ─────────────────────
+derivations:
+  pir.power_class:
+    from: q.power.source
+    map:                       # PC0 = cannot recharge: budget binds hardest
+      wall-power: PC2
+      charges-on-dock-or-cable: PC1
+      batteries-you-replace: PC0
+      powers-itself: PC0
+  pir.compliance.certifications:
+    from: q.comp.region
+    map:
+      us: [fcc]
+      eu: [ce-red]
+      uk: [ukca]
+      ca: [ised]
+      other: []                # named research task, not a silent empty
+  capability.security:         # S1 word `security` — derived, not asked
+    rule: "baseline security capability whenever q.fn.talks != nothing OR q.comp.data != none"
+  capability.time:             # S1 word `time` — derived, not asked
+    rule: "timekeeping capability whenever q.power.duty includes wakes-on-schedule"
+  capability.power:            # S1 word `power` — derived from S4
+    rule: "power capability = pir.power_class + pir.modes (always present)"
+
+# ── answer conventions (added after reproduction run 1, 2026-08-26) ─────
+conventions:
+  multi-opens: "an opens branch on a multi question fires when its key value is SELECTED"
+  multi-affirmation: "an answer to a multi question binds only to the values the runner PRESENTED; the runner must present every value — a partial presentation is a runner error recorded in the PIR"
+  bound-asks: "when an ask requests a bound (at most / at least) and the answer names several values, record the stated bound (e.g. 'no bigger than a small phone, deck of cards is ok' → phone)"
+  declared-none: "an explicit 'no deadline / no threshold / not for sale' is an ANSWER with value none-declared — never UNKNOWN, never ABSENT"
+  negative-function: "a required function question answered 'none' produces NO function item; the answer lives in provenance.pir.functions and satisfies the feed"
+  derived-items: "derived capabilities enter pir.functions as {capability, detail, source: derived, rule: <derivation name>} — no quote, no question"
+  timestamps: "R4 timestamps use the best available precision; date-only ISO 8601 is legal when the transcript carries no clock"
+  unknown-addressing: "unknowns[].field uses the leaf path (pir.targets.unit_cost.sell) and per-item paths for list entries (pir.constraints[<tech>].strength)"
+
+# ── the volunteered-technology oracle (constraint ask-back trigger) ─────
+constraint_oracle:
+  volunteered_when: "a token names an implementation choice the system could otherwise derive: radios/protocols (cellular, lora, ble, wifi), connectors (usb-c), silicon/modules, operating systems (zephyr rtos)"
+  excluded:
+    - "category nouns inside q.intent.what's product noun phrase ('gps tracker' names the product, not a part choice)"
+    - "UI primitives already captured by enum values (led, button, screen)"
+    - "ecosystem nouns describing surroundings, not the device (cloud, app, pcb, assembly, antenna)"
+  rule: "every included token gets q.constraint.strength; an unclassified included token is UNKNOWN and blocks G0 (required tier)"
+
+# ── consistency rules — cross-answer contradictions are G0 red ──────────
+# A rule fires only when EVERY answer it references is present; an UNKNOWN
+# or closed answer cannot make a rule red (it is already surfaced by R5).
+consistency:
+  - id: c.app-needs-link
+    red_when: "q.fn.talks == nothing AND q.phys.controls == only-an-app"
+    reason: "an app is a connectivity fact; a product controlled only by an app cannot talk to nothing"
+
+# ── the PIR field authority (lint checks feeds against THIS list) ──────
+pir_fields:
+  - pir.summary
+  - pir.users
+  - pir.functions
+  - pir.novelty.different
+  - pir.novelty.hard
+  - pir.novelty.magic
+  - pir.novelty.moat
+  - pir.targets.success
+  - pir.targets.battery_life
+  - pir.targets.unit_cost
+  - pir.targets.volume
+  - pir.environment.where
+  - pir.environment.conditions
+  - pir.environment.limits
+  - pir.environment.on_body
+  - pir.power_class
+  - pir.modes
+  - pir.physical.size_class
+  - pir.physical.dims
+  - pir.physical.carry
+  - pir.physical.controls
+  - pir.timeline.proto
+  - pir.timeline.production
+  - pir.assets
+  - pir.compliance.regions
+  - pir.compliance.safety
+  - pir.compliance.personal_data
+  - pir.compliance.certifications
+  - pir.constraints
+
+pir_required:                  # gives lint bullet "required fields fed by
+  - pir.summary                # required questions" a NON-EMPTY domain
+  - pir.users
+  - pir.functions
+  - pir.power_class            # via derivation from required q.power.source
+  - pir.modes
+  - pir.compliance.safety
+  - pir.compliance.personal_data
+
+question_keys:                 # the key oracle for lint (machine-readable,
+  required: [id, section, tier, mode, ask, type, feeds]
+  optional: [values, opens, adaptive, glosses, exclusive]
+adaptive_keys:
+  required: [id, tier, spawned_by, ask, type, feeds]
+  optional: [values, routing]
+
+conditional_questions:         # the INDEPENDENT declaration of the
+  - q.fn.offline               # conditional set — lint checks SET EQUALITY
+  - q.power.life               # against computed opens targets, so adding
+                               # an opens edge to an unconditional question
+                               # (the round-1 #1 bug class) goes red instead
+                               # of silently re-defining reachability
+
+conditional_fields:            # branch-closed fields are ABSENT, not UNKNOWN
+  pir.targets.battery_life: "present iff pir.power_class in [PC0, PC1]"
+  pir.targets.unit_cost.sell: "present iff the founder states an intent to sell; an explicit not-for-sale is ABSENT (declared-none convention); silence is UNKNOWN and the runner must ask"
+
+# ── G0 lint contract (enforced by `sfd graph lint`, PLANNED) ────────────
+lint:
+  - every feeds ENTRY (per-feed, not per-question) names a pir_fields id
+    or a metric id defined in 40-p1-registry.yaml
+  - every metric id in 40-p1-registry.yaml is referenced by >= 1 feeds
+    entry here (two-way, both directions)
+  - conditional_questions EQUALS (set equality) the computed set of all
+    opens targets — a divergence in either direction is red
+  - every opens branch key is a value of the question's own values list
+  - every enum/multi value parses as a YAML string (quote YAML-1.1
+    booleans like "yes"/"no"/"none")
+  - every pir_required field is fed by >= 1 required-tier question or by a
+    derivation whose `from` question is required-tier
+  - every derivation map covers every value of its `from` question
+  - every consistency rule references existing question ids and values
+  - every per-question `adaptive:` value is an id in the adaptive block
+  - every pir_fields entry is produced by >= 1 feeds entry or derivation
+  - every question id and value (where the question has a value domain)
+    referenced inside a rule-style derivation or consistency rule exists
+  - every glosses key is a value of its question's values list
+  - every routing key is in its record's spawned_by and every routing
+    target is one of its feeds entries and a pir_fields id
+  - every question record carries exactly question_keys.required and a
+    subset of question_keys.optional; adaptive records likewise against
+    adaptive_keys — an unknown or missing key is red (the oracle is the
+    machine-readable lists above, never prose)
+  - every feeds list is NON-EMPTY (a present-but-empty key is not a feed;
+    "a question feeding nothing is dead" must be enforceable, not a name)
+  - values is present and non-empty iff type is enum or multi (an enum
+    without values is unanswerable; a text with values is a lie)
+  - no two questions share an id

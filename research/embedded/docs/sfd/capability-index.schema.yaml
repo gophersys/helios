@@ -1,0 +1,104 @@
+# The catalog record schemas — documentation copy.
+# SOURCE OF TRUTH: the Go types in tools/sfd/record.go. If this file and
+# the Go types disagree, the Go types win and this file is the bug.
+#
+# Records live in catalog/{components,socs}/*.yaml. They are EXTRACTED by
+# `sfd`, never hand-written. Identity is Zephyr-native: a compatible string
+# for components, a SoC name for SoCs. Part numbers are a late binding
+# (P4) — the field exists and stays empty until then.
+
+# Every example value below is taken from a REAL record in catalog/ —
+# never an invented path. The current pin lives in manifest/west.yml;
+# records carry their own zephyr_sha.
+
+sfd.component/v0:
+  example:
+    schema: sfd.component/v0
+    compatible: bosch,bme280          # THE identity
+    class: sensor                     # dts/bindings/<class>/
+    buses: [i2c, spi]                 # binding on-bus, resolved through
+                                      # binding `include:` chains
+    bindings:
+      - path: dts/bindings/sensor/bosch,bme280-i2c.yaml
+        on_bus: i2c
+        class: sensor
+      - path: dts/bindings/sensor/bosch,bme280-spi.yaml
+        on_bus: spi
+        class: sensor
+    drivers:                          # dirs declaring DT_DRV_COMPAT
+      - drivers/sensor/bosch/bme280
+    exercised_by:                     # capped evidence, not a census;
+                                      # exact quoted-string match only
+      - boards/ezurio/bl654_sensor_board/bl654_sensor_board.dts
+    depth: D2                         # D1 binding only · D2 +driver ·
+                                      # D3 only via a recorded build/run
+    part_numbers: []                  # EMPTY until P4, per product
+    provenance:
+      zephyr_sha: <40-hex>
+      extracted: YYYY-MM-DD
+      tool: sfd/v0
+
+sfd.soc/v0:
+  example:
+    schema: sfd.soc/v0
+    name: esp32c6                     # THE identity (soc.yml name)
+    family: espressif_esp32
+    series: esp32c6
+    soc_yml: soc/espressif/soc.yml    # NOTE: some vendors declare at
+                                      # vendor level, not per-SoC dirs
+    dtsi_discovery: auto              # auto | manual (--dtsi)
+    dtsi_seeds:                       # discovery output, pre-closure
+      - dts/riscv/espressif/esp32c6/esp32c6_common.dtsi
+    dtsi_files:                       # FULL include closure — what was
+                                      # actually read; includes board-level
+                                      # partition dtsi where the closure
+                                      # pulls them
+      - dts/riscv/espressif/esp32c6/esp32c6_common.dtsi
+      - dts/vendor/espressif/partitions_0x0_default.dtsi
+    compatibles: []                   # declared inventory — D1 by definition:
+                                      # declared ≠ supported
+    power_states:                     # every zephyr,power-state in the
+                                      # closure (see limits below)
+      - name: standby
+        min_residency_us: 200
+        exit_latency_us: 60
+    boards: []                        # in-tree boards declaring this SoC
+    depth: D1
+    part_numbers: []                  # e.g. MIMXRT1052CVL5B — only in P4
+    provenance:
+      zephyr_sha: <40-hex>
+      extracted: YYYY-MM-DD
+      tool: sfd/v0
+
+# Verification contract: `sfd verify` RE-EXTRACTS every record through the
+# same builders `add` uses and compares the FULL serialized content,
+# positionally — order included, so permutations (values traded between
+# entries) are drift too — plus the SHA. The filename must match the
+# record's identity; records are decoded STRICTLY (an unknown key is an
+# error, so no un-gated assertion can ride inside a record); any stray
+# file in the catalog is a failure. Exit 0 means: re-running the
+# extraction reproduces each record's canonical serialization (provenance
+# aside — the comparison is of parsed content, not file bytes, so
+# comments and key order in the file are not covered).
+# Hand-edits (a promoted depth, a part number, an invented compatible) are
+# named drift and fail the gate.
+
+# Known v0 limits (honest — kept current with the code, checked in review):
+# - dtsi extraction is text-level WITH include-closure resolution, but:
+#   no /delete-node/ handling (deleted nodes may still appear declared),
+#   no C-preprocessor conditionals, no node-level structure. → D1 ceiling.
+# - power_states takes EVERY zephyr,power-state node in the closure; it
+#   does not follow cpu-power-states phandles, so it cannot attribute a
+#   state to a CPU cluster.
+# - wakeup-source, driver PM coverage (CONFIG_PM_DEVICE*), west blob
+#   metadata, memory map, pinctrl and clock topology: NOT yet extracted.
+# - the include closure may pull board-level dtsi (partition tables) into
+#   a SoC record's inventory (e.g. fixed-partitions).
+# - binding include resolution inside resolveOnBus is lenient (an
+#   unreadable include yields no bus rather than an error); the top-level
+#   walkers fail loudly on unparseable YAML.
+# - depth is per-record in v0; per-field depth is the v1 goal.
+# - soc dtsi discovery matches basenames at separator boundaries; a
+#   sibling SoC literally named <name>_<suffix> with its own dtsi would
+#   still be swallowed (0 such collisions among all 1157 soc names at
+#   v4.2.0 — bounded, not eliminated).

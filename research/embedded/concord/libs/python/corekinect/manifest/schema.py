@@ -1,0 +1,306 @@
+"""JSON Schema validation for concord.yaml manifests."""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass
+from importlib import resources
+from typing import List, Optional
+
+try:
+    import jsonschema
+    _HAS_JSONSCHEMA = True
+except ImportError:
+    _HAS_JSONSCHEMA = False
+
+CURRENT_SCHEMA = "1.0"
+MINIMUM_SCHEMA = "1.0"
+
+
+@dataclass
+class SchemaVersion:
+    """Schema version with comparison support."""
+
+    major: int
+    minor: int
+
+    @classmethod
+    def parse(cls, version: str) -> SchemaVersion:
+        parts = version.strip().split(".")
+        if len(parts) != 2:
+            raise ValueError(f"Invalid schema version '{version}': expected 'major.minor'")
+        return cls(major=int(parts[0]), minor=int(parts[1]))
+
+    def __str__(self) -> str:
+        return f"{self.major}.{self.minor}"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, SchemaVersion):
+            return NotImplemented
+        return self.major == other.major and self.minor == other.minor
+
+    def __lt__(self, other: SchemaVersion) -> bool:
+        if self.major != other.major:
+            return self.major < other.major
+        return self.minor < other.minor
+
+    def __le__(self, other: SchemaVersion) -> bool:
+        return self == other or self < other
+
+    def __gt__(self, other: SchemaVersion) -> bool:
+        return not self <= other
+
+    def __ge__(self, other: SchemaVersion) -> bool:
+        return not self < other
+
+
+@dataclass
+class ValidationError:
+    """A single manifest-validation finding (path + human-readable message).
+
+    ``path`` is the dotted YAML path (e.g. ``"product.device.type_id"``);
+    blank when the error is at the top level. ``__str__`` formats the
+    pair so the validator can join them into one log line.
+    """
+
+    path: str
+    message: str
+
+    def __str__(self) -> str:
+        if self.path:
+            return f"{self.path}: {self.message}"
+        return self.message
+
+
+@dataclass
+class ValidationResult:
+    """Aggregate result of manifest validation.
+
+    ``errors`` block the manifest from loading; ``warnings`` are
+    surfaced to the operator but allow the manifest through. Use
+    :attr:`valid` for a boolean gate before relying on the manifest.
+    """
+
+    errors: List[ValidationError]
+    warnings: List[ValidationError]
+
+    @property
+    def valid(self) -> bool:
+        return len(self.errors) == 0
+
+    def __str__(self) -> str:
+        lines = []
+        for e in self.errors:
+            lines.append(f"ERROR: {e}")
+        for w in self.warnings:
+            lines.append(f"WARNING: {w}")
+        return "\n".join(lines)
+
+
+def _load_json_schema(version: str) -> dict:
+    """Load the JSON Schema file for a given version.
+
+    Reads from package data (``corekinect/manifest/schemas/``) so the schema
+    travels with the wheel and works identically in source checkouts and
+    installed environments.
+    """
+    schema_files = resources.files("corekinect.manifest").joinpath("schemas")
+    schema_path = schema_files.joinpath(f"v{version}.schema.json")
+    if not schema_path.is_file():
+        raise FileNotFoundError(f"Schema not found in package data: v{version}.schema.json")
+    return json.loads(schema_path.read_text(encoding="utf-8"))
+
+
+def validate_manifest(data: dict, schema_version: Optional[str] = None) -> ValidationResult:
+    """Validate a manifest dict against the JSON Schema.
+
+    Args:
+        data: Parsed YAML dict from concord.yaml.
+        schema_version: Override the schema version to validate against.
+            If None, uses the 'schema' field from data, or CURRENT_SCHEMA.
+
+    Returns:
+        ValidationResult with errors and warnings.
+    """
+    errors: List[ValidationError] = []
+    warnings: List[ValidationError] = []
+
+    # Backward-compat shim for the ``fixture:`` → ``testbed:`` rename.
+    # Projects scaffolded before the rename still ship ``fixture:``; we
+    # accept it for one minor version with a deprecation warning. The
+    # rest of the validator (and any consumer reading the manifest)
+    # sees the canonical ``testbed:`` key only.
+    if "fixture" in data and "testbed" not in data:
+        warnings.append(
+            ValidationError(
+                "fixture",
+                "Key 'fixture:' is deprecated — rename to 'testbed:' in concord.yaml. "
+                "Support will be removed in the next minor release.",
+            )
+        )
+        data = dict(data)
+        data["testbed"] = data.pop("fixture")
+    elif "fixture" in data and "testbed" in data:
+        warnings.append(
+            ValidationError(
+                "fixture",
+                "Both 'fixture:' and 'testbed:' are present — using 'testbed:' "
+                "and ignoring the legacy 'fixture:' block. Remove the 'fixture:' "
+                "key to silence this warning.",
+            )
+        )
+        data = dict(data)
+        data.pop("fixture")
+
+    # Determine schema version
+    declared = data.get("schema")
+    if declared is None:
+        errors.append(ValidationError("schema", "Missing required field 'schema'"))
+        return ValidationResult(errors=errors, warnings=warnings)
+
+    version = schema_version or declared
+
+    # Check version compatibility
+    try:
+        declared_v = SchemaVersion.parse(declared)
+        minimum_v = SchemaVersion.parse(MINIMUM_SCHEMA)
+        current_v = SchemaVersion.parse(CURRENT_SCHEMA)
+
+        if declared_v < minimum_v:
+            errors.append(
+                ValidationError(
+                    "schema",
+                    f"Schema version {declared} is below minimum supported ({MINIMUM_SCHEMA}). "
+                    f"Re-init the project with 'corectl test init'.",
+                )
+            )
+            return ValidationResult(errors=errors, warnings=warnings)
+
+        if declared_v > current_v:
+            errors.append(
+                ValidationError(
+                    "schema",
+                    f"Schema version {declared} is newer than supported ({CURRENT_SCHEMA}). "
+                    f"Update your tools.",
+                )
+            )
+            return ValidationResult(errors=errors, warnings=warnings)
+    except ValueError as e:
+        errors.append(ValidationError("schema", str(e)))
+        return ValidationResult(errors=errors, warnings=warnings)
+
+    # Load and validate against JSON Schema
+    if _HAS_JSONSCHEMA:
+        try:
+            json_schema = _load_json_schema(version)
+            validator = jsonschema.Draft202012Validator(json_schema)
+
+            for error in sorted(validator.iter_errors(data), key=lambda e: list(e.path)):
+                path = ".".join(str(p) for p in error.absolute_path) or "(root)"
+                errors.append(ValidationError(path, error.message))
+        except FileNotFoundError as e:
+            errors.append(ValidationError("schema", str(e)))
+    else:
+        # jsonschema not installed — do basic field checks
+        warnings.append(
+            ValidationError(
+                "",
+                "jsonschema package not installed. Falling back to basic validation.",
+            )
+        )
+        errors.extend(_basic_validate(data))
+
+    # Semantic checks (beyond JSON Schema)
+    if not errors:
+        warnings.extend(_semantic_checks(data))
+
+    return ValidationResult(errors=errors, warnings=warnings)
+
+
+def _basic_validate(data: dict) -> List[ValidationError]:
+    """Minimal validation when jsonschema is not available."""
+    errors = []
+
+    for field in ("schema", "package", "product", "testbed"):
+        if field not in data:
+            errors.append(ValidationError(field, f"Missing required field '{field}'"))
+
+    if "package" in data:
+        pkg = data["package"]
+        for field in ("type", "version", "framework"):
+            if field not in pkg:
+                errors.append(ValidationError(f"package.{field}", f"Missing required field"))
+        if pkg.get("type") not in ("validation", "manufacturing"):
+            errors.append(
+                ValidationError("package.type", "Must be 'validation' or 'manufacturing'")
+            )
+
+    if "product" in data:
+        prod = data["product"]
+        for field in ("slug", "board"):
+            if field not in prod:
+                errors.append(ValidationError(f"product.{field}", f"Missing required field"))
+
+    if "testbed" in data:
+        fix = data["testbed"]
+        for field in ("controller", "profile"):
+            if field not in fix:
+                errors.append(ValidationError(f"fixture.{field}", f"Missing required field"))
+
+    if "stages" not in data:
+        errors.append(ValidationError("stages", "Required — define at least one test stage"))
+
+    return errors
+
+
+def _semantic_checks(data: dict) -> List[ValidationError]:
+    """Checks that go beyond JSON Schema structure validation."""
+    warnings = []
+
+    product = data.get("product", {})
+    device = product.get("device", {})
+    if device.get("type_id", 0) == 0:
+        warnings.append(
+            ValidationError("product.device.type_id", "Device type ID is 0 (unset)")
+        )
+    if device.get("variant_id", 0) == 0:
+        warnings.append(
+            ValidationError("product.device.variant_id", "Device variant ID is 0 (unset)")
+        )
+
+    pkg_type = data.get("package", {}).get("type")
+    if pkg_type == "manufacturing" and not data.get("testbed", {}).get("multi_slot"):
+        warnings.append(
+            ValidationError(
+                "fixture.multi_slot",
+                "Manufacturing packages typically use multi-slot fixtures. "
+                "Set fixture.multi_slot: true if this fixture has multiple DUT slots.",
+            )
+        )
+
+    return warnings
+
+
+def check_schema_compatibility(declared: str) -> Optional[str]:
+    """Check if a schema version is compatible with this installation.
+
+    Returns None if compatible, or an error message if not.
+    """
+    try:
+        declared_v = SchemaVersion.parse(declared)
+        minimum_v = SchemaVersion.parse(MINIMUM_SCHEMA)
+        current_v = SchemaVersion.parse(CURRENT_SCHEMA)
+    except ValueError as e:
+        return str(e)
+
+    if declared_v < minimum_v:
+        return (
+            f"Schema version {declared} is below minimum supported ({MINIMUM_SCHEMA}). "
+            f"Re-init the project with 'corectl test init'."
+        )
+    if declared_v > current_v:
+        return (
+            f"Schema version {declared} is newer than supported ({CURRENT_SCHEMA}). "
+            f"Update your tools."
+        )
+    return None

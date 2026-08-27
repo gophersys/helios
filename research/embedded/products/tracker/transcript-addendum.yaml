@@ -1,0 +1,6 @@
+# Answers given AFTER the frozen interrogation transcript (which stays
+# frozen for reproduction runs). Both fired because the reproduction
+# instances caught gaps the original run missed.
+addendum:
+  - {q: q.constraint.strength, a: "Requirement", at: 2026-08-26, note: "ask-back for volunteered technology: zephyr rtos (missed in the original run)"}
+  - {q: q.scale.cost, a: "Not for sale", at: 2026-08-26, note: "sell half of the pair was never pinned; run-1 consensus blocked on it"}

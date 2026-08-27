@@ -1,0 +1,20 @@
+schema: sfd.component/v0
+compatible: quectel,bg95
+class: modem
+buses:
+    - uart
+bindings:
+    - path: dts/bindings/modem/quectel,bg95.yaml
+      on_bus: uart
+      class: modem
+drivers:
+    - drivers/modem
+exercised_by:
+    - boards/rakwireless/rak5010/rak5010_nrf52840.dts
+    - samples/net/cellular_modem/boards/b_u585i_iot02a.overlay
+depth: D2
+part_numbers: []
+provenance:
+    zephyr_sha: 684c9e8f32e4373a21098559f748f06915f950c9
+    extracted: "2026-08-27"
+    tool: sfd/v0

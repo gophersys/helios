@@ -1,0 +1,16 @@
+# generated-by: corectl/corekinect {{framework_version}} — do not hand-edit; run `corectl test update` to refresh
+#
+# Force LF line endings across this repo. Combined with the runtime
+# CRLF normalization in `corectl test validate`, this prevents Windows
+# clones (autocrlf=true) from ever causing framework-artifact drift.
+
+* text=auto eol=lf
+
+# Binary assets — leave bytes alone.
+*.hex   binary
+*.zip   binary
+*.gz    binary
+*.bin   binary
+*.pdf   binary
+*.png   binary
+*.jpg   binary

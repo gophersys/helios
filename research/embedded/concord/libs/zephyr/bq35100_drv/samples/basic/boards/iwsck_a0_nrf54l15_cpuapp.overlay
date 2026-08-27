@@ -1,0 +1,21 @@
+/* BQ35100 sample overlay for IWSCK A0
+ *
+ * A0 wiring:
+ *   I2C:       bit-bang on P2.00 (SCL) / P2.01 (SDA)
+ *   GE (enable): P0.01, active-high
+ *   ALERT:       P0.00, active-low
+ *   Address:     0x55
+ */
+
+&i2c_bb {
+	status = "okay";
+
+	bq35100: bq35100@55 {
+		compatible = "ti,bq35100";
+		reg = <0x55>;
+		enable-gpios = <&gpio0 1 GPIO_ACTIVE_HIGH>;
+		alert-gpios = <&gpio0 0 GPIO_ACTIVE_LOW>;
+		design-capacity-mah = <2200>;
+		gauging-mode = "accumulator";
+	};
+};

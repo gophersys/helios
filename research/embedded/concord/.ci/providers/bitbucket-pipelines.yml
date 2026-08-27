@@ -1,0 +1,36 @@
+# Thin shim — all logic lives in .ci/
+# To activate: symlink or copy this file to the repo root:
+#   ln -sf .ci/providers/bitbucket-pipelines.yml bitbucket-pipelines.yml
+image: containers.ad.corekinect.com/concord-devcontainer-base:latest
+
+pipelines:
+  pull-requests:
+    '**':
+      - step:
+          name: PR checks
+          caches: [node, docker]
+          script:
+            - ./.ci/run pr
+
+  branches:
+    main:
+      - step:
+          name: Build + Deploy staging
+          caches: [node, docker]
+          services: [docker]
+          script:
+            - ./.ci/run main
+
+  custom:
+    release:
+      - step:
+          name: Release to production
+          trigger: manual
+          services: [docker]
+          script:
+            - ./.ci/run release
+
+definitions:
+  services:
+    docker:
+      memory: 4096

@@ -1,0 +1,130 @@
+&usart3 {
+    current-speed = <921600>;
+};
+ 
+&pinctrl {
+    usart2_rx_pa3: usart2_rx_pa3 {
+        pinmux = <STM32_PINMUX('A', 3, AF7)>;
+        bias-pull-up;
+    };
+    usart2_tx_pa2: usart2_tx_pa2 {
+        pinmux = <STM32_PINMUX('A', 2, AF7)>;
+   
+    };
+    usart1_tx_pa9: usart1_tx_pa9 {
+        pinmux = <STM32_PINMUX('A', 9, AF7)>;
+    };
+    usart1_rx_pa10: usart1_rx_pa10 {
+        pinmux = <STM32_PINMUX('A', 10, AF7)>;
+    };
+    usart6_tx_pc6: usart6_tx_pc6 {
+        pinmux = <STM32_PINMUX('C', 6, AF8)>;
+    };
+    usart6_rx_pc7: usart6_rx_pc7 {
+        pinmux = <STM32_PINMUX('C', 7, AF8)>;
+    };
+};
+ 
+ 
+&clk_lse {
+    status = "okay";
+};
+ 
+&clk_hsi {
+    status = "okay";
+};
+ 
+&clk_hse {
+    clock-frequency = <DT_FREQ_M(25)>; /* STLink 8MHz clock */
+    status = "okay";
+};
+ 
+ 
+&pll {
+    div-m = <12>;
+    mul-n = <96>;
+    div-p = <2>;
+    div-q = <2>;
+    clocks = <&clk_hse>;
+    status = "okay";
+};
+ 
+ 
+&rcc {
+    clocks = <&pll>;
+    clock-frequency = <DT_FREQ_M(50)>;  /*HCLK(MHz) = SYSCLK / AHB prescaler */
+    ahb-prescaler = <2>;
+    apb1-prescaler = <1>;
+    apb2-prescaler = <1>;
+};
+ 
+ 
+&rng {
+    status = "okay";
+};
+ 
+&usart2 {
+   
+    dmas = <&dma1 6 4 (STM32_DMA_PERIPH_TX | STM32_DMA_MODE_CYCLIC | STM32_DMA_PRIORITY_HIGH) 0x03>,
+           <&dma1 5 4 (STM32_DMA_PERIPH_RX | STM32_DMA_MODE_CYCLIC | STM32_DMA_PRIORITY_HIGH) 0x03>;
+    dma-names = "tx", "rx";
+    status = "okay";
+    pinctrl-0 = <&usart2_tx_pa2 &usart2_rx_pa3>;
+    pinctrl-names = "default";
+    current-speed = <115200>;
+    parity = "none";
+    stop-bits = "1";
+    data-bits = <8>;
+};
+ 
+&usart1 {
+   
+    status = "okay";
+    pinctrl-0 = <&usart1_tx_pa9 &usart1_rx_pa10>;
+    pinctrl-names = "default";
+    current-speed = <921600>;
+    parity = "none";
+    stop-bits = "1";
+    data-bits = <8>;
+ 
+};
+ 
+&usart6 {
+    current-speed = <9600>;
+    status = "okay";
+    pinctrl-0 = <&usart6_tx_pc6 &usart6_rx_pc7>;
+    pinctrl-names = "default";
+    parity = "none";
+    stop-bits = "1";
+    data-bits = <8>;
+};
+ 
+ 
+&dma1 {
+    #dma-cells= <4>;
+    status = "okay";
+};
+// &dma2 {
+//     #dma-cells= <4>;
+//     status = "okay";
+// };
+ 
+/{
+    aliases {
+        iface-uart = &usart2;
+    };
+ 
+    leds {
+        compatible = "gpio-leds";
+        comm_en: comm_en {
+            label = "COMM_EN";
+            gpios = <&gpioa 5 GPIO_ACTIVE_HIGH>;
+        };
+    };
+ 
+    chosen {
+        zephyr,console = &usart1;
+        zephyr,shell-uart = &usart1;
+    };
+ 
+};

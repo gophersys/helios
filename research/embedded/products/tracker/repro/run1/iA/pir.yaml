@@ -1,0 +1,303 @@
+# Product Intent Record — extracted from the frozen interrogation transcript.
+# Contract: docs/sfd/30-p0-interrogation.md (R1-R5, PIR v0) +
+#           docs/sfd/30-p0-graph.yaml (field authority, derivations).
+# Every value below cites question id + VERBATIM answer (typos kept) per R4.
+# The transcript carries NO per-answer timestamps (only the file-level date
+# 2026-08-26); `at` is therefore recorded date-only, never invented to the
+# second.
+schema: sfd.pir/v0
+product: tracker
+source:
+  transcript: scratchpad/repro/transcript.yaml
+  extracted: '2026-08-26'
+
+summary: 'a motorcycle GPS tracker for the owner''s own bike: it knows the bike position at all times, alerts the owner phone, and keeps location history in the cloud'
+
+users: 'the founder alone — a single motorcycle owner; the device is met on the bike itself, hidden/tucked out of sight'
+
+# ── FUNCTIONS — S1 closed vocabulary; provenance PER ITEM, inline (R4) ──
+functions:
+  - capability: sensing
+    detail: position — accurate geolocation of the bike
+    question: q.fn.senses
+    quote: 'ideally the positon accruately, and other env things like altitude, speed, velocity, tilt, things like that'
+    at: '2026-08-26'
+    rate:
+      value: 'parked: every 1 h; moving: every 30 s; runtime-configurable by a software power policy'
+      question: q.fn.rate
+      spawned_for: position
+      quote: 'parked every 1 hour, moving, ever 30 sec, or ideally a configurable thing where the software can change it based on power prefeernces'
+      at: '2026-08-26'
+
+  - capability: sensing
+    detail: altitude
+    question: q.fn.senses
+    quote: 'ideally the positon accruately, and other env things like altitude, speed, velocity, tilt, things like that'
+    at: '2026-08-26'
+
+  - capability: sensing
+    detail: speed / velocity
+    question: q.fn.senses
+    quote: 'ideally the positon accruately, and other env things like altitude, speed, velocity, tilt, things like that'
+    at: '2026-08-26'
+
+  - capability: sensing
+    detail: tilt / motion — the theft-detection trigger
+    question: q.fn.senses
+    quote: 'ideally the positon accruately, and other env things like altitude, speed, velocity, tilt, things like that'
+    at: '2026-08-26'
+    rate:
+      value: 'react within seconds; alert path as fast as possible'
+      question: q.fn.rate
+      spawned_for: tilt/motion
+      quote: 'within seconds, if an alert it must be as quick as possible'
+      at: '2026-08-26'
+
+  - capability: actuation
+    detail: none — the device does not move, switch or change anything on the bike
+    present: false
+    question: q.fn.acts
+    quote: 'it does not do anything to the bike'
+    at: '2026-08-26'
+
+  - capability: connectivity
+    detail: far-away-anywhere — wide-area link so the location is known from anywhere (user volunteered "cellular"; see constraints)
+    question: q.fn.talks
+    quote: 'from anywehre, ideally i want my pohone to easily connect to it nearby, but also always know the locaiton based on cellular or smth like that'
+    at: '2026-08-26'
+
+  - capability: connectivity
+    detail: phone-nearby — the owner phone connects to the device easily when close
+    question: q.fn.talks
+    quote: 'from anywehre, ideally i want my pohone to easily connect to it nearby, but also always know the locaiton based on cellular or smth like that'
+    at: '2026-08-26'
+
+  - capability: storage
+    detail: non-volatile retention of readings/fixes taken while there is no link, replayed to the cloud when the link returns
+    question: q.fn.stores
+    quote: 'yes it must remember htings, and even hit low power modes and save things if no location, then backtrack to the cloud'
+    at: '2026-08-26'
+
+  - capability: compute
+    detail: on-device autonomy — everything except outbound alerts must keep working with no internet (local fix logging, store-and-forward, power policy)
+    question: q.fn.offline
+    quote: 'no alerts but yes everything else'
+    at: '2026-08-26'
+
+  - capability: hmi
+    detail: a-light — one multicolour LED / LED ring signalling device state; no screen
+    question: q.fn.shows
+    quote: 'no screen, maybe a multicolo led to signal states, simople is best, naybe 1 multipurpos ebutton too'
+    at: '2026-08-26'
+
+  - capability: hmi
+    detail: one-button — a single multipurpose button
+    question: q.phys.controls
+    quote: '1 button and 1 led/led ring, something clean that will lookj high end'
+    at: '2026-08-26'
+
+  # ── DERIVED capabilities (R3): never asked; rule is the authority ──
+  - capability: power
+    detail: 'PC1 rechargeable + modes [wakes-on-event, wakes-on-schedule, only-when-used]'
+    source: derived
+    derivation: capability.power
+    rule: 'power capability = pir.power_class + pir.modes (always present)'
+    at: '2026-08-26'
+
+  - capability: security
+    detail: baseline security capability
+    source: derived
+    derivation: capability.security
+    rule: 'baseline security capability whenever q.fn.talks != nothing OR q.comp.data != none'
+    fired_because: 'q.fn.talks = far-away-anywhere (!= nothing) AND q.comp.data = [location] (!= none) — both limbs true'
+    at: '2026-08-26'
+
+  - capability: time
+    detail: timekeeping capability
+    source: derived
+    derivation: capability.time
+    rule: 'timekeeping capability whenever q.power.duty == wakes-on-schedule'
+    fired_because: 'wakes-on-schedule is one of the three duty modes the founder named'
+    at: '2026-08-26'
+
+# ── ENVIRONMENT ────────────────────────────────────────────────────────
+environment:
+  where: vehicle
+  conditions: [water, dust, heat, cold, vibration, washing-or-hosing]
+  limits: UNKNOWN          # q.followup.range spawned (how hot / how cold) and left unanswered — see unknowns
+  on_body: 'no'
+
+# ── POWER ──────────────────────────────────────────────────────────────
+power_class: PC1           # derived: q.power.source = charges-on-dock-or-cable -> PC1
+modes: [wakes-on-event, wakes-on-schedule, only-when-used]
+
+# ── TARGETS ────────────────────────────────────────────────────────────
+targets:
+  success: 'installed and running on the bike, sending notifications to the owner phone, and tracking the bike location in the cloud'
+  battery_life:            # CONDITIONAL field — present because power_class is PC1
+    delight: {value: 1, unit: month, bound: at-least}
+    floor:
+      value: 'none'
+      note: 'answered, not missing: the founder states there is no lowest threshold; a high-performance/racing mode with battery life in the hours is acceptable'
+  unit_cost:
+    build: {value: 100, currency: USD, bound: at-most, basis: 'components + pcb + assembly, per unit, at 10-unit quantity'}
+    sell: UNKNOWN          # never stated — see unknowns; blocks a CORE metric
+  volume: {y1: 2, y3: 10}
+
+# ── PHYSICAL ───────────────────────────────────────────────────────────
+physical:
+  size_class: phone        # the AT-MOST bound the founder gave ("no bigger than a small phone"); deck-of-cards named as also acceptable
+  dims: ABSENT             # q.followup.range was never spawned for q.phys.size — an unspawned adaptive is N/A, never UNKNOWN
+  carry: mounted
+  controls: one-button
+
+# ── TIMELINE + EXISTING ────────────────────────────────────────────────
+timeline:
+  proto: 'none'            # answered as an explicit non-constraint, not missing
+  production: 'none'
+assets: [nothing]
+
+# ── NOVELTY ────────────────────────────────────────────────────────────
+novelty:
+  different: 'competing trackers exist; the difference claimed is a more powerful self-built device using newer technology for more accurate location plus alarm features'
+  hard: 'antenna placement, running multiple radio protocols together, the phone connection, and power'
+  magic: 'none claimed — the founder names nothing he has not seen work; the stated wish is to use current embedded technology and Zephyr RTOS as a proof of concept for AI-assisted hardware building'
+  moat: 'none claimed — the founder states there are no competitors he is racing'
+
+# ── COMPLIANCE ─────────────────────────────────────────────────────────
+compliance:
+  regions: [us]
+  safety: 'none'
+  personal_data: [location]
+  certifications: [fcc]    # derived: us -> fcc
+
+# ── CONSTRAINTS — volunteered technology (never a derivation, R3) ──────
+constraints:
+  - tech: cellular
+    strength: hard
+    quote: 'from anywehre, ideally i want my pohone to easily connect to it nearby, but also always know the locaiton based on cellular or smth like that'
+    strength_question: q.constraint.strength
+    strength_quote: 'requiemrnt'
+    at: '2026-08-26'
+  - tech: usb-c
+    strength: hard
+    quote: 'battery powered ideally, but easily rechargeable/updatetbale all things over a usb c connection'
+    strength_question: q.constraint.strength
+    strength_quote: 'requirement'
+    at: '2026-08-26'
+  - tech: gps
+    strength: UNKNOWN
+    quote: 'a motorcycle gps tracker so that i know where my bike is at all times'
+    strength_question: q.constraint.strength
+    strength_quote: null
+    note: 'volunteered technology token detected in q.intent.what; the required adaptive q.constraint.strength was never spawned for it in the transcript'
+    at: '2026-08-26'
+  - tech: zephyr-rtos
+    strength: UNKNOWN
+    quote: 'not really. i just wanan use the latest tech avialnle in the embedded world and using zephyr rtos as a poc for ai hardware building'
+    strength_question: q.constraint.strength
+    strength_quote: null
+    note: 'volunteered technology token detected in q.novel.magic; the required adaptive q.constraint.strength was never spawned for it in the transcript'
+    at: '2026-08-26'
+
+# ── UNKNOWNS — R5, first class ─────────────────────────────────────────
+unknowns:
+  - field: pir.targets.unit_cost.sell
+    question: q.scale.cost
+    quote: 'i dont wanna spend more than $100 on components + pcb + assembly per unit at 10 unit qty.'
+    why: 'the pair-number asks {build, sell}; only build was answered. No conditional_fields entry exempts sell, so R5 records UNKNOWN rather than defaulting it'
+    blocks: [metric.viability.economics]
+    blocks_weight: core
+  - field: pir.environment.limits
+    question: q.followup.range
+    spawned_for: q.env.conditions
+    quote: ''
+    why: 'the adaptive range follow-up (how hot / how cold) was asked and left unanswered'
+    blocks: []
+    note: 'no registry v0 metric consumes pir.environment.limits; metric.feasibility.env-risk is fed by q.env.where + q.env.conditions, both answered, so it is scored rather than blocked. The missing quantities weaken that score evidence and are a P3/P4 input'
+  - field: pir.constraints[gps].strength
+    question: q.constraint.strength
+    why: 'volunteered technology left unclassified; q.constraint.strength is tier required'
+    blocks: []
+    blocks_gate: G0
+  - field: pir.constraints[zephyr-rtos].strength
+    question: q.constraint.strength
+    why: 'volunteered technology left unclassified; q.constraint.strength is tier required'
+    blocks: []
+    blocks_gate: G0
+
+# ── GATE G0 status (recorded, not asserted) ────────────────────────────
+gate_g0:
+  status: red
+  reasons:
+    - 'required adaptive q.constraint.strength unanswered for volunteered tech "gps" and "zephyr rtos" — the contract says an unclassified volunteered technology blocks G0'
+  clean:
+    - 'all 13 reachable fixed required questions answered (q.fn.offline and q.power.life both opened and both answered)'
+    - 'every UNKNOWN listed above with what it blocks (R5)'
+    - 'consistency rule c.app-needs-link is not red: q.fn.talks != nothing and q.phys.controls = one-button'
+
+# ── PROVENANCE — R4, per field; a LIST when multi-fed ──────────────────
+provenance:
+  pir.summary:
+    - {question: q.intent.what, quote: 'a motorcycle gps tracker so that i know where my bike is at all times', at: '2026-08-26'}
+  pir.users:
+    - {question: q.intent.who, quote: 'its just for me', at: '2026-08-26'}
+    - {question: q.env.where, quote: 'in the vehicle, hopefully tucked away somehwere hidden so that its not visible and is protecetd from wethar, as well as not easily seen by someone if the bike is stolen so i can track it', at: '2026-08-26'}
+  pir.functions:
+    # item-level provenance is inline above (R4). This entry records the one
+    # feed that produced no positive item.
+    - {question: q.fn.acts, quote: 'it does not do anything to the bike', at: '2026-08-26', note: 'negative answer — recorded as actuation present:false rather than dropped'}
+  pir.environment.where:
+    - {question: q.env.where, quote: 'in the vehicle, hopefully tucked away somehwere hidden so that its not visible and is protecetd from wethar, as well as not easily seen by someone if the bike is stolen so i can track it', at: '2026-08-26'}
+  pir.environment.conditions:
+    - {question: q.env.conditions, quote: 'yes all the ones suggested', at: '2026-08-26', note: 'runner had proposed: water, dust, heat, cold, vibration, washing-or-hosing — "drops" was not proposed and is therefore not recorded'}
+  pir.environment.limits:
+    - {question: q.followup.range, quote: '', at: '2026-08-26', note: 'asked (how hot / how cold), not answered — UNKNOWN'}
+  pir.environment.on_body:
+    - {question: q.env.body, quote: 'nope', at: '2026-08-26'}
+  pir.power_class:
+    - {question: q.power.source, quote: 'battery powered ideally, but easily rechargeable/updatetbale all things over a usb c connection', at: '2026-08-26', derivation: 'charges-on-dock-or-cable -> PC1'}
+  pir.modes:
+    - {question: q.power.duty, quote: 'wake on event, and akwas on schel and only when used, theres a clear way in which it can use sensors to best leverage poweres in combination with user prefernecs', at: '2026-08-26', note: 'the enum is single-valued but the founder named three modes; all three are recorded because pir.modes is a list field'}
+  pir.targets.success:
+    - {question: q.intent.win, quote: 'it must be installed and running in my bike sending notificaitons to my phone and tracking the bikes locaiton in the cloud', at: '2026-08-26'}
+  pir.targets.battery_life:
+    - {question: q.power.life, quote: 'ideally last 1 month + in battery power, with an optional on-bike chrager from bikes battery -> usb c power, that way the device is always cajhrged in thi scenario, or if the user doesnt wanan do that, they can just cahrge it every so foten', at: '2026-08-26', part: delight}
+    - {question: q.power.life, quote: 'no lowest threshold, device can also be used as a high perfomancr tracker, with expected batter y life in the hours, could be used for racing', at: '2026-08-26', part: floor}
+  pir.targets.unit_cost:
+    - {question: q.scale.cost, quote: 'i dont wanna spend more than $100 on components + pcb + assembly per unit at 10 unit qty.', at: '2026-08-26'}
+  pir.targets.volume:
+    - {question: q.scale.units, quote: '2, and maybe 10 for my freinds', at: '2026-08-26'}
+  pir.physical.size_class:
+    - {question: q.phys.size, quote: 'no bigger than a small phone ideally, deck of cards is ok', at: '2026-08-26'}
+  pir.physical.dims:
+    - {question: q.followup.range, quote: null, at: '2026-08-26', note: 'never spawned for q.phys.size — ABSENT'}
+  pir.physical.carry:
+    - {question: q.phys.carry, quote: 'it can be mounted with an adapter, but also just hidden and "tucked" somewhere, ideally antenann "just works"', at: '2026-08-26'}
+  pir.physical.controls:
+    - {question: q.phys.controls, quote: '1 button and 1 led/led ring, something clean that will lookj high end', at: '2026-08-26'}
+  pir.timeline.proto:
+    - {question: q.time.proto, quote: 'no rush we are just testing out the system, correctness over speed, can optimize later', at: '2026-08-26'}
+  pir.timeline.production:
+    - {question: q.time.prod, quote: 'no deadline', at: '2026-08-26'}
+  pir.assets:
+    - {question: q.time.exists, quote: 'nothing', at: '2026-08-26'}
+  pir.novelty.different:
+    - {question: q.intent.exists, quote: 'yes, others exist, but i wanna just build my own to be more powerful and use cool technologies to get accurate locations and alamr and things like that', at: '2026-08-26'}
+  pir.novelty.hard:
+    - {question: q.novel.hard, quote: 'antenna placement, multipel protocols, pjone connecton and poower', at: '2026-08-26'}
+  pir.novelty.magic:
+    - {question: q.novel.magic, quote: 'not really. i just wanan use the latest tech avialnle in the embedded world and using zephyr rtos as a poc for ai hardware building', at: '2026-08-26'}
+  pir.novelty.moat:
+    - {question: q.novel.moat, quote: 'no compettiors', at: '2026-08-26'}
+  pir.compliance.regions:
+    - {question: q.comp.region, quote: 'us only', at: '2026-08-26'}
+  pir.compliance.safety:
+    - {question: q.comp.safety, quote: 'no, just hopefully not explode lol', at: '2026-08-26', note: 'the enum answer is "none" ("no"); the trailing hedge names a lithium-battery hazard the founder does not classify as a harm path'}
+  pir.compliance.personal_data:
+    - {question: q.comp.data, quote: 'yes, whatver info it has about location bascially', at: '2026-08-26'}
+  pir.compliance.certifications:
+    - {question: q.comp.region, quote: 'us only', at: '2026-08-26', derivation: 'us -> [fcc]'}
+  pir.constraints:
+    - {question: q.constraint.strength, quote: 'requiemrnt', at: '2026-08-26', for: cellular}
+    - {question: q.constraint.strength, quote: 'requirement', at: '2026-08-26', for: usb-c}
