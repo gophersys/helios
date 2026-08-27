@@ -14,13 +14,18 @@ permissions:
   packages: read
 
 jobs:
-  # The minutes lane: lint/typecheck/test/leak/property/maintainability/vuln/sast/secretscan over
-  # the affected projects. Runs inside ghcr.io/gophersys/base, where every linter + Go tool is
+  # The minutes lane: lint/typecheck/test/leak/property/maintainability/vuln/sast/secretscan/verify
+  # over the affected projects. Runs inside ghcr.io/gophersys/base, where every linter + Go tool is
   # present, so a missing tool is a HARD FAIL (each ctl.sh verb require_cmds it → exit 127),
   # never a silent skip (ADR-0020 §enforcement).
   fast:
     name: affected-gate (fast)
     runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
+    # The prelude (recursive submodule checkout at depth 0, yarn install, bun install, 4 TS lib
+    # builds) plus the ten hermetic dimensions over the affected projects. 30 is what
+    # harness-conformance measured for a comparable container job on this pool; a run that reaches
+    # it is stuck, not slow.
+    timeout-minutes: 30
     container:
       image: ghcr.io/gophersys/base:latest
       credentials:
@@ -54,7 +59,8 @@ jobs:
       - name: Generate go.work (tracked generator over the gitignored file)
         run: bash scripts/gen-go-work.sh
       # node/yarn live behind nvm (profile-based, not on ENV PATH) — expose the pinned toolchain so
-      # the nx workspace actually runs (without this, has_nx=false silently no-ops the gate).
+      # the nx workspace actually runs (without this, has_nx=false and every gate verb exits 127
+      # naming nx — it used to no-op silently, which is the defect blueprint P0-2 removed).
       - name: Expose the image's node toolchain (nvm) on PATH
         run: |
           . "$NVM_DIR/nvm.sh" && nvm use --silent default
@@ -98,6 +104,11 @@ jobs:
     # true) as the operational kill-switch while the real-substrate suites bed in on arc-org.
     if: ${{ vars.EDEN_CI_SUBSTRATE == 'true' }}
     runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
+    # The privileged lane starts its OWN dockerd and brings up k3d/kind clusters before the
+    # integration/load/lifecycle/bench-guard/cover-floor/mutate suites run at all. 45 is the budget
+    # this lane is documented with in .claude/rules/git-process.md §7 — the merge tier's own number,
+    # not one invented here.
+    timeout-minutes: 45
     needs: fast
     container:
       image: ghcr.io/gophersys/base:latest
@@ -137,7 +148,8 @@ jobs:
       - name: Generate go.work (tracked generator over the gitignored file)
         run: bash scripts/gen-go-work.sh
       # node/yarn live behind nvm (profile-based, not on ENV PATH) — expose the pinned toolchain so
-      # the nx workspace actually runs (without this, has_nx=false silently no-ops the gate).
+      # the nx workspace actually runs (without this, has_nx=false and every gate verb exits 127
+      # naming nx — it used to no-op silently, which is the defect blueprint P0-2 removed).
       - name: Expose the image's node toolchain (nvm) on PATH
         run: |
           . "$NVM_DIR/nvm.sh" && nvm use --silent default

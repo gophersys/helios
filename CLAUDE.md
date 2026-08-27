@@ -53,7 +53,9 @@ build target.
 ## Workspace facts
 
 - This is an Nx workspace with yarn 4. The canonical pull-request gate is
-  `bash .ci/ctl.sh affected-check`. The gate does nothing until you run `yarn install`.
+  `bash .ci/ctl.sh affected-check`. **Run `yarn install` first**: every nx verb of `.ci/ctl.sh`
+  requires nx and exits 127 naming it when it is unreachable. It used to warn and return 0, so a
+  lane whose toolchain was absent read exactly like a lane that passed (blueprint P0-2).
 - `libs/`, `infrastructure/` and `.devcontainer/` are git submodules. Each one is a separate
   repository with separate commits.
 - Nx Cloud is disabled in `nx.json` (ratified in ADR-0010). Keep it disabled.
