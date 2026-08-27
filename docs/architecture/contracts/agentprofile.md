@@ -338,14 +338,16 @@ same change that a ruling lands:
 - `docs/architecture/README.md` §4 gains **one cohesion row** naming `agentprofile` as the home of
   "agent instrumentation authoring, render and drift". Today that table has no row for agent
   profiles at all; a contract that claims a home without writing it there has claimed nothing.
-- **OD-7 stays open and NARROWS.** Its five items are *CLI module split, yaml v3 vs v4, harness
-  plugin model, per-call key rotation, content-based routing*. Three of them — per-call key
+- **OD-7 stays open and NARROWS to four items.** Its five are *CLI module split, yaml v3 vs v4,
+  harness plugin model, per-call key rotation, content-based routing*. Three — per-call key
   rotation, content-based routing, and the CLI module split — are runtime/packaging items and stay
-  wholly with `agentconfiguration`. Two are **shared and must be ruled once, not twice**: the YAML
-  library choice (both libraries parse YAML strictly) and the **harness plugin model** (both
-  register per-harness implementations). 🔶 Proposal: OD-7 gains one sentence recording that those
-  two items now bind both libraries and that `agentprofile` will follow whatever WS2 rules, with an
-  interim position stated in §9 fork F4 so this lane is not blocked.
+  wholly with `agentconfiguration`. **The yaml v3 vs v4 item does not reach `agentprofile` at all**,
+  because this contract's document format is JSON parsed with `encoding/json` (§3.2), so the
+  question never arises here. Exactly **one** item is shared and must be ruled once rather than
+  twice: the **harness plugin model**, since both libraries register per-harness implementations.
+  🔶 Proposal: OD-7 gains one sentence recording that its harness-plugin-model item now binds both
+  libraries and that `agentprofile` follows whatever WS2 rules, with an interim position in §9 fork
+  F4 so this lane is not blocked.
 - **A supersession ADR is required.** `docs/architecture/README.md:22-23`: *"Where this set and the
   upstream corpus conflict, this set wins and **must record the supersession as an ADR**."* Taking
   harness-native emission out of the scope the upstream design gives `agentcfg` is such a conflict.
@@ -448,73 +450,102 @@ NOT measure: what a CI Claude actually loads — that requires running one and r
 which is `git-process.md` §14 row 10's probe and is not this contract's gate (§6.6). Stated as ⚠️,
 not as ✅, for exactly that reason.
 
-### 3.2 The profile document
+### 3.2 The profile document — and why it is JSON, not YAML
 
-One committed YAML file. Illustrative and abbreviated; the normative content is the Go types in
-§3.3 and the rules in §3.4–§3.6.
+⚠️ **The format is JSON, and a real gate decides it.** `libs/.golangci.yml:193-212` defines a
+`depguard` rule named `libs`, scoped to non-test Go (`files: ['!$test']`), whose **entire production
+allow-list** is `$gostd` and `github.com/gophersys/libs/go`. Its comment, verbatim:
 
-```yaml
-# agentprofile.yaml — the AUTHORING surface. Every file it renders is GENERATED. Never hand-edit
-# a rendered file; edit this document and re-render.
-schemaVersion: 1                  # the SCHEMA's version (E2: no artifact without a versioned schema)
-profileVersion: "0.1.0"           # semver of THIS document; stamped into every rendered banner
+> *"a leaf pattern library may import the standard library and its SIBLING pattern libraries only.
+> Any other third-party import is forbidden here — a vendor SDK is allowed only inside a named
+> adapter package, which these leaf libs do not yet have. **If a contract later names a specific
+> dependency, add it to `allow` with a comment citing the contract; do not open the gate
+> wholesale.**"*
 
-harnesses: [claude, omp, codex]   # the closed target set; pins live in harnesses/versions.env (ADR-0021)
+✅ Measured: **no non-test Go file in `libs/go/` imports any YAML package directly.** Every
+`yaml` line in every `go.mod` there is marked `// indirect` (`workspaceprovider`, `orchestrator`,
+`objectstorage` — pulled by the kubernetes and MinIO SDKs). So a YAML parser cannot enter this
+library's production import graph without a shared-config edit.
 
-modules:
-  # A module is one addressable body of instruction content. `name` + `version` ARE
-  # RuleRef/SkillRef (orchestrator.md:133-135, FROZEN), so `name` is GLOBALLY UNIQUE — see §3.4.1.
-  rules:
-    - name: identity-libs         # globally unique addressable name == RuleRef.Name
-      version: "1.0.0"            # == RuleRef.Version
-      emitAs: identity            # on-disk basename, without the order prefix
-      order: 0                    # the filename prefix AND the emission order key
-      body: modules/rules/identity-libs.md
-    - name: interface-design
-      version: "1.0.0"
-      emitAs: interface-design
-      order: 10
-      body: modules/rules/interface-design.md
-    - name: naming
-      version: "1.0.0"
-      emitAs: naming
-      order: 11
-      body: modules/rules/naming.md
-  skills:
-    - name: api-design
-      version: "1.2.0"
-      emitAs: api-design
-      order: 0
-      body: modules/skills/api-design/SKILL.md
-  documents:                      # sections of the single always-loaded document (CLAUDE.md / AGENTS.md)
-    - name: eden-hard-rules
-      version: "1.0.0"
-      emitAs: hard-rules          # a heading anchor, not a filename
-      order: 20
-      body: modules/documents/eden-hard-rules.md
+🔶 **The decision: JSON, parsed with `encoding/json` and `DisallowUnknownFields()`.** Three reasons,
+in order of weight:
 
-roles:
-  # `name` values ARE agentsession.RouteKey.Role values (agentsession.md:473-480, FROZEN).
-  - name: implementer
-    rules:     [identity-libs, interface-design, naming]
-    skills:    [api-design]
-    documents: [eden-hard-rules]
-  - name: reviewer
-    rules:     [identity-libs, interface-design]
-    skills:    []
-    documents: [eden-hard-rules]
+1. **No gate change and no dependency.** `encoding/json` is `$gostd`. The escape hatch the depguard
+   comment describes exists, but taking it is a change to a shared configuration that every library
+   in `libs` obeys, and it should be spent on a dependency a contract genuinely needs.
+2. **An unknown key must be a typed error.** `DisallowUnknownFields()` makes it one. A silently
+   dropped key in an *instrumentation* schema renders a profile that is missing a rule, with nothing
+   anywhere to say so — which is the exact failure class this contract exists to prevent.
+3. **JSON has no anchors, aliases or merge keys.** Two documents that look different cannot resolve
+   to the same value, and one document cannot expand differently under two parsers. When the whole
+   product is a deterministic render, a format with no expansion semantics is one less thing to
+   prove.
 
-repositories:
-  - name: gophersys/libs
-    root: "."                     # the render root, repository-relative
-    roles: [implementer, reviewer]
-    overlay:                      # composes with the role selection; §3.4
-      implementer:
-        add:    [library-pipeline, test-taxonomy, harness-versions]
-        remove: []
-      "*":                        # applies to every role of this repository
-        add:    [harness-versions]
-        remove: []
+It also matches the estate's existing schema'd artifacts: `eden/schemas/document/v1/*.schema.json`
+(9 schemas), `.claude/settings.json`, `libs/.claude-plugin/marketplace.json`.
+
+🧩 The authoring ergonomics genuinely favour YAML, and upstream's `agents.yaml` is YAML. That is a
+real fork, not a settled point — §9 F6, and it rides the freeze.
+
+Illustrative and abbreviated; the normative content is the Go types in §3.3 and the rules in
+§3.4–§3.6. Comments are prefixed `//` here for readability only — the committed file carries none,
+because JSON has none, which is itself part of what F6 weighs.
+
+```json
+{
+  "schemaVersion": 1,                          // the SCHEMA's version (E2: versioned before acceptance)
+  "profileVersion": "0.1.0",                   // semver of THIS document; stamped into every banner
+  "harnesses": ["claude", "omp", "codex"],     // closed set; pins in harnesses/versions.env (ADR-0021)
+
+  // A module is one addressable body of instruction content. `name` + `version` ARE
+  // RuleRef/SkillRef (orchestrator.md:133-135, FROZEN), so `name` is GLOBALLY UNIQUE — §3.4.1.
+  "modules": {
+    "rules": [
+      { "name": "identity-libs",               // globally unique addressable name == RuleRef.Name
+        "version": "1.0.0",                    // == RuleRef.Version
+        "emitAs": "identity",                  // on-disk basename, without the order prefix
+        "order": 0,                            // the filename prefix AND the emission-order key
+        "body": "modules/rules/identity-libs.md" },
+      { "name": "interface-design", "version": "1.0.0", "emitAs": "interface-design",
+        "order": 10, "body": "modules/rules/interface-design.md" },
+      { "name": "naming", "version": "1.0.0", "emitAs": "naming",
+        "order": 11, "body": "modules/rules/naming.md" }
+    ],
+    "skills": [
+      { "name": "api-design", "version": "1.2.0", "emitAs": "api-design",
+        "order": 0, "body": "modules/skills/api-design/SKILL.md" }
+    ],
+    // sections of the single always-loaded document (CLAUDE.md / AGENTS.md)
+    "documents": [
+      { "name": "eden-hard-rules", "version": "1.0.0",
+        "emitAs": "hard-rules",                // a heading anchor, not a filename
+        "order": 20, "body": "modules/documents/eden-hard-rules.md" }
+    ]
+  },
+
+  // `name` values ARE agentsession.RouteKey.Role values (agentsession.md:473-480, FROZEN).
+  "roles": [
+    { "name": "implementer",
+      "rules": ["identity-libs", "interface-design", "naming"],
+      "skills": ["api-design"],
+      "documents": ["eden-hard-rules"] },
+    { "name": "reviewer",
+      "rules": ["identity-libs", "interface-design"],
+      "skills": [],
+      "documents": ["eden-hard-rules"] }
+  ],
+
+  "repositories": [
+    { "name": "gophersys/libs",
+      "root": ".",                             // the render root, repository-relative
+      "roles": ["implementer", "reviewer"],
+      "minimumFiles": 8,                       // the §6.4 G2 floor, declared per repository
+      "overlay": {                             // composes with the role selection; §3.4
+        "implementer": { "add": ["library-pipeline", "test-taxonomy"], "remove": [] },
+        "*":           { "add": ["harness-versions"], "remove": [] }   // every role of this repository
+      } }
+  ]
+}
 ```
 
 ### 3.3 The Go types
@@ -824,6 +855,26 @@ underlying API. There is deliberately **no `Write` anywhere in the port set** �
 to disk is the CLI's job in the composition root, so the library that checks and the code that
 writes are not the same code.
 
+### 4.4 The conformance suite and what it may import
+
+`agentprofiletest` ships the public fakes and the adapter≡fake conformance suite
+(`contracts/testing.md`, the 10 §4 obligation). ⚠️ **What it may import is narrower than a Go author
+expects, and it shapes the suite.** `libs/.golangci.yml:213-229` defines a second `depguard` rule, `test-taxonomy`, scoped
+to `$test`, whose allow-list is `$gostd`, `github.com/gophersys/libs/go`, `go.uber.org/goleak` and
+`pgregory.net/rapid` — annotated *"The set is closed and annotated — not a wholesale opening: only
+the eight-dimension mechanisms are listed."*
+
+So: **there is no assertion library.** Every case is `if got != want { t.Errorf(...) }` in the
+estate's existing style — which is what `deploy/servicespec/render_test.go` and
+`cictl/cmd/cictl/run_test.go` already do, so the golden and drift lanes have working models to copy
+rather than a gap to fill. The fakes are:
+
+- `agentprofiletest.MemoryTree` — an in-memory `Tree` that can be seeded with a symlink entry and an
+  empty file, so the §6.4 guards G3 and G4 are exercised rather than asserted.
+- `agentprofiletest.RecordingRenderer` — a `Renderer` that records the `*Resolved` it was handed, so
+  the purity claim of §4.3 is checked by observation (it never sees a document, a path, or a clock)
+  instead of by comment.
+
 ## 5. The determinism guarantee
 
 ✅ **The property, stated so it can be tested:** for a fixed `(Config, Target)`, `Render` returns a
@@ -964,8 +1015,9 @@ statement of why.
 ### 6.5 The gate must be PROVEN SELECTED — this is a requirement, not a footnote
 
 ⚠️ **A well-written drift gate that no lane runs is a green check that verifies nothing, and this
-estate has one right now.** `deploy/servicespec/render_test.go:214` is `TestCommittedManifestsMatchCatalog`
-— *"the DRIFT GATE between the typed Catalog and the COMMITTED generated manifests … A
+estate has one right now.** `deploy/servicespec/render_test.go:214` is
+`TestCommittedManifestsMatchCatalog` — *"the DRIFT GATE between the typed Catalog and the COMMITTED
+generated manifests … A
 catalog/renderer change whose regen was forgotten — or a hand-edit of a generated file — fails HERE
 instead of shipping stale manifests."* It is a good gate. **Measured here: no eden CI lane selects
 it.** `find deploy -name project.json` returns nothing, and `.ci/graph-roster.txt` holds 60 rows,
@@ -1130,16 +1182,17 @@ Mateo rather than deciding it here.
 | F1 | **The `Phase` axis** — `RouteKey` has `{Phase, Role}`; a role × harness matrix drops `Phase` (§2.3) | (a) key on `Role` alone, express phase as a phase-scoped module · (b) key on `{Phase, Role}` and render one tree per phase | (a) — a git checkout holds one file tree. Put to Mateo as Q4 |
 | F2 | **Skill emission shape** | `.claude/skills/<name>/SKILL.md` (the personal-instrumentation convention and `project-go`'s) · a plugin `skills/` directory (`libs/plugins/project-go/skills/api-design/SKILL.md`) | emit the first; the plugin path is a `Renderer` option, not a schema field |
 | F3 | **`settings.json` scope** | render it (ruling 1 names "settings") · leave it hand-authored | ⚠️ **no repository commits a `.claude/settings.json` today** — the only one in the estate is `libs/plugins/supervisor/template/.claude/settings.json`, which is a template body. So this renderer has **no golden**, and it is registered but emits only when the document declares a `settings` block |
-| F4 | **YAML library and harness plugin model** — both are OD-7 items that now bind two libraries (§2.6) | follow WS2's ruling for both | interim: strict decode with `KnownFields(true)` (the estate's existing posture — `git-process.md:216` records that the cictl schema already decodes that way), and compile-time registration of renderers via `Deps.Renderers`, which is the `go-plugin`-free option upstream's §20.4 also votes for |
+| F4 | **The harness plugin model** — the one OD-7 item that now binds two libraries (§2.6) | follow WS2's ruling | interim: compile-time registration of renderers via `Deps.Renderers` — no `init()` registry, no global. It is the `go-plugin`-free option upstream's §20.4 also votes for, and it keeps `New` pure |
 | F5 | **Where the rendered artifact lives for a pod** | git checkout · OCI artifact · object storage | not decided here; `agentpod` and OD-13 own it, and §7.2 G-A/G-B make all three equivalent |
+| F6 | **Should the authoring surface be YAML after all?** (§3.2) | **(A) keep JSON** — no `.golangci.yml` change, no dependency, strict `DisallowUnknownFields()`, no anchor/alias/merge-key semantics to prove; but a hand-authored matrix is less pleasant and **JSON carries no comments**, so the *reasons* behind an ordering choice have nowhere to live in the document · **(B) YAML** — pleasant to author and comments survive, but it requires this contract to NAME the dependency (exactly the escape `libs/.golangci.yml:196-199` describes) plus an edit to a config every `libs` library obeys · **(C) YAML authored, JSON parsed** — a conversion step outside the library | **(A), and F6 rides the freeze.** (C) is rejected outright: it trades one problem for two committed files that can disagree, which is the drift this contract exists to remove. Between (A) and (B) the deciding fact is that a shared-config edit is a **process-adjacent change** and the comment loss is recoverable — the *reasons* belong in this contract and in each module's own body, not in the manifest that selects them |
 
 ## 10. THE FREEZE QUESTION
 
-Four questions. Each names its options, gives a recommendation, and gives the reason. **None is
+Five questions. Each names its options, gives a recommendation, and gives the reason. **None is
 decided by an agent.** `.claude/rules/git-process.md` §5 lists *"a chart or contract PROMISE"* and
 *"process changes (this file, `.claude/`, the cictl contract)"* among the gates Mateo *"gates
-personally; no agent authority covers them"* — and this contract proposes to **render into `.claude/`**,
-which lands squarely on the second of those. Under §13 rule 4, a gate counts as exercised only when
+personally; no agent authority covers them"* — and this contract proposes to **render into
+`.claude/`**, which lands squarely on the second of those. Under §13 rule 4, a gate counts as exercised only when
 the record quotes his verbatim words and a timestamp; until then this document says **DRAFT** and
 the libs `phase-gate architecture` stays red by design.
 
@@ -1153,9 +1206,10 @@ the libs `phase-gate architecture` stays red by design.
   run-time. When it is built it CALLS this renderer. One home for rendering, two call sites.
   - `10-library-system.md:350` is **amended** to the two-row pair in §2.6.
   - `docs/architecture/README.md` §4 gains one cohesion row for `agentprofile`.
-  - **OD-7 stays open and narrows**: three items stay wholly with `agentconfiguration`; the YAML
-    library and the harness plugin model become shared and are ruled once for both (§9 F4 holds an
-    interim position so nothing blocks).
+  - **OD-7 stays open and narrows**: three items stay wholly with `agentconfiguration`; the yaml
+    v3-vs-v4 item never reaches `agentprofile` at all, because its document is JSON (§3.2); and only
+    the **harness plugin model** becomes shared, ruled once for both (§9 F4 holds an interim
+    position so nothing blocks).
   - **A supersession ADR is REQUIRED** (`docs/architecture/README.md:22-23`). Next free number is
     **0033** — 0030 is a silent gap and must not be reused. **Proposed here, not opened**: opening
     an ADR is Mateo's §5 gate.
@@ -1231,6 +1285,26 @@ identity, commit-range extraction"*.
 > run, and a run selects among files that are all already on disk. If Mateo rules (b), §3.3's
 > `Target` gains a `Phase` field and §7.2's G-E becomes a five-tuple — an additive change, which is
 > why this question can be answered after Q1 without reopening it.
+
+---
+
+**Q5 — Is the authoring document JSON, or is the depguard gate opened for YAML?**
+
+- **(a) JSON, `encoding/json` with `DisallowUnknownFields()` (RECOMMENDED)** — no dependency, no
+  shared-config edit, an unknown key is a typed error, and no anchor/alias/merge-key semantics to
+  prove deterministic.
+- **(b) YAML** — pleasanter to author by hand and comments survive, but it requires this contract to
+  NAME a YAML dependency and `libs/.golangci.yml` to be edited, which every library in `libs` obeys.
+- **(c) YAML authored, JSON parsed** — rejected in §9 F6: two committed files that can disagree is
+  the drift this contract exists to remove.
+
+> **Recommendation: (a).** `libs/.golangci.yml:196-199` explicitly permits (b) — *"If a contract
+> later names a specific dependency, add it to `allow` with a comment citing the contract"* — so
+> this is a real choice and not a wall. It is asked rather than assumed because the escape is a
+> change to a configuration shared by every `libs` library, and because the honest cost of (a) is
+> that **JSON carries no comments**, so a reader of the manifest alone cannot see why a module sits
+> at `order: 11`. The mitigation is that the reasons belong in this contract and in each module's
+> own body, not in the manifest that selects them — but that is a mitigation, not an absence.
 
 ---
 
