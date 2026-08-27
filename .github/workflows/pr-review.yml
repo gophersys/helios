@@ -1,130 +1,29 @@
-# The pull request review agent, for eden.
-#
-# This is NOT a build gate. It is a step in the development process: an agent
-# reads the change with no memory of writing it, and comments. The author fixes
-# the findings and pushes again.
-#
-# WHY EDEN NEEDED THIS. eden had no reviewer at all, and eden's affected gates
-# select nothing on a documentation-only change. git-process.md §5.2 names that
-# pair exactly: "WHEN THE REPO HAS NO REVIEWER AND THE GATES NO-OP, THE EVIDENCE
-# SET IS EMPTY, AND YOU MAY NOT CALL IT SATISFIED." So every doc-shaped eden pull
-# request rested on a named human read and nothing else, and four of them queued
-# behind that one absent capability on 2026-08-26. This closes it the way libs
-# #25 did, using the hand-written form because eden's CI is hand-written and the
-# cictl contract cannot reach it (§14 row 7).
-#
-# KNOWN LIMIT OF THIS REVIEWER, and read it before treating a quiet result as a
-# pass: the pinned cictl's turn cap is 500 (v0.7.0, cictl #24 — the 40-turn
-# default died mid-tool-call on real pull requests), and the dollar budget
-# REVIEW_BUDGET_USD is the real limiter. A cap this size should never be reached
-# in normal operation — but the failure mode at the cap is unchanged: §10 states
-# "the agent is cut off mid-tool-call and the run dies with NO VERDICT, which is
-# the §5.2 failure mode." An empty result here means the review DIED, never that
-# it passed. Treat a silent-death run as a failed review, per §5.2's "a review
-# that DIES with no verdict is a failure, never a pass."
-#
-# It is a COPY of the .devcontainer workflow, deliberately: that file carries
-# lessons paid for in outages — a duplicated timeout-minutes that made the YAML
-# invalid so no check attached at all, and an unpinned clone that made reviews
-# unreproducible. Copying it keeps those fixes; rewriting it would re-earn them.
-#
-# It runs on `arc-review`, a pool with no dind sidecar and its own Claude
-# credential. The credential is an environment variable on that pool, so it is
-# readable by every job that runs there — which is why the pool runs this
-# workflow and nothing else.
-#
-# The reviewer itself lives in gophersys/cictl (public), so 20 repositories share
-# 1 copy of the instructions instead of 20 that drift.
 name: pr-review
 
 on:
   pull_request:
     types: [opened, synchronize, reopened]
 
-# Only 1 review per pull request at a time. A second push while a review is
-# running cancels it: reviewing a diff that has already changed wastes the budget.
 concurrency:
   group: pr-review-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-  pull-requests: write
-
 jobs:
   review:
-    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
-    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
-    # every other repository waits behind it.
-    #
-    # DECLARED ONCE. This job carried `timeout-minutes` twice, which makes the
-    # file invalid workflow YAML. GitHub answers with a startup failure that
-    # attaches NO check to the pull request, so the reviewer read as absent
-    # rather than broken, and no pull request here was reviewed for days.
-    #
-    # 30 is the value this workflow was written with. It is NOT measured: the
-    # job had never run when the duplicate was introduced. Re-size it once a
-    # real run has a wall time.
     runs-on: arc-review
     timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          # The reviewer reads history to judge a change against what came
-          # before, so a shallow clone is not enough.
           fetch-depth: 0
-
-      - name: Review
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          REVIEW_BUDGET_USD: "25"
-          # The pinned reviewer. Raise it deliberately; see the note below.
-          CICTL_VERSION: v0.7.0
-          REVIEW_STREAM_FILE: ${{ runner.temp }}/review-stream.jsonl
-        run: |
-          set -euo pipefail
-          # cictl is on PATH in the runner image, but the reviewer's instructions
-          # ship with its source. Fetch the pinned copy rather than vendoring a
-          # second one that would drift.
-          #
-          # PINNED, and it was not before. This cloned the default branch, so
-          # every repository silently ran whatever cictl main happened to be at
-          # that minute: cictl moved 23 commits in one evening and no review from
-          # that period can be reproduced. An unpinned shared tool is also a
-          # single point of failure — a broken main would have broken the review
-          # job of every repository at once.
-          #
-          # To take a new reviewer: raise CICTL_VERSION here, in each repository
-          # that runs this workflow. The bump is deliberate, as it is for the
-          # harness pins in eden harnesses/versions.env.
-          git clone --depth 1 --branch "$CICTL_VERSION" \
-            https://github.com/gophersys/cictl /tmp/cictl
-          # Prove the checkout is the tag that was asked for. A clone that
-          # silently fell back to the default branch would defeat the pin.
-          got="$(git -C /tmp/cictl describe --tags --exact-match 2>/dev/null || echo none)"
-          [ "$got" = "$CICTL_VERSION" ] || {
-            echo "::error::cictl checkout is '$got', expected '$CICTL_VERSION'"
-            exit 1
-          }
-          echo "reviewer: cictl $got"
-          bash /tmp/cictl/review/review.sh "${{ github.event.pull_request.number }}"
-
-      # The full event stream: every tool call, every file read, the cost and the
-      # turn count. `if: always()` is the point of it — a review that failed is
-      # exactly the one whose stream you need, and without this the only way to
-      # diagnose it is to pay for another run.
-      - name: Keep the run
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: gophersys/cictl/review@4313c9f10ee9e90dde6585dcdba224563d272826 # merged PR #26
         with:
-          name: review-stream-${{ github.event.pull_request.number }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/review-stream.jsonl
-          # `warn` is correct here, and it cannot hide a failure. review.sh
-          # refuses an empty or missing stream itself — `guard:empty-stream` and
-          # `guard:no-result-event`, both proven able to fail in its test suite —
-          # so the Review step above is already red in every case this step could
-          # be quiet about. Making this step fail as well would add a check that
-          # can only fire when another check has already fired.
-          if-no-files-found: warn
-          retention-days: 14
+          pr: ${{ github.event.pull_request.number }}
+          harness: codex
+          model: default
+          budget-usd: "25"
+          max-rounds: "4"
+          stream-store: none

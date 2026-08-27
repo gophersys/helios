@@ -50,7 +50,10 @@ Explicit exclusions:
 
 - No Codex adapter in `libs/go/agentsession`.
 - No rewrite or deletion of the architecture corpus.
-- No CI, deployment, or devcontainer rebuild.
+- No deployment or devcontainer rebuild. The plan was amended after Claude hit
+  its subscription limit: the existing PR-review workflow now selects the
+  merged, harness-neutral cictl Codex adapter so this change can receive the
+  independent review the process requires.
 - No implementation of feature/CI/parallel/release processes beyond registering
   their stable names and future homes.
 - No migration of organization tooling repositories.
@@ -112,6 +115,12 @@ probe>` loaded `AGENTS.md`, read the contract, and returned
   references remain historical records.
 - Final focused test, shellcheck, Prettier check, Node syntax check, and
   `git diff --check`: all exit 0.
+- `cictl` PR 26 merged at `4313c9f10ee9e90dde6585dcdba224563d272826`
+  after a green remote gate and independent APPROVE. Eden's review workflow pins
+  that immutable commit and selects only `harness: codex`, `model: default`.
+- `actionlint` passes for the new workflow with only the known custom
+  `arc-review` runner label ignored; the focused instrumentation test remains
+  green.
 
 ## Blocked
 
