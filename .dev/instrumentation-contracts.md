@@ -251,6 +251,32 @@ A schema plus a drift gate is what makes that assumption mechanical. It is a DIF
 §12's own TO-BUILD probe (§14 row 10, owner `cictl`), which asks whether the CI agent LOADED the
 profile, not whether the committed render MATCHES the schema.
 
+## Deliberately NOT in this change — say it plainly, so the review is against what is true
+
+- **Nothing is frozen.** Both documents carry `Status: **DRAFT for negotiation**`. Freezing is
+  Mateo's `git-process.md` §5 gate ("a chart or contract PROMISE") and no agent exercises it. Each
+  document ends with the exact question he must answer.
+- **No ADR is opened.** The agentprofile boundary probably needs one — `docs/architecture/README.md`
+  §1 rules that where the canonical set and the upstream corpus conflict, "this set wins and must
+  record the supersession as an ADR". Opening a new or reopened ADR is also a §5 Mateo gate. The
+  contract PROPOSES the ADR; it does not write it. Next free number is 0033.
+- **No `.claude/` file is rendered or changed by this branch.** Rendering into `.claude/` touches a
+  surface §5 names as personally gated ("process changes (this file, `.claude/`, the cictl
+  contract)"). This change specifies the renderer; it does not run it against the estate.
+- **No drift gate is wired.** The library's `drift` verb exists on the sibling branch; deciding
+  whether the gate is a libs `phase-gate` dimension, an eden `.ci` verb, or both is freeze
+  question 2. Nothing in this change makes CI fail on anything.
+- **The `agentruntime` contract is NOT revised.** `fleettelemetry` maps from the sibling lane's
+  `fleetenvelope` draft. The supersession of `OTelContext` by typed `TraceParent`/`TraceState` is
+  `fleetenvelope` §9's business, on the sibling branch, and is Mateo's to freeze.
+- **No `oteladapter` is written**, and no infrastructure manifest gains an OTLP endpoint. Both are
+  named lanes in the parallelization map, and both are the reason a telemetry claim cannot be
+  proven today. `fleettelemetry` states that rather than describing a pipeline that does not run.
+- **The content-evidence set on this pull request is EMPTY** and I will not call it satisfied. The
+  gate that RAN is `graph-guard` (rc=0, 49 projects, roster match); `affected-check` selected
+  nothing (`NX   No tasks were run`), and eden has no `pr-review` workflow. Under §5.2 that means a
+  named human read is the only evidence available here.
+
 ## Blocked
 
 Empty.
