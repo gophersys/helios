@@ -58,6 +58,40 @@ The credential helper must be on `PATH`. From this directory, seed the
 certificates and the checked-in daemon configuration into separate named
 volumes, because a home-path bind mount fails.
 
+For an existing daemon, capture its state volume before replacing it. Stop if
+the printed destination or volume name is not the expected BuildKit state; do
+not turn the removal into a broad volume prune.
+
+```sh
+docker inspect eden-buildkitd --format \
+  '{{range .Mounts}}{{if eq .Destination "/var/lib/buildkit"}}{{.Name}}{{end}}{{end}}'
+docker rm -f eden-buildkitd
+```
+
+On the 2026-08-27 repair this printed the anonymous volume
+`a4e519f717ba7d186a399f02c0de3b3b5d9b49c0e1252310036e64c042286da7`.
+Five older seed/daemon recreations had left these verified dangling BuildKit
+volumes: `9e324d96ac6d341ed14c2cd0a148d16d39f2e8a7e41aac4e6e1ed7456b29b002`,
+`45d5e4cda4d3f0be8f6557f11c18519c4ce9896262d27c7af79ca31842657a69`,
+`976c764a89d59eaf751ec9b0643541498d8464a198028785d0d439e4b28a55b4`,
+`aed53eb028775e8cc6355fff4fd83765a1ecee3ea2096186d516044034178553`, and
+`c28b386937613d5d1550d1e66975733bc502de3d08b0590100cd66e67b956cff`.
+Those six exact volumes were removed after the new daemon was running. They are
+incident evidence, not targets to substitute with a broad volume prune. For
+this incident, after verifying the replacement daemon below, the bounded
+removal was:
+
+```sh
+docker volume rm \
+  9e324d96ac6d341ed14c2cd0a148d16d39f2e8a7e41aac4e6e1ed7456b29b002 \
+  45d5e4cda4d3f0be8f6557f11c18519c4ce9896262d27c7af79ca31842657a69 \
+  976c764a89d59eaf751ec9b0643541498d8464a198028785d0d439e4b28a55b4 \
+  a4e519f717ba7d186a399f02c0de3b3b5d9b49c0e1252310036e64c042286da7 \
+  aed53eb028775e8cc6355fff4fd83765a1ecee3ea2096186d516044034178553 \
+  c28b386937613d5d1550d1e66975733bc502de3d08b0590100cd66e67b956cff
+docker system df
+```
+
 ```sh
 export PATH="/Applications/Docker.app/Contents/Resources/bin:$HOME/bin:$PATH"
 BUILDKIT_IMAGE="moby/buildkit@sha256:28a898719c18a33f4e8000685287fa36fd0dd9560c6440227d3a732d79bb41d8"
@@ -66,16 +100,38 @@ docker create --name bkseed --entrypoint /bin/sh -v eden-bk-certs:/certs "$BUILD
 docker cp ca.pem bkseed:/certs/
 docker cp daemon.pem bkseed:/certs/
 docker cp daemon-key.pem bkseed:/certs/
-docker rm bkseed
+docker rm -v bkseed
 docker volume create eden-bk-config
 docker create --name bkconfig --entrypoint /bin/sh -v eden-bk-config:/config "$BUILDKIT_IMAGE"
 docker cp buildkitd.toml bkconfig:/config/buildkitd.toml
-docker rm bkconfig
+docker rm -v bkconfig
+docker volume create eden-bk-state
 docker run -d --name eden-buildkitd --restart unless-stopped --privileged -p 1234:1234 \
   -v eden-bk-certs:/certs:ro -v eden-bk-config:/etc/buildkit:ro \
+  -v eden-bk-state:/var/lib/buildkit \
   "$BUILDKIT_IMAGE" --addr tcp://0.0.0.0:1234 \
   --tlscacert /certs/ca.pem --tlscert /certs/daemon.pem --tlskey /certs/daemon-key.pem
 ```
+
+The state volume is named so recreating the daemon reuses one cache instead of
+leaving an unreachable anonymous volume behind. `buildkitd.toml` keeps that
+cache between 8 GB and 20 GB and asks garbage collection to preserve 12 GB of
+free Docker VM disk. The two seed containers use `docker rm -v` because the
+BuildKit image declares its own state volume even though those containers only
+copy configuration.
+
+Verify the replacement on the mini:
+
+```sh
+docker inspect eden-buildkitd --format \
+  'status={{.State.Status}} state={{range .Mounts}}{{if eq .Destination "/var/lib/buildkit"}}{{.Name}}{{end}}{{end}}'
+docker exec eden-buildkitd cat /etc/buildkit/buildkitd.toml
+docker exec eden-buildkitd df -h /var/lib/buildkit
+docker system df
+```
+
+Then run the client proof below. `docker buildx inspect --bootstrap eden-mini`
+must advertise the configured GC policy, and the uncached ARM64 build must pass.
 
 The daemon survives a reboot with `--restart unless-stopped` plus the
 Docker-autostart chain (the LaunchAgent `com.gophersys.docker-autostart` and

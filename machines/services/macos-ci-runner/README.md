@@ -75,6 +75,10 @@ this directory.
 It survives a reboot with `--restart unless-stopped` and the Docker-autostart
 chain below.
 
+Its cache lives in the named `eden-bk-state` volume. The checked-in
+`buildkitd.toml` enables garbage collection, retains at least 8 GB of useful
+cache, caps cache use at 20 GB, and targets 12 GB of free Docker VM disk.
+
 ### The credential — a client certificate, over mTLS
 
 `buildkitd` authenticates its clients with mutual TLS. The mini holds the server
