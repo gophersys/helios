@@ -92,18 +92,108 @@ require_bun() {
   }
 }
 
+# _require_ts_workspace — the gate INSTALLS the pinned workspace, or fails loudly.
+#
+# The UI toolchain lives in the workspace node_modules, which no image bakes and which NO libs CI
+# step ever created: the only two `bun install` strings in this repository were the help text
+# below. The hole stayed invisible because `cictl affected` never selected a TS project, so the
+# fast lane never gated one — the first change that did select one hit `missing required tool` on
+# every dimension at once. The old text blamed the devcontainer's post-create, which a CI runner
+# never executes, so the FAIL-NOT-SKIP guarantee was a claim about an environment CI does not
+# have. It is made TRUE here instead: the gate installs the pinned workspace, or it fails.
+#
+# ONLY a wholly absent node_modules installs. A present-but-incomplete one is lockfile drift and
+# stays a hard failure naming the tool — re-installing over it would mask the very drift
+# --frozen-lockfile exists to catch.
+_require_ts_workspace() {
+  if [[ -d "${EDEN_TS_WORKSPACE}/node_modules" ]]; then return 0; fi
+  # Nx runs sibling projects in parallel, so several gates can reach a cold workspace in the same
+  # instant and two `bun install` runs in one directory would corrupt it. mkdir is atomic: one
+  # process installs and the rest wait for its result, then re-check.
+  local key lock waited=0
+  key="$(printf '%s' "${EDEN_TS_WORKSPACE}" | cksum | cut -d' ' -f1)"
+  lock="${TMPDIR:-/tmp}/eden-ts-install-${key}.lock"
+  while ! mkdir "$lock" 2>/dev/null; do
+    if [[ -d "${EDEN_TS_WORKSPACE}/node_modules" ]]; then return 0; fi
+    if (( waited >= 600 )); then
+      log_error "waited ${waited}s for another gate process to install ${EDEN_TS_WORKSPACE} — giving up"
+      log_dim   "  a stale lock is removable: rmdir ${lock}"
+      exit 127
+    fi
+    sleep 2
+    waited=$((waited + 2))
+  done
+  log_info "workspace node_modules absent — installing the pinned toolchain: (cd ${EDEN_TS_WORKSPACE} && bun install --frozen-lockfile)"
+  local rc=0
+  ( cd "${EDEN_TS_WORKSPACE}" && bun install --frozen-lockfile ) || rc=$?
+  rmdir "$lock" 2>/dev/null || true
+  if [[ "$rc" -ne 0 ]]; then
+    log_error "bun install --frozen-lockfile FAILED (exit ${rc}) at ${EDEN_TS_WORKSPACE}"
+    log_dim   "  ADR-0024 FAIL-NOT-SKIP: the gate installs the pinned workspace or fails — it never gates on a partial toolchain."
+    log_dim   "  --frozen-lockfile is deliberate: CI may install the pinned tree, never re-pin it."
+    exit 127
+  fi
+}
+
 # require_tool <bin-name> <node_modules-package> — the .bin must exist (proves install). We do
 # NOT exec the .bin directly (its shebang is #!/usr/bin/env node and there is no node); presence
 # of the .bin entry is the install proof, and the verb runs it through `bun x`.
 require_tool() {
   local bin="$1" pkg="$2"
   require_bun
+  _require_ts_workspace
   if [[ ! -e "${EDEN_TS_WORKSPACE}/node_modules/.bin/${bin}" ]]; then
     log_error "missing required tool: ${bin} (package ${pkg})"
-    log_dim   "  ADR-0024 FAIL-NOT-SKIP: in the devcontainer the UI toolchain is guaranteed present."
-    log_dim   "  install at the workspace: (cd ${EDEN_TS_WORKSPACE} && bun install)"
+    log_dim   "  ADR-0024 FAIL-NOT-SKIP: the gate installs the pinned workspace itself, so an absent tool means that"
+    log_dim   "  install is present but INCOMPLETE — package.json and bun.lock disagree about ${pkg}."
+    log_dim   "  re-pin at the workspace: (cd ${EDEN_TS_WORKSPACE} && bun install)"
     exit 127
   fi
+}
+
+# _require_eden_deps_built — a workspace dependency is consumed as its BUILT surface.
+#
+# @eden/<lib> resolves through that lib's package.json "exports" to its dist/, so tsc, eslint's
+# type-aware rules and vitest cannot see a dependency that has never been built. In a warm
+# devcontainer dist/ is simply there from earlier work; on a cold CI checkout it is not, and
+# nothing in the lane builds an upstream lib before gating a downstream one. That is the same
+# lane hole as the absent node_modules above, one layer down — invisible until the install made
+# the gate get far enough to typecheck, and then 2 of 4 dimensions read FAIL on
+# "Cannot find module '@eden/theme'".
+#
+# Idempotent: an already-built dependency costs one stat. Depth-first, because the DAG has two
+# levels (primitives/visualization -> theme -> scale). package.json stays the ONE home of the
+# dependency list (10 §9), and bun reads it, so this adds no tool the gate did not already need.
+_require_eden_deps_built() {
+  local lib_dir="${1:-$PROJECT_ROOT}" depth="${2:-0}"
+  if (( depth > 8 )); then
+    log_error "workspace dependency chain deeper than 8 from ${PROJECT_ROOT} — refusing to recurse further"
+    exit 1
+  fi
+  local pkg="${lib_dir}/package.json"
+  if [[ ! -f "$pkg" ]]; then return 0; fi
+  require_bun
+
+  local deps
+  if ! deps="$(bun --print "Object.keys(require('${pkg}').dependencies ?? {}).filter((d) => d.startsWith('@eden/')).join('\n')" 2>&1)"; then
+    log_error "could not read the @eden/* dependencies of ${pkg}"
+    log_dim   "  bun said: ${deps}"
+    exit 1
+  fi
+
+  local dep dep_dir
+  while IFS= read -r dep; do
+    if [[ -z "$dep" ]]; then continue; fi
+    dep_dir="${EDEN_TS_WORKSPACE}/${dep#@eden/}"
+    if [[ ! -d "$dep_dir" ]]; then continue; fi
+    if [[ -d "${dep_dir}/dist" ]]; then continue; fi
+    _require_eden_deps_built "$dep_dir" "$((depth + 1))"
+    log_info "workspace dependency ${dep} has no dist/ — building it first (consumers resolve @eden/* to dist/)"
+    if ! ( cd "$dep_dir" && bash ./ctl.sh build ); then
+      log_error "failed to build workspace dependency ${dep} at ${dep_dir}"
+      exit 1
+    fi
+  done <<< "$deps"
 }
 
 # bunx <tool> <args...> — run a workspace tool through bun from the lib dir. bun resolves the
@@ -708,6 +798,14 @@ EOF
 lib_main() {
   local cmd="${1:-help}"
   shift || true
+  # Every verb that compiles, typechecks or runs the suite reads its dependencies' emitted types,
+  # so the dependency build is ensured once here rather than at each of those verbs. The exclusions
+  # are listed, not the inclusions: a verb added later is covered by default, which is the safe way
+  # round.
+  case "$cmd" in
+    help|""|format|fmt) ;;
+    *)                  _require_eden_deps_built ;;
+  esac
   case "$cmd" in
     build)               cmd_build               "$@" ;;
     typecheck)           cmd_typecheck           "$@" ;;
