@@ -5,7 +5,7 @@ repo:     gophersys/eden
 branch:   feat/p0-gates-real
 worktree: ~/code/.worktrees/eden-p0-gates-real
 pr:       -
-attempt:  0/2
+attempt:  1/2  (PR-B round 1)
 
 ## Authority
 
@@ -334,6 +334,50 @@ could not match. Both are the same defect the whole of P0 is about — a check
 whose green means nothing — and both were mine while I was building checks
 against exactly that. It is recorded rather than quietly fixed, because a lane
 that only documents other people's false greens is not credible.
+
+### A THIRD blueprint premise measured FALSE — found by CI, on PR-B's own PR
+
+**libs#40 `pr tier` = FAILURE.** The PR that fixes "a `.ci/`-only change exits
+green having gated nothing" is ITSELF a `.ci/`-only change, so the new arm fired
+on its own pull request:
+
+```
+[error] gate (implementation): 1 affected project(s), and NOT ONE is gateable
+[error]   ungated: .ci
+```
+
+`review` = SUCCESS. `merge tier` = SKIPPED.
+
+**The premise this refutes.** The blueprint says a pull request touching only
+`.ci/` "**exits green having run nothing**". That is FALSE at the TIER level.
+The pr tier runs THREE verbs, and the sibling verb `validate` really does gate
+`.ci/`. Read out of the real run log:
+
+```
+[info]  running 6 shell test suite(s) (*_test.sh)
+[info]    ok: .ci/ctl_test.sh
+```
+
+`libs/ctl.sh:112-114` discovers every `*_test.sh` repo-wide, `:185-193`
+shellchecks each, `:293-302` RUNS each. So the change WAS gated — including the
+three new tests — just not by that one verb, and `validate` passed on this PR.
+
+**So my fix produced a FALSE RED on exactly the change class the blueprint
+cited.** A false red is the same defect class as a false green: it makes the
+gate untrustworthy, and the first thing anyone does with an untrustworthy gate
+is weaken it back to `return 0`.
+
+**The narrowing, sent as attempt 1 of 2.** The arm fails only when an affected
+project is gated by NOTHING. A path really gated by a sibling verb carries a
+row in a shrink-only register naming what gates it AND a probe file whose
+existence makes the claim true — re-verified every run, so a row whose probe
+stops resolving is STALE and FAILS. That is this repository's own
+`SUBSTRATE_ENV_REGISTER` design, applied to the same problem. The green run
+must SAY which verb gated each affected project; the old silent "clean no-op"
+line is what this change exists to remove.
+
+I also told the implementer that if a written test now contradicts the narrower
+rule it must STOP and report rather than edit the test or bend the rule.
 
 ## Blocked
 
