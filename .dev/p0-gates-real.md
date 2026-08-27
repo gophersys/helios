@@ -75,20 +75,29 @@ Classes resolved from the tree, per run, never a hand-kept list: `go.mod` → Go
 (24) · `package.json` + `tsconfig*.json` → TypeScript (5) · neither → bash /
 config (20) · both → AMBIGUOUS, which is RED (0 today, still able to fire).
 
-- **47 of 49 projects are OFF-CLASS** — they owe a target of their class and do
-  not declare it (44 miss `validate`, 14 miss `test`, 2 client-go projects miss
-  all four). Building that half is ~60 new targets that must REALLY run across
-  four repositories; a `validate` that no-ops is exactly the ~200 no-op greens
-  §4.2 bans. **It is a phase of its own, not a P0 item.**
+- **47 of 49 projects are OFF-CLASS.** CORRECTED after phase 2 refuted my first
+  count: the register is **62 `OWES-GAP` rows** — `validate` 38, `test` 20,
+  `build` 2, `lint` 2 — not the "44 miss validate" I first wrote. Exactly 11 of
+  49 declare `validate` today and 5 declare `typecheck` (all TypeScript).
+  Building that half is ~62 targets that must REALLY run across four
+  repositories; a `validate` that no-ops is exactly the ~200 no-op greens §4.2
+  bans. **It is a phase of its own, not a P0 item.**
 - **7 targets are declared outside their class and GENUINELY RUN** — the six
   `.devcontainer` image units declare `build` (docker build) and
   `repository-scripts` declares `lint` (shellcheck). Reading "declares nothing
   it cannot run" through the class table would red all seven falsely. It is a
   DIFFERENT clause from "declares what its class owes", and conflating them is
   refuted by these seven measurements.
-- **R-BODY is already 100% clean**: 0 of the closed-set targets carry anything
-  but `bash ./ctl.sh <verb>`. `verbs --check` holds that property rather than
-  repairing it.
+- **R-BODY: my "100% clean" was WRONG, and the repair is a RULING not a code
+  change.** My first check tested only that the command CONTAINED `ctl.sh`. An
+  exact-form check finds one row: `apps/frontend` target `test` runs
+  `bash ./ctl.sh unit`. RULING: **R-BODY governs the BODY, R-NAME governs the
+  NAME.** The blueprint's R-BODY says a target "contains exactly one command:
+  `bash ./ctl.sh <verb>`. Logic in a `project.json` is a defect" — and
+  `bash ./ctl.sh unit` is one command of that form with no logic, so it
+  SATISFIES R-BODY. Clause 2 is therefore a FORM check, never target-name /
+  verb-name identity, and `apps/frontend/project.json` is NOT edited: renaming
+  its verb is a behaviour change outside P0.
 
 ### `verbs --check` — what it asserts, all of it green today and all able to fail
 
