@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: gophersys/cictl/review@c845caab4940f06bf5a0c6f001c605e5bf304829 # merged PR #27
+      - uses: gophersys/cictl/review@ac8eb06436478d2a05265a855243bbf9d5775d5a # merged PR #28
         with:
           pr: ${{ github.event.pull_request.number }}
           harness: codex
