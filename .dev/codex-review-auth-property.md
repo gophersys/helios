@@ -1,6 +1,6 @@
 # codex-review-auth-property
 
-phase: plan
+phase: pr
 repo: gophersys/infrastructure
 branch: fix/codex-review-auth-property
 worktree: ~/code/.worktrees/infrastructure-codex-review-auth-property
@@ -39,6 +39,19 @@ other runner pools, no Claude removal.
   with `expected value at line 1 column 1`.
 - Read-only metadata showed the generated Kubernetes value is 89 bytes with
   first byte code 67, while the Vaultwarden password is a valid JSON object.
+- RED — `bash scripts/test-codex-review-auth.sh`: exit 1 with
+  `Vaultwarden password property is not selected` after adding the regression
+  assertion against the current manifest.
+- GREEN — `bash scripts/test-codex-review-auth.sh`: exit 0 with
+  `codex-review-auth: OK` after selecting `remoteRef.property: password`.
+- `shellcheck -S style scripts/test-codex-review-auth.sh` and
+  `git diff --check`: exit 0, silent.
+- `bash ctl.sh validate`: exit 0 after parsing six projects and linting all 35
+  shell scripts.
+- `bash ctl.sh verify-vault-refs`: exit 0 with `pass=15 fail=0`; the Codex item
+  resolves exactly once.
+- Removed `.dev/codex-review-auth.md`, which the authorized bootstrap merge
+  accidentally carried onto main.
 
 ## Blocked
 
@@ -46,4 +59,4 @@ other runner pools, no Claude removal.
 
 ## Next
 
-Add the regression assertion and prove it red.
+Commit, push, and open the pull request.
