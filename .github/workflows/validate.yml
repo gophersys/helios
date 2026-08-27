@@ -84,6 +84,11 @@ jobs:
       - name: warmer pins match the pools, warmer stays unprivileged
         run: bash scripts/verify-warmer-pins.sh
 
+      - name: DinD is versioned and immutable across ARC
+        run: |
+          bash scripts/verify-dind-pins.sh
+          bash scripts/test-verify-dind-pins.sh
+
       # The suites below drive the REAL script against a mktemp fixture tree —
       # a fake kubectl first on PATH for one, a symlink that relocates the
       # script's ROOT for the other. Neither contacts a cluster and neither

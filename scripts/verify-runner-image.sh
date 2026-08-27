@@ -166,7 +166,7 @@ spec:
         # The dind sidecar, mirroring the scale set. A native sidecar so it stays
         # up for the whole job.
         - name: dind
-          image: docker:dind
+          image: docker.io/library/docker:29.7.2-dind@sha256:12e683a161823b2a839aeea999b9d960e6e1f9a97b1679ad6b441982e2d9cf07
           args: ["dockerd", "--host=unix:///var/run/docker.sock", "--group=${DOCKER_GID}"]
           env:
             - name: DOCKER_GROUP_GID
