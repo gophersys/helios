@@ -508,7 +508,7 @@ fi
 # any manifest, a wrong one included, which is the reason the table is a literal
 # at all. The remedy is SET EQUALITY between the literal and the manifest, in
 # BOTH directions — the pattern publish-order.test.sh applies to
-# PUBLISHED_IMAGES, and for the same reason:
+# DECLARED_IMAGES, and for the same reason:
 #
 #   an image in the manifest and not in this table   publishes with no platform
 #                                                    policy watching it
@@ -726,11 +726,11 @@ else
     "$SANCTIONED" "$workflow_level_values" \
     "more than 1 line here means 2 workflow-level declarations, and the second wins silently"
 
-  assert_equal "the_only_job_with_a_job_level_PLATFORMS_key_is_${NARROWER_IMAGE}" \
-    "$(joined "$NARROWER_IMAGE")" \
+  assert_equal "only_active_narrower_images_get_a_job_level_PLATFORMS_key" \
+    "" \
     "$(printf '%s\n' "$job_level_scopes" | awk 'NF' | sort)" \
-    "the generator emits a job-level key only for an image whose set differs from the" \
-    "sanctioned one, and images.yaml declares exactly 1 such image today" \
+    "the generator emits a job-level key only for an active image whose set differs from the" \
+    "sanctioned one; the retained mobile exception is disabled today" \
     "a new name here is either a new measured exception — which needs its row in" \
     "IMAGE_PLATFORM_TABLE and in images.yaml — or a hand edit of a generated file"
 fi

@@ -11,6 +11,7 @@
 # and the next 100644 dispatcher would be the second one.
 images:
   first:
+    enabled: true
     parent: ""
     context: "."
     dockerfile: first/Dockerfile
@@ -21,6 +22,7 @@ images:
       - content-first
 
   second:
+    enabled: true
     parent: first
     context: second
     dockerfile: second/Dockerfile

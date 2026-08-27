@@ -163,7 +163,7 @@ function image_children() {
   local name="$1" other
   while IFS= read -r other; do
     [[ "$(image_parent "$other")" == "$name" ]] && printf '%s\n' "$other"
-  done < <(image_names)
+  done < <(active_image_names)
 }
 
 # image_root <name> — the ancestor of <name> that builds FROM ubuntu. An image
@@ -188,7 +188,7 @@ function image_has_descendants() {
     while parent="$(image_parent "$parent")" && [[ -n "$parent" ]]; do
       [[ "$parent" == "$name" ]] && return 0
     done
-  done < <(image_names)
+  done < <(active_image_names)
   return 1
 }
 
@@ -535,7 +535,7 @@ JOB_VERIFY_HEAD
 
 function emit_build_and_push() {
   local names_text set_phrase count name
-  names_text="$(image_names)" || return 1
+  names_text="$(active_image_names)" || return 1
   set_phrase="$(printf '%s' "$names_text" | tr '\n' '@' | sed -e 's/@$//' -e 's/@/ + /g')"
   count="$(printf '%s\n' "$names_text" | grep -c .)"
 
@@ -845,7 +845,7 @@ FILE_HEADER_C
 # by its own text and replaced by its own text.
 function rewrite_nightly_matrix() {
   local names_text list before after
-  names_text="$(image_names)" || return 1
+  names_text="$(active_image_names)" || return 1
   list="$(printf '%s' "$names_text" | tr '\n' '@' | sed -e 's/@$//' -e 's/@/, /g')"
 
   local matches

@@ -26,7 +26,7 @@ IFS=$'\n\t'
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-IMAGE_NAME="fixture"
+IMAGE_NAME="base"
 
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../../../lib.sh
@@ -34,6 +34,7 @@ source "$PROJECT_ROOT/../../../lib.sh"
 
 if [[ "${UNSET_PLATFORM_LIST:-0}" == "1" ]]; then
   unset MULTI_ARCH_PLATFORMS IMAGE_PLATFORMS
+  IMAGE_PLATFORMS_SOURCE="environment"
 fi
 
 image_main "$@"
