@@ -66,7 +66,7 @@ COREUTILS=(dirname basename mktemp cat tail head rm cp mkdir touch chmod ln sed 
 # removed must be added or removed here, and `t_every_dispatcher_is_recorded` fails until it
 # is, so a project can never fall out of the record unnoticed.
 PROJECTS=(
-  go/agentruntime go/agentsession go/codeinsight go/configuration go/dependencies
+  go/agentprofile go/agentruntime go/agentsession go/codeinsight go/configuration go/dependencies
   go/edenhttp go/envelope go/errors go/forge go/gitrepository go/objectstorage
   go/observability go/orchestrator go/secrets go/testing go/workspaceprovider
   templates/go/http-gateway
