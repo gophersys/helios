@@ -1,11 +1,11 @@
 # agentic-instrumentation
 
-phase:    plan
-repo:     gophersys/eden
-branch:   docs/agentic-instrumentation
+phase: green
+repo: gophersys/eden
+branch: docs/agentic-instrumentation
 worktree: ~/code/.worktrees/eden-agentic-instrumentation
-pr:       -
-attempt:  0/2
+pr: -
+attempt: 0/2
 
 ## Goal
 
@@ -69,6 +69,19 @@ Explicit exclusions:
 - Read-only inventory: `libs/go/agentsession` already owns normalized sessions,
   events, capabilities, credentials, and Claude/OMP adapters; Codex is not yet
   an adapter.
+- RED — `bash scripts/agent-instrumentation_test.sh`: exit 1 with
+  `agent-instrumentation: missing AGENTS.md`, proving the current repository has
+  no Codex entrypoint and does not satisfy the new dual-harness contract.
+- GREEN — `bash scripts/agent-instrumentation_test.sh`: exit 0 with
+  `engineering-system: OK` and `agent-instrumentation: OK` after adding the
+  schema-backed map, validator, and both concise harness entrypoints.
+- `shellcheck -S style scripts/agent-instrumentation_test.sh`: exit 0, silent.
+- `prettier --write` completed for every changed Markdown, JSON, and JavaScript
+  file; `git diff --check`: exit 0, silent.
+- The first green attempt failed because an uninitialized parent worktree does
+  not populate paths below the `libs` gitlink. The validator now accepts a
+  missing nested path only when its top-level owner is a registered `160000`
+  gitlink, keeping the check hermetic without weakening ordinary path checks.
 
 ## Blocked
 
@@ -76,4 +89,5 @@ Explicit exclusions:
 
 ## Next
 
-Commit the intake state, then write and prove the focused structural test red.
+Commit and push the working slice, then prove instruction discovery through the
+installed Claude Code and Codex harnesses.
