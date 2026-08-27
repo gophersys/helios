@@ -1,6 +1,6 @@
 # buildkit-disk-gc
 
-phase:    green
+phase:    verify
 repo:     gophersys/infrastructure
 branch:   fix/buildkit-disk-gc
 worktree: ~/code/.worktrees/infrastructure-buildkit-disk-gc
@@ -24,9 +24,10 @@ plan: SELF-APPROVED — the risk is pruning reusable build cache too aggressivel
 - Red: `bash scripts/test-verify-buildkit-dns.sh` reported both `missing GC policy fails unexpectedly passed` and `unbounded cache fails unexpectedly passed`.
 - Green: `bash scripts/test-verify-buildkit-dns.sh && bash scripts/verify-buildkit-dns.sh && git diff --check` passed all fixture cases and the static live contract.
 - Live repair: the daemon reports `status=running state=eden-bk-state`, reads the checked-in GC thresholds, and its filesystem changed from 1.1 GiB free (98% used) to 36.3 GiB free (34% used). Exactly the six anonymous BuildKit cache volumes were removed.
+- Devcontainer gate: `docker run --rm ... ghcr.io/gophersys/cloud:latest bash ctl.sh validate` passed and linted 39 shell scripts. The first run caught SC2015; the corrected run is green.
 
 ## Blocked
 
 
 ## Next
-Run the repository validation gate in its devcontainer.
+Push the branch and open the pull request.
