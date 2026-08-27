@@ -91,8 +91,8 @@ func FromSeq(seq uint64) Cursor { return Cursor(seq) }
 
 // Command is one turn-taking control (the normalized form sent to the adapter).
 type Command struct {
-	Kind CommandKind
-	Text string // Prompt/Steer message; empty for Abort
+	Kind CommandKind `json:"kind"`
+	Text string      `json:"text"` // Prompt/Steer message; empty for Abort
 }
 
 // CommandKind is the turn-taking control axis. Append-only (10 §9).
@@ -176,15 +176,15 @@ func CanControl(state State, kind CommandKind) bool {
 // returned by the PermissionAdvisor port, in which case By is "advisor:<name>" and
 // Rationale carries the audit-logged reasoning.
 type Decision struct {
-	Allow bool
+	Allow bool `json:"allow"`
 	// Remember widens the standing grant for THIS session only — never persisted to
 	// the credential profile (that is a governed act, not a chat click); scope is the
 	// exact tool+pattern the agent asked for ("allow Bash(go test ./...)", not "allow
 	// Bash"). RETAINED for the frozen surface; the canonical widening trigger is now
 	// Scope == ScopeSession (a ScopeSession allow implies Remember). A true Remember is
 	// honored identically (session widening) for back-compat.
-	Remember bool
-	By       string // identity stamp for audit ("user:<id>" | "policy:<name>" | "advisor:<name>")
+	Remember bool   `json:"remember"`
+	By       string `json:"by"` // identity stamp for audit ("user:<id>" | "policy:<name>" | "advisor:<name>")
 
 	// Scope bounds how long an allow holds. ScopeOnce (the zero value) authorizes THIS
 	// request only — the same tool is re-asked next time. ScopeSession dynamically
@@ -192,13 +192,13 @@ type Decision struct {
 	// re-asked for the remainder of the session (NEVER persisted to the config-as-code
 	// grants — that is a governed act, not a chat click). Scope is meaningful only on an
 	// allow; a deny is always terminal-for-this-request regardless of Scope.
-	Scope DecisionScope
+	Scope DecisionScope `json:"scope"`
 
 	// Rationale is the audit-logged reasoning behind the decision. The PermissionAdvisor
 	// MUST populate it (the advisor's verdict is only as trustworthy as its audited
 	// reasoning); a human/policy decision MAY leave it empty. It is bounded, redacted
 	// text — NEVER a secret value (it rides EventPermissionResolved and the transcript).
-	Rationale string
+	Rationale string `json:"rationale"`
 }
 
 // DecisionScope bounds how long a permission allow holds within a session. Append-only
@@ -229,7 +229,9 @@ func (s DecisionScope) String() string {
 
 // Ack is the sequence number a control/resolve was admitted at, so a UI can
 // correlate the resulting events when they arrive on the stream.
-type Ack struct{ Seq uint64 }
+type Ack struct {
+	Seq uint64 `json:"seq"`
+}
 
 // EventKind is the NORMALIZED taxonomy every harness maps onto (the EVENT TAXONOMY
 // table in the contract). It is the stable, closed, additive-only (10 §9)
@@ -303,30 +305,31 @@ func (k EventKind) String() string {
 // union by convention; nil otherwise); Extension carries the opaque per-harness
 // remainder so a harness that emits richer data than Eden normalizes loses NOTHING.
 type Event struct {
-	SessionID string
-	TurnID    string
-	Seq       uint64    // monotonic per session; assigned at durable transcript append (Seq == transcript offset)
-	Turn      int       // turn ordinal (batch: 0; chat: increments per admitted Prompt)
-	Time      time.Time // adapter-stamped at emit (the harness clock); zero == library stamps via injected Clock
-	Kind      EventKind
+	SessionID string    `json:"sessionId"`
+	TurnID    string    `json:"turnId"`
+	Seq       uint64    `json:"seq"`  // monotonic per session; assigned at durable transcript append (Seq == transcript offset)
+	Turn      int       `json:"turn"` // turn ordinal (batch: 0; chat: increments per admitted Prompt)
+	Time      time.Time `json:"time"` // adapter-stamped at emit (the harness clock); zero == library stamps via injected Clock
+	Kind      EventKind `json:"kind"`
 
 	// Exactly one is populated per Kind (nil otherwise). Pointers so a zero Event is
-	// valid and an unknown Kind (Extension) carries no normalized payload.
-	State      *StatePayload      // EventSessionState
-	Message    *MessagePayload    // EventMessageStart/ThinkingDelta/TextDelta/MessageEnd/ThinkingProgress (Tokens)
-	Tool       *ToolPayload       // EventToolStart/ToolUpdate/ToolEnd
-	Permission *PermissionPayload // EventPermissionRequest/PermissionResolved
-	Usage      *UsageMeter        // EventUsage (the running prefix of the terminal ledger)
-	Terminal   *TerminalPayload   // EventResult/Failed/Aborted/TurnEnd (carries the authoritative TokenLedger)
-	Peer       *PeerMessage       // EventPeerMessage/EventPeerSent (an inter-session message)
-	Subagent   *SubagentMessage   // EventSubagentMessage (a parent<->child message inside one harness process)
+	// valid and an unknown Kind (Extension) carries no normalized payload. Each is
+	// omitempty so a consumer can tell an absent payload from a present-but-empty one.
+	State      *StatePayload      `json:"state,omitempty"`      // EventSessionState
+	Message    *MessagePayload    `json:"message,omitempty"`    // EventMessageStart/ThinkingDelta/TextDelta/MessageEnd/ThinkingProgress (Tokens)
+	Tool       *ToolPayload       `json:"tool,omitempty"`       // EventToolStart/ToolUpdate/ToolEnd
+	Permission *PermissionPayload `json:"permission,omitempty"` // EventPermissionRequest/PermissionResolved
+	Usage      *UsageMeter        `json:"usage,omitempty"`      // EventUsage (the running prefix of the terminal ledger)
+	Terminal   *TerminalPayload   `json:"terminal,omitempty"`   // EventResult/Failed/Aborted/TurnEnd (carries the authoritative TokenLedger)
+	Peer       *PeerMessage       `json:"peer,omitempty"`       // EventPeerMessage/EventPeerSent (an inter-session message)
+	Subagent   *SubagentMessage   `json:"subagent,omitempty"`   // EventSubagentMessage (a parent<->child message inside one harness process)
 
 	// Extension is the opaque escape hatch: the raw harness frame (or the part Eden
 	// did not normalize) as bytes. ALWAYS present for EventExtension; MAY ride
 	// alongside any normalized Kind to carry harness-specific extras. The transcript
 	// stores it verbatim; the engine's LedgerFold counts unknown kinds but never
 	// fails on them; the UI ignores what it doesn't understand. Redaction-eligible.
-	Extension []byte
+	Extension []byte `json:"extension,omitempty"`
 }
 
 // IsTerminal reports whether this Event ends the session (exactly one terminal
@@ -339,19 +342,20 @@ func (e Event) IsTerminal() bool {
 
 // StatePayload carries an EventSessionState transition.
 type StatePayload struct {
-	From, To State
+	From State `json:"from"`
+	To   State `json:"to"`
 }
 
 // MessagePayload carries a streamed assistant fragment or a thinking fragment.
 // Delta is the INCREMENTAL text (not the cumulative message). Thinking is its own
 // Kind so the UI can fold it and retention/redaction can treat reasoning distinctly.
 type MessagePayload struct {
-	Role  string // "assistant" | "system"
-	Delta string // the incremental fragment
+	Role  string `json:"role"`  // "assistant" | "system"
+	Delta string `json:"delta"` // the incremental fragment
 	// Tokens is the running ESTIMATED reasoning-token count carried by EventThinkingProgress
 	// (a pre-message heartbeat). Zero for every message/thinking/text delta. It is an estimate
 	// for a live "thinking…" status indicator, NOT a billed usage figure (that is EventUsage).
-	Tokens int
+	Tokens int `json:"tokens"`
 }
 
 // ToolPayload carries a tool invocation's start (EventToolStart), partial
@@ -359,15 +363,15 @@ type MessagePayload struct {
 // allowlist entry that permitted it — the audit chain 07 §3 requires. Args/result
 // summaries are redacted, bounded — never raw secret-bearing data.
 type ToolPayload struct {
-	CallID        string        // correlates Start<->Update<->End
-	Name          string        // tool name, e.g. "Write", "Bash", a host-tool name
-	GrantID       string        // the ToolGrant that authorized this call (audit linkage)
-	ArgsSummary   string        // EventToolStart: redacted, bounded summary of arguments
-	PartialDigest string        // EventToolUpdate: redacted, bounded streamed fragment
-	Outcome       ToolOutcome   // EventToolEnd only
-	ResultDigest  string        // EventToolEnd only: redacted, bounded result summary
-	Duration      time.Duration // EventToolEnd only
-	IsHostTool    bool          // true when this is an Eden-provided host tool (callback), not a harness-native tool
+	CallID        string        `json:"callId"`        // correlates Start<->Update<->End
+	Name          string        `json:"name"`          // tool name, e.g. "Write", "Bash", a host-tool name
+	GrantID       string        `json:"grantId"`       // the ToolGrant that authorized this call (audit linkage)
+	ArgsSummary   string        `json:"argsSummary"`   // EventToolStart: redacted, bounded summary of arguments
+	PartialDigest string        `json:"partialDigest"` // EventToolUpdate: redacted, bounded streamed fragment
+	Outcome       ToolOutcome   `json:"outcome"`       // EventToolEnd only
+	ResultDigest  string        `json:"resultDigest"`  // EventToolEnd only: redacted, bounded result summary
+	Duration      time.Duration `json:"duration"`      // EventToolEnd only
+	IsHostTool    bool          `json:"isHostTool"`    // true when this is an Eden-provided host tool (callback), not a harness-native tool
 }
 
 // ToolOutcome classifies an EventToolEnd. Append-only (10 §9).
@@ -380,6 +384,13 @@ const (
 	ToolOutcomeDenied                    // the permission gate rejected it
 )
 
+// toolOutcomeTokens holds the stable lower-kebab token for each ToolOutcome, indexed by value.
+var toolOutcomeTokens = [...]string{
+	ToolOutcomeOK:     "ok",
+	ToolOutcomeError:  "error",
+	ToolOutcomeDenied: "denied",
+}
+
 // PermissionPayload is the permission round-trip record: EventPermissionRequest
 // when the harness wants a capability OUTSIDE the standing grant, and
 // EventPermissionResolved when it is decided. The request BLOCKS the harness
@@ -387,11 +398,11 @@ const (
 // Spec.OnPermission (policy, synchronous) or by an out-of-band Session.Resolve
 // (human, asynchronous across HTTP requests).
 type PermissionPayload struct {
-	RequestID string
-	Tool      string
-	Reason    string        // why the harness wants it
-	Decision  GrantDecision // EventPermissionResolved: what was decided
-	By        string        // EventPermissionResolved: the deciding identity (user id or "policy:<name>")
+	RequestID string        `json:"requestId"`
+	Tool      string        `json:"tool"`
+	Reason    string        `json:"reason"`   // why the harness wants it
+	Decision  GrantDecision `json:"decision"` // EventPermissionResolved: what was decided
+	By        string        `json:"by"`       // EventPermissionResolved: the deciding identity (user id or "policy:<name>")
 }
 
 // GrantDecision is the resolution state of a permission request. Append-only.
@@ -404,6 +415,13 @@ const (
 	GrantDenied                       // the request was denied
 )
 
+// grantDecisionTokens holds the stable lower-kebab token for each GrantDecision, indexed by value.
+var grantDecisionTokens = [...]string{
+	GrantPending: "pending",
+	GrantAllowed: "allowed",
+	GrantDenied:  "denied",
+}
+
 // UsageMeter is a token-usage + cost tick with model attribution — the live meter
 // (per EventUsage) AND the running prefix of the terminal TokenLedger. It carries
 // ALL FOUR token kinds confirmed present in BOTH harnesses: input, output,
@@ -413,17 +431,17 @@ const (
 // observability.Ledger.CostMicros). Model + Harness attribute the spend so routing
 // economics (ADR-0008) are MEASURED, not argued.
 type UsageMeter struct {
-	Model               string // the model that produced this tick, e.g. "claude-fable-5", "deepseek-v4-flash"
-	Harness             string // "claude-code" | "omp" | "codex"
-	InputTokens         int64
-	OutputTokens        int64
-	CacheReadTokens     int64 // cache-hit input tokens (cheap)
-	CacheCreationTokens int64 // cache-write input tokens (the 4th kind — distinct cost)
-	CostMicros          int64 // provider spend, micro-units of account currency; -1 == harness did not report cost
+	Model               string `json:"model"`   // the model that produced this tick, e.g. "claude-fable-5", "deepseek-v4-flash"
+	Harness             string `json:"harness"` // "claude-code" | "omp" | "codex"
+	InputTokens         int64  `json:"inputTokens"`
+	OutputTokens        int64  `json:"outputTokens"`
+	CacheReadTokens     int64  `json:"cacheReadTokens"`     // cache-hit input tokens (cheap)
+	CacheCreationTokens int64  `json:"cacheCreationTokens"` // cache-write input tokens (the 4th kind — distinct cost)
+	CostMicros          int64  `json:"costMicros"`          // provider spend, micro-units of account currency; -1 == harness did not report cost
 	// Cumulative says the tick carries totals to date rather than a this-turn delta. It is NOT
 	// a turn/session discriminator: both shipped adapters stamp it true on a PER-TURN boundary
 	// ledger, and the SESSION total is summed by the library from those boundaries.
-	Cumulative bool
+	Cumulative bool `json:"cumulative"`
 }
 
 // TerminalPayload bounds a turn AND the session: exactly one terminal Event
@@ -431,13 +449,13 @@ type UsageMeter struct {
 // AUTHORITATIVE TokenLedger (the poc/codingharness total_cost_usd ground truth)
 // so the engine's evidence envelope and the chat's final meter reconcile.
 type TerminalPayload struct {
-	Outcome    TurnOutcome
-	Ledger     TokenLedger
-	ResultText string      // EventResult/EventTurnEnd: the final assistant text (batch: the artifact-adjacent result)
-	StopReason string      // harness stop reason, surfaced verbatim for diagnostics
-	Reason     ErrorReason // EventFailed: the branchable classification
-	Detail     string      // EventFailed: a redacted message; never a credential
-	By         string      // EventAborted: who aborted (user id or "policy:<name>")
+	Outcome    TurnOutcome `json:"outcome"`
+	Ledger     TokenLedger `json:"ledger"`
+	ResultText string      `json:"resultText"` // EventResult/EventTurnEnd: the final assistant text (batch: the artifact-adjacent result)
+	StopReason string      `json:"stopReason"` // harness stop reason, surfaced verbatim for diagnostics
+	Reason     ErrorReason `json:"reason"`     // EventFailed: the branchable classification
+	Detail     string      `json:"detail"`     // EventFailed: a redacted message; never a credential
+	By         string      `json:"by"`         // EventAborted: who aborted (user id or "policy:<name>")
 }
 
 // TurnOutcome classifies a terminal Event. Append-only (10 §9).
@@ -452,16 +470,25 @@ const (
 	TurnBudgetExceeded                    // the TokenBudget cost-aware abort (02 §2) — chat meter shows "stopped: budget"
 )
 
+// turnOutcomeTokens holds the stable lower-kebab token for each TurnOutcome, indexed by value.
+var turnOutcomeTokens = [...]string{
+	TurnCompleted:      "completed",
+	TurnAborted:        "aborted",
+	TurnFailed:         "failed",
+	TurnMaxTurns:       "max-turns",
+	TurnBudgetExceeded: "budget-exceeded",
+}
+
 // TokenLedger is the authoritative aggregate on a terminal Event — the UsageMeter
 // fields plus the run-shaped correlation/accounting the engine folds into the Run's
 // evidence and the FinOps UsageRecord. It is the poc/codingharness ledger,
 // verbatim-shaped, promoted into the library.
 type TokenLedger struct {
-	UsageMeter     // the four token kinds + cost + model/harness attribution (cumulative)
-	Turns          int32
-	ToolUses       int32
-	WallTime       time.Duration
-	ToolUsesByName map[string]int32 // per-tool counts, for the routing/cost breakdown
+	UsageMeter                      // the four token kinds + cost + model/harness attribution (cumulative); UNTAGGED so its fields promote inline onto the same wire object
+	Turns          int32            `json:"turns"`
+	ToolUses       int32            `json:"toolUses"`
+	WallTime       time.Duration    `json:"wallTime"`
+	ToolUsesByName map[string]int32 `json:"toolUsesByName,omitempty"` // per-tool counts, for the routing/cost breakdown
 }
 
 // ErrorReason is the stable, branchable error classification (the engine retries on
@@ -478,3 +505,14 @@ const (
 	ReasonTransport                       // stdio/RPC framing or process death
 	ReasonHarnessError                    // an error the harness reported about its own loop
 )
+
+// errorReasonTokens holds the stable lower-kebab token for each ErrorReason, indexed by value.
+var errorReasonTokens = [...]string{
+	ReasonUnknown:      "unknown",
+	ReasonAuth:         "auth",
+	ReasonRateLimit:    "rate-limit",
+	ReasonBudget:       "budget",
+	ReasonMaxTurns:     "max-turns",
+	ReasonTransport:    "transport",
+	ReasonHarnessError: "harness-error",
+}
