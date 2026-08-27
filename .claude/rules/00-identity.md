@@ -1672,8 +1672,10 @@ count.
   reader, and the other 3 declare no group at all.
 - **The layer cache is in the registry**, `ghcr.io/gophersys/<image>-cache`, one
   package per image, **`mode=min` on the write** since 2026-08-26. `type=gha` is
-  10 GB per repository across every scope, which 6 images do not fit at any
-  export mode. `mode=max` caches the steps of stages that never reach the final
+  10 GB per repository across every scope, which 6 images at `mode=max` do not
+  fit. Whether they would fit at `mode=min` is UNMEASURED and the question is
+  moot — `type=registry` has no such ceiling and is what these images use.
+  `mode=max` caches the steps of stages that never reach the final
   image, and every Dockerfile here is single-stage — 1 `FROM`, no named stage, no
   `COPY --from` in the 6 files — so it was exporting for a set that does not
   exist. **The saving is a PREDICTION and not yet a measurement**, and the
