@@ -209,9 +209,11 @@ func assertTurnOrdinalsAdvance(t *testing.T, events []agentsession.Event) {
 // `{"type":"session",…}` per PROCESS, so the pre-rewrite adapter — which launched a fresh omp per
 // Prompt — produced exactly `multiTurnCount` of them. `--mode rpc` announces no session frame at
 // all: its startup is `ready` (mapped to the Ready STATE, not an Extension), a fire-and-forget
-// setWidget, `available_commands_update`, and the `negotiate_protocol` response — measured in
-// q3-probe3-hosttool-roundtrip.txt:3,7,8,9 and q3-probe2-stub-handshake.txt:7-12. So a single
-// `session` frame here means a per-turn process is still being spawned.
+// setWidget and `available_commands_update` — measured in q3-probe3-hosttool-roundtrip.txt:3,7,8
+// and q3-probe2-stub-handshake.txt:7-12. (The capture also carries a `negotiate_protocol`
+// response at :9; the host no longer negotiates, so that frame no longer occurs, and
+// testdata/rpc-17.3.7-handshake.jsonl records it as withdrawn rather than replaying it.) So a
+// single `session` frame here means a per-turn process is still being spawned.
 //
 // `agent_start` is NOT a discriminator (one per TURN in both worlds) and is asserted only as the
 // supporting count. The handshake half stays as it was: the `ready` frame is emitted once per

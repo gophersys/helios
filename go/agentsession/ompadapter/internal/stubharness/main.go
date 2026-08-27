@@ -7,8 +7,10 @@
 // It reproduces the three bidirectional exchanges the adapter must survive, each measured on
 // omp 17.3.7 (fixtures/q3-probe*.txt):
 //
-//   - the startup handshake: `ready` first, then the host's negotiate_protocol and, when host
-//     tools are registered, set_host_tools — each answered with its `response` frame;
+//   - the startup handshake: `ready` first and, when host tools are registered, the host's
+//     set_host_tools — answered with its `response` frame. The host negotiates NO protocol: 1 is
+//     what omp runs by default (rpc-frame.ts:265) and it is the only one this adapter can decode,
+//     since protocol 2 licenses `rpc_chunk` frames (rpc-frame.ts:284) nothing here reassembles;
 //   - the approval dialog: a `select` extension_ui_request carrying NO timeout field, which
 //     BLOCKS the turn until the host answers it (an unanswered one would stall the turn exactly
 //     as the real harness does);
@@ -131,8 +133,6 @@ func (a *agent) read(commands chan<- frame) {
 // serve runs one stdin command to completion.
 func (a *agent) serve(command *frame) {
 	switch command.Type {
-	case "negotiate_protocol":
-		a.emit(fmt.Sprintf(`{"id":%s,"type":"response","command":"negotiate_protocol","success":true,"data":{"protocolVersion":2}}`, jsonString(command.ID)))
 	case "set_host_tools":
 		a.registerHostTools(command)
 	case "prompt", "steer":

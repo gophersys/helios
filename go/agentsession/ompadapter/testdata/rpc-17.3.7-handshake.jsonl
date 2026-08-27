@@ -20,6 +20,11 @@
 #    descriptors ("…(+11905B)"). The first two commands of the captured payload are kept so the
 #    line is valid JSON; the adapter reads the frame TYPE, not the catalogue.
 {"type":"available_commands_update","commands":[{"name":"security","description":"Plan, run, inspect, import, and compare OMP-native security scans","source":"builtin"},{"name":"model","aliases":["models"],"description":"Show current model selection","source":"builtin"}]}
-# <- q3-probe3-hosttool-roundtrip.txt:9. The response to the host's negotiate_protocol,
-#    correlated on the host-chosen id "1". Protocol 2 is in force from this frame on.
-{"id":"1","type":"response","command":"negotiate_protocol","success":true,"data":{"protocolVersion":2}}
+# <- q3-probe3-hosttool-roundtrip.txt:9, WITHDRAWN FROM THE REPLAY and kept here verbatim as the
+#    capture's own record. At capture time the host DID send a negotiate_protocol, and this was
+#    omp's success response to it, correlated on the host-chosen id "1"; protocol 2 was in force
+#    from it for the rest of THAT session. The adapter no longer negotiates — it cannot reassemble
+#    the `rpc_chunk` frames protocol 2 licenses (rpc-frame.ts:284) — so omp can never emit this
+#    frame again, and replaying it would feed every handshake test a reply to a request nobody
+#    sent. The captured bytes, unaltered, so the history is preserved rather than rewritten:
+#      {"id":"1","type":"response","command":"negotiate_protocol","success":true,"data":{"protocolVersion":2}}
