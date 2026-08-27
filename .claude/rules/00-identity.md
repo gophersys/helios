@@ -1671,8 +1671,19 @@ count.
   purpose, because a review of a diff that has already changed is spend with no
   reader, and the other 3 declare no group at all.
 - **The layer cache is in the registry**, `ghcr.io/gophersys/<image>-cache`, one
-  package per image, `mode=max` on the write. `type=gha` is 10 GB per repository
-  across every scope, which 6 images at `mode=max` do not fit.
+  package per image, **`mode=min` on the write** since 2026-08-26. `type=gha` is
+  10 GB per repository across every scope, which 6 images do not fit at any
+  export mode. `mode=max` caches the steps of stages that never reach the final
+  image, and every Dockerfile here is single-stage — 1 `FROM`, no named stage, no
+  `COPY --from` in the 6 files — so it was exporting for a set that does not
+  exist. **The saving is a PREDICTION and not yet a measurement**, and the
+  distinction is the whole point of the `no-cache` dispatch input: the 511.6s
+  (base) / 606.6s (cloud) `mode=max` figures were read on a REBUILD, every
+  `mode=min` run since the switch has been warm, and a warm export reports
+  single-digit seconds whatever the mode is. Same-regime spread on the mode=max
+  side is already 1.7x (511.6s and 303.6s for base), so the answer needs more
+  than 1 run. Read the `no-cache` block in `build-and-push.yml` before quoting
+  any of these numbers.
 - **The builder is `.ci/buildx-node.sh`, not `docker/setup-buildx-action`.** It
   owns the switch that appends the Mac mini as a native arm64 node when
   `SANCTIONED_PLATFORMS` names `linux/arm64`. That switch READS the library, so

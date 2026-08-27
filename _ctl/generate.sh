@@ -447,6 +447,10 @@ JOB_BUILD_HEAD
   printf '          tags: ${{ env.SMOKE_REF }}\n'
   printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache\n' "$name"
   printf '          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache,mode=min\n' "$name"
+  # The measurement lever. Read the no-cache block at the top of this workflow
+  # for why it is a comparison and not the bare input, and why it reaches this
+  # step and no other.
+  printf '          no-cache: ${{ inputs.no-cache == true }}\n'
 
   printf '      - name: smoke test (native amd64)\n'
   emit_note '        ' "$name" smoke
@@ -660,6 +664,23 @@ FILE_HEADER_A
 # of upstream fetches — the cost this lever exists to avoid. The export has to
 # keep happening; it only has to stop carrying what nothing reads.
 #
+# THE SAVING IS AN EXPECTED VALUE AND NOT A MEASUREMENT, and it stays that way
+# until a mode=min export is read under the SAME regime the mode=max number came
+# from. Both figures above were taken on runs that REBUILT — run 32877811689,
+# where the weekly pin bump changed every layer below the first moved ARG. Every
+# mode=min run since the switch has been warm: run 33009516792 exported in 5.5s
+# (base) / 3.2s (cloud), and that is the cache HIT being read, not the export.
+# The regime, not the mode, is what those 3 numbers differ by.
+#
+# The measurement also has to be taken more than once. The 2 mode=max rebuild
+# exports of base are 511.6s and 303.6s (run 32925596110) — a 1.7x spread on the
+# same work, because 6 jobs share one uplink and a run's neighbours decide how
+# much of it this one gets. A single number here answers nothing.
+#
+# The `no-cache` input below is how the regime is reproduced on demand. Until a
+# run with it on reports, the 10.35 job-min/run this switch was made for is a
+# prediction.
+#
 # base-runner is retired. All 3 ARC pools run `cloud` now, so nothing pulls the
 # image and no job builds it. `runner/` is deleted (D2, 2026-08-18); the CI fold
 # it carried is `_delta/components/runner.sh`, which the cloud job builds in.
@@ -677,6 +698,36 @@ on:
         options:
           - publish
           - rehearsal
+      no-cache:
+        description: "true = rebuild every layer from scratch. A MEASUREMENT lever; leave it false."
+        type: boolean
+        default: false
+
+# THE no-cache INPUT, and the question it exists to answer.
+#
+# The export cost above was measured under mode=max on a REBUILD — a run whose
+# pins moved, so every layer below the first changed ARG was new and the export
+# had a full layer set to send. The mode=min half of that comparison cannot be
+# taken from an ordinary push: a warm run rebuilds nothing, so its export sends
+# nothing and reports single-digit seconds whatever the mode is. Reading that as
+# the saving would be reading the CACHE HIT and calling it the export.
+#
+# So the regime has to be reproducible on demand. `no-cache: true` on the gate
+# build discards the import for that build only, every layer is built again, and
+# the export then carries the same full layer set the mode=max number was
+# measured over. It is the ONE step that writes a cache, so it is the only step
+# the input reaches: the publish build keeps its `cache-from` and takes its amd64
+# layers from whatever the gate just wrote, exactly as on any other run.
+#
+# It is `inputs.no-cache == true` and never a bare `inputs.no-cache`. On a push
+# there is no input at all, the value is the empty string, and an empty string
+# handed to `no-cache:` is not the action's `false` default — it is a value the
+# action's boolean reader REFUSES. The comparison yields the literal `true` or
+# `false` in every event.
+#
+# LEAVE IT FALSE. A run with it on rebuilds all 6 images from scratch and takes
+# the pool for the length of it. Pair it with `mode=rehearsal` to measure without
+# moving a tag.
 
 # REHEARSAL MODE, and the hole it closes.
 #
