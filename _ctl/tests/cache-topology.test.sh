@@ -39,11 +39,16 @@ for job in "${jobs[@]}"; do
     assert_equal "${job}_${step}_reads_latest" "$expected" "$value"
   done
 
-  publish_inline="$(yq -r '[.jobs[strenv(CACHE_JOB)].steps[] | select(.with.push == true and .with["cache-to"] == "type=inline")] | length' "$WORKFLOW")"
   other_exports="$(yq -r '[.jobs[strenv(CACHE_JOB)].steps[] | select(.with.push != true and .with["cache-to"] != null)] | length' "$WORKFLOW")"
   legacy_refs="$(yq -r '.jobs[strenv(CACHE_JOB)].steps[].with | (.["cache-from"] // ""), (.["cache-to"] // "")' "$WORKFLOW" | grep -cF -- "${job}-cache" || true)"
 
-  assert_equal "${job}_publish_embeds_one_inline_cache" "1" "$publish_inline"
+  mapfile -t publishing_steps < <(yq -r '.jobs[strenv(CACHE_JOB)].steps[] | select(.with.push == true) | [.name, (.with["cache-to"] // "<absent>")] | @tsv' "$WORKFLOW")
+  assert_status_nonzero "${job}_has_a_publishing_step" "${#publishing_steps[@]}"
+  for record in "${publishing_steps[@]}"; do
+    name="${record%%$'\t'*}"
+    cache_to="${record#*$'\t'}"
+    assert_equal "${job}_${name}_embeds_inline_cache" "type=inline" "$cache_to"
+  done
   assert_equal "${job}_no_other_step_exports_cache" "0" "$other_exports"
   assert_equal "${job}_has_no_legacy_cache_package_ref" "0" "$legacy_refs"
 done

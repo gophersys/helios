@@ -5,7 +5,7 @@ repo: gophersys/.devcontainer
 branch: perf/inline-publish-cache
 worktree: ~/code/.worktrees/devcontainer-inline-cache
 pr: -
-attempt: 1/2
+attempt: 2/2
 
 ## Goal
 
@@ -36,6 +36,9 @@ Mateo approves its measured preflight.
 - REVIEW 1 — Codex found the first test counted cache lines globally. The test
   now parses every enabled job and verifies each gate, publish, and rehearsal
   step independently; all 14 assertions pass.
+- REVIEW 2 — Codex found that one conforming publisher could hide a second
+  nonconforming publisher. The test now enumerates every `push: true` step and
+  asserts the inline exporter on each one.
 
 ## Blocked
 
