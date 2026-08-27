@@ -176,12 +176,18 @@ cmd_build() {
 
 cmd_test() {
   require_cmd go
-  # -race is the DEFAULT here and everywhere a human runs `ctl.sh test`. The PR tier alone opts
-  # out (EDEN_UNIT_NO_RACE=1), per Mateo's 2026-08-25 tiering ruling: the push lane stays in
-  # minutes, and the detector runs at merge and nightly. This is not a coverage cut — the merge
-  # tier runs this same verb RACED before anything lands, so a unit race still blocks the merge.
+  # -race is the DEFAULT here and everywhere a human runs `ctl.sh test`. The push lane alone opts
+  # out, per Mateo's 2026-08-25 tiering ruling: it stays in minutes, and the detector runs at merge
+  # and nightly. This is not a coverage cut — the merge tier runs this same verb RACED before
+  # anything lands, so a unit race still blocks the merge.
+  #
+  # The opt-out is an ARGUMENT, never an environment variable. It was a `VAR=1 func` command prefix
+  # until CI proved why that is unsafe: bash discards a function's temp-env on return, POSIX sh does
+  # NOT, so under sh the value survived into phase_testing and silently un-raced property, lifecycle
+  # and load. The gate stayed green while the race detector had quietly stopped running. An argument
+  # cannot leak across a call boundary; that is the whole reason for it.
   local -a race_flag=(-race)
-  if [[ "${EDEN_UNIT_NO_RACE:-0}" == "1" ]]; then
+  if [[ "${1:-}" == "--no-race" ]]; then
     race_flag=()
     log_info "test: go test ./... -count=1 (unit + fake conformance; -race runs at merge + nightly)"
   else
@@ -1106,7 +1112,7 @@ cmd_apidiff() {
 }
 
 # ── the SDLC phase-gate sequencer (ADR-0020) ────────────────────────────────────────────────
-# `phase-gate <architecture|implementation|testing|qa|all>` — runs the mechanical gate for one
+# `phase-gate <architecture|implementation|testing|qa|deep|all>` — runs the mechanical gate for one
 # SDLC phase. Each gate short-circuits on the first failing dimension and prints a per-dimension
 # PASS/FAIL summary so a blind gate is visible (ADR-0020 §enforcement: "NOTHING silently skips").
 # "phase" here is the SDLC step — NEVER the environment "stage" (CLAUDE.md vocabulary rule).
@@ -1236,18 +1242,18 @@ phase_implementation() {
   _gate_run "golangci-lint full + hnslint + cohesion" cmd_maintainability
   _gate_run "apidiff: no break vs .apibaseline" cmd_apidiff
   _gate_run "go vet" cmd_vet
-  EDEN_UNIT_NO_RACE=1 _gate_run "unit + fake conformance GREEN (fast; -race at merge)" cmd_test
+  _gate_run "unit + fake conformance GREEN (fast; -race at merge)" cmd_test --no-race
   _gate_summary
 }
 
 phase_testing() {
   _gate_reset
   log_info "PHASE 3 — TESTING (the 8-dimension taxonomy)"
-  # This races, and it must. phase_implementation drops -race by setting EDEN_UNIT_NO_RACE=1 as a
-  # COMMAND PREFIX on its own _gate_run call, so the value lives only for that call and is gone
-  # before this line runs. Hoisting that assignment to a plain `export` would silently un-race this
-  # dimension — the whole unit suite would stop being race-checked and nothing would go red to say
-  # so. If you ever move it, move it to an explicit argument, not an exported variable.
+  # This races, and it must. phase_implementation drops -race by passing `--no-race` as an ARGUMENT,
+  # which cannot cross a call boundary. It used to be a `VAR=1 func` command prefix, which is safe
+  # in bash and NOT in POSIX sh — CI runs the latter, so the value survived into this phase and
+  # silently un-raced property, lifecycle and load while the gate reported green. Never express this
+  # opt-out as an environment variable again.
   _gate_run "unit + fake conformance (-race)" cmd_test
   _gate_run "property (rapid)" cmd_property
   _gate_run "leak (goleak, zero leaks)" cmd_leak
@@ -1319,6 +1325,30 @@ cmd_phase_gate() {
     implementation) phase_implementation ;;
     testing)        phase_testing ;;
     qa)             phase_qa ;;
+    deep)
+      # The phases a STANDALONE checkout can actually prove. ARCHITECTURE is deliberately absent:
+      # it gates a frozen contract that lives in the eden monorepo, and _eden_monorepo_root falls
+      # back to this repository's own root when libs is checked out alone — so the dimension can
+      # never pass in a standalone lane, and for weeks it failed the nightly before implementation,
+      # testing or qa ever ran. Ruled 2026-08-25 (option A): gate ARCHITECTURE where its evidence
+      # lives, in eden's conformance lane, where libs IS a submodule and the contract resolves.
+      # `all` below is unchanged and remains correct inside eden.
+      log_info "phase-gate deep: implementation → testing → qa (architecture runs in eden's conformance lane)"
+      # Each phase runs in a NEUTRAL position with errexit disabled around it — identical to the
+      # `all` branch below, and for the same reason _gate_run documents: a phase invoked on either
+      # side of `||` runs with errexit suppressed for its WHOLE body, and bash carries that
+      # suppression into every verb subshell. This loop would then report GREEN over exactly the
+      # reds the per-phase arms catch, which is the blind gate this whole change exists to remove.
+      local dstep drc=0
+      for dstep in phase_implementation phase_testing phase_qa; do
+        set +e
+        "$dstep"
+        drc=$?
+        set -e
+        [[ "$drc" -eq 0 ]] || break
+      done
+      return "$drc"
+      ;;
     all)
       log_info "phase-gate all: architecture → implementation → testing → qa (short-circuit on first failure)"
       # Each phase runs in a NEUTRAL position with errexit disabled around it, for the reason
@@ -1339,7 +1369,7 @@ cmd_phase_gate() {
       log_success "phase-gate all: GREEN — library is done (past phase-gate qa)"
       ;;
     *)
-      log_error "unknown phase: '$phase' (want architecture|implementation|testing|qa|all)"
+      log_error "unknown phase: '$phase' (want architecture|implementation|testing|qa|deep|all)"
       exit 1
       ;;
   esac
@@ -1384,7 +1414,7 @@ ADR-0020 test-taxonomy verbs (the 8 dimensions):
   apidiff-record   Record the frozen surface (architecture gate / revision)
 
 ADR-0020 SDLC sequencer:
-  phase-gate       <architecture|implementation|testing|qa|all> — the mechanical gate
+  phase-gate       <architecture|implementation|testing|qa|deep|all> — the mechanical gate
   help             Show this message
 EOF
 }

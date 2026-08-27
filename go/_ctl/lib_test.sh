@@ -793,7 +793,6 @@ TRANSITIVE_MODULE="envelope"
 # FORMAT: <library> | <anchor> | <reason>
 MODULE_GRAPH_EXEMPT_SOURCE=(
   "dependencies  | github.com/stretchr/testify | go.sum drift, task #37 — go build, vet and test are green, so only this test sees it"
-  "errors        | github.com/stretchr/testify | go.sum drift, task #37 — go build, vet and test are green, so only this test sees it"
 )
 MODULE_GRAPH_EXEMPT=("${MODULE_GRAPH_EXEMPT_SOURCE[@]}")
 

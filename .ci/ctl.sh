@@ -267,8 +267,13 @@ function cmd_affected_gate_substrate() {
 }
 
 function cmd_gate_all() {
-  log_info "gate-all: phase-gate all (1→4) over affected projects (base=${NX_BASE})"
-  run_phase_gate_over_affected all
+  # `deep`, not `all`. ARCHITECTURE gates a frozen contract that lives in EDEN; this lane runs
+  # libs standalone, where _eden_monorepo_root resolves to this repository and the contract is
+  # absent — so `all` failed at phase 1 every night and implementation/testing/qa never ran.
+  # Measured before the change: 14 of the last 18 nightly runs red, ~20s median. Ruled option A
+  # on 2026-08-25 — architecture is gated in eden's conformance lane, where it resolves.
+  log_info "gate-all: phase-gate deep (implementation → testing → qa) over affected projects (base=${NX_BASE})"
+  run_phase_gate_over_affected deep
 }
 
 function cmd_updatability() {
