@@ -379,9 +379,49 @@ line is what this change exists to remove.
 I also told the implementer that if a written test now contradicts the narrower
 rule it must STOP and report rather than edit the test or bend the rule.
 
+### The review verdict on libs#40, read as its own call (§5 condition 2)
+
+**REQUEST_CHANGES.** The `pr-review` agent reached my conclusion independently
+and found a WIDER blast radius than I had measured. `cictl affected` attributes
+a changed file to its NEAREST project ancestor, and the repository ROOT is
+itself a project (`project.json` name `libs`). So under the arm as I wrote it,
+these ALL go red:
+
+- a one-line `README.md` fix
+- a `.golangci.yml` tweak
+- a change to the root `ctl.sh`
+- **a PR that records an ADR** (`docs/architecture/adr/…` maps to the root
+  project) — which contradicts the repository's own rule that decisions be
+  recorded in `docs/`, since such a PR could never show a green pr tier
+
+Its recommended fix is the same shrink-only register I had already sent.
+
+**What it confirmed as correct, and which stays:** the empty-set arm as a clean
+pass, test 18 pinning the non-vacuous half, and fixing the shared helper rather
+than one verb.
+
+### The trap this now walks toward, and the stop I have armed
+
+If the register ends up holding `.ci` + `go/_ctl` + root `libs` + `templates/*`
++ `plugins/*`, that is EVERY non-library path in the repository — and a register
+listing every possible case is `return 0` in a costume: a check that cannot
+fail, which is worse than no check and is the exact defect this phase exists to
+remove.
+
+So rows must be **proven by probe, never enumerated by hand**, and a row whose
+probe stops resolving is STALE and fails the lane.
+
+I have instructed the implementer to measure whether ANY affected-path class is
+left gated by nothing, and — **if none is** — to STOP and say so rather than
+invent a case to keep the arm alive. That outcome would mean **blueprint P0-3
+describes a defect that does not exist in `libs`**, which is a finding to route
+to the orchestrator, not something to paper over. A refuted item is a real
+result.
+
 ## Blocked
 
-Nothing.
+PR-B (libs#40) is BLOCKED on REQUEST_CHANGES. It may not merge: §5 condition 2
+is not satisfied, and its `pr tier` check is FAILURE. Attempt 1 of 2 in flight.
 
 ## Next
 
