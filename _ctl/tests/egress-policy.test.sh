@@ -296,14 +296,14 @@ fi
 # set nobody hand-writes any more.
 #
 # The manifest is not grading itself either. publish-order.test.sh holds
-# images.yaml to a hand-kept PUBLISHED_IMAGES literal, so an image that appears
+# images.yaml to a hand-kept DECLARED_IMAGES literal, so an image that appears
 # in the manifest and in no policy list is red there. What was red here instead
 # was the LITERAL 5, which had 2 bodies — the `-eq 5` below and a
 # `for i in 1 2 3 4 5` in the order loop — and the day a 6th image landed the
 # first went red while the second silently stopped covering job 6.
 manifest_status=0
 manifest_names=""
-manifest_names="$(image_names 2>&1)" || manifest_status=$?
+manifest_names="$(active_image_names 2>&1)" || manifest_status=$?
 
 expected_jobs=0
 if [[ "$manifest_status" -eq 0 ]]; then
@@ -351,7 +351,7 @@ for wf in "$WORKFLOW" "$PROVIDER_WORKFLOW"; do
     pass_check "${wf_name}: every build job carries login + mirror + builder"
   else
     fail_check "${wf_name}: every build job carries login + mirror + builder" \
-      "images.yaml declares ${expected_jobs} images, so ${expected_jobs} build jobs are expected" \
+      "images.yaml activates ${expected_jobs} images, so ${expected_jobs} build jobs are expected" \
       "login=${n_login} mirror=${n_mirror} buildx=${n_buildx} — a job is missing a step, and its builder boots unauthenticated or unmirrored"
   fi
 

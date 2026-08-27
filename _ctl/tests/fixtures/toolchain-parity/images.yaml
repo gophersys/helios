@@ -12,6 +12,7 @@
 # needs 2 for exactly the opposite reason: its rule IS the loop.
 images:
   only:
+    enabled: true
     parent: ""
     context: "."
     dockerfile: only/Dockerfile

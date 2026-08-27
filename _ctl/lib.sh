@@ -383,7 +383,7 @@ function manifest_yq() {
 
 # The flat form of the manifest, 1 record per image in document order:
 #
-#   <name>|<parent>|<context>|<dockerfile>|<smoke_ref>|<paths>|<groups>|<platforms>|<pins>|<size_budget_gb>
+#   <name>|<parent>|<context>|<dockerfile>|<smoke_ref>|<paths>|<groups>|<platforms>|<pins>|<size_budget_gb>|<enabled>|<enabled_type>
 #
 # where fields 6, 7 and 8 are space-joined lists. The `|` grammar is the one
 # _build/upstreams.txt and .ci/smoke.sh's class tables already use, and no field
@@ -420,7 +420,7 @@ function image_records() {
   # and `null` reaching `join` — or reaching the array — would take the whole
   # read down for every image that correctly declares nothing. `// []` for the
   # list-valued key, `// ""` for the 2 scalars.
-  records="$(manifest_yq '.images | to_entries | .[] | [.key, .value.parent, .value.context, .value.dockerfile, .value.smoke_ref, (.value.paths | join(" ")), (.value.groups | join(" ")), (.value.platforms // [] | join(" ")), (.value.pins // ""), (.value.size_budget_gb // "")] | join("|")')" || status=$?
+  records="$(manifest_yq '.images | to_entries | .[] | [.key, .value.parent, .value.context, .value.dockerfile, .value.smoke_ref, (.value.paths | join(" ")), (.value.groups | join(" ")), (.value.platforms // [] | join(" ")), (.value.pins // ""), (.value.size_budget_gb // ""), (.value.enabled | tostring), (.value.enabled | tag)] | join("|")')" || status=$?
   if [[ "$status" -ne 0 ]]; then
     log_error "the image manifest could not be read: ${REPO_ROOT}/${IMAGES_MANIFEST}"
     return 1
@@ -490,6 +490,56 @@ function image_names() {
     emitted+=("$name")
     printf '%s\n' "$name"
   done <<< "$records"
+}
+
+# image_enabled <name> — print true or false for an explicitly declared YAML
+# boolean. Activation has no default: adding a product without choosing whether
+# it participates in build/publish fan-out is a manifest error.
+function image_enabled() {
+  local name="$1" value type
+  value="$(image_field "$name" 11)" || return 1
+  type="$(image_field "$name" 12)" || return 1
+  if [[ "$type" != "!!bool" || ( "$value" != "true" && "$value" != "false" ) ]]; then
+    log_error "${IMAGES_MANIFEST}: '${name}' must declare enabled as a YAML boolean"
+    return 1
+  fi
+  printf '%s' "$value"
+}
+
+# active_image_names — enabled products in the manifest's checked build order.
+# Disabled definitions remain visible through image_names for inventory and
+# static validation, but no operational fan-out may consume that broader set.
+function active_image_names() {
+  local names name enabled parent parent_enabled count=0
+  names="$(image_names)" || return 1
+  while IFS= read -r name; do
+    [[ -z "$name" ]] && continue
+    enabled="$(image_enabled "$name")" || return 1
+    [[ "$enabled" == "true" ]] || continue
+    parent="$(image_parent "$name")" || return 1
+    if [[ -n "$parent" ]]; then
+      parent_enabled="$(image_enabled "$parent")" || return 1
+      if [[ "$parent_enabled" != "true" ]]; then
+        log_error "${IMAGES_MANIFEST}: enabled image '${name}' has disabled parent '${parent}'"
+        return 1
+      fi
+    fi
+    printf '%s\n' "$name"
+    count=$((count + 1))
+  done <<< "$names"
+  if [[ "$count" -eq 0 ]]; then
+    log_error "${IMAGES_MANIFEST}: no image is enabled"
+    return 1
+  fi
+}
+
+function require_active_image() {
+  local name="$1" enabled
+  enabled="$(image_enabled "$name")" || return 1
+  if [[ "$enabled" != "true" ]]; then
+    log_error "${IMAGES_MANIFEST}: '${name}' is declared but disabled"
+    return 1
+  fi
 }
 
 # image_parent <name> — the image <name> builds FROM, empty for one that builds
@@ -1423,6 +1473,7 @@ function rewrite_declaration() {
 
 # -------- image verbs --------
 function image_build() {
+  require_active_image "${IMAGE_NAME:-}" || exit 1
   require_cmd docker
   resolve_image_platforms "${IMAGE_NAME:-}"
   # The same membership rule `push` uses. `build` tags the OFFICIAL ref, so an
@@ -1451,6 +1502,7 @@ function image_build() {
 }
 
 function image_push() {
+  require_active_image "${IMAGE_NAME:-}" || exit 1
   resolve_image_platforms "${IMAGE_NAME:-}"
   require_buildx_and_platforms
   require_cmd git
@@ -1775,6 +1827,7 @@ function verify_published_blobs() {
 # image. buildx attaches 1 per variant on every push, so counting the entries
 # reads a correct single-platform image as 2 platforms.
 function image_verify_published() {
+  require_active_image "${IMAGE_NAME:-}" || exit 1
   require_buildx
   require_cmd jq
   # The set this image PUBLISHES, which is the sanctioned set for 5 of the 6 and
@@ -1848,12 +1901,14 @@ function image_verify_published() {
 }
 
 function image_pull() {
+  require_active_image "${IMAGE_NAME:-}" || exit 1
   require_cmd docker
   log_info "pulling ${IMAGE_REF}"
   docker pull "${IMAGE_REF}"
 }
 
 function image_inspect() {
+  require_active_image "${IMAGE_NAME:-}" || exit 1
   require_cmd docker
   docker image inspect "${IMAGE_REF}"
 }

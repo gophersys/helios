@@ -79,6 +79,12 @@ ARG BUN_VERSION
 ARG BUN_SHA256_AMD64
 ARG BUN_SHA256_ARM64
 
+# Agent harnesses are image content, not container-start work. The same shared
+# component and the same three pins are used by cloud.
+ARG CLAUDE_CODE_VERSION
+ARG OMP_VERSION
+ARG CODEX_VERSION
+
 # Python — apt-provided 3.12 + uv for user-space package mgmt.
 #
 # The uv digest covers the INSTALLER SCRIPT only, for the reason the nvm row gives:
@@ -217,6 +223,9 @@ RUN : "${ZSH_VERSION:?not in versions.env}" \
  && : "${BUN_VERSION:?not in versions.env}" \
  && : "${BUN_SHA256_AMD64:?not in versions.env}" \
  && : "${BUN_SHA256_ARM64:?not in versions.env}" \
+ && : "${CLAUDE_CODE_VERSION:?not in versions.env}" \
+ && : "${OMP_VERSION:?not in versions.env}" \
+ && : "${CODEX_VERSION:?not in versions.env}" \
  && : "${PYTHON_PACKAGE:?not in versions.env}" \
  && : "${UV_VERSION:?not in versions.env}" \
  && : "${UV_SHA256_NOARCH:?not in versions.env}" \
@@ -388,6 +397,7 @@ RUN if id ubuntu >/dev/null 2>&1; then userdel --remove ubuntu 2>/dev/null || us
 # base job of .github/workflows/build-and-push.yml both say so.
 # -------------------------------------------------------------------------
 COPY _build/ /usr/local/lib/gophersys/
+COPY _delta/components/agents.sh /usr/local/lib/gophersys/agents.sh
 
 # -------------------------------------------------------------------------
 # oh-my-zsh for the `dev` user, then switch SHELL to zsh for every
@@ -809,6 +819,13 @@ RUN { \
 # ENV PATH applies to every process in the image whatever its shell or user, so
 # there is nothing to source and nothing to verify in a shell that lies.
 ENV PATH="/home/${USERNAME}/.nvm/versions/node/v${NODE_VERSION}/bin:${PATH}"
+
+# Claude, OMP and Codex are slow, stable, pinned dependencies. Bake them once;
+# container startup is deliberately offline and only verifies this result.
+USER ${USERNAME}
+RUN CLAUDE_CODE_VERSION="${CLAUDE_CODE_VERSION}" OMP_VERSION="${OMP_VERSION}" CODEX_VERSION="${CODEX_VERSION}" \
+    bash /usr/local/lib/gophersys/agents.sh
+USER root
 
 # -------------------------------------------------------------------------
 # Final image identity.

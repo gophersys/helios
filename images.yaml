@@ -120,6 +120,7 @@
 
 images:
   base:
+    enabled: true
     parent: ""
     context: "."
     dockerfile: base/Dockerfile
@@ -169,6 +170,7 @@ images:
         where the gate toolchain is exercised on a real fixture.
 
   mobile:
+    enabled: false
     parent: base
     context: mobile
     dockerfile: mobile/Dockerfile
@@ -225,6 +227,7 @@ images:
         compared here too, and the Flutter SDK is checked on top of them.
 
   embedded:
+    enabled: false
     parent: base
     context: embedded
     dockerfile: embedded/Dockerfile
@@ -360,6 +363,7 @@ images:
         _ctl/tests/embedded-entrypoint.test.sh is that coverage, on the host.
 
   cloud:
+    enabled: true
     parent: ""
     context: "."
     dockerfile: cloud/Dockerfile
@@ -432,6 +436,7 @@ images:
         build the publish step below then copies to ghcr.io.
 
   hardware:
+    enabled: false
     parent: cloud
     context: hardware
     dockerfile: hardware/Dockerfile
@@ -519,6 +524,7 @@ images:
         whole resolver suite at runtime.
 
   ui:
+    enabled: false
     parent: cloud
     context: ui
     dockerfile: ui/Dockerfile

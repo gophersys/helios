@@ -301,9 +301,9 @@ BUF_VERSION|not-in-this-image:buf||
 GRPCURL_VERSION|not-in-this-image:grpcurl||
 RUNNER_VERSION|not-in-this-image||
 CICTL_VERSION|not-in-this-image:cictl||
-CLAUDE_CODE_VERSION|not-in-this-image:claude||
-OMP_VERSION|not-in-this-image:omp||
-CODEX_VERSION|not-in-this-image:codex||
+CLAUDE_CODE_VERSION|asserted|claude --version|
+OMP_VERSION|asserted|omp --version|
+CODEX_VERSION|asserted|codex --version|
 TERRAFORM_VERSION|not-in-this-image:terraform||
 AWS_CLI_VERSION|not-in-this-image:aws||
 KICAD_PPA_VERSION|not-in-this-image:kicad-cli||
@@ -818,6 +818,13 @@ if [[ "${SMOKE_LIST_PINS:-}" == "1" ]]; then
     done <<< "$(home_pin_names "$home")"
   done
   exit 0
+fi
+
+# Contract tests exercise the payload tables for retained, disabled image
+# definitions without starting Docker. Production callers never set this seam;
+# every normal smoke invocation must target the active base/cloud surface.
+if [[ "${SMOKE_STATIC_CONTRACT:-}" != "1" ]]; then
+  require_active_image "$IMAGE" || exit 2
 fi
 
 # ---------------------------------------------------------------------------

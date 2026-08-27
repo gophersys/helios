@@ -1252,7 +1252,7 @@ fi
 # the check that replaces the hand-copying the 6 declarations used to need.
 #
 # Adding an image is therefore an images.yaml entry plus this array, in 1 change.
-PUBLISHED_IMAGES=(
+DECLARED_IMAGES=(
   "base"
   "mobile"
   "embedded"
@@ -1298,7 +1298,7 @@ else
 fi
 
 if [[ -z "$manifest_names" ]]; then
-  fail_check "the_manifest_declares_exactly_the_published_images" \
+  fail_check "the_manifest_declares_exactly_the_declared_images" \
     "unreadable: ${IMAGES_MANIFEST}"
   fail_check "every_declared_image_has_its_own_input_paths" \
     "unreadable: ${IMAGES_MANIFEST}"
@@ -1308,14 +1308,14 @@ if [[ -z "$manifest_names" ]]; then
     "unreadable: ${IMAGES_MANIFEST}"
 else
   # -- 4a. set equality, in both directions --
-  # An image in the manifest and not here is an image that publishes with no
+  # An image in the manifest and not here is an image with no
   # policy literal watching it. An image here and not in the manifest is a name
   # this file goes on believing after the manifest dropped it, and every
   # per-image clause below would then report it as a manifest defect.
-  assert_equal "the_manifest_declares_exactly_the_published_images" \
-    "$(joined "${PUBLISHED_IMAGES[@]}")" \
+  assert_equal "the_manifest_declares_exactly_the_declared_images" \
+    "$(joined "${DECLARED_IMAGES[@]}")" \
     "$(sort <<< "$manifest_names")" \
-    "${IMAGES_MANIFEST} is the ONE declaration of the image set, and PUBLISHED_IMAGES in this" \
+    "${IMAGES_MANIFEST} is the ONE declaration of the image set, and DECLARED_IMAGES in this" \
     "test is the hand-kept literal it owes set equality to — edit both in the same change" \
     "a literal that no longer matches the manifest is a red test, and that is what replaces" \
     "the 6 hand-copied declarations the graph used to live in"
@@ -1327,7 +1327,7 @@ else
   missing_paths=""
   missing_groups=""
   broken_inheritance=""
-  for image in "${PUBLISHED_IMAGES[@]}"; do
+  for image in "${DECLARED_IMAGES[@]}"; do
     record="$(awk -F'|' -v want="$image" '$1 == want { print; exit }' <<< "$manifest_records")"
     if [[ -z "$record" ]]; then
       missing_paths="${missing_paths:+${missing_paths}

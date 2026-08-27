@@ -60,68 +60,31 @@ Devcontainer lifecycle (self-managed, run from the host):
   shell              Interactive zsh inside the devcontainer
   down               Stop and remove the devcontainer
 
-  post-create        (in container) install Claude Code + omp + codex, 'c' alias"
+  post-create        (in container) verify baked harnesses and add the 'c' alias"
 
 # -------- devcontainer lifecycle (run inside the container) --------
 
-# post-create — runs once when the devcontainer is first created (wired from
-# base/devcontainer.json's postCreateCommand). Installs the current Claude
-# Code release fresh on every create — never pinned into the image — then
-# wires the `c` launch alias.
-# post_create_die ends post-create with a named cause. Every install here used to
-# warn and continue, so the container reported ready while a pinned harness or a
-# gate tool was absent, and the failure surfaced much later somewhere else.
+# post-create is intentionally offline. Slow and stable dependencies are baked
+# into the image; startup only verifies them and writes one user-local alias.
 function post_create_die() { log_error "post-create: $*"; exit 1; }
 
 function cmd_post_create() {
-  require_cmd curl
+  require_cmd claude omp codex
 
-  # Harness version pins — the consuming repo's manifest is the single source of truth (Eden
-  # pins exact versions so agent runs are reproducible — ADR-0021). When present, install those
-  # exact versions; otherwise fall back to latest so the shared base image still works for repos
-  # that do not pin. `HARNESS_CHANNEL=latest` forces latest (the upgrade-testing path).
   local versions_file="${HARNESS_VERSIONS_FILE:-/workspace/harnesses/versions.env}"
-  local channel="${HARNESS_CHANNEL:-pinned}"
-  local claude_version="" omp_version="" codex_version=""
-  if [[ "$channel" != "latest" && -f "$versions_file" ]]; then
+  local claude_version="" omp_version="" codex_version="" actual=""
+  if [[ -f "$versions_file" ]]; then
     # shellcheck disable=SC1090
     source "$versions_file"
     claude_version="${CLAUDE_CODE_VERSION:-}"
     omp_version="${OMP_VERSION:-}"
     codex_version="${CODEX_VERSION:-}"
-    log_info "post-create: pinning harnesses from ${versions_file} (claude=${claude_version:-latest} omp=${omp_version:-latest} codex=${codex_version:-latest})"
-  else
-    log_info "post-create: installing latest harnesses (no pin file / HARNESS_CHANNEL=latest)"
-  fi
-
-  log_info "post-create: installing Claude Code"
-  # Official native installer — https://docs.claude.com/en/docs/claude-code/setup
-  # The installer takes an optional explicit version argument.
-  if [[ -n "$claude_version" ]]; then
-    curl -fsSL https://claude.ai/install.sh | bash -s "$claude_version"
-  else
-    curl -fsSL https://claude.ai/install.sh | bash
-  fi
-
-  # The other two harnesses — Oh My Pi (`omp`) and Codex — are npm-global packages. omp's CLI
-  # shebang is `#!/usr/bin/env bun`; `bun` is baked into the image so it resolves at runtime.
-  # nvm is sourced for npm. All three harness CLIs are present so spawned agent pods (which
-  # dogfood this image) can run any harness, and the adapter live tests have a real binary.
-  log_info "post-create: installing the omp + codex harnesses via npm"
-  export NVM_DIR="${HOME}/.nvm"
-  # shellcheck disable=SC1091
-  [[ -s "${NVM_DIR}/nvm.sh" ]] && . "${NVM_DIR}/nvm.sh"
-  if command -v npm >/dev/null 2>&1; then
-    local omp_pkg="@oh-my-pi/pi-coding-agent"; [[ -n "$omp_version" ]] && omp_pkg="${omp_pkg}@${omp_version}"
-    local codex_pkg="@openai/codex";          [[ -n "$codex_version" ]] && codex_pkg="${codex_pkg}@${codex_version}"
-    # These 2 also only warned and continued. A container that finishes
-    # post-create with no omp is a container whose harness-conformance job fails
-    # later, far from the cause. ADR-0021 pins these versions; a pin that did not
-    # install is not a pin.
-    npm install -g "$omp_pkg"   || post_create_die "omp ${omp_pkg} failed to install"
-    npm install -g "$codex_pkg" || post_create_die "codex ${codex_pkg} failed to install"
-  else
-    post_create_die "npm is not on PATH, so omp and codex cannot be installed"
+    for spec in "claude:${claude_version}" "omp:${omp_version}" "codex:${codex_version}"; do
+      local command_name="${spec%%:*}" expected="${spec#*:}"
+      [[ -z "$expected" ]] && post_create_die "${command_name} has no pin in ${versions_file}"
+      actual="$($command_name --version 2>&1)" || post_create_die "${command_name} could not report its baked version"
+      [[ "$actual" == *"$expected"* ]] || post_create_die "${command_name} reports '${actual}', expected ${expected}; rebuild the devcontainer image"
+    done
   fi
 
   # hnslint is NOT built here. It comes from `gophersys/hnslint`, and the base Dockerfile
@@ -137,7 +100,7 @@ function cmd_post_create() {
     echo "alias c='claude --dangerously-skip-permissions'" >> "$zshrc"
     log_info "post-create: added 'c' alias to ${zshrc}"
   fi
-  log_info "post-create: done — open a new shell and run 'c'"
+  log_info "post-create: offline verification complete — open a new shell and run 'c'"
 }
 
 # _require_running — guard for exec/shell.
@@ -153,7 +116,7 @@ function _require_running() {
 # up — start (or reuse) the long-lived devcontainer: the consuming repo bind-mounted at
 # /workspace, the host Docker socket mounted (so the k3d/kind/docker integration + load lanes
 # work from inside), running as the dev user. Idempotent (reuses a stopped/running container);
-# then runs post-create once inside to install the harness CLIs.
+# then runs the offline post-create verification once inside.
 function cmd_up() {
   require_cmd docker
   if [[ ! -d "$WORKSPACE_HOST" ]]; then

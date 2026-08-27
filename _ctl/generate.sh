@@ -163,7 +163,7 @@ function image_children() {
   local name="$1" other
   while IFS= read -r other; do
     [[ "$(image_parent "$other")" == "$name" ]] && printf '%s\n' "$other"
-  done < <(image_names)
+  done < <(active_image_names)
 }
 
 # image_root <name> — the ancestor of <name> that builds FROM ubuntu. An image
@@ -188,7 +188,7 @@ function image_has_descendants() {
     while parent="$(image_parent "$parent")" && [[ -n "$parent" ]]; do
       [[ "$parent" == "$name" ]] && return 0
     done
-  done < <(image_names)
+  done < <(active_image_names)
   return 1
 }
 
@@ -427,8 +427,8 @@ JOB_VERSIONS_TAIL
         # reports a broken image but cannot stop one reaching a consumer.
         # buildx loads this build into the local docker image store instead, the
         # step after it asserts the content, and only then does the publish step
-        # ship the same build. The second build reads the cache this one writes,
-        # so publishing costs a layer copy rather than a rebuild.
+        # ship the same build. The second build reuses the first build's local
+        # BuildKit result, so publishing costs a layer copy rather than a rebuild.
         #
         # SMOKE_PLATFORM and not PLATFORMS: `load: true` takes 1 platform, and
         # the arm64 half of the publish below is therefore NOT gated by a smoke
@@ -445,8 +445,7 @@ JOB_BUILD_HEAD
   printf '          load: true\n'
   printf '%s\n' "$build_args_block"
   printf '          tags: ${{ env.SMOKE_REF }}\n'
-  printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache\n' "$name"
-  printf '          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache,mode=min\n' "$name"
+  printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s:latest\n' "$name"
   # The measurement lever. Read the no-cache block at the top of this workflow
   # for why it is a comparison and not the bare input, and why it reaches this
   # step and no other.
@@ -460,9 +459,9 @@ JOB_BUILD_HEAD
   cat <<'JOB_PUBLISH_HEAD'
       - name: publish the image the smoke test passed
         # The same build definition as the load step above — same context, same
-        # build-args — so buildx resolves every amd64 layer from the cache that
-        # step wrote and uploads it. It writes no cache of its own for that
-        # reason.
+        # build-args — so buildx resolves every amd64 layer from the builder's
+        # local result. Its inline export advances the shared cache without a
+        # second layer upload.
         #
         # The platform list is WIDER here than in the gate step: the amd64 leg
         # comes from that cache, and every other leg is built now, on the node
@@ -481,7 +480,8 @@ JOB_PUBLISH_HEAD
   printf '            ${{ env.REGISTRY }}/${{ env.OWNER }}/%s:latest\n' "$name"
   printf '            ${{ env.REGISTRY }}/${{ env.OWNER }}/%s:%s\n' "$name" "$sha_expression"
   printf "            \${{ steps.semver.outputs.tag != '' && format('{0}/{1}/%s:{2}', env.REGISTRY, env.OWNER, steps.semver.outputs.tag) || '' }}\n" "$name"
-  printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache\n' "$name"
+  printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s:latest\n' "$name"
+  printf '          cache-to: type=inline\n'
 
   cat <<'JOB_REHEARSAL_HEAD'
       - name: rehearsal — build what the publish step would build, ship nothing
@@ -491,8 +491,7 @@ JOB_PUBLISH_HEAD
         # surfaces here instead, on a branch, with no tag moved.
         #
         # It carries no `tags:` because it produces no image to name, and no
-        # cache-to for the reason the publish step has none: the gate build
-        # above is the writer.
+        # cache-to because only a published image can advance the shared cache.
 JOB_REHEARSAL_HEAD
   printf '        if: %s\n' "$REHEARSAL_GATE"
   printf '        uses: %s\n' "$ACTION_BUILD_PUSH"
@@ -502,7 +501,7 @@ JOB_REHEARSAL_HEAD
   printf '          platforms: ${{ env.PLATFORMS }}\n'
   printf '          push: false\n'
   printf '%s\n' "$build_args_block"
-  printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s-cache\n' "$name"
+  printf '          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.OWNER }}/%s:latest\n' "$name"
 
   cat <<'JOB_VERIFY_HEAD'
       - name: verify the published manifest and every blob it references
@@ -535,7 +534,7 @@ JOB_VERIFY_HEAD
 
 function emit_build_and_push() {
   local names_text set_phrase count name
-  names_text="$(image_names)" || return 1
+  names_text="$(active_image_names)" || return 1
   set_phrase="$(printf '%s' "$names_text" | tr '\n' '@' | sed -e 's/@$//' -e 's/@/ + /g')"
   count="$(printf '%s\n' "$names_text" | grep -c .)"
 
@@ -630,56 +629,24 @@ FILE_BANNER
 # change and it is not made here.
 #
 # ============================================================================
-# THE LAYER CACHE IS IN THE REGISTRY
+# THE PUBLISHED IMAGE IS THE LAYER CACHE
 # ============================================================================
 #
 # type=gha is the Actions cache service, 10 GB per repository across all scopes,
 FILE_HEADER_A
 
-  printf '# which %s multi-GB images cannot fit at any export mode — the measured\n# hit rate was not worth the quota.\n' "$count"
+  printf '# which %s multi-GB images cannot fit — the measured hit rate was not worth\n# the quota.\n' "$count"
   cat <<'FILE_HEADER_B'
-# type=registry puts each image's cache in its own ghcr package,
-# ghcr.io/gophersys/<image>-cache, which the pool can read and write with the
-# same GITHUB_TOKEN it already pushes with. Those packages do not exist until
-# the first run creates them, so the first build logs a cache-from miss and that
-# is expected exactly once per image.
+# Every Dockerfile is single-stage, so every reusable layer reaches the final
+# image. The publish build writes `type=inline`: cache metadata travels inside
+# the manifest whose layers the job already uploads. Gate, publish and rehearsal
+# read `<image>:latest`; there is no second `<image>-cache` package to upload.
 #
-# THE EXPORT IS mode=min, AND THE READING IS FREE. The two directions of this
-# cache cost wildly different amounts, measured on this repository:
-#
-#   cache-from  the import costs 2.0s (cloud) / 3.5s (base). It is the half that
-#               serves every layer, and it stays.
-#   cache-to    the export under mode=max measured 511.6s (base) / 606.6s
-#               (cloud) — 8.5 and 10.1 minutes, paid on EVERY run.
-#
-# mode=max exists to cache the steps of stages that do NOT reach the final
-# image. Every Dockerfile of this repository is SINGLE-stage: 1 FROM, no named
-# stage, no COPY --from anywhere in the 6 files. So there is no discarded stage
-# for mode=max to keep, and it was paying that export for nothing. mode=min
-# writes the layers the final image is made of, which is exactly the set
-# cache-from serves a later build.
-#
-# NOT "drop cache-to". A frozen cache decays: with nothing refreshing it the
-# hit rate falls to zero, and then every run pays a full rebuild AND a full set
-# of upstream fetches — the cost this lever exists to avoid. The export has to
-# keep happening; it only has to stop carrying what nothing reads.
-#
-# THE SAVING IS AN EXPECTED VALUE AND NOT A MEASUREMENT, and it stays that way
-# until a mode=min export is read under the SAME regime the mode=max number came
-# from. Both figures above were taken on runs that REBUILT — run 32877811689,
-# where the weekly pin bump changed every layer below the first moved ARG. Every
-# mode=min run since the switch has been warm: run 33009516792 exported in 5.5s
-# (base) / 3.2s (cloud), and that is the cache HIT being read, not the export.
-# The regime, not the mode, is what those 3 numbers differ by.
-#
-# The measurement also has to be taken more than once. The 2 mode=max rebuild
-# exports of base are 511.6s and 303.6s (run 32925596110) — a 1.7x spread on the
-# same work, because 6 jobs share one uplink and a run's neighbours decide how
-# much of it this one gets. A single number here answers nothing.
-#
-# The `no-cache` input below is how the regime is reproduced on demand. Until a
-# run with it on reports, the 10.35 job-min/run this switch was made for is a
-# prediction.
+# Run 33113679068 is the measured reason. A changed base spent 442.0 seconds
+# exporting `base-cache` under mode=min after spending 80.7 seconds loading the
+# smoke image. Two cache-layer uploads took 265.6s and 315.1s. Inline export
+# removes that duplicate transfer; the first publish after this change measures
+# the actual saving.
 #
 # base-runner is retired. All 3 ARC pools run `cloud` now, so nothing pulls the
 # image and no job builds it. `runner/` is deleted (D2, 2026-08-18); the CI fold
@@ -703,21 +670,12 @@ on:
         type: boolean
         default: false
 
-# THE no-cache INPUT, and the question it exists to answer.
+# THE no-cache INPUT.
 #
-# The export cost above was measured under mode=max on a REBUILD — a run whose
-# pins moved, so every layer below the first changed ARG was new and the export
-# had a full layer set to send. The mode=min half of that comparison cannot be
-# taken from an ordinary push: a warm run rebuilds nothing, so its export sends
-# nothing and reports single-digit seconds whatever the mode is. Reading that as
-# the saving would be reading the CACHE HIT and calling it the export.
-#
-# So the regime has to be reproducible on demand. `no-cache: true` on the gate
-# build discards the import for that build only, every layer is built again, and
-# the export then carries the same full layer set the mode=max number was
-# measured over. It is the ONE step that writes a cache, so it is the only step
-# the input reaches: the publish build keeps its `cache-from` and takes its amd64
-# layers from whatever the gate just wrote, exactly as on any other run.
+# `no-cache: true` reaches the gate build only. That rebuilds every amd64 layer;
+# the publish step then reuses the same builder's local result and embeds cache
+# metadata in the image it publishes. It is a measurement lever, not a routine
+# setting.
 #
 # It is `inputs.no-cache == true` and never a bare `inputs.no-cache`. On a push
 # there is no input at all, the value is the empty string, and an empty string
@@ -845,7 +803,7 @@ FILE_HEADER_C
 # by its own text and replaced by its own text.
 function rewrite_nightly_matrix() {
   local names_text list before after
-  names_text="$(image_names)" || return 1
+  names_text="$(active_image_names)" || return 1
   list="$(printf '%s' "$names_text" | tr '\n' '@' | sed -e 's/@$//' -e 's/@/, /g')"
 
   local matches
