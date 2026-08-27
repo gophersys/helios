@@ -1,6 +1,6 @@
 # buildkit-portable-dns
 
-phase:    green
+phase:    pr
 repo:     gophersys/infrastructure
 branch:   fix/buildkit-portable-dns
 worktree: ~/code/.worktrees/infrastructure-buildkit-portable-dns
@@ -22,9 +22,14 @@ Affected project: `machines/services/macos-ci-runner`. Fast test: its focused po
 - RED — `bash ctl.sh verify-buildkit-dns`: `FAIL: missing checked-in BuildKit DNS config: machines/services/macos-ci-runner/buildkitd.toml` (exit 1).
 - GREEN — `bash ctl.sh verify-buildkit-dns`: `ok: portable BuildKit DNS configuration is wired into daemon reproduction`.
 - `shellcheck -S style scripts/verify-buildkit-dns.sh` and `bash -n scripts/verify-buildkit-dns.sh`: exit 0.
+- `bash ctl.sh validate`: `lint-shell: linted 36 shell script(s)` and `validate: OK`.
+- Live deployment recreated only `eden-buildkitd`, with `eden-bk-config:/etc/buildkit:ro`, `restart=unless-stopped`, and the pinned image digest; `docker exec ... cat /etc/buildkit/buildkitd.toml` showed the checked-in resolver configuration.
+- `BUILDKIT_DNS_BUILDER=eden-mini-dns-proof bash ctl.sh verify-buildkit-dns --live`: an uncached remote arm64 build pulled `alpine:3.22`, ran `getent hosts ghcr.io`, and passed.
+- Persistence drill — `docker restart eden-buildkitd`, inspect config, then `... verify-buildkit-dns --live`: config remained mounted and a fresh executor `RUN getent hosts ghcr.io` passed.
+- Both live proofs loaded mTLS material into owner-only temporary directories, then shredded the files and removed their temporary builders; follow-up `find`/`buildx ls` found no residue.
 
 ## Blocked
 
 
 ## Next
-Wait for the active image rehearsal, deploy the config volume on the mini, and run the live BuildKit-path proof.
+Open the PR, read its validation log, and obtain independent review.
