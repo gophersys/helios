@@ -74,7 +74,7 @@ spec:
         # The ref every ARC pool pins — verify-warmer-pins.sh holds this line
         # to the same digest as the 3 app-arc-runners-*.yaml files.
         - name: warm-cloud-pinned
-          image: ghcr.io/gophersys/cloud@sha256:ffdcf5046c4dc30be32f6388bbe09c055abff03bab78db703432793b8c5da7bd
+          image: ghcr.io/gophersys/cloud@sha256:359334d77d8fee3372fa9672be37f04d121bc294426622ae3d5161e90b9d2a0c
           imagePullPolicy: IfNotPresent
           command: ["true"]
           securityContext: &warmctx

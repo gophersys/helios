@@ -79,7 +79,7 @@ spec:
               # discard it with the runner instead of exposing the source Secret
               # or sharing refreshed state across jobs.
               - name: init-codex-home
-                image: ghcr.io/gophersys/cloud@sha256:ffdcf5046c4dc30be32f6388bbe09c055abff03bab78db703432793b8c5da7bd
+                image: ghcr.io/gophersys/cloud@sha256:359334d77d8fee3372fa9672be37f04d121bc294426622ae3d5161e90b9d2a0c
                 securityContext:
                   runAsUser: 0
                 command:
@@ -98,7 +98,7 @@ spec:
               # Seeds /home/runner/externals, which is the runner's own bundled
               # Node. It must be the SAME image as the runner container.
               - name: init-dind-externals
-                image: ghcr.io/gophersys/cloud@sha256:ffdcf5046c4dc30be32f6388bbe09c055abff03bab78db703432793b8c5da7bd
+                image: ghcr.io/gophersys/cloud@sha256:359334d77d8fee3372fa9672be37f04d121bc294426622ae3d5161e90b9d2a0c
                 command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
                 volumeMounts:
                   - name: dind-externals
@@ -109,7 +109,7 @@ spec:
                 # Pinned by digest, same ref as arc-org and arc-build. The three
                 # preconditions before changing it are written out once, in
                 # app-arc-runners-org.yaml.
-                image: ghcr.io/gophersys/cloud@sha256:ffdcf5046c4dc30be32f6388bbe09c055abff03bab78db703432793b8c5da7bd
+                image: ghcr.io/gophersys/cloud@sha256:359334d77d8fee3372fa9672be37f04d121bc294426622ae3d5161e90b9d2a0c
                 command: ["/home/runner/run.sh"]
                 # This pool mounts no secret volume, so nothing here NEEDS root.
                 # It is declared to keep the repoint a single variable: this pool
