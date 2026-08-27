@@ -4,6 +4,8 @@ go 1.26
 
 require github.com/gophersys/libs/go/errors v0.0.0
 
+require github.com/gophersys/libs/go/dependencies v0.0.0 // indirect
+
 // Test-only dependencies (the ADR-0020 test-taxonomy block): goleak (dimension b, leak), rapid
 // (dimension a, property), and the testing pattern lib (dimension c, AssertLifecycle /
 // LifecycleProbe). depguard's `test-taxonomy` rule permits these in *_test.go only.
