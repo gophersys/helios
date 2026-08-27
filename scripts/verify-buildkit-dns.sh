@@ -13,14 +13,26 @@ ok() { printf 'ok: %s\n' "$*"; }
 grep -Fq '[dns]' "$CONFIG" || fail 'BuildKit config has no [dns] section'
 grep -Eq 'nameservers[[:space:]]*=[[:space:]]*\[[^]]*"1\.1\.1\.1"[^]]*"8\.8\.8\.8"' "$CONFIG" || \
   fail 'BuildKit config must use the two approved, location-independent resolvers'
+grep -Fq '[worker.oci]' "$CONFIG" && grep -Eq 'gc[[:space:]]*=[[:space:]]*true' "$CONFIG" || \
+  fail 'BuildKit config must enable bounded OCI worker garbage collection'
+grep -Eq 'reservedSpace[[:space:]]*=[[:space:]]*"8GB"' "$CONFIG" || \
+  fail 'BuildKit config must reserve 8GB of reusable cache'
+grep -Eq 'maxUsedSpace[[:space:]]*=[[:space:]]*"20GB"' "$CONFIG" || \
+  fail 'BuildKit config must cap maximum cache use at 20GB'
+grep -Eq 'minFreeSpace[[:space:]]*=[[:space:]]*"12GB"' "$CONFIG" || \
+  fail 'BuildKit config must target 12GB of free disk'
 grep -Fq 'eden-bk-config:/etc/buildkit:ro' "$RUNBOOK" || \
   fail 'runbook does not mount the seeded config volume read-only'
+grep -Fq 'eden-bk-state:/var/lib/buildkit' "$RUNBOOK" || \
+  fail 'runbook does not mount named BuildKit state'
+[[ "$(grep -Ec 'docker rm -v bk(seed|config)' "$RUNBOOK")" -eq 2 ]] || \
+  fail 'runbook seed containers must remove anonymous volumes'
 grep -Eq 'BUILDKIT_IMAGE="moby/buildkit@sha256:[0-9a-f]{64}"' "$RUNBOOK" || \
   fail 'runbook must reproduce the daemon from a pinned BuildKit image digest'
 if grep -Eq 'moby/buildkit:latest' "$RUNBOOK"; then
   fail 'runbook still contains the moving moby/buildkit:latest tag'
 fi
-ok 'portable BuildKit DNS configuration is wired into daemon reproduction'
+ok 'portable DNS and bounded disk configuration are wired into daemon reproduction'
 
 if [[ "${1:-}" != "--live" ]]; then
   exit 0

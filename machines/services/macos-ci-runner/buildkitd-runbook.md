@@ -66,16 +66,25 @@ docker create --name bkseed --entrypoint /bin/sh -v eden-bk-certs:/certs "$BUILD
 docker cp ca.pem bkseed:/certs/
 docker cp daemon.pem bkseed:/certs/
 docker cp daemon-key.pem bkseed:/certs/
-docker rm bkseed
+docker rm -v bkseed
 docker volume create eden-bk-config
 docker create --name bkconfig --entrypoint /bin/sh -v eden-bk-config:/config "$BUILDKIT_IMAGE"
 docker cp buildkitd.toml bkconfig:/config/buildkitd.toml
-docker rm bkconfig
+docker rm -v bkconfig
+docker volume create eden-bk-state
 docker run -d --name eden-buildkitd --restart unless-stopped --privileged -p 1234:1234 \
   -v eden-bk-certs:/certs:ro -v eden-bk-config:/etc/buildkit:ro \
+  -v eden-bk-state:/var/lib/buildkit \
   "$BUILDKIT_IMAGE" --addr tcp://0.0.0.0:1234 \
   --tlscacert /certs/ca.pem --tlscert /certs/daemon.pem --tlskey /certs/daemon-key.pem
 ```
+
+The state volume is named so recreating the daemon reuses one cache instead of
+leaving an unreachable anonymous volume behind. `buildkitd.toml` keeps that
+cache between 8 GB and 20 GB and asks garbage collection to preserve 12 GB of
+free Docker VM disk. The two seed containers use `docker rm -v` because the
+BuildKit image declares its own state volume even though those containers only
+copy configuration.
 
 The daemon survives a reboot with `--restart unless-stopped` plus the
 Docker-autostart chain (the LaunchAgent `com.gophersys.docker-autostart` and

@@ -43,12 +43,32 @@ wrong_dns="$(new_fixture wrong-dns)"
 printf '[dns]\n  nameservers = ["192.168.1.1"]\n' >"$wrong_dns/machines/services/macos-ci-runner/buildkitd.toml"
 expect_fail 'house-specific resolver fails' 'two approved, location-independent resolvers' env BUILDKIT_DNS_ROOT="$wrong_dns" bash "$SUT"
 
+missing_gc="$(new_fixture missing-gc)"
+sed -i.bak '/^\[worker\.oci\]/,$d' "$missing_gc/machines/services/macos-ci-runner/buildkitd.toml"
+rm "$missing_gc/machines/services/macos-ci-runner/buildkitd.toml.bak"
+expect_fail 'missing GC policy fails' 'bounded OCI worker garbage collection' env BUILDKIT_DNS_ROOT="$missing_gc" bash "$SUT"
+
+unbounded_gc="$(new_fixture unbounded-gc)"
+sed -i.bak '/maxUsedSpace/d' "$unbounded_gc/machines/services/macos-ci-runner/buildkitd.toml"
+rm "$unbounded_gc/machines/services/macos-ci-runner/buildkitd.toml.bak"
+expect_fail 'unbounded cache fails' 'maximum cache use at 20GB' env BUILDKIT_DNS_ROOT="$unbounded_gc" bash "$SUT"
+
 missing_mount="$(new_fixture missing-mount)"
 printf 'BUILDKIT_IMAGE="moby/buildkit@sha256:%064d"\n' 0 >"$missing_mount/machines/services/macos-ci-runner/buildkitd-runbook.md"
 expect_fail 'missing config mount fails' 'does not mount the seeded config volume' env BUILDKIT_DNS_ROOT="$missing_mount" bash "$SUT"
 
+anonymous_state="$(new_fixture anonymous-state)"
+sed -i.bak 's/-v eden-bk-state:\/var\/lib\/buildkit//' "$anonymous_state/machines/services/macos-ci-runner/buildkitd-runbook.md"
+rm "$anonymous_state/machines/services/macos-ci-runner/buildkitd-runbook.md.bak"
+expect_fail 'anonymous state volume fails' 'does not mount named BuildKit state' env BUILDKIT_DNS_ROOT="$anonymous_state" bash "$SUT"
+
+leaky_seed="$(new_fixture leaky-seed)"
+sed -i.bak 's/docker rm -v bkseed/docker rm bkseed/' "$leaky_seed/machines/services/macos-ci-runner/buildkitd-runbook.md"
+rm "$leaky_seed/machines/services/macos-ci-runner/buildkitd-runbook.md.bak"
+expect_fail 'leaky seed container fails' 'seed containers must remove anonymous volumes' env BUILDKIT_DNS_ROOT="$leaky_seed" bash "$SUT"
+
 moving_image="$(new_fixture moving-image)"
-printf 'eden-bk-config:/etc/buildkit:ro\nBUILDKIT_IMAGE="moby/buildkit@sha256:%064d"\nmoby/buildkit:latest\n' 0 >"$moving_image/machines/services/macos-ci-runner/buildkitd-runbook.md"
+printf 'eden-bk-config:/etc/buildkit:ro\neden-bk-state:/var/lib/buildkit\ndocker rm -v bkseed\ndocker rm -v bkconfig\nBUILDKIT_IMAGE="moby/buildkit@sha256:%064d"\nmoby/buildkit:latest\n' 0 >"$moving_image/machines/services/macos-ci-runner/buildkitd-runbook.md"
 expect_fail 'moving daemon image fails' 'moving moby/buildkit:latest tag' env BUILDKIT_DNS_ROOT="$moving_image" bash "$SUT"
 
 fake_bin="$TMP_ROOT/bin"

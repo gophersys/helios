@@ -1,6 +1,6 @@
 # buildkit-disk-gc
 
-phase:    plan
+phase:    green
 repo:     gophersys/infrastructure
 branch:   fix/buildkit-disk-gc
 worktree: ~/code/.worktrees/infrastructure-buildkit-disk-gc
@@ -21,9 +21,12 @@ plan: SELF-APPROVED — the risk is pruning reusable build cache too aggressivel
 ## Proven
 - `ssh ... 'df -h /; docker system df; docker inspect eden-buildkitd ...'`: Docker VM was 98% full with 1.1 GiB available; local volumes used 36.07 GB and 26.07 GB was reclaimable; daemon config had DNS only and no GC policy.
 - GitHub Actions run `33118737619`, base job `98679983255`: ARM64 agent installation failed with `ENOSPC` in npm cache.
+- Red: `bash scripts/test-verify-buildkit-dns.sh` reported both `missing GC policy fails unexpectedly passed` and `unbounded cache fails unexpectedly passed`.
+- Green: `bash scripts/test-verify-buildkit-dns.sh && bash scripts/verify-buildkit-dns.sh && git diff --check` passed all fixture cases and the static live contract.
+- Live repair: the daemon reports `status=running state=eden-bk-state`, reads the checked-in GC thresholds, and its filesystem changed from 1.1 GiB free (98% used) to 36.3 GiB free (34% used). Exactly the six anonymous BuildKit cache volumes were removed.
 
 ## Blocked
 
 
 ## Next
-Add and prove a failing GC-policy contract test.
+Run the repository validation gate in its devcontainer.
