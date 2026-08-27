@@ -183,6 +183,7 @@ Commands:
                     from a real BuildKit executor
   verify-warmer-pins Assert the image warmer warms the digest the pools pin,
                     and stays unprivileged
+  verify-dind-pins  Assert every ARC DinD home uses one versioned immutable ref
   verify-bw-sync    Assert the bw-serve-sync CronJob is wired to the bridge
   verify-vap-policies
                     Assert platform/core/policy still ENFORCES: Deny bindings,
@@ -292,6 +293,10 @@ function cmd_verify_warmer_pins() {
   bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-warmer-pins.sh" "$@"
 }
 
+function cmd_verify_dind_pins() {
+  bash "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/scripts/verify-dind-pins.sh" "$@"
+}
+
 function cmd_verify_bw_sync() {
   # Assert the bw-serve-sync CronJob is actually wired to the bridge: the
   # NetworkPolicy admits its pods on the right port, the URL dials the Service
@@ -338,6 +343,7 @@ function main() {
     verify-vap-policies) cmd_verify_vap_policies "$@" ;;
     test-vap-guard)  cmd_test_vap_guard  "$@" ;;
     verify-warmer-pins) cmd_verify_warmer_pins "$@" ;;
+    verify-dind-pins) cmd_verify_dind_pins "$@" ;;
     verify-image-arch)   cmd_verify_image_arch   "$@" ;;
     verify-runner-image) cmd_verify_runner_image "$@" ;;
     verify-runner-queue) cmd_verify_runner_queue "$@" ;;

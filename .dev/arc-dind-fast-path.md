@@ -1,6 +1,6 @@
 # arc-dind-fast-path
 
-phase: intake
+phase: green
 repo: gophersys/infrastructure
 branch: fix/arc-dind-fast-path
 worktree: ~/code/.worktrees/infrastructure-arc-dind-fast-path
@@ -28,10 +28,17 @@ production mutation until the Git change has passed review and deployment is sep
 
 ## Proven
 
+- RED — `bash scripts/test-verify-dind-pins.sh`: the repository had no verifier
+  and every ARC DinD home used the moving `docker:dind` tag.
+- GREEN — org, build, warmer, and runner verification pods all pin Docker DinD
+  29.7.2 by one immutable multi-platform index digest. The CI verifier rejects
+  a missing, floating, divergent, or duplicate ref before GitOps can merge it.
+
 
 ## Blocked
 
 
 ## Next
 
-Inventory ARC pod/container-mode behavior and write a failing cache/readiness contract test.
+Run repository validation, then open the PR. Deployment remains a separately
+approved GitOps operation.

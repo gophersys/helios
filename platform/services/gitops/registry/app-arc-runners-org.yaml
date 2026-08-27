@@ -140,7 +140,7 @@ spec:
               # Native sidecar (restartPolicy: Always). This is where image builds
               # actually burn CPU, memory and disk — size it, not just the runner.
               - name: dind
-                image: docker:dind
+                image: docker.io/library/docker:29.7.2-dind@sha256:12e683a161823b2a839aeea999b9d960e6e1f9a97b1679ad6b441982e2d9cf07
                 args:
                   - dockerd
                   - --host=unix:///var/run/docker.sock
