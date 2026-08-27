@@ -1,6 +1,6 @@
 # buildkit-portable-dns
 
-phase:    fix
+phase:    wait
 repo:     gophersys/infrastructure
 branch:   fix/buildkit-portable-dns
 worktree: ~/code/.worktrees/infrastructure-buildkit-portable-dns
@@ -30,9 +30,11 @@ Affected project: `machines/services/macos-ci-runner`. Fast test: its focused po
 - Review round 1 requested CI counter-tests, binding `--live` to the intended remote endpoint, and honest public-DNS prerequisites. Implemented all three.
 - `bash scripts/test-verify-buildkit-dns.sh`: eight positive/counter-stimulus cases passed, including local-builder and wrong-endpoint rejection.
 - Updated live proof: verifier identified driver `remote` and endpoint `tcp://10.168.0.92:1234`, then the uncached arm64 executor resolved `ghcr.io`; exit 0.
+- Independent review round 2: APPROVE at `d7d5c91`; all three prior blockers resolved.
+- PR #208 checks at `d7d5c91`: exposure, manifests (including the new static and eight-case suite), and shellcheck passed. Review failed before inference with the known old-runner error `Unknown feature flag: view_image`.
 
 ## Blocked
-
+Merge waits on the already-in-flight trusted runner image and cictl #28 sequence; PR review is red only because infrastructure still pins old cictl `4313c9f`, which sends unsupported `view_image` to the old Codex runner. The independently executed review approved this feature.
 
 ## Next
-Open the PR, read its validation log, and obtain independent review.
+Finish the trusted runner/cictl rollout, rerun PR #208 review, then cleanup, gate, and merge.
