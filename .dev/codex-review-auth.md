@@ -39,6 +39,10 @@ contract before applying it through GitOps.
 - `bash ./ctl.sh verify-vault-refs`: all 15 named items resolved exactly once,
   including `shared/eden/codex-review-auth`; no credential value was printed.
 - `bash scripts/lint-manifests.sh`: 94 manifests valid, 0 invalid, 0 errors.
+- The review workflow now pins merged `cictl` commit
+  `4313c9f10ee9e90dde6585dcdba224563d272826` and selects only Codex with the
+  neutral default model. `actionlint` passes with only the repository's known
+  custom `arc-review` runner label ignored.
 
 ## Blocked
 
@@ -46,4 +50,5 @@ contract before applying it through GitOps.
 
 ## Next
 
-Submit the infrastructure pull request and inspect its checks before merge.
+Bootstrap merge PR 205 so GitOps can create the Codex Secret/profile; its own
+Codex review cannot start until that merge is in effect.
