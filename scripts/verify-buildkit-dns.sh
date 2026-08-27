@@ -13,8 +13,10 @@ ok() { printf 'ok: %s\n' "$*"; }
 grep -Fq '[dns]' "$CONFIG" || fail 'BuildKit config has no [dns] section'
 grep -Eq 'nameservers[[:space:]]*=[[:space:]]*\[[^]]*"1\.1\.1\.1"[^]]*"8\.8\.8\.8"' "$CONFIG" || \
   fail 'BuildKit config must use the two approved, location-independent resolvers'
-grep -Fq '[worker.oci]' "$CONFIG" && grep -Eq 'gc[[:space:]]*=[[:space:]]*true' "$CONFIG" || \
+if ! grep -Fq '[worker.oci]' "$CONFIG" || \
+    ! grep -Eq 'gc[[:space:]]*=[[:space:]]*true' "$CONFIG"; then
   fail 'BuildKit config must enable bounded OCI worker garbage collection'
+fi
 grep -Eq 'reservedSpace[[:space:]]*=[[:space:]]*"8GB"' "$CONFIG" || \
   fail 'BuildKit config must reserve 8GB of reusable cache'
 grep -Eq 'maxUsedSpace[[:space:]]*=[[:space:]]*"20GB"' "$CONFIG" || \
