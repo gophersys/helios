@@ -15,10 +15,22 @@
 > semantics, dedup, the two sequence spaces, the history↔live stitch and backpressure
 > (`contracts/fleetbus.md` §3-§8, DRAFT) · the telemetry consumer's queue-group invariant
 > (`contracts/fleetbus.md` §9.3) · the harness event taxonomy (`contracts/agentsession.md`, FROZEN —
-> `libs/go/agentsession/types.go:234-290`) · the telemetry port (`contracts/observability.md`,
-> FROZEN — `Provider` is exactly 5 methods and is AT its ceiling) · the span and attribute
-> vocabulary (`~/.claude/skills/eden-otel-debug/SKILL.md` §6). No second vocabulary is minted here.
+> `libs/go/agentsession/types.go:234-289`, at libs pin `8683feab1`) · the telemetry port
+> (`contracts/observability.md`, FROZEN — `Provider` is exactly 5 methods and is AT its ceiling) ·
+> the messaging attribute names it reuses unchanged (the OTel messaging semantic conventions).
 >
+> ⚠️ **Corrected — the span and attribute vocabulary's HOME is §3 of THIS document, and it moved
+> here from outside the repository.** An earlier revision made
+> `~/.claude/skills/eden-otel-debug/SKILL.md` §6 the normative home and said "No second vocabulary
+> is minted here". That file sits in a HOME DIRECTORY, outside every repository: it cannot appear in
+> this diff, and `.claude/rules/git-process.md` §12 rules that *"An ephemeral runner has no
+> `~/.claude`, so no personal rule, skill or agent reaches it"*. A contract cannot depend on a file
+> that does not ship with the repository — no CI agent and no other engineer could open the source
+> it named as normative. **§3 is now that home.** The skill is cited throughout as the vocabulary's
+> ORIGIN and as a debugging runbook, never as its authority; where the two disagree, §3 governs and
+> the skill is stale text to be amended. §9 Q3 asks Mateo about the HOME, not only about two names.
+>
+
 > **The library does not exist.** There is no `libs/go/fleettelemetry`, no `oteladapter`, and no
 > OTLP endpoint on any Eden workload. §1's TO BUILD table is the honest inventory; every claim in
 > this document about a mechanism is a PROPOSAL until that table is empty.
@@ -35,38 +47,136 @@
 > `contracts/fleetenvelope.md` uses the `docs/architecture/README.md` §3 legend instead, where ⚠️
 > means "corrected". A tag in THIS document means what the line above says.)
 
+## 0. Authority — carried inline, because the file that held it is deleted at merge
+
+⚠️ **This section exists so the contract carries its own authority.** An earlier revision cited
+`.dev/instrumentation-contracts.md` as its only source for Mateo's rulings, and
+`.claude/rules/git-process.md` §5 condition 4 **DELETES that file in the last commit before merge**
+— it requires `git cat-file -e origin/main:.dev/<slug>.md` to FAIL. A contract pointing at a file
+that will not exist has no authority at all, so the rulings are restated here with their date.
+
+**Mateo's design rulings, 2026-08-26, AskUserQuestion decision prompt, interactive session
+`f9c810a8`.** Two of the four reach this contract:
+
+- **Ruling 3 — telemetry is a BUS CONSUMER.** One service consumes the fleet's JetStream messages
+  and produces OTel; the same consumer feeds UI streaming. No in-process exporters in
+  `agentsession`. **This contract implements ruling 3 in full.**
+- **Ruling 4 — task = trace across the whole tree**, with a task id and a W3C traceparent on the
+  message header. **This contract implements the TRACE half and DECLINES the stated task-id
+  MECHANISM, referring it back to Mateo at §9 Q4.** §4.1 is why: the corrected `fleetenvelope.md`
+  §5.1 rules that `RootID` IS the task id, so minting a second `TaskID` field would be a second
+  home for one fact. The trace half needs no schema change; the task-id half would be a REQUIRED
+  new header field, which is Mateo's §5 gate and not this lane's.
+
+> ⚠️ **These rulings are recorded in this lane's OWN WORDS and are NOT verbatim.** An earlier
+> revision of §4 and §6 presented two different renderings of ruling 4 as *"verbatim"* — this
+> document's and `.dev/instrumentation-contracts.md`'s — and at most one of them could have been.
+> `git-process.md` §13 rule 4 reserves "verbatim" for a quote carrying the speaker's exact words and
+> a timestamp, and **this lane does not hold the transcript**. A paraphrase presented as a quotation
+> is a fabricated quote, which is worse than an honest summary. Where Mateo's exact words are
+> needed — the freeze itself above all — they must be obtained from him.
+
+**Reconciling this with the index.** `contracts/README.md` describes this document's authority; the
+split stated above (ruling 3 in full, ruling 4's trace half only, its task-id mechanism referred
+back) is the precise form, and the index row matches it.
+
 ## 1. Scope
 
 🔶 `fleettelemetry` owns exactly two things, and the cohesion line around them is drawn tightly
 because four documents meet here:
 
 1. **The MAPPING** — message kind → OTel shape (span · span event · link) → span name → attributes.
-   §3 is that mapping, exhaustive over every message kind and every `agentsession.EventKind` member.
+   §3 is that mapping, exhaustive over every message kind and over all **twenty**
+   `agentsession.EventKind` members. ⚠️ *Corrected: an earlier revision claimed exhaustiveness while
+   carrying sixteen rows. §3.2 states how the count is derived so the next reader re-derives it
+   rather than trusting it.*
 2. **The UI streaming read model** — what a gateway serves from the SAME durable read, and how a
    live tail joins a history replay with no gap and no duplicate (§6).
 
 It does **NOT** own — it consumes these and never redefines them:
 
-**Statuses measured 2026-08-26** by listing
-`/Users/mateo/code/.worktrees/eden-fleet-contracts/docs/architecture/contracts/` on branch
-`docs/fleet-contracts` at `9fd66d9`. A CONTRACT existing and its LIBRARY existing are different
-facts, and this table keeps them apart.
+**Statuses measured 2026-08-26** in
+`/Users/mateo/code/.worktrees/eden-fleet-contracts/docs/architecture/contracts/`, branch
+`docs/fleet-contracts`. A CONTRACT existing and its LIBRARY existing are different facts, and this
+table keeps them apart.
 
-| Concept | Owner | Contract status | Library status |
-| --- | --- | --- | --- |
-| the wire header (`MessageHeader`) — `MessageID`, `CausedBy`, `InReplyTo`, `RootID`, `Hop`, `Intent`, `Actor`, `EmitTime`, `Deadline`, `OTel` — the three id grammars, the ten-member `Intent`, `MaxRelayHops`, and the four message types that embed it | `contracts/fleetenvelope.md` §2-§6 | **DRAFT, unfrozen** | **package `agentruntime`, ADDITIVE** — no separate library |
-| the four subjects and three durability classes · stream policy · delivery semantics, `MsgId` and dedup · the two sequence spaces and the history↔live stitch · backpressure · archive-then-publish · **the telemetry consumer's queue-group invariant** | `contracts/fleetbus.md` §3 · §4 · §5 · §6 · §7 · §8 · **§9.3** | **DRAFT, unfrozen** | `libs/go/fleetbus` — TO BUILD |
-| the CRD kinds, the controller, the reconcile loop, identity and the uid witness, the agent profile | `contracts/agentfleet.md` | **DRAFT, unfrozen** | TO BUILD |
-| the harness `Event` taxonomy (`EventKind`, payloads, `Seq == transcript offset`) | `contracts/agentsession.md` | FROZEN | built |
-| the telemetry port (`Provider`, `Exporter`, `Record`, `Event`, `Field`, `Plane`, `Severity`) | `contracts/observability.md` | FROZEN | built (`slogadapter` only) |
-| the OTLP wire and the OTel SDK | `libs/go/observability/oteladapter` | — | **does not exist** |
-| checkpoint composition, segment format, archive retention, `manifest.lastStreamSeq` | cited as `fleetcheckpoint.md` by `fleetbus.md` §6.1 and as `agentcheckpoint.md` by `fleetenvelope.md` §1 | **no document under either name** | TO BUILD |
-| the git process, the merge gate, attribution | `.claude/rules/git-process.md` | current | — |
+⚠️ **Corrected — an earlier revision attributed every sibling document to commit `9fd66d9`, and
+three of them were not in it.** `git ls-tree --name-only 9fd66d9 docs/architecture/contracts/`
+holds `fleetenvelope.md` but **no** `fleetbus.md`, `agentfleet.md` or `agentcheckpoint.md`: those
+three were UNTRACKED working-tree files at the moment this document first cited them, and calling
+them a commit was false. They have since been committed at **`70a979f`** (2026-08-26 20:43 -0700,
+*"docs(contracts): draft fleetbus, agentfleet and agentcheckpoint; index the forks"*), which is
+pushed to `origin/docs/fleet-contracts`, and that worktree is now clean. **Read every sibling
+citation below at `70a979f`**; every other contract on `main`. The statuses are taken from
+`git ls-tree --name-only 70a979f docs/architecture/contracts/`, never from a directory listing —
+listing a directory is what produced this defect, because it cannot tell a commit from an untracked
+file.
 
-⚠️ **Three citations in the sibling drafts point at files that do not exist**, listed so no reader
-of THIS document goes looking: `fleetbus.md` §6.1 cites `contracts/agentpod.md` (the kubernetes
-control surface is `contracts/agentfleet.md`); and the checkpoint contract is cited under two
-different names by the two siblings. Those are citations for THEM to correct, not this document.
+✅ **`fleetenvelope.md` moved too, and the delta was checked rather than assumed.** Its header
+CORRECTION — the one §3.0 and §4.1 are re-sourced against — landed at `9fd66d9`, and the file is now
+at `70a979f`. `git diff 9fd66d9 70a979f -- …/fleetenvelope.md` is **11 insertions, 1 deletion**: a
+schema-home paragraph and two new forks (F9 `AgentID` case, F10 four wire tokens that must be
+minted). **The `MessageHeader` field list is UNCHANGED between the two**, so §3's mapping and §4's
+derivation stand. The §11 fork routing this document's mandate rests on is also unchanged: F2's
+owner column still reads *"the telemetry lane"* and F3's *"the OTel lane"* (`fleetenvelope.md:668`,
+`:669`), which is what makes §9 Q4 and Q5 this lane's to answer.
+
+⚠️ **The dependency risk that remains, stated because it is load-bearing.** All four sibling
+drafts live on an UNMERGED branch that may be amended, rebased or force-pushed without notice,
+while §5 in its entirety, §3's link rule, §6's stitch and invariants I8 and I11 all rest on
+`fleetbus.md` §3-§9. **A contract whose load-bearing dependency is an unmerged ref has a dependency
+nobody can pin** — which is why §9 Q8 makes the freeze ORDER a dependency rather than a preference,
+and why any sibling change owes this document a re-refutation.
+
+**Three axes, not two, and the third is the one an earlier revision omitted.** A CONTRACT existing,
+that contract being ON TRUNK, and its LIBRARY existing are three different facts. The `where` column
+is the third: 🟢 on `main` · 🟡 committed on the sibling branch `docs/fleet-contracts` at `70a979f`
+but **NOT on `main`** · ⚫ does not exist anywhere.
+
+| Concept | Owner | where | Contract status | Library status |
+| --- | --- | --- | --- | --- |
+| the wire header (`MessageHeader`) — `MessageID`, `CausedBy`, `InReplyTo`, `RootID`, `Hop`, `Intent`, `Actor`, `EmitTime`, `Deadline`, `OTel` — the three id grammars, the ten-member `Intent`, `MaxRelayHops`, and the four message types that embed it | `contracts/fleetenvelope.md` §2-§6 | 🟡 **off trunk** | **DRAFT, unfrozen** | **package `agentruntime`, ADDITIVE** — no separate library |
+| the four subjects and three durability classes · stream policy · delivery semantics, `MsgId` and dedup · the two sequence spaces and the history↔live stitch · backpressure · archive-then-publish · **the telemetry consumer's queue-group invariant** | `contracts/fleetbus.md` §3 · §4 · §5 · §6 · §7 · §8 · **§9.3** | 🟡 **off trunk** | **DRAFT, unfrozen** | `libs/go/fleetbus` — TO BUILD |
+| the CRD kinds, the controller, the reconcile loop, identity and the uid witness, the agent profile | `contracts/agentfleet.md` (1288 lines, at `70a979f`) | 🟡 **off trunk** | **DRAFT, unfrozen** | TO BUILD |
+| checkpoint composition, segment format, archive retention, `manifest.lastStreamSeq` | `contracts/agentcheckpoint.md` (1132 lines, at `70a979f`) — cited under that ONE name by both siblings (`fleetbus.md:63`, `fleetenvelope.md:62`) | 🟡 **off trunk** | **DRAFT, unfrozen** | TO BUILD |
+| the harness `Event` taxonomy (`EventKind`, payloads, `Seq == transcript offset`) | `contracts/agentsession.md` | 🟢 on `main` | FROZEN | built |
+| the telemetry port (`Provider`, `Exporter`, `Record`, `Event`, `Field`, `Plane`, `Severity`) | `contracts/observability.md` | 🟢 on `main` | FROZEN | built (`slogadapter` only) |
+| the OTLP wire and the OTel SDK | `libs/go/observability/oteladapter` | ⚫ | — | **does not exist** |
+| the git process, the merge gate, attribution | `.claude/rules/git-process.md` | 🟢 on `main` | current | — |
+
+⚠️ **The consequence, and it is this document's to disclose rather than the reader's to discover.**
+Measured with `git cat-file -e origin/main:docs/architecture/contracts/<name>.md`: `fleetenvelope`,
+`fleetbus`, `agentfleet` and `agentcheckpoint` are **absent from `origin/main`**; `agentsession`,
+`observability`, `agentruntime` and `orchestrator` are present. **So the moment this document lands
+on `main`, its transport citations point at files that are not there** — a reader following the
+architecture README to this row, then to *"the header"*, lands on a missing file. Nothing catches
+it: no docs tool is wired into any gate, so a dangling reference ships silently.
+
+🔶 **Until `docs/fleet-contracts` merges, every 🟡 citation in this document is FORWARD-LOOKING.**
+They are correct and load-bearing — they are not dropped — but their status is disclosed here so no
+reader mistakes a proposal on a branch for a home on trunk. **The fix is the MERGE ORDER, and it is
+the same order §9 Q8 states for the freeze:** `fleetenvelope` → `fleetbus` → `fleettelemetry`.
+Landing the dependent document first inverts that order for the documentation tree as well as for
+the freeze, which is the argument for merging the sibling branch first or together with this one.
+
+⚠️ **Corrected — this document's own "these files do not exist" warning was wrong three ways out
+of four, and the correction is stated rather than quietly dropped.** An earlier revision warned
+that *"Three citations in the sibling drafts point at files that do not exist"*: that `fleetbus.md`
+§6.1 cites `contracts/agentpod.md`, that the checkpoint contract is cited under two different
+names, and that there is *"no document under either name"*. Re-measured at `70a979f`:
+
+| the claim | reality |
+| --- | --- |
+| `fleetbus.md` §6.1 cites `contracts/agentpod.md` | **FALSE twice.** `grep -n "agentpod\|fleetcheckpoint" fleetbus.md` returns **nothing** — neither name appears anywhere. The section was wrong too: the checkpoint and CRD citations are in `fleetbus.md` **§1 Scope** (`:62-68`); its §6 is the sequence spaces (`:671`). |
+| the checkpoint contract is cited under two different names | **FALSE.** Both siblings cite `contracts/agentcheckpoint.md` — `fleetbus.md:63`, `fleetenvelope.md:62`. One name, no split. |
+| *"no document under either name"* | **FALSE.** `agentcheckpoint.md` EXISTS: **1132 lines**, committed at `70a979f`. |
+| the kubernetes control surface is `contracts/agentfleet.md` | **TRUE** — and `fleetbus.md:67` already calls it exactly that. `agentfleet.md` is 1288 lines. |
+
+**The repository's rule cuts both ways, and this is the UNDER-claim class.** A document that says a
+sibling is MISSING when it is present is the same defect as one that claims machinery it does not
+have: both put a false fact in a reader's head, and this one would have sent a reader hunting for a
+contract that was sitting in the same directory. `agentprofile.md` — the other contract in this
+pull request — cites `agentfleet.md` under that same name, so the two documents agree.
 
 **One word, two subjects — said once so no reader conflates them.** `libs/go/envelope` is **AES
 envelope ENCRYPTION** (a DEK sealed under a KEK, ADR-0029, root `CLAUDE.md`). It has nothing to do
@@ -83,7 +193,7 @@ Measured 2026-08-26 against the working trees named in each row.
 | 2 | real W3C propagation | OTel-adapter lane | `libs/go/agentruntime/otelobserver/otelobserver.go:64-92` — `Inject` copies a map out of a private context key and `Extract` filters a map into it. Neither parses nor mints a `traceparent`. **A green `otelobserver` test is evidence of nothing.** |
 | 3 | `OTEL_EXPORTER_OTLP_ENDPOINT` on any Eden workload | infrastructure lane | `grep -rn OTEL_EXPORTER_OTLP_ENDPOINT infrastructure/apps/eden/` → zero hits across 13 manifests. |
 | 4 | a homelab→cloud OTLP path, and a Tempo datasource in the cloud Grafana | infrastructure lane | recorded 2026-08-18 in `eden-otel-debug/SKILL.md` §1-2; the homelab `eden` namespace has no observability stack (removed 2026-08-09). ⚠️ Not re-measured for this document — re-verify before relying on it. |
-| 5 | `libs/go/fleetbus` — the transport library this consumer binds | fleet-bus lane | **The CONTRACT exists** (`contracts/fleetbus.md`, 944 lines, DRAFT, branch `docs/fleet-contracts`) and is cited throughout this document. **The LIBRARY does not**; `phase-gate architecture` is RED by design until Mateo freezes the contract. |
+| 5 | `libs/go/fleetbus` — the transport library this consumer binds | fleet-bus lane | **The CONTRACT exists** (`contracts/fleetbus.md`, **1024 lines**, DRAFT, committed at `70a979f` on branch `docs/fleet-contracts`) and is cited throughout this document. ⚠️ *Corrected: an earlier revision said 944 lines and named the wrong commit.* **The LIBRARY does not exist**; `phase-gate architecture` is RED by design until Mateo freezes the contract. |
 | 6 | the `MessageHeader` additions to package `agentruntime` | fleet-envelope lane | `contracts/fleetenvelope.md` is DRAFT. **There is no `libs/go/fleetenvelope`** — §2 of that draft reads *"Package `agentruntime`. Every symbol below is additive"*, so the header lands in the EXISTING library and its `.apibaseline` is re-recorded (that draft's §8.1). |
 | 7 | `libs/go/fleettelemetry` — this library | this lane | this document is the only artifact. |
 | 8 | a fleet stream carrying a fleet message | fleet lane | `fleetenvelope.md` §7 records the once-only window as OPEN: 0 streams, 0 messages, no bucket. |
@@ -102,10 +212,12 @@ that verifies nothing.
 // Module: github.com/gophersys/libs/go/fleettelemetry  (go 1.26)
 // HNS-1 slug: fleet-telemetry. Config/Deps are the idiomatic Go type names rule 11 exempts.
 //
-// It imports fleetenvelope (the header), agentsession (the transported taxonomy) and
-// observability (the port). It NEVER imports nats.go — fleetbus binds the EventStream port — and it
-// NEVER imports go.opentelemetry.io/otel* — oteladapter is the only import site of the SDK
-// (observability.md §6 rationale 2; eden-otel-debug SKILL.md §5 "layer rule, non-negotiable").
+// It imports agentruntime (which is where fleetenvelope's MessageHeader and the four message types
+// LAND — that contract is additive to agentruntime, not a new package: §1 TO BUILD 6), agentsession
+// (the transported taxonomy) and observability (the port). It NEVER imports nats.go — fleetbus
+// binds the EventStream port — and it NEVER imports go.opentelemetry.io/otel*: oteladapter is the
+// only import site of the SDK (observability.md §6 rationale 2, the in-repo home of that layer
+// rule; eden-otel-debug SKILL.md §5 states it too).
 package fleettelemetry
 
 func New(configuration Config, dependencies Deps) (*Consumer, error)
@@ -167,7 +279,11 @@ type EventStream interface {
 	// The fleetbus.Delivery it hands over is CITED, never redefined: it already carries StreamSeq
 	// (the global position), Redelivery (>1 means the durable is retrying), Age, Ack and Nak
 	// (fleetbus.md §2).
-	Consume(ctx context.Context, deliver func(fleetbus.Delivery[fleetenvelope.EventEnvelope]) error) error
+	// ⚠️ The element type is agentruntime.EventEnvelope, NOT fleetenvelope.EventEnvelope: there is
+	// no package fleetenvelope (§1 TO BUILD 6 — the header is ADDITIVE to agentruntime), and
+	// fleetbus.md §2 spells the same type as agentruntime.EventEnvelope. Corrected here.
+	Consume(ctx context.Context,
+		deliver func(fleetbus.Delivery[agentruntime.EventEnvelope]) error) error
 
 	// DestinationTemplate returns the SUBJECT TEMPLATE this consumer reads, for the bus span name
 	// and the messaging.destination.name attribute. It is an ACCESSOR, not a literal:
@@ -197,18 +313,25 @@ inherits fields and flushes. `Provider` is **exactly 5 methods and is at the neg
 (`observability.md` §6 rationale 1; `libs/go/observability/provider.go:12-40`) — **no method can be
 added to it**, which is precisely what forces §5's flush-then-ack design.
 
-## 3. The mapping table
+## 3. The mapping table — and the HOME of the span and attribute vocabulary
 
-This is the centre of the document. Rules the table obeys:
+This is the centre of the document. **§3 is the home of the fleet-telemetry span and attribute
+vocabulary** (§0 says why it moved here, and §9 Q3 asks Mateo to ratify the move): a name is minted
+here, and `~/.claude/skills/eden-otel-debug/SKILL.md` is its ORIGIN and a debugging runbook, never
+its authority. Where the two disagree, this section governs and the skill is stale text.
 
-- **A span name uses the SUBJECT TEMPLATE, never a concrete id** (`eden-otel-debug/SKILL.md` §6).
-  Identity rides as attributes. Never widen an id into a span name.
+Rules the table obeys:
+
+- **A span name uses the SUBJECT TEMPLATE, never a concrete id.** Identity rides as attributes.
+  Never widen an id into a span name — high cardinality breaks the store. (Origin:
+  `eden-otel-debug/SKILL.md` §6, rows 2 and 6.)
 - **A cross-pod messaging edge is a LINK given at span CREATION** (`WithLinks`), never `AddLink`.
   This is `fleetenvelope.md` §5.3's rule, cited: links are the semconv default correlation
   mechanism, it is NOT RECOMMENDED to parent a Process span on the message-creation context, and
   head sampling cannot see a link added later (`trace/span.go:37-40` at tag `trace/v1.45.0`).
 - **Attributes reuse the existing vocabulary**: `agent.id`, `session.id`, `turn.id`, `turn`, `seq`,
-  `messaging.message.id`, `messaging.destination.name` (SKILL.md §6), plus the semconv names
+  `messaging.message.id`, `messaging.destination.name` (origin: SKILL.md §6 row 3 — but see §3.0,
+  which supersedes that row's `messaging.message.id = Seq` mapping), plus the semconv names
   `messaging.message.conversation_id`, `messaging.operation.name`, `messaging.operation.type`.
 - **Every attribute comes from a header field, an envelope field, or the transported
   `agentsession.Event`.** A consumer outside the emitting process has no side lookups —
@@ -227,9 +350,9 @@ sources a value that is not on the wire.
 | `messaging.message.id` | `MessageHeader.MessageID` | ✅ **Settled by the correction, not an open fork.** `MessageID` is globally unique, DETERMINISTIC, and IS the JetStream `MsgId` (`fleetenvelope.md:100-109`). SKILL.md §6's older text maps this to `Seq`; that text is now stale and is amended in the same change (§9 Q3). |
 | `messaging.message.conversation_id` | `MessageHeader.RootID` | ✅ **Settled.** `fleetenvelope.md` §5.1: *"`RootID` IS the task id"* — constant along the chain, already mapped to this semconv name. There is **no `TaskID` field** and this document does not invent one (§9 Q4 takes a position on whether there should be). |
 | `agent.id` | `EventEnvelope.AgentID` / `ControlMessage.AgentID` / `RelayMessage.From` | ⚠️ **NOT a header field.** The corrected `MessageHeader` has no `AgentID`; it sits on each message type. |
-| `session.id` | `agentsession.Event.SessionID` (`types.go:298`) on the events plane; `RelayMessage.SessionID` / `ControlMessage.SessionID` elsewhere | ⚠️ `EventEnvelope` carries no `SessionID` of its own — the transported Event does. |
+| `session.id` | `agentsession.Event.SessionID` (`types.go:306`) on the events plane; `RelayMessage.SessionID` / `ControlMessage.SessionID` elsewhere | ⚠️ `EventEnvelope` carries no `SessionID` of its own — the transported Event does. *(⚠️ Corrected from `:298`.)* |
 | `seq` | `EventEnvelope.Seq` | ⚠️ NOT a header field, and **not the replay cursor** — `fleetenvelope.md` §2 says so in the type's own comment. The cursor is the stream sequence (`fleetbus.md` §6). |
-| `turn` / `turn.id` | `agentsession.Event.Turn` / `Event.TurnID` (`types.go:299-301`) | ✅ **The two-homes question is CLOSED by the correction.** `fleetenvelope.md` §4.1: *"There is no turn ordinal on the header, and that is deliberate … Putting it on the header would be a sixth home."* One home, and it is the Event. |
+| `turn` / `turn.id` | `agentsession.Event.Turn` (`types.go:309`) / `Event.TurnID` (`types.go:307`) *(⚠️ Corrected from `:299-301`.)* | ✅ **The two-homes question is CLOSED by the correction.** `fleetenvelope.md` §4.1: *"There is no turn ordinal on the header, and that is deliberate … Putting it on the header would be a sixth home."* One home, and it is the Event. |
 | `hop` | `MessageHeader.Hop` | 🔶 **Relay depth from the root, NOT tree depth** — say which, or the attribute lies. It is the loop-breaker counter against `MaxRelayHops = 32`. |
 | `intent` | `MessageHeader.Intent` | The ten-member closed vocabulary (`fleetenvelope.md` §6). An `EventEnvelope` always carries `IntentObservation` — *"the pump, EVERY agentsession Event"*. |
 | `actor.kind` / `actor.id` | `MessageHeader.Actor` | Three kinds: `ActorHuman`, `ActorAgent`, `ActorSystem`. `Actor.ID` carries the `break-glass:<user>` form, which is the whole audit mechanism for the bypass — it must reach an attribute. |
@@ -254,14 +377,34 @@ Event's.
 | one delivery BATCH (the `Consume` callback's unit of work) | **span** (timed), `PlaneSelf` | `receive <destination-template>` | `messaging.destination.name`, `messaging.operation.name=receive`, `messaging.operation.type=receive`, `messaging.batch.message_count` | 🔶 The ONLY per-hop bus span, and it is O(batches), not O(messages). One span per envelope is unaffordable: `text-delta` is token-by-token (`types.go:247`). The name is COMPOSED from the accessor — the wildcard is never a literal here (§5). |
 | each message in that batch | **link at creation** on the `receive` span | — | `messaging.message.id`, `messaging.message.conversation_id` | 🔶 `trace.Link{SpanContext, Attributes}` — an application id alone cannot form a link, so the link needs a real span context, parsed from `MessageHeader.OTel["traceparent"]`. When the carrier is empty (valid and unparented, `fleetenvelope.md` §2) or names a span this consumer never exported, the link is **OMITTED, never dangled** (§4.3). |
 | one `session.id`, first event → terminal | **span** (timed), `PlaneAgent` | `session` 🧩 | `agent.id`, `session.id`, `messaging.message.conversation_id`, `hop` | 🧩 The session's root span. `fleetenvelope.md` §5.3, cited: *"Each session opens its own root span joined by the propagated context, so the task reads as one trace while no single span is held open for the task's life."* **The NAME is this document's proposal** — `session` is not in the skill's list. §9 Q3. |
-| one `agentsession.Event.TurnID`, within a session | **span** (timed), `PlaneAgent`, child of `session` | `turn` | `agent.id`, `session.id`, `turn.id`, `turn` | ✅ Already the skill's own name: `{ span.session.id = "<sid>" && name = "turn" && duration > 30s }` (SKILL.md §4). The boundary is the Event's `TurnID`, which `fleetenvelope.md` §4.1 confirms is the ONE home of turn. Closes on a terminal, the next `TurnID`, or `TurnIdleLimit` (§4.5). |
+| one `agentsession.Event.TurnID`, within a session | **span** (timed), `PlaneAgent`, child of `session` | `turn` | `agent.id`, `session.id`, `turn.id`, `turn` | ✅ Already the skill's own name: `{ span.session.id = "<sid>" && name = "turn" && duration > 30s }` (SKILL.md §4). The boundary is the Event's `TurnID`, which `fleetenvelope.md` §4.1 confirms is the ONE home of turn. **Closes on `turn-end` — the normal path, which also attaches the turn's authoritative ledger (§3.2) — or on a session terminal, or on the next `TurnID`; `TurnIdleLimit` is the ABNORMAL path only (§4.5).** ⚠️ *Corrected: an earlier revision omitted `turn-end` from this list, which made every clean turn close as abandoned.* |
 
 ### 3.2 `EventEnvelope` — one row per `agentsession.EventKind`
 
-Read from `libs/go/agentsession/types.go:244-260` (the const block) and `:264-281` (the token
-table). Sixteen members, append-only, never reordered. Every row below is a **span event on the
-open `turn` span** unless the notes say otherwise, named by the member's stable lower-kebab token —
-which is the vocabulary the skill already sanctions as a name (SKILL.md §6, first row).
+Read from `libs/go/agentsession/types.go:243-264` (the const block; members at `:244-263`) and
+`:268-289` (`eventKindTokens`), at libs pin `8683feab1`. **TWENTY members**, append-only, never
+reordered or renamed.
+
+⚠️ **Corrected — the count was wrong and the table was four rows short.** An earlier revision said
+*"Sixteen members"* and cited `:244-260` / `:264-281`. The const block holds **twenty**, and the
+missing four were `EventTurnEnd`, `EventPeerMessage`, `EventPeerSent` and `EventSubagentMessage` —
+all four EMITTED by `agentsession`'s pump today, not reserved. `EventTurnEnd`'s absence was not a
+bookkeeping slip: it had a real behavioural consequence, stated in §4.5.
+
+**How the count is derived, so the next reader re-derives it instead of trusting it** — three
+independent revisions asserted a wrong number, which is exactly what an unrepeatable count invites:
+
+```sh
+awk '/^const \(/,/^\)/' libs/go/agentsession/types.go | grep -cE '^\s+Event[A-Z]'   # the const block
+grep -cE '^\s+Event[A-Z][A-Za-z]*: ' libs/go/agentsession/types.go                  # eventKindTokens
+```
+
+Both must return the same number, and that number must equal the row count below. Today: **20**.
+
+Every row is a **span event on the open `turn` span** unless the notes say otherwise, named by the
+member's stable lower-kebab token — the naming rule §3 adopts. (The `eden-otel-debug` skill's §6
+first row records the same convention; per §0 it is the origin of that convention, not its
+authority.)
 
 | `EventKind` | token | OTel shape | span name | attributes (beyond the shared set) | notes |
 | --- | --- | --- | --- | --- | --- |
@@ -270,7 +413,7 @@ which is the vocabulary the skill already sanctions as a name (SKILL.md §6, fir
 | `EventThinkingDelta` | `thinking-delta` | **neither** — folded | — | folded onto `turn` as `thinking.delta.count`, `thinking.bytes` | ⚠️ Token-by-token. One record each is thousands per turn and destroys the store. Folding is a deliberate loss of per-delta granularity, stated rather than discovered. Reasoning content is redaction-eligible (`types.go:246`) — the TEXT is never an attribute, only its size. |
 | `EventTextDelta` | `text-delta` | **neither** — folded | — | folded onto `turn` as `text.delta.count`, `text.bytes` | Same reasoning. The text itself lives in the transcript, not in a span. |
 | `EventMessageEnd` | `message-end` | span event on `turn` | `message-end` | `message.role` | Closes the message; the folded delta counters are stamped here. |
-| `EventToolStart` | `tool-start` | span event on `turn` | `tool-start` | `tool.name`, `tool.call.id`, `tool.grant.id` | `GrantID` ties the call to the allowlist entry that permitted it — the 07 §3 audit chain (`types.go:351-354`). |
+| `EventToolStart` | `tool-start` | span event on `turn` | `tool-start` | `tool.name`, `tool.call.id`, `tool.grant.id` | `GrantID` ties the call to the allowlist entry that permitted it — the 07 §3 audit chain (`ToolPayload.GrantID`, `types.go:364`). ⚠️ *Corrected from `:351-354`, which is `MessagePayload.Tokens`; the two citations were swapped with the `thinking-progress` row.* |
 | `EventToolUpdate` | `tool-update` | **neither** — folded | — | folded onto the matching `tool-end` as `tool.update.count` | Streamed partial results; volume, not information. |
 | `EventToolEnd` | `tool-end` | span event on `turn` | `tool-end` | `tool.name`, `tool.call.id`, `duration`, `error`, `tool.update.count` | ✅ Duration rides as an ATTRIBUTE, exactly as SKILL.md §5's own `Emit` example does (`observability.Dur("duration", tool.Elapsed)`). Correlated to `tool-start` by `CallID`. `error` via `observability.Err` (redaction-safe). |
 | `EventPermissionRequest` | `permission-request` | span event on `turn` | `permission-request` | `permission.request.id`, `tool.name` | The human/policy gate (ADR-0025). The WAIT is measured on the resolved row, not as a span duration. |
@@ -279,11 +422,21 @@ which is the vocabulary the skill already sanctions as a name (SKILL.md §6, fir
 | `EventResult` | `result` | span event on `turn` | `result` | the authoritative `TokenLedger` fields | TERMINAL. Closes `turn` then `session` with `Outcome{Err: nil}`. |
 | `EventFailed` | `failed` | span event on `turn` | `failed` | `error` (typed reason), the ledger | TERMINAL. Closes `turn` and `session` with `Outcome{Err: <reason>}` — the ONLY shape that sets span status error. |
 | `EventAborted` | `aborted` | span event on `turn` | `aborted` | `terminal.by`, the ledger | TERMINAL. Closes with `Outcome{Err: nil}` plus `terminal.reason=aborted`. **An abort is not a fault** — recording it as an error makes every human stop look like an incident. |
-| `EventExtension` | `extension` | span event on `turn`, or on `session` if no turn is open | `extension` | `extension.bytes` **only** | ⚠️ The payload is opaque harness bytes and is redaction-eligible (`types.go:314-319`). Its SIZE may be an attribute; its CONTENT may never be. |
-| `EventThinkingProgress` | `thinking-progress` | **neither** — folded | — | folded onto `turn` as `thinking.tokens.estimate` (last value wins) | A pre-message heartbeat. `MessagePayload.Tokens` is an ESTIMATE for a live indicator, **never a billed figure** (`types.go:341-344`) — the billed number is `usage`. |
+| `EventExtension` | `extension` | span event on `turn`, or on `session` if no turn is open | `extension` | `extension.bytes` **only** | ⚠️ The payload is opaque harness bytes and is redaction-eligible (`Event.Extension`, `types.go:324-329`). Its SIZE may be an attribute; its CONTENT may never be. ⚠️ *Corrected from `:314-319`, which is the typed-payload pointer table.* |
+| `EventThinkingProgress` | `thinking-progress` | **neither** — folded | — | folded onto `turn` as `thinking.tokens.estimate` (last value wins) | A pre-message heartbeat. `MessagePayload.Tokens` is an ESTIMATE for a live indicator, **never a billed figure** (`types.go:348-354`, the field at `:354`) — the billed number is `usage`. ⚠️ *Corrected from `:341-344`, which is `StatePayload{From, To}`.* |
 
-`IsTerminal()` (`types.go:326-328`) is the closing predicate: exactly one of `result` / `failed` /
-`aborted` ends a session. It is `agentsession`'s, cited, never re-derived here.
+| `EventTurnEnd` | `turn-end` | **CLOSES the `turn` span** (and is also a span event on it) | `turn-end` | the authoritative per-turn `TokenLedger` from `TerminalPayload` (`types.go:433-441`), `turn.outcome` from `TerminalPayload.Outcome` | ✅ **THE NORMAL WAY A `turn` SPAN CLOSES, and its absence was a real defect — see §4.5.** A turn that ends cleanly *"carries that turn's authoritative TokenLedger and final text, and parks the session in StateAwaitingInput — NOT a session terminal"* (`types.go:260`); `EventResult`'s own comment points here — *"(a clean TURN is EventTurnEnd)"* (`:255`). Live today: `pump.go:131-134` publishes it verbatim and `pump.go:165-168` moves `StateRunning → StateAwaitingInput`. ⚠️ **The ledger is PER-TURN, never session-to-date** — `pump.go:570-571` states that invariant, and `pump.go:36-38` sums the turn ledgers into the session total. A consumer that stamps it as a session figure double-counts every turn. |
+| `EventPeerMessage` | `peer-message` | span event on `turn` | `peer-message` | `peer.msg.id`, `peer.from`, `peer.reply.to`, `peer.verified`, `peer.body.bytes` | ⚠️ **`PeerMessage.Body` is UNTRUSTED FOREIGN AGENT PROSE (`peer.go:21`) and NEVER becomes an attribute — only its byte count.** Two independent reasons, and each alone is sufficient: it is a LEAK surface (another agent's prose, redacted only at the normalization boundary), and it is an UNBOUNDED-CARDINALITY surface. This is I5's rule applied at its sharpest point, and it is the same reason `extension` contributes only its size. `peer.verified` carries `PeerMessage.Verified` — kernel-verified sender, never the client's own claim (`peer.go:22`) — which is an audit fact worth a span. Live today: emitted by the adapter, deduped by `pump.go:113-116` so it appears EXACTLY ONCE per `MsgID`. |
+| `EventPeerSent` | `peer-sent` | span event on `turn` | `peer-sent` | `peer.msg.id`, `peer.to`, `peer.accepted`, **`peer.detail`** | ⚠️ **`Accepted == false` has FOUR distinct meanings and this mapping keeps them apart.** `PeerMessage.Detail` is a BRANCHED-ON CONTRACT LITERAL, not a redacted reason string — *"the library's own recovery router switches on the exact bytes, so a consumer may too, and changing one is a wire break rather than a wording change"* (`peer.go:29-51`). So `peer.detail` carries that literal VERBATIM and unmodified: `native-send-unreachable` · `native-send-unrecovered` · `send-receipt-unparsed` · `undelivered: …`. **Only the last means "accepted, never delivered"**; collapsing all four into one `error` would erase exactly the distinction the frozen contract went to trouble to preserve, and would make a recovered send look like a lost one. It stays redaction-safe by construction — a reason and a discriminator, never a body (`peer.go:50`). Live today, but only when a plane is wired (`pump.go:117-126`). |
+| `EventSubagentMessage` | `subagent-message` | span event on `turn` | `subagent-message` | `subagent.id`, `subagent.parent.turn`, `subagent.index`, `subagent.to.child`, `subagent.digest.bytes` | ⚠️ **A DISTINCT function from peer messaging, and the mapping must not re-conflate what the library separates by the compiler.** `SubagentMessage` is a separate type precisely because *"the peer plane physically cannot accept one"* (`peer.go:54-57`), and `SubagentID` is *"parent-LOCAL; never a peer address, never in the tree roster"* (`peer.go:59`). It therefore gets its OWN span name and its OWN attribute prefix — it shares neither with `peer-message`, and it is **not** a `relay` (§3.3): `relay` is the cross-pod tree edge on the write plane, while this crossed a parent↔child boundary INSIDE one harness process and never touched the bus. `Digest` is already bounded and redacted (`peer.go:63`); only its size rides. Live today: published verbatim, no plane, no dedupe, no roster (`pump.go:127-129`). |
+
+`Event.IsTerminal()` (`types.go:336-338`) is the **SESSION**-closing predicate: exactly one of
+`result` / `failed` / `aborted` ends a session. It is `agentsession`'s, cited, never re-derived
+here. ⚠️ *Corrected from `:326-328`.*
+
+⚠️ **`IsTerminal()` is deliberately FALSE for `turn-end`, and a consumer that treats it as the only
+closing signal loses every clean turn.** A turn is not a session: `turn-end` ends the first and
+parks the second in `StateAwaitingInput` (`types.go:260`). §4.5 states what follows.
 
 ### 3.3 The other three message types
 
@@ -314,9 +467,20 @@ is not. **The SKILL.md §6 line is now stale text** and is amended in the same c
 
 ## 4. Task = trace
 
-> **Mateo, 2026-08-26** (AskUserQuestion decision prompt, interactive session `f9c810a8`),
-> verbatim: *"Task=trace across the whole tree — One trace spans the entire orchestrator task
-> through every delegated session."*
+> **Mateo's ruling 4, 2026-08-26** (AskUserQuestion decision prompt, interactive session
+> `f9c810a8`), **in this lane's own words — not a quotation:** task = trace across the whole tree.
+> One trace covers an orchestrator task through every session it delegates to, and the message
+> header carries a task id and a W3C traceparent.
+>
+> ⚠️ **Corrected — an earlier revision presented this as "verbatim" and it was not.** It rendered
+> the ruling as *"One trace spans the entire orchestrator task through every delegated session"*
+> while `.dev/instrumentation-contracts.md` rendered the SAME ruling as *"the message header carries
+> a task id and a W3C traceparent"*. Two different sentences cannot both be one person's exact
+> words, neither was marked as a paraphrase, and this lane does not hold the transcript. **A
+> paraphrase inside quotation marks is a fabricated quote**, so the marks are gone rather than the
+> content — describing the ruling honestly is worth more than a false-precision citation. §0 states
+> the same thing about all four rulings. `git-process.md` §13 rule 4 reserves "verbatim" for exact
+> words with a timestamp; where they are needed, get them from Mateo.
 
 ### 4.1 What a trace is — re-sourced against the corrected header
 
@@ -426,8 +590,9 @@ An agent task runs for hours across many pods. Five mitigations, four of which a
    | chart | `eden-observability` v0.1.0 | `Chart.yaml:2,9` |
    | dependencies | alloy 1.10.0 ×2 (`alloyGateway` Deployment + `alloyLogs` DaemonSet), loki 7.0.0, tempo 1.24.4, grafana 10.5.15, prometheus 29.12.0 | `Chart.yaml:11-37` |
    | OTLP gateway | **Grafana Alloy, not an OTel Collector** — `otelcol.receiver.otlp` grpc `0.0.0.0:4317` / http `0.0.0.0:4318` → `otelcol.processor.batch` → `otelcol.exporter.otlp` → `tempo:4317`, `tls { insecure = true }` | `values.yaml:27-76`, and the same pipeline again in `values-cloud.yaml` |
-   | Tempo trace retention | **`168h` (7 days)** | `values.yaml:229` |
-   | Tempo storage | `backend: local`, `/var/tempo/traces`, 10Gi | `values.yaml:230-234` |
+   | Tempo trace retention | **`168h` (7 days)** | `values.yaml:231` ⚠️ *Corrected from `:229`, which is `persistence.size`.* |
+   | Tempo storage | `backend: local`, `/var/tempo/traces` | `values.yaml:232-236` |
+   | Tempo persistence | enabled, **10Gi** | `values.yaml:227-229` |
    | Tempo storage on the CLOUD overlay | `backend: s3`, bucket `eden-observability`, OCI endpoint, 5Gi local-path PVC — and **retention is NOT overridden**, so 168h stands there too | `values-cloud.yaml` |
    | sampling | **none configured anywhere**; the SDK default is already `ParentBased(AlwaysSample)` | `values.yaml:41-45` |
 
@@ -447,13 +612,48 @@ An agent task runs for hours across many pods. Five mitigations, four of which a
    `eden-otel-debug/SKILL.md` §1's recorded verification of 2026-08-18. **This document did not
    re-measure them.** Re-verify before relying on any of them.
 
-### 4.5 Closing a span nobody closed
+### 4.5 ⚠️ How a `turn` span closes — the normal path, and the one nobody closed
 
-🔶 A pod can die mid-turn. The consumer therefore closes an open `turn` span when
-`Config.TurnIdleLimit` elapses with no event for it, stamping `turn.outcome=abandoned`, and closes
-the enclosing `session` the same way. An abandoned turn is recorded as abandoned — **not as
-success, and not as an error**, because neither is true and both are misleading. This is the
-consumer's own decision and it needs a stated limit rather than an unbounded wait.
+⚠️ **This section replaces a WRONG one, and the error was not cosmetic.** An earlier revision knew
+only three closing signals — *a terminal, the next `TurnID`, or `TurnIdleLimit`* — because §3.2 was
+missing `EventTurnEnd` (§3.2 records that correction). The consequence follows mechanically and is
+worth stating in full, because it is the kind of defect a contract can ship and a reader can miss:
+
+- A cleanly-ended INTERACTIVE turn emits `turn-end` and parks the session in `StateAwaitingInput`
+  (`types.go:260`; `pump.go:165-168`). It is **not** a session terminal — `IsTerminal()` is false
+  for it — so signal one never fires.
+- The session then WAITS for the human. No next `TurnID` arrives until they answer, so signal two
+  never fires either.
+- `TurnIdleLimit` therefore expires, and **every cleanly-ended turn is eventually stamped
+  `turn.outcome=abandoned`** while its authoritative per-turn `TokenLedger` is never mapped at all.
+
+That is a telemetry plane that reports the normal case as a failure and silently drops the ledger
+the whole cost story is built on. It would also have been invisible in review: nothing errors, the
+spans are all present, and only the OUTCOME field is a lie.
+
+**The corrected rule. Four closing signals, in precedence order:**
+
+| # | signal | `turn.outcome` | ledger | |
+| --- | --- | --- | --- | --- |
+| 1 | `turn-end` for this `TurnID` | from `TerminalPayload.Outcome` | ✅ the turn's own authoritative `TokenLedger` | 🔶 **THE NORMAL PATH** |
+| 2 | a session terminal (`result` / `failed` / `aborted`) | the terminal's own outcome | ✅ the terminal ledger | closes `turn` then `session` |
+| 3 | the next `TurnID` with no `turn-end` seen | `superseded` | ⚠️ none available | a gap or a harness that does not emit `turn-end` |
+| 4 | `Config.TurnIdleLimit` elapses | `abandoned` | ⚠️ none available | 🔶 **THE ABNORMAL PATH** — a pod died mid-turn |
+
+🔶 Signal 1 is what makes signal 4 rare, which is what it was always meant to be. An abandoned turn
+is recorded as abandoned — **not as success, and not as an error** — because neither is true and
+both mislead; but it must now mean *the producer stopped talking*, never *the turn ended normally*.
+Signal 3 is kept distinct from 4 for the same reason: a superseded turn and a dead pod are
+different facts and a single bucket would hide the second inside the first.
+
+⚠️ **The per-turn ledger is per-TURN.** `pump.go:570-571` states the invariant — *an `EventTurnEnd`
+ledger accounts for ITS OWN turn, never for the session to date* — and `pump.go:36-38` sums the
+turn ledgers to reach the session total. So the `session` span's cost is the SUM of its turns'
+ledgers, and a consumer that copies a turn ledger onto the session span double-counts. The
+`session` span still takes its authoritative total from the session terminal (§3.2).
+
+🔶 `Config.TurnIdleLimit` remains required: signal 4 needs a stated bound rather than an unbounded
+wait, and it is the consumer's own decision because no producer can announce that it has died.
 
 ## 5. The durable-consumer read pattern
 
@@ -486,9 +686,10 @@ durable NAME is `fleetbus` fork B1; the invariant is not open. None of that is r
 (`libs/go/edenhttp/natssse/natssse.go:157-168`) — an ephemeral consumer has no durable name to
 share. The rule exists for the moment someone gives the UI a durable one.
 
-⚠️ **The wire-literal rule constrains this library's source.** `libs/go/_ctl/lib.sh:542`'s
-`_xlib_wire_literal_scan` FAILS the `maintainability` gate if a subject format or an
-`agent.*.<…>` wildcard appears as a string in more than one top-level library's PRODUCTION code;
+⚠️ **The wire-literal rule constrains this library's source.** `libs/go/_ctl/lib.sh:665`'s
+`_xlib_wire_literal_scan` (described at `:657`) FAILS the `maintainability` gate if a subject
+format or an `agent.*.<…>` wildcard appears as a string in more than one top-level library's
+PRODUCTION code;
 `fleetbus.md` §3.4 states the same invariant from its side and notes that the scanner's pattern
 list does not yet know the inbox token exists. `fleettelemetry` therefore spells no subject and no
 wildcard: §2's `EventStream.DestinationTemplate()` hands it over. **The obligation this places on
@@ -610,8 +811,9 @@ single largest thing this document needs from `fleetbus`.
 
 ## 6. The UI streaming read model
 
-> **Mateo, 2026-08-26**, verbatim selection: *"Bus consumer"* — one telemetry service consumes
-> JetStream → OTel, and the same consumer feeds UI streaming.
+> **Mateo's ruling 3, 2026-08-26** — the option selected was *bus consumer*: one telemetry service
+> consumes the fleet's JetStream messages and produces OTel, and the same consumer feeds UI
+> streaming. ⚠️ *Recorded in this lane's own words, not as a quotation — §0 says why.*
 
 ✅ **The stitch mechanics are `fleetbus.md` §6.3's and are cited, not re-derived.** One join point:
 `GET /agents/{id}/history?from-turn=<n>` is served from the archive and returns `nextCursor ==
@@ -672,18 +874,18 @@ Each row states whether it is provable TODAY. A row marked TO BUILD is a promise
 | # | invariant | tag | provable today? |
 | --- | --- | --- | --- |
 | I1 | The consumer is the ONLY process in the fleet that speaks OTLP. Pods stamp the carrier and export nothing. | 🔶 | TO BUILD — `oteladapter` does not exist (§1/1) |
-| I2 | No span name contains an id. Bus span names use the SUBJECT TEMPLATE; identity rides as attributes. | ✅ rule (SKILL.md §6) | testable by a lint over span names once the library exists |
+| I2 | No span name contains an id. Bus span names use the SUBJECT TEMPLATE; identity rides as attributes. | ✅ rule (**§3**, this document — origin SKILL.md §6) | testable by a lint over span names once the library exists |
 | I3 | A cross-pod messaging edge is a LINK given at CREATION, never `AddLink`, never a parent. | ✅ rule (`fleetenvelope.md` §5.3; `trace/span.go:37-40`) | TO BUILD |
 | I4 | A link is OMITTED, never dangled: the consumer never references a span-id it did not export. | ⚠️ | TO BUILD — and this is what fails silently if I1 is violated |
 | I5 | No secret and no untrusted payload reaches an attribute. `Field.Value` is a `Valuer`; `extension` contributes only its byte count; an undecodable payload is never stamped. | ✅ (`observability.md` §6.4) + 🔶 (§3.2, §5.4) | the type system already enforces the general case |
 | I6 | `Ack` happens only after a `Flush` that returned nil. | ⚠️ | TO BUILD — §5.5, and blocked on fork F10 (`Delivery.Ack` is nil on the events plane today) |
 | I7 | A TRANSIENT export failure is NAK'd and retried within `ExportBudget`, then FAILS the process. A PERMANENT decode failure is recorded, advanced past, and FAILS on rate. Neither is ever a silent skip, and neither is ever a poison pill. | ✅ rule (ADR-0020 FAIL-NOT-SKIP) | TO BUILD — §5.4, §5.5 |
 | I8 | The telemetry consumer holds its own durable with `ConsumerPolicy.QueueGroup == ""`, and its attachment changes neither the set nor the count of messages a delivery consumer receives. | ✅ (`fleetbus.md` §9.3 — its home, and it states the property in testable form) | assertable as written once `fleetbus` exists; no collision exists today because the SSE bridge is ephemeral |
-| I9 | `fleettelemetry` spells no subject and no wildcard. | ✅ enforced | the detector is live today: `libs/go/_ctl/lib.sh:542` `_xlib_wire_literal_scan`, run by the `maintainability` verb |
-| I10 | `go.opentelemetry.io/otel*` is imported ONLY by `oteladapter`. | ✅ rule (SKILL.md §5) | enforceable by depguard, and the ground is clean: `go.opentelemetry.io/otel` appears in eden only as `// indirect`, in `libs/go/workspaceprovider/go.mod:63-66` and `libs/go/orchestrator/go.mod:71-74`, both pinned v1.44.0. There is **no direct OTel dependency anywhere in eden today.** |
+| I9 | `fleettelemetry` spells no subject and no wildcard. | ✅ enforced | the detector is live today: `_xlib_wire_literal_scan`, `libs/go/_ctl/lib.sh:665`, run by the `maintainability` verb. ⚠️ *Corrected from `:542` — that line is inside `_doc_coverage_report` (`:544`), on both libs `main` and this branch.* |
+| I10 | `go.opentelemetry.io/otel*` is imported ONLY by `oteladapter`. | ✅ rule (`observability.md` §6 rationale 2, which is IN-REPO and is the binding home; SKILL.md §5 states the same layer rule) | enforceable by depguard, and the ground is clean: `go.opentelemetry.io/otel` appears in eden only as `// indirect`, in `libs/go/workspaceprovider/go.mod:63-66` and `libs/go/orchestrator/go.mod:71-74`, both pinned v1.44.0. There is **no direct OTel dependency anywhere in eden today.** |
 | I11 | The UI stream tolerates a duplicate and never a gap. | ✅ (`fleetbus.md` §6.3, §6.4) | its home; testable against a real nats-server as `edenhttp` already does |
 | I12 | No metric is emitted, because the port has no `Counter` and no `Histogram`. | ✅ (`observability.md` §6.1) | true today, by construction |
-| I13 | No attribute names a tree address. A node is addressed only by its `AgentID`; `hop` is relay depth and says so. | ✅ (`SKILL.md:114`; `fleetenvelope.md` §4.2) | enforceable by a name lint; **this document violated it in an earlier revision and the violation is recorded in §3.0** |
+| I13 | No attribute names a tree address. A node is addressed only by its `AgentID`; `hop` is relay depth and says so. | ✅ (**§3.0**, this document; `fleetenvelope.md` §4.2 — origin `SKILL.md:114`) | enforceable by a name lint; **this document violated it in an earlier revision and the violation is recorded in §3.0** |
 
 ## 8. Forks
 
@@ -694,7 +896,7 @@ Each row states whether it is provable TODAY. A row marked TO BUILD is a promise
 | F3 | **Duplicate spans on redelivery.** | accept duplicates | 🔶 deterministic span id from `hash(traceID, MessageID, span-role)` | 🧩 **Recommend B** with `messaging.redelivered` stamped from `fleetbus.Delivery.Redelivery`, so a duplicate is visible rather than merely present. §5.3 — and `fleetbus` §5.4 explicitly hands this consumer the obligation. |
 | F4 | **UI stream topology.** | α — the gateway's live half is its own ephemeral consumer; the telemetry consumer exposes nothing | β — the telemetry consumer also fans out, and `Deps` gains a `Tail` port | 🧩 **Open — §9 Q1 decides it together with which app serves the surface, and with the session-id-vs-agent-id route shape of §6.1.** |
 | F5 | **Control and health planes.** Core NATS is at-most-once (`fleetbus` §3.2 class D3), so a durable consumer cannot observe them. | leave them off the trace plane; liveness stays the controller's Probe | give them a durable plane so telemetry can read them | 🧩 **Recommend A for v1.** B is a `fleetbus` change (a new durability class), not a telemetry change. |
-| F6 | **The `session` and `relay` span names.** Neither is in SKILL.md §6's list. | adopt them here and amend SKILL.md in the same change | reuse an existing name | 🧩 **Recommend A** — this contract is the vocabulary's home for fleet telemetry, and SKILL.md §6's own rule is that names come from the contract. §9 Q3. |
+| F6 | **The vocabulary's HOME, and the `session` / `relay` span names.** ⚠️ The home was a file outside every repository (`~/.claude/skills/eden-otel-debug/SKILL.md`), which `git-process.md` §12 puts out of reach of CI and of every other engineer. Neither name is in that file's list. | **§3 of this contract is the home**; the skill is its origin, is amended to cite here, and both names are adopted | keep the home outside the repo, or bring the skill in-repo as a committed file | 🧩 **Recommend A** — a contract cannot depend on a file that does not ship with the repository, and SKILL.md §6's own rule already says names come from the contract. §9 Q3 puts the HOME question to Mateo, not only the two names. |
 | ~~F7~~ | ~~`agent.address` / `agent.parent.address` attributes~~ | — | — | ⚠️ **WITHDRAWN, and the withdrawal is a correction of this document.** The corrected `fleetenvelope.md` §4.2 puts no tree address on the wire, and `SKILL.md:114` forbids a flat tree-path attribute by name. Proposing them was the exact thing the skill forbids. `hop` is the honest depth signal that survives. §3.0. |
 | ~~F8~~ | ~~The turn ordinal has two homes~~ | — | — | ✅ **CLOSED by the correction.** `fleetenvelope.md` §4.1: there is no turn ordinal on the header, deliberately — *"Putting it on the header would be a sixth home."* Turn comes from `agentsession.Event`. |
 | F9 | **The 2026-08-18 fleet SYNTHESIS still says the opposite.** ⚠️ *Corrected from an earlier framing:* the LOCKED 2026-08-18 ruling (*"OTel: from day one — exporter as a log consumer"*) and the 2026-08-26 bus-consumer ruling **AGREE** — both `fleetenvelope.md` §5.4 and `fleetbus.md` §9.1 say so. It is the SYNTHESIS text (an in-process `oteladapter` in every workload) that disagrees with both. | the two rulings govern; the synthesis text is superseded on this point and says so in writing | the synthesis is reopened | 🧩 **Recommend A** — §9 Q2 records it. A pod that mints a span context it never exports produces dangling links (§4.3), which is the technical reason as well as the procedural one. |
@@ -708,8 +910,10 @@ to make** — it is a separate change, and no agent should assume it happened.
 
 Freezing this contract is Mateo's `.claude/rules/git-process.md` §5 gate ("a chart or contract
 PROMISE"). **No agent exercises it**, and this document may not be edited to say it is frozen by
-anything other than Mateo's verbatim words quoted with a timestamp (§13 rule 4). Six questions,
-each with named options and a recommendation.
+anything other than Mateo's verbatim words quoted with a timestamp (§13 rule 4). **Eight questions**
+— Q1 through Q8 — each with named options and a recommendation. ⚠️ *Corrected from "Six", which
+matched neither the status header's count nor the enumeration below, nor even the mandatory subset
+named at the end of this section.*
 
 > ### Q1 — Which app serves the UI stream, and with which topology?
 >
@@ -734,10 +938,11 @@ each with named options and a recommendation.
 > ### Q2 — Is the mapping table's span / event / link shape accepted?
 >
 > §3 as written: one `receive <template>` span per FETCH BATCH (never per envelope); a `session`
-> span and a `turn` span per session and turn; the sixteen `EventKind` tokens as span EVENTS on the
-> open span; four kinds FOLDED into counters (`text-delta`, `thinking-delta`, `thinking-progress`,
-> `tool-update`); cross-pod messaging edges as LINKS AT CREATION; delegation as a PARENT resolved
-> from `CausedBy`, with the carrier's span-id treated as advisory (§4.3).
+> span and a `turn` span per session and turn; the **twenty** `EventKind` tokens as span EVENTS on
+> the open span; four kinds FOLDED into counters (`text-delta`, `thinking-delta`,
+> `thinking-progress`, `tool-update`); `turn-end` CLOSING the `turn` span with its per-turn ledger
+> (§4.5); cross-pod messaging edges as LINKS AT CREATION; delegation as a PARENT resolved from
+> `CausedBy`, with the carrier's span-id treated as advisory (§4.3).
 >
 > - **(a) RECOMMENDED — accept it, and record in writing that the bus-consumer ruling supersedes
 >   the 2026-08-18 fleet SYNTHESIS's in-process `oteladapter` design.** **Reason:** the two RULINGS
@@ -752,28 +957,47 @@ each with named options and a recommendation.
 >   O(tokens) spans and it will not survive contact with a real turn.
 > - **(c) Reject the folding** and record every delta. Cost as in (b).
 
-> ### Q3 — Do you accept the two span names this document ADDS to the vocabulary?
+> ### Q3 — Where does the vocabulary LIVE, and do you accept the two names added to it?
 >
-> `session` (the session root span) and `relay` (the tree-edge span). SKILL.md §6's rule is that
-> span names come from the contract vocabulary, and neither is in its list.
+> ⚠️ **The HOME question comes first, because it is a defect and not a preference.** An earlier
+> revision of this contract named `~/.claude/skills/eden-otel-debug/SKILL.md` §6 as the vocabulary's
+> normative home. **That file is in a home directory, outside every repository.** It cannot be in
+> this diff, and `.claude/rules/git-process.md` §12 rules that *"An ephemeral runner has no
+> `~/.claude`, so no personal rule, skill or agent reaches it"* — so a CI agent and every engineer
+> other than Mateo would have been bound by a source they cannot open. A contract cannot depend on a
+> file that does not ship with the repository. Three homes were weighed:
 >
-> ⚠️ **A third proposal is WITHDRAWN before you answer it, and the withdrawal is a correction of
-> this document, not a concession.** An earlier revision proposed `agent.address` and
+> | option | what it costs |
+> | --- | --- |
+> | **(i) THIS contract is the home; the skill cites IT** | the skill must be amended, and it is a personal file outside the repo — but it becomes a READER of the contract, which is the only direction that survives CI |
+> | (ii) bring the skill in-repo as a committed file, and this contract cites that path | duplicates a personal debugging runbook into the repository, most of which is not vocabulary; creates a second document to keep in step |
+> | (iii) the vocabulary is a section of this contract, the skill named only as its origin | this is (i) with the origin recorded — the difference is bookkeeping, not structure |
+>
+> - **(a) RECOMMENDED — (i)/(iii): §3 of THIS contract is the vocabulary's home, the skill is cited
+>   as its ORIGIN and amended to point here, and you accept the two added span names `session` (the
+>   session root span) and `relay` (the tree-edge span).** **Reason:** the vocabulary itself is
+>   sound and its content checks out — `SKILL.md:114` does forbid a flat tree-path attribute, and
+>   §3.0 obeys it. The problem is only its ADDRESS. Option (i) moves the vocabulary to a file that
+>   ships with the repository, which is what makes it readable by CI, by a reviewer and by the next
+>   engineer; the skill keeps its real job, which is a debugging runbook. Neither `session` nor
+>   `relay` is in the skill's list, and under (i) that is no longer an exception to a rule — §3 is
+>   where names are minted. **The skill amendment must not lag**: instrumentation that describes a
+>   contract it no longer matches is the false-context failure the housekeeping rule exists to
+>   prevent. **The same amendment corrects a now-stale line** — SKILL.md §6 (`:113`) maps
+>   `messaging.message.id` to `Seq`, which the corrected header supersedes with `MessageID` (§3.0).
+> - **(b) Option (ii)** — the skill moves in-repo and this contract cites that path. Coherent, but
+>   it commits the estate to maintaining a debugging runbook as a governed document.
+> - **(c) Keep the home outside the repository.** ⚠️ **Not recommended and arguably not available:**
+>   it leaves the contract depending on a file no CI agent can read, which is the defect above.
+> - **(d) Accept `session`, reject `relay`.** Cost: the tree edge becomes unobservable, and it is
+>   the only place delegation is visible at all. There is no existing name to reuse for either.
+>
+> ⚠️ **A third NAME is WITHDRAWN before you answer, and the withdrawal is a correction of this
+> document, not a concession.** An earlier revision proposed `agent.address` and
 > `agent.parent.address`. The corrected `fleetenvelope.md` §4.2 puts **no tree address on the
 > wire**, and its third reason is that `SKILL.md:114` **forbids a flat tree-path attribute by
-> name**. Proposing them was the exact thing the skill forbids. `hop` — relay depth from the root,
-> never tree depth — is the honest signal that survives.
->
-> - **(a) RECOMMENDED — accept both, and amend `~/.claude/skills/eden-otel-debug/SKILL.md` in the
->   SAME change.** **Reason:** this contract is that vocabulary's home for fleet telemetry, so
->   adding here is the sanctioned path rather than an exception to it. The amendment must not lag:
->   instrumentation that describes a contract it no longer matches is the false-context failure the
->   housekeeping rule exists to prevent. **The same amendment also corrects a now-stale line** —
->   SKILL.md §6 maps `messaging.message.id` to `Seq`, which the corrected header supersedes with
->   `MessageID` (§3.0).
-> - **(b) Accept `session`, reject `relay`.** Cost: the tree edge becomes unobservable, and it is
->   the only place delegation is visible at all.
-> - **(c) Reject; reuse existing names.** There is no existing name for a session root or a relay.
+> name**. Proposing them was the exact thing the vocabulary forbids. `hop` — relay depth from the
+> root, never tree depth — is the honest signal that survives.
 
 > ### Q4 — `RootID` as the task key: does a task ever span more than one root chain?
 >
@@ -853,7 +1077,7 @@ each with named options and a recommendation.
 
 > ### Q7 — What is the TRACE retention, given that no ruling covers it?
 >
-> Verified: Tempo retention is **168h** (`chart/values.yaml:229`), not overridden by
+> Verified: Tempo retention is **168h** (`chart/values.yaml:231`), not overridden by
 > `values-cloud.yaml`. Mateo's 2026-08-18 Batch B+C ruling set **30 days + a 20GiB oldest-first
 > ceiling** — but explicitly closed OD-9 **only for the agent-transcript class**. Traces are a
 > different class and **have no ruling** (§4.4).

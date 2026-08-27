@@ -256,6 +256,80 @@ correction written in one section does not repeal the claim in another. When a f
 EVERY place it is used, not just the place it is defined — which is the same rule `git-process.md`
 §14 states after the ADR-0032 sweep missed the root `CLAUDE.md` twice.
 
+### The reviewer exists, it ran, and it returned REQUEST_CHANGES — read as its own call
+
+eden PR **#24**. `review` reported **FAILURE**; the verdict comment ends **`REQUEST_CHANGES`**. Per
+§5.2 the verdict is read as its own call, and it is not treated as blocked-by-a-red-badge: the
+badge and the verdict agree here, and the verdict is what governs. Two findings, both real, both in
+`fleettelemetry`:
+
+1. **§9's intro says "Six questions" and then enumerates Q1–Q8.** The status header already says
+   eight, and the closing line makes Q1, Q4, Q5 and Q8 mandatory — so "six" is not even the
+   mandatory subset. The reviewer's reason is the right one: *"§9 is the decision surface: it is the
+   whole reason the document exists in DRAFT, and the freeze gate turns on it."*
+2. **The transport citations DANGLE ON `main` AFTER MERGE.** `fleetenvelope.md` and `fleetbus.md`
+   exist only on the sibling branch. *"After merge, `main` carries `fleettelemetry.md` and a README
+   pointer chain whose targets do not exist in the repository"* — and this pull request itself
+   measured that no docs tool is wired into any gate, so *"nothing catches the dangling references;
+   they ship silently"*. It also names the deeper point: the stated freeze order
+   `fleetenvelope → fleetbus → fleettelemetry` now governs the DOCUMENTATION TREE as well, and
+   merging the dependent document first inverts it.
+
+**Finding 2 is a defect neither the refutation nor this lane caught**, and it is a distinct axis
+from the one we did catch. The earlier concern was citing UNCOMMITTED bytes; the sibling fixed that
+by committing at `70a979f`. This is the next axis out: **committed on a BRANCH is still not present
+on `main`.** A citation can be valid in a worktree today and dangle the moment the document lands on
+trunk. Three states have to be told apart, not two — on `main`, committed-off-trunk, and
+does-not-exist — and only the first and third were being distinguished.
+
+The two index rows are corrected here; §1's dependency table is corrected in the document. The
+reviewer explicitly cleared `agentprofile.md`: *"its citations (`orchestrator.md`,
+`agentsession.md`, ADR-0026) are all already on `main`."*
+
+### The refutation was right that the count was wrong, and wrong about the count
+
+`fleettelemetry` §3.2 claimed the mapping table was exhaustive over `agentsession.EventKind` and
+said there were **sixteen** members. The refutation caught that and reported **seventeen**. Counting
+the const block by command gives **twenty**:
+
+```sh
+start=$(grep -n 'EventSessionState' libs/go/agentsession/types.go | head -1 | cut -d: -f1)
+awk -v s="$start" 'NR>=s' libs/go/agentsession/types.go | awk '/^\)/{exit} {print}' | grep -cE '^\s+Event[A-Z]'
+# 20
+```
+
+Four members are missing, not one: `EventTurnEnd`, `EventPeerMessage`, `EventPeerSent` and
+`EventSubagentMessage`. The last three are the intra-harness message plane — the peer and subagent
+messaging the harness program added — and they matter to a telemetry contract more than most:
+`EventPeerMessage` carries *"UNTRUSTED foreign prose"* (a redaction and cardinality surface at
+once), `EventPeerSent` has an `Accepted == false` with **four** distinct meanings that a single
+failure attribute would erase, and `EventSubagentMessage` is documented as *"a DISTINCT function
+from peer messaging, never in the tree roster"* — so it must not share a span shape with peer
+messaging or the telemetry re-conflates exactly what the frozen contract separated.
+
+**Three independent counts, three different answers, none of them from counting.** The document
+inherited sixteen, the refutation reported seventeen, and both were assertions. This is the
+`/dev` rule about not accepting a review finding without checking it — *"The reviewer has been
+wrong, and so have you"* — and it is the second time in this lane that running the command beat
+reading the claim. The fix carries the command that produces the number, so the next reader
+re-derives it instead of trusting it.
+
+### An operational cost I incurred, worth writing down
+
+`harness-conformance.yml` and the review workflow both declare
+`concurrency: … cancel-in-progress: true`. **Every push to an open pull request cancels the runs in
+flight and starts them again.** This lane pushed after almost every commit — correct under §3 rule 2
+("PUSH AFTER EVERY COMMIT. The laptop is not a home"), but expensive here, because §6 states the
+consequence precisely: *"a cancelled review posts no comment and rounds count from posted comments,
+so the money is spent and no round is recorded."* Several reviewer starts were paid for and
+recorded nothing.
+
+The two rules are not actually in conflict; the resolution is to keep pushing while a pull request
+is not yet OPEN, and to BATCH pushes once it is. This lane opened the pull request as a GitHub
+DRAFT early — which was right for getting `harness-conformance` running against a real branch, and
+wrong in that it armed the reviewer before the refutation findings were applied. From the point the
+refutation landed, commits were batched into one push.
+
 ### A masking defect I hit myself, in this lane, and the correction
 
 The first attempt ran `yarn install --immutable 2>&1 | tail -20`. Yarn FAILED
