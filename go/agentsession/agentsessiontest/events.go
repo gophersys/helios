@@ -1,20 +1,15 @@
 package agentsessiontest
 
 import (
-	"strings"
 	"time"
 
 	"github.com/gophersys/libs/go/agentsession"
+	"github.com/gophersys/libs/go/agentsession/internal/controlframe"
 )
 
 // This file holds the deterministic Event builders a test uses to pin an exact script,
 // plus the internal frame parser the fake conn uses to interpret the library's
 // normalized permission-answer control frame.
-
-// permissionAnswerPrefix mirrors the library's normalized answer-frame tag (the library
-// emits "eden:permission:<id>:<verdict>:<by>" on a resolved request). The fake parses it
-// to drive the scripted EventPermissionResolved reaction.
-const permissionAnswerPrefix = "eden:permission:"
 
 // fixedEmitTime is the deterministic Time stamped on built events so the fake is
 // reproducible; the library re-stamps a zero Time via the injected Clock, so leaving it
@@ -178,17 +173,10 @@ func abortedEvent(by string) agentsession.Event {
 	}
 }
 
-// parsePermissionAnswer interprets the library's normalized answer frame
-// "eden:permission:<id>:<verdict>:<by>". It returns the request id, whether it was
-// allowed, and ok=false for any non-answer frame.
+// parsePermissionAnswer interprets the library's normalized answer frame through the
+// grammar's ONE HOME (agentsession/internal/controlframe). It returns the request id,
+// whether it was allowed, and ok=false for any non-answer frame.
 func parsePermissionAnswer(text string) (requestID string, allowed, ok bool) {
-	if !strings.HasPrefix(text, permissionAnswerPrefix) {
-		return "", false, false
-	}
-	rest := strings.TrimPrefix(text, permissionAnswerPrefix)
-	parts := strings.SplitN(rest, ":", 3)
-	if len(parts) < 2 {
-		return "", false, false
-	}
-	return parts[0], parts[1] == "allow", true
+	requestID, allowed, _, _, ok = controlframe.DecodePermission(text)
+	return requestID, allowed, ok
 }

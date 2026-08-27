@@ -131,8 +131,8 @@ func (k CommandKind) String() string {
 }
 
 // LegalControls is the SINGLE source of truth for the (State × turn-taking command) legality matrix:
-// the set of CommandKinds that may be issued in state, in CommandKind (iota) order. guardControl
-// admits a command iff it is in this set (the CapSteer-absence invalid-check excepted, since that is
+// the set of CommandKinds that may be issued in state, in CommandKind (iota) order. The session's
+// control guard admits a command iff it is in this set (the CapSteer-absence invalid-check excepted, since that is
 // a capability fault, not a state fault), and the gateway projects exactly this set to the UI so a
 // control is never OFFERED when it is illegal. The matrix:
 //
@@ -158,9 +158,9 @@ func LegalControls(state State) []CommandKind {
 }
 
 // CanControl reports whether the turn-taking command kind is legal in state (membership over
-// LegalControls). It does NOT account for CapSteer absence (a capability fault guardControl checks
-// separately); it is the pure state-legality predicate both guardControl and the gateway projection
-// cite so neither re-derives the matrix.
+// LegalControls). It does NOT account for CapSteer absence (a capability fault the control guard
+// checks separately); it is the pure state-legality predicate both that guard and the gateway
+// projection cite so neither re-derives the matrix.
 func CanControl(state State, kind CommandKind) bool {
 	for _, legal := range LegalControls(state) {
 		if legal == kind {
@@ -252,11 +252,15 @@ const (
 	EventPermissionRequest                   // the harness wants a tool OUTSIDE the standing grant — the human/policy gate
 	EventPermissionResolved                  // the request was decided (Allow/Deny + By) — the audit + UI-notification record
 	EventUsage                               // a token-usage + cost tick (UsageMeter) with model attribution — ALL FOUR token kinds
-	EventResult                              // TERMINAL: a turn reached a clean result; carries the authoritative TokenLedger
+	EventResult                              // TERMINAL: the SESSION ended cleanly — synthesized by a requested Close; carries the session-total TokenLedger (a clean TURN is EventTurnEnd)
 	EventFailed                              // TERMINAL: an error moved the session to StateFailed; carries the ledger + typed reason
 	EventAborted                             // TERMINAL: an Abort took the session to a stop; carries the ledger + By
 	EventExtension                           // a harness event with no normalized kind — preserved VERBATIM, NEVER dropped
 	EventThinkingProgress                    // a pre-message reasoning HEARTBEAT (no content yet): a running estimated thinking-token count, for a live "thinking…" status indicator
+	EventTurnEnd                             // a TURN reached a clean end: carries that turn's authoritative TokenLedger and final text, and parks the session in StateAwaitingInput — NOT a session terminal
+	EventPeerMessage                         // an inter-session message ARRIVED (UNTRUSTED foreign prose): carries *PeerMessage keyed by MsgID, emitted EXACTLY ONCE per message (a bounded dedupe ring), produced only by an adapter normalizer
+	EventPeerSent                            // this session SENT an inter-session message: carries *PeerMessage; Accepted==false has FOUR meanings, told apart by the branched-on Detail literals enumerated on PeerMessage.Detail — only ONE of them is the reconciler's accepted-but-never-delivered bounce
+	EventSubagentMessage                     // a message crossed the parent<->child boundary INSIDE one harness process: carries *SubagentMessage — a DISTINCT function from peer messaging, never in the tree roster
 )
 
 // eventKindTokens holds the stable lower-kebab token for each EventKind, indexed
@@ -278,6 +282,10 @@ var eventKindTokens = [...]string{
 	EventAborted:            "aborted",
 	EventExtension:          "extension",
 	EventThinkingProgress:   "thinking-progress",
+	EventTurnEnd:            "turn-end",
+	EventPeerMessage:        "peer-message",
+	EventPeerSent:           "peer-sent",
+	EventSubagentMessage:    "subagent-message",
 }
 
 // String returns the stable lower-kebab token (e.g. "tool-start"). Total: returns
@@ -298,7 +306,7 @@ type Event struct {
 	SessionID string
 	TurnID    string
 	Seq       uint64    // monotonic per session; assigned at durable transcript append (Seq == transcript offset)
-	Turn      int       // turn ordinal (batch: 0; chat: increments per message)
+	Turn      int       // turn ordinal (batch: 0; chat: increments per admitted Prompt)
 	Time      time.Time // adapter-stamped at emit (the harness clock); zero == library stamps via injected Clock
 	Kind      EventKind
 
@@ -309,7 +317,9 @@ type Event struct {
 	Tool       *ToolPayload       // EventToolStart/ToolUpdate/ToolEnd
 	Permission *PermissionPayload // EventPermissionRequest/PermissionResolved
 	Usage      *UsageMeter        // EventUsage (the running prefix of the terminal ledger)
-	Terminal   *TerminalPayload   // EventResult/Failed/Aborted (carries the authoritative TokenLedger)
+	Terminal   *TerminalPayload   // EventResult/Failed/Aborted/TurnEnd (carries the authoritative TokenLedger)
+	Peer       *PeerMessage       // EventPeerMessage/EventPeerSent (an inter-session message)
+	Subagent   *SubagentMessage   // EventSubagentMessage (a parent<->child message inside one harness process)
 
 	// Extension is the opaque escape hatch: the raw harness frame (or the part Eden
 	// did not normalize) as bytes. ALWAYS present for EventExtension; MAY ride
@@ -410,17 +420,20 @@ type UsageMeter struct {
 	CacheReadTokens     int64 // cache-hit input tokens (cheap)
 	CacheCreationTokens int64 // cache-write input tokens (the 4th kind — distinct cost)
 	CostMicros          int64 // provider spend, micro-units of account currency; -1 == harness did not report cost
-	Cumulative          bool  // true == session-to-date totals (Claude result event); false == this-turn delta
+	// Cumulative says the tick carries totals to date rather than a this-turn delta. It is NOT
+	// a turn/session discriminator: both shipped adapters stamp it true on a PER-TURN boundary
+	// ledger, and the SESSION total is summed by the library from those boundaries.
+	Cumulative bool
 }
 
-// TerminalPayload bounds the session: exactly one terminal Event carries it. It
-// carries the AUTHORITATIVE TokenLedger (the poc/codingharness total_cost_usd
-// ground truth) so the engine's evidence envelope and the chat's final meter
-// reconcile.
+// TerminalPayload bounds a turn AND the session: exactly one terminal Event
+// carries it, and so does every EventTurnEnd along the way. It carries the
+// AUTHORITATIVE TokenLedger (the poc/codingharness total_cost_usd ground truth)
+// so the engine's evidence envelope and the chat's final meter reconcile.
 type TerminalPayload struct {
 	Outcome    TurnOutcome
 	Ledger     TokenLedger
-	ResultText string      // EventResult: the final assistant text (batch: the artifact-adjacent result)
+	ResultText string      // EventResult/EventTurnEnd: the final assistant text (batch: the artifact-adjacent result)
 	StopReason string      // harness stop reason, surfaced verbatim for diagnostics
 	Reason     ErrorReason // EventFailed: the branchable classification
 	Detail     string      // EventFailed: a redacted message; never a credential

@@ -4,15 +4,16 @@
 
 `gophersys/libs` is the shared-library submodule consumed by every
 project monorepo in the brain ecosystem. It hosts reusable libraries
-grouped by implementation language plus a language-agnostic protocol
-layer:
+grouped by implementation language:
 
-- `typescript/` — TypeScript / Node libraries
-- `python/`     — Python libraries
-- `rust/`       — Rust crates
-- `zephyr/`     — Zephyr RTOS modules and subsystems
-- `protocols/`  — schema and protocol definitions (protobuf, JSON Schema,
-  OpenAPI, etc.) that generate bindings into the language subtrees
+- `go/`         — Go libraries (16), the bulk of the repository
+- `typescript/` — TypeScript / Node libraries (4), the `@eden/*` scope
+
+Those two are the whole list, and `LANG_SUBTREES` in the top-level
+`ctl.sh` is its one home. `python/`, `rust/`, `zephyr/` and `protocols/`
+were described here as though they held libraries; each held a single
+`.gitkeep` and they were removed. A subtree is created when a library
+lands in it — not in advance of one.
 
 This repository is authored inside the brain meta-monorepo at
 `brain/shared/libs/` and is also published standalone as
@@ -50,12 +51,25 @@ authoring recipe.
 
 ## Commit identity
 
-All commits in this repository MUST be authored by:
+**ATTRIBUTION IS IDENTITY** (Mateo, 2026-08-25). This section previously
+required every commit to be authored `Mateo Segura` and forbade AI attribution
+"of any kind". That ruling has been **REVERSED** and this text is superseded by
+`eden/.claude/rules/git-process.md` §13, which is the single home for the rule.
+The reason for the reversal: an unattributed agent commit reads as a human's,
+and that is a false record.
 
-- **Name:** `Mateo Segura`
-- **Email:** `mateo.segura413@gmail.com`
+- **Solo agent work** is authored `Claude <claude-agent@gophersys.noreply>`,
+  with no trailer.
+- **Joint interactive work** is authored Mateo, with a `Co-Authored-By: Claude`
+  trailer.
+- **An agent NEVER commits, approves or comments as "Mateo."** An agent's pull
+  request comment identifies itself and names the authority it acts under.
+- These govern the git **author** field only. The **committer** stays the human
+  account whose credential pushes, because an agent has no GitHub identity yet —
+  so a commit today honestly reads `author=Claude`, `committer=Mateo Segura`.
 
-Configure via repo-local `git config user.name` / `user.email` when
-cloning fresh. Commit messages follow Conventional Commits; subject
-lines are imperative, ≤72 chars, no trailing period. Commit messages
-MUST NOT contain AI / LLM / assistant attribution of any kind.
+Where this file and `git-process.md` §13 ever disagree, **§13 wins**: the later
+process supersedes the earlier one, and the rule lives in one home, not two.
+
+Commit messages follow Conventional Commits; subject lines are imperative,
+≤72 chars, no trailing period.

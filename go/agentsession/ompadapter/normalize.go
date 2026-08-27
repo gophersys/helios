@@ -1,18 +1,23 @@
 // Package ompadapter is the REAL Oh My Pi (omp) harness adapter for the agentsession F4
-// port (ADR-0008): it spawns the headless `omp -p --mode json` CLI subprocess, threads the
-// OpenRouter provider key (an opaque secrets.Reference resolved server-side) onto the CHILD
-// process env under OPENROUTER_API_KEY ONLY (never Eden's env, never a log), and NORMALIZES
-// omp's one-way json frame stream into the Eden Event taxonomy. The wiring (arg/env
-// construction, json parsing) is unit-tested with fixtures captured from a live omp run; a
-// LIVE run against real omp + OpenRouter + DeepSeek-v4-flash is GATED on the OpenRouter key
-// being present (TestIntegration_LiveOmp_Gated) and is otherwise SKIPPED.
+// port (ADR-0008): it spawns ONE long-lived `omp --mode rpc` CLI subprocess per session,
+// threads the OpenRouter provider key (an opaque secrets.Reference resolved server-side) onto
+// the CHILD process env under OPENROUTER_API_KEY ONLY (never Eden's env, never a log), and
+// NORMALIZES omp's frame stream into the Eden Event taxonomy. The wiring (arg/env
+// construction, json parsing) is unit-tested with fixtures captured from a live omp run and
+// against the stub subprocess under `-tags integration`. The LIVE omp turn is proven in the
+// harness/acceptance lane only — agentsession/omp_turn_harness_test.go under
+// `//go:build harness` (run via `ctl.sh harness`), FAIL-NOT-SKIP by that lane's contract.
+// This package carries no live arm and no skip (Mateo's ruling, 2026-08-26; task #24 tracks
+// the omp 17.2.5 rpc deadlock).
 //
-// Mode choice (the spike's load-bearing decision): json, not rpc. `omp --mode rpc` emits a
-// {"type":"ready"} frame then a bidirectional extension_ui_request widget that BLOCKS the
-// turn until the client answers omp's rpc protocol. `omp --mode json` is a clean ONE-WAY
-// stream — session, agent_start, turn_start, message_start/message_update/message_end,
-// tool_execution_start/end, turn_end, agent_end — carrying the full taxonomy (text/thinking
-// deltas, tool start/update/end, usage+cost, a terminal) with NO UI ack required to progress.
+// Mode choice: rpc, not json. `--mode json` is a clean ONE-WAY stream, but it is also ONE
+// PROCESS PER TURN — a session that exits after its turn cannot serve a second Prompt, cannot
+// hold set_host_tools, and cannot take an injected turn. `--mode rpc` keeps one process alive
+// across every turn: NDJSON commands on stdin, frames on stdout, readiness announced by omp's
+// own `ready` frame. Its bidirectional traffic is answered rather than avoided (rpc.go):
+// the fire-and-forget widget requests are ignored, and the dialogs — which carry no timeout
+// and therefore wait forever — are answered on arrival. Never `--mode rpc-ui`: that mode
+// installs the tool UI context (main.ts:1570) and is the plane a tool can block on.
 package ompadapter
 
 import (
@@ -29,8 +34,7 @@ const harnessName = "omp"
 type frame struct {
 	Type string `json:"type"`
 
-	// session frame: startup metadata (the Ready trigger lives in spawn.go; this is kept as
-	// metadata Extension).
+	// startup metadata; the readiness signal is the rpc `ready` frame, handled in rpc.go.
 	ID string `json:"id"`
 
 	// message_start / message_end / turn_end / agent_end carry a message snapshot.
@@ -128,9 +132,16 @@ func (n *normalizer) normalize(line []byte) []agentsession.Event {
 	}
 	switch f.Type {
 	case "session", "agent_start", "turn_start":
-		// Lifecycle chrome / startup metadata. The Ready handshake is signaled on the session
-		// frame by spawn.go; the frame itself is preserved as metadata Extension so nothing is
-		// dropped.
+		// Lifecycle chrome / startup metadata, preserved as Extension so nothing is dropped.
+		// (`session` belongs to the retired one-process-per-turn print mode, which announced one
+		// per PROCESS; an rpc session announces none.)
+		return []agentsession.Event{extension(line)}
+	case "ready", "response", "notice", "available_commands_update",
+		"extension_ui_request", "host_tool_call", "host_tool_cancel":
+		// The rpc CONTROL plane. rpc.go acts on these (readiness + protocol negotiation, the
+		// host-tool round trip, the dialog answer); the taxonomy has no distinct kind for a
+		// control frame, so each is ALSO surfaced verbatim as Extension — known and preserved,
+		// rather than silently consumed by the layer that serviced it.
 		return []agentsession.Event{extension(line)}
 	case "message_start":
 		return n.messageStart(&f, line)
@@ -266,10 +277,13 @@ func (n *normalizer) turnEnd(f *frame, line []byte) []agentsession.Event {
 	return []agentsession.Event{n.usageTick(f.Message.Usage)}
 }
 
-// agentEnd maps the agent_end frame (the headless -p run's terminal) to EventResult or
-// EventFailed, carrying the authoritative four-token TokenLedger built from the final
-// assistant message. A stopReason of "error" (with the upstream HTTP errorStatus) yields a
-// classified EventFailed; otherwise EventResult with the final assistant text.
+// agentEnd maps the agent_end frame to EventTurnEnd or the session-terminal EventFailed,
+// carrying the authoritative four-token TokenLedger built from the final assistant message. A
+// stopReason of "error" (with the upstream HTTP errorStatus) yields a classified EventFailed;
+// otherwise a TURN boundary with the final assistant text.
+//
+// A clean agent_end ends the TURN, not the session: one rpc process serves every turn, so the
+// conn — and the session on it — stay alive for the next Prompt, which rides a stdin frame.
 func (n *normalizer) agentEnd(f *frame, line []byte) agentsession.Event {
 	final := n.finalAssistant(f)
 	if final == nil {
@@ -294,7 +308,7 @@ func (n *normalizer) agentEnd(f *frame, line []byte) agentsession.Event {
 		}
 	}
 	return agentsession.Event{
-		Kind: agentsession.EventResult,
+		Kind: agentsession.EventTurnEnd,
 		Terminal: &agentsession.TerminalPayload{
 			Outcome:    agentsession.TurnCompleted,
 			Ledger:     ledger,

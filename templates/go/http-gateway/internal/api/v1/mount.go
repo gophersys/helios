@@ -26,10 +26,10 @@ import (
 type Deps struct {
 	// Observability is the structured-Event stream a resource's effect stage records on. REQUIRED.
 	Observability observability.Provider
-	// Resources is the typed CRUD store the `resource` routes' execute stages call (the consumer-
-	// defined resource.Store port; *persistence.Resources satisfies it). Nil → the resource routes
-	// are not mounted (no-DB boot).
-	Resources resource.Store
+	// Resources is the typed CRUD surface the `resource` routes' execute stages call (the consumer-
+	// defined resource.Persistence port; *persistence.Resources satisfies it). Nil → the resource
+	// routes are not mounted (no-DB boot).
+	Resources resource.Persistence
 }
 
 // Mount registers every v1 resource's routes onto mux. Each resource owns a Register that mounts its

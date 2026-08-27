@@ -15,6 +15,7 @@
     func FromSeq(seq uint64) Cursor
     func LegalControls(state State) []CommandKind
     func NewLedgerFold() *LedgerFold
+const MaxPeerBodyBytes = 8 << 10
 func CanControl(state State, kind CommandKind) bool
 func New(configuration Config, dependencies Deps) (*Pool, error)
 type Ack struct{ ... }
@@ -45,6 +46,10 @@ type HostTool struct{ ... }
 type InjectedCredential struct{ ... }
 type LedgerFold struct{ ... }
 type MessagePayload struct{ ... }
+type Peer struct{ ... }
+type PeerLink interface{ ... }
+type PeerMessage struct{ ... }
+type PeerPlane interface{ ... }
 type PermissionAdvisor interface{ ... }
 type PermissionPayload struct{ ... }
 type PermissionRequest struct{ ... }
@@ -61,6 +66,7 @@ type State uint8
 type StateError struct{ ... }
 type StatePayload struct{ ... }
 type Stream interface{ ... }
+type SubagentMessage struct{ ... }
 type TerminalPayload struct{ ... }
 type TokenLedger struct{ ... }
 type ToolGrant struct{ ... }
@@ -69,10 +75,12 @@ type ToolPayload struct{ ... }
 type Transcript interface{ ... }
 type TurnOutcome uint8
 type UnknownPermissionError struct{ ... }
+type UnreachableError struct{ ... }
 type UnsupportedError struct{ ... }
 type UsageMeter struct{ ... }
 ## github.com/gophersys/libs/go/agentsession/agentsessiontest
     func New(script ...agentsession.Event) *Adapter
+    func NewPeerPlane() *PeerPlane
     func NewTranscript() *Transcript
 const SeededCanary = "S3CR3T-setup-token-do-not-leak"
 func AssertNoSecretInEvent(t TestingT, event agentsession.Event, canary string)
@@ -82,11 +90,15 @@ func Extension(raw []byte) agentsession.Event
 func MessageEnd() agentsession.Event
 func MessageStart(role string) agentsession.Event
 func OpenForIntegration(t *testing.T, adapter *Adapter, with func(*agentsession.Spec)) agentsession.Session
+func PeerMessageEvent(message agentsession.PeerMessage) agentsession.Event
+func PeerSentEvent(message agentsession.PeerMessage) agentsession.Event
 func PermissionRequest(requestID, tool, reason string) agentsession.Event
 func PermissionResolved(requestID string, decision agentsession.GrantDecision, by string) agentsession.Event
 func ReadyEvent() agentsession.Event
+func RequireLiveCredential(t *testing.T, name string) string
 func Result(ledger agentsession.TokenLedger, resultText, stopReason string) agentsession.Event
 func RunAdapterSuite(t *testing.T, newAdapter func() *Adapter)
+func SubagentMessageEvent(message agentsession.SubagentMessage) agentsession.Event
 func TextDelta(delta string) agentsession.Event
 func ThinkingDelta(delta string) agentsession.Event
 func ThinkingProgress(tokens int) agentsession.Event
@@ -95,6 +107,7 @@ func ToolStart(callID, name, argsSummary string) agentsession.Event
 func ToolUpdate(callID, partialDigest string) agentsession.Event
 func Usage(meter agentsession.UsageMeter) agentsession.Event
 type Adapter struct{ ... }
+type PeerPlane struct{ ... }
 type TestingT interface{ ... }
 type Transcript struct{ ... }
 ## github.com/gophersys/libs/go/agentsession/claudeadapter
@@ -102,8 +115,27 @@ type Transcript struct{ ... }
 type Adapter struct{ ... }
 type Config struct{ ... }
 ## github.com/gophersys/libs/go/agentsession/claudeadapter/internal/stubharness
+## github.com/gophersys/libs/go/agentsession/internal/controlframe
+const PeerPrefix = "eden:peer:"
+const PermissionPrefix = "eden:permission:"
+func DecodePeer(frame string) (from, to, msgID, replyTo, body string, verified, ok bool)
+func DecodePermission(frame string) (requestID string, allow bool, by, rationale string, ok bool)
+func EncodePeer(from, to, msgID, replyTo, body string, verified bool) (string, error)
+func EncodePermission(requestID string, allow bool, by, rationale string) string
+func ValidatePeerField(name, value string) error
 ## github.com/gophersys/libs/go/agentsession/ompadapter
     func New(configuration Config) (*Adapter, error)
 type Adapter struct{ ... }
 type Config struct{ ... }
 ## github.com/gophersys/libs/go/agentsession/ompadapter/internal/stubharness
+## github.com/gophersys/libs/go/agentsession/peerplane
+func Dial(configuration DialConfig, _ Deps) (*Client, error)
+func New(configuration Config, dependencies Deps) (*Orchestrator, error)
+type Client struct{ ... }
+type Config struct{ ... }
+type Deps struct{ ... }
+type DialConfig struct{ ... }
+type JoinError struct{ ... }
+type Orchestrator struct{ ... }
+type UndeliveredError struct{ ... }
+## github.com/gophersys/libs/go/agentsession/peerplane/internal/stubharness

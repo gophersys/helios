@@ -5,13 +5,17 @@ go 1.26
 require (
 	github.com/gophersys/libs/go/errors v0.0.0
 	github.com/gophersys/libs/go/secrets v0.0.0
+	github.com/gophersys/libs/go/testing v0.0.0
 	github.com/minio/minio-go/v7 v7.2.0
+	go.uber.org/goleak v1.3.0
+	pgregory.net/rapid v1.3.0
 )
 
 require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/gophersys/libs/go/dependencies v0.0.0 // indirect
 	github.com/klauspost/compress v1.18.6 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
 	github.com/klauspost/crc32 v1.3.0 // indirect
@@ -26,13 +30,14 @@ require (
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/ini.v1 v1.67.2 // indirect
 )
 
 replace (
 	github.com/gophersys/libs/go/dependencies v0.0.0 => ../dependencies
+	github.com/gophersys/libs/go/envelope v0.0.0 => ../envelope
 	github.com/gophersys/libs/go/errors v0.0.0 => ../errors
 	github.com/gophersys/libs/go/secrets v0.0.0 => ../secrets
 	github.com/gophersys/libs/go/testing v0.0.0 => ../testing

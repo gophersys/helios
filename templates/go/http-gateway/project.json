@@ -35,6 +35,21 @@
       "options": { "command": "bash ./ctl.sh cover", "cwd": "{projectRoot}" },
       "cache": false
     },
+    "openapi": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh openapi", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "verify-openapi": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh verify-openapi", "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "gen-client": {
+      "executor": "nx:run-commands",
+      "options": { "command": "bash ./ctl.sh gen-client", "cwd": "{projectRoot}" },
+      "cache": false
+    },
     "generate": {
       "executor": "nx:run-commands",
       "options": { "command": "bash ./ctl.sh generate", "cwd": "{projectRoot}" },

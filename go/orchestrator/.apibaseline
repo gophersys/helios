@@ -52,14 +52,14 @@ type Tenancy struct{ ... }
 type UnsupportedError struct{ ... }
 type Watcher interface{ ... }
 ## github.com/gophersys/libs/go/orchestrator/clusterprobe
-    func New(configuration Config, dependencies Deps) (*Probe, error)
+    func New(configuration Config, dependencies Deps) (*ClusterProbe, error)
 const DefaultAgentLabelKey = "eden.agent"
+type ClusterProbe struct{ ... }
 type Config struct{ ... }
 type ConfigError struct{ ... }
 type Deps struct{ ... }
 type HealthQueryError struct{ ... }
 type HealthSource interface{ ... }
-type Probe struct{ ... }
 type WorkspaceLister interface{ ... }
 type WorkspaceQueryError struct{ ... }
 ## github.com/gophersys/libs/go/orchestrator/orchestratortest

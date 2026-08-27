@@ -37,9 +37,13 @@ var liveStream = []string{
 
 // TestNormalize_LiveStreamFoldsToTaxonomy proves the captured live omp json stream folds into
 // the full Event taxonomy: the assistant message boundaries, a thinking delta, a text delta,
-// per-message usage ticks, and a terminal EventResult carrying the four-token ledger with the
-// USD cost converted to micro-units (no float drift). The user echo is dropped; the chrome
-// frames survive as Extension.
+// per-message usage ticks, and a TURN BOUNDARY carrying the four-token ledger with the USD cost
+// converted to micro-units (no float drift). The user echo is dropped; the chrome frames
+// survive as Extension.
+//
+// Re-pinned for contract revision R1: the captured `agent_end` reports a clean stop, so the
+// boundary it draws ends the TURN and leaves the omp process alive for the next prompt. The
+// kind is identified by its stable token so this file compiles against the pre-R1 tree.
 func TestNormalize_LiveStreamFoldsToTaxonomy(t *testing.T) {
 	t.Parallel()
 	normalize := ompadapter.StreamNormalizerForTest()
@@ -54,13 +58,17 @@ func TestNormalize_LiveStreamFoldsToTaxonomy(t *testing.T) {
 	requireKind(t, events, agentsession.EventMessageEnd)
 	requireKind(t, events, agentsession.EventUsage)
 
-	// Exactly one terminal, an EventResult carrying the four-token ledger.
+	// Exactly one boundary event, carrying the four-token ledger, ending the TURN and NOT the
+	// session (R1: one omp process serves many turns).
 	terminal := lastEvent(t, events)
-	if terminal.Kind != agentsession.EventResult {
-		t.Fatalf("terminal Kind = %s, want result", terminal.Kind)
-	}
 	if terminal.Terminal == nil {
-		t.Fatal("terminal carries no payload")
+		t.Fatalf("the stream did not end on a boundary carrying a payload (last kind %s)", terminal.Kind)
+	}
+	if terminal.IsTerminal() {
+		t.Fatalf("a clean agent_end ENDED THE SESSION (kind %s); it is a turn boundary, not a session terminal", terminal.Kind)
+	}
+	if got := terminal.Kind.String(); got != "turn-end" {
+		t.Fatalf("turn-boundary token = %q, want \"turn-end\"", got)
 	}
 	ledger := terminal.Terminal.Ledger
 	if ledger.InputTokens != 3494 || ledger.OutputTokens != 19 {

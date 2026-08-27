@@ -23,7 +23,7 @@ import (
 // jwtSecretRef in newDeps, so a token this test signs verifies through the server's spine.
 const signingKey = "test-signing-key-32-bytes-minimum!!"
 
-// fakeStore is the in-memory resource.Store the route-level test wires into the assembled server: it
+// fakeStore is the in-memory resource.Persistence the route-level test wires into the assembled server: it
 // satisfies every route's single-method port (Create/Get/List/Update/Delete) so the real handler
 // tree runs end to end without a database. The unit lane proves logic against it; the integration
 // lane proves the SAME contract on real postgres (ADR-0016 §2).

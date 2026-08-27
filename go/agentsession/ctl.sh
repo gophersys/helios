@@ -19,7 +19,13 @@ EDEN_LIB_LEAF="false"
 EDEN_COVERAGE_FLOOR="70"
 EDEN_HOT_PATHS="."
 EDEN_INTEGRATION_CMDS="go docker k3d kind"
+# The harness lane (opt-in; NOT run in libs CI — it runs in eden's harness-conformance at PR-2,
+# which holds the vendor credentials and the pinned harnesses, ADR-0021 one-home). require_cmd
+# names the binaries, require_env names the credentials — each a FAIL-NOT-SKIP, never a t.Skip.
+EDEN_HARNESS_CMDS="claude omp"
+EDEN_HARNESS_CREDENTIALS="CLAUDEADAPTER_LIVE_TOKEN OPENROUTER_API_KEY"
 export EDEN_LIB_NAME EDEN_LIB_LEAF EDEN_COVERAGE_FLOOR EDEN_HOT_PATHS EDEN_INTEGRATION_CMDS
+export EDEN_HARNESS_CMDS EDEN_HARNESS_CREDENTIALS
 
 # shellcheck source=../_ctl/lib.sh
 # shellcheck disable=SC1091
@@ -42,6 +48,7 @@ Commands:
   lifecycle        construct-use-double-close-teardown conformance
   integration      REAL docker + k3s/k3d (+ kind) substrate suite
   load             fan-out concurrency, race-clean under N
+  harness          REAL vendor harnesses + models (opt-in; FAIL-NOT-SKIP; NOT run in libs CI)
   vuln             govulncheck — 0 applicable vulnerabilities
   sast             gosec — 0 high/medium findings
   secretscan       gitleaks + the SeededCanary no-leak property

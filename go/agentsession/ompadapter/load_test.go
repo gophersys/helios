@@ -1,9 +1,9 @@
 //go:build load
 
-// The load / scale lane (ADR-0020 dimension (e)) for the omp adapter: N concurrent turns, each
+// The load / scale lane (ADR-0020 dimension (e)) for the omp adapter: N concurrent SESSIONS, each
 // the FULL real path (Open -> Prompt -> spawn+scan the GENUINE stub subprocess -> drain to
 // terminal -> Close), fanned out under -race and bounded by t.Context() + an errgroup. It proves
-// the spawn/parse/reap ladder is race-clean at fan-out, every per-turn process is reaped (no
+// the spawn/parse/reap ladder is race-clean at fan-out, every session process is reaped (no
 // orphan stubharness child survives), and the goroutine high-water returns to baseline
 // (goleak.VerifyNone) once the fan-out joins. The fan-out width is EDEN_LOAD_N (default 500
 // in-process); concurrency is capped so the container is not flooded with simultaneous processes
@@ -42,7 +42,7 @@ func loadFanout() int {
 }
 
 // TestLoad_ConcurrentTurnsRaceCleanAllReaped fans out N concurrent full turns over the real stub
-// subprocess. Each goroutine opens its own session, prompts, drains to a terminal carrying the
+// subprocess. Each goroutine opens its own session, prompts, drains to a TURN boundary carrying the
 // four-token ledger, asserts the credential canary never leaked, and closes — all under -race.
 // After every turn joins, the goroutine high-water must return to baseline (goleak) and zero
 // stubharness children may remain (every spawned process reaped). It is NOT t.Parallel(): this
@@ -75,7 +75,7 @@ func TestLoad_ConcurrentTurnsRaceCleanAllReaped(t *testing.T) {
 		t.Fatalf("a concurrent turn failed under fan-out N=%d: %v", n, err)
 	}
 
-	// Every per-turn process must be reaped: no orphan stubharness child of this test process.
+	// Every session process must be reaped: no orphan stubharness child of this test process.
 	if owned := waitForZeroStubChildren(t, 5*time.Second); owned != 0 {
 		t.Fatalf("%d stubharness process(es) survived the fan-out — orphan leak (want 0)", owned)
 	}
@@ -128,7 +128,11 @@ func runOneLoadTurn(ctx context.Context, stub string) error {
 			break
 		}
 		events = append(events, ev)
-		if ev.IsTerminal() {
+		// Re-pinned for contract revision R1: the fan-out drains to the TURN boundary — the same
+		// event on both sides of the revision. Waiting for a session terminal post-R1 would hold
+		// every one of the N goroutines to the context deadline, since a healthy session emits no
+		// terminal until it is Closed.
+		if ev.Terminal != nil || ev.IsTerminal() {
 			break
 		}
 	}
@@ -141,12 +145,15 @@ func assertLoadTurnInvariants(events []agentsession.Event) error {
 	if len(events) == 0 {
 		return errLoad("a concurrent turn produced no events")
 	}
-	terminal := events[len(events)-1]
-	if !terminal.IsTerminal() || terminal.Terminal == nil {
-		return errLoad("a concurrent turn did not reach a terminal carrying a ledger")
+	boundary := events[len(events)-1]
+	if boundary.Terminal == nil {
+		return errLoad("a concurrent turn did not reach a boundary carrying a ledger")
 	}
-	if terminal.Terminal.Ledger.Harness != "omp" {
-		return errLoad("a concurrent terminal ledger lost the omp harness attribution")
+	if boundary.IsTerminal() {
+		return errLoad("a concurrent turn ended the SESSION; a clean `agent_end` ends the TURN and the session takes the next Prompt")
+	}
+	if boundary.Terminal.Ledger.Harness != "omp" {
+		return errLoad("a concurrent turn-boundary ledger lost the omp harness attribution")
 	}
 	// Seq is monotonic + gap-free even under fan-out (each session is independent).
 	var prev uint64

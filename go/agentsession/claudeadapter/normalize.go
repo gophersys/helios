@@ -43,6 +43,10 @@ type streamLine struct {
 	// content) — surfaced as EventThinkingProgress so the UI can show a live "thinking…" status.
 	EstimatedTokens *int `json:"estimated_tokens"`
 
+	// Origin is the peer ARRIVAL a delivery-triggered result line carries — the only inbound
+	// form on stream-json stdout. It is absent on every other result line.
+	Origin *peerOrigin `json:"origin"`
+
 	// result-line fields (the authoritative terminal aggregate).
 	IsError        *bool    `json:"is_error"`
 	NumTurns       *int     `json:"num_turns"`
@@ -113,6 +117,11 @@ type normalizer struct {
 	// (keeping only tool_use blocks + the usage tick) to avoid rendering the message twice.
 	streamedMessage bool
 
+	// pendingSends holds what each in-flight native SendMessage tool_use asked for, keyed by
+	// tool_use_id, until its tool_result arrives. Unlike pendingInputs it needs no lock: it is
+	// written and read only by normalize, which runs on the scan goroutine alone.
+	pendingSends map[string]pendingSend
+
 	// pendingMu guards pendingInputs, written by the scan goroutine (a can_use_tool ask
 	// records the original input) and read+deleted by Send (the control_response echoes it
 	// as updatedInput). The raw input never enters an Event — it is held here, off-stream,
@@ -123,7 +132,11 @@ type normalizer struct {
 
 // newNormalizer builds a normalizer with a bounded-digest redactor.
 func newNormalizer() *normalizer {
-	return &normalizer{digest: defaultDigester, pendingInputs: make(map[string]json.RawMessage)}
+	return &normalizer{
+		digest:        defaultDigester,
+		pendingSends:  make(map[string]pendingSend),
+		pendingInputs: make(map[string]json.RawMessage),
+	}
 }
 
 // normalize maps one stream-json line to zero or more Events. A line that does not
@@ -145,7 +158,7 @@ func (n *normalizer) normalize(line []byte) []agentsession.Event {
 	case "user":
 		return n.user(&envelope)
 	case "result":
-		return []agentsession.Event{n.result(&envelope)}
+		return n.resultLine(&envelope)
 	case "control_request":
 		return n.controlRequest(&envelope, line)
 	case "control_response", "control_cancel_request", "keep_alive":
@@ -415,6 +428,9 @@ func (n *normalizer) block(block *contentBlock) (agentsession.Event, bool) {
 			Message: &agentsession.MessagePayload{Role: "assistant", Delta: block.Thinking},
 		}, true
 	case "tool_use":
+		// A native SendMessage carries the destination and the body the eventual receipt does
+		// not, so it is held for the tool_result to correlate against.
+		n.rememberSend(block)
 		return agentsession.Event{
 			Kind: agentsession.EventToolStart,
 			Tool: &agentsession.ToolPayload{
@@ -453,13 +469,36 @@ func (n *normalizer) user(envelope *streamLine) []agentsession.Event {
 				ResultDigest: n.digest(block.Content),
 			},
 		})
+		// A receipt for the model's own peer send ALSO normalizes to EventPeerSent. The tool end
+		// is emitted either way and verbatim: the model was told what the CLI said, and the
+		// transcript may not say otherwise — the recovery routes the message, it never rewrites
+		// the native result into a success.
+		if sent, ok := n.peerSentEvent(block); ok {
+			events = append(events, sent)
+		}
 	}
 	return events
 }
 
-// result maps the terminal result line to EventResult (success) or EventFailed (error),
-// carrying the authoritative four-token TokenLedger. CostMicros is converted from the
-// reported USD with no float drift (round to the nearest micro-unit).
+// resultLine maps one `result` line onto the taxonomy. A line that carries a peer `origin`
+// yields the ARRIVAL FIRST and the turn boundary after it: the message is what caused the turn
+// the line closes, so a consumer rendering on EventTurnEnd has already been shown what caused
+// it. A line with no origin — every ordinary turn, and the HELD capture, where the message was
+// never delivered — yields the boundary alone.
+func (n *normalizer) resultLine(envelope *streamLine) []agentsession.Event {
+	if envelope.Origin == nil || envelope.Origin.Kind != originKindPeer {
+		return []agentsession.Event{n.result(envelope)}
+	}
+	return []agentsession.Event{envelope.Origin.peerMessageEvent(), n.result(envelope)}
+}
+
+// result maps the result line to EventTurnEnd (success) or the session-terminal EventFailed
+// (error), carrying the authoritative four-token TokenLedger. CostMicros is converted from
+// the reported USD with no float drift (round to the nearest micro-unit).
+//
+// A SUCCESS result ends the TURN, not the session: one claude process in stream-json input
+// mode emits one `result` per turn and goes back to reading stdin, so mapping it to a
+// session terminal is what made an eden claude session single-turn.
 func (n *normalizer) result(envelope *streamLine) agentsession.Event {
 	ledger := agentsession.TokenLedger{
 		UsageMeter: agentsession.UsageMeter{
@@ -496,7 +535,7 @@ func (n *normalizer) result(envelope *streamLine) agentsession.Event {
 		}
 	}
 	return agentsession.Event{
-		Kind: agentsession.EventResult,
+		Kind: agentsession.EventTurnEnd,
 		Terminal: &agentsession.TerminalPayload{
 			Outcome:    agentsession.TurnCompleted,
 			Ledger:     ledger,

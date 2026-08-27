@@ -21,6 +21,10 @@ func (s *session) pump(ready chan<- error) {
 
 	readySignaled := false
 	terminalSeen := false
+	// The session's accounting, summed on the PUMP GOROUTINE's own stack as each turn ends:
+	// it is what the session's one terminal finalizes on, whichever terminal that is, and
+	// keeping it local means the synthesis needs no shared state and no lock on the hot path.
+	sessionLedger := newTurnLedgerSum()
 	for raw := range s.conn.Events() {
 		emitted := s.handle(raw)
 		for i := range emitted {
@@ -28,6 +32,9 @@ func (s *session) pump(ready chan<- error) {
 			if ev.Kind == EventSessionState && ev.State != nil && ev.State.To == StateReady && !readySignaled {
 				readySignaled = true
 				ready <- nil
+			}
+			if ev.Kind == EventTurnEnd && ev.Terminal != nil {
+				sessionLedger.add(&ev.Terminal.Ledger)
 			}
 			if ev.IsTerminal() {
 				terminalSeen = true
@@ -40,15 +47,25 @@ func (s *session) pump(ready chan<- error) {
 		// silent-bad-token trap. Surface AuthError to Open and emit a Failed terminal.
 		ready <- errors.Wrap(errors.KindUnauthenticated, "agentsession: handshake",
 			AuthError{Reference: s.spec.Credential})
-		s.emitTerminalFailed(ReasonAuth, "harness closed before readiness handshake")
+		s.emitTerminalFailed(ReasonAuth, "harness closed before readiness handshake", &sessionLedger.total)
 		return
 	}
-	if !terminalSeen {
-		// The harness channel closed without a terminal Event (a transport drop /
-		// process death mid-run). Synthesize a Failed terminal so every viewer's stream
-		// ends with a real terminal and the ledger finalizes.
-		s.emitTerminalFailed(ReasonTransport, "harness stream ended without a terminal event")
+	if terminalSeen {
+		return
 	}
+	if s.closeRequested() {
+		// A DELIBERATE Close reaped a healthy session (Close sets closed BEFORE it reaps the
+		// conn, so this read cannot mistake a requested shutdown for a death). The session
+		// ends on a clean Result carrying what it spent — not a transport fault.
+		s.emitTerminalResult(&sessionLedger.total)
+		return
+	}
+	// The harness channel closed without a terminal Event and without a Close (a transport
+	// drop / process death mid-run). Synthesize a Failed terminal so every viewer's stream
+	// ends with a real terminal and the ledger finalizes — on what the session actually spent:
+	// the turns it completed before the drop are paid for either way, so the fault terminal
+	// carries the same total a requested Close would have. Only the classification differs.
+	s.emitTerminalFailed(ReasonTransport, "harness stream ended without a terminal event", &sessionLedger.total)
 }
 
 // handle normalizes one raw adapter event into the published sequence. It applies the
@@ -60,15 +77,18 @@ func (s *session) pump(ready chan<- error) {
 func (s *session) handle(raw Event) []Event {
 	var emitted []Event
 
+	// ORDERING DEBT (round 3, known and accepted): setState publishes the new State BEFORE the
+	// raw event below is stamped, so a Prompt admitted in that gap advances the ordinal and the
+	// boundary event of the turn just ended carries the NEXT turn's number.
+	//   - The gap is instructions-wide: captureRecent plus the switch dispatch. The transcript
+	//     write sits inside emit, AFTER the Turn stamp, so it does not widen it.
+	//   - Closing it needs emit under s.mu (transcript I/O + fan-out under the lock) or setState
+	//     after the emit (which makes prompt-on-boundary racy). Neither is acceptable.
+	//   - The Session port has no State() accessor, so a caller observes phase from the stream.
+	//     agentsessiontest/suite_semantics.go:218 prompts off the STATE event, i.e. inside the
+	//     gap: 350 measured runs, -race included, zero hits.
 	if next, ok := s.nextState(raw); ok {
 		prior := s.priorState()
-		// A new prompt starts a new turn: the AwaitingInput->Running edge (a follow-up
-		// prompt after a completed turn). The turn ordinal must advance BEFORE the
-		// transition event is emitted so the new turn's first event already carries the
-		// incremented Turn/TurnID. The first Ready->Running keeps Turn 0 (batch: 0; chat:
-		// increments per message); AwaitingPermission->Running is a mid-turn continuation,
-		// not a new turn, so it does not advance.
-		s.advanceTurnOnPrompt(prior, next)
 		emitted = append(emitted, s.emit(s.stateEvent(prior, next)))
 		s.setState(next)
 	}
@@ -90,8 +110,27 @@ func (s *session) handle(raw Event) []Event {
 		emitted = append(emitted, s.emit(raw))
 	case EventResult, EventFailed, EventAborted:
 		emitted = append(emitted, s.emit(s.stampTerminal(raw)))
+	case EventPeerMessage:
+		// The adapter is the ONLY producer of EventPeerMessage (C3); the pump dedupes it,
+		// emits it exactly once, corroborates delivery, and suppresses it when there is no plane.
+		emitted = append(emitted, s.deliverInboundPeer(raw)...)
+	case EventPeerSent:
+		// The library observed the model's send; it rides the stream only when a plane is wired.
+		// A send the harness's OWN plane could not make is handed to the deliver goroutine for the
+		// full-mesh recovery — OFF the pump, which owns Seq and must never block on the plane — and
+		// the event is published verbatim (the native failure stays visible to the model). A
+		// hand-off the deliver goroutine could not take comes back re-stamped, so a recovery that
+		// will never happen is never published as one that will.
+		if s.peerLink != nil {
+			emitted = append(emitted, s.emit(s.routeRecoveredSend(raw)))
+		}
+	case EventSubagentMessage:
+		// A DISTINCT function from peer messaging: no plane, no dedupe, no roster — published verbatim.
+		emitted = append(emitted, s.emit(raw))
 	case EventMessageStart, EventThinkingDelta, EventTextDelta, EventMessageEnd,
-		EventToolUpdate, EventToolEnd, EventPermissionResolved, EventExtension:
+		EventToolUpdate, EventToolEnd, EventPermissionResolved, EventExtension, EventTurnEnd:
+		// EventTurnEnd is published verbatim: it ends a TURN, so it is NOT re-classified by
+		// stampTerminal, whose budget re-stamp belongs to the one event that ends the session.
 		emitted = append(emitted, s.emit(raw))
 	default:
 		// An unknown future kind is preserved verbatim (forward-compat), never dropped.
@@ -123,7 +162,7 @@ func (s *session) nextState(raw Event) (State, bool) {
 		return StateAwaitingPermission, true
 	case EventPermissionResolved:
 		return StateRunning, true
-	case EventMessageEnd:
+	case EventMessageEnd, EventTurnEnd:
 		if current == StateRunning {
 			return StateAwaitingInput, true
 		}
@@ -231,7 +270,7 @@ func (s *session) isHostTool(name string) bool {
 	return false
 }
 
-// handlePermissionRequest publishes the request event, then drives the RATIFIED
+// handlePermissionRequest publishes the request event and drives the RATIFIED
 // resolution chain (founder model, 2026-06-15). Grants are auto-allowed first (the
 // session's dynamically-widened grant set, so a ScopeSession allow is not re-asked); an
 // out-of-grant request then takes the per-session chain:
@@ -249,11 +288,8 @@ func (s *session) isHostTool(name string) bool {
 //
 //nolint:gocritic // Event is the contract's immutable copyable record (§2); the pump processes it by value and clones-on-modify before fan-out.
 func (s *session) handlePermissionRequest(raw Event) []Event {
-	published := s.emit(raw)
-	emitted := []Event{published}
-
 	if raw.Permission == nil {
-		return emitted
+		return []Event{s.emit(raw)}
 	}
 	request := PermissionRequest{
 		RequestID: raw.Permission.RequestID,
@@ -261,30 +297,65 @@ func (s *session) handlePermissionRequest(raw Event) []Event {
 		Reason:    raw.Permission.Reason,
 	}
 	scopes := scopesFor(raw.Permission)
+	arm := s.permissionArm(request.Tool, scopes)
 
-	// Grants check FIRST: a tool already in the session grant set (including a prior
-	// ScopeSession widening) is auto-allowed without a prompt or an advisor consult. A
-	// grant is already an authorized allowlist entry, so it is not re-clamped.
-	if s.toolGranted(request.Tool, scopes) {
-		s.decide(request.RequestID, request.Tool, scopes, Decision{Allow: true, By: "grant:session", Scope: ScopeOnce}, clampOff)
-		return emitted
+	// ORDER, load-bearing on the human arm: the published ask is the ONLY thing that tells a
+	// consumer to call Resolve, so the pending entry must exist BEFORE the ask is on the
+	// stream. Publishing first left a window in which a consumer that answers the instant it
+	// sees the ask got UnknownPermissionError — measured at 7 in 1000 conformance runs.
+	// The auto-resolving arms keep the old order: they answer with no consumer in the loop,
+	// and their forward is a blocking Send that must not delay the ask reaching viewers.
+	if arm == permissionArmHuman {
+		s.recordPending(request, scopes)
 	}
+	emitted := []Event{s.emit(raw)}
 
-	switch {
-	case s.spec.OnPermission != nil:
+	switch arm {
+	case permissionArmGranted:
+		s.decide(request.RequestID, request.Tool, scopes, Decision{Allow: true, By: "grant:session", Scope: ScopeOnce}, clampOff)
+	case permissionArmPolicy:
 		// The trusted clean-room synchronous policy (the engine's auto-resolver): forwarded
 		// without the risk clamp so the existing batch behavior is unchanged (no regression).
 		s.decide(request.RequestID, request.Tool, scopes, s.spec.OnPermission(request), clampOff)
-	case s.spec.PermissionResolution == ResolveAutonomousAdvisor:
+	case permissionArmAdvisor:
 		// Unattended: no human is present, so consult the advisor directly (or default-deny
 		// when none is injected). CLAMPED — the advisor can never cross the high-risk wall.
 		s.decide(request.RequestID, request.Tool, scopes, s.adviseOrDeny(request, scopes), clampOn)
-	default:
-		// ResolveChatHumanThenAdvisor: surface for the human Resolve and arm the timeout
-		// that falls back to the CLAMPED advisor, then default-deny.
-		s.recordPending(request, scopes)
+	case permissionArmHuman:
+		// Recorded above, before the ask was published; the armed timer falls back to the
+		// CLAMPED advisor, then default-deny.
 	}
 	return emitted
+}
+
+// permissionArm names the decider an out-of-grant request goes to. It exists so the arm is
+// chosen ONCE, before the ask is published, and acted on after — the human arm has to register
+// its pending entry first, and the selection may not be re-derived on the far side of the emit.
+type permissionArm uint8
+
+// The deciders, in the order the ratified chain consults them.
+const (
+	permissionArmGranted permissionArm = iota // already in the session grant set: auto-allow, unclamped
+	permissionArmPolicy                       // Spec.OnPermission: the trusted clean-room decider, unclamped
+	permissionArmAdvisor                      // ResolveAutonomousAdvisor: consult the advisor, CLAMPED
+	permissionArmHuman                        // ResolveChatHumanThenAdvisor: a human Resolve, timeout->advisor
+)
+
+// permissionArm resolves which decider answers this request. The grant check comes FIRST: a
+// tool already in the session grant set (including a prior ScopeSession widening) is
+// auto-allowed without a prompt or an advisor consult, and a grant is an authorized allowlist
+// entry, so it is not re-clamped.
+func (s *session) permissionArm(tool string, scopes []string) permissionArm {
+	switch {
+	case s.toolGranted(tool, scopes):
+		return permissionArmGranted
+	case s.spec.OnPermission != nil:
+		return permissionArmPolicy
+	case s.spec.PermissionResolution == ResolveAutonomousAdvisor:
+		return permissionArmAdvisor
+	default:
+		return permissionArmHuman
+	}
 }
 
 // captureRecent feeds the bounded advisor-snippet ring from streamed text/tool activity
@@ -470,8 +541,11 @@ func (s *session) stampTerminal(raw Event) Event {
 }
 
 // emitTerminalFailed publishes a synthetic Failed terminal (used for the
-// silent-bad-token trap and transport death). It also drives the state to Failed.
-func (s *session) emitTerminalFailed(reason ErrorReason, detail string) {
+// silent-bad-token trap and transport death) carrying the session's accounting: a session
+// that died having taken three turns still took them, so the fault terminal finalizes the
+// same total a requested Close would have and the classification alone reports the fault.
+// It also drives the state to Failed.
+func (s *session) emitTerminalFailed(reason ErrorReason, detail string, ledger *TokenLedger) {
 	from := s.priorState()
 	if from.IsTerminal() {
 		return
@@ -482,8 +556,103 @@ func (s *session) emitTerminalFailed(reason ErrorReason, detail string) {
 		Kind: EventFailed,
 		Terminal: &TerminalPayload{
 			Outcome: TurnFailed,
+			Ledger:  *ledger,
 			Reason:  reason,
 			Detail:  detail,
+		},
+	})
+}
+
+// turnLedgerSum accumulates a session's per-turn ledgers into the total its one terminal
+// finalizes on — whichever terminal that is, since a session that dies spent what it spent.
+// It is written and read only on the pump goroutine.
+//
+// INVARIANT: an EventTurnEnd ledger accounts for ITS OWN turn, never for the session to
+// date, so the session total is the plain SUM and UsageMeter.Cumulative is never read here.
+// The flag cannot discriminate: BOTH shipped normalizers stamp Cumulative:true on a turn
+// boundary whose numbers are per-turn — ompadapter runs a fresh process and a fresh
+// normalizer per turn (ompadapter/spawn.go), and a claude `result` totals the exchange it
+// closes rather than the process.
+//
+// The claude half of that reading is measured on ONE capture and it is partial:
+// claudeadapter/testdata/sample-stream.jsonl reconciles three of the four token columns
+// exactly as the exchange's per-message sums (input 3944 = 1983+2+1959, cache-read 56397,
+// cache-creation 5689) while OUTPUT does not (394 against 78) — the per-message ticks there
+// are partial snapshots, and no capture of a SECOND result line from one real claude process
+// exists in this repository. PR-2's live harness lane is where the cross-prompt shape gets
+// measured. An adapter whose harness does report session-to-date totals on a turn boundary
+// owes the pump the per-turn delta; summing that here would double-count it.
+type turnLedgerSum struct {
+	total       TokenLedger
+	costUnknown bool // a turn reported no cost, so the SESSION's cost is unknown for good
+}
+
+// newTurnLedgerSum returns the empty session total: no turn has reported a cost yet, and that
+// is the unreported sentinel rather than zero.
+func newTurnLedgerSum() turnLedgerSum {
+	return turnLedgerSum{total: TokenLedger{UsageMeter: UsageMeter{CostMicros: costUnreported}}}
+}
+
+// add folds one turn boundary's authoritative ledger into the session total. Model/Harness
+// attribution follows the latest turn.
+func (t *turnLedgerSum) add(turn *TokenLedger) {
+	if turn.Model != "" {
+		t.total.Model = turn.Model
+	}
+	if turn.Harness != "" {
+		t.total.Harness = turn.Harness
+	}
+	t.total.InputTokens += turn.InputTokens
+	t.total.OutputTokens += turn.OutputTokens
+	t.total.CacheReadTokens += turn.CacheReadTokens
+	t.total.CacheCreationTokens += turn.CacheCreationTokens
+	t.addCost(turn.CostMicros)
+	// A session total IS session-to-date, whatever the turns that built it were flagged.
+	t.total.Cumulative = true
+	t.total.Turns += turn.Turns
+	t.total.ToolUses += turn.ToolUses
+	t.total.WallTime += turn.WallTime
+	for name, count := range turn.ToolUsesByName {
+		if t.total.ToolUsesByName == nil {
+			t.total.ToolUsesByName = make(map[string]int32, len(turn.ToolUsesByName))
+		}
+		t.total.ToolUsesByName[name] += count
+	}
+}
+
+// addCost folds one turn's money into the session's. The unreported sentinel is not a small
+// number: once ANY turn's cost is unknown the session's cost is unknown, permanently, because
+// a partial sum offered as a total reads as complete — 200 micros plus an unknown amount is
+// not a 200-micro session. Every turn reports its tokens, so the token columns still sum.
+func (t *turnLedgerSum) addCost(cost int64) {
+	if cost < 0 {
+		t.costUnknown = true
+	}
+	if t.costUnknown {
+		t.total.CostMicros = costUnreported
+		return
+	}
+	if t.total.CostMicros < 0 {
+		t.total.CostMicros = 0
+	}
+	t.total.CostMicros += cost
+}
+
+// emitTerminalResult publishes the synthetic Result terminal a REQUESTED Close produces: the
+// session is healthy and parked between turns, so its one terminal finalizes the accounting
+// summed across its turns rather than reporting a fault. It also drives the state to Completed.
+func (s *session) emitTerminalResult(ledger *TokenLedger) {
+	from := s.priorState()
+	if from.IsTerminal() {
+		return
+	}
+	s.emit(s.stateEvent(from, StateCompleted))
+	s.setState(StateCompleted)
+	s.emit(Event{
+		Kind: EventResult,
+		Terminal: &TerminalPayload{
+			Outcome: TurnCompleted,
+			Ledger:  *ledger,
 		},
 	})
 }
@@ -497,6 +666,14 @@ func (s *session) priorState() State {
 	return s.state
 }
 
+// closeRequested reports whether Close was called under the lock — how the pump tells a
+// DELIBERATE shutdown from an unbidden harness death at the same event-channel close.
+func (s *session) closeRequested() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.closed
+}
+
 // setState advances the State under the lock.
 func (s *session) setState(next State) {
 	s.mu.Lock()
@@ -504,20 +681,9 @@ func (s *session) setState(next State) {
 	s.mu.Unlock()
 }
 
-// advanceTurnOnPrompt increments the turn ordinal when a new prompt begins a new turn:
-// the AwaitingInput->Running edge. The first turn (Ready->Running) stays at 0; a
-// mid-turn continuation (AwaitingPermission->Running) keeps the current turn. It is
-// called from the pump goroutine before the transition event is stamped.
-func (s *session) advanceTurnOnPrompt(prior, next State) {
-	if next != StateRunning || prior != StateAwaitingInput {
-		return
-	}
-	s.mu.Lock()
-	s.turn++
-	s.mu.Unlock()
-}
-
-// priorTurn reports the current turn ordinal under the lock.
+// priorTurn reports the current turn ordinal under the lock. The pump never advances it: the
+// ordinal is opened by the admitted Prompt itself (session.go admitControl), so no harness
+// event shape can lose a turn or count one twice.
 func (s *session) priorTurn() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()

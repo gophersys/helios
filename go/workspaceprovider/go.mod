@@ -70,7 +70,7 @@ require (
 	golang.org/x/oauth2 v0.27.0 // indirect
 	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/term v0.43.0 // indirect
-	golang.org/x/text v0.37.0 // indirect
+	golang.org/x/text v0.39.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/evanphx/json-patch.v4 v4.12.0 // indirect
@@ -90,6 +90,7 @@ require github.com/docker/docker v28.5.2+incompatible // the docker adapter SDK
 
 replace (
 	github.com/gophersys/libs/go/dependencies v0.0.0 => ../dependencies
+	github.com/gophersys/libs/go/envelope v0.0.0 => ../envelope
 	github.com/gophersys/libs/go/errors v0.0.0 => ../errors
 	github.com/gophersys/libs/go/secrets v0.0.0 => ../secrets
 	github.com/gophersys/libs/go/testing v0.0.0 => ../testing

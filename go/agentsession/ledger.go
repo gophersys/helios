@@ -19,10 +19,16 @@ type LedgerFold struct {
 	unknownFrames int64
 }
 
-// NewLedgerFold returns a fresh fold with a zeroed ledger and a -1 cost sentinel
-// (so "no harness reported cost" is distinguishable from "zero cost").
+// costUnreported is the CostMicros value meaning "no harness reported what this cost" (10 §9:
+// the sentinel has one home). It is deliberately distinguishable from a reported zero — a
+// session that cost nothing and a session whose cost nobody stated are different facts, and a
+// biller acts differently on each.
+const costUnreported int64 = -1
+
+// NewLedgerFold returns a fresh fold with a zeroed ledger and the unreported-cost
+// sentinel (so "no harness reported cost" is distinguishable from "zero cost").
 func NewLedgerFold() *LedgerFold {
-	return &LedgerFold{ledger: TokenLedger{UsageMeter: UsageMeter{CostMicros: -1}}}
+	return &LedgerFold{ledger: TokenLedger{UsageMeter: UsageMeter{CostMicros: costUnreported}}}
 }
 
 // Fold incorporates one Event. EventUsage advances the four-token meter and cost

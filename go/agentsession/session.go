@@ -2,9 +2,11 @@ package agentsession
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
+	"github.com/gophersys/libs/go/agentsession/internal/controlframe"
 	"github.com/gophersys/libs/go/errors"
 )
 
@@ -25,6 +27,17 @@ type session struct {
 	manifest    CapabilityManifest
 	advisor     PermissionAdvisor // the ratified-model reasoning port (nil == degrade to OnPermission/default-deny)
 	broadcaster *broadcaster
+
+	// peerLink is the session's attachment to the injected peer plane (nil == no plane). The
+	// pump calls Received after emitting an inbound EventPeerMessage; the deliver goroutine
+	// drains its Inbound. peerSeen/peerRing are the bounded 256-id dedupe ring (guarded by mu).
+	peerLink       PeerLink
+	deliverStop    chan struct{}    // closed by Close to stop the deliver goroutine (only when peerLink != nil)
+	deliverDone    chan struct{}    // closed by the deliver goroutine when it exits
+	recoveredSends chan PeerMessage // full-mesh recovered sends handed OFF the pump to deliverLoop (the pump must never block on the plane)
+	peerSeen       map[string]struct{}
+	peerRing       []string
+	peerRingNext   int
 
 	mu            sync.Mutex // guards state, seq, turn, pending permissions, the session grant set, closed
 	state         State
@@ -61,22 +74,26 @@ var _ Session = (*session)(nil)
 // NOT trusted as success. On that failure it reaps the conn and zeroizes the secret.
 //
 //nolint:gocritic // contract §2: Spec is the frozen, copyable session input (the configuration pattern); the port takes it by value.
-func newSession(ctx context.Context, spec Spec, route Route, conn HarnessConn, cred InjectedCredential, dependencies Deps) (*session, error) {
+func newSession(ctx context.Context, spec Spec, route Route, conn HarnessConn, cred InjectedCredential, dependencies Deps, link PeerLink) (*session, error) {
 	s := &session{
-		id:            sessionID(spec, route),
-		spec:          spec,
-		route:         route,
-		conn:          conn,
-		credential:    cred,
-		transcript:    dependencies.Transcript,
-		clock:         dependencies.Clock,
-		manifest:      adapterManifest(dependencies, route.Harness),
-		advisor:       dependencies.Advisor,
-		broadcaster:   newBroadcaster(),
-		state:         StateInitializing,
-		pending:       make(map[string]*pendingPermission),
-		sessionGrants: cloneGrants(spec.Grants),
-		pumpDone:      make(chan struct{}),
+		id:          sessionID(spec, route),
+		spec:        spec,
+		route:       route,
+		conn:        conn,
+		credential:  cred,
+		transcript:  dependencies.Transcript,
+		clock:       dependencies.Clock,
+		manifest:    adapterManifest(dependencies, route.Harness),
+		advisor:     dependencies.Advisor,
+		broadcaster: newBroadcaster(),
+		peerLink:    link,
+		// Allocated up front (before the pump starts) so a recovered EventPeerSent can be enqueued
+		// without a nil-channel race; drained only when a plane is wired (deliverLoop).
+		recoveredSends: make(chan PeerMessage, peerRecoveredSendBuffer),
+		state:          StateInitializing,
+		pending:        make(map[string]*pendingPermission),
+		sessionGrants:  cloneGrants(spec.Grants),
+		pumpDone:       make(chan struct{}),
 	}
 
 	ready := make(chan error, 1)
@@ -88,6 +105,13 @@ func newSession(ctx context.Context, spec Spec, route Route, conn HarnessConn, c
 			_ = s.conn.Close(context.Background()) //nolint:errcheck // best-effort reap on a failed handshake; the AuthError is the actionable outcome.
 			s.credential.zeroize()
 			return nil, err
+		}
+		// The handshake confirmed: start the DEDICATED deliver goroutine that drains the
+		// plane-routed inbound queue (C2 — never the pump goroutine). It is reaped on Close.
+		if s.peerLink != nil {
+			s.deliverStop = make(chan struct{})
+			s.deliverDone = make(chan struct{})
+			go s.deliverLoop()
 		}
 		return s, nil
 	case <-ctx.Done():
@@ -110,12 +134,20 @@ func (s *session) Events(_ context.Context, from Cursor) Stream {
 // phase), the Capability (UnsupportedError if the adapter declares it absent), then
 // forwards the normalized frame to the harness, returning the Seq it was admitted at.
 func (s *session) Control(ctx context.Context, command Command) (Ack, error) {
-	if err := s.guardControl(command); err != nil {
+	// A follow-up Prompt opens a new turn, and admitControl advances the ordinal in the same
+	// critical section that admits it — necessarily BEFORE the send, because an adapter whose
+	// Send streams the whole turn synchronously (omp's one-shot exec per turn) has already
+	// published that turn's events by the time Send returns.
+	openedTurn, err := s.admitControl(command)
+	if err != nil {
 		return Ack{}, err
 	}
 	s.sendMu.Lock()
 	defer s.sendMu.Unlock()
 	if err := s.conn.Send(ctx, command); err != nil {
+		if openedTurn {
+			s.rollBackTurn() // the prompt never reached the harness; no turn was opened
+		}
 		return Ack{}, errors.Wrap(errors.KindUnavailable, "agentsession: send control", err)
 	}
 	return Ack{Seq: s.currentSeq()}, nil
@@ -177,6 +209,13 @@ func (s *session) Close(ctx context.Context) error {
 	case <-s.pumpDone:
 	case <-ctx.Done():
 	}
+	// Reap the deliver goroutine and leave the tree: stop the drainer, wait for it, then close
+	// the link so the name drops from every roster (the goleak guarantee includes this goroutine).
+	if s.peerLink != nil {
+		close(s.deliverStop)
+		<-s.deliverDone
+		_ = s.peerLink.Close(ctx) //nolint:errcheck // best-effort leave; the reap is the actionable outcome.
+	}
 	s.broadcaster.close()
 	s.credential.zeroize()
 	if err != nil {
@@ -189,8 +228,41 @@ func (s *session) Close(ctx context.Context) error {
 // declared Capability before it reaches the transport.
 func (s *session) guardControl(command Command) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.checkControl(command)
+}
+
+// admitControl is the control path's admission: it validates the command exactly as
+// guardControl does and, in the SAME critical section, opens the turn a follow-up Prompt asks
+// for — reporting whether it did, so a send that never reaches the harness can give the
+// ordinal back.
+//
+// The advance is derived from the ADMITTED PROMPT, not from the lifecycle edge that follows
+// it. A turn opens with an assistant message, with a permission ask, or with nothing but its
+// own boundary event, and enumerating those shapes lost a turn twice — a permission-first turn
+// and a boundary-only turn each filed under their predecessor's ordinal. The prompt is the one
+// event every shape shares. Deriving it here also makes two properties structural rather than
+// argued: a refused command cannot advance anything (the checks run first, under this lock),
+// and no harness event can advance it at all, so a mid-turn permission round-trip or a claude
+// turn's several assistant messages cannot count a turn twice.
+func (s *session) admitControl(command Command) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.checkControl(command); err != nil {
+		return false, err
+	}
+	// The FIRST turn keeps ordinal 0 — its Prompt is admitted in StateReady. StateAwaitingInput
+	// is where a FOLLOW-UP prompt is admitted, and each one opens the next turn.
+	if command.Kind != CommandPrompt || s.state != StateAwaitingInput {
+		return false, nil
+	}
+	s.turn++
+	return true, nil
+}
+
+// checkControl is the legality body both admission paths share: the caller holds s.mu.
+func (s *session) checkControl(command Command) error {
 	state := s.state
-	s.mu.Unlock()
 
 	// An unknown CommandKind is an INVALID request (not a state conflict), rejected before any
 	// state/capability reasoning.
@@ -202,6 +274,24 @@ func (s *session) guardControl(command Command) error {
 			StateError{From: state, Op: "Control"})
 	}
 
+	// A Prompt/Steer carries the caller's text verbatim to the harness, where the adapter's Send
+	// content-sniffs it for the library's OWN internal control frames — a tunneled permission
+	// answer (eden:permission:) or an inbound peer delivery (eden:peer:). Caller text that BEGINS
+	// with one of those prefixes would be decoded as a trusted, library-minted frame and rendered
+	// to the model as a forged permission verdict or a verified peer message, synthesizing the
+	// whole trusted envelope from caller text and bypassing the plane's ingress wall. The library's
+	// own frames never reach this path (deliverToHarness and forwardDecision call conn.Send
+	// directly, not Control), so Control is the caller's ONLY channel into Send — a Prompt/Steer
+	// opening with an internal prefix can only be a forged frame, refused here at the one ingress
+	// every caller command shares. The prefix set is the grammar's, cited from its one home.
+	if command.Kind == CommandPrompt || command.Kind == CommandSteer {
+		if strings.HasPrefix(command.Text, controlframe.PeerPrefix) ||
+			strings.HasPrefix(command.Text, controlframe.PermissionPrefix) {
+			return errors.New(errors.KindInvalid,
+				"agentsession: control text may not begin with an internal control-frame prefix")
+		}
+	}
+
 	// CapSteer absence is a CAPABILITY fault (KindInvalid), checked BEFORE the state membership so an
 	// adapter that cannot steer reports UnsupportedError regardless of phase (the capability-honesty
 	// contract). It is the one legality input LegalControls deliberately does not encode.
@@ -211,7 +301,7 @@ func (s *session) guardControl(command Command) error {
 	}
 
 	// The (state × command) legality is sourced from the ONE canonical home (LegalControls via
-	// CanControl) — guardControl is its enforcer, the gateway projects the same set so the UI never
+	// CanControl) — this body is its enforcer, the gateway projects the same set so the UI never
 	// offers an illegal control, and a drift fails in exactly one place. An illegal command in the
 	// current state is a typed StateError (KindConflict).
 	if !CanControl(state, command.Kind) {
@@ -363,6 +453,18 @@ func (s *session) recordRecentDelta(delta string) {
 	s.mu.Unlock()
 }
 
+// rollBackTurn gives back the ordinal a Prompt opened when the send that would have started
+// that turn never reached the harness: no turn happened, so no event may carry its number.
+//
+// DEBT (round 3, sibling of the ordering note in pump.go handle): an event emitted between the
+// admission and a FAILING Send is stamped with the ordinal this then gives back. It takes
+// harness output concurrent with a failing Send to bite.
+func (s *session) rollBackTurn() {
+	s.mu.Lock()
+	s.turn--
+	s.mu.Unlock()
+}
+
 // currentSeq reports the last assigned Seq under the lock.
 func (s *session) currentSeq() uint64 {
 	s.mu.Lock()
@@ -372,6 +474,8 @@ func (s *session) currentSeq() uint64 {
 
 // adapterManifest fetches the manifest for the resolved harness (empty manifest when
 // the adapter is somehow absent — guarded earlier at route resolution).
+//
+//nolint:gocritic // hugeParam: Deps mirrors the constructor spine's by-value hexagon (rule 10 §9); the manifest lookup reads one field.
 func adapterManifest(dependencies Deps, harness string) CapabilityManifest {
 	if adapter, ok := dependencies.Adapters[harness]; ok && adapter != nil {
 		return adapter.Manifest()

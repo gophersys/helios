@@ -22,6 +22,8 @@ var _ Factory = (*Pool)(nil)
 // spawn. It validates Config + Deps and returns the concrete *Pool. The first process
 // spawn happens only at Pool.Open. It returns a wrapped ConfigError (errors.AsType) on
 // a missing dependency.
+//
+//nolint:gocritic // hugeParam: Deps is the injected hexagon taken BY VALUE per the constructor spine (rule 10 §9); a pointer would break the spine.
 func New(configuration Config, dependencies Deps) (*Pool, error) {
 	if len(dependencies.Adapters) == 0 {
 		return nil, errors.Wrap(errors.KindInvalid, "agentsession: New",
@@ -56,6 +58,13 @@ func New(configuration Config, dependencies Deps) (*Pool, error) {
 //
 //nolint:gocritic,ireturn // contract §2: Spec is the frozen copyable session input (configuration pattern) and Open returns the Session port — both the frozen surface.
 func (p *Pool) Open(ctx context.Context, spec Spec) (Session, error) {
+	// The peer contract is validated FIRST, before any I/O: a session that believes it is
+	// reachable and is not, or a name that would mangle an argv/socket filename, is a
+	// ConfigError at Open — never a silent non-membership.
+	if err := validatePeerSpec(spec, p.dependencies.Peer != nil); err != nil {
+		return nil, err
+	}
+
 	route, adapter, err := p.resolveRoute(spec.Routing)
 	if err != nil {
 		return nil, err
@@ -69,6 +78,13 @@ func (p *Pool) Open(ctx context.Context, spec Spec) (Session, error) {
 	// it at Spawn via Secret.Use); it is zeroized on session Close. We must NOT zeroize
 	// here on the happy path.
 
+	// The peer host tools are the LIBRARY's, injected here because an Adapter cannot reach
+	// the plane. They must be in the Spec the adapter is SPAWNED with, and Spawn necessarily
+	// precedes joinPeer below — so the toolset is handed its link afterwards, and until then
+	// every handler answers KindUnavailable.
+	peerTools := newPeerToolset(spec.Name, p.dependencies.Peer, nil)
+	spec.HostTools = p.injectPeerHostTools(spec.HostTools, peerTools, adapter)
+
 	conn, err := adapter.Spawn(ctx, spec, route, cred)
 	if err != nil {
 		cred.zeroize()
@@ -81,12 +97,43 @@ func (p *Pool) Open(ctx context.Context, spec Spec) (Session, error) {
 			SpawnError{Harness: route.Harness})
 	}
 
-	session, err := newSession(ctx, spec, route, conn, cred, p.dependencies)
+	// Register on the injected peer plane (nil,nil when there is no plane): the session's link
+	// is the wire the pump corroborates delivery over and the deliver goroutine drains.
+	link, err := p.joinPeer(ctx, spec)
 	if err != nil {
-		// newSession reaps the conn and zeroizes the credential on a failed handshake.
+		cred.zeroize()
+		_ = conn.Close(ctx) //nolint:errcheck // best-effort reap; the join error is the actionable outcome.
+		return nil, err
+	}
+	peerTools.bind(link)
+
+	session, err := newSession(ctx, spec, route, conn, cred, p.dependencies, link)
+	if err != nil {
+		// newSession reaps the conn and zeroizes the credential on a failed handshake; leave
+		// the plane too so the name does not linger in the roster.
+		if link != nil {
+			_ = link.Close(context.Background()) //nolint:errcheck // best-effort leave on a failed handshake.
+		}
 		return nil, err
 	}
 	return session, nil
+}
+
+// injectPeerHostTools returns the host-tool set the adapter is spawned with. The gate is the
+// adapter's OWN declared CapPeerMessaging status, never a hard-coded harness name: a harness
+// whose model drives Eden's host tools gets them, and one whose peer messaging is only partial
+// (claude, whose model uses its NATIVE send) gets NEITHER — offering a model a tool its harness
+// cannot honor is the "declared but unproven" lie the manifest exists to prevent, and widening
+// that harness's allowlist to make it work is not the adapter's authority.
+func (p *Pool) injectPeerHostTools(callerTools []HostTool, peerTools *peerToolset, adapter Adapter) []HostTool {
+	if adapter.Manifest().Status(CapPeerMessaging) != CapFull {
+		return callerTools
+	}
+	injected := peerTools.hostTools()
+	if len(injected) == 0 {
+		return callerTools
+	}
+	return withPeerHostTools(callerTools, injected)
 }
 
 // resolveRoute looks up the (harness, model) Route for a RouteKey and the Adapter

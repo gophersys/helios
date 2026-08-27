@@ -1,0 +1,20 @@
+# peer-send-receipt.jsonl — VERBATIM lines 24-25 of the committed capture
+#   claude-peer-send.stream.jsonl
+# (design-artifacts of session f9c810a8-a311-4651-a2e2-c1247d34143e, claude 2.1.234,
+#  2026-08-18). The SENDER side of the same probe run.
+#
+# Line 1: the assistant line carrying the SendMessage tool_use
+#         id    = toolu_016nE4bVR49k4zJ5ydpeftxg
+#         input = {"to":"p1-unnamed-f7","message":"PROBE-P2-NARROW",...}
+# Line 2: the user line carrying ITS tool_result, correlated by tool_use_id.
+#         The receipt is JSON, and it appears TWICE on this line: once as the
+#         content text block and once as the top-level tool_use_result object:
+#           {"success":true,"message":"... -> p1-unnamed-f7 ...",
+#            "msg_id":"43ee0075-2af2-49d2-a9b8-fbd7d7964d89"}
+#
+# The correlation the binding must make is tool_use_id -> the SAME id in both lines,
+# so the To comes from the tool_use INPUT and the MsgID from the tool_result. Neither
+# half alone is enough: the result carries no `to`, and the use carries no `msg_id`.
+# Lines beginning with "#" are this header; the loader skips them.
+{"type":"assistant","message":{"model":"claude-haiku-4-5-20251001","id":"msg_011CeAjAtM1CUPrB3sYojv3m","type":"message","role":"assistant","content":[{"type":"tool_use","id":"toolu_016nE4bVR49k4zJ5ydpeftxg","name":"SendMessage","input":{"to":"p1-unnamed-f7","message":"PROBE-P2-NARROW","type":"message","recipient":"p1-unnamed-f7","content":"PROBE-P2-NARROW"},"caller":{"type":"direct"}}],"stop_reason":null,"stop_sequence":null,"stop_details":null,"usage":{"input_tokens":10,"cache_creation_input_tokens":2782,"cache_read_input_tokens":31374,"cache_creation":{"ephemeral_5m_input_tokens":0,"ephemeral_1h_input_tokens":2782},"output_tokens":1,"service_tier":"standard","inference_geo":"not_available"},"diagnostics":null,"context_management":null},"parent_tool_use_id":null,"session_id":"01d1017d-6102-4138-a016-e1bf2ee3758d","uuid":"088c0b09-56bd-452b-ba1b-18cd5c4d659b","timestamp":"2026-08-18T18:59:21.568Z","request_id":"req_011CeAjAsd6TrYcdQH9rft92"}
+{"type":"user","message":{"role":"user","content":[{"tool_use_id":"toolu_016nE4bVR49k4zJ5ydpeftxg","type":"tool_result","content":[{"type":"text","text":"{\"success\":true,\"message\":\"“PROBE-P2-NARROW” → p1-unnamed-f7 (another Claude session on this machine)\",\"msg_id\":\"43ee0075-2af2-49d2-a9b8-fbd7d7964d89\"}"}]}]},"parent_tool_use_id":null,"session_id":"01d1017d-6102-4138-a016-e1bf2ee3758d","uuid":"67be7d54-4afc-4154-930e-f97cb6dd3ca5","timestamp":"2026-08-18T18:59:21.727Z","tool_use_result":{"success":true,"message":"“PROBE-P2-NARROW” → p1-unnamed-f7 (another Claude session on this machine)","display":"“PROBE-P2-NARROW” → sent to p1-unnamed-f7 — another Claude session on this machine","msg_id":"43ee0075-2af2-49d2-a9b8-fbd7d7964d89"}}

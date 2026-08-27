@@ -5,9 +5,9 @@
 # Usage: ./ctl.sh <command> [args...]
 #
 # This is the TOP-LEVEL ctl.sh for the gophersys/libs repository. It exposes
-# repo-wide meta-verbs. Each individual library inside typescript/, python/,
-# rust/, zephyr/, protocols/ has its own project.json + ctl.sh following the
-# development-nx-run-command skill pattern.
+# repo-wide meta-verbs. Each individual library inside go/ and typescript/ has
+# its own project.json + ctl.sh following the development-nx-run-command skill
+# pattern.
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -62,7 +62,13 @@ function on_exit() {
 trap on_exit EXIT
 
 # -------- language subtrees --------
-LANG_SUBTREES=(go typescript python rust zephyr protocols)
+# The subtrees that EXIST, not the ones once imagined. python/, rust/, zephyr/ and
+# protocols/ were listed here for 14 months holding one .gitkeep each: `status` printed
+# four zero rows that read as "empty for now" rather than "never started", and the
+# 00-identity rule described a five-language repository that was really two. A declared
+# subtree is now a directory with libraries in it; adding a language means creating the
+# subtree AND adding it here, in the same change.
+LANG_SUBTREES=(go typescript)
 
 # -------- helpers --------
 function count_libs_in() {
@@ -70,13 +76,22 @@ function count_libs_in() {
   # both project.json and ctl.sh. The subtree root itself does not count.
   local subtree="$1"
   local base="$PROJECT_ROOT/$subtree"
+  # A declared subtree that is not on disk is a rename, a move or a bad edit to
+  # LANG_SUBTREES — never a subtree that happens to hold nothing. Reporting 0 for it made
+  # those indistinguishable from "empty", which is how four directories holding a single
+  # .gitkeep each stayed on the inventory. Now that the list names only real subtrees, an
+  # absent one names itself instead of printing a zero row. (cmd_status reads this through
+  # its own assignment line, so errexit carries the failure out of the verb.)
   if [[ ! -d "$base" ]]; then
-    printf '0'
-    return 0
+    log_error "declared subtree '$subtree' is not a directory under $PROJECT_ROOT; LANG_SUBTREES names the subtrees that exist, so a missing one is a failure, not an empty count"
+    return 1
   fi
   local count=0
   local dirs=()
-  mapfile -t dirs < <(find "$base" -mindepth 1 -maxdepth 4 -type f -name project.json -printf '%h\n' | sort -u)
+  # BSD find (the macOS dev host) lacks the GNU print-format primary, so the version
+  # that used it errored and this process substitution silently yielded zero libraries.
+  # Strip the trailing /project.json with sed to get the dir — portable on BSD and GNU.
+  mapfile -t dirs < <(find "$base" -mindepth 1 -maxdepth 4 -type f -name project.json | sed 's#/[^/]*$##' | sort -u)
   for dir in "${dirs[@]}"; do
     if [[ -f "$dir/ctl.sh" ]]; then
       count=$((count + 1))
@@ -102,6 +117,32 @@ function find_all_project_jsons() {
   find "$PROJECT_ROOT" -type f -name project.json -not -path '*/node_modules/*' -not -path '*/.venv/*' -not -path '*/target/*' -not -path '*/.git/*' | sort
 }
 
+function _floor_of_one() {
+  # A floor of 1 on a file list: 0 files found is indistinguishable from 0 files checked, so a
+  # rename, a move, or a broken find predicate would delete a whole class of checks and still
+  # report a green validate. EVERY list this verb walks carries its own floor — a full list
+  # cannot vouch for an empty one, and merging two lists lets the full one mask the empty one.
+  local count="$1" why="$2"
+  [[ "$count" -gt 0 ]] && return 0
+  log_error "$why"
+  return 1
+}
+
+function _usage_verbs() {
+  # The verbs a dispatcher documents, one per line, taken from the program itself:
+  # `<ctl> help`, first token of every line indented exactly two spaces. Reading the
+  # source text instead was blind to three shapes in this repo — the POSIX `usage() {`,
+  # the quoted `cat <<'EOF'`, and a usage that arrives from a sourced file — and each
+  # blind spot yielded an EMPTY list, which made the usage-to-targets half of the drift
+  # check vacuously green. .ci/ctl.sh:200 (cmd_list_verbs, invoked as `__verbs`) already
+  # sets the rule: ask the dispatcher, do not parse it.
+  #
+  # A failing help exits non-zero here, and the caller counts it. stderr is left alone so
+  # a dispatcher's own diagnostic reaches the reader.
+  local ctl="$1"
+  timeout 10 bash "$ctl" help | awk '/^  [a-z][a-z0-9-]*([[:space:]]|$)/ { print $1 }' | sort -u
+}
+
 # -------- commands --------
 function cmd_status() {
   log_info "gophersys/libs — inventory"
@@ -119,13 +160,30 @@ function cmd_status() {
 }
 
 function cmd_validate() {
-  require_cmd shellcheck jq
+  require_cmd shellcheck jq timeout
   local failures=0
 
-  log_info "validating all ctl.sh scripts via shellcheck"
-  local ctl_scripts
-  mapfile -t ctl_scripts < <(find_all_ctl_scripts)
-  for script in "${ctl_scripts[@]}"; do
+  # The three lists this verb walks, gathered together so the three floors sit together.
+  local ctl_scripts test_scripts project_jsons
+  mapfile -t ctl_scripts    < <(find_all_ctl_scripts)
+  mapfile -t test_scripts   < <(find_all_test_scripts)
+  mapfile -t project_jsons  < <(find_all_project_jsons)
+  _floor_of_one "${#ctl_scripts[@]}" \
+    "no ctl.sh or <lang>/_ctl/*.sh found under $PROJECT_ROOT; the dispatchers are what this verb exists to check, so finding none is a failure, not a pass" ||
+    failures=$((failures + 1))
+  _floor_of_one "${#test_scripts[@]}" \
+    "no *_test.sh found under $PROJECT_ROOT; the shell suites are the only mechanical proof of the ctl.sh verbs, so finding none is a failure, not a pass" ||
+    failures=$((failures + 1))
+  _floor_of_one "${#project_jsons[@]}" \
+    "no project.json found under $PROJECT_ROOT; the drift check has nothing to compare against, so finding none is a failure, not a pass" ||
+    failures=$((failures + 1))
+
+  # The *_test.sh suites are shellchecked alongside the dispatchers they prove: a suite
+  # was the one shell file no gate read, so it could carry a real finding, exit 0, and be
+  # reported ok.
+  log_info "validating all ctl.sh and *_test.sh scripts via shellcheck"
+  for script in "${ctl_scripts[@]:-}" "${test_scripts[@]:-}"; do
+    [[ -z "$script" ]] && continue
     if shellcheck "$script"; then
       log_info "  ok: ${script#"$PROJECT_ROOT"/}"
     else
@@ -134,10 +192,25 @@ function cmd_validate() {
     fi
   done
 
+  # Portability floor: the macOS dev host runs BSD find, which lacks the GNU
+  # print-format primary. A find that uses it errors, and a discovery loop reading its
+  # process substitution then SILENTLY reports zero — the FAIL-NOT-SKIP class that made
+  # count_libs_in report 0 libraries on macOS. Reject the primary in every shell script.
+  # The pattern brackets the leading dash so it matches the find flag, never the printf
+  # builtin, and stays BSD-grep safe.
+  log_info "validating no GNU-only find print-format primary (BSD/macOS portability)"
+  for script in "${ctl_scripts[@]:-}" "${test_scripts[@]:-}"; do
+    [[ -z "$script" ]] && continue
+    if grep -nE '[-]printf' "$script" >/dev/null 2>&1; then
+      log_error "  GNU-only find print-format primary (fails on BSD, silently yields empty): ${script#"$PROJECT_ROOT"/}"
+      grep -nE '[-]printf' "$script" | sed 's/^/      /'
+      failures=$((failures + 1))
+    fi
+  done
+
   log_info "validating all project.json files parse as JSON"
-  local project_jsons
-  mapfile -t project_jsons < <(find_all_project_jsons)
-  for pj in "${project_jsons[@]}"; do
+  for pj in "${project_jsons[@]:-}"; do
+    [[ -z "$pj" ]] && continue
     if jq empty "$pj" >/dev/null 2>&1; then
       log_info "  ok: ${pj#"$PROJECT_ROOT"/}"
     else
@@ -147,7 +220,8 @@ function cmd_validate() {
   done
 
   log_info "checking target/usage drift (project.json targets must match ctl.sh usage)"
-  for pj in "${project_jsons[@]}"; do
+  for pj in "${project_jsons[@]:-}"; do
+    [[ -z "$pj" ]] && continue
     local dir
     dir="$(dirname "$pj")"
     local ctl="$dir/ctl.sh"
@@ -157,21 +231,39 @@ function cmd_validate() {
       continue
     fi
 
-    # Extract target names from project.json.
-    local targets
-    targets="$(jq -r '.targets // {} | keys[]' "$pj" 2>/dev/null | sort -u || true)"
+    # Extract target names from project.json. A .targets that jq cannot take the keys of —
+    # an array, a string — must name itself: swallowing the error left the target list empty,
+    # and the loop below then blamed every documented verb for a fault in the JSON.
+    local targets jq_rc=0
+    targets="$(jq -r '.targets // {} | keys[]' "$pj" | sort -u)" || jq_rc=$?
+    if [[ "$jq_rc" -ne 0 ]]; then
+      log_error "  ${pj#"$PROJECT_ROOT"/}: jq could not read .targets (exit $jq_rc), so its targets cannot be checked"
+      failures=$((failures + 1))
+      continue
+    fi
 
-    # Extract command names from ctl.sh usage block: lines between `cat <<EOF`
-    # and `EOF` inside the usage() function. Take the first token per line
-    # that starts with two spaces and a word character.
-    local usage_cmds
-    usage_cmds="$(awk '
-      /^function usage\(\) \{/ { in_usage = 1; next }
-      in_usage && /^\}/        { in_usage = 0 }
-      in_usage && /cat <<EOF/  { in_heredoc = 1; next }
-      in_usage && in_heredoc && /^EOF$/ { in_heredoc = 0 }
-      in_usage && in_heredoc && /^  [A-Za-z]/ { print $1 }
-    ' "$ctl" | sort -u || true)"
+    # Ask the dispatcher for its verbs. A help that fails, or that documents nothing,
+    # is its own counted failure naming the script: an empty verb list would make the
+    # usage-to-targets half of the loop below vacuous, and report a clean sheet.
+    local usage_cmds help_rc=0
+    usage_cmds="$(_usage_verbs "$ctl")" || help_rc=$?
+    if [[ "$help_rc" -ne 0 ]]; then
+      log_error "  ${ctl#"$PROJECT_ROOT"/}: 'help' exited $help_rc, so the verbs it printed cannot be trusted"
+      # Sourcing a dispatcher resolves the repository root with `git rev-parse` under errexit
+      # (go/_ctl/lib.sh, templates/_ctl/template.sh, .ci/ctl.sh), so a tree whose .git is
+      # absent or unresolvable — a `git archive`, a release tarball, a docker context that
+      # excludes it — fails every dispatcher here with git's own 128 and no mention of git.
+      if [[ "$help_rc" -eq 128 ]]; then
+        log_error "    128 is git's exit: the dispatcher could not resolve its git root — is .git present and readable in $PROJECT_ROOT?"
+      fi
+      failures=$((failures + 1))
+      continue
+    fi
+    if [[ -z "$usage_cmds" ]]; then
+      log_error "  ${ctl#"$PROJECT_ROOT"/}: 'help' documented no verbs, so its targets cannot be checked"
+      failures=$((failures + 1))
+      continue
+    fi
 
     # Drift detection: every target must appear in usage, and every usage
     # entry (except the conventional "help") must appear as a target.
@@ -198,15 +290,6 @@ function cmd_validate() {
     fi
   done
 
-  # A floor of 1, because 0 suites found is indistinguishable from 0 suites run: a
-  # rename, a move, or a broken find predicate would delete the only mechanical proof
-  # of the ctl verbs and still report a green validate.
-  local test_scripts
-  mapfile -t test_scripts < <(find_all_test_scripts)
-  if [[ ${#test_scripts[@]} -eq 0 ]]; then
-    log_error "no *_test.sh found under $PROJECT_ROOT; the shell suites are the only mechanical proof of the ctl.sh verbs, so finding none is a failure, not a pass"
-    failures=$((failures + 1))
-  fi
   log_info "running ${#test_scripts[@]} shell test suite(s) (*_test.sh)"
   for script in "${test_scripts[@]:-}"; do
     [[ -z "$script" ]] && continue
@@ -217,6 +300,33 @@ function cmd_validate() {
       failures=$((failures + 1))
     fi
   done
+
+  # Agent process state (.dev/<slug>.md) is working scratch for the /dev process: merge-authority
+  # chains, operational notes, CI diagnostics. This repository is published standalone as
+  # github.com/gophersys/libs and consumed as a submodule by every project monorepo, so anything
+  # tracked here travels to all of them. The /dev process deletes that file before merge, but a
+  # process step is not a gate: nothing fails when it is forgotten, which is the check-that-cannot-
+  # fail this organization keeps shipping. This makes the guarantee mechanical instead.
+  if ! git -C "$PROJECT_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    # NOT a silent skip: ctl_test.sh drives this verb against synthetic fixture trees that are
+    # deliberately not git repositories, so "is it tracked" has no meaning there. That is a
+    # property of the environment, stated out loud, which is what FAIL-NOT-SKIP requires — and
+    # the real repository is always a work tree, so the gate still holds everywhere it matters.
+    log_info "  n/a: $PROJECT_ROOT is not a git work tree (synthetic fixture); the tracked-.dev/ check does not apply here"
+  else
+    local dev_tracked
+    dev_tracked="$(git -C "$PROJECT_ROOT" ls-files -- '.dev' '.dev/*')"
+    if [[ -n "$dev_tracked" ]]; then
+      log_error "agent process state is tracked in this repository; .dev/ must never be committed:"
+      while IFS= read -r tracked; do
+        [[ -z "$tracked" ]] && continue
+        log_error "    $tracked"
+      done <<<"$dev_tracked"
+      failures=$((failures + 1))
+    else
+      log_info "  ok: no .dev/ agent process state is tracked"
+    fi
+  fi
 
   if [[ "$failures" -gt 0 ]]; then
     log_error "validate: $failures issue(s)"
@@ -252,9 +362,10 @@ Usage: ./ctl.sh <command> [args...]
 
 Commands:
   status       Inventory: count libraries per language subtree
-  validate     Run shellcheck on every ctl.sh and every <lang>/_ctl/*.sh,
-               validate every project.json, report drift between targets and
-               usage blocks, and run every *_test.sh shell suite
+  validate     Run shellcheck on every ctl.sh, every <lang>/_ctl/*.sh and every
+               *_test.sh, validate every project.json, report drift between
+               targets and the verbs each dispatcher's own help prints, and run
+               every *_test.sh shell suite
   propagate    Fan out this repo's current commit to every consuming project
                monorepo (must be invoked from within brain/shared/libs/)
   help         Show this message

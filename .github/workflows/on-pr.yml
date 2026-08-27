@@ -17,7 +17,7 @@ permissions:
 jobs:
   # The fast lane: the pr-tier verbs over the affected projects. No real substrate.
   pr:
-    name: pr tier (ci-drift, affected-gate-fast)
+    name: pr tier (ci-drift, validate, affected-gate-fast)
     runs-on: arc-org
     timeout-minutes: 15
     steps:
@@ -30,6 +30,10 @@ jobs:
         env:
           NX_BASE: "origin/${{ github.base_ref }}"
         run: bash .ci/ctl.sh ci-drift
+      - name: bash .ci/ctl.sh validate
+        env:
+          NX_BASE: "origin/${{ github.base_ref }}"
+        run: bash .ci/ctl.sh validate
       - name: bash .ci/ctl.sh affected-gate-fast
         env:
           NX_BASE: "origin/${{ github.base_ref }}"
@@ -40,7 +44,7 @@ jobs:
     name: merge tier (affected-gate-substrate)
     runs-on: arc-org
     needs: pr
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Checkout with submodules
         uses: actions/checkout@v4

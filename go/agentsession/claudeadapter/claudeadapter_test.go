@@ -79,8 +79,8 @@ func TestNormalize_SampleStream(t *testing.T) {
 	}
 	// Tool start/end correlate by CallID.
 	assertToolCorrelation(t, events)
-	// Exactly one terminal carrying the four-token ledger.
-	assertTerminalLedger(t, events)
+	// Exactly one TURN boundary carrying the four-token ledger.
+	assertTurnBoundaryLedger(t, events)
 }
 
 // TestNormalize_UnknownTypeNeverFatal proves an unrecognized line type is preserved as
@@ -229,34 +229,46 @@ func assertToolCorrelation(t *testing.T, events []agentsession.Event) {
 	}
 }
 
-// assertTerminalLedger proves exactly one terminal event carries the four-token ledger
+// assertTurnBoundaryLedger proves exactly one boundary event carries the four-token ledger
 // with model/harness attribution and a non-negative cost.
-func assertTerminalLedger(t *testing.T, events []agentsession.Event) {
+//
+// Re-pinned for contract revision R1: the fixture's only `result` line reports a SUCCESS, and a
+// success result draws a TURN boundary rather than ending the session. So the count is over the
+// boundary PAYLOAD (`ev.Terminal != nil`) — the same event on both sides of the revision, which
+// is what makes this assertion read the fixture rather than the taxonomy. Counting IsTerminal()
+// here counted session terminals, of which a healthy one-turn stream now has none.
+//
+// The boundary is also asserted NON-terminal and asserted to render the turn-end token, so the
+// re-pin cannot be satisfied by a normalizer that merely stops populating IsTerminal().
+func assertTurnBoundaryLedger(t *testing.T, events []agentsession.Event) {
 	t.Helper()
-	terminals := 0
-	var terminal *agentsession.TerminalPayload
+	boundaries := 0
+	var boundary *agentsession.Event
 	for i := range events {
 		ev := &events[i]
-		if ev.IsTerminal() {
-			terminals++
-			terminal = ev.Terminal
+		if ev.Terminal != nil {
+			boundaries++
+			boundary = ev
 		}
 	}
-	if terminals != 1 {
-		t.Fatalf("expected exactly one terminal event, got %d", terminals)
+	if boundaries != 1 {
+		t.Fatalf("expected exactly one turn boundary, got %d", boundaries)
 	}
-	if terminal == nil {
-		t.Fatal("terminal event carried no payload")
+	if boundary.IsTerminal() {
+		t.Fatalf("the sample stream's success result ended the SESSION (kind %s); it is a TURN boundary", boundary.Kind)
 	}
-	ledger := terminal.Ledger
+	if got := boundary.Kind.String(); got != turnEndToken {
+		t.Errorf("turn-boundary token = %q, want %q", got, turnEndToken)
+	}
+	ledger := boundary.Terminal.Ledger
 	if ledger.InputTokens == 0 || ledger.OutputTokens == 0 || ledger.CacheReadTokens == 0 || ledger.CacheCreationTokens == 0 {
-		t.Errorf("terminal ledger must populate all four token kinds, got %+v", ledger)
+		t.Errorf("turn-boundary ledger must populate all four token kinds, got %+v", ledger)
 	}
 	if ledger.Harness != "claude-code" {
-		t.Errorf("terminal ledger Harness = %q, want claude-code", ledger.Harness)
+		t.Errorf("turn-boundary ledger Harness = %q, want claude-code", ledger.Harness)
 	}
 	if ledger.Model == "" {
-		t.Errorf("terminal ledger must attribute the Model")
+		t.Errorf("turn-boundary ledger must attribute the Model")
 	}
 	if ledger.CostMicros < 0 {
 		t.Errorf("the sample result reports a cost; CostMicros must be >= 0, got %d", ledger.CostMicros)

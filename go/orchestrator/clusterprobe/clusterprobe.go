@@ -77,28 +77,28 @@ type Deps struct {
 	Health     HealthSource    // the most-recent NATS health heartbeat per agent (the inner-loop signal)
 }
 
-// Probe is the cluster-querying orchestrator.Probe (return-concrete). It is stateless: every
+// ClusterProbe is the cluster-querying orchestrator.Probe (return-concrete). It is stateless: every
 // Observe is a fresh query of the two sources, so any orchestrator replica computes the same
 // Actual after a restart (no in-memory table — live.go's table is exactly what this replaces
 // at multi-node). Safe for concurrent use (it holds only immutable configuration + two
 // concurrency-safe ports). Its zero value is unusable; obtain one from New.
-type Probe struct {
+type ClusterProbe struct {
 	tenant        orchestrator.Tenancy
 	agentLabelKey string
 	workspaces    WorkspaceLister
 	health        HealthSource
 }
 
-// Static assertion: *Probe satisfies the orchestrator.Probe port it binds (one concept, one
+// Static assertion: *ClusterProbe satisfies the orchestrator.Probe port it binds (one concept, one
 // home — it never redefines Probe or Actual).
-var _ orchestrator.Probe = (*Probe)(nil)
+var _ orchestrator.Probe = (*ClusterProbe)(nil)
 
 // New is the pure constructor spine New(configuration, dependencies) -> (T, error): it
 // validates the wiring and freezes the configuration, doing NO I/O, NO clock read, NO
 // globals — every source the Probe touches arrives through the two ports. It returns a
 // ConfigError (Kind=Invalid) on a zero Tenant or a nil port, so a misconfigured Probe fails
 // at composition, never at the first Observe.
-func New(configuration Config, dependencies Deps) (*Probe, error) {
+func New(configuration Config, dependencies Deps) (*ClusterProbe, error) {
 	if configuration.Tenant.IsZero() {
 		return nil, wrapKind(&ConfigError{Reason: "Config.Tenant is required (a project-scoped Probe must name its tenancy)"})
 	}
@@ -112,7 +112,7 @@ func New(configuration Config, dependencies Deps) (*Probe, error) {
 	if agentLabelKey == "" {
 		agentLabelKey = DefaultAgentLabelKey
 	}
-	return &Probe{
+	return &ClusterProbe{
 		tenant:        configuration.Tenant,
 		agentLabelKey: agentLabelKey,
 		workspaces:    dependencies.Workspaces,
@@ -136,7 +136,7 @@ func New(configuration Config, dependencies Deps) (*Probe, error) {
 // "actual" truthful and independent of the desired record). A source fault surfaces as a
 // wrapped WorkspaceQueryError / HealthQueryError (Kind=Unavailable) so the reconcile pass
 // treats the whole Observe as failed rather than acting on a half-known, fabricated actual.
-func (p *Probe) Observe(ctx context.Context, ids []orchestrator.AgentID) (map[orchestrator.AgentID]orchestrator.Actual, error) {
+func (p *ClusterProbe) Observe(ctx context.Context, ids []orchestrator.AgentID) (map[orchestrator.AgentID]orchestrator.Actual, error) {
 	if len(ids) == 0 {
 		return map[orchestrator.AgentID]orchestrator.Actual{}, nil
 	}
@@ -176,7 +176,7 @@ func (p *Probe) Observe(ctx context.Context, ids []orchestrator.AgentID) (map[or
 // ONE project: the tenancy keys are a REQUIRED selector match (cross-tenant listing is
 // impossible by construction, workspaceprovider 07 §6), so a per-tenant pass can never read
 // another tenant's workspaces.
-func (p *Probe) projectSelector() workspaceprovider.Selector {
+func (p *ClusterProbe) projectSelector() workspaceprovider.Selector {
 	return workspaceprovider.Selector{
 		Labels: map[string]string{
 			workspaceprovider.LabelOrganization: p.tenant.OrganizationID,
@@ -191,7 +191,7 @@ func (p *Probe) projectSelector() workspaceprovider.Selector {
 // requested agent — never mis-attributed). A live workspace is one whose normalized State is
 // not terminal Gone (a Gone Descriptor is a tombstone the substrate has not yet reaped, not a
 // live workspace).
-func (p *Probe) indexWorkspacesByAgentID(descriptors []workspaceprovider.Descriptor) map[orchestrator.AgentID]workspaceprovider.Descriptor {
+func (p *ClusterProbe) indexWorkspacesByAgentID(descriptors []workspaceprovider.Descriptor) map[orchestrator.AgentID]workspaceprovider.Descriptor {
 	byID := make(map[orchestrator.AgentID]workspaceprovider.Descriptor, len(descriptors))
 	for _, descriptor := range descriptors {
 		id, ok := descriptor.Labels[p.agentLabelKey]

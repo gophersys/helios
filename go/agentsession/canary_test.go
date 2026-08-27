@@ -141,6 +141,55 @@ func TestCanary_NeverSurfacesThroughError(t *testing.T) {
 	}
 }
 
+// redactionSpy is a TestingT that records whether AssertNoSecretInEvent flagged a leak, so a
+// test can assert the scanner READS a given field — a field it does not read would let a secret
+// there surface undetected (a false pass, the worst kind of canary).
+type redactionSpy struct{ flagged bool }
+
+func (*redactionSpy) Helper()                 {}
+func (s *redactionSpy) Errorf(string, ...any) { s.flagged = true }
+
+// TestCanary_ScannerReadsKnownField is the non-vacuity control: the spy DOES fire on a field the
+// scanner already reads (Message.Delta), so a non-fire in the peer/subagent case below is a real
+// gap in eventStrings, not a broken spy.
+func TestCanary_ScannerReadsKnownField(t *testing.T) {
+	t.Parallel()
+	spy := &redactionSpy{}
+	agentsessiontest.AssertNoSecretInEvent(spy, agentsessiontest.TextDelta(canarySecret), canarySecret)
+	if !spy.flagged {
+		t.Fatal("AssertNoSecretInEvent did not scan Message.Delta — the redaction spy is broken (the check below would be vacuous)")
+	}
+}
+
+// TestCanary_ScannerReadsPeerAndSubagentPayload proves the redaction scanner
+// (agentsessiontest.AssertNoSecretInEvent / eventStrings) reads the PEER and SUBAGENT payloads:
+// a seeded secret in EventPeerSent.Peer.Body, EventPeerSent.Peer.Detail, or a
+// SubagentMessage.Digest MUST be caught (rule 21 §f). Peer bodies are untrusted foreign prose
+// redacted at the normalization boundary, and the bounce Detail is a redacted reason — so the
+// scanner is the defense-in-depth that catches a redaction miss. RED until eventStrings reaches
+// into Event.Peer / Event.Subagent.
+func TestCanary_ScannerReadsPeerAndSubagentPayload(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		field string
+		event agentsession.Event
+	}{
+		{"EventPeerSent.Peer.Body", agentsessiontest.PeerSentEvent(agentsession.PeerMessage{Body: canarySecret})},
+		{"EventPeerSent.Peer.Detail", agentsessiontest.PeerSentEvent(agentsession.PeerMessage{Detail: canarySecret})},
+		{"EventSubagentMessage.Subagent.Digest", agentsessiontest.SubagentMessageEvent(agentsession.SubagentMessage{Digest: canarySecret})},
+	}
+	for _, tc := range cases {
+		t.Run(tc.field, func(t *testing.T) {
+			t.Parallel()
+			spy := &redactionSpy{}
+			agentsessiontest.AssertNoSecretInEvent(spy, tc.event, canarySecret)
+			if !spy.flagged {
+				t.Errorf("AssertNoSecretInEvent did NOT scan %s — a leaked secret there would surface undetected; eventStrings must read Event.Peer / Event.Subagent", tc.field)
+			}
+		})
+	}
+}
+
 // assertEventCanaryFree renders every human-readable surface of an Event and fails if the
 // canary appears anywhere.
 //

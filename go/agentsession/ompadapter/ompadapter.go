@@ -17,6 +17,22 @@ const openRouterEnvName = "OPENROUTER_API_KEY"
 // ompBinary is the CLI name, resolved from PATH at spawn.
 const ompBinary = "omp"
 
+// approvalMode is the tool-approval policy the child is PINNED to. omp accepts
+// always-ask|write|yolo; always-ask gates every tool call, and `yolo` (and its --auto-approve
+// alias, main.ts:1310) would skip the prompt entirely — leaving nothing for the permission
+// plane to gate. The dialog it produces is answered from the session's standing grant.
+const approvalMode = "always-ask"
+
+// sessionStoreEnvName is omp's session-storage directory var (`omp --help`: "Session storage
+// directory (default: ~/.omp/agent)"), and the supported way to place that store — the probe
+// harness that captured testdata/rpc-17.3.7-*.jsonl set exactly this var. Inherited, every
+// eden session would write its transcripts into the operator's own store.
+const sessionStoreEnvName = "PI_CODING_AGENT_DIR"
+
+// sessionStoreDir is the store ROOT the adapter names inside the provisioned workspace. Only
+// the root: the layout below it is omp's (see sessionArguments).
+const sessionStoreDir = ".omp"
+
 // scrubbedKeys are the credential env vars the adapter STRIPS from the child environment
 // before injecting the OpenRouter key. omp's auth-resolution order (verified in the spike
 // against the bundled models.md) places stored/env provider keys ahead of a models.yml
@@ -42,7 +58,7 @@ type Config struct {
 }
 
 // Adapter is the real Oh My Pi (omp) agentsession.Adapter. It declares the capabilities the
-// `omp -p --mode json` headless stream supports and spawns the subprocess at Spawn. Each
+// `omp --mode rpc` session supports and spawns ONE long-lived subprocess per Spawn. Each
 // Spawn owns its own process; the Adapter holds only the immutable Config.
 type Adapter struct {
 	binary string
@@ -65,59 +81,60 @@ func New(configuration Config) (*Adapter, error) {
 	return &Adapter{binary: binary}, nil
 }
 
-// Manifest declares the capabilities `omp` supports, as measured in the live spike.
+// Manifest declares the capabilities `omp --mode rpc` supports, as measured on the live
+// harness (the 17.3.7 probe captures replayed in testdata/rpc-17.3.7-*.jsonl).
 //
-//   - Steer is CapFull: omp's interactive/rpc session accepts mid-turn input on stdin (the
-//     SteeringMode the §7 Q7 note names); the headless adapter writes the steer as the next
-//     stdin user turn.
-//   - Resume is CapFull: omp `--resume <id>` / `--session-dir` re-attach a saved session.
-//   - ThinkingEvents is CapFull: the spike captured distinct thinking_start/thinking_delta/
+//   - Steer is CapFull: the live rpc session takes a mid-turn `steer` frame on stdin.
+//   - Resume is CapFull: omp `--resume <id>` re-attaches a saved session.
+//   - ThinkingEvents is CapFull: the stream carries distinct thinking_start/thinking_delta/
 //     thinking_end frames carrying reasoning text.
 //   - PartialToolResults is CapFull: omp streams toolcall_delta + a top-level
 //     tool_execution_start/tool_execution_end pair (the OMP partial-result streaming the
 //     taxonomy's EventToolUpdate exists for).
-//   - HostTools is CapPartial: omp supports host/extension tools and an extension_ui channel,
-//     but the headless json stream surfaces them as data the adapter normalizes/declines
-//     rather than a wired in-process callback round-trip — declared Partial, not Full.
+//   - HostTools is CapFull: the Spec's HostTools are registered on the live session with
+//     set_host_tools, and a host_tool_call is routed into the in-process Handler and answered
+//     with host_tool_result — a real callback round trip, not data the adapter declines.
 //   - NativeBudget is CapAbsent: omp has no headless --max-budget-usd cost cap (the §02 budget
 //     authority is the engine watching EventUsage); the adapter does not claim one.
-//   - PermissionPrompt is CapPartial: omp gates tools via --approval-mode and emits approval
-//     requests, but the json one-way stream does not block on an out-of-band Resolve the way
-//     the full round-trip requires — declared Partial.
+//   - PermissionPrompt is CapFull: the approval dialog SURFACES as an EventPermissionRequest
+//     the library's resolution chain acts on, and IS answered on the wire. The answer is the
+//     session's own standing grant applied at arrival: omp arms no timer on a `select`
+//     (rpc-mode.ts:640), so a dialog held open for an out-of-band decision stalls the turn
+//     forever (q3-probe5 measured 45s and no agent_end).
+//   - PeerMessaging is CapFull: omp has no cross-session plane of its own, so Eden owns BOTH
+//     ends — the library's eden_peer_send / eden_peer_list host tools ride the same rpc bridge
+//     the line above declares full, and an arrival is unwrapped onto the model-facing envelope
+//     here. Nothing about this capability depends on a vendor feature.
 func (a *Adapter) Manifest() agentsession.CapabilityManifest {
 	return agentsession.CapabilityManifest{Capabilities: map[agentsession.Capability]agentsession.CapStatus{
 		agentsession.CapSteer:              agentsession.CapFull,
 		agentsession.CapResume:             agentsession.CapFull,
 		agentsession.CapThinkingEvents:     agentsession.CapFull,
-		agentsession.CapHostTools:          agentsession.CapPartial,
+		agentsession.CapHostTools:          agentsession.CapFull,
 		agentsession.CapNativeBudget:       agentsession.CapAbsent,
-		agentsession.CapPermissionPrompt:   agentsession.CapPartial,
+		agentsession.CapPermissionPrompt:   agentsession.CapFull,
 		agentsession.CapPartialToolResults: agentsession.CapFull,
+		agentsession.CapPeerMessaging:      agentsession.CapFull,
 	}}
 }
 
-// buildArguments assembles the headless flag set for one omp session (the spike's measured
-// choices, ADR-0008). It is PURE (no env, no process) so it is unit-tested directly. The
-// turn prompt text is supplied per turn (Send) via stdin, so the spawn arguments carry only
-// the session-wide flags — the bare `-p` with no positional message starts omp headless and
-// reading stdin for the first turn.
-//
-// Mode choice (the spike's load-bearing decision): `--mode json` over `--mode rpc`. In rpc
-// mode omp emits {"type":"ready"} then a bidirectional `extension_ui_request` (a widget UI)
-// that BLOCKS the turn until the client answers the rpc — the adapter would have to speak
-// omp's rpc response protocol to make progress. `--mode json` yields a clean ONE-WAY frame
-// stream (session -> agent_start -> turn_start -> message_*/message_update -> turn_end ->
-// agent_end) carrying the full taxonomy with NO UI ack required.
+// buildArguments assembles the flag set for ONE long-lived omp session. It is PURE (no env,
+// no process) so it is unit-tested directly.
 //
 //nolint:gocritic // contract §2: Spec is the frozen, copyable session input (the configuration pattern); the port takes it by value.
 func buildArguments(spec agentsession.Spec, route agentsession.Route) []string {
 	arguments := []string{
-		// -p/--print is MANDATORY: it puts omp in non-interactive headless mode (process the
-		// turn and exit) instead of starting a TUI. --mode json selects the clean one-way
-		// event stream. --no-session keeps the run ephemeral unless a session dir is derived
-		// from the Workspace (CapResume).
-		"-p",
-		"--mode", "json",
+		// --mode rpc is the ONE long-lived session plane: NDJSON commands on stdin, frames on
+		// stdout, one process across every turn. Never rpc-ui — that mode installs the tool UI
+		// context and sets hasUI (main.ts:1570,1765), which is what lets a tool open a blocking
+		// dialog. Never -p/--mode json either: print mode processes one prompt and exits.
+		"--mode", "rpc",
+		// The approval mode is pinned EXPLICITLY: `tools.approvalMode` is not in the rpc
+		// host-default reset list (applyRpcDefaultSettingOverrides, main.ts:1316), so with no
+		// flag the child inherits the operator's own setting — q3-probe4 watched a `bash` call
+		// run ungated under exactly that inheritance. always-ask keeps every tool gated; the
+		// dialog is answered from the session's standing grant (rpc.go).
+		"--approval-mode", approvalMode,
 	}
 	if route.Model != "" {
 		arguments = append(arguments, "--model", route.Model)
@@ -129,7 +146,7 @@ func buildArguments(spec agentsession.Spec, route agentsession.Route) []string {
 	// cost-cap (NativeBudget is Absent in the Manifest); the §02 budget authority is the engine
 	// watching EventUsage and aborting.
 	arguments = append(arguments, toolArguments(spec.Grants)...)
-	arguments = append(arguments, sessionArguments(spec.Workspace, spec.ResumeFrom)...)
+	arguments = append(arguments, sessionArguments(spec.ResumeFrom)...)
 	if spec.SystemHints != "" {
 		arguments = append(arguments, "--append-system-prompt", spec.SystemHints)
 	}
@@ -167,29 +184,20 @@ func toolNames(grants []agentsession.ToolGrant) []string {
 	return names
 }
 
-// sessionArguments renders the session-persistence flags. A non-empty resumeFrom re-attaches
-// a harness-native session (CapResume) via --resume and roots lookup at a session dir derived
-// from the workspace; otherwise the run is ephemeral (--no-session) so nothing is written into
-// the provisioned workspace by default.
-func sessionArguments(workspace, resumeFrom string) []string {
+// sessionArguments renders the session-persistence flags. A non-empty resumeFrom re-attaches a
+// harness-native session (CapResume) via --resume; otherwise the run is ephemeral
+// (--no-session) so nothing is written into the provisioned workspace by default.
+//
+// The adapter deliberately spells NO path below the store root: omp owns its on-disk layout
+// and has changed it twice (17.2.5-17.2.8 wrote hashed <scope>-<project>-<sha256(cwd)>
+// buckets, 17.2.9 reverted to the legacy project-scoped naming, 17.2.10 added a one-way
+// migration so `omp -r` could still find a session written under the other scheme). The store
+// ROOT is named once, on the child env (sessionEnvironment); everything under it is omp's.
+func sessionArguments(resumeFrom string) []string {
 	if resumeFrom != "" {
-		args := []string{"--resume", resumeFrom}
-		if dir := sessionDir(workspace); dir != "" {
-			args = append(args, "--session-dir", dir)
-		}
-		return args
+		return []string{"--resume", resumeFrom}
 	}
 	return []string{"--no-session"}
-}
-
-// sessionDir derives the omp --session-dir from the provisioned Workspace (the session store
-// lives under the workspace so resume is co-located with the run). Empty workspace yields no
-// dir (omp falls back to its default lookup).
-func sessionDir(workspace string) string {
-	if workspace == "" {
-		return ""
-	}
-	return strings.TrimRight(workspace, "/") + "/.omp-session"
 }
 
 // thinkingLevel maps the Spec onto an omp --thinking level. The Budget.MaxTurns and cost
