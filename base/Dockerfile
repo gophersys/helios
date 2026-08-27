@@ -183,6 +183,9 @@ ARG GREMLINS_VERSION
 # golang.org/x/perf has no semver tags; @latest is the canonical install form (no version digits,
 # so it does not trip the no-hardcoded-version-in-RUN grep) — refreshed when the toolchain bumps.
 ARG BENCHSTAT_REF
+# sqlc generates eden's persistence layer; its `verify` verb re-generates and
+# diffs, so an image without it turns that drift check into a 127 (blueprint P0-4).
+ARG SQLC_VERSION
 ARG GITLEAKS_VERSION
 ARG GITLEAKS_SHA256_AMD64
 ARG GITLEAKS_SHA256_ARM64
@@ -286,6 +289,7 @@ RUN : "${ZSH_VERSION:?not in versions.env}" \
  && : "${HNSLINT_VERSION:?not in versions.env}" \
  && : "${GREMLINS_VERSION:?not in versions.env}" \
  && : "${BENCHSTAT_REF:?not in versions.env}" \
+ && : "${SQLC_VERSION:?not in versions.env}" \
  && : "${GITLEAKS_VERSION:?not in versions.env}" \
  && : "${GITLEAKS_SHA256_AMD64:?not in versions.env}" \
  && : "${GITLEAKS_SHA256_ARM64:?not in versions.env}"
@@ -493,10 +497,16 @@ RUN case "${TARGETPLATFORM}" in \
 # THE CACHE CLEANUP IS PART OF THIS LAYER, and it has to be: a later RUN that
 # removed the cache would leave every byte of it in this layer's diff. cloud
 # measured the same layer at 2.06 GB, of which ~1.6 GB was the module and build
-# cache — the 7 binaries are ~200 MB. `go clean` handles the read-only module
+# cache — the 7 binaries were ~200 MB. `go clean` handles the read-only module
 # tree; the rm afterwards mops what remains. The cache also carried the vendored
 # gosec rule sources that the nightly scan reads as CRITICAL secret findings
 # (rules/hardcoded_credentials.go is a regex, not a credential).
+#
+# IT IS 8 BINARIES SINCE sqlc LANDED, and that one is the biggest of them:
+# 53,477,536 bytes stripped, measured 2026-08-26 by installing v1.31.1 in
+# ghcr.io/gophersys/base at CGO_ENABLED=0. base declares no size_budget_gb, so
+# nothing gates it here; cloud's row carries the same measurement against a
+# budget with 476 MB of headroom.
 USER ${USERNAME}
 RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install mvdan.cc/gofumpt@v${GOFUMPT_VERSION} \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGCI_LINT_VERSION}" \
@@ -505,6 +515,7 @@ RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install m
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/go-gremlins/gremlins/cmd/gremlins@v${GREMLINS_VERSION}" \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "golang.org/x/perf/cmd/benchstat@${BENCHSTAT_REF}" \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/gophersys/hnslint/cmd/hnslint@v${HNSLINT_VERSION}" \
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install "github.com/sqlc-dev/sqlc/cmd/sqlc@v${SQLC_VERSION}" \
  && go clean -modcache \
  && go clean -cache \
  && rm -rf "${GOPATH}/pkg/mod" "/home/dev/.cache/go-build"

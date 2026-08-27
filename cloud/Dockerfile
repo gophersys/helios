@@ -91,6 +91,10 @@ ARG GOSEC_VERSION
 ARG HNSLINT_VERSION
 ARG GREMLINS_VERSION
 ARG BENCHSTAT_REF
+# sqlc generates eden's persistence layer; its `verify` verb re-generates and
+# diffs, so an image without it turns that drift check into a 127 (blueprint P0-4).
+# The ARC pools run THIS image, so it is the copy that puts the check in a lane.
+ARG SQLC_VERSION
 ARG DELVE_VERSION
 
 # Parsing + QA.
@@ -209,6 +213,7 @@ RUN : "${ZSH_VERSION:?not in versions.env}" \
  && : "${HNSLINT_VERSION:?not in versions.env}" \
  && : "${GREMLINS_VERSION:?not in versions.env}" \
  && : "${BENCHSTAT_REF:?not in versions.env}" \
+ && : "${SQLC_VERSION:?not in versions.env}" \
  && : "${DELVE_VERSION:?not in versions.env}" \
  && : "${YQ_VERSION:?not in versions.env}" \
  && : "${YQ_SHA256_AMD64:?not in versions.env}" \
@@ -450,13 +455,20 @@ RUN case "${TARGETPLATFORM}" in \
 #
 # THE CACHE CLEANUP IS THE POINT OF THIS LAYER. base/Dockerfile's copy of it
 # measured 2.06 GB, of which ~1.6 GB was the module and build cache the RUN
-# never removed — the 7 binaries are ~200 MB. `go clean` handles the
+# never removed — the 7 binaries were ~200 MB. `go clean` handles the
 # read-only module tree; the rm afterwards mops what remains.
 #
 # -ldflags="-s -w" is size lever 3 (risk R4): it drops the symbol and DWARF
-# tables from the 7 GATE binaries, which nobody debugs — a panic still
+# tables from the 8 GATE binaries, which nobody debugs — a panic still
 # prints its stack trace. dlv is deliberately NOT here and NOT stripped
 # (components/delve.sh): the debugger must remain debuggable.
+#
+# THE 8TH IS sqlc, AND IT IS THE BIGGEST — 53,477,536 bytes stripped, measured
+# 2026-08-26 by installing v1.31.1 in ghcr.io/gophersys/base at CGO_ENABLED=0.
+# This image's budget has room for it: images.yaml carries 5.75 GB against
+# 5,273,882,624 unpacked bytes last measured (run 32202500436), so the addition
+# is 11% of the 476 MB of headroom. Re-measure rather than reusing that
+# arithmetic the next time a binary is added.
 USER ${USERNAME}
 RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" mvdan.cc/gofumpt@v${GOFUMPT_VERSION} \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v${GOLANGCI_LINT_VERSION}" \
@@ -465,6 +477,7 @@ RUN CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "github.com/go-gremlins/gremlins/cmd/gremlins@v${GREMLINS_VERSION}" \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "golang.org/x/perf/cmd/benchstat@${BENCHSTAT_REF}" \
  && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "github.com/gophersys/hnslint/cmd/hnslint@v${HNSLINT_VERSION}" \
+ && CGO_ENABLED=0 GOWORK=off GOFLAGS=-mod=mod GOBIN="${GOPATH}/bin" go install -ldflags="-s -w" "github.com/sqlc-dev/sqlc/cmd/sqlc@v${SQLC_VERSION}" \
  && go clean -modcache \
  && go clean -cache \
  && rm -rf "${GOPATH}/pkg/mod" "/home/dev/.cache/go-build"

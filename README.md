@@ -506,8 +506,12 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.ar
 ├── ctl.sh                       # repo-wide control script
 ├── images.yaml                  # the ONE declaration of the image SET
 ├── versions.env                 # the ONE pin home of base, cloud and hardware
+├── _ctl/standard.sh             # the PORTABLE core of the ctl.sh standard — C1, the 4
+│                                #   loggers, require_cmd, find_repository_root. Asserts
+│                                #   NO input, so any repository can source it.
 ├── _ctl/lib.sh                  # the shared ctl library — every verb body, 1 time only,
-│                                #   and the images.yaml reader every home derives from
+│                                #   and the images.yaml reader every home derives from.
+│                                #   Sources _ctl/standard.sh; defines no logger of its own.
 ├── _ctl/generate.sh             # images.yaml -> the publish jobs + the nightly matrix
 ├── _ctl/tests/                  # hermetic *.test.sh + harness + docker stub + fixtures
 ├── _build/                      # COPYed into base and cloud, above their first download
@@ -516,7 +520,8 @@ kubectl get nodes -o custom-columns=NAME:.metadata.name,ARCH:.status.nodeInfo.ar
 │   ├── upstreams.txt            # where the next value of every pin comes from
 │   └── resolve-upstream.sh      # the weekly resolver — 1 function per datasource
 ├── _delta/components/           # 1 file per folded tool group; cloud COPYs them and runs them
-├── docs/                        # PROPOSALS — part of one has LANDED; see docs/README.md
+├── docs/ctl-standard.md         # CANONICAL — the written ctl.sh standard: C1-C10, I1-I7, V1-V5
+├── docs/                        # 1 canonical file + proposals; the banner says which. See docs/README.md
 ├── .claude/rules/               # identity + conventions
 ├── .ci/                         # the CI layer — .ci/README.md lists every file
 │   ├── affected.sh              # which images a commit changes — 1 home for the answer
@@ -578,7 +583,11 @@ to `image_main`. `base/ctl.sh` does this for `up`, `exec`, `shell`, `down` and
 
 **8 non-image scripts source the same library**, and not for the same contract.
 `ctl.sh`, `.ci/ctl.sh`, `.ci/smoke.sh`, `.ci/affected.sh` and
-`.ci/notify-failure.sh` take the logging, the tool gate and the guard.
+`.ci/notify-failure.sh` take the guard, plus the 4 loggers and the tool gate
+that `_ctl/lib.sh` re-exports from `_ctl/standard.sh` — the PORTABLE core of the
+`ctl.sh` standard, whose written home is `docs/ctl-standard.md`. That file
+asserts no input, so a repository outside this one takes the loggers and
+`require_cmd` from it directly and pays no `PROJECT_ROOT`.
 `.ci/buildx-node.sh` and `.ci/mirror-buildkit.sh` take the platform and BuildKit
 declarations (`SANCTIONED_PLATFORMS`, `BUILDKIT_REF`, `BUILDKIT_UPSTREAM_REF`).
 `_build/resolve-upstream.sh` takes the pin readers and the writer — `pin_value`,

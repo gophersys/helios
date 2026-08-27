@@ -17,8 +17,9 @@ IFS=$'\n\t'
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# The logging, the tool gate and the push guard live in _ctl/lib.sh, 1 time
-# only. This script owns the repo-wide verbs, which act on the whole set.
+# The push guard lives in _ctl/lib.sh, 1 time only; the logging and the tool
+# gate live in _ctl/standard.sh, which that file sources. This script owns the
+# repo-wide verbs, which act on the whole set.
 #
 # This script does NOT call require_buildx_and_platforms, and that is
 # deliberate. The guard enforces the platform list of 1 image, and an image is

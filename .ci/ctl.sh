@@ -24,7 +24,8 @@ IFS=$'\n\t'
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 
-# The logging and the tool gate live in _ctl/lib.sh, 1 time only.
+# The logging and the tool gate live in _ctl/standard.sh, 1 time only, and
+# _ctl/lib.sh sources it — so this source line hands over both, as it always did.
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../_ctl/lib.sh
 source "$REPO_ROOT/_ctl/lib.sh"

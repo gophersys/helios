@@ -10,12 +10,18 @@
 # 8 non-image scripts source this file, and not for the same contract. This
 # header named 2 of them and 1 contract:
 #
-#   logging + tool gate + guard      ctl.sh, .ci/ctl.sh, .ci/smoke.sh,
-#                                    .ci/affected.sh, .ci/notify-failure.sh
+#   the standard, re-exported          ctl.sh, .ci/ctl.sh, .ci/smoke.sh,
+#     (the 4 loggers + require_cmd)    .ci/affected.sh, .ci/notify-failure.sh
+#   the push guard                     ctl.sh, .ci/ctl.sh
 #   SANCTIONED_PLATFORMS, BUILDKIT_REF, BUILDKIT_UPSTREAM_REF
 #                                    .ci/buildx-node.sh, .ci/mirror-buildkit.sh
 #   the pin readers and the writer   _build/resolve-upstream.sh
 #     (pin_value, homes_of, digest_rows_of, fetch_urls, bump_pin)
+#
+# THE LOGGERS AND THE TOOL GATE ARE NOT DECLARED HERE ANY MORE. Their 1 home is
+# _ctl/standard.sh, which this file sources below — so a consumer of this
+# library takes them exactly as before, and a consumer that wants only them
+# takes the standard directly and pays no PROJECT_ROOT. See docs/ctl-standard.md.
 #
 # Their own verbs act on the whole set of images, so they keep those verbs
 # themselves. Adding an export here adds it to all 8: read the consumer list
@@ -51,6 +57,17 @@
 
 set -Eeuo pipefail
 IFS=$'\n\t'
+
+# The PORTABLE core of the standard — C1, the 4 loggers, the tool gate and the
+# root finder — before anything else, so every refusal below has them.
+#
+# The path is derived from THIS file's location and deliberately not from
+# PROJECT_ROOT: PROJECT_ROOT is the SOURCING script's directory (base/, cloud/,
+# .ci/ …), so a `$PROJECT_ROOT/_ctl/standard.sh` would resolve for the repository
+# root's ctl.sh and for nothing else.
+# shellcheck source-path=SCRIPTDIR
+# shellcheck source=standard.sh
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/standard.sh"
 
 : "${PROJECT_ROOT:?_ctl/lib.sh: the sourcing ctl.sh must set PROJECT_ROOT}"
 
@@ -168,11 +185,6 @@ function versions_env_build_args() {
   done < "$file"
 }
 
-# -------- logging --------
-function log_info()  { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
-function log_warn()  { printf '\033[0;33m[warn]\033[0m  %s\n' "$*" >&2; }
-function log_error() { printf '\033[0;31m[error]\033[0m %s\n' "$*" >&2; }
-
 # -------- tripwire: the retired platform-list variable --------
 # IMAGE_PLATFORMS was named MULTI_ARCH_* until arm64 was dropped. Both names now
 # hold the same string, so a caller that still sets the old one gets the right
@@ -190,20 +202,6 @@ if [[ ${#_retired_platform_vars[@]} -gt 0 ]]; then
   exit 1
 fi
 unset _retired_platform_vars
-
-# -------- tool gate --------
-# A missing tool is a failure, never a skip.
-function require_cmd() {
-  local missing=()
-  local cmd
-  for cmd in "$@"; do
-    command -v "$cmd" >/dev/null 2>&1 || missing+=("$cmd")
-  done
-  if [[ ${#missing[@]} -gt 0 ]]; then
-    log_error "missing required tool(s): ${missing[*]}"
-    exit 127
-  fi
-}
 
 # Guard: docker and docker buildx must be present. A verb that acts on the
 # whole set of images calls this alone, because the platform list is not the
