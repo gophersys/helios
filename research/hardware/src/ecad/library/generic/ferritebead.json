@@ -1,0 +1,67 @@
+{
+  "class_name": "FerriteBead",
+  "datasheet": "",
+  "default_value": "600R@100MHz",
+  "description": "Ferrite bead",
+  "evidence_summary": {
+    "agreed": 1,
+    "claims": 3,
+    "conflicts": 0,
+    "datasheet": "none - ingested without a datasheet",
+    "single_source": 2,
+    "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "unverified": 0,
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "Inductor_SMD",
+    "name": "L_0603_1608Metric",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "c33f2111b32a16ad19c5c669874d9df026ea506c9e33830cac46e1eed1a46362",
+    "md_sha256": "009a796ea8d53e62b87953f6b1cb8afa802b0256dbcd323d10fa41784d36728a",
+    "py_sha256": "db7555b83a2f1322c6cfaa11b3c774f76d98ee7b09745c061c0ee41cd3c0aecf"
+  },
+  "id": "ferritebead",
+  "lib_id": "Device:FerriteBead",
+  "part_name": "FerriteBead",
+  "pin_count": 2,
+  "provenance": {
+    "datasheet": "none - ingested without a datasheet",
+    "evidence_mode": "2-source: official symbol pins x installed footprint pads",
+    "footprint_has_step": true,
+    "footprint_is_default_only": true,
+    "footprint_source": "PackageSpec(family='L_0603')",
+    "ingest": "src/ecad/ingest/library_parts.py",
+    "notes": [
+      "'Device:Ferrite_Bead' does not exist in KiCad 10 \u2014 the installed symbol is 'Device:FerriteBead' (there is also 'Device:FerriteBead_Small', the small-symbol variant).",
+      "The default value states impedance at a frequency, which is how beads are specified; it is a placeholder, not a datasheet value.",
+      "Chip ferrite beads ship in the same 0603 chip package as chip inductors; KiCad has no Ferrite_SMD library."
+    ],
+    "official_symbol": "Device:FerriteBead",
+    "pin_source": "official-symbol",
+    "synthesized_pin_names": [
+      "P1",
+      "P2"
+    ]
+  },
+  "source_hashes": {
+    "footprint_sha256": "a2a9c562208496756e22f3ab19e0bd6db2341d14da92e7c767d5eafd1bb45d38",
+    "pdf_sha256": "",
+    "symbol_sha256": "0e1bc0577d247f52ae350d08b74f11d76fe85d686f7c7189efaca9539848dcb2"
+  },
+  "sourcing": null,
+  "unit_plan": [
+    {
+      "name": "FerriteBead",
+      "pads": [
+        "1",
+        "2"
+      ]
+    }
+  ]
+}

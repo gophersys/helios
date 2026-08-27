@@ -1,0 +1,141 @@
+{
+  "class_name": "ESP32_WROOM_32",
+  "datasheet": "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf",
+  "default_value": "",
+  "description": "RF Module, ESP32-D0WDQ6 SoC, Wi-Fi 802.11b/g/n, Bluetooth, BLE, 32-bit, 2.7-3.6V, onboard antenna, SMD",
+  "evidence_summary": {
+    "agreed": 66,
+    "claims": 67,
+    "conflicts": 0,
+    "single_source": 1,
+    "unverified": 0,
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "RF_Module",
+    "name": "ESP32-WROOM-32",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "cfdfea05e6fbd55c18f12be5ac8b15fab491710511a7927c29c2a5b4668cf594",
+    "md_sha256": "c02f7d3d1ff6fd27b9271bab2d020006f352689f83d81480cb237f01cd825963",
+    "py_sha256": "6efc572163d012b52fc70f134d79359f4fa83f6b516f06ba82d4d2a102e98b89"
+  },
+  "id": "esp32_wroom_32",
+  "lib_id": "RF_Module:ESP32-WROOM-32",
+  "part_name": "ESP32-WROOM-32",
+  "pin_count": 39,
+  "provenance": {
+    "official_symbol": "RF_Module:ESP32-WROOM-32",
+    "pin_source": "datasheet",
+    "zephyr_soc": "esp32"
+  },
+  "source_hashes": {
+    "pdf_sha256": "85feba3439aa1986657bdc42a5974a0d413e041b7e13341cf0f05276f8e83e65"
+  },
+  "sourcing": {
+    "datasheet_url": "https://www.espressif.com/sites/default/files/documentation/esp32-wroom-32_datasheet_en.pdf",
+    "lcsc": "C82899",
+    "manufacturer": "Espressif Systems",
+    "mpn": "ESP32-WROOM-32"
+  },
+  "unit_plan": [
+    {
+      "name": "Power",
+      "pads": [
+        "1",
+        "2",
+        "15",
+        "38",
+        "39"
+      ]
+    },
+    {
+      "name": "Control",
+      "pads": [
+        "3"
+      ]
+    },
+    {
+      "name": "RXD",
+      "pads": [
+        "34"
+      ]
+    },
+    {
+      "name": "SCK",
+      "pads": [
+        "20"
+      ]
+    },
+    {
+      "name": "SCS",
+      "pads": [
+        "19"
+      ]
+    },
+    {
+      "name": "SDI",
+      "pads": [
+        "22"
+      ]
+    },
+    {
+      "name": "SDO",
+      "pads": [
+        "21"
+      ]
+    },
+    {
+      "name": "SHD",
+      "pads": [
+        "17"
+      ]
+    },
+    {
+      "name": "SWP",
+      "pads": [
+        "18"
+      ]
+    },
+    {
+      "name": "TXD",
+      "pads": [
+        "35"
+      ]
+    },
+    {
+      "name": "GPIO",
+      "pads": [
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "16",
+        "23",
+        "24",
+        "25",
+        "26",
+        "27",
+        "28",
+        "29",
+        "30",
+        "31",
+        "32",
+        "33",
+        "36",
+        "37"
+      ]
+    }
+  ]
+}

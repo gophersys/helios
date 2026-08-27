@@ -1,0 +1,41 @@
+# Data (large, cloned repos)
+# No trailing slash: `data/raw/` matches only a directory, so a symlink named
+# data/raw slips past it and gets committed — which is exactly how a dangling
+# absolute symlink to the pre-rename checkout broke CI (mkdir -p on a dangling
+# symlink fails).
+data/raw
+data/parsed/
+data/patterns/
+data/validated/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv
+*.egg-info/
+
+# Environment
+.devcontainer/.env
+
+# Build products (scripts/build_examples.py); the committed surfaces are the
+# per-example README.md + render/*.svg under examples/, not this tree.
+build/
+
+# KiCad generated files
+*.kicad_prl
+*-backups/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.rpt
+.claude/worktrees/
+data/zephyr
+data/ingest
+data/datasheets/
+data/footprint_index.json

@@ -1,0 +1,66 @@
+{
+  "class_name": "Capacitor",
+  "datasheet": "",
+  "default_value": "100nF",
+  "description": "Unpolarized capacitor",
+  "evidence_summary": {
+    "agreed": 1,
+    "claims": 3,
+    "conflicts": 0,
+    "datasheet": "none - ingested without a datasheet",
+    "single_source": 2,
+    "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "unverified": 0,
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "Capacitor_SMD",
+    "name": "C_0402_1005Metric",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "8557d1bf8b7aaed77f041983cfc057be443a0a3a20cbbe99938d4db550f5819b",
+    "md_sha256": "1503e1c3cf9ad5cc4226a60d398c8aa4ceebb5a9110e93709d0e97a31ee677a8",
+    "py_sha256": "cfbb3f6edd322b7fa0f6d1df71a718b1a2d8445ab12718281d99781ac7d626c2"
+  },
+  "id": "capacitor",
+  "lib_id": "Device:C",
+  "part_name": "Capacitor",
+  "pin_count": 2,
+  "provenance": {
+    "datasheet": "none - ingested without a datasheet",
+    "evidence_mode": "2-source: official symbol pins x installed footprint pads",
+    "footprint_has_step": true,
+    "footprint_is_default_only": true,
+    "footprint_source": "PackageSpec(family='C_0402')",
+    "ingest": "src/ecad/ingest/library_parts.py",
+    "notes": [
+      "Pins are unnamed in Device:C; P1/P2 are synthesized labels.",
+      "Value and footprint are per instance: Capacitor('10uF', FootprintRef('Capacitor_SMD', 'C_0805_2012Metric'))."
+    ],
+    "official_symbol": "Device:C",
+    "pin_source": "official-symbol",
+    "synthesized_pin_names": [
+      "P1",
+      "P2"
+    ]
+  },
+  "source_hashes": {
+    "footprint_sha256": "0403382fc4583ed510b461b1fa4a36dfaec6f4c0d9b1a67e6b0027837a54e1b5",
+    "pdf_sha256": "",
+    "symbol_sha256": "267ed5a33259a061b46add3054a7835ebd2f6e7646c15ddc3604cbacd489195c"
+  },
+  "sourcing": null,
+  "unit_plan": [
+    {
+      "name": "Capacitor",
+      "pads": [
+        "1",
+        "2"
+      ]
+    }
+  ]
+}
