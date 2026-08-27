@@ -189,7 +189,7 @@ each lifted from research-04 §1/§4 with its status:
 ## 7. Dogfood path — v0 static renders, v1 Svelte app
 
 🔶 **v0 = the static renders implement *this spec's* IA over Eden's own corpus.** Three artifacts,
-each generated and never hand-edited (CLAUDE.md hard rule), are the conformance instances of this
+each generated and never hand-edited (`docs/README.md` generated-artifact rule), are the conformance instances of this
 document at bootstrap:
 
 - `eden-architecture.html` (exists; `docs/tools/render-html.mjs`) — the canon doc set as a

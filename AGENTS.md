@@ -1,4 +1,4 @@
-# Eden agent entrypoint — Claude Code
+# Eden agent entrypoint — Codex
 
 Read [`docs/engineering/README.md`](docs/engineering/README.md) before changing
 the repository. Its machine-readable contract is
@@ -20,12 +20,10 @@ the repository. Its machine-readable contract is
 - Prefer small vertical slices. Do not create parallel implementations of an
   existing concept; cite its canonical home.
 
-## Claude Code adapter
+## Codex adapter
 
-- `CLAUDE.md` contains only always-loaded routing and safety guidance.
-- Reusable workflows belong in `.claude/skills/`; mechanical checks belong in
+- `AGENTS.md` contains only always-loaded routing and safety guidance.
+- Reusable workflows belong in `.agents/skills/`; mechanical checks belong in
   hooks, scripts, linters, or `ctl.sh`.
-- Use subagents or agent teams only for independent work with explicit
-  ownership. Each writing agent gets its own worktree.
-- Existing `.claude/rules/` remain compatibility inputs until each rule is
-  promoted to a process or mechanical gate.
+- Use subagents only for independent work with explicit ownership. Each writing
+  agent gets its own worktree.

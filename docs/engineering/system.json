@@ -1,0 +1,22 @@
+{
+  "$schema": "./system.schema.json",
+  "schemaVersion": "eden.engineering/v1",
+  "name": "eden",
+  "homes": {
+    "product": "documents/",
+    "architecture": "docs/architecture/",
+    "engineering": "docs/engineering/",
+    "agentExecution": "libs/go/agentsession/"
+  },
+  "harnesses": [
+    { "id": "claude", "entrypoint": "CLAUDE.md" },
+    { "id": "codex", "entrypoint": "AGENTS.md" }
+  ],
+  "processes": [
+    { "id": "feature", "path": "docs/engineering/processes/feature.md", "status": "planned" },
+    { "id": "ci", "path": "docs/engineering/processes/ci.md", "status": "planned" },
+    { "id": "parallel", "path": "docs/engineering/processes/parallel.md", "status": "planned" },
+    { "id": "review", "path": "docs/engineering/processes/review.md", "status": "planned" },
+    { "id": "release", "path": "docs/engineering/processes/release.md", "status": "planned" }
+  ]
+}

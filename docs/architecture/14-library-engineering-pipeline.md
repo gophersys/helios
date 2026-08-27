@@ -91,7 +91,8 @@ guaranteed present — there an absent tool is a HARD FAIL (`require_cmd` → ex
 
 ## 4. AI instrumentation ✅
 
-The `project-go` plugin + `libs/.claude/rules` + CLAUDE.md drive the agent through all four phases
+The `project-go` plugin + `libs/.claude/rules` drive Claude Code through all four phases;
+the root `AGENTS.md` and `CLAUDE.md` route both harnesses to the shared engineering system
 every session, so a phase cannot be skipped:
 
 - Rule files `20-library-pipeline.md` (the four-phase hard sequence + no-shortcuts + real-substrate

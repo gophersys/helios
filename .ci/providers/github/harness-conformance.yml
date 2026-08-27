@@ -54,23 +54,14 @@ permissions:
 jobs:
   conformance:
     name: pinned-harness conformance
+    # Temporarily dormant while CI is Codex-only. Claude/OMP definitions and
+    # tests remain intact for reactivation when their live credentials renew.
+    if: ${{ false }}
     runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
     # The GitHub default is 360 minutes, which on a paid runner is 6 hours of billing for a job that
     # hung. Its successful runs take 12 to 18 minutes today (10 runs measured), so 30 is roughly
     # double the worst one: a run that reaches it is stuck, not slow.
     timeout-minutes: 30
-    container:
-      image: ghcr.io/gophersys/base:latest
-      credentials:
-        username: mateosegura
-        password: ${{ secrets.GHCR_PULL_TOKEN }}
-      # Job containers run as root (the GitHub Actions convention): the runner's file-command temp
-      # files are host-runner-owned, so the image's non-root dev user EACCESes them.
-      options: --user root
-    env:
-      # Keep the dev-user layout even as root: the harness installers target $HOME/.local/bin and
-      # the image's ENV PATH carries /home/dev/.local/bin (+ the corepack/nvm caches live there).
-      HOME: /home/dev
     steps:
       - name: Checkout with submodules
         uses: actions/checkout@v4
@@ -81,8 +72,7 @@ jobs:
           token: ${{ secrets.HARNESS_BOT_TOKEN }}
           submodules: recursive
           fetch-depth: 0
-      # Job steps run as root while the checkout may be written under a different uid (the runner's)
-      # — mark the workspace + submodules trusted so git/nx affected work (disposable CI container).
+      # Keep git/nx robust across runner-image uid changes.
       - name: Trust the workspace checkout (git safe.directory)
         run: git config --global --add safe.directory '*'
       # The apps' gate verbs resolve sibling libs through the WORKSPACE go.work, which is
@@ -90,12 +80,6 @@ jobs:
       # deploy image builds run).
       - name: Generate go.work (tracked generator over the gitignored file)
         run: bash scripts/gen-go-work.sh
-
-      - name: Install the pinned harnesses (claude + omp + codex)
-        env:
-          # Read the in-repo manifest rather than the /workspace default (CI checks out elsewhere).
-          HARNESS_VERSIONS_FILE: ${{ github.workspace }}/harnesses/versions.env
-        run: bash .devcontainer/base/ctl.sh post-create
 
       # The gate on the gate. It prints every version under test, and it stops the job when a live
       # credential is absent or an installed harness drifted off its pin. It runs BEFORE the tests
