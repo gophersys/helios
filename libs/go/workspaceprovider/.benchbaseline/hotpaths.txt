@@ -1,0 +1,71 @@
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/workspaceprovider
+BenchmarkProvision-8           	 1000000	      1148 ns/op	    1432 B/op	      25 allocs/op
+BenchmarkProvision-8           	 1000000	      1138 ns/op	    1432 B/op	      25 allocs/op
+BenchmarkProvision-8           	 1000000	      1176 ns/op	    1432 B/op	      25 allocs/op
+BenchmarkProvision-8           	  989601	      1252 ns/op	    1432 B/op	      25 allocs/op
+BenchmarkProvision-8           	  959241	      1242 ns/op	    1432 B/op	      25 allocs/op
+BenchmarkProvision-8           	 1000000	      1244 ns/op	    1432 B/op	      25 allocs/op
+BenchmarkProvision-8           	 1000000	      1254 ns/op	    1432 B/op	      25 allocs/op
+BenchmarkProvision-8           	 1000000	      1242 ns/op	    1432 B/op	      25 allocs/op
+BenchmarkProvision-8           	  949078	      1216 ns/op	    1432 B/op	      25 allocs/op
+BenchmarkProvision-8           	  899070	      1233 ns/op	    1432 B/op	      25 allocs/op
+BenchmarkProvisionTeardown-8   	  414514	      3305 ns/op	    5122 B/op	      56 allocs/op
+BenchmarkProvisionTeardown-8   	  453097	      2901 ns/op	    5008 B/op	      56 allocs/op
+BenchmarkProvisionTeardown-8   	  408393	      3038 ns/op	    5142 B/op	      56 allocs/op
+BenchmarkProvisionTeardown-8   	  412874	      2982 ns/op	    5127 B/op	      56 allocs/op
+BenchmarkProvisionTeardown-8   	  406824	      2958 ns/op	    5147 B/op	      56 allocs/op
+BenchmarkProvisionTeardown-8   	  409716	      2997 ns/op	    5137 B/op	      56 allocs/op
+BenchmarkProvisionTeardown-8   	  408949	      2938 ns/op	    5140 B/op	      56 allocs/op
+BenchmarkProvisionTeardown-8   	  405211	      2860 ns/op	    5152 B/op	      56 allocs/op
+BenchmarkProvisionTeardown-8   	  412728	      2956 ns/op	    5127 B/op	      56 allocs/op
+BenchmarkProvisionTeardown-8   	  414100	      2895 ns/op	    5123 B/op	      56 allocs/op
+BenchmarkParseHandle-8         	25969785	        49.93 ns/op	      80 B/op	       1 allocs/op
+BenchmarkParseHandle-8         	19053919	        54.74 ns/op	      80 B/op	       1 allocs/op
+BenchmarkParseHandle-8         	20017250	        54.81 ns/op	      80 B/op	       1 allocs/op
+BenchmarkParseHandle-8         	22271628	        56.10 ns/op	      80 B/op	       1 allocs/op
+BenchmarkParseHandle-8         	21428475	        57.83 ns/op	      80 B/op	       1 allocs/op
+BenchmarkParseHandle-8         	21032920	        56.14 ns/op	      80 B/op	       1 allocs/op
+BenchmarkParseHandle-8         	21410347	        55.23 ns/op	      80 B/op	       1 allocs/op
+BenchmarkParseHandle-8         	20736326	        58.05 ns/op	      80 B/op	       1 allocs/op
+BenchmarkParseHandle-8         	22732258	        56.27 ns/op	      80 B/op	       1 allocs/op
+BenchmarkParseHandle-8         	22623722	        56.35 ns/op	      80 B/op	       1 allocs/op
+BenchmarkHandleAccessors-8     	 1316892	       916.2 ns/op	    1432 B/op	      18 allocs/op
+BenchmarkHandleAccessors-8     	 1357236	       875.8 ns/op	    1432 B/op	      18 allocs/op
+BenchmarkHandleAccessors-8     	 1301998	       910.2 ns/op	    1432 B/op	      18 allocs/op
+BenchmarkHandleAccessors-8     	 1318047	       905.5 ns/op	    1432 B/op	      18 allocs/op
+BenchmarkHandleAccessors-8     	 1296648	       918.8 ns/op	    1432 B/op	      18 allocs/op
+BenchmarkHandleAccessors-8     	 1295152	       929.9 ns/op	    1432 B/op	      18 allocs/op
+BenchmarkHandleAccessors-8     	 1281148	       923.0 ns/op	    1432 B/op	      18 allocs/op
+BenchmarkHandleAccessors-8     	 1268820	       937.8 ns/op	    1432 B/op	      18 allocs/op
+BenchmarkHandleAccessors-8     	 1283101	       933.3 ns/op	    1432 B/op	      18 allocs/op
+BenchmarkHandleAccessors-8     	 1290342	       930.8 ns/op	    1432 B/op	      18 allocs/op
+BenchmarkStatus-8              	28863933	        40.71 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatus-8              	31148704	        37.89 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatus-8              	32137834	        37.75 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatus-8              	28823144	        40.69 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatus-8              	29320407	        40.84 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatus-8              	33968553	        35.82 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatus-8              	29729216	        40.81 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatus-8              	28791160	        40.58 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatus-8              	29075548	        40.90 ns/op	       0 B/op	       0 allocs/op
+BenchmarkStatus-8              	31996195	        37.83 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/workspaceprovider	60.467s
+PASS
+ok  	github.com/gophersys/libs/go/workspaceprovider/dockeradapter	0.005s
+PASS
+ok  	github.com/gophersys/libs/go/workspaceprovider/internal/limitedbuffer	0.002s
+PASS
+ok  	github.com/gophersys/libs/go/workspaceprovider/internal/logcursor	0.003s
+PASS
+ok  	github.com/gophersys/libs/go/workspaceprovider/internal/pathmount	0.002s
+PASS
+ok  	github.com/gophersys/libs/go/workspaceprovider/internal/tarfile	0.003s
+PASS
+ok  	github.com/gophersys/libs/go/workspaceprovider/internal/watchloop	0.002s
+PASS
+ok  	github.com/gophersys/libs/go/workspaceprovider/kubernetesadapter	0.012s
+PASS
+ok  	github.com/gophersys/libs/go/workspaceprovider/workspaceprovidertest	0.012s

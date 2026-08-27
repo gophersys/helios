@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eden.gophersys.dev/supervisor/answer.schema.json",
+  "title": "Answer",
+  "description": "One recorded answer to a questionnaire question. Written to init/product/answers/<question>.md (the file body IS the answer text the wizard renders). The record-answer transition writes one per invocation; the slug matches the question's filename stem so the wizard joins question and answer.",
+  "type": "object",
+  "required": ["question"],
+  "anyOf": [{ "required": ["answer"] }, { "required": ["text"] }, { "required": ["response"] }],
+  "additionalProperties": false,
+  "properties": {
+    "question": {
+      "type": "string",
+      "pattern": "^[0-9a-z][0-9a-z-]*$",
+      "description": "The question slug being answered — the filename stem under init/product/questionnaire/ (e.g. 01-audience). The answer is written under the same stem in init/product/answers/."
+    },
+    "answer": {
+      "type": "string",
+      "minLength": 1,
+      "description": "The recorded answer text — the entire file body the wizard renders. (`text`/`response` are accepted as aliases.)"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Alias for `answer` — the recorded answer text."
+    },
+    "response": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Alias for `answer` — the recorded answer text."
+    }
+  }
+}

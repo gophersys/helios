@@ -1,0 +1,100 @@
+# Eden CI contract for gophersys/libs — the single source of truth for this repo's CI.
+# The .github/workflows/*.yml and .ci/providers/github/*.yml are GENERATED from THIS file by
+# `cictl generate -C .`; never hand-edit them — `cictl drift` is the CI-on-CI gate that enforces it.
+apiVersion: eden.ci/v1
+repo: libs
+kind: libraries
+# The self-hosted pool. Its runner image IS ghcr.io/gophersys/base plus the Actions
+# runner, so there is nothing to put in a container — and `image:` is rejected here
+# for exactly that reason.
+#
+# This repo previously declared `image: ghcr.io/gophersys/base` with no runner at
+# all, which generated `runs-on: ubuntu-latest` plus a container block that
+# authenticated to a PRIVATE package with GITHUB_TOKEN. That returns 403, and it is
+# why every run since 2026-06-15 failed at "Initialize containers".
+runner:
+  runsOn: arc-org
+  container: false
+languages:
+  - go
+  - typescript
+tiers:
+  # pr — the fast lane on every push: cheap gates over the affected projects, no real substrate.
+  pr:
+    verbs:
+      # First, because a contract that no longer matches its generated workflows
+      # makes every later result untrustworthy.
+      - ci-drift
+      # Second: shellcheck over every ctl.sh, _ctl/*.sh and *_test.sh, the
+      # project.json/usage drift check, and the shell suites. It proves the
+      # dispatchers are sound before affected-gate-fast invokes them.
+      - validate
+      - affected-gate-fast
+    substrate: []
+    timeoutMinutes: 15
+  # merge — the careful-orchestration lane before merge: the real-substrate gates on docker+k3d+kind.
+  merge:
+    verbs:
+      - affected-gate-substrate
+    substrate:
+      - docker
+      - k3d
+      - kind
+      - postgres
+    privileged: true
+    # 45, not 30. `go/_ctl/lib.sh` now states a per-PACKAGE `go test -timeout`, and the two cluster
+    # libs (workspaceprovider, orchestrator) set EDEN_SUBSTRATE_TIMEOUT=25m. That flag bounds a
+    # package, never the lane: this tier runs integration + lifecycle + load per affected project,
+    # so THIS number is the only aggregate bound there is, and a 30-minute cap would cut a lane
+    # that its own per-package budget still considers healthy. The planner estimates ~18-20 min for
+    # workspaceprovider's integration lane on CI hardware (~2x the host it measured on); 45 leaves
+    # room for the two other lanes beside it without leaving a hang to burn the job's full hour.
+    timeoutMinutes: 45
+  # nightly — the exhaustive lane on a schedule: the full per-lib gate plus the pinned-version audit.
+  nightly:
+    verbs:
+      - gate-all
+      - updatability
+    substrate:
+      - docker
+      - k3d
+      - kind
+      - postgres
+      - minio
+      - nats
+    privileged: true
+    schedule: "0 6 * * *"
+    timeoutMinutes: 90
+# review — libs' FIRST pr-review coverage (ledger #44). The caller below is
+# GENERATED from this block by `cictl generate -C .`, beside on-pr.yml /
+# on-push.yml / nightly.yml; `cictl drift` fails any hand edit of the result.
+#
+# ref is the cictl main HEAD at rollout time (PR #23, "make the reviewer a
+# composite action, generate its callers", merged 2026-08-25) — a 40-hex commit,
+# never a tag, because a tag is a pointer its owner can move. No release names
+# this exact commit yet (latest tag is v0.5.1), so `release:` is omitted rather
+# than inventing a name `cictl conformance --org` would then find disagrees.
+#
+# tier: module — libs is a MODULE repo per gophersys-repo-governance.md's type
+# taxonomy (a reusable building block other repositories consume), which selects
+# the platform/module preset: opus, $25/round, 4 rounds ($125 worst case/PR).
+#
+# streamStore: none — the explicit, visible opt-out. cictl PR #23 left
+# streamEndpoint with deliberately no default ("a MinIO URL I could not verify
+# would be configuration that reads as intent and archives nothing"; validation
+# refuses a minio store with an empty endpoint) and named this rollout as the
+# separate later task that supplies the real homelab endpoint. Until
+# infrastructure wires it, `none` is honest; a guessed URL would not be.
+review:
+  enabled: true
+  ref: 7f063fc04a5209a5abf04e5deba1c18aa7881a60
+  tier: module
+  runsOn: arc-review
+  timeoutMinutes: 30
+  streamStore: none
+providers:
+  - github
+toolMatrix:
+  sources:
+    - "**/go.mod"
+    - "typescript/**/package.json"

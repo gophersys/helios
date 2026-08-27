@@ -1,0 +1,19 @@
+## github.com/gophersys/libs/go/errors
+    const KindUnknown Kind = iota ...
+    func FromContext(ctx context.Context) *Error
+    func KindOf(err error) Kind
+    func New(kind Kind, message string) *Error
+    func Wrap(kind Kind, message string, cause error) *Error
+func AsType[E error](err error) (E, bool)
+func Is(err, target error) bool
+func IsType[E error](err error) bool
+func Join(errs ...error) error
+type Error struct{ ... }
+type Kind uint8
+## github.com/gophersys/libs/go/errors/errorstest
+func AssertUnwrapsTo[E error](tb testing.TB, err error) E
+func Leaf(kind errors.Kind, message string) *errors.Error
+func RequireKind(tb testing.TB, err error, want errors.Kind)
+func RequireNoSecret(tb testing.TB, err error, needles ...string)
+func RunErrorsSuite(t *testing.T)
+func Wrapping(outer errors.Kind, inner error) *errors.Error

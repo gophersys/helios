@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://eden.gophersys.dev/supervisor/decision.schema.json",
+  "title": "OpenDecision",
+  "description": "An unruled fork: a question with mutually exclusive options the human (or a downstream ruling) must settle. Written to init/decisions/open/<id>.md. An open decision blocks planning until ruled.",
+  "type": "object",
+  "required": ["id", "question", "options"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "description": "Stable lowercase-kebab slug; the filename stem."
+    },
+    "question": { "type": "string", "minLength": 10, "description": "The fork stated as a single decidable question." },
+    "context": { "type": "string", "description": "Why this fork exists and what depends on it." },
+    "options": {
+      "type": "array",
+      "minItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["name", "tradeoffs"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "tradeoffs": { "type": "string", "minLength": 5 }
+        }
+      },
+      "description": "At least two mutually exclusive options with their tradeoffs."
+    },
+    "affects": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9-]*$" },
+      "description": "Work-item ids this fork affects."
+    }
+  }
+}

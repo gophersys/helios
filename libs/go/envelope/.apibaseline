@@ -1,0 +1,8 @@
+## github.com/gophersys/libs/go/envelope
+    func New(configuration Config, dependencies Deps) (*Envelope, error)
+func Fingerprint(plaintext []byte) string
+type Config struct{ ... }
+type Deps struct{ ... }
+type Envelope struct{ ... }
+type Sealed struct{ ... }
+type Sealer interface{ ... }

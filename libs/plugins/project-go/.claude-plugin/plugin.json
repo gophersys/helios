@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "project-go",
+  "version": "0.1.0",
+  "description": "Eden Go authoring guardrails: injects the library design rules at session start, lints every Go edit, and runs the deterministic gate before git commit/push (ADR-0018 Layer 2).",
+  "author": {
+    "name": "Mateo Segura",
+    "email": "mateo.segura413@gmail.com"
+  },
+  "homepage": "https://github.com/gophersys/libs/tree/main/plugins/project-go",
+  "keywords": ["go", "eden", "enforcement", "hns-1", "golangci-lint", "api-design"],
+  "hooks": "./hooks/hooks.json",
+  "skills": ["./skills/api-design"]
+}

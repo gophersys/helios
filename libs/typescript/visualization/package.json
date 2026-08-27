@@ -1,0 +1,30 @@
+{
+  "name": "@eden/visualization",
+  "version": "0.0.0",
+  "private": true,
+  "license": "UNLICENSED",
+  "description": "The Eden codebase-insight visualization primitives — accessible Svelte 5 widgets GENERATED FROM THE MATH (the @eden/theme tokens) that render a codeinsight Report's Views with zero per-repo code (docs/architecture/contracts/codeinsight.md §5). Every colour/size/space is DERIVED from a token (never hand-set): the scatter scales and the perceptually-ordered sequential hotspot ramp are pure math, the ninth dimension (design-correctness) asserts the contrast gate + perceptual ordering + the 44px hit-target floor, and the a11y-evidence stack (axe on Chromium+WebKit + keyboard + an offscreen data-table fallback) is the qa-gate blocker (ADR-0024). First widget: the hotspot-map (churn × complexity scatter). MATH IS SOURCE OF TRUTH.",
+  "type": "module",
+  "svelte": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "sideEffects": [
+    "**/*.css"
+  ],
+  "dependencies": {
+    "@eden/theme": "workspace:*"
+  },
+  "peerDependencies": {
+    "svelte": "^5"
+  }
+}

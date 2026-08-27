@@ -1,0 +1,46 @@
+{
+  "description": "Eden supervisor operating manual (plugin packaging). Wires the four lifecycle hook events to thin shims that delegate to the rendered template's .claude/hooks/* in the project dir; the template's own settings.json wires the identical events when the agent runs directly off the rendered template.",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\"",
+            "timeout": 15
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-tool.sh\"",
+            "timeout": 30
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/gate-commit.sh\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}/hooks/stop-gate.sh\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

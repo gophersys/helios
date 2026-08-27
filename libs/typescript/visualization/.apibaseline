@@ -1,0 +1,164 @@
+declare const HotspotMap: import("svelte").Component<HotspotMapProps, {}, "">;
+dimensions?: Partial<PlotDimensions>;
+encoding?: Partial<HotspotEncoding>;
+entities: readonly Entity[];
+export declare const DEFAULT_HOTSPOT_ENCODING: HotspotEncoding;
+export declare const DEFAULT_PLOT_DIMENSIONS: PlotDimensions;
+export declare function buildHotspotPlot(entities: readonly Entity[], encoding: HotspotEncoding, theme: Theme, dimensions: PlotDimensions): HotspotPlot;
+export declare function deriveHotspotMapTokens(theme: Theme): HotspotMapTokens;
+export declare function entityLabel(entity: Entity, field: string): string;
+export declare function entityValue(entity: Entity, field: string): number;
+export declare function extentOf(entities: readonly Entity[], read: (entity: Entity) => number): Interval;
+export declare function hitTargetPx(theme: Theme): number;
+export declare function hotspotColorAt(score: number, ramp: HotspotRamp): OkLch;
+export declare function hotspotColorCssAt(score: number, ramp: HotspotRamp): string;
+export declare function hotspotMapStyleVars(tokens: HotspotMapTokens): string;
+export declare function hotspotRamp(theme: Theme): HotspotRamp;
+export declare function linearScale(domain: Interval, range: Interval): (value: number) => number;
+export declare function radiusScale(domain: Interval, minRadius: number, maxRadius: number): (value: number) => number;
+export declare function rampPx(theme: Theme): readonly number[];
+export declare function ticks(domain: Interval, count: number): readonly number[];
+export default HotspotMap;
+export interface AxisTick {
+export interface Coupling {
+export interface DoraKeys {
+export interface Entity {
+export interface HotspotEncoding {
+export interface HotspotMapTokens {
+export interface HotspotPlot {
+export interface HotspotRamp {
+export interface Interval {
+export interface LegendStop {
+export interface Ownership {
+export interface PlacedPoint {
+export interface PlotDimensions {
+export interface Report {
+export interface RepositoryRef {
+export interface Summary {
+export interface TrendPoint {
+export interface TrendSeries {
+export interface View {
+export interface Window {
+export type StyleEntry = readonly [suffix: string, value: string | number];
+export type { Report, RepositoryRef, Window, Entity, Coupling, Ownership, DoraKeys, Summary, TrendPoint, TrendSeries, View, } from './report.js';
+export type { Report, RepositoryRef, Window, Entity, Coupling, Ownership, DoraKeys, Summary, TrendPoint, TrendSeries, View, } from './report/index.js';
+export { HotspotMap, deriveHotspotMapTokens, hotspotMapStyleVars, rampPx, hitTargetPx, extentOf, linearScale, radiusScale, hotspotRamp, hotspotColorAt, hotspotColorCssAt, ticks, entityValue, entityLabel, buildHotspotPlot, DEFAULT_HOTSPOT_ENCODING, DEFAULT_PLOT_DIMENSIONS, type HotspotMapTokens, type StyleEntry, type Interval, type HotspotRamp, type HotspotEncoding, type PlotDimensions, type PlacedPoint, type AxisTick, type LegendStop, type HotspotPlot, } from './hotspot-map/index.js';
+export { buildHotspotPlot, DEFAULT_HOTSPOT_ENCODING, DEFAULT_PLOT_DIMENSIONS, type HotspotEncoding, type PlotDimensions, type PlacedPoint, type AxisTick, type LegendStop, type HotspotPlot, } from './plot.js';
+export { default as HotspotMap } from './hotspot-map.svelte';
+export { deriveHotspotMapTokens, hotspotMapStyleVars, rampPx, hitTargetPx, type HotspotMapTokens, type StyleEntry, } from './tokens.js';
+export { extentOf, linearScale, radiusScale, hotspotRamp, hotspotColorAt, hotspotColorCssAt, ticks, entityValue, entityLabel, type Interval, type HotspotRamp, } from './scales.js';
+export { hotspotColorAt };
+interface HotspotMapProps {
+readonly ageDays: number;
+readonly analyzedAt: string;
+readonly at: string;
+readonly attentionPoint: string;
+readonly authorCount?: number;
+readonly authors: Readonly<Record<string, number>>;
+readonly averageRevisions: number;
+readonly axis: string;
+readonly axisOklch: OkLch;
+readonly busFactor: number;
+readonly changeFailureRate?: number;
+readonly changeFrequency: number;
+readonly churnAbsolute: number;
+readonly churnRelative: number;
+readonly cognitive?: number;
+readonly color: string;
+readonly colorValue: number;
+readonly commit: string;
+readonly commitCount: number;
+readonly couplings: readonly Coupling[];
+readonly coverage?: number;
+readonly cx: number;
+readonly cy: number;
+readonly cyclomatic?: number;
+readonly degree: number;
+readonly deploymentFrequency?: string;
+readonly dora?: DoraKeys;
+readonly encoding: Readonly<Record<string, string>>;
+readonly entities: readonly Entity[];
+readonly entity: Entity;
+readonly entityA: string;
+readonly entityB: string;
+readonly entityCount: number;
+readonly fill: string;
+readonly fontFamily: string;
+readonly foreground: string;
+readonly foregroundOklch: OkLch;
+readonly fromCommit?: string;
+readonly gapPx: number;
+readonly headCommit: string;
+readonly height: number;
+readonly high: OkLch;
+readonly hitTargetPx: number;
+readonly hotspotScore: number;
+readonly id: string;
+readonly identifier: string;
+readonly kind: string;
+readonly label: string;
+readonly labelLineHeightPx: number;
+readonly labelSizePx: number;
+readonly language?: string;
+readonly leadTimeHours?: number;
+readonly legend: readonly LegendStop[];
+readonly lines: number;
+readonly low: OkLch;
+readonly maintainability?: number;
+readonly maintainabilityRating: string;
+readonly margin: number;
+readonly max: number;
+readonly maxRadius: number;
+readonly metric: string;
+readonly min: number;
+readonly minRadius: number;
+readonly ownership: readonly Ownership[];
+readonly paddingPx: number;
+readonly path: string;
+readonly performer?: string;
+readonly plotBackground: string;
+readonly plotBackgroundOklch: OkLch;
+readonly pointStroke: string;
+readonly points: readonly PlacedPoint[];
+readonly points: readonly TrendPoint[];
+readonly position: number;
+readonly primaryAuthor?: string;
+readonly primitive: string;
+readonly radius: number;
+readonly radiusPx: number;
+readonly ramp: HotspotRamp;
+readonly ratings?: Readonly<Record<string, string>>;
+readonly recoveryHours?: number;
+readonly repository: RepositoryRef;
+readonly revisions: number;
+readonly schemaVersion: string;
+readonly score: number;
+readonly sharedRevisions: number;
+readonly since?: string;
+readonly size: string;
+readonly sizeDomain: Interval;
+readonly sizeValue: number;
+readonly source: string;
+readonly summary: Summary;
+readonly technicalDebtRatio: number;
+readonly tickLabelSizePx: number;
+readonly title: string;
+readonly toCommit: string;
+readonly trends: readonly TrendSeries[];
+readonly until?: string;
+readonly value: number;
+readonly views: readonly View[];
+readonly width: number;
+readonly window: Window;
+readonly x: string;
+readonly xDomain: Interval;
+readonly xTicks: readonly AxisTick[];
+readonly xValue: number;
+readonly y: string;
+readonly yDomain: Interval;
+readonly yTicks: readonly AxisTick[];
+readonly yValue: number;
+theme?: Theme;
+title?: string;
+type HotspotMap = ReturnType<typeof HotspotMap>;
+}

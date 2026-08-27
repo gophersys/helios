@@ -1,0 +1,8 @@
+# Shared prettier ignore for the libs/typescript workspace (ADR-0024).
+# Build artifacts and dependency trees are never formatted.
+**/dist/**
+**/coverage/**
+**/node_modules/**
+**/.svelte-kit/**
+**/.apibaseline
+bun.lock

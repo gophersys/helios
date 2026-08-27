@@ -1,0 +1,12 @@
+# oapi-codegen configuration for the http-gateway typed test client (ADR-0023, codegen axis #2).
+#
+# It emits a typed client (request/response models + a Client with one method per operationId) from
+# ../../contract/openapi.yaml into generated/. The integration lane drives the running handlers
+# through THIS client, so the contract and the implementation are proven to agree — not assumed to.
+package: generated
+output: generated/client.gen.go
+generate:
+  models: true
+  client: true
+output-options:
+  skip-prune: false
