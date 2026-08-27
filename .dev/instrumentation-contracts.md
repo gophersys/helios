@@ -156,6 +156,39 @@ that the new files were checked. **No docs tool is wired into any gate** — a g
 `render-atlas` or `render-documents`. A docs defect in this repository is caught by a reader, not
 by CI, and that bears directly on how much the greens above are worth.
 
+### ⚠️ CORRECTION — "the evidence set is EMPTY" was true of the OLD main and is FALSE of the new one
+
+An earlier revision of this file said a docs-only eden change has no content evidence, citing §5.2.
+That was measured against `bc84ea2`, the commit this branch was cut from. **`origin/main` has since
+moved 12 commits (now `142c997`), and one of them repeals the claim.**
+
+`703e5a1 ci: let harness-conformance trigger on itself and on the contracts it gates` added this
+path to the workflow's `pull_request` filter, with its reason in the file:
+
+```yaml
+      # The frozen-contract step iterates these, so adding or removing one CHANGES WHAT IS GATED.
+      # A new contract with no matching library, or a deleted contract that silently shrinks the
+      # set, must be caught here rather than by a later reader noticing the count moved.
+      - "docs/architecture/contracts/**"
+```
+
+This pull request adds two files under that path, so **`harness-conformance` is expected to run on
+it** — and that job is the opposite of a no-op: it installs the pinned harnesses and runs the live
+adapter suite against a real provider, and its own header says it "NEVER RUNS IN A DEGRADED MODE"
+because "an input it cannot verify is a FAILURE, never a skip".
+
+Two consequences, and both are stated on the PR:
+- The evidence set is **not** empty. The affected gates still no-op, and `graph-guard` still passes,
+  but the real gate here is `harness-conformance`. **Its actual check run is read before any merge
+  is proposed** — expected-to-run is not ran, and this lane does not bank a prediction as evidence.
+- It is an EXPENSIVE and CREDENTIAL-DEPENDENT lane that this change does not otherwise touch. If it
+  reds for a live-credential or peer-messaging reason, that is **surfaced, not caused**, and the
+  same-job-on-a-branch-without-this-change check settles which.
+
+Branch state measured: 13 ahead, 12 behind, `git merge-tree` reports **0 conflict markers**, and
+none of the 12 commits touches `docs/architecture/README.md` or `docs/architecture/contracts/`. No
+rebase is taken — §6 says rebase when you must, not by habit.
+
 That NX line is a **NO-OP and is not evidence about content** (git-process §5.1). A docs-only
 change selects nothing, and the structural reason is measurable: there is no `project.json`
 anywhere under `docs/`, and `.ci/graph-roster.txt` carries no `docs` row. eden also has **no
