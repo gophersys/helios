@@ -143,7 +143,20 @@ rc=**0**.
 
 **`NX_BASE=origin/main bash .ci/ctl.sh affected-check` — rc=0, output `NX   No tasks were run`.**
 
-That second line is a **NO-OP and is not evidence about content** (git-process §5.1). A docs-only
+**Both Status lines classify correctly under the merged gate's OWN parse**, run here rather than
+reasoned about — `grep -c '^> Status:'` is exactly **1** in each file (so `grep -m1` cannot silently
+take a different line), and after `tr -d '*'` each parses to `> Status: DRAFT for negotiation · …`,
+which does not match `"> Status: Frozen"*` and does match the draft arm. Neither is
+UNCLASSIFIABLE, which is the third way that gate exits 1.
+
+**`node docs/tools/check-mermaid.mjs` — rc=0**, `10 blocks, 0 failing` over the whole docs tree.
+Both new contracts contain **zero** mermaid blocks, so this proves the tree is unbroken rather than
+that the new files were checked. **No docs tool is wired into any gate** — a grep over `.ci/ctl.sh`,
+`.github/workflows/` and `scripts/` finds no reference to `render-html`, `check-mermaid`,
+`render-atlas` or `render-documents`. A docs defect in this repository is caught by a reader, not
+by CI, and that bears directly on how much the greens above are worth.
+
+That NX line is a **NO-OP and is not evidence about content** (git-process §5.1). A docs-only
 change selects nothing, and the structural reason is measurable: there is no `project.json`
 anywhere under `docs/`, and `.ci/graph-roster.txt` carries no `docs` row. eden also has **no
 `pr-review` workflow** (§7's own table). So on this pull request BOTH §5.2 conditions fire at once
