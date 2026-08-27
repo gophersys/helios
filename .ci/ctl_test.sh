@@ -66,6 +66,25 @@
 # signal that says WHY. Where no rule states a value (a cictl that ran and failed), the
 # tests require failure only, and leave the value to the implementation.
 #
+# THE SECOND EMPTY. A cictl that answers with a NON-EMPTY affected set is not the same thing
+# as a tier with something to gate. A pull request touching only .ci/, templates/ or plugins/
+# produces an affected set of REAL projects, not one of which is a library — every member is
+# dropped by the go/<name>|typescript/<name> rule — and the tier then prints "affected
+# projects had no gateable ctl.sh — clean no-op" and exits 0. The green tick is handed to a
+# change to the GATING MACHINERY ITSELF, which is the one change it must never be handed to.
+#
+# The 2 arms look alike from outside and must not be treated alike:
+#
+#   empty       cictl exits 0 printing nothing      → PASS. The diff really is empty, and the
+#                                                     tier is entitled to say so.
+#   ungateable  cictl exits 0 naming .ci and
+#               templates/go/http-gateway           → FAIL, naming both. Something changed,
+#                                                     and nothing was gated.
+#
+# So the ungateable tests take the EMPTY set as their counter-stimulus, not a failing cictl:
+# the 2 arms differ only in whether the affected set has members, and a fix that fails both
+# has replaced a false green with a false red — the same trade test 3 already refuses.
+#
 # 2 phases, after ctl_test.sh and go/_ctl/lib_test.sh:
 #
 #   phase 1  behaviour      — each test asserts what the tier verb must do.
@@ -73,7 +92,8 @@
 #                             it, and must FAIL. A test that passes both ways read nothing.
 #
 # Every test builds a THROWAWAY tree under mktemp -d holding a copy of the .ci/ctl.sh under
-# test, its own git root, its own 2 fixture libraries, and its own PATH. The PATH holds the
+# test, its own git root, its own 2 fixture libraries, its own non-library fixture project,
+# and its own PATH. The PATH holds the
 # ordinary utilities and NOTHING else, so "cictl is absent" is a property of the fixture
 # rather than a property of the host — and install_cictl PROVES the stimulus before the run,
 # because a probe that ran in a shell which already held the tool proves nothing.
@@ -285,6 +305,12 @@ new_fixture() {
   done
   write_project "$fix" go/alpha
   write_project "$fix" go/beta
+  # A project that is NOT a library, modelled on the real templates/go/http-gateway: it holds
+  # a ctl.sh, so `cictl affected` reports it exactly as it reports go/alpha, and the tier
+  # drops it on the path rule alone. It exists on disk so the ungateable stimulus is a
+  # faithful model of the repository rather than a listing of paths that are not there — and
+  # so a gate that DID reach it would append to the log and be seen.
+  write_project "$fix" templates/go/http-gateway
   # The repository-level ctl.sh `.ci/ctl.sh validate` delegates to. It stands in for the
   # twenty-minute half, so a `validate` run here measures what .ci/ctl.sh does BEFORE the
   # delegation and nothing else; without it every validate would end at a missing file and a
@@ -462,6 +488,10 @@ install_cictl() {
     failing) write_cictl "$fix" "" 2 yes ;;
     silent)  write_cictl "$fix" "" 2 no ;;
     empty)   write_cictl "$fix" "" 0 no ;;
+    # A healthy cictl reporting a NON-EMPTY set of real, non-library projects — the pull
+    # request that touches only .ci/ and templates/. Both paths exist in the fixture and both
+    # carry a ctl.sh, so nothing but the library rule keeps them out of the gate.
+    ungateable) write_cictl "$fix" "$(printf '.ci\ntemplates/go/http-gateway')" 0 no ;;
     partial) write_cictl "$fix" "go/alpha" 2 yes ;;
     reports) write_cictl "$fix" "$(printf 'go/alpha\ngo/beta')" 0 no ;;
     *) die "unknown cictl stimulus: $CICTL" ;;
@@ -502,6 +532,27 @@ run_verb() {
 
 out_has()  { grep -Fq -- "$1" <<<"$OUT"; }
 out_hasE() { grep -Eq -- "$1" <<<"$OUT"; }
+
+# error_has <text> reads ONLY the lines the tier wrote through log_error — which is the only
+# thing in this file that writes to stderr — and never the whole stream.
+#
+# It is the same discipline as assert_cictl_is_silent, one layer up. Every project in the
+# affected set is ALREADY in OUT, because the tier logs a "skipping …" line for each one it
+# drops, so "the tier named the projects" measured over OUT is satisfied by the tier's own
+# routine chatter and would stay green while the FAILURE said nothing at all. Restricting the
+# read to the error lines is the only shape under which that property can be measured.
+#
+# No error line at all returns 1 rather than reading an empty string as a match: today's tier
+# logs none, and that is precisely the state these assertions exist to reject.
+error_has() {
+  local errors=""
+  errors="$(grep -F -- '[error]' <<<"$OUT")" || return 1
+  grep -Fq -- "$1" <<<"$errors"
+}
+
+# gated_has <text> reads the fixture libraries' OWN record of being gated, never the tier's
+# log. A tier can announce anything; only a line in this file proves a per-project ctl.sh ran.
+gated_has() { grep -Fq -- "$1" <<<"$GATED"; }
 
 # assert_verb_ran refuses a vacuous verdict: a run that died before it announced the tier
 # never reached the affected set, so it proves nothing about the affected set.
@@ -821,6 +872,85 @@ t_a_status_check_that_finds_nothing_fails_validate() {
     fail "the check found nothing and logged no error of its own: $OUT"
 }
 
+# 16. The second empty, and the defect this suite was extended for. cictl is healthy and the
+# affected set is NON-EMPTY — .ci and templates/go/http-gateway, the shape of a pull request
+# that touches only the CI layer — yet neither is a library, so the loop gates nothing, `ran`
+# stays 0, and the tier prints "affected projects had no gateable ctl.sh — clean no-op" and
+# exits 0. A change to the gating machinery itself is thereby merged on a green tick that
+# stands for no gate having run.
+#
+# An empty affected set is a TRUE statement about the diff and stays a pass (test 3). This one
+# is not that: something changed, the tier knows exactly what, and it gated none of it. The
+# counter-stimulus is therefore the EMPTY set rather than a failing cictl — the 2 arms differ
+# only in whether the set has members, and this test must fire on one and not the other.
+t_an_ungateable_affected_set_fails_the_tier() {
+  local fix
+  fix="$(new_fixture)"
+  install_cictl "$fix"
+  run_verb "$fix" affected-gate-fast
+  assert_verb_ran affected-gate-fast
+  # The stimulus first. A run that took the EMPTY arm is measuring the sibling branch, and
+  # every assertion below would then be about a case this test is not for.
+  ! out_has 'no affected projects' ||
+    fail "cictl named 2 affected projects and the tier reported an empty affected set, so this run never reached the arm under test (rc=$RC): $OUT"
+  [[ -z "$GATED" ]] ||
+    fail "the stimulus is an affected set with nothing gateable in it, and the tier gated something, so the run would prove nothing: $GATED"
+  [[ "$RC" -ne 0 ]] ||
+    fail "cictl named 2 affected projects, the tier gated NONE of them, and it exited 0; a tier that gates nothing has not passed, it has not looked: $OUT"
+  ! out_has 'clean no-op' ||
+    fail "the tier called gating none of a non-empty affected set a clean no-op; the diff is not empty, so there is nothing clean about it: $OUT"
+  # Named in the FAILURE, not merely in the log. The skip lines already print both paths, so
+  # only the error lines can show that the reader of a red job is told WHAT went ungated.
+  error_has '.ci' ||
+    fail "the tier failed without naming '.ci' in any error line, so the reader cannot tell which affected project went ungated: $OUT"
+  error_has 'templates/go/http-gateway' ||
+    fail "the tier named some affected projects but not 'templates/go/http-gateway'; every member of the set that was not gated has to be named, or the next one hides: $OUT"
+}
+
+# 17. The class, as test 5 is for the missing cictl. All 3 tier verbs reach
+# run_phase_gate_over_affected, so all 3 hand a green tick to a pull request that changes only
+# the CI layer: pr, merge and nightly alike. The arm is shared today, but the cheap fix — a
+# guard bolted into cmd_affected_gate_fast alone — would leave merge and nightly still
+# reporting PASS over a change nothing gated, so the property is asserted per verb.
+t_every_tier_verb_refuses_an_ungateable_affected_set() {
+  local fix verb
+  fix="$(new_fixture)"
+  install_cictl "$fix"
+  for verb in "${TIER_VERBS[@]}"; do
+    run_verb "$fix" "$verb"
+    assert_verb_ran "$verb"
+    ! out_has 'no affected projects' ||
+      fail "$verb reported an empty affected set while cictl named 2 projects (rc=$RC): $OUT"
+    [[ -z "$GATED" ]] ||
+      fail "$verb gated something from an affected set with nothing gateable in it: $GATED"
+    [[ "$RC" -ne 0 ]] ||
+      fail "$verb gated none of the 2 affected projects and exited 0; the arm is shared, so a guard at one verb leaves the other tiers passing over a change they never looked at: $OUT"
+  done
+}
+
+# 18. The non-vacuous half, and it is NOT optional — the same rule that keeps test 3 in the
+# suite. A tier that never returns 0 satisfies tests 16 and 17 completely while gating
+# nothing, so the pass has to be measured too: an affected set that DOES hold libraries must
+# reach the per-project gate, run the selector on each, and say so.
+#
+# GATED is the measurement, not the log: it is written by the fixture library's OWN ctl.sh, so
+# it can only be non-empty if the gate really executed there.
+t_a_gateable_affected_set_reaches_the_per_project_gate() {
+  local fix
+  fix="$(new_fixture)"
+  install_cictl "$fix"
+  run_verb "$fix" affected-gate-fast
+  assert_verb_ran affected-gate-fast
+  gated_has 'alpha phase-gate implementation' ||
+    fail "go/alpha was affected and its own ctl.sh never recorded a phase-gate implementation run; the tier did not reach the per-project gate: [$GATED] $OUT"
+  gated_has 'beta phase-gate implementation' ||
+    fail "go/beta was affected and its own ctl.sh never recorded a phase-gate implementation run: [$GATED] $OUT"
+  [[ "$RC" -eq 0 ]] ||
+    fail "both affected projects are libraries whose gate succeeded, and the tier exited $RC; a gate that cannot pass misleads exactly as much as one that cannot fail: $OUT"
+  out_has 'all 2 affected project(s) green' ||
+    fail "the tier gated 2 affected projects and never reported them green: $OUT"
+}
+
 TESTS=(
   t_a_missing_cictl_fails_the_tier
   t_a_failing_cictl_fails_the_tier
@@ -837,6 +967,9 @@ TESTS=(
   t_a_shadowed_cictl_is_refused
   t_a_second_command_in_a_status_read_fails_validate
   t_a_status_check_that_finds_nothing_fails_validate
+  t_an_ungateable_affected_set_fails_the_tier
+  t_every_tier_verb_refuses_an_ungateable_affected_set
+  t_a_gateable_affected_set_reaches_the_per_project_gate
 )
 
 # ── the stimulus tables ─────────────────────────────────────────────────────
@@ -863,6 +996,9 @@ stimulus_for() {
     t_a_shadowed_cictl_is_refused)                 printf 'reports,shadowed-cictl' ;;
     t_a_second_command_in_a_status_read_fails_validate) printf 'absent,second-command-in-a-status-read' ;;
     t_a_status_check_that_finds_nothing_fails_validate) printf 'absent,status-reads-made-blind' ;;
+    t_an_ungateable_affected_set_fails_the_tier)         printf 'ungateable' ;;
+    t_every_tier_verb_refuses_an_ungateable_affected_set) printf 'ungateable' ;;
+    t_a_gateable_affected_set_reaches_the_per_project_gate) printf 'reports' ;;
     *) die "no phase-1 stimulus is declared for $1" ;;
   esac
 }
@@ -901,6 +1037,14 @@ counter_for() {
       printf 'absent:the status read holds one command again, as the file ships it' ;;
     t_a_status_check_that_finds_nothing_fails_validate)
       printf 'absent:both status reads take a status again, so the check finds the 2 it ships with' ;;
+    # The EMPTY set, not a failing cictl: the 2 arms differ only in whether the affected set
+    # has members, and a test that fires on both would turn the clean-diff pass into a red.
+    t_an_ungateable_affected_set_fails_the_tier)
+      printf 'empty:cictl is healthy and the affected set is genuinely empty, which is a true statement about the diff and stays a pass' ;;
+    t_every_tier_verb_refuses_an_ungateable_affected_set)
+      printf 'reports:every affected project is a library, so all 3 verbs have something to gate' ;;
+    t_a_gateable_affected_set_reaches_the_per_project_gate)
+      printf 'ungateable:the affected set holds .ci and templates/go/http-gateway, so no per-project gate exists to reach' ;;
     *) die "no counter-stimulus is declared for $1; every test must state what makes it fail" ;;
   esac
 }
@@ -921,7 +1065,7 @@ apply() {
   local IFS=','
   for token in $head; do
     case "$token" in
-      absent|failing|silent|empty|partial|reports)              CICTL="$token" ;;
+      absent|failing|silent|empty|partial|reports|ungateable)   CICTL="$token" ;;
       fault-before-the-producer|suppressed-call-appended)       MUTATION="$token" ;;
       updatability-gates)                                       MUTATION="$token" ;;
       second-command-in-a-status-read|status-reads-made-blind)  MUTATION="$token" ;;
