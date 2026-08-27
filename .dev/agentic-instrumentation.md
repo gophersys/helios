@@ -1,6 +1,6 @@
 # agentic-instrumentation
 
-phase: green
+phase: verify
 repo: gophersys/eden
 branch: docs/agentic-instrumentation
 worktree: ~/code/.worktrees/eden-agentic-instrumentation
@@ -82,6 +82,26 @@ Explicit exclusions:
   not populate paths below the `libs` gitlink. The validator now accepts a
   missing nested path only when its top-level owner is a registered `160000`
   gitlink, keeping the check hermetic without weakening ordinary path checks.
+- `bash scripts/ctl.sh lint`: exit 0, shellchecked all 12 repository scripts.
+- `bash scripts/ctl.sh test`: ran and passed `agent-instrumentation_test.sh` and
+  `assert-harness-conformance-preconditions_test.sh`, then stopped on the
+  pre-existing host guard `GNU mktemp is required; this host has none`; the
+  output explicitly routes that test to the devcontainer. This is partial
+  integration evidence, not a green repository gate.
+- REAL CODEX — `codex exec --ephemeral --sandbox read-only --json <discovery
+probe>` loaded `AGENTS.md`, read the contract, and returned
+  `{"entrypoint":"AGENTS.md","contract":"docs/engineering/system.json","schemaVersion":"eden.engineering/v1","featureStatus":"planned"}`.
+  The read-only sandbox made no repository changes.
+- REAL CLAUDE CODE discovery — interactive `/memory` on Claude Code 2.1.246
+  reported `Project instructions — Checked in at ./CLAUDE.md`; the session
+  remained at `$0.00`. The one-turn semantic API probe reached Anthropic but
+  returned HTTP 429, `You've hit your weekly limit · resets Aug 30 at 12am`,
+  with zero input/output tokens and zero cost.
+- Mateo explicitly accepted the Claude semantic probe as deferred until the
+  subscription limit renews: “assume it works, and just ensure it will start
+  working once the limit renews” (2026-08-26). The checked-in `CLAUDE.md`
+  discovery is proven locally; no implementation workaround or alternate
+  credential path is required.
 
 ## Blocked
 
@@ -89,5 +109,5 @@ Explicit exclusions:
 
 ## Next
 
-Commit and push the working slice, then prove instruction discovery through the
-installed Claude Code and Codex harnesses.
+Run the adversarial validator check, review the final diff for lost canonical
+homes or duplicated instructions, then open the pull request.
