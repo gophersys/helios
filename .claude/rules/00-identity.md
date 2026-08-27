@@ -1670,22 +1670,13 @@ count.
   workflow at the concurrency it declares today: `pr-review.yml` CANCELS on
   purpose, because a review of a diff that has already changed is spend with no
   reader, and the other 3 declare no group at all.
-- **The layer cache is in the registry**, `ghcr.io/gophersys/<image>-cache`, one
-  package per image, **`mode=min` on the write** since 2026-08-26. `type=gha` is
-  10 GB per repository across every scope, which 6 images at `mode=max` do not
-  fit. Whether they would fit at `mode=min` is UNMEASURED and the question is
-  moot — `type=registry` has no such ceiling and is what these images use.
-  `mode=max` caches the steps of stages that never reach the final
-  image, and every Dockerfile here is single-stage — 1 `FROM`, no named stage, no
-  `COPY --from` in the 6 files — so it was exporting for a set that does not
-  exist. **The saving is a PREDICTION and not yet a measurement**, and the
-  distinction is the whole point of the `no-cache` dispatch input: the 511.6s
-  (base) / 606.6s (cloud) `mode=max` figures were read on a REBUILD, every
-  `mode=min` run since the switch has been warm, and a warm export reports
-  single-digit seconds whatever the mode is. Same-regime spread on the mode=max
-  side is already 1.7x (511.6s and 303.6s for base), so the answer needs more
-  than 1 run. Read the `no-cache` block in `build-and-push.yml` before quoting
-  any of these numbers.
+- **The published image is the layer cache.** Every Dockerfile is single-stage,
+  so every reusable layer reaches the final image. The publish build writes
+  `type=inline`, and every build reads `<image>:latest`; no separate
+  `<image>-cache` package is part of the workflow. Run 33113679068 measured why:
+  changed base content spent 442.0 seconds exporting `base-cache` under
+  `mode=min`, including two uploads that took 265.6s and 315.1s. Inline metadata
+  travels with the image whose layers the job already pushes.
 - **The builder is `.ci/buildx-node.sh`, not `docker/setup-buildx-action`.** It
   owns the switch that appends the Mac mini as a native arm64 node when
   `SANCTIONED_PLATFORMS` names `linux/arm64`. That switch READS the library, so
