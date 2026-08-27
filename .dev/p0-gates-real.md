@@ -116,7 +116,7 @@ fix and it belongs with premise 1.
 | PR | repo / branch | contents |
 | --- | --- | --- |
 | A | `.devcontainer` `feat/ctl-standard` | `_ctl/standard.sh` (C1·C4 incl. `log_success`·C5·I7, NO `PROJECT_ROOT` assertion so it sources unconfigured); `_ctl/lib.sh` sources it and DELETES its own four duplicates; `docs/ctl-standard.md` = C1–C10 + I1–I7 + V1–V5; `docs/README.md` gains the canonical class; `versions.env` `SQLC_VERSION` + `_build/upstreams.txt` row + install + `.ci/smoke.sh` class row; `_ctl/tests/standard.test.sh` |
-| B | `libs` `fix/empty-gate-set-fails` | `.ci/ctl.sh` — a NON-EMPTY affected set that yields zero gateable projects is a FAILURE. The adjacent `:181-184` early return stays 0 deliberately: an empty affected set is a true statement about the diff; the blueprint's named defect is the second arm, and `.ci/`-only changes land there. |
+| B ✅ **OPEN: libs#40** | `libs` `fix/empty-gate-set-fails` | `.ci/ctl.sh` — a NON-EMPTY affected set that yields zero gateable projects is a FAILURE. The adjacent `:181-184` early return stays 0 deliberately: an empty affected set is a true statement about the diff; the blueprint's named defect is the second arm, and `.ci/`-only changes land there. |
 | D | eden, LIGHT lane, own PR (§8) | `.devcontainer` + `libs` pointer bumps. **Cannot be merged by this lane** — §8 forbids an unattended pointer-bump merge. Routed to the orchestrator. |
 | E | eden `feat/p0-gates-real` (this branch) | `.ci/ctl.sh`: 11 verbs `require_cmd`-fail on absent nx, dead `-z "$NX_BASE"` arm deleted, the now-untrue header `:6-9` and the `:192-194` comment that JUSTIFIES the no-ops rewritten, sources `standard.sh`, `verbs --check` + `.ci/verb-exceptions.txt`; `persistence:verify` into `cmd_affected_gate_fast`; `timeout-minutes` on the 9 uncovered jobs and `harness-upgrade-check` off `ubuntu-latest`, in `.github/workflows/` AND the byte-identical `.ci/providers/github/` twins |
 
@@ -287,6 +287,27 @@ own commits on top of those ranges.
 `allow_squash_merge=false`, `allow_merge_commit=true`,
 `delete_branch_on_merge=true` on all three repositories this lane touches
 (eden, libs, .devcontainer).
+
+### Phase 3 GREEN — PR-B (`libs`), MERGED-READY, opened as **libs#40**
+
+Reproduced BY ME, not banked from the subagent, inside `p0-devcontainer`:
+
+- `bash .ci/ctl_test.sh` → **TRUE rc=0**, `18 test(s) hold; 18 of 18 proven able
+  to fail`. The `[error] gate (implementation): 2 affected project(s), and NOT
+  ONE is gateable` lines are the NEW behaviour firing inside a fixture.
+- `shellcheck -S style .ci/ctl.sh` → rc=0
+- `bash .ci/ctl.sh validate` → **TRUE rc=0**, identical to the `85ab8ca`
+  baseline I measured before any change.
+
+**The break-test here is machine-checked and unavoidable.** This harness runs a
+second phase that re-applies each test under a COUNTER-STIMULUS and requires it
+to FAIL; "18 of 18 proven able to fail" is the suite's own exit condition, not
+my assertion about a manual break. That is stronger evidence than the `/dev`
+break-test ritual, so it is what I relied on.
+
+Both `TRUE rc=` readings above were taken with `set +e; cmd >file 2>&1; rc=$?;
+set -e` after the pipe mistake earlier in this file. No number here was read
+through a pipe.
 
 ## Blocked
 
