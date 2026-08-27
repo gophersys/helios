@@ -82,7 +82,10 @@ jobs:
     # Runs on the org ARC fleet (dind), which supports the privileged job container + k3d/kind that
     # GitHub-hosted runners never did. Kept behind the EDEN_CI_SUBSTRATE repo variable (currently
     # true) as the operational kill-switch while the real-substrate suites bed in on arc-org.
-    if: ${{ vars.EDEN_CI_SUBSTRATE == 'true' }}
+    # Retained for deliberate reactivation after the base/cloud fast path is stable.
+    # Routine PRs currently run only the fast lane; this avoids a second nested
+    # job-container pull and its private dockerd startup on every change.
+    if: ${{ false }}
     runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
     needs: fast
     container:

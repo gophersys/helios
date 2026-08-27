@@ -54,6 +54,9 @@ permissions:
 jobs:
   conformance:
     name: pinned-harness conformance
+    # Temporarily dormant while CI is Codex-only. Claude/OMP definitions and
+    # tests remain intact for reactivation when their live credentials renew.
+    if: ${{ false }}
     runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
     # The GitHub default is 360 minutes, which on a paid runner is 6 hours of billing for a job that
     # hung. Its successful runs take 12 to 18 minutes today (10 runs measured), so 30 is roughly
