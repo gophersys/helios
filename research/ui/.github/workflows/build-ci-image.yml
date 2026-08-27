@@ -1,0 +1,87 @@
+# Builds and publishes the research-ui CI image (browser + fonts + toolchains).
+# Mirrors hardware's build-ci-image.yml: rebuild on definition changes, weekly
+# for security patches, and on demand; on PRs it builds but never pushes.
+name: build-ci-image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'ci/Dockerfile'
+      - '.github/workflows/build-ci-image.yml'
+  pull_request:
+    paths:
+      - 'ci/Dockerfile'
+      - '.github/workflows/build-ci-image.yml'
+  schedule:
+    - cron: '23 4 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/gophersys/research-ui-ci
+
+concurrency:
+  group: build-ci-image-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: arc-org      # dind sidecar provides Docker
+    timeout-minutes: 45   # image pull+build+push on a slow day, with margin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Decide whether to push
+        id: mode
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "push=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # The base is a PRIVATE cross-repo package: GITHUB_TOKEN's packages:read
+      # covers only packages linked to THIS repo (eden lesson L3). Pre-pull
+      # with the pull PAT into the local store — docker build resolves FROM
+      # there — then log out so the push identity is GITHUB_TOKEN alone.
+      - name: Pre-pull the private base image
+        env:
+          GHCR_PULL_TOKEN: ${{ secrets.GHCR_PULL_TOKEN }}
+        run: |
+          set -euo pipefail
+          : "${GHCR_PULL_TOKEN:?secret GHCR_PULL_TOKEN is not set — a missing credential is a failure, not a skip}"
+          echo "$GHCR_PULL_TOKEN" | docker login ghcr.io -u pull --password-stdin
+          docker pull ghcr.io/gophersys/base:latest
+          docker logout ghcr.io
+
+      - name: Log in to GHCR
+        if: steps.mode.outputs.push == 'true'
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.GITHUB_TOKEN }}" \
+            | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build
+        run: |
+          set -euo pipefail
+          docker build -f ci/Dockerfile -t "$IMAGE:${{ github.sha }}" ci/
+
+      # The image is worthless without a working browser: prove it before the
+      # tag moves (the Dockerfile proves at build; this proves the built tag).
+      - name: Verify chromium in the built image
+        run: |
+          set -euo pipefail
+          docker run --rm "$IMAGE:${{ github.sha }}" ui-chromium --version
+
+      - name: Push
+        if: steps.mode.outputs.push == 'true'
+        run: |
+          set -euo pipefail
+          docker tag "$IMAGE:${{ github.sha }}" "$IMAGE:latest"
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"

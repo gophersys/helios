@@ -1,0 +1,61 @@
+name: ci
+on:
+  push: { branches: [main] }
+
+env:
+  PYTHONUNBUFFERED: "1"   # gates must stream — silence is indistinguishable from a hang
+  # The org ui image bakes DENSUI_CHROME, named before the densui -> ui rename
+  # landed in this repo; tools/ui/src/ui/probe.py reads UI_CHROME. Unset, the
+  # probe falls through to its PATH candidate search and can pass WITHOUT ever
+  # launching the browser the image baked — a check that proves less than it
+  # claims. Naming the image's own entry point makes a missing browser a loud
+  # ProbeError instead. Transitional: it goes when ui exports UI_CHROME.
+  UI_CHROME: /usr/local/bin/densui-chromium
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: arc-org  # the org ARC fleet — eden/infrastructure owns the controller
+    timeout-minutes: 30   # a hung job must fail loudly, not hold the fleet seat for 6h
+    container:
+      # The org ui CATEGORY image (ADR-0003): browser + DejaVu + uv + node baked,
+      # one lineage for every UI repo. It is a CROSS-REPO private package (built
+      # by gophersys/.devcontainer), and GITHUB_TOKEN's packages:read reaches
+      # only packages linked to THIS repo — eden lesson L3 — so the pull PAT is
+      # the credential that can fetch it.
+      #
+      # PINNED BY DIGEST, as ADR-0003 requires: `ui` republishes daily off an
+      # unpinned chrome channel, so `:latest` alone would let a green commit go
+      # red tomorrow with no code change. The digest is the multi-arch INDEX,
+      # not the amd64 manifest — the ADR asks dev and CI to pin the SAME digest,
+      # and only the index resolves for an arm64 devcontainer AND this amd64
+      # fleet. The tag is kept for readability; the digest is what resolves.
+      image: ghcr.io/gophersys/ui:latest@sha256:26547a1fdc03bacd4bae9845f43fa74b200347d726034e96e04ae8116486117c
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHCR_PULL_TOKEN }}
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+      - name: gates via the standard entry point
+        run: ./ctl.sh test
+
+  geometry:
+    runs-on: arc-org
+    timeout-minutes: 30
+    container:
+      # same image and same digest as `test` — one reference, moved in one edit
+      image: ghcr.io/gophersys/ui:latest@sha256:26547a1fdc03bacd4bae9845f43fa74b200347d726034e96e04ae8116486117c
+      credentials:
+        username: ${{ github.actor }}
+        password: ${{ secrets.GHCR_PULL_TOKEN }}
+      options: --user root
+    steps:
+      - uses: actions/checkout@v4
+      - name: geometry gates (solver + ratio + overlap + sweep + params)
+        run: ./ctl.sh geometry
+      - name: craft scorecard (seeded corpus; a missed seed fails)
+        run: ./ctl.sh score

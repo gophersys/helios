@@ -1,0 +1,12 @@
+# corpus seed — fractional-edges. Default audit.Rules(); no [rules] override,
+# because a seed that needs a loosened rule proves nothing about the shipped
+# predicate. The page renders at scale 1 (no zoom, no transform), which is the
+# only scale at which a fractional CSS px is a defect rather than arithmetic.
+[probe]
+root = ".panel"
+
+[probe.containers]
+plate = ".plate"
+
+[probe.parts]
+dial = ".dial"

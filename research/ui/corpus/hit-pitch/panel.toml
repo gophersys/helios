@@ -1,0 +1,12 @@
+# corpus seed — hit-pitch. Default audit.Rules(); no [rules] override, because a
+# seed that needs a loosened rule proves nothing about the shipped predicate.
+# `checkbox` is one of the default hit_kinds, so the page is judged by the
+# vocabulary every panel ships with rather than by a declared one.
+[probe]
+root = ".panel"
+
+[probe.containers]
+plate = ".plate"
+
+[probe.parts]
+checkbox = ".cbx"
