@@ -176,6 +176,44 @@ Measured at intake, `bc84ea2` + submodules at their pinned commits:
   `terraform` ABSENT on the host. Devcontainer `base-devcontainer` up 8 days,
   `ghcr.io/gophersys/base:latest`. Gates run in the container.
 
+### Measured during phase 2, and each one changes an action
+
+- **`origin/main` ADVANCED 9 commits mid-lane**, `bc84ea2` → `b4ff75c` (eden PRs
+  #18/#19). Those commits add 77 lines to BOTH copies of
+  `harness-conformance.yml`. That is a file P0-5 edits, so the timeout census
+  must be RE-TAKEN after a rebase, not carried from intake. Rebase before
+  phase 4.
+- **The eden suite CANNOT run on this host and correctly refuses to.**
+  `bash scripts/ctl.sh test` on macOS exits 1 at `assert-no-skipped-tests_test`:
+  "GNU mktemp is required; this host has none … BSD mktemp accepts the template
+  GNU rejects, so this test cannot fail here." That is FAIL-NOT-SKIP behaving
+  exactly as designed, and it makes Mateo's devcontainer ruling a hard
+  requirement rather than a preference.
+- **A devcontainer bound to the WORKTREE exists**: container `p0-devcontainer`,
+  image `ghcr.io/gophersys/base:latest`, with `/Users/mateo/code` mounted at the
+  same path so the worktree's `.git` GITFILE resolves to
+  `/Users/mateo/code/eden/.git/worktrees/…` inside the container. Proven:
+  `git rev-parse --show-toplevel` returns the worktree and `mktemp --version`
+  reports GNU coreutils 9.4. `.devcontainer/base/ctl.sh up` alone cannot do this
+  — it mounts a single `WORKSPACE_HOST`, and a worktree needs its parent
+  repository mounted too.
+- **Baseline at `b4ff75c`, in that container**: `bash scripts/ctl.sh lint` → 0,
+  11 scripts. `bash scripts/ctl.sh test` → 1, and the ONLY failure is
+  `graph-guard_test`: "no nx on PATH and no node_modules/.bin/nx — this gate
+  cannot be tested, which is a failure, not a skip." Pre-existing and correct;
+  it clears once `yarn install` has run. Any OTHER red after my change is
+  CAUSED by me, not surfaced.
+- `sqlc` is a Go tool, so it follows the `GOFUMPT_VERSION` idiom exactly:
+  `versions.env` pin · `_build/upstreams.txt` `go-proxy` row · value-less `ARG` +
+  `go install` in `base/Dockerfile` · an `asserted` row in `.ci/smoke.sh`.
+- `.devcontainer/docs/README.md` declares that directory **"proposals, not
+  specifications"** and names `.claude/rules/00-identity.md` as the record of
+  what the repository builds. The blueprint puts the canonical
+  `docs/ctl-standard.md` there, so the README MUST gain a canonical class in the
+  same change or the new file lands in a directory that disclaims it. Amending
+  `docs/README.md` is a documentation edit and is allowed; moving the standard
+  into `.claude/` would be a §5 process change and is NOT.
+
 ## Blocked
 
 Nothing.
