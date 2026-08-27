@@ -12,6 +12,7 @@ fail() {
 
 [[ -f "$EXTERNAL_SECRET" ]] || fail "missing Codex ExternalSecret"
 grep -q 'key: shared/eden/codex-review-auth' "$EXTERNAL_SECRET" || fail "wrong Vaultwarden item"
+grep -q 'property: password' "$EXTERNAL_SECRET" || fail "Vaultwarden password property is not selected"
 grep -q 'secretKey: auth.json' "$EXTERNAL_SECRET" || fail "auth.json is not mapped"
 grep -q 'secretName: codex-review-auth' "$POOL" || fail "review pool does not reference the Codex secret"
 grep -q 'name: CODEX_HOME' "$POOL" || fail "review pool does not set CODEX_HOME"
