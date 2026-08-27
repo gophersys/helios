@@ -1,10 +1,10 @@
 # agentic-instrumentation
 
-phase: verify
+phase: wait
 repo: gophersys/eden
 branch: docs/agentic-instrumentation
 worktree: ~/code/.worktrees/eden-agentic-instrumentation
-pr: -
+pr: 25
 attempt: 0/2
 
 ## Goal
@@ -119,5 +119,5 @@ probe>` loaded `AGENTS.md`, read the contract, and returned
 
 ## Next
 
-Commit the reference cleanup, open the pull request, and inspect the actual CI
-logs before merge.
+Poll pull request 25, inspect every completed check's log, and fix any verified
+finding before the final cleanup and merge.
