@@ -12,7 +12,7 @@ for tool in west git cmake; do
 done
 
 if [ ! -d .west ]; then
-    west init -l ws
+    west init -l manifest
 fi
 west update --narrow
 

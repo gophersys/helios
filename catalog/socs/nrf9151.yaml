@@ -6,7 +6,7 @@ soc_yml: soc/nordic/soc.yml
 dtsi_discovery: auto
 dtsi_seeds:
     - dts/arm/nordic/nrf9151_laca.dtsi
-    - dts/arm/nordic/nrf9151ns_laca.dtsi
+    - dts/arm/nordic/nrf9151_ns_laca.dtsi
 dtsi_files:
     - dts/arm/nordic/nrf9151_laca.dtsi
     - dts/arm/nordic/nrf91.dtsi
@@ -15,8 +15,8 @@ dtsi_files:
     - dts/vendor/nordic/nrf_common.dtsi
     - dts/arm/nordic/override.dtsi
     - dts/arm/nordic/nrf91_peripherals.dtsi
-    - dts/arm/nordic/nrf9151ns_laca.dtsi
-    - dts/arm/nordic/nrf91ns.dtsi
+    - dts/arm/nordic/nrf9151_ns_laca.dtsi
+    - dts/arm/nordic/nrf91_ns.dtsi
 compatibles:
     - arm,armv8m-mpu
     - arm,armv8m-systick
@@ -62,6 +62,6 @@ boards:
 depth: D1
 part_numbers: []
 provenance:
-    zephyr_sha: 413b789deb391d3a37d06b463288a5fe765ee57e
-    extracted: "2026-08-26"
+    zephyr_sha: 684c9e8f32e4373a21098559f748f06915f950c9
+    extracted: "2026-08-27"
     tool: sfd/v0

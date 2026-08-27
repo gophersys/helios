@@ -25,7 +25,7 @@ The machine behind the docs:
 |---|---|---|
 | `sfd` tool | [`tools/sfd/`](../../tools/sfd/) | Go library + CLI: Zephyr tree in, typed records out. The Eden seam. |
 | catalog | [`catalog/`](../../catalog/) | extracted records — versioned, reviewed, cited by SHA |
-| workspace | `ws/` (git-ignored) + [`ws/west.yml`](../../ws/west.yml) | the pinned Zephyr the records cite |
+| workspace | `ws/` (git-ignored) + [`manifest/west.yml`](../../manifest/west.yml) | the pinned Zephyr the records cite |
 | devcontainer | [`.devcontainer/`](../../.devcontainer/) | rides `ghcr.io/gophersys/embedded` by digest; consume-only |
 | gate | [`gate.sh`](../../gate.sh) | the whole safety net (repo has zero CI): vet + tests + `sfd verify`, devcontainer-only, FAIL-NOT-SKIP |
 

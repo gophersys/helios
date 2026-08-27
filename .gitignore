@@ -1,7 +1,8 @@
-# West workspace — everything under ws/ is fetched, except the manifest.
+# West workspace — everything under ws/ is fetched; the manifest lives
+# in manifest/ (a sibling, so zephyr is never nested inside the manifest
+# repo dir — that nesting made Zephyr's module scan recurse).
 .west/
-ws/*
-!ws/west.yml
+ws/
 
 # Go build output
 tools/sfd/sfd
