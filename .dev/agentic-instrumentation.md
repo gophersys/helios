@@ -121,6 +121,15 @@ probe>` loaded `AGENTS.md`, read the contract, and returned
 - `actionlint` passes for the new workflow with only the known custom
   `arc-review` runner label ignored; the focused instrumentation test remains
   green.
+- Infrastructure PRs 205, 206, and 207 established the private runner mount and
+  isolated Vaultwarden password store. Live proof: both GitOps children synced,
+  the store is `Ready=True`, the ExternalSecret is `SecretSynced`, and the
+  generated 3,875-byte `auth.json` parses as a JSON object without displaying its
+  contents. Eden's next review authenticated with `Logged in using ChatGPT`.
+- That run then exposed cictl's use of a `view_image` feature flag absent from the
+  deployed Codex 0.146.0. cictl PR 27 fixed the compatibility boundary and merged
+  at `c845caab4940f06bf5a0c6f001c605e5bf304829` after the real 0.146.0 test, full
+  local and remote gates, and independent APPROVE. Eden now pins that commit.
 
 ## Blocked
 
