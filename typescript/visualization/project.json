@@ -58,7 +58,7 @@
     "mutate": {
       "executor": "nx:run-commands",
       "options": { "command": "bash ./ctl.sh mutate", "cwd": "{projectRoot}" },
-      "dependsOn": ["cover-floor"],
+      "parallelism": false,
       "cache": false
     },
     "design-correctness": {
