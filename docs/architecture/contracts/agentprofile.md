@@ -768,8 +768,19 @@ set, and returns a typed `*ConfigError` (`errors.KindInvalid`) on a violation so
 root fails fast and loud. Parsing bytes that were handed to it is pure; reading the file is the
 caller's job.
 
-`Config` and `Deps` are the exact required type names. `libs/.claude/rules/11-naming.md:52` states
-it: *"`Config` or `Deps` is fine; a *package* or *directory* named `config`/`deps` is not."*
+`Config` and `Deps` are the exact required type names. ✅ `libs/.claude/rules/11-naming.md:54-59`,
+under the heading *"The two spine types are pinned: `Config` and `Deps`"*, states it and is
+stronger than a permission: *"Its two parameter **types** ARE named `Config` and `Deps`. This is
+**required**, not merely permitted: `Configuration` and `Dependencies` are rejected as full-spelled
+spine outliers, and `hnslint` fails a library that declares them."*
+
+> ⚠️ **Corrected.** An earlier revision of this line quoted *"`Config` or `Deps` is fine; a package
+> or directory named `config`/`deps` is not"* and attributed it to `:52`. That sentence exists in a
+> SUPERSEDED revision of the rule — it is in the stale eden primary checkout, not in the version
+> pinned by this repository (`8683feab1`), where line 52 now holds different text and the pinned
+> spine-types section replaced it. The substance was right and the citation was false, which is the
+> worse of the two failures: a reader who followed it would have found a rule that no longer says
+> that. Verified by `grep` against the pinned submodule copy.
 `Configuration`/`Dependencies` as type names fail that rule; the *parameter* names stay
 `configuration` and `dependencies` per the 10 §4 spine.
 
