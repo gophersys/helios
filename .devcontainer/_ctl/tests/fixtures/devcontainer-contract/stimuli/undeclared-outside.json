@@ -1,0 +1,7 @@
+{
+  "//": "STIMULUS. _ctl/tests/devcontainer-contract.test.sh stages this file as outside/devcontainer.json in a root whose images.yaml declares `first` and `second` and nothing else. It is CORRECT in every property the contract states about a file — it parses, it names its own directory's image, it carries the dev user and /workspace — so the only thing wrong with it is that no image of the manifest declares `outside`. It is the OTHER direction of the set equality, and it is the direction that catches a directory left behind by a deleted image: `runner/` sat on disk retired for months, and a devcontainer.json added to it would have been read by nothing.",
+  "name": "outside",
+  "image": "ghcr.io/gophersys/outside:latest",
+  "remoteUser": "dev",
+  "workspaceFolder": "/workspace"
+}

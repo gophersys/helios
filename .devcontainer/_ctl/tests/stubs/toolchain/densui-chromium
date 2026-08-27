@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/toolchain/densui-chromium — the stub headless browser the ui
+# image bakes as its ONE entry point.
+#
+# ui/Dockerfile symlinks /usr/bin/google-chrome-stable to
+# /usr/local/bin/densui-chromium and exports DENSUI_CHROME at that name, so every
+# gate of gophersys/research-ui resolves 1 path instead of branching on the
+# architecture. The content-ui group asks only whether DENSUI_CHROME names an
+# EXECUTABLE, so nothing here is run by that group — this file is what makes the
+# name executable, and the version it prints is the shape .ci/smoke.sh compares
+# CHROME_MAJOR_VERSION against with its `prefix` extractor.
+#
+# IT CARRIES NO STUB_FAIL KNOB, and that is the reason: no case can set one,
+# because no check in this repository EXECUTES this file. It had one, and a
+# switch nothing can flip is a dead branch that reads like coverage — the same
+# class as a check that cannot fail, one level down. The day a case runs the
+# browser (the version comparator inside the guest is where that would happen),
+# the knob comes back with the case that drives it.
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+printf 'Google Chrome 152.0.7977.64\n'
+exit 0

@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/toolchain/java — the stub JDK for the content-flutter group.
+#
+# The real `java -version` writes to STDERR, and this stub does the same. A stub
+# that answered on stdout would let a check pass that the real tool fails.
+#
+#   STUB_FAIL_JAVA   exit 1 instead of answering   (unset)
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+if [[ "${STUB_FAIL_JAVA:-}" == "1" ]]; then
+  printf 'stub java: this run was told to fail (STUB_FAIL_JAVA)\n' >&2
+  exit 1
+fi
+
+printf 'openjdk version "17.0.13" 2026-10-15\n' >&2
+exit 0

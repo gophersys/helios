@@ -1,0 +1,45 @@
+name: fixture-self-hosted-runner
+
+# A FIXTURE, not a workflow. It lives under _ctl/tests/fixtures/, so no CI
+# provider reads it and nothing here ever runs. Its only reader is
+# _ctl/tests/workflow-yaml.test.sh.
+#
+# This is the QUIET direction of the billed-runner rule: every job runs on the
+# homelab pools, and no step runs a hosted-only action. A detector that reported
+# this file would report every correct workflow, and the rule would be noise
+# rather than a gate.
+#
+# It carries both forbidden strings INSIDE COMMENTS on purpose. The rule is
+# about what a workflow RUNS, and a comment runs nothing — a reader of prose
+# calls this file billed, which is the failure mode being watched for here.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    # This job ran on ubuntu-latest until the migration. The words are here so a
+    # text reader has something wrong to find.
+    runs-on: arc-build
+    steps:
+      - uses: actions/checkout@v4
+      # The step that was deleted here read:
+      #   uses: jlumbroso/free-disk-space@v1.3.1
+      # It reclaims ~25-30 GB of a GitHub-hosted image. On a homelab node it
+      # would delete the node's own tool cache, so it goes with the move.
+      - uses: docker/setup-buildx-action@v3
+      - name: build
+        run: echo build
+
+  gate:
+    needs: [build]
+    runs-on: arc-org
+    steps:
+      - uses: actions/checkout@v4
+      - name: validate
+        run: echo validate

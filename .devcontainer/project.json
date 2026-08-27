@@ -1,0 +1,34 @@
+{
+  "name": "devcontainer",
+  "$schema": "node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "tags": ["scope:shared", "type:container-images"],
+  "targets": {
+    "list": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh list",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "validate": {
+      "//": "cache is false because this verb discovers its own file set at runtime: shell_scripts() finds every file with a shell shebang, so no static inputs list can be complete. The list that stood here missed 32 tracked files it reads. A cache key that under-counts its inputs replays a green that checked nothing. See .claude/rules/00-identity.md, 'Nx caching'.",
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh validate",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "test": {
+      "//": "cache is false: the suite globs _ctl/tests/*.test.sh at runtime and each file reads whatever it judges. See .claude/rules/00-identity.md, 'Nx caching'.",
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh test",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    }
+  }
+}

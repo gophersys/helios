@@ -1,0 +1,23 @@
+# The image manifest of the staged repository root that
+# _ctl/tests/toolchain-parity.test.sh runs `ctl.sh validate` inside.
+#
+# 1 image, and it is not a copy of the real set. The reason is the one
+# _ctl/tests/fixtures/images-manifest/ states about its own pair: a fixture that
+# tracked the real image set would need an edit every time an image is added,
+# and it would then be testing the set instead of the rule.
+#
+# 1 and not 2, because the property under test is NOT a loop. The version gate
+# runs once per verb, above the loop over the images, so a second image would
+# stage a bigger tree and prove nothing more. _ctl/tests/dispatcher-mode.test.sh
+# needs 2 for exactly the opposite reason: its rule IS the loop.
+images:
+  only:
+    enabled: true
+    parent: ""
+    context: "."
+    dockerfile: only/Dockerfile
+    smoke_ref: only:smoke
+    paths:
+      - only/
+    groups:
+      - content-only

@@ -1,0 +1,33 @@
+name: fixture-matrix-flow
+
+# A FIXTURE, not a workflow. See good-nightly.yml.
+#
+# The FLOW form of the scan matrix — the form the real nightly uses. The reader
+# must return exactly alpha, beta and gamma: not the quoted name read with its
+# quotes, not the trailing comment, and not the `image:` key that sits outside
+# a matrix: block further down.
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [alpha, "beta", gamma] # the 3 published images
+    steps:
+      - name: scan the image
+        run: trivy image ghcr.io/gophersys/${{ matrix.image }}:latest
+
+  unrelated:
+    runs-on: ubuntu-latest
+    # Not under a matrix: key. A reader keyed on the word `image:` alone would
+    # add delta to the set and then report the real workflow as wrong.
+    steps:
+      - name: build something
+        with:
+          image: delta
+        uses: ./.github/actions/nothing

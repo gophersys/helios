@@ -1,0 +1,24 @@
+{
+  "base_url": "https://storage.googleapis.com/flutter_infra_release/releases",
+  "current_release": {
+    "stable": "0000000000000000000000000000000000000001"
+  },
+  "releases": [
+    {
+      "hash": "0000000000000000000000000000000000000001",
+      "channel": "stable",
+      "version": "3.41.7",
+      "release_date": "2026-08-05T00:00:00.000Z",
+      "archive": "stable/linux/flutter_linux_3.41.7-stable.tar.xz",
+      "sha256": "25639dfbf55924ec4b153f8935d20178fa554a5b5190f8613206f7bcf67a2a5a"
+    },
+    {
+      "hash": "0000000000000000000000000000000000000002",
+      "channel": "beta",
+      "version": "3.42.0",
+      "release_date": "2026-08-12T00:00:00.000Z",
+      "archive": "beta/linux/flutter_linux_3.42.0-beta.tar.xz",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "//": "check_devcontainer_json holds every */devcontainer.json of a repository root to 3 properties. The staged root has to satisfy them, or the good-tree run would fail for a reason that has nothing to do with a dispatcher's mode.",
+  "name": "second",
+  "image": "ghcr.io/gophersys/second:latest",
+  "remoteUser": "dev",
+  "workspaceFolder": "/workspace"
+}

@@ -1,0 +1,16 @@
+# A FIXTURE, not a waiver file. See good.yaml.
+#
+# The defect: a waiver with no expired_at is permanent. Trivy keeps ignoring the
+# finding for as long as the line stays in the file, and nothing ever brings it
+# back for review — so a risk that was accepted for one release is accepted
+# forever, silently.
+#
+# The first entry is complete on purpose. A detector that reports it as well as
+# the second one is useless, so the test checks both directions on this file.
+
+vulnerabilities:
+  - id: CVE-2026-00003
+    statement: fixture only — complete, and must not be reported
+    expired_at: 2026-11-30
+  - id: CVE-2026-00004
+    statement: fixture only — accepted with no end date

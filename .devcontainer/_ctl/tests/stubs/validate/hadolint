@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/validate/hadolint — the stub Dockerfile linter that
+# _ctl/tests/dispatcher-mode.test.sh puts first on PATH while it runs
+# `ctl.sh validate` inside a staged repository root.
+#
+# WHY A STUB AT ALL. hadolint is the 1 tool of `validate` whose resolution can
+# leave the machine. hadolint_resolve in ctl.sh takes the binary on PATH when it
+# reports EXACTLY the pinned version and falls back to
+# `docker run hadolint/hadolint:v<pin>` otherwise, so a host whose hadolint is a
+# point release away would send this suite to a daemon and a registry. That is
+# the opposite of what every file in _ctl/tests/ promises about itself, and the
+# failure it produces says nothing about the property under test.
+#
+# So this stub reports the version the staged versions.env pins, the `host`
+# route is taken, and the staged run stays on this machine. It is deliberately
+# NOT in _ctl/tests/stubs/ beside the docker stub: 7 test files put that
+# directory on PATH, and a hadolint appearing in all of them would be a change
+# to 7 charters made by adding a file.
+#
+#   STUB_HADOLINT_VERSION   the version it reports about itself   (2.15.1)
+#   STUB_HADOLINT_STATUS    the exit status of a lint             (0)
+#
+# An unhandled argv exits 64 and says so, the rule the docker stub states: a
+# verb that starts calling this tool in a shape the stub does not model must
+# stop loudly, and never receive a cheerful 0 from a stub that understood
+# nothing.
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+if [[ "${1:-}" == "--version" ]]; then
+  printf 'Haskell Dockerfile Linter %s\n' "${STUB_HADOLINT_VERSION:-2.15.1}"
+  exit 0
+fi
+
+# The 1 lint shape ctl.sh writes: hadolint_at_pin's `host` arm.
+if [[ "${1:-}" == "--config" && $# -eq 3 ]]; then
+  if [[ ! -f "${2}" ]]; then
+    printf 'stub hadolint: the config it was handed does not exist: %s\n' "${2}" >&2
+    exit 64
+  fi
+  if [[ ! -f "${3}" ]]; then
+    printf 'stub hadolint: the Dockerfile it was handed does not exist: %s\n' "${3}" >&2
+    exit 64
+  fi
+  printf 'stub hadolint: %s read, no daemon and no registry were contacted\n' "${3}"
+  exit "${STUB_HADOLINT_STATUS:-0}"
+fi
+
+( IFS=' '; printf 'stub hadolint: unhandled argv: %s\n' "$*" >&2 )
+exit 64

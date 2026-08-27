@@ -1,0 +1,58 @@
+# The pull request review agent.
+#
+# This is NOT a build gate. It is a step in the development process: an agent
+# reads the change with no memory of writing it, and comments. The author fixes
+# the findings and pushes again. The loop is bounded at 4 rounds.
+#
+# It runs on `arc-review`, the isolated pool whose immutable image and Codex
+# login are managed by infrastructure. The workflow carries no agent credential.
+#
+# The reviewer itself lives in gophersys/cictl (public), so 20 repositories share
+# 1 copy of the instructions instead of 20 that drift.
+name: pr-review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Only 1 review per pull request at a time. A second push while a review is
+# running cancels it: reviewing a diff that has already changed wastes the budget.
+concurrency:
+  group: pr-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it.
+    #
+    # DECLARED ONCE. This job carried `timeout-minutes` twice, which makes the
+    # file invalid workflow YAML. GitHub answers with a startup failure that
+    # attaches NO check to the pull request, so the reviewer read as absent
+    # rather than broken, and no pull request here was reviewed for days.
+    #
+    # 30 is the value this workflow was written with. It is NOT measured: the
+    # job had never run when the duplicate was introduced. Re-size it once a
+    # real run has a wall time.
+    runs-on: arc-review
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          # The reviewer reads history to judge a change against what came
+          # before, so a shallow clone is not enough.
+          fetch-depth: 0
+
+      - uses: gophersys/cictl/review@ac8eb06436478d2a05265a855243bbf9d5775d5a # merged PR #28
+        with:
+          pr: ${{ github.event.pull_request.number }}
+          harness: codex
+          model: default
+          budget-usd: "25"
+          max-rounds: "4"
+          stream-store: none

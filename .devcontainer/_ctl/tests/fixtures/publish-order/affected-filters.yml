@@ -1,0 +1,105 @@
+name: fixture-affected-filters
+
+# A FIXTURE, not a workflow. It lives under _ctl/tests/fixtures/, so no CI
+# provider reads it and nothing here ever runs. Its only reader is
+# _ctl/tests/publish-order.test.sh.
+#
+# 4 jobs, 1 correct and 3 broken, each broken in a different way. The rule under
+# test is "a job that skips its build must skip its publish", and each defect
+# below is a way of satisfying the letter of the affected-only optimisation
+# while publishing an image this run never built or smoked.
+#
+#   gated-correctly           the shape every real job has to have
+#   ungated-publish           it asks, it gates the smoke, and it pushes anyway
+#   asks-about-another-image  the copy-paste defect: the job is named for one
+#                             image and the filter is asked about another
+#   no-filter-at-all          it publishes with no filter step in the job
+#
+# The step names are prose and no rule reads them. Each defect is recognised by
+# what the step DOES, so renaming a step cannot hide one.
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  # The correct shape. Every step that acts on the registry or on the image is
+  # guarded by the answer, and the filter step itself is not — its output is
+  # what everything else reads.
+  gated-correctly:
+    runs-on: arc-build
+    steps:
+      - uses: actions/checkout@v4
+      - name: does this commit change gated-correctly
+        id: filter
+        run: bash .ci/affected.sh gated-correctly >> "$GITHUB_OUTPUT"
+      - name: build and load
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          push: false
+          load: true
+      - name: smoke
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/smoke.sh gated-correctly
+      - name: publish
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+      - name: verify
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash ./ctl.sh verify-published gated-correctly abc1234
+
+  # The publish step lost its guard. The smoke is skipped on an unaffected
+  # commit and the push is not, so this job ships an image that this run never
+  # built and never checked — the defect this whole file exists for, arriving
+  # through a new door.
+  ungated-publish:
+    runs-on: arc-build
+    steps:
+      - uses: actions/checkout@v4
+      - name: does this commit change ungated-publish
+        id: filter
+        run: bash .ci/affected.sh ungated-publish >> "$GITHUB_OUTPUT"
+      - name: smoke
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/smoke.sh ungated-publish
+      - name: publish
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+
+  # The job is named for one image and asks about another. It is what a
+  # copy-pasted job looks like before its argument is fixed, and it is silent:
+  # the run is green, and this image simply stops being rebuilt on the commits
+  # that change it.
+  asks-about-another-image:
+    runs-on: arc-build
+    steps:
+      - uses: actions/checkout@v4
+      - name: does this commit change something
+        id: filter
+        run: bash .ci/affected.sh gated-correctly >> "$GITHUB_OUTPUT"
+      - name: smoke
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        run: bash .ci/smoke.sh asks-about-another-image
+      - name: publish
+        if: ${{ steps.filter.outputs.build == 'true' }}
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+
+  # No filter at all. It names .ci/affected.sh in a COMMENT, so a reader of
+  # prose calls it filtered.
+  no-filter-at-all:
+    runs-on: arc-build
+    steps:
+      - uses: actions/checkout@v4
+      # This job is meant to run bash .ci/affected.sh no-filter-at-all here.
+      - name: smoke
+        run: bash .ci/smoke.sh no-filter-at-all
+      - name: publish
+        uses: docker/build-push-action@v6
+        with:
+          push: true

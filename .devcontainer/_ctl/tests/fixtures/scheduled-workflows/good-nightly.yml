@@ -1,0 +1,39 @@
+name: fixture-good-nightly
+
+# A FIXTURE, not a workflow. It lives under _ctl/tests/fixtures/, so no CI
+# provider reads it and nothing here ever runs. Its only reader is
+# _ctl/tests/scheduled-workflows.test.sh.
+#
+# This is the shape that satisfies every clause of the rule, so every detector
+# in that file must stay QUIET on it. A detector that reports a correct file is
+# as useless as one that reports nothing, and it is the failure mode a rule
+# written too wide has.
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan the published image
+        run: |
+          trivy image --severity CRITICAL --exit-code 1 \
+            --ignorefile .ci/trivyignore.yaml \
+            ghcr.io/gophersys/base:latest
+      - name: File the failure
+        if: ${{ failure() }}
+        run: bash .ci/notify-failure.sh "the nightly scan failed"
+      # A green run closes the issue the step above opened. It runs on success,
+      # so the rule must constrain the FAILURE step only — a rule that demanded
+      # `if: failure()` on every call to the notifier would forbid this step.
+      - name: Close the issue on a green run
+        if: ${{ success() }}
+        run: bash .ci/notify-failure.sh --resolve

@@ -1,0 +1,65 @@
+# The pull request gate for this repository.
+#
+# The repository has had a `validate` verb since it was created, and nothing ran
+# it. A refactor that removed 578 lines from the control scripts reached a pull
+# request with no gate at all. A verb that only a human remembers to run is not a
+# gate.
+#
+# It runs on `arc-org`, whose image is this repository's own `base` + runner
+# layer, so shellcheck, hadolint and jq are already present. There is no
+# tool-install step, and a missing tool is a FAILURE rather than a skip.
+name: validate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 10
+    runs-on: arc-org          # self-hosted (ARC)
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      # shellcheck -x -S style over EVERY *.sh in the repository, hadolint over
+      # every Dockerfile, jq over every project.json, and the ARG-discipline
+      # check that forbids a hardcoded version in a RUN line.
+      #
+      # A separate step used to lint `_ctl/lib.sh ./ctl.sh ./*/ctl.sh` from a
+      # list of its own. That list left .ci/ctl.sh and .ci/smoke.sh linted by
+      # nothing, and a second list of files to lint is a list that drifts from
+      # the first. The verb walks every *.sh now, so the weaker twin is gone
+      # rather than kept beside it.
+      - name: ctl.sh validate
+        run: bash ./ctl.sh validate
+
+      # The hermetic ctl tests: the platform policy, the push guard and
+      # verify-published. `test` fails when it finds no test file, so a glob that
+      # stopped matching cannot report a green run that checked nothing.
+      - name: ctl.sh test
+        run: bash ./ctl.sh test
+
+      # The dependency graph is declared ONCE, in images.yaml, and the
+      # publishing workflow is GENERATED from it. The old step here compared
+      # BUILD_ORDER between ctl.sh and .ci/ctl.sh — with both now filled from
+      # the manifest it compared two identical strings and could never fail.
+      # This step is the one that can: run the generator, and the committed
+      # provider files plus the live workflow must be EXACTLY its output. A
+      # manifest edit that skipped regeneration, or a hand edit to a generated
+      # file, both land here as a diff.
+      - name: the committed workflows are the generator's output
+        run: |
+          set -euo pipefail
+          bash _ctl/generate.sh
+          if ! git diff --exit-code .ci/providers/github/build-and-push.yml .ci/providers/github/security-nightly.yml .github/workflows/build-and-push.yml; then
+            echo "::error::the committed files differ from the generator's output — run bash _ctl/generate.sh and copy to .github/workflows/, or fix the hand edit"
+            exit 1
+          fi
+          echo "generator output matches the committed workflows"

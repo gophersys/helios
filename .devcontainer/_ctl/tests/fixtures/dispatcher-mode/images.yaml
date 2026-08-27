@@ -1,0 +1,33 @@
+# The image manifest of the staged repository root that
+# _ctl/tests/dispatcher-mode.test.sh runs `ctl.sh validate` inside.
+#
+# 2 images, and neither is a copy of the real set. The reason is the one
+# _ctl/tests/fixtures/images-manifest/ states about its own pair: a fixture that
+# tracked the real image set would need an edit every time an image is added,
+# and it would then be testing the set instead of the rule.
+#
+# 2 and not 1, because the property under test is a LOOP. A rule that judged the
+# first image and stopped would pass every check a 1-image manifest can carry,
+# and the next 100644 dispatcher would be the second one.
+images:
+  first:
+    enabled: true
+    parent: ""
+    context: "."
+    dockerfile: first/Dockerfile
+    smoke_ref: first:smoke
+    paths:
+      - first/
+    groups:
+      - content-first
+
+  second:
+    enabled: true
+    parent: first
+    context: second
+    dockerfile: second/Dockerfile
+    smoke_ref: second:smoke
+    paths:
+      - second/
+    groups:
+      - content-second

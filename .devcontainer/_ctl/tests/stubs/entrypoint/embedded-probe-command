@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+#
+# _ctl/tests/stubs/entrypoint/embedded-probe-command — the command the
+# entrypoint is asked to exec in its default mode.
+#
+# It stands in for the image CMD (`/usr/bin/zsh`) and for any argv a caller
+# hands `docker run`. It reports 3 things a case reads:
+#
+#   - that it RAN at all, with its whole argv, in the shared stub log;
+#   - the identity the entrypoint handed it, as `HOME`/`USER`/`LOGNAME` —
+#     which is how a case tells `runuser -u dev --` from a plain exec;
+#   - a chosen exit status, so a case can prove the entrypoint EXECS the
+#     command rather than running it as a child and returning its own status.
+#
+#   STUB_ENTRYPOINT_LOG    the file every stub of this group appends its argv to
+#   STUB_PROBE_STATUS      the status this command exits with   (0)
+#
+set -Eeuo pipefail
+IFS=$'\n\t'
+
+# `$*` joins on the FIRST character of IFS, and this group sets IFS=$'\n\t' like
+# every other script here — so a bare `"$*"` would write each argument on a line
+# of its own and a reader would see 1 argv as several. The subshell restores the
+# space for the join and nothing else.
+if [[ -n "${STUB_ENTRYPOINT_LOG:-}" ]]; then
+  ( IFS=' '; printf 'embedded-probe-command %s\n' "$*" ) >> "${STUB_ENTRYPOINT_LOG}"
+fi
+
+( IFS=' '; printf 'probe-argv: %s\n' "$*" )
+printf 'probe-home: %s\n' "${HOME:-<unset>}"
+printf 'probe-user: %s\n' "${USER:-<unset>}"
+printf 'probe-logname: %s\n' "${LOGNAME:-<unset>}"
+
+exit "${STUB_PROBE_STATUS:-0}"
