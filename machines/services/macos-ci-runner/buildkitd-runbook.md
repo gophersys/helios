@@ -25,8 +25,11 @@ NOT give root, and `--allow security.insecure` is refused. See
    bind mount fails. Seed named volumes with `docker cp` instead.
 3. **Do not inherit DNS from the current house.** The checked-in
    `buildkitd.toml` uses Cloudflare and Google public anycast resolvers. Neither
-   address belongs to the router or ISP, so moving the mini to another normal
-   internet connection does not change the daemon's resolver contract.
+   address belongs to the router or ISP, so moving the mini does not change the
+   daemon's resolver contract. This still requires internet access that permits
+   public DNS on port 53. Captive, filtered, and split-DNS networks may block
+   these resolvers or require internal names; on such a network, update this
+   explicit config deliberately rather than silently inheriting DHCP DNS.
 
 ## Step 1 — the certificates (on any machine with openssl)
 

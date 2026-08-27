@@ -92,6 +92,11 @@ jobs:
       - name: buildkit-key rule — fixture tests
         run: bash scripts/test-verify-buildx-key.sh
 
+      - name: BuildKit portable DNS contract
+        run: |
+          bash scripts/verify-buildkit-dns.sh
+          bash scripts/test-verify-buildkit-dns.sh
+
       - name: runner-image rule — fixture tests
         run: bash scripts/test-verify-runner-image.sh
 

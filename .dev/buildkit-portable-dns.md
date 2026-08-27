@@ -1,12 +1,12 @@
 # buildkit-portable-dns
 
-phase:    pr
+phase:    fix
 repo:     gophersys/infrastructure
 branch:   fix/buildkit-portable-dns
 worktree: ~/code/.worktrees/infrastructure-buildkit-portable-dns
 pr:       -
-attempt:  0/2
-plan:     SELF-APPROVED — public resolver reachability can vary, so two independent anycast providers and a BuildKit-path preflight avoid dependence on one house, ISP, or resolver.
+attempt:  1/2
+plan:     SELF-APPROVED — public resolver reachability can vary, so two independent anycast providers and a BuildKit-path preflight avoid dependence on one house, ISP, or resolver while documenting the required outbound DNS access.
 
 ## Goal
 The Mac build node resolves registries consistently after Docker restarts and after moving networks, without inheriting a router or ISP DNS server, and operators can prove the configured daemon and its build executor resolve through the intended portable configuration.
@@ -27,6 +27,9 @@ Affected project: `machines/services/macos-ci-runner`. Fast test: its focused po
 - `BUILDKIT_DNS_BUILDER=eden-mini-dns-proof bash ctl.sh verify-buildkit-dns --live`: an uncached remote arm64 build pulled `alpine:3.22`, ran `getent hosts ghcr.io`, and passed.
 - Persistence drill — `docker restart eden-buildkitd`, inspect config, then `... verify-buildkit-dns --live`: config remained mounted and a fresh executor `RUN getent hosts ghcr.io` passed.
 - Both live proofs loaded mTLS material into owner-only temporary directories, then shredded the files and removed their temporary builders; follow-up `find`/`buildx ls` found no residue.
+- Review round 1 requested CI counter-tests, binding `--live` to the intended remote endpoint, and honest public-DNS prerequisites. Implemented all three.
+- `bash scripts/test-verify-buildkit-dns.sh`: eight positive/counter-stimulus cases passed, including local-builder and wrong-endpoint rejection.
+- Updated live proof: verifier identified driver `remote` and endpoint `tcp://10.168.0.92:1234`, then the uncached arm64 executor resolved `ghcr.io`; exit 0.
 
 ## Blocked
 
