@@ -15,25 +15,12 @@ permissions:
 
 jobs:
   # The minutes lane: lint/typecheck/test/leak/property/maintainability/vuln/sast/secretscan over
-  # the affected projects. Runs inside ghcr.io/gophersys/base, where every linter + Go tool is
+  # the affected projects. The ARC runner is the canonical cloud devcontainer derivative, where every linter + Go tool is
   # present, so a missing tool is a HARD FAIL (each ctl.sh verb require_cmds it → exit 127),
   # never a silent skip (ADR-0020 §enforcement).
   fast:
     name: affected-gate (fast)
     runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
-    container:
-      image: ghcr.io/gophersys/base:latest
-      credentials:
-        username: mateosegura
-        password: ${{ secrets.GHCR_PULL_TOKEN }}
-      # Job containers run as root (the GitHub Actions convention): the runner's file-command temp
-      # files are host-runner-owned, so the image's non-root dev user EACCESes them. The Go gate
-      # toolchain stays reachable — the image bakes it onto ENV PATH (uid-independent).
-      options: --user root
-    env:
-      # Keep the dev-user layout even as root: the nvm/corepack caches live under /home/dev and
-      # the image's ENV PATH carries the dev-homed tool dirs; root can write there.
-      HOME: /home/dev
     steps:
       - name: Checkout with submodules
         uses: actions/checkout@v4
@@ -44,8 +31,7 @@ jobs:
           token: ${{ secrets.HARNESS_BOT_TOKEN }}
           submodules: recursive
           fetch-depth: 0
-      # Job steps run as root while the checkout may be written under a different uid (the runner's)
-      # — mark the workspace + submodules trusted so git/nx affected work (disposable CI container).
+      # Keep git/nx robust across runner-image uid changes.
       - name: Trust the workspace checkout (git safe.directory)
         run: git config --global --add safe.directory '*'
       # The apps' gate verbs resolve sibling libs through the WORKSPACE go.work, which is
