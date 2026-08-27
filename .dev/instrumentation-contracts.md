@@ -25,7 +25,14 @@ Each document ends with the exact freeze question Mateo must answer.
 
 ## Authority
 
-Mateo's four design rulings, 2026-08-26, decision prompt, interactive session f9c810a8:
+Mateo's four design rulings, 2026-08-26, decision prompt, interactive session f9c810a8.
+
+> ⚠️ **These are the rulings AS RELAYED TO THIS LANE, not a transcript.** They are recorded in this
+> lane's own words and are NOT presented as Mateo's verbatim wording — `git-process.md` §13 rule 4
+> reserves "verbatim" for a quote with a timestamp, and this lane does not hold the transcript. The
+> refutation caught two different renderings of ruling 4 on one branch, which is precisely the
+> hazard: at most one could have been verbatim, and neither was marked as a paraphrase. Where a
+> document needs Mateo's exact words, it must get them from him.
 
 1. Instrumentation source of truth = **central schema + renderer** — one agentprofile schema
    (role × harness matrix: claude/omp/codex) in eden; a renderer emits each harness's native
@@ -46,11 +53,24 @@ features completely"*.
 ## Lane
 
 FEATURE lane (`.claude/rules/git-process.md` §4 — "any contract change"). Phase 2's red-test
-obligation has **no subject in this repository**: this change adds no executable surface, and
-eden's affected gates select nothing outside an Nx project. That is STATED, never waived — no
-agent may waive §4/phase 2 for itself. The executable proof of the `agentprofile` agreement is
-the sibling `gophersys/libs` pull request (`feat/agentprofile`), whose conformance suite is
-red-first and whose `phase-gate qa` runs in the devcontainer.
+obligation has **no subject in this repository**: this change adds no executable surface. That is
+STATED, never waived — no agent may waive §4/phase 2 for itself.
+
+> ⚠️ **Corrected — an earlier revision of this line was a claim I had not measured.** It read: *"The
+> executable proof of the `agentprofile` agreement is the sibling `gophersys/libs` pull request
+> (`feat/agentprofile`), whose conformance suite is **red-first** and whose `phase-gate qa` runs in
+> the devcontainer."* Both halves were false when written and the refutation caught it:
+> `find …/libs-agentprofile/go/agentprofile -name '*_test.go' | wc -l` → **0** at the time, and
+> `phase-gate qa` had never been run, let alone passed. It was a PLAN written in the present tense
+> in a section whose whole rule is that only executed commands belong there.
+>
+> The true statement, recorded in the sibling lane's own state file: **TDD order was NOT followed
+> for that library.** The phase-1 agent implemented working behaviour alongside the skeleton, so the
+> conformance cases could not be written red-first. Only Mateo may waive red-tests-first and no
+> agent may waive it for itself; that lane is not waiving it, it is REPORTING it, and compensating
+> per-test with mandatory break-probes — plus three slices (`Tree.Stat`/`List`, the `NN-` ordering
+> prefix, and the `settings.json` emission) that are genuinely unimplemented and therefore DO get
+> real red-first treatment. This entry says so rather than quietly renaming a break-probe as a red.
 
 ## Plan
 
@@ -130,7 +150,12 @@ absolute path, so this worktree is visible inside it. `git submodule update --in
 resolve `@eden/primitives` (which lives in `libs/typescript/`). Then `yarn install --immutable`,
 rc=**0**.
 
-**`bash .ci/ctl.sh graph-guard` — rc=0, and it RAN:**
+**`bash .ci/ctl.sh graph-guard` — rc=0, and it RAN. Note the ENVIRONMENT, because it decides the
+result:** this was run INSIDE the container, which is where the repository governance rule says a
+gate must run. An independent refutation re-ran it on the macOS host and got **rc=1** —
+`TypeError: (0, native_1.isAiAgent) is not a function`, an nx native-binding failure under the
+host's node v25.9.0, with `GOPHERSYS_DEVCONTAINER` unset. That is not a contradiction of the result
+below; it is the reason the rule exists. A host run of this gate proves nothing either way.
 
 ```
 [info]  graph-guard: .nxignore covers all 36 required patterns
@@ -211,10 +236,25 @@ rebase is taken — §6 says rebase when you must, not by habit.
 
 That NX line is a **NO-OP and is not evidence about content** (git-process §5.1). A docs-only
 change selects nothing, and the structural reason is measurable: there is no `project.json`
-anywhere under `docs/`, and `.ci/graph-roster.txt` carries no `docs` row. eden also has **no
-`pr-review` workflow** (§7's own table). So on this pull request BOTH §5.2 conditions fire at once
-and **the content-evidence set is EMPTY.** That is stated on the PR, not papered over — and it is
-one of the reasons this branch is not merged by an agent.
+anywhere under `docs/`, and `.ci/graph-roster.txt` carries no `docs` row.
+
+**But §5.2's SECOND condition does NOT fire, and an earlier version of this paragraph said it did.**
+It read: *"eden also has **no `pr-review` workflow** (§7's own table). So on this pull request BOTH
+§5.2 conditions fire at once and the content-evidence set is EMPTY."* That re-asserted, as live
+evidence, the very claim this file had already recorded as stale twenty lines above — the file
+contradicted its own correction, and the refutation caught it. `.github/workflows/pr-review.yml` is
+on `origin/main` and PR #24 triggered a `review` check.
+
+So the honest position is the opposite of the earlier one: **only ONE §5.2 condition fires (the
+affected gates no-op), the evidence set is NOT empty, and the real evidence is the `review` verdict
+plus `harness-conformance`.** Both are read as their own tool calls before any merge is proposed.
+This branch is still not merged by an agent, but the reason is Mateo's §5 contract-PROMISE gate,
+not an absence of evidence.
+
+**The lesson, recorded because it is the second time this exact shape appeared in this file:** a
+correction written in one section does not repeal the claim in another. When a fact changes, sweep
+EVERY place it is used, not just the place it is defined — which is the same rule `git-process.md`
+§14 states after the ADR-0032 sweep missed the root `CLAUDE.md` twice.
 
 ### A masking defect I hit myself, in this lane, and the correction
 
@@ -416,15 +456,20 @@ library merges → pointer bumps. Landing the pointer bump before he rules is wh
   whether the gate is a libs `phase-gate` dimension, an eden `.ci` verb, or both is freeze
   question 2. Nothing in this change makes CI fail on anything.
 - **The `agentruntime` contract is NOT revised.** `fleettelemetry` maps from the sibling lane's
-  `fleetenvelope` draft. The supersession of `OTelContext` by typed `TraceParent`/`TraceState` is
-  `fleetenvelope` §9's business, on the sibling branch, and is Mateo's to freeze.
+  `fleetenvelope` draft, whose §9 owns the `OTelContext` question on the sibling branch. Note that
+  the sibling REVERSED itself there at `9fd66d9`: the typed `TraceParent`/`TraceState` fields were
+  withdrawn and the `OTel` map kept, and the resulting fork was routed to this lane by name. It is
+  Mateo's to freeze either way.
 - **No `oteladapter` is written**, and no infrastructure manifest gains an OTLP endpoint. Both are
   named lanes in the parallelization map, and both are the reason a telemetry claim cannot be
   proven today. `fleettelemetry` states that rather than describing a pipeline that does not run.
-- **The content-evidence set on this pull request is EMPTY** and I will not call it satisfied. The
-  gate that RAN is `graph-guard` (rc=0, 49 projects, roster match); `affected-check` selected
-  nothing (`NX   No tasks were run`), and eden has no `pr-review` workflow. Under §5.2 that means a
-  named human read is the only evidence available here.
+- **The evidence set is NOT empty, and an earlier version of this bullet said it was.** ⚠️ Corrected:
+  the gate that ran locally is `graph-guard` (rc=0, 49 projects, roster match, in the container);
+  `affected-check` selected nothing (`NX   No tasks were run`) and that half remains a NO-OP; but
+  eden HAS a `pr-review` workflow now, and PR #24 triggered `review`, `pinned-harness conformance`
+  and `affected-gate (fast)`. **Each check's own log and the review VERDICT are read as their own
+  tool calls before any merge is proposed** — a triggered check is not a passed check, and this lane
+  banks neither a prediction nor a badge.
 
 ## Blocked
 
