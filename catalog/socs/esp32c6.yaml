@@ -21,6 +21,7 @@ dtsi_files:
     - dts/vendor/espressif/partitions_0x0_default_4M.dtsi
 compatibles:
     - espressif,esp32-adc
+    - espressif,esp32-aes
     - espressif,esp32-bt-hci
     - espressif,esp32-clock
     - espressif,esp32-counter
@@ -32,11 +33,13 @@ compatibles:
     - espressif,esp32-ieee802154
     - espressif,esp32-intc
     - espressif,esp32-ledc
+    - espressif,esp32-lpgpio
     - espressif,esp32-lpuart
     - espressif,esp32-mcpwm
     - espressif,esp32-pcnt
     - espressif,esp32-pinctrl
-    - espressif,esp32-rtc_timer
+    - espressif,esp32-rtc-timer
+    - espressif,esp32-sha
     - espressif,esp32-spi
     - espressif,esp32-systimer
     - espressif,esp32-temp
@@ -47,26 +50,30 @@ compatibles:
     - espressif,esp32-usb-serial
     - espressif,esp32-watchdog
     - espressif,esp32-wifi
+    - espressif,mbox-esp32
     - espressif,riscv
     - fixed-partitions
     - mmio-sram
+    - riscv
     - simple-bus
     - soc-nv-flash
     - zephyr,memory-region
     - zephyr,power-state
+    - zephyr,retained-ram
 power_states:
     - name: standby
-      min_residency_us: 200
-      exit_latency_us: 60
+      min_residency_us: 2500
+      exit_latency_us: 50
     - name: soft-off
-      min_residency_us: 2000
-      exit_latency_us: 212
 boards:
     - boards/espressif/esp32c6_devkitc
+    - boards/m5stack/m5stack_nanoc6
+    - boards/pcbcupid/glyph_c6
     - boards/seeed/xiao_esp32c6
+    - boards/weact/esp32c6_mini
 depth: D1
 part_numbers: []
 provenance:
-    zephyr_sha: 413b789deb391d3a37d06b463288a5fe765ee57e
-    extracted: "2026-08-26"
+    zephyr_sha: 684c9e8f32e4373a21098559f748f06915f950c9
+    extracted: "2026-08-27"
     tool: sfd/v0

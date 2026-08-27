@@ -63,7 +63,7 @@ scores:
   - id: metric.tech.exists
     score: amber
     evidence:
-      - "catalog: connectivity capability D1 on esp32c6 @ zephyr 413b789d"
+      - "catalog: connectivity capability D1 on esp32c6 @ the pinned zephyr (record cites its zephyr_sha)"
     blocked_by: []               # UNKNOWN pir fields, when score=unknown
 derived:
   needs_hardware: true           # any sensing/actuation/hmi/physical function

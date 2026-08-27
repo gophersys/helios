@@ -15,6 +15,8 @@ drivers:
     - drivers/sensor/st/lsm6dso
 exercised_by:
     - boards/arduino/nicla_vision/arduino_nicla_vision_stm32h747xx_m7.dts
+    - boards/coredevices/p2d/p2d.dts
+    - boards/shields/arduino_modulino_movement/arduino_modulino_movement.overlay
     - boards/shields/x_nucleo_iks01a3/x_nucleo_iks01a3.overlay
     - boards/shields/x_nucleo_iks01a3/x_nucleo_iks01a3_shub.overlay
     - boards/st/sensortile_box/sensortile_box.dts
@@ -25,6 +27,6 @@ exercised_by:
 depth: D2
 part_numbers: []
 provenance:
-    zephyr_sha: 413b789deb391d3a37d06b463288a5fe765ee57e
-    extracted: "2026-08-26"
+    zephyr_sha: 684c9e8f32e4373a21098559f748f06915f950c9
+    extracted: "2026-08-27"
     tool: sfd/v0

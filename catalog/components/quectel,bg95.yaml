@@ -15,6 +15,6 @@ exercised_by:
 depth: D2
 part_numbers: []
 provenance:
-    zephyr_sha: 413b789deb391d3a37d06b463288a5fe765ee57e
-    extracted: "2026-08-26"
+    zephyr_sha: 684c9e8f32e4373a21098559f748f06915f950c9
+    extracted: "2026-08-27"
     tool: sfd/v0

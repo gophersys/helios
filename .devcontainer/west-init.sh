@@ -12,7 +12,7 @@ for tool in west git cmake; do
 done
 
 if [ ! -d .west ]; then
-    west init -l ws
+    west init -l manifest
 fi
 west update --narrow
 
@@ -28,12 +28,16 @@ west update --narrow
 #   surviving a container recreate. This block is for west/git use.
 cfg="$HOME/.gitconfig"
 while read -r p; do
-    [ "$p" = "ws" ] && continue
+    [ "$p" = "manifest" ] && continue   # the manifest repo needs no marking
     dir="$(pwd)/$p"
     if ! git config --file "$cfg" --get-all safe.directory 2>/dev/null | grep -qx "$dir"; then
         git config --file "$cfg" --add safe.directory "$dir"
     fi
 done < <(west list -f '{path}')
+
+# zephyr.base as an absolute path — west build resolves Zephyr from it;
+# a relative value left the first tracker build unable to find the tree.
+west config zephyr.base "$(pwd)/ws/zephyr"
 
 echo "west workspace ready:"
 west list -f '{name:20} {revision:12} {path}'

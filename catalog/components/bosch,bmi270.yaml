@@ -17,7 +17,9 @@ drivers:
     - drivers/sensor/bosch/bmi270
 exercised_by:
     - boards/bcdevices/plt_demo_v2/blueclover_plt_demo_v2_nrf52832.dts
+    - boards/infineon/cy8ckit_062s2_ai/cy8ckit_062s2_ai.dts
     - boards/m5stack/m5stack_cores3/m5stack_cores3_procpu.dts
+    - boards/nordic/nrf54l15tag/nrf54l15tag_common.dtsi
     - boards/nordic/thingy53/thingy53_nrf5340_common.dtsi
     - samples/sensor/bmi270/app.overlay
     - tests/drivers/build_all/sensor/i2c.dtsi
@@ -25,6 +27,6 @@ exercised_by:
 depth: D2
 part_numbers: []
 provenance:
-    zephyr_sha: 413b789deb391d3a37d06b463288a5fe765ee57e
-    extracted: "2026-08-26"
+    zephyr_sha: 684c9e8f32e4373a21098559f748f06915f950c9
+    extracted: "2026-08-27"
     tool: sfd/v0

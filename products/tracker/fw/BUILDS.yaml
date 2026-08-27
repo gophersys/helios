@@ -1,0 +1,20 @@
+# G4/G6 build evidence — "recorded, never asserted". One entry per proven
+# build; the gate re-runs build.sh so this record cannot silently rot.
+# D3 semantics: each entry is a per-(component, board) proof for every
+# catalog record listed in components; record depth in catalog/ stays the
+# EXTRACTION depth (D1/D2) — D3 is claimed here, per target, never as a
+# scalar bit on the record (20-component-process.md).
+schema: sfd.builds/v0
+product: tracker
+builds:
+  - board: esp32c6_devkitc/esp32c6/hpcore
+    zephyr: 684c9e8f32e4373a21098559f748f06915f950c9   # v4.4.0
+    artifact: "sha256:9b31786bd14b3591f6603429da78d026ffe57200c36c887594f75f0ce868f0f7"
+    entry: products/tracker/fw/build.sh
+    exit: 0
+    at: 2026-08-26
+    components:            # catalog records this build exercises (D3 pairs)
+      - bosch,bmi270       # CONFIG_BMI270=y, node in zephyr.dts
+      - ti,bq25180         # CONFIG_CHARGER_BQ2518X=y, node in zephyr.dts
+      - quectel,bg95       # dts node only — driver stack is iteration 2,
+                           # so this pair is dts-proof, NOT yet full D3
