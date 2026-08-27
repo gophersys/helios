@@ -25,7 +25,7 @@ command -v docker >/dev/null 2>&1 || fail 'docker is required for --live'
 builder="${BUILDKIT_DNS_BUILDER:-gophersys}"
 docker buildx inspect "$builder" >/dev/null 2>&1 || fail "buildx builder '$builder' is unavailable"
 
-docker buildx build --builder "$builder" --platform linux/arm64 --progress plain - <<'DOCKERFILE'
+docker buildx build --builder "$builder" --platform linux/arm64 --no-cache --progress plain - <<'DOCKERFILE'
 FROM alpine:3.22
 RUN getent hosts ghcr.io >/dev/null
 DOCKERFILE
