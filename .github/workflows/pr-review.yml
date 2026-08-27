@@ -2,12 +2,10 @@
 #
 # This is NOT a build gate. It is a step in the development process: an agent
 # reads the change with no memory of writing it, and comments. The author fixes
-# the findings and pushes again. The loop is bounded at 2 rounds.
+# the findings and pushes again. The loop is bounded at 4 rounds.
 #
-# It runs on `arc-review`, a pool with no dind sidecar and its own Claude
-# credential. The credential is an environment variable on that pool, so it is
-# readable by every job that runs there — which is why the pool runs this
-# workflow and nothing else.
+# It runs on `arc-review`, the isolated pool whose immutable image and Codex
+# login are managed by infrastructure. The workflow carries no agent credential.
 #
 # The reviewer itself lives in gophersys/cictl (public), so 20 repositories share
 # 1 copy of the instructions instead of 20 that drift.
@@ -50,57 +48,11 @@ jobs:
           # before, so a shallow clone is not enough.
           fetch-depth: 0
 
-      - name: Review
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          REVIEW_BUDGET_USD: "25"
-          # The pinned reviewer. Raise it deliberately; see the note below.
-          CICTL_VERSION: v0.7.0
-          REVIEW_STREAM_FILE: ${{ runner.temp }}/review-stream.jsonl
-        run: |
-          set -euo pipefail
-          # cictl is on PATH in the runner image, but the reviewer's instructions
-          # ship with its source. Fetch the pinned copy rather than vendoring a
-          # second one that would drift.
-          #
-          # PINNED, and it was not before. This cloned the default branch, so
-          # every repository silently ran whatever cictl main happened to be at
-          # that minute: cictl moved 23 commits in one evening and no review from
-          # that period can be reproduced. An unpinned shared tool is also a
-          # single point of failure — a broken main would have broken the review
-          # job of every repository at once.
-          #
-          # To take a new reviewer: raise CICTL_VERSION here, in each repository
-          # that runs this workflow. The bump is deliberate, as it is for the
-          # harness pins in eden harnesses/versions.env.
-          git clone --depth 1 --branch "$CICTL_VERSION" \
-            https://github.com/gophersys/cictl /tmp/cictl
-          # Prove the checkout is the tag that was asked for. A clone that
-          # silently fell back to the default branch would defeat the pin.
-          got="$(git -C /tmp/cictl describe --tags --exact-match 2>/dev/null || echo none)"
-          [ "$got" = "$CICTL_VERSION" ] || {
-            echo "::error::cictl checkout is '$got', expected '$CICTL_VERSION'"
-            exit 1
-          }
-          echo "reviewer: cictl $got"
-          bash /tmp/cictl/review/review.sh "${{ github.event.pull_request.number }}"
-
-      # The full event stream: every tool call, every file read, the cost and the
-      # turn count. `if: always()` is the point of it — a review that failed is
-      # exactly the one whose stream you need, and without this the only way to
-      # diagnose it is to pay for another run.
-      - name: Keep the run
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: gophersys/cictl/review@ac8eb06436478d2a05265a855243bbf9d5775d5a # merged PR #28
         with:
-          name: review-stream-${{ github.event.pull_request.number }}-${{ github.run_attempt }}
-          path: ${{ runner.temp }}/review-stream.jsonl
-          # `warn` is correct here, and it cannot hide a failure. review.sh
-          # refuses an empty or missing stream itself — `guard:empty-stream` and
-          # `guard:no-result-event`, both proven able to fail in its test suite —
-          # so the Review step above is already red in every case this step could
-          # be quiet about. Making this step fail as well would add a check that
-          # can only fire when another check has already fired.
-          if-no-files-found: warn
-          retention-days: 14
+          pr: ${{ github.event.pull_request.number }}
+          harness: codex
+          model: default
+          budget-usd: "25"
+          max-rounds: "4"
+          stream-store: none
