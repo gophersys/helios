@@ -290,8 +290,13 @@ nothing to say so.
 
 **Not caused by this change, and not fixed by it.** It belongs to `edenhttp`/`natssse`. What this
 change does is refuse to inherit it: the `fleettelemetry` contract states the two spaces as
-separate numbers and forbids the telemetry consumer from treating one as the other. **The fix is a
-follow-up task in `gophersys/libs` and is named in the report rather than left as a promise.**
+separate numbers and forbids the telemetry consumer from treating one as the other.
+
+**The follow-up is OPEN, not promised: `gophersys/libs` issue #39**, filed with the two file:line
+citations, the reason no current test can catch it, and — the part that matters — the reason the
+obvious test is VACUOUS: `natssse.go:112` already subject-filters the consumer per agent, so "two
+agents interleaved on one stream" passes with the bug fully intact. A non-vacuous assertion needs
+two SESSIONS inside ONE agent, or a no-gap-and-no-duplicate check across a reconnect.
 
 ## Deliberately NOT in this change — say it plainly, so the review is against what is true
 
