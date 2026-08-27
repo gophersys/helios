@@ -4,6 +4,11 @@
 - **Date:** 2026-06-13
 - **Deciders:** Mateo
 
+> **Note (2026-08-11) — `hnslint` moved. The decision below does not change.** The Context names
+> `tools/hnslint`, which was its home in this monorepo. `hnslint` is now the public repository
+> `gophersys/hnslint`, installed into the base image and pinned by `HNSLINT_VERSION`. See the note
+> at the head of ADR-0018.
+
 ## Context
 
 ADR-0018 built the deterministic enforcement *toolchain* (the shared `libs/.golangci.yml`,
