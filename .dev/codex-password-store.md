@@ -1,6 +1,6 @@
 # codex-password-store
 
-phase: plan
+phase: pr
 repo: gophersys/infrastructure
 branch: fix/codex-password-store
 worktree: ~/code/.worktrees/infrastructure-codex-password-store
@@ -40,6 +40,17 @@ Explicit exclusions: no Vaultwarden item mutation, no changes to the existing
 - The live `vaultwarden` ClusterSecretStore uses the fixed result JSONPath
   `$.data.data[0].notes`; its generated Codex secret remained an 89-byte non-JSON
   note after `remoteRef.property: password` reconciled.
+- RED — `bash scripts/test-codex-review-auth.sh`: exit 1 with
+  `missing password-backed ClusterSecretStore` after adding the regression
+  assertions against current main.
+- GREEN — `bash scripts/test-codex-review-auth.sh`: exit 0 with
+  `codex-review-auth: OK` after adding the isolated store and repointing only the
+  Codex ExternalSecret.
+- `shellcheck -S style scripts/test-codex-review-auth.sh` and
+  `git diff --check`: exit 0, silent.
+- `bash ctl.sh validate`: exit 0 after parsing six projects and linting all 35
+  shell scripts.
+- `bash ctl.sh verify-vault-refs`: exit 0 with `pass=15 fail=0`.
 
 ## Blocked
 
@@ -47,4 +58,4 @@ Explicit exclusions: no Vaultwarden item mutation, no changes to the existing
 
 ## Next
 
-Add the regression assertions and prove them red.
+Commit, push, and open the pull request.
