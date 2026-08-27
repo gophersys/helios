@@ -67,6 +67,6 @@ eden/
 ## Repository mechanics
 
 Clone the repository with `git submodule update --init --recursive`. The CI command is
-`bash .ci/ctl.sh affected-check`, and it does nothing until you run `yarn install`.
+`bash .ci/ctl.sh affected-check`, and it exits 127 naming nx until you run `yarn install`.
 [`CLAUDE.md`](CLAUDE.md) holds the conventions, the naming law and the agent rules. The canonical
 naming standard is `docs/architecture/10-library-system.md` §5.

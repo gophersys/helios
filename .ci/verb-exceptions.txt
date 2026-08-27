@@ -1,0 +1,116 @@
+# .ci/verb-exceptions.txt — every DIFFERENCE between what a project's CLASS owes and what the
+# project actually declares, registered with the reason it is allowed to stand.
+#
+# COMMITTED TRUTH, RE-VERIFIED ON EVERY RUN. `bash .ci/ctl.sh verbs --check` recomputes the live
+# difference set from the tree and diffs it against this file. An UNREGISTERED difference is RED,
+# naming the project and the verb. A row whose difference has been REPAIRED is STALE and RED until
+# it is DELETED: THE REGISTER MAY ONLY SHRINK. That is the SUBSTRATE_ENV_REGISTER discipline of
+# `libs/.ci/ctl.sh`, and it is the whole reason this file cannot rot into a permanent skip — a row
+# never outlives its cause, because the cause is measured again every single run.
+#
+# THERE IS DELIBERATELY NO REGENERATE VERB. `graph-roster-update` exists because a project graph
+# legitimately grows; this register is only ever meant to shrink, so a verb that rewrote it to
+# match the tree would be a gate repairing its own expectation — the one thing a gate may not do.
+# Rows leave this file by hand, in the change that makes them untrue.
+#
+# Format, one row per line:  <KIND>|<project>|<root>|<class>|<verb>[|<reason>]
+#
+# <class> is resolved FROM THE TREE on every run and never read from this file: `go.mod` -> go,
+# `package.json` + `tsconfig*.json` -> typescript, neither -> shell. What each class owes out of
+# the closed set (validate build test lint typecheck):
+#
+#   go          build lint test validate
+#   typescript  build lint test typecheck validate
+#   shell       test validate
+#
+# ── OWES-GAP ────────────────────────────────────────────────────────────────────────────────────
+# The project's class owes the verb and the project declares no such target. 62 rows.
+#
+# ONE REASON COVERS ALL 62, so not one row repeats it: THE TARGETS DO NOT EXIST YET. Closing this
+# block is ~62 REAL targets across FOUR repositories — 38 `validate`, 20 `test`, 2 `build`,
+# 2 `lint` — and each one has to run something true in the project it sits in. That is blueprint
+# work with a phase of its own, not a P0 item, and it is REGISTERED here rather than built here
+# for the reason §4.2 gives: a target that no-ops in order to satisfy a table is the exact defect
+# the standard bans, and ~62 of them would be ~62 green checks that looked at nothing.
+#
+# A row leaves this block only in the change that makes its target REAL. Declaring the target
+# without implementing it turns this file red twice over — the row goes stale here, and the no-op
+# body is the defect §4.2 names.
+OWES-GAP|agent-runtime|apps/agent-runtime|go|validate
+OWES-GAP|agentgateway|apps/agentgateway|go|validate
+OWES-GAP|agentruntime|libs/go/agentruntime|go|validate
+OWES-GAP|agentsession|libs/go/agentsession|go|validate
+OWES-GAP|ci-devcontainer|.devcontainer/.ci|shell|test
+OWES-GAP|ci-devcontainer|.devcontainer/.ci|shell|validate
+OWES-GAP|ci-libs|libs/.ci|shell|test
+OWES-GAP|ci-monorepo|.ci|shell|test
+OWES-GAP|clusters|infrastructure/clusters|shell|test
+OWES-GAP|codeinsight|libs/go/codeinsight|go|validate
+OWES-GAP|configuration|libs/go/configuration|go|validate
+OWES-GAP|dependencies|libs/go/dependencies|go|validate
+OWES-GAP|edenhttp|libs/go/edenhttp|go|validate
+OWES-GAP|envelope|libs/go/envelope|go|validate
+OWES-GAP|errors|libs/go/errors|go|validate
+OWES-GAP|forge|libs/go/forge|go|validate
+OWES-GAP|frontend|apps/frontend|typescript|validate
+OWES-GAP|gitrepository|libs/go/gitrepository|go|validate
+OWES-GAP|hnslint|tools/hnslint|go|validate
+OWES-GAP|http-gateway-template-client-go|libs/templates/go/http-gateway/clients/go|go|build
+OWES-GAP|http-gateway-template-client-go|libs/templates/go/http-gateway/clients/go|go|lint
+OWES-GAP|http-gateway-template-client-go|libs/templates/go/http-gateway/clients/go|go|test
+OWES-GAP|http-gateway-template-client-go|libs/templates/go/http-gateway/clients/go|go|validate
+OWES-GAP|http-gateway-template-persistence|libs/templates/go/http-gateway/persistence|shell|test
+OWES-GAP|http-gateway-template-persistence|libs/templates/go/http-gateway/persistence|shell|validate
+OWES-GAP|http-gateway-template|libs/templates/go/http-gateway|go|validate
+OWES-GAP|images-base|.devcontainer/base|shell|test
+OWES-GAP|images-base|.devcontainer/base|shell|validate
+OWES-GAP|images-cloud|.devcontainer/cloud|shell|test
+OWES-GAP|images-cloud|.devcontainer/cloud|shell|validate
+OWES-GAP|images-embedded|.devcontainer/embedded|shell|test
+OWES-GAP|images-embedded|.devcontainer/embedded|shell|validate
+OWES-GAP|images-hardware|.devcontainer/hardware|shell|test
+OWES-GAP|images-hardware|.devcontainer/hardware|shell|validate
+OWES-GAP|images-mobile|.devcontainer/mobile|shell|test
+OWES-GAP|images-mobile|.devcontainer/mobile|shell|validate
+OWES-GAP|images-ui|.devcontainer/ui|shell|test
+OWES-GAP|images-ui|.devcontainer/ui|shell|validate
+OWES-GAP|infrastructure|infrastructure|shell|test
+OWES-GAP|libs|libs|shell|test
+OWES-GAP|machines|infrastructure/machines|shell|test
+OWES-GAP|objectstorage|libs/go/objectstorage|go|validate
+OWES-GAP|observability|libs/go/observability|go|validate
+OWES-GAP|orchestrator|libs/go/orchestrator|go|validate
+OWES-GAP|platformgateway-client-go|apps/platformgateway/clients/go|go|build
+OWES-GAP|platformgateway-client-go|apps/platformgateway/clients/go|go|lint
+OWES-GAP|platformgateway-client-go|apps/platformgateway/clients/go|go|test
+OWES-GAP|platformgateway-client-go|apps/platformgateway/clients/go|go|validate
+OWES-GAP|platformgateway-persistence|apps/platformgateway/persistence|shell|test
+OWES-GAP|platformgateway-persistence|apps/platformgateway/persistence|shell|validate
+OWES-GAP|platformgateway|apps/platformgateway|go|validate
+OWES-GAP|primitives|libs/typescript/primitives|typescript|validate
+OWES-GAP|providers-compute-unit|infrastructure/providers/compute-unit|shell|test
+OWES-GAP|providers-oracle-modules-compute|infrastructure/providers/oracle/modules/compute|shell|test
+OWES-GAP|providers-state-backend|infrastructure/providers/state-backend|shell|test
+OWES-GAP|repository-scripts|scripts|shell|validate
+OWES-GAP|scale|libs/typescript/scale|typescript|validate
+OWES-GAP|secrets|libs/go/secrets|go|validate
+OWES-GAP|testing|libs/go/testing|go|validate
+OWES-GAP|theme|libs/typescript/theme|typescript|validate
+OWES-GAP|visualization|libs/typescript/visualization|typescript|validate
+OWES-GAP|workspaceprovider|libs/go/workspaceprovider|go|validate
+#
+# ── EXTRA ───────────────────────────────────────────────────────────────────────────────────────
+# The project declares a closed-set verb its class does not own, AND REALLY RUNS IT. 7 rows, each
+# carrying its own reason, because a row that does not say why it is allowed is a permanent skip
+# waiting to happen (`verbs --check` fails an EXTRA row with an empty reason).
+#
+# This block is not deferred work. It is the class table being NARROWER than the tree, on purpose:
+# reading "declares nothing it cannot run" through the class table would red all seven of these
+# falsely, and they are the measurement that keeps the two clauses apart.
+EXTRA|images-base|.devcontainer/base|shell|build|the unit really runs it: `_ctl/lib.sh`'s build verb is a real `docker buildx build` of this image, and it is how every gophersys image is published
+EXTRA|images-cloud|.devcontainer/cloud|shell|build|the unit really runs it: `_ctl/lib.sh`'s build verb is a real `docker buildx build` of this image, and it is how every gophersys image is published
+EXTRA|images-embedded|.devcontainer/embedded|shell|build|the unit really runs it: `_ctl/lib.sh`'s build verb is a real `docker buildx build` of this image, and it is how every gophersys image is published
+EXTRA|images-hardware|.devcontainer/hardware|shell|build|the unit really runs it: `_ctl/lib.sh`'s build verb is a real `docker buildx build` of this image, and it is how every gophersys image is published
+EXTRA|images-mobile|.devcontainer/mobile|shell|build|the unit really runs it: `_ctl/lib.sh`'s build verb is a real `docker buildx build` of this image, and it is how every gophersys image is published
+EXTRA|images-ui|.devcontainer/ui|shell|build|the unit really runs it: `_ctl/lib.sh`'s build verb is a real `docker buildx build` of this image, and it is how every gophersys image is published
+EXTRA|repository-scripts|scripts|shell|lint|the target really runs it: `scripts/ctl.sh lint` shellchecks every `scripts/*.sh` and fails if the glob stops resolving; scripts/ belongs to no other project, so this is the only lane that lints it

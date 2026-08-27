@@ -17,7 +17,14 @@ permissions:
 jobs:
   check:
     name: detect + open bump PR
-    runs-on: ubuntu-latest
+    # eden's lanes run on the org ARC fleet, never on a GitHub-hosted runner. This job was the last
+    # one reaching for a hosted runner — an unbilled surprise, and a substrate the gate toolchain is
+    # not on. `scripts/workflow-timeouts_test.sh` holds the ban over both workflow trees.
+    runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
+    # Three network probes (npm view twice, the claude stable channel) and one create-pull-request
+    # call. The work is seconds; what this bounds is a probe that hangs, so 10 is already far past
+    # any healthy run.
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4

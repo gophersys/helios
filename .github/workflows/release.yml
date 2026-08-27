@@ -38,6 +38,9 @@ jobs:
   agentgateway:
     name: build+push agentgateway
     runs-on: arc-org # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
+    # A multi-arch Go build: linux/arm64 goes through QEMU emulation, which is where the minutes
+    # are. 60 leaves room for a cold gha cache on both platforms.
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
@@ -82,6 +85,9 @@ jobs:
     needs: agentgateway # serial: the ARC fleet provisions one runner at a time (v0.1.1: 3 concurrent jobs never got runners)
     name: build+push agent-runtime
     runs-on: arc-org
+    # amd64 only (see the pre-pull note below), so no emulation — but it pulls the whole private
+    # base image first and bakes the pinned harness. 45 covers a cold pull plus the build.
+    timeout-minutes: 45
     permissions:
       contents: read
       packages: write
@@ -141,6 +147,8 @@ jobs:
     needs: agent-runtime # serial (see agent-runtime)
     name: build+push platformgateway
     runs-on: arc-org
+    # Same shape as agentgateway — a multi-arch Go build with arm64 under QEMU — so the same 60.
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
@@ -183,6 +191,9 @@ jobs:
     needs: platformgateway # serial (see agent-runtime); heaviest last
     name: build+push frontend
     runs-on: arc-org
+    # The heaviest job, and the reason it is scheduled last: a containerized @eden/* library build
+    # (bun install + 4 libs) runs BEFORE a multi-arch image build whose arm64 half is emulated. 90.
+    timeout-minutes: 90
     permissions:
       contents: read
       packages: write
@@ -241,6 +252,9 @@ jobs:
   promote:
     name: promote (digest-pin PR to infrastructure)
     runs-on: arc-org
+    # No build at all: two checkouts, a digest-rewrite script, and one create-pull-request call.
+    # 15 bounds a hung git or API call and nothing else.
+    timeout-minutes: 15
     needs: [agentgateway, agent-runtime, platformgateway, frontend]
     permissions:
       contents: read

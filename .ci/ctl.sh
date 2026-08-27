@@ -3,10 +3,13 @@
 # monorepo/.ci/ctl.sh — baseline CI for every project created from the
 # gophersys/template monorepo scaffold.
 #
-# Verbs run `nx run-many` or `nx affected` over the whole monorepo. When
-# nx isn't yet installed (fresh scaffold), the verbs fall through to a
-# no-op with an informational message so the workflow doesn't explode on
-# day one.
+# Verbs run `nx run-many` or `nx affected` over the whole monorepo, and every
+# one of them REQUIRES nx: a verb that cannot reach it exits 127 naming the
+# tool (blueprint P0-2).
+#
+# This file once let those verbs warn and return 0 "so the workflow doesn't
+# explode on day one". Eden is not day one, and under that shape a lane whose
+# toolchain had vanished read exactly like a lane that passed.
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -14,8 +17,10 @@ IFS=$'\n\t'
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(git -C "$PROJECT_ROOT" rev-parse --show-toplevel)"
 
+# There is no log_warn here any more. It had exactly one caller shape — "nx not available; <verb>
+# is a no-op" — and blueprint P0-2 deleted every one of them, so the helper died with them. A file
+# whose gates cannot skip has nothing to warn about.
 function log_info()    { printf '\033[0;36m[info]\033[0m  %s\n' "$*"; }
-function log_warn()    { printf '\033[0;33m[warn]\033[0m  %s\n' "$*" >&2; }
 function log_error()   { printf '\033[0;31m[error]\033[0m %s\n' "$*" >&2; }
 function log_success() { printf '\033[0;32m[ok]\033[0m    %s\n' "$*"; }
 
@@ -37,12 +42,14 @@ function on_exit() {
 }
 trap on_exit EXIT
 
-# Base commit for `nx affected`. Defaults to origin/main. A first-push or force-push delivers
-# github.event.before as the all-zeros SHA (and a misconfigured caller may pass ""), which would
-# make every `nx affected` git call fail — fold both to HEAD~1 (the previous commit), the honest
-# minimal base for a push event.
+# Base commit for `nx affected`. `${NX_BASE:-origin/main}` substitutes for an UNSET and for an
+# EMPTY value alike, so an empty NX_BASE resolves to origin/main and can never reach the fold
+# below — an `-z "$NX_BASE"` arm stood here and was unreachable, which is why it is gone. A
+# first-push or force-push delivers github.event.before as the all-zeros SHA, which no git call
+# can resolve; that one folds to HEAD~1 (the previous commit), the honest minimal base for a push
+# event. `scripts/nx-base_test.sh` observes both resolved values off the nx invocation itself.
 NX_BASE="${NX_BASE:-origin/main}"
-if [[ -z "$NX_BASE" || "$NX_BASE" == "0000000000000000000000000000000000000000" ]]; then
+if [[ "$NX_BASE" == "0000000000000000000000000000000000000000" ]]; then
   NX_BASE="HEAD~1"
 fi
 
@@ -74,64 +81,70 @@ function nx_cmd() {
   fi
 }
 
-function cmd_validate() {
-  log_info "validate: shellcheck .ci/ctl.sh"
-  require_cmd shellcheck jq
-  shellcheck "$PROJECT_ROOT/ctl.sh"
+# require_nx <verb> — nx is REACHABLE, or the verb exits 127 naming it (blueprint P0-2).
+#
+# FAIL-NOT-SKIP. Every verb that calls this RUNS nx, and a runner whose toolchain is absent has
+# not passed — it has not looked. `cmd_graph_guard` already said so about itself; this is the same
+# sentence applied to the other eleven.
+#
+# IT IS has_nx-BASED, NEVER `require_cmd nx`, and that is not a stylistic choice. require_cmd reads
+# PATH, and eden's CI never puts nx there: `yarn install` writes node_modules/.bin/nx, and the
+# workflows add NODE to PATH, not nx. A PATH-only guard would therefore fail every real eden lane
+# while still passing the no-nx-anywhere case — the wrong half of the property.
+# `scripts/nx-absent_test.sh` part B is eleven assertions that pin exactly this.
+#
+# 127 is the shell's own "command not found" and the status `require_cmd` exits with, so a lane
+# that died for want of a tool reads the same whichever tool it was.
+function require_nx() {
+  local verb="$1"
+  if has_nx; then return 0; fi
+  log_error "$verb: nx is not reachable — none on PATH, no $REPO_ROOT/node_modules/.bin/nx, no .pnp.cjs"
+  log_error "$verb: run 'yarn install'. A lane whose toolchain is absent has not passed, it has not looked — that is a FAILURE, never a skip"
+  exit 127
+}
 
-  if has_nx; then
-    log_info "validate: nx run-many -t validate"
-    (cd "$REPO_ROOT" && nx_cmd run-many -t validate --output-style=stream) || return 1
-  else
-    log_warn "nx not available; project-level validate skipped"
-  fi
+function cmd_validate() {
+  require_cmd shellcheck jq
+  require_nx validate
+  log_info "validate: shellcheck .ci/ctl.sh"
+  shellcheck "$PROJECT_ROOT/ctl.sh"
+  log_info "validate: nx run-many -t validate"
+  (cd "$REPO_ROOT" && nx_cmd run-many -t validate --output-style=stream) || return 1
   log_success "validate: OK"
 }
 
 function cmd_build_all() {
-  if ! has_nx; then
-    log_warn "nx not available; build-all is a no-op"
-    return 0
-  fi
+  require_nx build-all
   (cd "$REPO_ROOT" && nx_cmd run-many -t build --output-style=stream)
 }
 
 function cmd_test_all() {
-  if ! has_nx; then
-    log_warn "nx not available; test-all is a no-op"
-    return 0
-  fi
+  require_nx test-all
   (cd "$REPO_ROOT" && nx_cmd run-many -t test --output-style=stream)
 }
 
 function cmd_lint_all() {
-  if ! has_nx; then
-    log_warn "nx not available; lint-all is a no-op"
-    return 0
-  fi
+  require_nx lint-all
   (cd "$REPO_ROOT" && nx_cmd run-many -t lint --output-style=stream)
 }
 
 function cmd_typecheck_all() {
-  if ! has_nx; then
-    log_warn "nx not available; typecheck-all is a no-op"
-    return 0
-  fi
+  require_nx typecheck-all
   (cd "$REPO_ROOT" && nx_cmd run-many -t typecheck --output-style=stream)
 }
 
 function cmd_affected_build() {
-  if ! has_nx; then log_warn "nx not available; affected-build is a no-op"; return 0; fi
+  require_nx affected-build
   (cd "$REPO_ROOT" && nx_cmd affected -t build --base="$NX_BASE" --output-style=stream)
 }
 
 function cmd_affected_test() {
-  if ! has_nx; then log_warn "nx not available; affected-test is a no-op"; return 0; fi
+  require_nx affected-test
   (cd "$REPO_ROOT" && nx_cmd affected -t test --base="$NX_BASE" --output-style=stream)
 }
 
 function cmd_affected_check() {
-  if ! has_nx; then log_warn "nx not available; affected-check is a no-op"; return 0; fi
+  require_nx affected-check
   (cd "$REPO_ROOT" && nx_cmd affected -t lint,typecheck,test --base="$NX_BASE" --output-style=stream)
 }
 
@@ -140,25 +153,33 @@ function cmd_affected_check() {
 # container) where docker+k3d+kind+all linters are present, so integration/load/security run for
 # real and a missing tool is a HARD FAIL (each ctl.sh verb require_cmds its tool → exit 127).
 # Split lane membership lives in on-pr.yml (fast vs substrate jobs); this verb is the union a
-# single job can invoke.
+# single job can invoke — `scripts/gate-lanes_test.sh` clause 4 asserts that equality by reading
+# all three -t lists off the nx invocation, so a target added to a split lane and not here is a red
+# rather than a silently un-unioned gate.
 function cmd_affected_gate() {
-  if ! has_nx; then log_warn "nx not available; affected-gate is a no-op"; return 0; fi
+  require_nx affected-gate
   (cd "$REPO_ROOT" && nx_cmd affected \
-     -t lint,typecheck,test,leak,property,lifecycle,integration,load,vuln,sast,secretscan,bench-guard,cover-floor,maintainability,mutate \
+     -t lint,typecheck,test,leak,property,lifecycle,integration,load,vuln,sast,secretscan,bench-guard,cover-floor,maintainability,mutate,verify \
      --base="$NX_BASE" --output-style=stream)
 }
 
 # cmd_affected_gate_fast — the minutes-long subset (no real-substrate lanes): lint/typecheck/test/
-# leak/property/maintainability/vuln/sast/secretscan. Used by the `fast` GitHub job. `property`
-# (pgregory.net/rapid, `go test -race`, no build tags) is hermetic — it belongs here so the local
-# phase-gate's application-logic-correctness dimension is also enforced in CI. cover-floor + mutate
-# are NOT here: cover-floor for a substrate lib is computed WITH the integration tag
+# leak/property/maintainability/vuln/sast/secretscan/verify. Used by the `fast` GitHub job.
+# `property` (pgregory.net/rapid, `go test -race`, no build tags) is hermetic — it belongs here so
+# the local phase-gate's application-logic-correctness dimension is also enforced in CI. cover-floor
+# + mutate are NOT here: cover-floor for a substrate lib is computed WITH the integration tag
 # (EDEN_COVER_TAGS="lifecycle load integration") so it needs the real docker+k3d host, and mutate is
 # time-heavy — both live in the substrate lane below.
+#
+# `verify` is here because of blueprint P0-4b. apps/platformgateway/persistence has declared it
+# since it was written (`bash ./ctl.sh verify` -> `sqlc vet`, the check that fails when generated/
+# has drifted from schema/ + the queries) and it appeared in NO -t list of this file, so the drift
+# check existed, was correct, and had never once run in CI. It is hermetic — sqlc reads files — so
+# the minutes lane is where it belongs.
 function cmd_affected_gate_fast() {
-  if ! has_nx; then log_warn "nx not available; affected-gate-fast is a no-op"; return 0; fi
+  require_nx affected-gate-fast
   (cd "$REPO_ROOT" && nx_cmd affected \
-     -t lint,typecheck,test,leak,property,maintainability,vuln,sast,secretscan \
+     -t lint,typecheck,test,leak,property,maintainability,vuln,sast,secretscan,verify \
      --base="$NX_BASE" --output-style=stream)
 }
 
@@ -189,9 +210,11 @@ function cmd_affected_gate_fast() {
 # removed and the verdict was byte-identical.
 function cmd_graph_guard() {
   require_cmd jq find
-  # FAIL-NOT-SKIP. The sibling verbs in this file warn and return 0 when nx is absent, because they
-  # are RUNNERS and a fresh scaffold has no nx. This is a GATE, and a gate that cannot run is a
-  # failure, never a pass.
+  # FAIL-NOT-SKIP, stated here first and now the rule of the whole file: a gate that cannot run is
+  # a failure, never a pass. The sibling verbs used to warn and return 0 on absent nx, excused as
+  # RUNNERS on a fresh scaffold; blueprint P0-2 overruled that and they exit 127 through require_nx.
+  # This clause keeps its own shape — `return 1` after a message naming the verb — because a gate
+  # reports its own verdict rather than the shell's tool-not-found status.
   if ! has_nx; then
     log_error "graph-guard: nx is not available, so this gate cannot run — that is a FAILURE, never a skip"
     return 1
@@ -505,7 +528,7 @@ function cmd_graph_roster_update() {
 # StrykerJS on TS libs) is time-heavy, so it rides the careful lane. Together these close the gap
 # between CI and the local `phase-gate qa` 8-dimension taxonomy (ADR-0020).
 function cmd_affected_gate_substrate() {
-  if ! has_nx; then log_warn "nx not available; affected-gate-substrate is a no-op"; return 0; fi
+  require_nx affected-gate-substrate
   (cd "$REPO_ROOT" && nx_cmd affected \
      -t integration,load,lifecycle,bench-guard,cover-floor,mutate \
      --base="$NX_BASE" --output-style=stream)
@@ -520,6 +543,218 @@ function cmd_lib_gate() {
   if [[ ! -f "$lib_dir/ctl.sh" ]]; then log_error "no such lib: libs/go/$lib"; return 2; fi
   log_info "lib-gate: libs/go/$lib → phase-gate all (1→4)"
   (cd "$lib_dir" && bash ./ctl.sh phase-gate all)
+}
+
+# list_holds <needle> [item...] — the list holds the needle, exactly. This file sets IFS=$'\n\t',
+# so `for item in $space_separated_string` does NOT split; every list below is therefore an ARRAY,
+# and this is the membership test over it.
+function list_holds() {
+  local needle="$1"
+  shift
+  local item
+  for item in "$@"; do
+    if [[ "$item" == "$needle" ]]; then return 0; fi
+  done
+  return 1
+}
+
+# cmd_verbs --check — every project declares the verbs its CLASS owes, and declares nothing outside
+# that class which `.ci/verb-exceptions.txt` does not account for (blueprint P0-6c, the V1-V5 half
+# of §4.2).
+#
+# THE CLASS IS RESOLVED FROM THE TREE on every run, never from a hand-kept list: `go.mod` -> Go,
+# `package.json` + `tsconfig*.json` -> TypeScript, neither -> shell (a project whose whole surface
+# is its `ctl.sh`), BOTH -> ambiguous, which is a defect this verb refuses to guess about. The
+# project SET comes from `.ci/graph-roster.txt` — the same committed truth `graph-guard` holds the
+# live graph against — and never from a second `find`: one concept has one home, and a verb that
+# took its own census could disagree with the roster while both were green.
+#
+# WHAT R-BODY GOVERNS, EXACTLY, because the next reader will wonder. The standard says a
+# `project.json` target contains exactly one command, `bash ./ctl.sh <verb>`, and that logic in a
+# `project.json` is a defect. That governs the BODY, not the NAME. `apps/frontend` declares `test`
+# and runs `bash ./ctl.sh unit`, and it SATISFIES R-BODY: one command, the required form, no shell
+# operators, no logic. WHICH target names must exist is the separate rule (V1-V5) that the class
+# table below holds — so clause 2 is a FORM check, and renaming a working verb to make the two
+# words match would be a behaviour change with nothing behind it.
+#
+# The three clauses, each with its OWN message so a red says which one fired:
+#   1. every project resolves to exactly one class; ambiguous is RED and stops the run, because
+#      nothing below can be judged for a project whose class is unknown;
+#   2. R-BODY over the closed-set targets a project declares;
+#   3. the live class-table differences, diffed against the register. An UNREGISTERED difference is
+#      RED naming project and verb; a registered row whose difference has been REPAIRED is STALE
+#      and RED until it is deleted. The register may only shrink.
+function cmd_verbs() {
+  local mode="${1:-}"
+  if [[ "$mode" != "--check" ]]; then
+    log_error "usage: verbs --check"
+    return 2
+  fi
+  require_cmd jq
+
+  local roster="$REPO_ROOT/.ci/graph-roster.txt"
+  if [[ ! -f "$roster" ]]; then
+    log_error "verbs --check: the roster is absent: .ci/graph-roster.txt — it is the project set this verb walks"
+    return 1
+  fi
+  local -a roster_rows=()
+  mapfile -t roster_rows < <(grep -vE '^[[:space:]]*(#|$)' "$roster")
+  if [[ ${#roster_rows[@]} -eq 0 ]]; then
+    log_error "verbs --check: the roster holds ZERO rows — every assertion below would pass having read nothing"
+    return 1
+  fi
+
+  # The closed set of verb NAMES §4.2 governs, and what each class owes out of it. A target outside
+  # the closed set — `phase-gate`, `cover`, `apidiff`, the ADR-0020 taxonomy lanes, `e2e` — is the
+  # project's own business and is judged by nothing here.
+  local -a closed_set=(validate build test lint typecheck)
+  local -a owed_go=(build lint test validate)
+  local -a owed_typescript=(build lint test typecheck validate)
+  local -a owed_shell=(test validate)
+
+  local -a ambiguous=() unreadable=() r_body_defects=() live_differences=()
+  local -a owed=() declared=()
+  local row name root class project_file candidate command target verb
+  local is_go=0 is_typescript=0 go_count=0 typescript_count=0 shell_count=0
+
+  for row in "${roster_rows[@]}"; do
+    name="${row%%$'\t'*}"
+    root="${row#*$'\t'}"
+    project_file="$REPO_ROOT/$root/project.json"
+    if [[ ! -f "$project_file" ]]; then
+      unreadable+=("$name ($root): no project.json, so this verb read nothing about it")
+      continue
+    fi
+
+    is_go=0
+    is_typescript=0
+    if [[ -f "$REPO_ROOT/$root/go.mod" ]]; then is_go=1; fi
+    if [[ -f "$REPO_ROOT/$root/package.json" ]]; then
+      for candidate in "$REPO_ROOT/$root"/tsconfig*.json; do
+        if [[ -f "$candidate" ]]; then is_typescript=1; fi
+      done
+    fi
+    if [[ $is_go -eq 1 && $is_typescript -eq 1 ]]; then
+      ambiguous+=("$name ($root) is AMBIGUOUS — it carries go.mod AND package.json+tsconfig*.json, so it resolves to more than one class")
+      continue
+    fi
+    if [[ $is_go -eq 1 ]]; then
+      class=go
+      owed=("${owed_go[@]}")
+      go_count=$((go_count + 1))
+    elif [[ $is_typescript -eq 1 ]]; then
+      class=typescript
+      owed=("${owed_typescript[@]}")
+      typescript_count=$((typescript_count + 1))
+    else
+      class=shell
+      owed=("${owed_shell[@]}")
+      shell_count=$((shell_count + 1))
+    fi
+
+    mapfile -t declared < <(jq -r '.targets // {} | keys[]' "$project_file")
+
+    for target in "${declared[@]+"${declared[@]}"}"; do
+      if ! list_holds "$target" "${closed_set[@]}"; then continue; fi
+      # ── clause 2 — R-BODY. The anchored pattern IS the rule: one command, the `bash ./ctl.sh`
+      # form, a single word after it. Anything with a shell operator, a pipeline, a substitution or
+      # a second argument fails to match, which is what "no logic in a project.json" means.
+      command="$(jq -r --arg t "$target" '.targets[$t].options.command // ""' "$project_file")"
+      if [[ ! "$command" =~ ^bash\ \./ctl\.sh\ [A-Za-z][A-Za-z0-9-]*$ ]]; then
+        r_body_defects+=("R-BODY — $name ($root) target '$target' runs '$command'; a project.json target holds exactly ONE command of the form 'bash ./ctl.sh <verb>' and no logic")
+      fi
+      # ── clause 3, half one — a closed-set target the class does not own.
+      if ! list_holds "$target" "${owed[@]}"; then
+        live_differences+=("EXTRA|$name|$root|$class|$target")
+      fi
+    done
+
+    # ── clause 3, half two — a verb the class owes and the project does not declare.
+    for verb in "${owed[@]}"; do
+      if ! list_holds "$verb" "${declared[@]+"${declared[@]}"}"; then
+        live_differences+=("OWES-GAP|$name|$root|$class|$verb")
+      fi
+    done
+  done
+
+  # ── clause 1 — a project whose class is unknown stops the run. Judging it against a class it may
+  # not have would put a guess in the register, and the register is committed truth.
+  if [[ ${#unreadable[@]} -gt 0 || ${#ambiguous[@]} -gt 0 ]]; then
+    local problem
+    for problem in "${unreadable[@]+"${unreadable[@]}"}"; do log_error "verbs --check: $problem"; done
+    for problem in "${ambiguous[@]+"${ambiguous[@]}"}"; do log_error "verbs --check: $problem"; done
+    log_error "verbs --check: a project must resolve to exactly ONE class before its verbs can be judged — nothing below this line was checked"
+    return 1
+  fi
+
+  local register="$REPO_ROOT/.ci/verb-exceptions.txt"
+  if [[ ! -f "$register" ]]; then
+    log_error "verbs --check: the register is absent: .ci/verb-exceptions.txt"
+    log_error "verbs --check: it is committed truth, not an optional file — without it every difference below is unregistered"
+    return 1
+  fi
+  local -a register_rows=() register_keys=() malformed=()
+  local r_kind r_name r_root r_class r_verb r_reason
+  mapfile -t register_rows < <(grep -vE '^[[:space:]]*(#|$)' "$register")
+  for row in "${register_rows[@]+"${register_rows[@]}"}"; do
+    IFS='|' read -r r_kind r_name r_root r_class r_verb r_reason <<< "$row"
+    if [[ "$r_kind" != "OWES-GAP" && "$r_kind" != "EXTRA" ]]; then
+      malformed+=("$row (kind is neither OWES-GAP nor EXTRA)")
+      continue
+    fi
+    if [[ -z "${r_name:-}" || -z "${r_root:-}" || -z "${r_class:-}" || -z "${r_verb:-}" ]]; then
+      malformed+=("$row (a row is <KIND>|<project>|<root>|<class>|<verb>[|<reason>] and a field is empty)")
+      continue
+    fi
+    # An EXTRA row states WHY the target really runs. libs' SUBSTRATE_ENV_REGISTER carries a
+    # <cause> field for the same reason: a row that does not say why it is allowed is a permanent
+    # skip waiting to happen. An OWES-GAP row carries none — the one reason for all of them is in
+    # the register's header, with the phase that owns the repair.
+    if [[ "$r_kind" == "EXTRA" && -z "${r_reason:-}" ]]; then
+      malformed+=("$row (an EXTRA row must state the reason its target really runs)")
+      continue
+    fi
+    register_keys+=("$r_kind|$r_name|$r_root|$r_class|$r_verb")
+  done
+
+  local -a unregistered=() stale=()
+  local difference key
+  for difference in "${live_differences[@]+"${live_differences[@]}"}"; do
+    if ! list_holds "$difference" "${register_keys[@]+"${register_keys[@]}"}"; then
+      unregistered+=("$difference")
+    fi
+  done
+  for key in "${register_keys[@]+"${register_keys[@]}"}"; do
+    if ! list_holds "$key" "${live_differences[@]+"${live_differences[@]}"}"; then
+      stale+=("$key")
+    fi
+  done
+
+  local defect
+  for defect in "${malformed[@]+"${malformed[@]}"}"; do
+    log_error "verbs --check: .ci/verb-exceptions.txt holds a malformed row: $defect"
+  done
+  for defect in "${r_body_defects[@]+"${r_body_defects[@]}"}"; do
+    log_error "verbs --check: $defect"
+  done
+  for difference in "${unregistered[@]+"${unregistered[@]}"}"; do
+    IFS='|' read -r r_kind r_name r_root r_class r_verb <<< "$difference"
+    if [[ "$r_kind" == "EXTRA" ]]; then
+      log_error "verbs --check: $r_name ($r_root, class $r_class) declares '$r_verb', which its class does not own and .ci/verb-exceptions.txt does not register"
+    else
+      log_error "verbs --check: $r_name ($r_root, class $r_class) owes '$r_verb' and declares no such target, and .ci/verb-exceptions.txt does not register the gap"
+    fi
+  done
+  for key in "${stale[@]+"${stale[@]}"}"; do
+    IFS='|' read -r r_kind r_name r_root r_class r_verb <<< "$key"
+    log_error "verbs --check: STALE register row '$key' — $r_name ($r_root) no longer differs on '$r_verb', so the row describes nothing; delete it, because the register may only shrink"
+  done
+
+  if [[ ${#malformed[@]} -gt 0 || ${#r_body_defects[@]} -gt 0 || ${#unregistered[@]} -gt 0 || ${#stale[@]} -gt 0 ]]; then
+    log_error "verbs --check: ${#r_body_defects[@]} R-BODY defect(s), ${#unregistered[@]} unregistered difference(s), ${#stale[@]} stale register row(s), ${#malformed[@]} malformed register row(s)"
+    return 1
+  fi
+  log_success "verbs --check: ${#roster_rows[@]} project(s) checked — $go_count Go, $typescript_count TypeScript, $shell_count shell; ${#register_keys[@]} registered difference(s), 0 unregistered, 0 stale"
 }
 
 function cmd_release_check() {
@@ -565,6 +800,7 @@ Commands:
   affected-gate-fast       the minutes subset (no real-substrate lanes)
   affected-gate-substrate  integration/load/lifecycle on the real docker+k3d host
   lib-gate <lib>  per-lib SDLC sequence: ctl.sh phase-gate all (1→4)
+  verbs --check   every project declares the verbs its class owes (.ci/verb-exceptions.txt registers the rest)
   release-check   preflight: clean, on main, up to date with origin
   help            Show this message
 EOF
@@ -588,6 +824,7 @@ function main() {
     affected-gate-fast)        cmd_affected_gate_fast      "$@" ;;
     affected-gate-substrate)   cmd_affected_gate_substrate "$@" ;;
     lib-gate)                  cmd_lib_gate                "$@" ;;
+    verbs)                     cmd_verbs                   "$@" ;;
     release-check)   cmd_release_check   "$@" ;;
     help|"")         usage ;;
     *) log_error "unknown command: '$cmd'"; usage; exit 1 ;;

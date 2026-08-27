@@ -18,6 +18,10 @@ jobs:
   check:
     name: affected-check
     runs-on: arc-org  # the org ARC fleet (dind, scale-to-zero) — infrastructure/ owns the controller
+    # The same prelude as the pull-request fast lane, then affected-check (lint/typecheck/test) —
+    # a strict subset of that lane's targets. Same shape and same install cost, so the same budget:
+    # the merge tier has no reason to be given less headroom than the tier it repeats.
+    timeout-minutes: 30
     container:
       image: ghcr.io/gophersys/base:latest
       credentials:
@@ -51,7 +55,8 @@ jobs:
       - name: Generate go.work (tracked generator over the gitignored file)
         run: bash scripts/gen-go-work.sh
       # node/yarn live behind nvm (profile-based, not on ENV PATH) — expose the pinned toolchain so
-      # the nx workspace actually runs (without this, has_nx=false silently no-ops the gate).
+      # the nx workspace actually runs (without this, has_nx=false and every gate verb exits 127
+      # naming nx — it used to no-op silently, which is the defect blueprint P0-2 removed).
       - name: Expose the image's node toolchain (nvm) on PATH
         run: |
           . "$NVM_DIR/nvm.sh" && nvm use --silent default
