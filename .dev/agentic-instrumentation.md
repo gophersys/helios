@@ -130,6 +130,9 @@ probe>` loaded `AGENTS.md`, read the contract, and returned
   deployed Codex 0.146.0. cictl PR 27 fixed the compatibility boundary and merged
   at `c845caab4940f06bf5a0c6f001c605e5bf304829` after the real 0.146.0 test, full
   local and remote gates, and independent APPROVE. Eden now pins that commit.
+- The coordinated trusted-runner upgrade moves Eden's canonical Codex harness
+  pin to 0.150.1 with `.devcontainer` PR 115. The image PR must pass its full
+  non-publishing six-image rehearsal before either side merges.
 
 ## Blocked
 
