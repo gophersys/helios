@@ -1,6 +1,6 @@
 # buildkit-portable-dns
 
-phase:    plan
+phase:    green
 repo:     gophersys/infrastructure
 branch:   fix/buildkit-portable-dns
 worktree: ~/code/.worktrees/infrastructure-buildkit-portable-dns
@@ -19,9 +19,12 @@ Affected project: `machines/services/macos-ci-runner`. Fast test: its focused po
 ## Proven
 - `gh run view 33096981929 ...`: cloud and embedded failed with BuildKit executor DNS using `192.168.65.7`; cloud's native smoke had already proven Codex 0.150.1.
 - `gh run view 33100408600 ...`: after Docker backend recovery, base and cloud completed successfully with no DNS recurrence while the remaining image jobs continued.
+- RED — `bash ctl.sh verify-buildkit-dns`: `FAIL: missing checked-in BuildKit DNS config: machines/services/macos-ci-runner/buildkitd.toml` (exit 1).
+- GREEN — `bash ctl.sh verify-buildkit-dns`: `ok: portable BuildKit DNS configuration is wired into daemon reproduction`.
+- `shellcheck -S style scripts/verify-buildkit-dns.sh` and `bash -n scripts/verify-buildkit-dns.sh`: exit 0.
 
 ## Blocked
 
 
 ## Next
-Write and run the focused verifier against the current branch to capture RED.
+Wait for the active image rehearsal, deploy the config volume on the mini, and run the live BuildKit-path proof.

@@ -22,7 +22,11 @@ NOT give root, and `--allow security.insecure` is refused. See
    `IP:10.168.0.92`. A certificate with a CN only is refused.
 2. **Docker Desktop rejects a bind mount of a home path.** Its file-sharing
    layer does not share an arbitrary home directory, so a `-v $HOME/certs:/certs`
-   bind mount fails. Seed a named volume with `docker cp` instead.
+   bind mount fails. Seed named volumes with `docker cp` instead.
+3. **Do not inherit DNS from the current house.** The checked-in
+   `buildkitd.toml` uses Cloudflare and Google public anycast resolvers. Neither
+   address belongs to the router or ISP, so moving the mini to another normal
+   internet connection does not change the daemon's resolver contract.
 
 ## Step 1 — the certificates (on any machine with openssl)
 
@@ -47,8 +51,9 @@ The daemon keeps `ca.pem`, `daemon.pem` and `daemon-key.pem`. The client keeps
 
 ## Step 2 — the daemon (on the mini)
 
-The cred helper must be on `PATH`. Seed the certificates into a named volume,
-because a home-path bind mount fails.
+The credential helper must be on `PATH`. From this directory, seed the
+certificates and the checked-in daemon configuration into separate named
+volumes, because a home-path bind mount fails.
 
 ```sh
 export PATH="/Applications/Docker.app/Contents/Resources/bin:$HOME/bin:$PATH"
@@ -58,8 +63,13 @@ docker cp ca.pem bkseed:/certs/
 docker cp daemon.pem bkseed:/certs/
 docker cp daemon-key.pem bkseed:/certs/
 docker rm bkseed
+docker volume create eden-bk-config
+docker create --name bkconfig --entrypoint /bin/sh -v eden-bk-config:/config moby/buildkit:latest
+docker cp buildkitd.toml bkconfig:/config/buildkitd.toml
+docker rm bkconfig
 docker run -d --name eden-buildkitd --restart unless-stopped --privileged -p 1234:1234 \
-  -v eden-bk-certs:/certs:ro moby/buildkit:latest --addr tcp://0.0.0.0:1234 \
+  -v eden-bk-certs:/certs:ro -v eden-bk-config:/etc/buildkit:ro \
+  moby/buildkit:latest --addr tcp://0.0.0.0:1234 \
   --tlscacert /certs/ca.pem --tlscert /certs/daemon.pem --tlskey /certs/daemon-key.pem
 ```
 
@@ -91,4 +101,12 @@ docker buildx create --name eden-mini --driver remote \
 ```
 
 A build through `--builder eden-mini --platform linux/arm64` must succeed. A build
-with no certificate must be refused.
+with no certificate must be refused. The repository verifier makes the positive
+proof exercise DNS inside a real BuildKit executor:
+
+```sh
+BUILDKIT_DNS_BUILDER=eden-mini bash ../../../ctl.sh verify-buildkit-dns --live
+```
+
+The static form, `bash ../../../ctl.sh verify-buildkit-dns`, proves the portable
+configuration and daemon wiring without contacting the node.
