@@ -123,7 +123,7 @@ spec:
               # bundled Node. A mismatched pair silently ships the wrong Node to
               # every JavaScript action.
               - name: init-dind-externals
-                image: ghcr.io/gophersys/cloud@sha256:359334d77d8fee3372fa9672be37f04d121bc294426622ae3d5161e90b9d2a0c
+                image: ghcr.io/gophersys/cloud@sha256:470a117514e6d1ab23ab937b46e0fabe087ffdb1cd39b4345cfa3aa25a194a8a
                 command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
                 volumeMounts:
                   - name: dind-externals
@@ -194,7 +194,7 @@ spec:
                 # are written out once, in app-arc-runners-org.yaml; all three
                 # apply here, and `bash ctl.sh verify-runner-image cloud <sha>` is
                 # the one that runs the image in THIS pod shape.
-                image: ghcr.io/gophersys/cloud@sha256:359334d77d8fee3372fa9672be37f04d121bc294426622ae3d5161e90b9d2a0c
+                image: ghcr.io/gophersys/cloud@sha256:470a117514e6d1ab23ab937b46e0fabe087ffdb1cd39b4345cfa3aa25a194a8a
                 command: ["/home/runner/run.sh"]
                 # DECLARED, not inherited from the image. `cloud` ends `USER dev`
                 # (uid 1000), and the buildkit key mounted below is a root-owned

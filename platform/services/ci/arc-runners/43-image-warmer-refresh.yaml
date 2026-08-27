@@ -52,7 +52,7 @@ spec:
                 sizeLimit: 64Mi
           containers:
             - name: restart
-              image: ghcr.io/gophersys/cloud@sha256:359334d77d8fee3372fa9672be37f04d121bc294426622ae3d5161e90b9d2a0c
+              image: ghcr.io/gophersys/cloud@sha256:470a117514e6d1ab23ab937b46e0fabe087ffdb1cd39b4345cfa3aa25a194a8a
               imagePullPolicy: IfNotPresent
               env:
                 - name: HOME
