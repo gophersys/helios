@@ -102,16 +102,6 @@ probe>` loaded `AGENTS.md`, read the contract, and returned
   working once the limit renews” (2026-08-26). The checked-in `CLAUDE.md`
   discovery is proven locally; no implementation workaround or alternate
   credential path is required.
-- Adversarial verifier at detached commit `97a8213`: changing the feature
-  status to `unknown` made the structural test fail with
-  `invalid process status: feature`; removing `AGENTS.md` made it fail with
-  `missing AGENTS.md`. Both guards are proven able to fail.
-- Final reference review found four live documents that attributed rules to the
-  removed long `CLAUDE.md`. They now cite `docs/README.md`, the root adapter
-  pair, or the Claude-specific plugin directly; historical ADR and upstream
-  references remain historical records.
-- Final focused test, shellcheck, Prettier check, Node syntax check, and
-  `git diff --check`: all exit 0.
 
 ## Blocked
 
@@ -119,5 +109,5 @@ probe>` loaded `AGENTS.md`, read the contract, and returned
 
 ## Next
 
-Commit the reference cleanup, open the pull request, and inspect the actual CI
-logs before merge.
+Run the adversarial validator check, review the final diff for lost canonical
+homes or duplicated instructions, then open the pull request.
