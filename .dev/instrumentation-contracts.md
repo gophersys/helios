@@ -298,6 +298,42 @@ obvious test is VACUOUS: `natssse.go:112` already subject-filters the consumer p
 agents interleaved on one stream" passes with the bug fully intact. A non-vacuous assertion needs
 two SESSIONS inside ONE agent, or a no-gap-and-no-duplicate check across a reconnect.
 
+## ⚠️ A SEQUENCING CONSTRAINT this change creates, found by reading the gate that merged today
+
+eden PR #18 merged at 2026-08-27T03:07:19Z (merge `b4ff75cb1`) — AFTER this branch was cut. It
+added a "Frozen-contract gate" step to `harness-conformance.yml` that iterates
+`docs/architecture/contracts/*.md` and, for each one, does this:
+
+```bash
+[ -f "libs/go/$lib/ctl.sh" ] || continue
+status="$(grep -m1 '^> Status:' "$contract" | tr -d '*')"
+if [[ "$status" == "> Status: Frozen"* ]]; then …
+elif [[ "$status" == *[Dd]"raft"* ]] || [[ "$status" == *"DRAFT"* ]]; then
+  if grep -qw "$lib" <<<"$DRAFT_REGISTER"; then … registered debt, warning …
+  else
+    echo "::error::contract $lib is DRAFT and not in DRAFT_REGISTER — freeze it or register it with its pending-decision citation" >&2
+    exit 1
+```
+
+and `DRAFT_REGISTER=""` — **empty since 2026-08-26**, with the comment that it "MAY ONLY SHRINK".
+
+**Merging THIS pull request alone is safe**, and the reason is the `continue` on the second line:
+neither contract has a matching `libs/go/<lib>/ctl.sh` in the PINNED libs submodule today, so the
+loop skips both and the lane stays green. `fleettelemetry` has no library at all.
+
+**The red arrives later, at the POINTER BUMP.** The moment `gophersys/libs` `feat/agentprofile`
+merges and eden's libs pointer moves, `libs/go/agentprofile/ctl.sh` exists, the contract is still
+DRAFT, and the whole conformance lane exits 1. Two ways out, and BOTH are Mateo's §5 gate:
+
+1. He freezes `agentprofile.md` before the pointer bump; or
+2. `agentprofile` is added to `DRAFT_REGISTER` with its pending-decision citation — which the
+   register's own comment calls a process change, and which sits awkwardly against "may only
+   shrink".
+
+This is stated on both pull requests and in the freeze question. It is not a reason to delay the
+contract; it is a reason the ORDER matters, and the order is: contract merges → Mateo rules →
+library merges → pointer bumps. Landing the pointer bump before he rules is what reds the lane.
+
 ## Deliberately NOT in this change — say it plainly, so the review is against what is true
 
 - **Nothing is frozen.** Both documents carry `Status: **DRAFT for negotiation**`. Freezing is
