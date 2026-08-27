@@ -115,6 +115,7 @@ function emit() {
 }
 
 require_cmd git jq
+require_active_image "$IMAGE" || exit 2
 
 # The input set is read before any trigger is answered, so an image the manifest
 # does not declare fails here rather than being quietly called unaffected.

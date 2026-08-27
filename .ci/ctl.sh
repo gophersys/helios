@@ -37,7 +37,7 @@ source "$REPO_ROOT/_ctl/lib.sh"
 # `base-runner` was here and is RETIRED, and `runner/` is now DELETED — see the
 # note beside the other reader, in the repository-root ctl.sh.
 BUILD_ORDER=()
-_build_order_text="$(image_names)" || exit 1
+_build_order_text="$(active_image_names)" || exit 1
 while IFS= read -r _image; do
   [[ -z "$_image" ]] && continue
   BUILD_ORDER+=("$_image")

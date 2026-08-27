@@ -98,7 +98,6 @@ STUB_BIN="$TESTS_DIR/stubs"
 MANIFESTS="$TESTS_DIR/fixtures/manifests"
 REGISTRY_FIXTURES="$TESTS_DIR/fixtures/registry"
 BASE_CTL="$REPO_ROOT/base/ctl.sh"
-MOBILE_CTL="$REPO_ROOT/mobile/ctl.sh"
 
 # The 3 manifest shapes, and what each one IS. Every one of them carries the
 # attestation entries buildx really attaches, because a fixture without them
@@ -332,29 +331,6 @@ run_verify "$BASE_CTL" STUB_MANIFEST_JSON="$MANIFEST_ARM64"
 assert_verify_refused_naming "an_arm64_only_manifest_is_refused_for_base_naming_linux_amd64" \
   "linux/amd64" \
   "manifest fixture: arm64 alone, with no amd64 variant and no attestation at all"
-
-# ===========================================================================
-# mobile publishes linux/amd64 ALONE
-# ===========================================================================
-# The same amd64-only fixture the check above refuses. If this passes and that
-# one fails on one document, the verb is reading the image's own set — and no
-# weaker statement proves it.
-run_verify "$MOBILE_CTL" STUB_MANIFEST_JSON="$MANIFEST_AMD64"
-assert_verify_status "an_amd64_only_manifest_is_accepted_for_mobile" "0" \
-  "mobile declares platforms: [linux/amd64] in images.yaml, and the manifest carries" \
-  "the measurement beside the key: Flutter publishes no linux-arm64 SDK at any version" \
-  "against SANCTIONED_PLATFORMS this correct publish would read as broken forever"
-
-# -------- mobile with an arm64 variant it must not have -> refused --------
-# The other direction, and the one a narrower set makes possible: an EXTRA
-# variant. A rule that only asked "is every published platform sanctioned" would
-# accept this, because linux/arm64 is sanctioned — it is just not mobile's.
-run_verify "$MOBILE_CTL" STUB_MANIFEST_JSON="$MANIFEST_DUAL"
-assert_verify_refused_naming "an_arm64_variant_is_refused_for_mobile_and_named" \
-  "published but not expected: linux/arm64" \
-  "manifest fixture: amd64 + arm64 + 2 attestations, which base accepts" \
-  "the refusal has to name the OFFENDING variant and not only the 2 sets, or an" \
-  "operator reading it has to diff 2 comma lists by eye"
 
 # -------- the manifest cannot be read -> the REAL error survives --------
 # 3 conditions, 1 check, on purpose. As 3 checks, 2 of them pass for reasons

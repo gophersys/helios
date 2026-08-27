@@ -280,6 +280,7 @@ function run_smoke() {
   payload="$(mktemp)"
   RUN_STATUS=0
   RUN_OUTPUT="$(env PATH="${STUB_BIN}:${PATH}" STUB_DOCKER_LOG="$log" STUB_DOCKER_STDIN="$payload" \
+    SMOKE_STATIC_CONTRACT=1 \
     "$@" bash "$smoke" "$image" "$reference" < /dev/null 2>&1)" || RUN_STATUS=$?
   RUN_ARGV="$(cat "$log")"
   RUN_PAYLOAD="$(cat "$payload")"

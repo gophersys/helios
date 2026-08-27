@@ -1,6 +1,6 @@
 # base-cloud-fast-path
 
-phase: intake
+phase: green
 repo: gophersys/.devcontainer
 branch: ci/base-cloud-fast-path
 worktree: ~/code/.worktrees/devcontainer-base-cloud-fast-path
@@ -30,10 +30,23 @@ must retain both Claude and Codex pins in the shared image contract.
 
 ## Proven
 
+- RED — `bash _ctl/tests/activation-policy.test.sh`: 4 checks, 3 failed; `active_image_names` was absent and all six manifest rows lacked an explicit boolean `enabled` field.
+- RED — `bash _ctl/tests/startup-policy.test.sh`: 5 checks, 5 failed; Base startup contained the Claude curl installer and two global npm installs, while Base declared none of the three harness pins and never ran the shared agent bake.
+- GREEN — manifest activation is explicit: base/cloud active; mobile, embedded,
+  hardware, and ui retained but operationally rejected. Generated publish and
+  nightly workflows fan out only over the active set.
+- GREEN — Base bakes pinned Claude, OMP, and Codex through the shared component;
+  post-create is offline and verifies those baked versions instead of installing.
+- GREEN — focused activation/smoke/startup checks: 54 checks, 0 failures.
+- GREEN — repository policy suite: every feature-affected test passes. The sole
+  remaining full-suite failure is the pre-existing host yq 4.53.3 diagnostic
+  spelling (`line 45` versus pinned 4.53.6's `L45.C5`); the devcontainer gate
+  runs the pinned tool.
 
 ## Blocked
 
 
 ## Next
 
-Inventory the manifest/generator and write the failing enabled-set and startup-cost policy tests.
+Commit, push, open the PR, then run the pinned devcontainer gate before any
+base/cloud build preflight.

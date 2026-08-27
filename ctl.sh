@@ -52,7 +52,7 @@ source "$PROJECT_ROOT/_ctl/lib.sh"
 # sourced this file, because the value the shell ends up holding is the value
 # the script builds with.
 BUILD_ORDER=()
-_build_order_text="$(image_names)" || exit 1
+_build_order_text="$(active_image_names)" || exit 1
 while IFS= read -r _image; do
   [[ -z "$_image" ]] && continue
   BUILD_ORDER+=("$_image")

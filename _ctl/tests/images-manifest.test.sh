@@ -993,6 +993,12 @@ else
       fi
     fi
 
+    # Disabled products retain their Dockerfile/pin contract as inventory but
+    # deliberately have no generated publish job.
+    if [[ "$(image_enabled "$image_name")" != "true" ]]; then
+      continue
+    fi
+
     # The other end of the same fact: the GENERATED job. The manifest says an
     # image is fed; this is whether the file the generator wrote really carries
     # the build-arg wiring, in the job that builds it.
