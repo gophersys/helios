@@ -77,8 +77,8 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # _ctl/lib.sh reads the wrong root when this repository is a submodule worktree.
 REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 
-# The logging, the tool gate and the platform policy live in _ctl/lib.sh, 1 time
-# only.
+# The platform policy lives in _ctl/lib.sh, 1 time only; the logging and the
+# tool gate live in _ctl/standard.sh, which that file sources.
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../_ctl/lib.sh
 source "$PROJECT_ROOT/../_ctl/lib.sh"
@@ -202,6 +202,7 @@ GOSEC_VERSION|asserted|go version -m ${GOPATH}/bin/gosec|line:mod
 HNSLINT_VERSION|asserted|go version -m ${GOPATH}/bin/hnslint|line:mod
 GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
 BENCHSTAT_REF|not-a-version||
+SQLC_VERSION|asserted|sqlc version|
 RUST_CHANNEL|not-in-this-image:rustc,cargo||
 DELVE_VERSION|asserted|dlv version|
 SHELLCHECK_VERSION|asserted|shellcheck --version|
@@ -277,6 +278,7 @@ GOSEC_VERSION|asserted|go version -m ${GOPATH}/bin/gosec|line:mod
 HNSLINT_VERSION|asserted|go version -m ${GOPATH}/bin/hnslint|line:mod
 GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
 BENCHSTAT_REF|not-a-version||
+SQLC_VERSION|asserted|sqlc version|
 SHELLCHECK_VERSION|asserted|shellcheck --version|
 YQ_VERSION|asserted|yq --version|
 HADOLINT_VERSION|asserted|hadolint --version|
@@ -347,6 +349,7 @@ GOSEC_VERSION|asserted|go version -m ${GOPATH}/bin/gosec|line:mod
 HNSLINT_VERSION|asserted|go version -m ${GOPATH}/bin/hnslint|line:mod
 GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
 BENCHSTAT_REF|not-a-version||
+SQLC_VERSION|asserted|sqlc version|
 RUST_CHANNEL|not-in-this-image:rustc,cargo||
 DELVE_VERSION|asserted|dlv version|
 SHELLCHECK_VERSION|asserted|shellcheck --version|
@@ -423,6 +426,7 @@ GOSEC_VERSION|asserted|go version -m ${GOPATH}/bin/gosec|line:mod
 HNSLINT_VERSION|asserted|go version -m ${GOPATH}/bin/hnslint|line:mod
 GREMLINS_VERSION|asserted|go version -m ${GOPATH}/bin/gremlins|line:mod
 BENCHSTAT_REF|not-a-version||
+SQLC_VERSION|asserted|sqlc version|
 RUST_CHANNEL|not-in-this-image:rustc,cargo||
 DELVE_VERSION|asserted|dlv version|
 SHELLCHECK_VERSION|asserted|shellcheck --version|

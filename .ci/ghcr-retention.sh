@@ -184,8 +184,9 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # worktree.
 REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 
-# The logging, the tool gate, the image set and the registry token exchange all
-# live in _ctl/lib.sh, 1 time only.
+# The image set and the registry token exchange live in _ctl/lib.sh, 1 time
+# only; the logging and the tool gate live in _ctl/standard.sh, which that file
+# sources.
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../_ctl/lib.sh
 source "$PROJECT_ROOT/../_ctl/lib.sh"
