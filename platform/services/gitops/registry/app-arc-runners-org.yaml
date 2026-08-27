@@ -131,7 +131,7 @@ spec:
               # bundled Node. A mismatched pair silently ships the wrong Node to
               # every JavaScript action.
               - name: init-dind-externals
-                image: ghcr.io/gophersys/cloud@sha256:ffdcf5046c4dc30be32f6388bbe09c055abff03bab78db703432793b8c5da7bd
+                image: ghcr.io/gophersys/cloud@sha256:359334d77d8fee3372fa9672be37f04d121bc294426622ae3d5161e90b9d2a0c
                 command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
                 volumeMounts:
                   - name: dind-externals
@@ -209,7 +209,7 @@ spec:
                 #   3. bash ctl.sh verify-runner-image cloud <sha> passed — it runs
                 #      the image in THIS pod shape, with the dind sidecar, and is
                 #      the only check that can see a broken Docker socket
-                image: ghcr.io/gophersys/cloud@sha256:ffdcf5046c4dc30be32f6388bbe09c055abff03bab78db703432793b8c5da7bd
+                image: ghcr.io/gophersys/cloud@sha256:359334d77d8fee3372fa9672be37f04d121bc294426622ae3d5161e90b9d2a0c
                 command: ["/home/runner/run.sh"]
                 # DECLARED, not inherited from the image. `cloud` ends `USER dev`
                 # (uid 1000) where `base-runner` ended as root, and the mounted
