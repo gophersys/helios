@@ -33,6 +33,8 @@ if ! grep -Fq 'docker inspect eden-buildkitd' "$RUNBOOK" || \
     ! grep -Fq 'docker rm -f eden-buildkitd' "$RUNBOOK"; then
   fail 'runbook does not capture and replace the existing daemon safely'
 fi
+grep -Fq "docker volume rm \\" "$RUNBOOK" || \
+  fail 'runbook does not remove the explicitly verified incident volumes'
 grep -Eq 'BUILDKIT_IMAGE="moby/buildkit@sha256:[0-9a-f]{64}"' "$RUNBOOK" || \
   fail 'runbook must reproduce the daemon from a pinned BuildKit image digest'
 if grep -Eq 'moby/buildkit:latest' "$RUNBOOK"; then

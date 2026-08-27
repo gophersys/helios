@@ -72,8 +72,13 @@ sed -i.bak '/docker rm -f eden-buildkitd/d' "$no_repair/machines/services/macos-
 rm "$no_repair/machines/services/macos-ci-runner/buildkitd-runbook.md.bak"
 expect_fail 'missing daemon replacement fails' 'capture and replace the existing daemon safely' env BUILDKIT_DNS_ROOT="$no_repair" bash "$SUT"
 
+no_reclaim="$(new_fixture no-reclaim)"
+sed -i.bak '/docker volume rm \\/d' "$no_reclaim/machines/services/macos-ci-runner/buildkitd-runbook.md"
+rm "$no_reclaim/machines/services/macos-ci-runner/buildkitd-runbook.md.bak"
+expect_fail 'missing bounded volume removal fails' 'explicitly verified incident volumes' env BUILDKIT_DNS_ROOT="$no_reclaim" bash "$SUT"
+
 moving_image="$(new_fixture moving-image)"
-printf 'eden-bk-config:/etc/buildkit:ro\neden-bk-state:/var/lib/buildkit\ndocker rm -v bkseed\ndocker rm -v bkconfig\ndocker inspect eden-buildkitd\ndocker rm -f eden-buildkitd\nBUILDKIT_IMAGE="moby/buildkit@sha256:%064d"\nmoby/buildkit:latest\n' 0 >"$moving_image/machines/services/macos-ci-runner/buildkitd-runbook.md"
+printf 'eden-bk-config:/etc/buildkit:ro\neden-bk-state:/var/lib/buildkit\ndocker rm -v bkseed\ndocker rm -v bkconfig\ndocker inspect eden-buildkitd\ndocker rm -f eden-buildkitd\ndocker volume rm \\\nvolume-id\nBUILDKIT_IMAGE="moby/buildkit@sha256:%064d"\nmoby/buildkit:latest\n' 0 >"$moving_image/machines/services/macos-ci-runner/buildkitd-runbook.md"
 expect_fail 'moving daemon image fails' 'moving moby/buildkit:latest tag' env BUILDKIT_DNS_ROOT="$moving_image" bash "$SUT"
 
 fake_bin="$TMP_ROOT/bin"

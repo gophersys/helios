@@ -5,7 +5,7 @@ repo:     gophersys/infrastructure
 branch:   fix/buildkit-disk-gc
 worktree: ~/code/.worktrees/infrastructure-buildkit-disk-gc
 pr:       -
-attempt:  1/2
+attempt:  2/2
 
 ## Goal
 Keep the persistent ARM64 BuildKit worker from exhausting its Docker VM disk, while retaining a useful warm cache and the portable DNS configuration already deployed.
@@ -26,6 +26,7 @@ plan: SELF-APPROVED — the risk is pruning reusable build cache too aggressivel
 - Live repair: the daemon reports `status=running state=eden-bk-state`, reads the checked-in GC thresholds, and its filesystem changed from 1.1 GiB free (98% used) to 36.3 GiB free (34% used). Exactly the six anonymous BuildKit cache volumes were removed.
 - Devcontainer gate: `docker run --rm ... ghcr.io/gophersys/cloud:latest bash ctl.sh validate` passed and linted 39 shell scripts. The first run caught SC2015; the corrected run is green.
 - Codex review round 1 requested the missing existing-daemon repair path and explicit verification. Accepted: the setup-only procedure would collide with the live container and did not identify the six removed volumes.
+- Codex review round 2 requested the exact bounded `docker volume rm` action, not identifiers alone. Accepted: a recovery operator needs the actual reclamation command without inferring a broad prune.
 
 ## Blocked
 
