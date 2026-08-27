@@ -1,0 +1,34 @@
+apiVersion: v2
+name: stateful-app
+description: |
+  Archetype for services that need stable network identity and per-replica
+  persistent storage. Emits StatefulSet + headless Service + PVC template
+  + PDB + ServiceMonitor + ExternalSecret + NetworkPolicy + PrometheusRule.
+
+  PVCs carry platform.gophersys/retain=true. On a cluster running
+  platform/core/policy/, the apiserver REFUSES to delete them unless the PVC is
+  annotated platform.gophersys/allow-delete.
+
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+kubeVersion: ">=1.28.0-0"
+
+maintainers:
+  - name: Mateo Segura
+    email: mateo.segura413@gmail.com
+
+keywords:
+  - stateful
+  - persistence
+  - platform
+  - gophersys
+
+dependencies:
+  - name: _common
+    version: 0.1.0
+    repository: file://../_common
+
+annotations:
+  platform.gophersys/archetype: stateful-app
+  platform.gophersys/status: skeleton

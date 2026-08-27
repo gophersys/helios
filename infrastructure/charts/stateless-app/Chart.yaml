@@ -1,0 +1,33 @@
+apiVersion: v2
+name: stateless-app
+description: |
+  Reference archetype for 12-factor HTTP(S) services with no persistent
+  local state. Emits Deployment + Service + (optional Ingress) + HPA +
+  PDB + ServiceMonitor + ExternalSecret + NetworkPolicy + PrometheusRule.
+
+  See README.md for rationale; values.schema.json is the enforced contract.
+
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+kubeVersion: ">=1.28.0-0"
+
+maintainers:
+  - name: Mateo Segura
+    email: mateo.segura413@gmail.com
+
+keywords:
+  - stateless
+  - http
+  - api
+  - platform
+  - gophersys
+
+dependencies:
+  - name: _common
+    version: 0.1.0
+    repository: file://../_common
+
+annotations:
+  platform.gophersys/archetype: stateless-app
+  platform.gophersys/status: skeleton

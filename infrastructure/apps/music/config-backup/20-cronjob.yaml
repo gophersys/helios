@@ -1,0 +1,80 @@
+# Daily tar of the hard-to-reproduce config PVCs to /mnt/media/backups (NVMe — a
+# separate physical disk from the OS-disk local-path the config lives on), 14-day
+# retention. Reads the local-path storage dir directly (read-only) instead of
+# mounting the RWO config PVCs, which can't be co-mounted while the app pods hold
+# them. Pinned to k3s-w-1 where the data + NVMe live. Crash-consistent (live DB
+# tar) — fine for a homelab, and the configs are independently reproducible
+# (config-enforce / SETUP.md / initC).
+#
+# SCOPE: this job runs on k3s-w-1, where ALL three media config PVs now live —
+# qBittorrent, filebrowser, and Prowlarr (its PV was migrated from k3s-w-0 on
+# 2026-07-09; the deployment is hostname-pinned here since). A missing config is
+# a real fault (PVC gone / wrong node) and fails the Job loudly.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: config-backup
+  namespace: media
+  labels:
+    app.kubernetes.io/part-of: music
+spec:
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            kubernetes.io/hostname: k3s-w-1
+          securityContext:
+            runAsUser: 0            # traverse/read config owned by app UIDs (abc:1000, root)
+          containers:
+            - name: backup
+              image: busybox:1.36
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -u
+                  TS=$(date +%Y%m%d-%H%M)
+                  mkdir -p /backups
+                  fail=0
+                  backup() {
+                    dir=$(ls -d /storage/*_media_"$1" 2>/dev/null | head -1)
+                    [ -n "$dir" ] || return 1
+                    tar czf "/backups/$1-${TS}.tar.gz" -C "$dir" . \
+                      && echo "backed up $1 ($(du -sh "$dir" | cut -f1))"
+                  }
+                  # All three are required on this node — a miss is a real fault, fail the Job.
+                  for name in qbittorrent-config filebrowser-config prowlarr-config; do
+                    backup "$name" || { echo "ERROR: required config '$name' not found under /storage — backup INCOMPLETE"; fail=1; }
+                  done
+                  find /backups -name '*.tar.gz' -mtime +14 -delete
+                  echo "backup complete: $(ls /backups/*.tar.gz 2>/dev/null | wc -l) archives on disk"
+                  [ "$fail" -eq 0 ] || { echo "FAILED: one or more required configs were not backed up"; exit 1; }
+              resources:
+                requests: { cpu: 25m, memory: 32Mi }
+                limits: { memory: 128Mi }
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true          # only writes to the /backups mount
+                capabilities:
+                  drop: ["ALL"]
+                  add: ["DAC_READ_SEARCH"]             # uid-0 still needs this to read foreign-owned files once caps are dropped
+                seccompProfile:
+                  type: RuntimeDefault
+              volumeMounts:
+                - { name: storage, mountPath: /storage, readOnly: true }
+                - { name: backups, mountPath: /backups }
+          volumes:
+            - name: storage
+              hostPath:
+                path: /var/lib/rancher/k3s/storage
+                type: Directory
+            - name: backups
+              hostPath:
+                path: /mnt/media/backups
+                type: DirectoryOrCreate

@@ -1,0 +1,79 @@
+# Cloud-neutral compute-unit contract.
+#
+# Every providers/<cloud>/modules/compute implementation MUST satisfy
+# this contract: declare the same REQUIRED input variables with the
+# documented types, accept (or ignore with a sane default) every
+# OPTIONAL variable, and emit the REQUIRED outputs from `terraform
+# apply`. Cloud-specific extensions (availability domains, subnets,
+# instance shapes, etc.) are added as additional variables — they
+# don't break the contract.
+#
+# Consumers (clusters/instances/<c>/nodes/<h>/, machines/services/<h>/)
+# use the specific cloud's module, not this directory — this contract
+# is the shape every implementation agrees on. Every provider's
+# `ctl.sh validate` verb parses this file and checks its own
+# variables.tf / outputs.tf.
+
+version: 1
+
+variables:
+  required:
+    - name: name
+      type: string
+      description: "Unique human-readable instance name (kebab-case, 1-30 chars)."
+    - name: arch
+      type: string
+      description: "CPU architecture. One of: amd64, arm64."
+    - name: cpu_count
+      type: number
+      description: "Integer vCPU count."
+    - name: memory_gb
+      type: number
+      description: "GB of RAM."
+    - name: disk_gb
+      type: number
+      description: "Root disk size in GB."
+
+  optional:
+    - name: storage_class
+      type: string
+      description: "ssd | nvme | hdd. Providers may treat unsupported values as ssd."
+      default: ssd
+    - name: network
+      type: string
+      description: "public | tailnet | private. Controls VNIC/subnet + public-IP attach."
+      default: tailnet
+    - name: os
+      type: string
+      description: "linux-ubuntu | linux-debian | linux-fedora | windows-server."
+      default: linux-ubuntu
+    - name: role
+      type: string
+      description: "cluster | service | builder (or a project-specific string)."
+      default: cluster
+    - name: tags
+      type: map(string)
+      description: "Free-form key/value tags applied as cloud tags + passed to Ansible inventory."
+      default: {}
+    - name: tailnet_auth_key
+      type: string
+      description: "Pre-auth key for on-boot Tailscale join. Empty string disables."
+      sensitive: true
+      default: ""
+    - name: ssh_public_key
+      type: string
+      description: "Public key seeded into cloud-init authorized_keys."
+      default: ""
+
+outputs:
+  required:
+    - name: id
+      description: "Provider-native resource ID (OCID / EC2 instance ID / Hetzner ID / etc.)."
+    - name: private_ip
+      description: "Internal IP on the VCN/VPC."
+    - name: public_ip
+      description: "External IP if any; empty string when none."
+    - name: tailnet_name
+      description: "Tailscale hostname in mateosegura.ts.net; empty if not joined."
+    - name: fqdn
+      description: "Stable resolvable name (usually the tailnet FQDN)."

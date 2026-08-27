@@ -1,0 +1,28 @@
+# Prowlarr WebUI — tailnet-private, same model as qBittorrent's ingress.
+# Add a DNS-only (grey-cloud) A record in Cloudflare:
+#   prowlarr.mateosegura.com  A  10.168.0.240
+# Cert via cert-manager DNS-01 (letsencrypt-homelab) — only needs the TXT.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: prowlarr
+  namespace: media
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-homelab
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - prowlarr.mateosegura.com
+      secretName: prowlarr-tls
+  rules:
+    - host: prowlarr.mateosegura.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: prowlarr
+                port:
+                  number: 9696

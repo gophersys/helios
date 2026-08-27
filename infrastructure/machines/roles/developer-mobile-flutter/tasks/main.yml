@@ -1,0 +1,33 @@
+---
+# roles/developer-mobile-flutter/tasks/main.yml
+#
+# STATUS: NOT IMPLEMENTED.
+#
+# TODO: implement the following when a Flutter dev host is enrolled:
+#   Linux (Debian/Fedora):
+#     - download Flutter SDK tarball (pin a version in host_vars), extract
+#       into /opt/flutter, chown to the invoking user
+#     - add /opt/flutter/bin to /etc/profile.d
+#     - apt/dnf install: clang cmake ninja-build pkg-config libgtk-3-dev
+#       (for Linux desktop target) and libsecret-1-dev (for secure storage)
+#     - install Android SDK command-line tools under /opt/android-sdk
+#     - accept Android SDK licenses (sdkmanager --licenses)
+#     - flutter doctor --android-licenses
+#     - flutter config --enable-linux-desktop
+#
+#   macOS:
+#     - brew install --cask flutter (or tarball install)
+#     - Xcode + Command Line Tools are preconditions (platform-macos)
+#     - gem install cocoapods (or via brew)
+#     - flutter doctor --ios
+#     - flutter config --enable-macos-desktop
+#
+#   Windows:
+#     - winget install Flutter (or pinned tarball extracted to C:\flutter)
+#     - install Android Studio / cmdline-tools
+#     - flutter config --enable-windows-desktop
+
+- name: developer-mobile-flutter is a stub
+  ansible.builtin.debug:
+    msg: "TODO: developer-mobile-flutter not implemented — see role comments"
+  tags: [developer, flutter, stub]

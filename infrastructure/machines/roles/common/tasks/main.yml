@@ -1,0 +1,46 @@
+---
+# roles/common/tasks/main.yml
+#
+# Portable tasks applied first on every host regardless of OS. Must be safe
+# to run on Linux, Windows (via WinRM), and WSL. Platform-specific work
+# belongs in platform-* roles.
+
+- name: Set git user.name for the host owner
+  ansible.builtin.git_config:
+    name: user.name
+    scope: global
+    value: "Mateo Segura"
+  tags: [common, git]
+  # On Windows targets the git executable may not be on PATH yet — the
+  # platform-windows role installs it. This task will fail cleanly on
+  # Windows until git is present; skip via 'when' once we know more hosts.
+
+- name: Set git user.email for the host owner
+  ansible.builtin.git_config:
+    name: user.email
+    scope: global
+    value: "mateo.segura413@gmail.com"
+  tags: [common, git]
+
+- name: Disable git commit signing globally (per ecosystem policy)
+  ansible.builtin.git_config:
+    name: commit.gpgsign
+    scope: global
+    value: "false"
+  tags: [common, git]
+
+- name: Ensure ~/.ssh directory exists with 0700 permissions
+  ansible.builtin.file:
+    path: "{{ ansible_env.HOME | default(ansible_user_dir) }}/.ssh"
+    state: directory
+    mode: "0700"
+  when: ansible_os_family != "Windows"
+  tags: [common, ssh]
+
+# TODO: tailscale presence check is stubbed here — actual install lives in
+# networking-tailscale. Add a `command: tailscale status` probe once the
+# networking role is wired and hosts exist to test against.
+- name: Confirm tailscale binary exists (stub)
+  ansible.builtin.debug:
+    msg: "tailscale presence check deferred to networking-tailscale role"
+  tags: [common, networking]

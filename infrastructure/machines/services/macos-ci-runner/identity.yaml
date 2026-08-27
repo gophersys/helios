@@ -1,0 +1,57 @@
+# identity.yaml — macos-ci-runner
+#
+# The Mac mini in the living room. It is the macOS side of the CI substrate for
+# the gophersys org: macOS builds and tests that a hosted runner cannot do
+# (the TCC and screen-capture flows, and a real capture of loopback audio).
+#
+# ENROLLED on 2026-08-13. Every hardware value below was measured on the
+# machine on that date. None of them is an estimate.
+#
+# Half enrolled, not fully enrolled. These 2 items remain. Do not depend on
+# them, because neither is done:
+#   1. Join the tailnet. Tailscale is not installed, so the machine answers on
+#      the LAN only. `tailscale_hostname` below is a reserved name, not a live
+#      one.
+#   2. Register the GitHub Actions runner. Until that is done, the release
+#      workflow of audiomotion-visualizer stays on the hosted macos-14 runner.
+#
+# A third item said "install a container runtime". It is done. A standalone
+# `buildkitd` container serves native linux/arm64 builds to the cluster over
+# mutual TLS, and the machine is a buildx NODE, not a runner. The 2 paths are
+# independent, so item 2 above is still open. See README.md and
+# docs/ci-substrate.md.
+
+name: macos-ci-runner
+os: macos
+os_version: "15.5"
+purpose: "Self-hosted GitHub Actions runner (gophersys org) — macOS CI for music apps"
+# A reserved name, not a live one — see item 1 above. Keep the note on its own
+# line: generate-machine-index.sh does not strip an inline comment, so it copies
+# one straight into the index table.
+tailscale_hostname: macos-ci-runner
+status: active
+location: home-living-room
+owner: mateo.segura413@gmail.com
+
+roles:
+  - common
+  - networking-tailscale
+  - secrets-bitwarden-client
+
+hardware:
+  provider: bare-metal
+  model: Macmini9,1        # Mac mini (M1, 2020) — it is not a MacBook
+  cpu_arch: arm64
+  cpu_cores: 8
+  memory_gb: 8
+
+xcode:
+  developer_dir: /Applications/Xcode.app/Contents/Developer   # full Xcode, not the command-line tools alone
+  command_line_tools: true
+
+runner:
+  kind: github-actions
+  scope: org           # gophersys
+  labels: [self-hosted, macOS, music-ci]
+  service: launchd     # ./svc.sh install (runs in the user GUI session)
+  registered: false    # the runner is not configured against the org yet

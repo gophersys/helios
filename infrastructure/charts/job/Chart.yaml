@@ -1,0 +1,33 @@
+apiVersion: v2
+name: job
+description: |
+  Archetype for one-shot Jobs. Supports Helm-hook integration (pre/post
+  install/upgrade), parallel fan-out via Indexed completion mode, and the
+  standard security + observability + secrets plumbing. Emits Job +
+  ExternalSecret + NetworkPolicy.
+
+type: application
+version: 0.1.0
+appVersion: 0.1.0
+kubeVersion: ">=1.28.0-0"
+
+maintainers:
+  - name: Mateo Segura
+    email: mateo.segura413@gmail.com
+
+keywords:
+  - job
+  - one-shot
+  - migration
+  - helm-hook
+  - platform
+  - gophersys
+
+dependencies:
+  - name: _common
+    version: 0.1.0
+    repository: file://../_common
+
+annotations:
+  platform.gophersys/archetype: job
+  platform.gophersys/status: skeleton

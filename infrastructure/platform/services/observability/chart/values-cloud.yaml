@@ -1,0 +1,127 @@
+# Cloud (OCI) — REUSE the existing Grafana + Prometheus (shared-services ns).
+# Add only the missing pieces: Loki + Tempo (S3-backed) + Alloy (OTLP gateway + log DaemonSet).
+#
+# Prereqs (created by the deploy steps):
+#   1. OCI Object Storage bucket "eden-observability"
+#   2. secret obs-s3 in ns observability:
+#        AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY (from vault shared/oracle/s3-backups)
+#   3. existing prometheus patched with --web.enable-remote-write-receiver
+#   4. Loki + Tempo added as datasources to the existing Grafana
+#
+# S3 creds are read from the obs-s3 secret via env (never inlined here).
+
+grafana:
+  enabled: false
+prometheus:
+  enabled: false
+
+loki:
+  extraEnvFrom:
+    - secretRef:
+        name: obs-s3
+  singleBinary:
+    persistence:
+      storageClass: local-path
+      size: 5Gi
+  loki:
+    storage:
+      type: s3
+      bucketNames:
+        chunks: eden-observability
+        ruler: eden-observability
+      s3:
+        endpoint: ax0uzamxfteg.compat.objectstorage.us-phoenix-1.oraclecloud.com
+        region: us-phoenix-1
+        s3forcepathstyle: true
+        # accessKeyId/secretAccessKey omitted -> AWS SDK reads AWS_* env from obs-s3
+    schemaConfig:
+      configs:
+        - from: "2024-04-01"
+          store: tsdb
+          object_store: s3
+          schema: v13
+          index:
+            prefix: index_
+            period: 24h
+
+tempo:
+  persistence:
+    storageClassName: local-path
+    size: 5Gi
+  tempo:
+    extraArgs:
+      "config.expand-env": "true"
+    extraEnvFrom:
+      - secretRef:
+          name: obs-s3
+    storage:
+      trace:
+        backend: s3
+        s3:
+          bucket: eden-observability
+          endpoint: ax0uzamxfteg.compat.objectstorage.us-phoenix-1.oraclecloud.com
+          region: us-phoenix-1
+          forcepathstyle: true
+          access_key: "${AWS_ACCESS_KEY_ID}"
+          secret_key: "${AWS_SECRET_ACCESS_KEY}"
+
+# Alloy gateway: traces/logs stay in this namespace; app metrics go to the EXISTING prometheus.
+alloyGateway:
+  alloy:
+    configMap:
+      content: |
+        logging {
+          level  = "info"
+          format = "logfmt"
+        }
+
+        otelcol.receiver.otlp "default" {
+          grpc {
+            endpoint = "0.0.0.0:4317"
+          }
+          http {
+            endpoint = "0.0.0.0:4318"
+          }
+          output {
+            metrics = [otelcol.processor.batch.default.input]
+            logs    = [otelcol.processor.batch.default.input]
+            traces  = [otelcol.processor.batch.default.input]
+          }
+        }
+
+        otelcol.processor.batch "default" {
+          output {
+            metrics = [otelcol.exporter.prometheus.default.input]
+            logs    = [otelcol.exporter.loki.default.input]
+            traces  = [otelcol.exporter.otlp.tempo.input]
+          }
+        }
+
+        otelcol.exporter.prometheus "default" {
+          forward_to = [prometheus.remote_write.default.receiver]
+        }
+
+        prometheus.remote_write "default" {
+          endpoint {
+            url = "http://prometheus-server.shared-services.svc.cluster.local/api/v1/write"
+          }
+        }
+
+        otelcol.exporter.loki "default" {
+          forward_to = [loki.write.default.receiver]
+        }
+
+        loki.write "default" {
+          endpoint {
+            url = "http://loki:3100/loki/api/v1/push"
+          }
+        }
+
+        otelcol.exporter.otlp "tempo" {
+          client {
+            endpoint = "tempo:4317"
+            tls {
+              insecure = true
+            }
+          }
+        }

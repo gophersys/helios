@@ -1,0 +1,28 @@
+# ARC controller — reconciles AutoscalingRunnerSets into ephemeral runner pods.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-controller
+  namespace: argocd
+spec:
+  project: ci
+  source:
+    repoURL: ghcr.io/actions/actions-runner-controller-charts
+    chart: gha-runner-scale-set-controller
+    targetRevision: 0.14.2
+    helm:
+      releaseName: arc
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-systems
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      # ServerSideApply is REQUIRED here and nowhere else by default. Its
+      # largest resource is 1208039 bytes (CustomResourceDefinition autoscalingrunnersets.actions.github.com),
+      # and client-side apply stores the manifest in an annotation capped at
+      # 262144 bytes. Measured 2026-08-11. See docs/debt-register.md D44.
+      - ServerSideApply=true

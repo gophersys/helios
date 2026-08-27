@@ -1,0 +1,24 @@
+---
+# roles/platform-macos/tasks/main.yml
+#
+# STATUS: NOT IMPLEMENTED.
+#
+# macOS is not a priority platform. This stub exists so that identity.yaml
+# files referencing the role don't fail the validator. It does nothing.
+#
+# TODO: implement the following when a macOS host is enrolled:
+#   - ensure Homebrew is installed (curl the installer; handle both x86_64
+#     and Apple Silicon brew prefixes)
+#   - brew install git zsh jq python@3.12 node watchman cocoapods
+#   - ensure Xcode Command Line Tools (xcode-select --install, then accept
+#     license with xcodebuild -license accept)
+#   - set default shell to zsh (chsh -s /bin/zsh)
+#   - mirror the git identity + commit.gpgsign=false settings from
+#     roles/common
+#   - optionally install full Xcode via mas-cli when mobile development
+#     roles are also applied
+
+- name: platform-macos is a stub
+  ansible.builtin.debug:
+    msg: "TODO: platform-macos not implemented — see role comments"
+  tags: [platform, macos, stub]

@@ -1,0 +1,48 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*~
+
+# Nx (parent provides it)
+.nx/
+node_modules/
+dist/
+tmp/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ansible
+*.retry
+.ansible/
+fetched/
+
+# Secrets
+*.pem
+*.key
+!*.pub
+.env
+.env.*
+!.env.example
+
+# Local scratch
+scratch/
+.cache/
+
+# Logs
+*.log

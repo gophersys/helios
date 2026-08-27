@@ -1,0 +1,140 @@
+# values.yaml — worker
+
+project: ""                         # required; kebab-case project name
+env: ""                             # required; prod | staging | dev | lab
+
+app:
+  name: ""                          # required; sub-app within the project
+
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+tenant: gophersys
+nodeRole: apps                     # batch when a preemptible pool exists
+dataClassification: internal
+
+replicas: 1
+
+# --------------------------- worker-specific -----------------------------
+worker:
+  command: []                      # required; e.g. ["/bin/worker", "run"]
+  args: []
+  preStop:
+    command: []                    # e.g. ["/bin/worker", "drain", "--timeout=45s"]
+  # Exactly one of {hpa, keda} may be enabled.
+  autoscale:
+    hpa:
+      enabled: true
+      minReplicas: 1
+      maxReplicas: 10
+      cpuTarget: 60
+      memTarget: 70
+    keda:
+      enabled: false               # requires platform/services/keda/
+      scaler: ""                   # nats-jetstream | kafka | redis | ...
+      stream: ""                   # scaler-specific config
+      consumer: ""
+      lagThreshold: 100
+      minReplicas: 0
+      maxReplicas: 20
+      cooldownPeriod: 300s
+
+terminationGracePeriodSeconds: 60
+
+# --------------------------- pod shape -----------------------------------
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits:   { cpu: 500m, memory: 128Mi }
+
+securityContext:
+  pod:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    seccompProfile: { type: RuntimeDefault }
+  container:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities: { drop: ["ALL"] }
+
+tmpfs:
+  - { name: tmp, mountPath: /tmp, sizeLimit: 64Mi }
+
+# --------------------------- probes (TCP or exec only — no HTTP) --------
+probes:
+  startup:
+    exec: { command: ["/bin/worker", "health"] }
+    periodSeconds: 5
+    failureThreshold: 60
+  liveness:
+    exec: { command: ["/bin/worker", "health"] }
+    periodSeconds: 30
+    failureThreshold: 3
+  # readiness is usually omitted for workers — they're not behind a Service
+
+# --------------------------- disruption budget ---------------------------
+pdb:
+  enabled: true
+  maxUnavailable: 50%              # workers tolerate more churn
+
+# --------------------------- observability -------------------------------
+observability:
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+  logs:
+    format: json
+    level: info
+  traces:
+    enabled: true
+    samplingRatio: 1.0             # fuller traces on workers — low volume
+
+secrets: []
+
+networkPolicy:
+  enabled: true
+  allowIngressFrom: []
+  allowEgressTo: []
+
+slo:
+  tier: standard
+  lag:
+    target_seconds: 60
+    window: 7d
+    percentile: 95
+  successRate:
+    target: 99.0
+    window: 30d
+
+rollout:
+  strategy: RollingUpdate
+  maxSurge: 1
+  maxUnavailable: 0
+  minReadySeconds: 30
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+rbac:
+  create: false
+  rules: []
+
+scheduling:
+  nodeSelector: { role: apps }
+  tolerations: []
+  affinity: {}
+  topologySpreadConstraints: []
+
+env: []
+envFrom: []
+volumes: []
+volumeMounts: []
+initContainers: []
+sidecars: []

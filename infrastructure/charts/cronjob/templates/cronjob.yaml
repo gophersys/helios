@@ -1,0 +1,15 @@
+{{- /*
+  templates/cronjob.yaml — cronjob archetype
+
+  STATUS: stub.
+
+  When implemented, emits a CronJob with:
+    - schedule, timeZone, concurrencyPolicy, startingDeadlineSeconds,
+      successfulJobsHistoryLimit, failedJobsHistoryLimit, suspend
+    - jobTemplate.spec:
+        - activeDeadlineSeconds, backoffLimit, ttlSecondsAfterFinished,
+          completions, parallelism, completionMode
+        - template.spec: security context, resources, ExternalSecret envFrom,
+          optional pushgateway sidecar for metrics emission
+    - nodeSelector from .Values.scheduling.nodeSelector
+*/ -}}

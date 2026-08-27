@@ -1,0 +1,23 @@
+# Cluster-scoped orchestrator RBAC for Eden (the create-project-namespace
+# authority) — platform project on purpose (see apps/eden/rbac-cluster/rbac.yaml).
+# The `apps` AppProject is namespace-scoped and cannot grant a ClusterRole, so a
+# platform-project Application applies it — granting rights ACROSS a project
+# boundary is a platform decision, never the requesting app's own.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eden-rbac
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: main
+    path: apps/eden/rbac-cluster
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: eden
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true

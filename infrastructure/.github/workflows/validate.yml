@@ -1,0 +1,178 @@
+name: validate
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  manifests:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 10
+    runs-on: arc-org          # self-hosted (ARC)
+    steps:
+      - uses: actions/checkout@v4
+
+      # No tool-install step. The runner image IS the `base` dev image, so
+      # kubeconform, kubectl, yq, jq and shellcheck are already present at the
+      # same versions an interactive session gets. kustomize is
+      # `kubectl kustomize`. See docs/ci-substrate.md.
+      #
+      # There is no yamllint step. It was advisory, its output was sent to
+      # /dev/null, and its failure was converted to an echo, so it enforced
+      # nothing — and yamllint is not in the runner image, so it never ran at
+      # all. A check that is believed and does nothing is worse than no check.
+      # To bring it back: add yamllint to the base image, fix what it reports,
+      # and add it here with no continue-on-error.
+      # scripts/lint-manifests.sh discovers the raw manifests (the static roots +
+      # the non-templated registry path: values, minus the 4 excludes), enforces
+      # a FLOOR (0 manifests is a failure, not a silent green), and runs
+      # kubeconform at full strictness with findings visible. The old
+      # `find … | xargs -0 -r kubeconform` swallowed an empty list: -r ran
+      # kubeconform 0 times and exited 0.
+      - name: kubeconform — raw manifests
+        run: bash scripts/lint-manifests.sh
+
+      - name: kubeconform floor — fixture tests
+        run: bash scripts/test-lint-manifests.sh
+
+      - name: Argo registry paths resolve
+        run: bash scripts/verify-registry-paths.sh
+
+      # kubeconform proves shape only. This pins the PROPERTIES the vault-cache
+      # sync depends on — the NetworkPolicy admits the Job pods, one port
+      # everywhere, the URL dials the real Service, the shell keeps its failure
+      # chain — because a selector typo or a wrong port passes kubeconform AND
+      # server dry-run, and then the Job fails every 10 minutes in a namespace
+      # nothing alerts on (debt-register D16).
+      - name: bw-serve-sync wiring
+        run: bash scripts/verify-bw-sync-wiring.sh
+
+      # Took over the only 2 checks worth keeping from the deleted .ci/ layer:
+      # contract front-matter + required sections, and chart READMEs. The rest of
+      # .ci/ was unreferenced, and its validate-platform verb failed with 9
+      # errors that were all the check being wrong. See docs/debt-register.md D38.
+      - name: contracts and charts structure
+        run: bash scripts/verify-structure.sh
+
+      # The arc-org pool builds arm64 natively on the Mac mini's buildkitd over
+      # mTLS (`--driver remote`). This asserts the client CERTS actually reach the
+      # pod: one vault-backed Secret carrying exactly ca.pem/cert.pem/key.pem,
+      # mounted read-only as a directory, owner-only, at the path the documented
+      # buildx step reads. No vault access is needed: it reads manifests only.
+      #
+      # Its twin, `bash ctl.sh verify-vault-refs`, is deliberately NOT here. That
+      # one asks the real Vaultwarden whether each named item resolves to exactly
+      # one item, and a runner has neither a route to the vault nor an unlocked
+      # session. Adding it here would make it fail for the environment rather than
+      # for the property, and the fix for that is always a skip. It is local-only,
+      # like verify-access.
+      - name: arc-org receives the buildkit client certs
+        run: bash scripts/verify-buildx-key.sh
+
+      # The warmer keeps runner images hot by declaring them as initContainers
+      # — the kubelet pulls, no privilege. Its pinned ref is a 4th home of the
+      # cloud digest the 3 scale-set files pin, and this holds all 4 to one
+      # value, and holds the warmer to zero hostPath. It also derives the
+      # control-plane set from the node identity files and fails when the warmer
+      # or a runner pool can still schedule there — the pin that took k3s-cp-0
+      # to 93% (debt-register D45). Manifest-only, CI-safe.
+      - name: warmer pins match the pools, warmer stays unprivileged
+        run: bash scripts/verify-warmer-pins.sh
+
+      - name: DinD is versioned and immutable across ARC
+        run: |
+          bash scripts/verify-dind-pins.sh
+          bash scripts/test-verify-dind-pins.sh
+
+      # The suites below drive the REAL script against a mktemp fixture tree —
+      # a fake kubectl first on PATH for one, a symlink that relocates the
+      # script's ROOT for the other. Neither contacts a cluster and neither
+      # writes into the tree. They are here for the reason the queue step is: a
+      # suite that nothing runs is a check that never runs.
+      - name: buildkit-key rule — fixture tests
+        run: bash scripts/test-verify-buildx-key.sh
+
+      - name: BuildKit portable DNS contract
+        run: |
+          bash scripts/verify-buildkit-dns.sh
+          bash scripts/test-verify-buildkit-dns.sh
+
+      - name: runner-image rule — fixture tests
+        run: bash scripts/test-verify-runner-image.sh
+
+      - name: warmer-pins rule — fixture tests
+        run: bash scripts/test-verify-warmer-pins.sh
+
+      # The queue rule reads its own fixtures, so it needs no network and no
+      # token. It ran nowhere before this step existed, and a suite that nothing
+      # runs is a check that never runs. gh and jq are both on the runner image;
+      # the suite exits 127 and names the tool if either one goes missing.
+      - name: runner-queue rule — fixture tests
+        run: bash scripts/test-verify-runner-queue.sh
+
+      # The admission guard in platform/core/policy/ is the ONE thing in this
+      # repo that enforces at the apiserver, and the way it dies is silent: one
+      # word turns `validationActions: [Deny]` into `[Audit]`, and every document
+      # keeps saying "enforced" while nothing is. That is precisely how Kyverno
+      # ran for months before it was removed. This holds the shape — Deny
+      # bindings, fail-closed policies, no dangling policyName, an Argo
+      # Application that applies it and cannot prune it — plus the two manifest
+      # facts the policy depends on: at least one namespace is actually labelled,
+      # and every StatefulSet with volumeClaimTemplates pins
+      # persistentVolumeClaimRetentionPolicy to Retain (`Delete` puts an ownerRef
+      # on the PVCs and garbage-collects them BELOW admission, where no policy
+      # can refuse it). Manifest-only, so it needs no cluster.
+      #
+      # Its live twin, `bash ctl.sh test-vap-guard`, is deliberately NOT here:
+      # it exercises the real admission chain with --dry-run=server and needs an
+      # apiserver that already has the policies synced. Local-only, like
+      # verify-access and verify-vault-refs.
+      - name: admission policy still enforces
+        run: bash scripts/verify-vap-policies.sh
+
+      - name: admission-policy rule — fixture tests
+        run: bash scripts/test-verify-vap-policies.sh
+
+      - name: qBittorrent config-enforce — tests + drift guard
+        run: |
+          set -euo pipefail
+          cd apps/music/qbittorrent/config-enforce
+          python3 test_enforce_qbt.py
+          diff <(python3 gen_configmap.py) ../15-config-enforce.configmap.yaml \
+            || { echo "::error::15-config-enforce.configmap.yaml is stale"; exit 1; }
+
+  shellcheck:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 10
+    runs-on: arc-org
+    steps:
+      - uses: actions/checkout@v4
+      # scripts/lint-shell.sh discovers the scripts, enforces a FLOOR (0 found is
+      # a failure, not a silent green), and runs bash -n + shellcheck at full
+      # strictness. The old `find … | xargs -0 -r shellcheck` swallowed an empty
+      # list: -r ran shellcheck 0 times and exited 0. One home shared with ctl.sh.
+      - name: shellcheck
+        run: bash scripts/lint-shell.sh
+      - name: shellcheck floor — fixture tests
+        run: bash scripts/test-lint-shell.sh
+
+  exposure:
+    # A job with no limit inherits the GitHub default of 360 minutes. On a self-
+    # hosted pool of 4 slots that is 6 hours of 1 slot held by a hung job, and
+    # every other repository waits behind it. Sized from the measured runtime.
+    timeout-minutes: 10
+    runs-on: arc-org
+    steps:
+      - uses: actions/checkout@v4
+      - name: verify declared exposure matches reality
+        # Fails the build when a hostname drifts from contracts/exposure.yaml.
+        # This check exists because grafana.mateosegura.com silently moved from
+        # tailnet to public and no document noticed for weeks.
+        run: bash scripts/verify-exposure.sh

@@ -1,0 +1,108 @@
+# Nightly encrypted backup of Vaultwarden — the root of trust for every credential
+# in the ecosystem. Closes debt-register D14.
+#
+# DESIGN — two properties are non-negotiable and shape everything below:
+#
+# 1. The cluster can ENCRYPT but never DECRYPT. Encryption is public-key
+#    (openssl smime, RSA-4096 + AES-256). Only `public.pem` is in the cluster;
+#    the private half never touches it. A full cluster compromise yields
+#    ciphertext, not secrets.
+#
+# 2. NO OCI credentials in the cluster. Upload uses a pre-authenticated request
+#    (PAR) scoped to AnyObjectWrite on the eden-backups bucket — it can create
+#    objects and cannot read, list or delete them. A leaked PAR cannot exfiltrate
+#    a single existing backup.
+#
+# BOTH HALVES ARE BACKED UP AND BOTH ARE REQUIRED:
+#   - the `vaultwarden` PostgreSQL database (the items), and
+#   - /data (rsa_key.pem — the JWT signing key — plus attachments and sends).
+# Restoring the database alone leaves every session token invalid.
+#
+# /data is read through the host path rather than the PVC: it is RWO and the
+# vaultwarden pod holds it, so it cannot be co-mounted. Same approach as
+# apps/music/config-backup. That pins this Job to the node holding the block
+# volume; a missing path is a real fault and fails loudly rather than shipping
+# an incomplete backup.
+#
+# NOT GitOps-reconciled: the prod cluster is not driven by Argo from this repo.
+# Apply deliberately — see README.md in this directory.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: vault-backup
+  namespace: shared-services
+  labels:
+    app.kubernetes.io/name: vault-backup
+    app.kubernetes.io/part-of: vaultwarden
+spec:
+  schedule: "0 3 * * *"          # 03:00 UTC daily
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      template:
+        spec:
+          restartPolicy: OnFailure
+          nodeSelector:
+            kubernetes.io/hostname: agent-00     # where /mnt/data (the block volume) lives
+          containers:
+            - name: backup
+              image: postgres:16-alpine          # matches the server major; has pg_dump
+              command: ["sh", "-c"]
+              args:
+                - |
+                  set -eu
+                  apk add --no-cache openssl curl >/dev/null 2>&1
+                  TS=$(date +%Y%m%d-%H%M%S)
+                  WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT
+
+                  # --- the database (items) ---
+                  # Connect with the SAME credential vaultwarden uses. The
+                  # postgres superuser password in postgres-shared-postgres-credentials
+                  # does not authenticate over TCP; the vaultwarden role owns this
+                  # database, so its URI is both correct and least-privilege.
+                  pg_dump "$DATABASE_URL" \
+                    --format=custom --no-owner --no-privileges > "$WORK/db.pgdump"
+                  test -s "$WORK/db.pgdump"
+
+                  # --- /data (rsa_key.pem + attachments + sends) ---
+                  test -d /hostdata/vaultwarden-data || {
+                    echo "ERROR: /hostdata/vaultwarden-data missing — refusing to ship a half backup"; exit 1; }
+                  tar czf "$WORK/data.tar.gz" -C /hostdata/vaultwarden-data .
+                  test -s "$WORK/data.tar.gz"
+
+                  # --- one archive, then public-key encrypt ---
+                  tar czf "$WORK/vault-${TS}.tar.gz" -C "$WORK" db.pgdump data.tar.gz
+                  openssl smime -encrypt -binary -aes-256-cbc \
+                    -in "$WORK/vault-${TS}.tar.gz" \
+                    -out "$WORK/vault-${TS}.tar.gz.enc" -outform DER /pubkey/public.pem
+
+                  # --- upload (PAR is write-only; object name carries the date) ---
+                  SIZE=$(wc -c < "$WORK/vault-${TS}.tar.gz.enc")
+                  code=$(curl -sS -o /dev/null -w '%{http_code}' -X PUT \
+                    --data-binary "@$WORK/vault-${TS}.tar.gz.enc" \
+                    "$(cat /target/par-url)vault/vault-${TS}.tar.gz.enc")
+                  [ "$code" = "200" ] || { echo "ERROR: upload failed HTTP $code"; exit 1; }
+                  echo "uploaded vault/vault-${TS}.tar.gz.enc (${SIZE} bytes, encrypted)"
+              volumeMounts:
+                - { name: hostdata, mountPath: /hostdata, readOnly: true }
+                - { name: pubkey,   mountPath: /pubkey,   readOnly: true }
+                - { name: target,   mountPath: /target,   readOnly: true }
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: vaultwarden-credentials
+                      key: database-url
+              resources:
+                requests: { cpu: 50m, memory: 64Mi }
+                limits:   { memory: 256Mi }
+          volumes:
+            - name: hostdata
+              hostPath: { path: /mnt/data/pv, type: Directory }
+            - name: pubkey
+              configMap: { name: vault-backup-pubkey }
+            - name: target
+              secret: { secretName: vault-backup-target }

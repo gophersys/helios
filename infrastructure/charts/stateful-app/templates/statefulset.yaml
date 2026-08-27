@@ -1,0 +1,20 @@
+{{- /*
+  templates/statefulset.yaml — stateful-app
+
+  STATUS: stub.
+
+  When implemented, emits a StatefulSet with:
+    - volumeClaimTemplates from .Values.storage (PVC per replica; labeled
+      platform.gophersys/retain=true and platform.gophersys/backup=velero-daily)
+    - podManagementPolicy: .Values.podManagementPolicy (OrderedReady | Parallel)
+    - updateStrategy: .Values.updateStrategy (RollingUpdate with partition)
+    - headless Service (clusterIP: None) via service-headless.yaml
+    - restricted PSS security context
+    - probes (TCP/exec — HTTP is uncommon for data planes)
+    - resources.{requests,limits}
+    - ExternalSecret wiring
+    - OTEL env injection
+    - nodeSelector: role=data + toleration for data=true:NoSchedule
+
+  See charts/stateful-app/README.md for opinionated defaults.
+*/ -}}

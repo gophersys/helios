@@ -1,0 +1,128 @@
+# identity.yaml — homelab
+#
+# The live 8-node HA k3s cluster on 3 Proxmox hosts (pve-00 MS-A2, pve-01
+# ThinkPad P1, pve-03 Yoga). Runs the self-hosted media/music platform
+# (qBittorrent+VPN today; *arr + Jellyfin later) plus platform experimentation.
+# All nodes on the Tailscale mesh. Values below are sourced from LIVE kubectl
+# (2026-07-05), not planning docs.
+#
+# DIVERGENCES from the manual-k3s template defaults are flagged inline — they are
+# deliberate, ratified decisions (see docs/migration-homelab-to-idp.md).
+
+name: homelab
+template: cluster-kubernetes-manual-k3s
+distribution: k3s
+distribution_version: "v1.35.5+k3s1"      # live
+
+purpose: "Homelab — self-hosted media/music platform + platform experimentation."
+status: active
+owner: mateo.segura413@gmail.com
+domain: mateosegura.com
+
+network:
+  # DIVERGENCE (decision 4): flannel, NOT the repo-default cilium. k3s bundles
+  # kube-router for NetworkPolicy enforcement — VERIFIED enforced 2026-07-05
+  # (empirical default-deny test blocked traffic). No Cilium reinstall planned.
+  cni: flannel
+  network_policy_controller: kube-router   # k3s built-in; NP IS enforced here
+  tailnet_joined: true
+  pod_cidr: 10.42.0.0/16
+  service_cidr: 10.43.0.0/16
+
+# cp-0/1/2 + w-0 carry platform (devops); w-1..4 run apps. w-1 is the media node
+# (NVMe /mnt/media + intended Radeon 780M) — apps + labels, NO taint (decision 8,
+# avoids the eviction trap). Each node's identity.yaml is authoritative.
+node_role_assignments:
+  k3s-cp-0: devops        # control-plane + platform
+  k3s-cp-1: devops        # control-plane + platform
+  k3s-cp-2: devops        # control-plane + platform
+  k3s-w-0:  devops        # platform/observability worker (14Gi)
+  k3s-w-1:  apps          # media node — NVMe + GPU labels, general-schedulable
+  k3s-w-2:  apps
+  k3s-w-3:  apps
+  k3s-w-4:  apps
+
+# platform/core/policy/ applies 2 in-tree ValidatingAdmissionPolicies here, both
+# binding with validationActions: [Deny] — DELETE of a protected PVC and DELETE of
+# a protected Namespace are refused by the apiserver. No engine, no pods, no CRDs.
+# There is no audit-only stage and never will be: an audit-only policy is what got
+# Kyverno removed. Pod security is a separate, unsolved axis (§7).
+policy_profile: delete-protection   # see .claude/rules/50-cluster-architecture.md §4
+
+projects_hosted:
+  - music                 # the media/music platform (decision 3)
+  - eden                  # the Eden agentic-engineering platform (apps/eden/); ns eden, eden.mateosegura.com — apps AppProject
+  # REMOVED: `embedded` (the Zephyr devbox stack, 2026-08-18) and `workspaces`
+  # (the workspaces.mateosegura.com manager, 2026-08-19). Both directories are
+  # deleted; a project listed here with no app is a namespace this cluster
+  # claims to host and does not.
+
+namespace_provisioning:
+  default_quota_tier_by_env:
+    prod:     medium
+    staging:  small
+    dev:      small
+    lab:      small
+  auto_netpol: true                 # kube-router enforces these (real, not a no-op)
+  # DIVERGENCE (decision 7): the media VPN pod needs NET_ADMIN, incompatible with
+  # enforce=restricted. music-prod's VPN workload lands in a dedicated privileged
+  # namespace with a scoped PolicyException — so restricted is NOT blanket-applied.
+  auto_pss_label: false             # applied per-namespace after exceptions exist
+  quota_overrides: {}
+
+edge:
+  public:
+    tunnel:
+      provider: cloudflare-tunnel           # eden-home tunnel (ns cloudflare-tunnel)
+    dns:
+      provider: cloudflare
+      zones:
+        - mateosegura.com                   # torrent./argocd./jellyfin. live here
+    tls:
+      # DIVERGENCE: letsencrypt-dns01 (cert-manager, ClusterIssuer letsencrypt-homelab),
+      # NOT cloudflare-origin — homelab issues its own LE certs via Cloudflare DNS-01.
+      provider: letsencrypt-dns01
+  tailnet:
+    tunnel:
+      provider: tailscale
+      tailnet: tail5435d5.ts.net
+    dns:
+      provider: tailscale-magicdns
+
+platform_services:
+  gitops:          { enabled: true,  version: "10.1.2" }   # Argo CD (live)
+  observability:   { enabled: true,  version: "0.1.0" }    # kube-prometheus-stack (decision 9)
+  databases:
+    postgresql:    { enabled: false }
+    redis:         { enabled: false }
+  messaging:
+    nats:          { enabled: false }
+  networking:
+    tailscale-operator: { enabled: true, version: "1.98.4" }  # per-Service tailnet exposure (zephyr envs)
+  registry:        { enabled: false }
+  admin-dashboard: { enabled: false }
+  identity-sso:    { enabled: false, note: "Cloudflare Access + Google — future" }
+  backup:          { enabled: false }
+  cost:            { enabled: false }
+
+chart_archetypes:
+  - stateful-app        # qBittorrent (config/downloads PVs + VPN sidecar)
+  - ingress-app         # Jellyfin, *arr web UIs
+  - cronjob
+
+cluster_slo:
+  control_plane_availability: { target: 99.0, window: 30d }   # homelab HA, best-effort
+  api_latency:                { target_ms: 300, window: 7d, percentile: 99 }
+
+cost_envelope:
+  monthly_usd_target: 5             # ProtonVPN ~$5/mo; compute is owned hardware + power
+  monthly_usd_ceiling: 20
+  note: "Self-hosted on owned Proxmox hardware; only recurring cost is the VPN sub."
+
+protection:
+  # DIVERGENCE from prod: homelab nodes are cattle (Proxmox VMs, recreatable) —
+  # none are irreplaceable (unlike OCI A1.Flex). Media data on /mnt/media is
+  # re-downloadable, so no hard-protect there either.
+  irreplaceable_nodes: []
+  prod_volume_delete_requires_override: true    # media config PVCs (local-path, pinned to k3s-w-1)
+  namespace_delete_requires_override: true

@@ -1,0 +1,42 @@
+# cluster-identity.yaml.template — AWS EKS
+#
+# Managed K8s on AWS. The cloud runs the control plane; nodes are either
+# managed node groups or Fargate.
+
+name: __CLUSTER_NAME__
+template: cluster-cloud-aws-eks
+distribution: eks
+distribution_version: "TODO: pin (e.g., 1.31)"
+
+purpose: "TODO"
+status: planned
+owner: mateo.segura413@gmail.com
+domain: "TODO"
+
+# EKS-specific
+aws:
+  region: "TODO: e.g. us-west-2"
+  vpc_cidr: 10.0.0.0/16
+  node_groups:
+    - name: default
+      instance_type: t4g.medium          # ARM Graviton default
+      min_size: 1
+      desired_size: 2
+      max_size: 4
+
+network:
+  cni: vpc-cni                            # AWS default — swap for Cilium if advanced needs
+  tailnet_joined: false                   # usually not joined to tailnet; public LBs instead
+
+platform_services:
+  observability:    { enabled: true,  version: "TODO" }
+  databases:
+    postgresql:     { enabled: false }    # often use RDS instead
+  messaging:
+    nats:           { enabled: false }
+  backup:           { enabled: false }
+  cost:             { enabled: true }     # AWS bills add up fast
+
+cost_envelope:
+  monthly_usd_target: 0
+  monthly_usd_ceiling: 0
