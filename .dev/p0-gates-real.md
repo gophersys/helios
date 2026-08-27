@@ -214,6 +214,40 @@ Measured at intake, `bc84ea2` + submodules at their pinned commits:
   `docs/README.md` is a documentation edit and is allowed; moving the standard
   into `.claude/` would be a §5 process change and is NOT.
 
+### Phase 2 RED — PR-B (`libs`), proven failing
+
+Tests live in the repository's OWN harness, `libs/.ci/ctl_test.sh` — a two-phase
+driver where phase 2 re-runs each test under a COUNTER-STIMULUS and requires it
+to fail, so "proven able to fail" is machine-checked, not claimed. Three tests
+added (16, 17, 18); no new harness invented.
+
+- `bash .ci/ctl_test.sh t_an_ungateable_affected_set_fails_the_tier` → EXIT=1:
+  "cictl named 2 affected projects, the tier gated NONE of them, and it exited
+  0; a tier that gates nothing has not passed, it has not looked" — the log
+  shows `skipping .ci: not a library`, `skipping templates/go/http-gateway: not
+  a library`, then `affected projects had no gateable ctl.sh — clean no-op`.
+  The affected set is NON-EMPTY, zero were gated, rc=0. The defect verbatim.
+- `bash .ci/ctl_test.sh t_every_tier_verb_refuses_an_ungateable_affected_set`
+  → EXIT=1. The author then MEASURED each verb directly rather than inferring
+  the class: `affected-gate-fast` rc=0 · `affected-gate-substrate` rc=0 ·
+  `gate-all` rc=0, each printing the same "clean no-op". **All three tiers —
+  pr, merge and nightly — are false-green today**, because the arm is shared.
+  The blueprint named one verb; the real blast radius is three.
+- GREEN BY DESIGN, not red evidence: `t_a_gateable_affected_set_reaches_the_
+  per_project_gate` (the non-vacuous positive that stops the fix being
+  `return 1`) and the pre-existing `t_an_empty_affected_set_is_a_clean_pass`
+  (which pins `:181-184`, the arm that must NOT change).
+- Whole suite: `bash .ci/ctl_test.sh` → phase 1: 15 pre-existing ok, 16 FAIL,
+  17 FAIL, 18 ok; phase 2: 18/18 proven able to fail; EXIT=1.
+- `shellcheck -S style .ci/ctl_test.sh` → 0.
+- Baseline before the change, measured by me at `85ab8ca` in the container:
+  `bash .ci/ctl.sh validate` → rc=0. So the red is CAUSED by the new tests, not
+  surfaced from drift.
+
+Implementer target: `.ci/ctl.sh` lines 251-254 only. No non-test file needs
+editing to wire the tests in — the repository `ctl.sh validate` discovers every
+`*_test.sh` by `find`.
+
 ## Blocked
 
 Nothing.
