@@ -107,6 +107,45 @@ writing the agreements first.
 
 (populated only with commands run and output read)
 
+### Gates — RUN, in the devcontainer, with the exit status read from the command itself
+
+A second container off `ghcr.io/gophersys/base:latest` mounts `/Users/mateo/code` at its own
+absolute path, so this worktree is visible inside it. `git submodule update --init --recursive`
+(rc=0) first — a fresh worktree has EMPTY submodules, and without them the yarn workspace cannot
+resolve `@eden/primitives` (which lives in `libs/typescript/`). Then `yarn install --immutable`,
+rc=**0**.
+
+**`bash .ci/ctl.sh graph-guard` — rc=0, and it RAN:**
+
+```
+[info]  graph-guard: .nxignore covers all 36 required patterns
+[info]  graph-guard: resolving the nx project graph
+[info]  graph-guard: the graph resolves and holds 49 project(s)
+[info]  graph-guard: the graph matches the roster exactly (49 project(s))
+[ok]    graph-guard: OK — 49 project(s) resolved, 0 rooted in a submodule fixture tree
+[info]  graph-guard: 8 project-shaped file(s) sit under a submodule fixture directory and produced no project
+```
+
+**`NX_BASE=origin/main bash .ci/ctl.sh affected-check` — rc=0, output `NX   No tasks were run`.**
+
+That second line is a **NO-OP and is not evidence about content** (git-process §5.1). A docs-only
+change selects nothing, and the structural reason is measurable: there is no `project.json`
+anywhere under `docs/`, and `.ci/graph-roster.txt` carries no `docs` row. eden also has **no
+`pr-review` workflow** (§7's own table). So on this pull request BOTH §5.2 conditions fire at once
+and **the content-evidence set is EMPTY.** That is stated on the PR, not papered over — and it is
+one of the reasons this branch is not merged by an agent.
+
+### A masking defect I hit myself, in this lane, and the correction
+
+The first attempt ran `yarn install --immutable 2>&1 | tail -20`. Yarn FAILED
+(`Error: @eden/primitives@workspace:*: Workspace not found`) and the pipeline still reported
+**exit code 0**, because `tail` was the last command in the pipe and its status is the pipeline's.
+The green was mine, not yarn's. Every command above was re-run in the form the process requires —
+`set +e; cmd; rc=$?; set -e`, or `${pipestatus[1]}` where a pipe was genuinely wanted — and the
+numbers quoted are those. This is the same class as `cmd | head -5 || true` followed by `rc=$?`,
+which the `/dev` skill names explicitly; it is worth recording that the rule caught a real defect
+here rather than a hypothetical one.
+
 ### Research reads — the facts that constrain both documents
 
 Every line below was read out of the file named, in this worktree at `origin/main` (bc84ea2).
