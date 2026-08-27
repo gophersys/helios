@@ -204,6 +204,42 @@ VALID_CLASSES_TEXT="asserted, not-a-version, not-in-this-image"
 PROBE_CLASS="not-in-this-image"
 BINARY_NAME_SHAPE='^[A-Za-z0-9][A-Za-z0-9._+-]*$'
 
+# ============================================================================
+# A PIN A DOWNSTREAM GATE REQUIRES MUST EXIST HERE — THE ROW THAT COMES FIRST
+# ============================================================================
+#
+# Every rule in this file is COVERAGE: it reads whatever pins versions.env
+# happens to hold and reports the ones nothing classifies. A rule of that shape
+# is complete over the set it is given and says nothing about the set being
+# right. A pin that was never written is covered perfectly by every check here,
+# and by `every_pin_carries_an_upstream_row` in upstream-coverage.test.sh too.
+#
+# That hole has a measured instance. eden's
+# `apps/platformgateway/persistence/ctl.sh:29` calls `require_cmd sqlc`, and
+# `sqlc` is in NO image this repository publishes: no versions.env row, no ARG,
+# no install anywhere (`grep -in sqlc` over the tree → no match, 2026-08-26).
+# So that project's drift check has exited 127 in every lane since it was
+# written, and no gate in either repository has ever reported it — this one
+# because the pin does not exist, eden's because a 127 from a verb nothing calls
+# is a verb nothing calls.
+#
+# REQUIRED_PINS is the register that closes it: `<pin>|<the consumer that
+# demands it>`. It is deliberately a hand-kept literal. No reader could derive
+# it, because the consumer lives in another repository that this one cannot see
+# — `.devcontainer` is a submodule OF eden and never the other way round.
+#
+# WHAT THIS REGISTER DELIBERATELY DOES NOT REPEAT. Once the row lands, the pin
+# is an ordinary member of versions.env, so `<image>_classifies_every_pin` above
+# demands a class in all 4 shared-home tables of .ci/smoke.sh, and
+# `every_pin_carries_an_upstream_row` in upstream-coverage.test.sh demands a
+# `_build/upstreams.txt` row with a real datasource. Restating either here would
+# be a second home for a rule that already has one. What the generic rules
+# CANNOT ask for is the row's existence and the pin being consumed, so those are
+# the 2 clauses below and the whole of them.
+REQUIRED_PINS=(
+  "SQLC_VERSION|eden apps/platformgateway/persistence/ctl.sh:29 — require_cmd sqlc"
+)
+
 # ---------------------------------------------------------------------------
 # The readers.
 # ---------------------------------------------------------------------------
@@ -261,6 +297,16 @@ function dockerfile_pin_names() {
       print name
     }
   ' "$1" | sort -u
+}
+
+# value_less_arg_names <file> — every VALUE-LESS `ARG NAME` of a Dockerfile, 1
+# name per line, sorted. The exact complement of the reader above, and the
+# reason both exist is the ARGs-at-top convention: in base, cloud, hardware and
+# ui the value lives in versions.env and the ARG declares NOTHING, so a
+# value-less ARG is the only mark a Dockerfile leaves saying "I consume this
+# pin". A value-ful one in those 4 files would be a second value home.
+function value_less_arg_names() {
+  awk '$1 == "ARG" && NF == 2 && $2 ~ /^[A-Za-z_][A-Za-z0-9_]*$/ { print $2 }' "$1" | sort -u
 }
 
 # ============================================================================
@@ -1073,6 +1119,81 @@ else
     "$probe_carrying_listing_records" \
     "the seam's contract is the 3-word taxonomy — a consumer of it must not have to parse a probe" \
     "the probe belongs in the table, where .ci/smoke.sh builds ABSENT_TABLE out of it"
+fi
+
+# -------- 6. a pin a downstream GATE requires must EXIST --------------------
+# See REQUIRED_PINS at the head of this file for the defect and for what this
+# section deliberately leaves to the generic rules above it.
+#
+# The 4 Dockerfiles are DERIVED from SHARED_HOME_IMAGES rather than hand-kept:
+# they are exactly the images whose pins live in versions.env, which is what
+# `pins: versions.env` on an images.yaml entry means, and
+# `every_manifest_image_has_a_pin_home_this_file_judges` already holds that
+# array to the manifest. A second hand-kept list of the same 4 names would be a
+# list that could go stale on its own.
+value_less_arg_homes=()
+for shared_image in "${SHARED_HOME_IMAGES[@]}"; do
+  value_less_arg_homes+=("${shared_image}/Dockerfile")
+done
+
+if pin_home_exists "the_shared_pin_home_is_readable_for_the_required_pin_rule" \
+  "$REPO_ROOT/$PIN_HOME" "PIN_HOME"; then
+  declared_pins="$(env_pin_names "$REPO_ROOT/$PIN_HOME")"
+else
+  declared_pins=""
+fi
+
+# Both clauses read the SAME REQUIRED_PINS loop, and both are reported as 1
+# check each rather than 1 check per pin: the register is a list of rows, and a
+# reader wants the rows that are wrong, not a wall of names.
+unpinned=""
+unconsumed=""
+for required_row in "${REQUIRED_PINS[@]}"; do
+  required_pin="${required_row%%|*}"
+  required_reason="${required_row#*|}"
+
+  if ! grep -qxF -- "$required_pin" <<< "$declared_pins"; then
+    unpinned="${unpinned:+${unpinned}
+}${required_pin} — required by ${required_reason}"
+    # A pin with no row cannot be consumed by anything, so reporting it twice
+    # would be 1 defect wearing 2 names.
+    continue
+  fi
+
+  consuming_homes=""
+  for arg_home in "${value_less_arg_homes[@]}"; do
+    [[ -r "$REPO_ROOT/$arg_home" ]] || continue
+    if grep -qxF -- "$required_pin" <<< "$(value_less_arg_names "$REPO_ROOT/$arg_home")"; then
+      consuming_homes="${consuming_homes:+${consuming_homes} }${arg_home}"
+    fi
+  done
+  if [[ -z "$consuming_homes" ]]; then
+    unconsumed="${unconsumed:+${unconsumed}
+}${required_pin} — no value-less ARG in: $(IFS=' '; printf '%s' "${value_less_arg_homes[*]}")"
+  fi
+done
+
+if [[ -z "$unpinned" ]]; then
+  pass_check "every_required_pin_is_declared_in_the_shared_pin_home"
+else
+  fail_check "every_required_pin_is_declared_in_the_shared_pin_home" \
+    "these pins are required by a gate outside this repository and ${PIN_HOME} holds no row for them:" \
+    "$unpinned" \
+    "a coverage rule is complete over the set it is given and silent about the set being right —" \
+    "a pin nobody wrote is classified by nothing, watched by nothing, and green everywhere" \
+    "the consumer's require_cmd exits 127 in every lane until the row lands"
+fi
+
+if [[ -z "$unconsumed" ]]; then
+  pass_check "every_required_pin_is_a_value_less_ARG_of_an_image_that_reads_the_shared_home"
+else
+  fail_check "every_required_pin_is_a_value_less_ARG_of_an_image_that_reads_the_shared_home" \
+    "these required pins have a row and no image declares an ARG for them:" \
+    "$unconsumed" \
+    "a row nothing consumes is a number in a file — the pin would be resolved every Monday," \
+    "classified in 4 tables, and installed in no image" \
+    "dockerfile-args.test.sh's ORPHAN rule then holds the other half: an ARG that no RUN line" \
+    "references is a pin for a tool the image does not install"
 fi
 
 test_summary "$TEST_NAME"

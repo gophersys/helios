@@ -157,9 +157,9 @@ PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # _ctl/lib.sh reads the wrong root when this repository is a submodule worktree.
 REPO_ROOT="$(cd "$PROJECT_ROOT/.." && pwd)"
 
-# SANCTIONED_PLATFORMS, the logging and the tool gate live in _ctl/lib.sh, 1
-# time only. The switch below reads that variable, so widening the platform set
-# is still 1 edit in 1 file.
+# SANCTIONED_PLATFORMS lives in _ctl/lib.sh, 1 time only; the logging and the
+# tool gate live in _ctl/standard.sh, which that file sources. The switch below
+# reads that variable, so widening the platform set is still 1 edit in 1 file.
 # shellcheck source-path=SCRIPTDIR
 # shellcheck source=../_ctl/lib.sh
 source "$PROJECT_ROOT/../_ctl/lib.sh"
