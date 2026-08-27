@@ -1,10 +1,10 @@
 # codex-0150
 
-phase:    verify
+phase:    wait
 repo:     gophersys/.devcontainer
 branch:   chore/codex-0150
 worktree: ~/code/.worktrees/devcontainer-codex-0150
-pr:       -
+pr:       115
 attempt:  0/2
 
 ## Goal
@@ -31,4 +31,4 @@ Affected: `versions.env` and the generated image build graph. Agent instrumentat
 
 
 ## Next
-Commit the pin, push the branch, open the pull request, and read every remote check.
+Read every PR check and obtain an independent review verdict.
