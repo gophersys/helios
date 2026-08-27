@@ -80,6 +80,21 @@ The lane exists and has landed its first draft: eden branch `docs/fleet-contract
 `9773347`, `docs/architecture/contracts/fleetenvelope.md`, 672 lines, DRAFT for negotiation. It
 owns `fleetenvelope`, `fleetbus`, `agentpod` and `fleetcheckpoint`. I read it; I never edit it.
 
+It has since added `fleetbus.md` (944 lines, DRAFT), whose **§9 is titled "The telemetry consumer
+— Mateo's ruling of 2026-08-26"** and already owns the read pattern. Its §9.3 states the invariant
+in the form that can actually fail: *"For a telemetry consumer T attached to stream S, and a
+delivery consumer D on the same stream: for every message M published to S, D receives M — and T's
+attachment changes neither the set nor the count of messages D receives"*, with
+`ConsumerPolicy.QueueGroup` empty as the mechanism. Its §3 owns the four subjects and three
+durability classes, §5 owns `MsgId` and dedup, §6 owns the two sequence spaces and the
+history↔live stitch, §7 backpressure, §8 archive-then-publish.
+
+So `fleettelemetry` §5 shrank to a citation plus the ONE thing genuinely its own and absent from
+`fleetbus`: **what the consumer does when the OTLP export fails.** At-least-once redelivery means a
+span can be emitted twice, so the contract must say whether the emission is idempotent, and if it
+is not, what that costs and who decides. Fail loudly; never a silent drop. A section that
+re-derives a sibling contract is the second home the cohesion contract forbids.
+
 It has already ANSWERED the question this lane was told to pose. Its §4.2 makes `TaskID` a
 first-class required field and `TraceParent` / `TraceState` typed fields that SUPERSEDE
 `agentruntime`'s `OTelContext map[string]string`, with the reason given: a map cannot be validated,
@@ -250,6 +265,33 @@ not measured, that each repository's committed instrumentation is complete enoug
 A schema plus a drift gate is what makes that assumption mechanical. It is a DIFFERENT gate from
 §12's own TO-BUILD probe (§14 row 10, owner `cictl`), which asks whether the CI agent LOADED the
 profile, not whether the committed render MATCHES the schema.
+
+## A defect this work SURFACED but did not cause — `natssse` conflates two sequence spaces
+
+Found while writing the `fleettelemetry` read model, then verified by reading the source directly
+in `libs/go/edenhttp/natssse/natssse.go` at libs `origin/main` (8683fea):
+
+- `forward` frames each event with `ID: envelope.Seq` (`natssse.go:179-182`).
+- `openConsumer` takes that same number back from `Last-Event-ID` and passes it as
+  `nats.StartSequence(lastSeq+1)` (`natssse.go:157-168`).
+
+**Those are two different numbering spaces.** `agentruntime.EventEnvelope.Seq` is documented at
+`protocol.go:60` as *"the agentsession transcript offset"* — per session. `nats.StartSequence`
+takes a JetStream **stream** sequence, and `EventsStreamName = "EDEN_AGENT_EVENTS"` captures
+`agent.*.events` as ONE stream, subject-filtered per agent. So the stream sequence counts messages
+across every agent while `Seq` counts within one session. **They are equal only when exactly one
+agent with one session has ever published** — which is precisely the shape of a single-agent
+fixture.
+
+The conflation is written down in the code's own comment, which asserts both meanings at once:
+`Seq // the agentsession transcript offset; the JetStream replay key`. The consequence is a
+browser reconnect that resumes at the wrong stream position — replaying or skipping events, with
+nothing to say so.
+
+**Not caused by this change, and not fixed by it.** It belongs to `edenhttp`/`natssse`. What this
+change does is refuse to inherit it: the `fleettelemetry` contract states the two spaces as
+separate numbers and forbids the telemetry consumer from treating one as the other. **The fix is a
+follow-up task in `gophersys/libs` and is named in the report rather than left as a promise.**
 
 ## Deliberately NOT in this change — say it plainly, so the review is against what is true
 
