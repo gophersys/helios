@@ -610,6 +610,18 @@ _GATE_RESULTS=()
 _GATE_FAILED=0
 _gate_run() {                       # _gate_run <label> <verb-fn> [args...]
   local label="$1"; shift
+  # EDEN_GATE_ENV_EXCLUDE — dimensions the ENVIRONMENT cannot provide, named by the caller that
+  # OWNS that environment (the CI lane's shrink-only SUBSTRATE_ENV_REGISTER, which carries each
+  # row's cause and its re-entry). This is the ONLY way a dimension is skipped: anything absent
+  # that is NOT named here still exits 127 and reads REQUIRED-BUT-ABSENT, so an unregistered
+  # exclusion is a RED gate and FAIL-NOT-SKIP is intact (ADR-0024). The register — not this file —
+  # is where a row is justified, because the taxonomy is the track's and the environment is not.
+  local dim="${1#cmd_}"
+  if [[ " ${EDEN_GATE_ENV_EXCLUDE:-} " == *" ${dim} "* ]]; then
+    printf '%s── phase-gate: %s — EXCLUDED, registered environment debt%s\n' "$_LC_WARN" "$label" "$_LC_RST" >&2
+    _GATE_RESULTS+=("EXCLUDED  $label")
+    return 0
+  fi
   printf '%s── phase-gate: %s%s\n' "$_LC_INFO" "$label" "$_LC_RST" >&2
   # errexit semantics (see the Go lib.sh's long note): invoke the verb in a SUBSHELL with `set -e`
   # re-armed, capture $? on the NEXT line so the inner errexit stays live and a RED dimension is
@@ -637,8 +649,10 @@ _gate_summary() {
   local row
   for row in "${_GATE_RESULTS[@]}"; do
     case "$row" in
-      PASS*) printf '  %s%s%s\n' "$_LC_OK"  "$row" "$_LC_RST" >&2 ;;
-      *)     printf '  %s%s%s\n' "$_LC_ERR" "$row" "$_LC_RST" >&2 ;;
+      PASS*)     printf '  %s%s%s\n' "$_LC_OK"   "$row" "$_LC_RST" >&2 ;;
+      EXCLUDED*) printf '  %s%s (registered environment debt — see SUBSTRATE_ENV_REGISTER)%s\n' \
+                   "$_LC_WARN" "$row" "$_LC_RST" >&2 ;;
+      *)         printf '  %s%s%s\n' "$_LC_ERR"  "$row" "$_LC_RST" >&2 ;;
     esac
   done
   if [[ "$_GATE_FAILED" -gt 0 ]]; then

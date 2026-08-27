@@ -88,6 +88,44 @@ function on_exit() {
 }
 trap on_exit EXIT
 
+# SUBSTRATE_ENV_REGISTER — the dimensions THIS IMAGE cannot provide. The harness-conformance
+# DRAFT_REGISTER / MODULE_GRAPH_EXEMPT pattern: explicit, loud, and it MAY ONLY SHRINK. A gate
+# dimension is never silently skipped — an absent tool that is NOT registered here still exits
+# 127 and reads REQUIRED-BUT-ABSENT, so the only way past a dimension is a row that names its
+# cause and its way out.
+#
+# One row per line:  <track>|<dim>|<probe>|<cause>|<re-entry tracker>
+#
+# <probe> is a path whose EXISTENCE would prove the environment now provides the dimension. It is
+# re-checked every run, exactly as the DRAFT_REGISTER re-reads each contract's real Status line: a
+# row whose probe resolves is STALE and FAILS the lane until it is deleted. That is what stops a
+# row outliving its cause — the register cannot rot into a permanent skip, and this file does not
+# have to be trusted about the image, because it re-verifies the claim on every single run.
+SUBSTRATE_ENV_REGISTER="\
+typescript|a11y|${HOME}/.cache/ms-playwright|ghcr.io/gophersys/cloud bakes no Playwright browsers (146 config history entries, 0 mention playwright)|https://github.com/gophersys/.devcontainer/issues/113"
+
+# substrate_env_exclusions <track> — echo the dims registered for <track>, after proving each row
+# is still earned. Writes the audit to stderr so the lane log always states what it did not run.
+function substrate_env_exclusions() {
+  local track="$1" dims="" r_track r_dim r_probe r_cause r_ref
+  while IFS='|' read -r r_track r_dim r_probe r_cause r_ref; do
+    if [[ -z "${r_track:-}" ]]; then continue; fi
+    if [[ "$r_track" != "$track" ]]; then continue; fi
+    if [[ -e "$r_probe" ]]; then
+      log_error "SUBSTRATE_ENV_REGISTER row '${r_track}|${r_dim}' is STALE: ${r_probe} now exists, so this image DOES provide ${r_dim}."
+      log_error "  the register may only shrink — delete the row and let ${r_dim} gate for real (${r_ref})"
+      # `return`, never `exit`: this function is read through a command substitution, which runs in
+      # a SUBSHELL — an `exit` here would kill only that subshell and the lane would sail on with an
+      # empty exclusion list. The one caller turns this non-zero into the lane's own failure.
+      return 1
+    fi
+    log_warn "REGISTERED ENV DEBT — ${track} dimension '${r_dim}' is NOT gated here: ${r_cause}"
+    log_warn "  re-entry: ${r_ref} — when that lands, ${r_probe} appears and this row FAILS until deleted"
+    dims+="${r_dim} "
+  done <<< "$SUBSTRATE_ENV_REGISTER"
+  printf '%s' "${dims% }"
+}
+
 # run_phase_gate_over_affected <selector> — for each affected project, run its
 # per-lib gate. A run with no affected project is a CLEAN no-op success (an empty
 # diff must not fail the tier).
@@ -174,12 +212,34 @@ function run_phase_gate_over_affected() {
     ran=$((ran + 1))
     case "$selector" in
       substrate)
-        # `test` runs FIRST and RACED. The pr tier now runs the unit suite without -race (Mateo's
-        # 2026-08-25 tiering ruling), so this is where a unit data race is caught before a merge —
-        # without it the detector would not see the unit suite until the nightly, and the nightly
-        # has its own history of being red for weeks unread. Cheapest lane first also fails fast.
-        log_info "gate(substrate): $proj → raced unit + integration + lifecycle + load (REAL docker+k3d+kind)"
-        ( cd "$proj_dir" && bash ./ctl.sh test && bash ./ctl.sh integration && bash ./ctl.sh lifecycle && bash ./ctl.sh load )
+        # The substrate lane asks each TRACK's ctl for its own real-substrate gate, rather than
+        # naming one track's verbs for both. `integration`/`lifecycle`/`load` are Go-only verbs;
+        # spending them on a TypeScript dispatcher printed its usage and exited 1, which is the
+        # same "name each offender" failure the comment above warns about, one level up.
+        case "$proj" in
+          go/*)
+            # `test` runs FIRST and RACED. The pr tier now runs the unit suite without -race (Mateo's
+            # 2026-08-25 tiering ruling), so this is where a unit data race is caught before a merge —
+            # without it the detector would not see the unit suite until the nightly, and the nightly
+            # has its own history of being red for weeks unread. Cheapest lane first also fails fast.
+            log_info "gate(substrate): $proj → raced unit + integration + lifecycle + load (REAL docker+k3d+kind)"
+            ( cd "$proj_dir" && bash ./ctl.sh test && bash ./ctl.sh integration && bash ./ctl.sh lifecycle && bash ./ctl.sh load )
+            ;;
+          typescript/*)
+            # The TS track's full taxonomy already has one home — `phase-gate qa` (ADR-0024).
+            # The lane contributes only what it alone knows: which dimensions THIS IMAGE cannot
+            # provide, resolved from the shrink-only register below.
+            # Assigned on its own line and NOT wrapped in a condition: a STALE row must abort the
+            # tier, and `if ! f` / `f || …` would disable errexit for the call (SC2310), so only
+            # the substitution's status could ever reach here. .ci/ctl_test.sh enforces exactly
+            # that shape on this file, because it is the swallow the affected-set producer was
+            # fixed for. A plain assignment propagates the non-zero and errexit stops the lane.
+            local ts_excluded
+            ts_excluded="$(substrate_env_exclusions typescript)"
+            log_info "gate(substrate): $proj → phase-gate qa (the TS track's own full taxonomy)"
+            ( cd "$proj_dir" && EDEN_GATE_ENV_EXCLUDE="$ts_excluded" bash ./ctl.sh phase-gate qa )
+            ;;
+        esac
         ;;
       *)
         log_info "gate: $proj → phase-gate $selector"
