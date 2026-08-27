@@ -105,8 +105,9 @@ a hole that is not named is a defect in this pipeline, not in P5.
 ## Extraction spec — where truth lives in the Zephyr tree
 
 The capability index is EXTRACTED, never hand-written. Sources, per SoC,
-with implementation status. Path notes are measured at v4.2.0
-(413b789deb39), not idealized: 13 of 102 `soc.yml` sit at vendor level
+with implementation status. Path notes are measured, not idealized
+(first at v4.2.0: 13 of 102 `soc.yml` at vendor level; re-measured at the
+current v4.4.0 pin: 15 of 126): `soc.yml` files sit at vendor level
 (`soc/espressif/soc.yml` declares esp32c6), and SoC dtsi locations vary
 (`dts/riscv/espressif/esp32c6/…`, but mimxrt1052's file is
 `dts/arm/nxp/nxp_rt1050.dtsi` — vendor-prefixed, but not SoC-named).

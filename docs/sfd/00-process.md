@@ -73,8 +73,12 @@ P0 INTAKE ─▸ P1 FEASIBILITY ─▸ P2 PLATFORM CLASS ─▸ P3 SW ARCHITECTU
 - Method: match the SDHR demand table against the capability index; pick the
   SoC from the supported set; pick externals by binding coverage.
 - Output: candidate BOM + pin/bus map + the frozen virtual-board devicetree.
-- Gate **G4**: the devicetree compiles · zero pin conflicts · `west build` of
-  the application skeleton is green.
+- Gate **G4**: the devicetree compiles · zero pin conflicts · `west build`
+  of the application skeleton is green. The skeleton lives at
+  `products/<slug>/fw/` with a committed `build.sh` entry point; every
+  proven build is RECORDED in `products/<slug>/fw/BUILDS.yaml`
+  (sfd.builds/v0) and the repository gate re-runs the build — evidence,
+  never assertion.
 
 ### P5 — HARDWARE ARCHITECTURE (fills what software cannot see)
 

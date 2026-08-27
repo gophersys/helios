@@ -1,6 +1,7 @@
 /*
  * tracker virtual-board contract — Route 2 on esp32c6_devkitc.
- * Every node below cites a catalog record (all D2 @ zephyr 413b789d):
+ * Every node below cites a catalog record (all D2; the records pin the
+ * zephyr revision via manifest/west.yml — no SHA duplicated here to rot):
  *   modem   -> catalog/components/quectel,bg95.yaml   (cellular + GNSS module)
  *   imu     -> catalog/components/bosch,bmi270.yaml   (wake-on-motion)
  *   charger -> catalog/components/ti,bq25180.yaml     (USB-C 1-cell Li-ion)

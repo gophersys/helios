@@ -7,8 +7,9 @@
 # for components, a SoC name for SoCs. Part numbers are a late binding
 # (P4) — the field exists and stays empty until then.
 
-# Every example value below is taken from a REAL record in catalog/ at
-# zephyr v4.2.0 (413b789deb39) — never an invented path.
+# Every example value below is taken from a REAL record in catalog/ —
+# never an invented path. The current pin lives in manifest/west.yml;
+# records carry their own zephyr_sha.
 
 sfd.component/v0:
   example:

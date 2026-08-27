@@ -29,4 +29,7 @@ echo "── catalog verify against the pinned tree"
 echo "── P0/P1 graph lint (26 rules)"
 ./tools/sfd/sfd graph lint
 
+echo "── tracker G4 build (the contract compiles — gated, not asserted)"
+bash products/tracker/fw/build.sh
+
 echo "GATE OK"

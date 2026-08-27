@@ -28,7 +28,7 @@ west update --narrow
 #   surviving a container recreate. This block is for west/git use.
 cfg="$HOME/.gitconfig"
 while read -r p; do
-    [ "$p" = "ws" ] && continue
+    [ "$p" = "manifest" ] && continue   # the manifest repo needs no marking
     dir="$(pwd)/$p"
     if ! git config --file "$cfg" --get-all safe.directory 2>/dev/null | grep -qx "$dir"; then
         git config --file "$cfg" --add safe.directory "$dir"
