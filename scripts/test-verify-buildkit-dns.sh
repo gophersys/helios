@@ -67,8 +67,13 @@ sed -i.bak 's/docker rm -v bkseed/docker rm bkseed/' "$leaky_seed/machines/servi
 rm "$leaky_seed/machines/services/macos-ci-runner/buildkitd-runbook.md.bak"
 expect_fail 'leaky seed container fails' 'seed containers must remove anonymous volumes' env BUILDKIT_DNS_ROOT="$leaky_seed" bash "$SUT"
 
+no_repair="$(new_fixture no-repair)"
+sed -i.bak '/docker rm -f eden-buildkitd/d' "$no_repair/machines/services/macos-ci-runner/buildkitd-runbook.md"
+rm "$no_repair/machines/services/macos-ci-runner/buildkitd-runbook.md.bak"
+expect_fail 'missing daemon replacement fails' 'capture and replace the existing daemon safely' env BUILDKIT_DNS_ROOT="$no_repair" bash "$SUT"
+
 moving_image="$(new_fixture moving-image)"
-printf 'eden-bk-config:/etc/buildkit:ro\neden-bk-state:/var/lib/buildkit\ndocker rm -v bkseed\ndocker rm -v bkconfig\nBUILDKIT_IMAGE="moby/buildkit@sha256:%064d"\nmoby/buildkit:latest\n' 0 >"$moving_image/machines/services/macos-ci-runner/buildkitd-runbook.md"
+printf 'eden-bk-config:/etc/buildkit:ro\neden-bk-state:/var/lib/buildkit\ndocker rm -v bkseed\ndocker rm -v bkconfig\ndocker inspect eden-buildkitd\ndocker rm -f eden-buildkitd\nBUILDKIT_IMAGE="moby/buildkit@sha256:%064d"\nmoby/buildkit:latest\n' 0 >"$moving_image/machines/services/macos-ci-runner/buildkitd-runbook.md"
 expect_fail 'moving daemon image fails' 'moving moby/buildkit:latest tag' env BUILDKIT_DNS_ROOT="$moving_image" bash "$SUT"
 
 fake_bin="$TMP_ROOT/bin"
