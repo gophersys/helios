@@ -298,6 +298,9 @@ Reproduced BY ME, not banked from the subagent, inside `p0-devcontainer`:
 - `shellcheck -S style .ci/ctl.sh` → rc=0
 - `bash .ci/ctl.sh validate` → **TRUE rc=0**, identical to the `85ab8ca`
   baseline I measured before any change.
+- `bash ctl.sh validate` (the FULL repository gate, not just the CI layer) →
+  **TRUE rc=0**: `17 project record(s) hold; 3 mutant(s) caught`, `validate: all
+  checks passed`.
 
 **The break-test here is machine-checked and unavoidable.** This harness runs a
 second phase that re-applies each test under a COUNTER-STIMULUS and requires it
@@ -308,6 +311,20 @@ break-test ritual, so it is what I relied on.
 Both `TRUE rc=` readings above were taken with `set +e; cmd >file 2>&1; rc=$?;
 set -e` after the pipe mistake earlier in this file. No number here was read
 through a pipe.
+
+### A SECOND false green, this time in my own monitoring
+
+My first PR-check watcher grepped for the lowercase word `pending`. `gh pr
+checks --json state` emits **`QUEUED`**, so the grep never matched and the
+watcher announced `ALL CHECKS SETTLED` while both checks were still queued. I
+caught it because the printed state line contradicted the verdict on the same
+screen.
+
+Twice in one lane, then: a status read through a pipe, and a state matcher that
+could not match. Both are the same defect the whole of P0 is about — a check
+whose green means nothing — and both were mine while I was building checks
+against exactly that. It is recorded rather than quietly fixed, because a lane
+that only documents other people's false greens is not credible.
 
 ## Blocked
 
