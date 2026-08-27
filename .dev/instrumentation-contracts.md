@@ -156,6 +156,26 @@ that the new files were checked. **No docs tool is wired into any gate** — a g
 `render-atlas` or `render-documents`. A docs defect in this repository is caught by a reader, not
 by CI, and that bears directly on how much the greens above are worth.
 
+### ⚠️ TWO STALE CLAIMS IN `git-process.md` — reported, NOT edited
+
+`.claude/rules/git-process.md` says in §5.2: *"In eden today both fire at once on any doc-only
+change: there is no `pr-review` workflow, and the affected gates select nothing outside an Nx
+project"*, and its §7 table row for `eden` reads *"hand-written. **NO pr-review** — see §8."*
+
+**Both were true when written. Neither is true now.** `.github/workflows/pr-review.yml` is on
+`origin/main`, added by `9d3553d ci: give eden the pull request reviewer it never had` and pinned to
+cictl `v0.7.0` by `9ee462c`. `git ls-tree origin/main .github/workflows/` lists it.
+
+**This pull request is the counter-example.** PR #24 triggered THREE checks — `affected-gate (fast)`,
+`pinned-harness conformance`, and `review`. Not zero.
+
+**I have not edited `git-process.md`.** §5 names "process changes (this file, `.claude/`, the cictl
+contract)" as gated personally by Mateo, with no agent authority covering them. The correction is
+reported to him and named in the final report; making it is his call. This matters beyond tidiness:
+§5.2's empty-evidence-set escape is the rule an agent would reach for to merge a doc-only eden
+change on nothing, and it now rests on a false premise in the agent's favour — the most dangerous
+direction for a stale rule to be wrong in.
+
 ### ⚠️ CORRECTION — "the evidence set is EMPTY" was true of the OLD main and is FALSE of the new one
 
 An earlier revision of this file said a docs-only eden change has no content evidence, citing §5.2.
