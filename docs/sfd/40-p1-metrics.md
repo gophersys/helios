@@ -81,6 +81,7 @@ decision:                        # F4 — the human call, with provenance
   by: ...
   quote: "..."
   at: <iso8601>
+  context: "..."                 # optional — what the decision was made against
 ```
 
 Record-keeping (adopted from reproduction runs): `recommendation` carries

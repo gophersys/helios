@@ -11,9 +11,9 @@ scores:
   - {id: metric.viability.outcome,        score: green, evidence: ["success measurable: installed + notifying + cloud-tracking"]}
   - {id: metric.viability.economics,      score: amber, evidence: ["not-for-sale (sell ABSENT, declared): scored on build budget per the registry's not-for-sale limb", "$100 @10qty vs cellular+GNSS+IMU+PCB+battery BOM — plausible, tight"]}
   - {id: metric.viability.novelty,        score: amber, evidence: ["differentiation stated but incremental vs existing trackers; personal build"]}
-  - {id: metric.tech.exists,              score: amber, evidence: ["no magic claimed (quote: 'not really')", "catalog gap: no cellular/GNSS part in catalog/ — path proven upstream (e.g. Zephyr nRF91 family) but unproven HERE → per scale: amber", "research task: source cellular+GNSS part via component process"]}
+  - {id: metric.tech.exists,              score: amber, evidence: ["no magic claimed (quote: 'not really')", "cellular+GNSS+IMU+charger sourced 2026-08-26, all D2: quectel,bg95 + u-blox,sara-r5 (modem), u-blox,m8 + quectel,lc86g (gnss), bosch,bmi270, ti,bq25180", "amber holds via the D1 ceiling: SoC-borne capabilities (BLE radio, flash) rest on socs/esp32c6 @ D1 — green needs D2+ on every path"]}
   - {id: metric.feasibility.env-risk,     score: amber, evidence: ["hard conditions: vibration, washing-or-hosing, heat/cold — known art, costed", "precision limited by UNKNOWN pir.environment.limits"], blocked_by: []}
-  - {id: metric.feasibility.connectivity, score: amber, evidence: ["derived link: cellular WAN (hard constraint) + BLE local — achievable, but outside current catalog lanes (esp32c6/rt1052 carry no cellular)"]}
+  - {id: metric.feasibility.connectivity, score: amber, evidence: ["derived link: cellular WAN (hard constraint) + BLE local — cellular modems now in catalog at D2 (bg95, sara-r5); the SoC lane carrying BLE is esp32c6 @ D1, and the green limb requires D2+ → amber", "P4 verification item: BG95-M3's integrated GNSS through the Zephyr driver path"]}
   - {id: metric.feasibility.power-risk,   score: amber, evidence: ["1mo+ guard on PC1 with 1h fixes + motion wake: proven device class, needs aggressive sleep (cellular PSM/eDRX)", "race mode hours: accepted by founder"]}
   - {id: metric.feasibility.head-start,   score: amber, evidence: ["assets: nothing — but no timeline pressure (scale's red requires a timeline that assumes otherwise)"]}
   - {id: metric.risk.schedule,            score: green, evidence: ["no dates; correctness over speed — slack by definition"]}
@@ -32,9 +32,14 @@ recommendation:
   rule_applied: 4
   blockers: []
   reasons:
-    - "core ambers: tech.exists + connectivity (cellular+GNSS not in catalog — first P4 task: source the part through the component process); power-risk (month+ guard needs aggressive sleep; proven class); economics ($100 @10qty tight with a cellular module; not-for-sale limb)"
+    - "core ambers: tech.exists + connectivity (cellular+GNSS SOURCED 2026-08-26 at D2 — the remaining amber driver is the D1 ceiling on SoC records + BG95-M3 GNSS-path verification in P4); power-risk (month+ guard needs aggressive sleep; proven class); economics ($100 @10qty tight with a cellular module; not-for-sale limb)"
     - "minor ambers: env-risk (hard conditions; limits UNKNOWN degrades precision), novelty (incremental vs existing trackers), head-start (nothing exists, no timeline pressure), self-assessed risk (fear well-placed, no plan yet), privacy (location)"
     - "P2-class ambers (non-verdict-bearing): edge-autonomy"
     - "minor unknowns: none"
     - "safety note for G1: LiPo + heat + vibration — founder answered none; pack/thermal care is a named P5 item"
-decision: {}   # F4 — Mateo's, recorded verbatim when made
+decision:
+  verdict: go
+  by: Mateo
+  quote: "go"
+  at: 2026-08-26
+  context: "G1 closed against the recommendation above; ambers accepted as P2-P5 work items, led by the cellular+GNSS catalog task"
