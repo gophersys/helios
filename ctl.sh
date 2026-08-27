@@ -51,6 +51,14 @@ source "$PROJECT_ROOT/_ctl/lib.sh"
 # _ctl/tests/scheduled-workflows.test.sh read this array out of a shell that has
 # sourced this file, because the value the shell ends up holding is the value
 # the script builds with.
+DECLARED_IMAGES=()
+_declared_images_text="$(image_names)" || exit 1
+while IFS= read -r _image; do
+  [[ -z "$_image" ]] && continue
+  DECLARED_IMAGES+=("$_image")
+done <<< "$_declared_images_text"
+unset _declared_images_text
+
 BUILD_ORDER=()
 _build_order_text="$(active_image_names)" || exit 1
 while IFS= read -r _image; do
@@ -427,7 +435,7 @@ function check_devcontainer_json() {
   # it cannot answer this one: an image that ships without a devcontainer.json
   # is a file the glob never matches, so the pass would report OK about an image
   # a developer has no way to open.
-  for name in "${BUILD_ORDER[@]}"; do
+  for name in "${DECLARED_IMAGES[@]}"; do
     if [[ ! -f "$(image_dir "$name")/devcontainer.json" ]]; then
       log_error "${name}/devcontainer.json: absent — ${IMAGES_MANIFEST} declares ${name}, and this is the file that opens it"
       rc=1
@@ -444,7 +452,7 @@ function check_devcontainer_json() {
     # months, and a devcontainer.json added to it would have been read by
     # nothing.
     found=""
-    for declared in "${BUILD_ORDER[@]}"; do
+    for declared in "${DECLARED_IMAGES[@]}"; do
       [[ "$declared" == "$name" ]] && found="yes"
     done
     if [[ -z "$found" ]]; then
@@ -572,7 +580,7 @@ function cmd_validate() {
     done
   fi
 
-  for name in "${BUILD_ORDER[@]}"; do
+  for name in "${DECLARED_IMAGES[@]}"; do
     dir="$(image_dir "$name")"
 
     # A dispatcher's MODE is not something shellcheck can see. It reads the file
@@ -642,7 +650,7 @@ function cmd_validate() {
     rc=1
   else
     log_info "hadolint ${hadolint_version} (${hadolint_mode}), pinned by HADOLINT_VERSION in versions.env"
-    for name in "${BUILD_ORDER[@]}"; do
+    for name in "${DECLARED_IMAGES[@]}"; do
       dir="$(image_dir "$name")"
       log_info "hadolint: ${name}/Dockerfile"
       hadolint_at_pin "$hadolint_mode" "$hadolint_version" "$dir/Dockerfile" || rc=1
