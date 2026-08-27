@@ -1,10 +1,10 @@
 # codex-password-store
 
-phase: pr
+phase: wait
 repo: gophersys/infrastructure
 branch: fix/codex-password-store
 worktree: ~/code/.worktrees/infrastructure-codex-password-store
-pr: -
+pr: 207
 attempt: 0/2
 
 ## Goal
@@ -58,4 +58,4 @@ Explicit exclusions: no Vaultwarden item mutation, no changes to the existing
 
 ## Next
 
-Commit, push, and open the pull request.
+Poll pull request 207 and inspect every completed check log.
