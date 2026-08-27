@@ -5,7 +5,7 @@ repo: gophersys/.devcontainer
 branch: perf/inline-publish-cache
 worktree: ~/code/.worktrees/devcontainer-inline-cache
 pr: -
-attempt: 0/2
+attempt: 1/2
 
 ## Goal
 
@@ -33,6 +33,9 @@ Mateo approves its measured preflight.
 - GREEN — all 29 hermetic test files pass in the pinned cloud image.
 - GREEN — GHCR contains only `base`, `cloud`, and `buildkit`; the other 18
   packages were deleted under Mateo's explicit authorization.
+- REVIEW 1 — Codex found the first test counted cache lines globally. The test
+  now parses every enabled job and verifies each gate, publish, and rehearsal
+  step independently; all 14 assertions pass.
 
 ## Blocked
 
