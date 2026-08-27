@@ -127,8 +127,9 @@ function substrate_env_exclusions() {
 }
 
 # run_phase_gate_over_affected <selector> — for each affected project, run its
-# per-lib gate. A run with no affected project is a CLEAN no-op success (an empty
-# diff must not fail the tier).
+# per-lib gate. The two ways of gating nothing are NOT the same result: an EMPTY
+# affected set is a clean no-op success (an empty diff must not fail the tier),
+# while a NON-EMPTY set that holds no library FAILS — see the arm below the loop.
 #
 # $1 selects what to run:
 #   implementation | testing | qa | architecture | all → ctl.sh phase-gate <$1>
@@ -183,7 +184,11 @@ function run_phase_gate_over_affected() {
     return 0
   fi
 
+  # ungated collects what the loop DROPS, as it drops it. The skip lines below print on a green
+  # run too, so they cannot tell the reader of a red job what went ungated; only a list built
+  # here can be named in the failure.
   local ran=0 proj proj_dir
+  local -a ungated=()
   for proj in "${projects[@]}"; do
     [[ -z "$proj" ]] && continue
     # A LIBRARY is go/<name> or typescript/<name>. Nothing else is.
@@ -198,9 +203,9 @@ function run_phase_gate_over_affected() {
     # go/_ctl holds the shared verb bodies the per-library ctl.sh files dispatch
     # to. It is not a library either.
     case "$proj" in
-      go/_ctl)                  log_info "skipping $proj: shared verb bodies, not a library"; continue ;;
+      go/_ctl)                  log_info "skipping $proj: shared verb bodies, not a library"; ungated+=("$proj"); continue ;;
       go/*|typescript/*)        ;;
-      *)                        log_info "skipping $proj: not a library (libraries are go/<name> or typescript/<name>)"; continue ;;
+      *)                        log_info "skipping $proj: not a library (libraries are go/<name> or typescript/<name>)"; ungated+=("$proj"); continue ;;
     esac
 
     proj_dir="$REPO_ROOT/$proj"
@@ -249,8 +254,24 @@ function run_phase_gate_over_affected() {
   done
 
   if [[ "$ran" -eq 0 ]]; then
-    log_info "affected projects had no gateable ctl.sh — clean no-op"
-    return 0
+    # NOT the arm above the loop, and not a no-op. An EMPTY affected set is a true statement
+    # about the DIFF; this is a statement about the LOOP — something changed, the tier knows
+    # exactly what, and it gated none of it. While this returned 0 it handed a green tick to
+    # every pull request touching only .ci/, templates/, plugins/ or go/_ctl, which is every
+    # change to the GATING MACHINERY ITSELF: the one change a green tick must never be given to.
+    #
+    # Measured on the unfixed arm by .ci/ctl_test.sh's `ungateable` stimulus — a healthy cictl
+    # naming `.ci` and `templates/go/http-gateway`, both of which really hold a ctl.sh:
+    # affected-gate-fast exited 0 with the per-project gate log EMPTY. All 3 tier verbs reach
+    # this arm, so the failure belongs HERE and not in cmd_affected_gate_fast — a guard bolted
+    # onto the pr verb alone would leave merge and nightly passing over a change they never
+    # looked at, which t_every_tier_verb_refuses_an_ungateable_affected_set asserts per verb.
+    log_error "gate ($selector): ${#ungated[@]} affected project(s), and NOT ONE is gateable — the diff is not empty and nothing was gated"
+    for proj in "${ungated[@]}"; do
+      log_error "  ungated: $proj"
+    done
+    log_error "  a library is go/<name> or typescript/<name>; no other affected path carries a gate here, so this change rode none"
+    return 1
   fi
   log_success "gate ($selector): all $ran affected project(s) green"
 }
