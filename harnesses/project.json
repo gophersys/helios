@@ -1,0 +1,23 @@
+{
+  "name": "harnesses",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "root": "harnesses",
+  "targets": {
+    "check": {
+      "command": "node cli.mjs check",
+      "options": { "cwd": "harnesses" },
+      "cache": false
+    },
+    "sync": {
+      "command": "node cli.mjs sync",
+      "options": { "cwd": "harnesses" },
+      "cache": false
+    },
+    "status": {
+      "command": "node cli.mjs status",
+      "options": { "cwd": "harnesses" },
+      "cache": false
+    }
+  }
+}

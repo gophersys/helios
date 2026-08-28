@@ -2,9 +2,10 @@
   "schemaVersion": "eden.engineering/v1",
   "entry": "devcontainer cloud",
   "taskInterface": "nx",
-  "projects": ["workspace", "devcontainer"],
+  "projects": ["workspace", "devcontainer", "harnesses", "secrets"],
   "harnesses": {
     "codex": "AGENTS.md",
-    "claude": "CLAUDE.md"
+    "claude": "CLAUDE.md",
+    "omp": "AGENTS.md"
   }
 }
