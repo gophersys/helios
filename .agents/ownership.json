@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "eden.ownership/v1",
+  "projects": [
+    { "project": "workspace", "path": ".", "agent": "monorepo-master" },
+    { "project": "devcontainer", "path": ".devcontainer", "agent": "devcontainer" },
+    { "project": "agents", "path": ".agents", "agent": "agents" },
+    { "project": "processes", "path": "docs/processes", "agent": "process-author" },
+    { "project": "secrets", "path": "secrets", "agent": "secrets" }
+  ]
+}

@@ -1,0 +1,3 @@
+name = "process-author"
+description = "Convert repeated work into schema-checked Eden processes."
+developer_instructions = "Own `docs/processes`. Add each request type to `registry.json`, write its process\nJSON against `schema.json`, and add the matching short guide. Every step names an\nagent, action, and observable proof. Run `nx check processes`."

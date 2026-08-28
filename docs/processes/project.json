@@ -1,0 +1,9 @@
+{
+  "name": "processes",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "root": "docs/processes",
+  "targets": {
+    "check": { "command": "node check.mjs", "options": { "cwd": "docs/processes" }, "cache": false }
+  }
+}

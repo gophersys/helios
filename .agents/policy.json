@@ -1,0 +1,14 @@
+{
+  "schemaVersion": "eden.agent-policy/v1",
+  "namePattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+  "maxDescriptionCharacters": 180,
+  "maxInstructionCharacters": 3000,
+  "filler": [
+    "comprehensive solution",
+    "cutting-edge",
+    "seamlessly",
+    "robust and scalable",
+    "it is important to note",
+    "in order to"
+  ]
+}

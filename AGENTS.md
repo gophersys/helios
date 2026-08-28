@@ -20,6 +20,8 @@ the repository. Its machine-readable contract is
   secret stores.
 - Prefer small vertical slices. Do not create parallel implementations of an
   existing concept; cite its canonical home.
+- When input starts with `/request` or `/question`, read the same-named canonical
+  command in `.agents/commands` and execute it with the remaining input.
 
 ## Codex adapter
 

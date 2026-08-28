@@ -15,12 +15,17 @@ Add structure only when real code requires it. A new application, library, tool,
 or deployment unit begins as an Nx project with explicit inputs, outputs,
 dependencies, and the smallest useful targets.
 
-## Harnesses
+## Agents
 
-Shared agent behavior lives in `.agents/skills`. Codex reads it directly; the
-Claude and OMP discovery trees contain generated routing adapters. Use
-`nx run harnesses:sync` to regenerate them and `nx check harnesses` to reject
-drift.
+`.agents` owns skills, project agents, commands, routing, and policy. `/question`
+routes read-only work; `/request` selects a process from `docs/processes`.
+Codex reads this routing from `AGENTS.md`; Claude and OMP receive native command
+adapters. Generate adapters with `nx run agents:sync` and check them with
+`nx check agents`.
+
+Run `nx setup workspace` once to install the committed hooks. Pre-commit runs
+the deterministic agent contract and garbage collector. `nx review agents`
+runs the bounded semantic review when model access is available.
 
 ## Secrets
 
@@ -46,7 +51,10 @@ actually exposes the Secrets Manager API.
 - [Nx synchronization](https://nx.dev/docs/concepts/sync-generators)
 - [Codex repository instructions](https://developers.openai.com/codex/guides/agents-md)
 - [Codex skills](https://developers.openai.com/codex/skills)
+- [Codex subagents](https://developers.openai.com/codex/subagents)
 - [Claude Code memory](https://code.claude.com/docs/en/memory)
 - [Claude Code skills](https://code.claude.com/docs/en/skills)
+- [Claude Code subagents](https://code.claude.com/docs/en/sub-agents)
+- [OMP task-agent discovery](https://github.com/can1357/oh-my-pi/blob/main/docs/task-agent-discovery.md)
 - [OMP project skill discovery](https://github.com/can1357/oh-my-pi/blob/main/packages/coding-agent/examples/sdk/04-skills.ts)
 - [Bitwarden self-hosted CLI configuration](https://bitwarden.com/help/cli/#config)

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eden.process/v1",
+  "type": "object",
+  "required": ["schemaVersion", "name", "command", "coordinator", "input", "steps", "proof"],
+  "properties": {
+    "schemaVersion": { "const": "eden.process/v1" },
+    "name": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+    "command": { "enum": ["request", "question"] },
+    "coordinator": { "type": "string" },
+    "input": { "type": "string" },
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "agent", "action", "proof"],
+        "properties": {
+          "name": { "type": "string" },
+          "agent": { "type": "string" },
+          "action": { "type": "string" },
+          "proof": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    },
+    "proof": { "type": "string" }
+  },
+  "additionalProperties": false
+}

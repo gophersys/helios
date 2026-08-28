@@ -4,6 +4,13 @@
   "projectType": "application",
   "root": ".",
   "targets": {
+    "setup": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "node scripts/setup-workspace.mjs"
+      },
+      "cache": false
+    },
     "check": {
       "executor": "nx:run-commands",
       "options": {

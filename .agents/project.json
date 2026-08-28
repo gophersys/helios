@@ -1,0 +1,12 @@
+{
+  "name": "agents",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "root": ".agents",
+  "targets": {
+    "check": { "command": "node cli.mjs check", "options": { "cwd": ".agents" }, "cache": false },
+    "sync": { "command": "node cli.mjs sync", "options": { "cwd": ".agents" }, "cache": false },
+    "status": { "command": "node cli.mjs status", "options": { "cwd": ".agents" }, "cache": false },
+    "review": { "command": "node cli.mjs review", "options": { "cwd": ".agents" }, "cache": false }
+  }
+}

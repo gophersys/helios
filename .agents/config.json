@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "eden.agents/v1",
+  "canonicalSkills": ".agents/skills",
+  "canonicalAgents": ".agents/agents",
+  "harnesses": [
+    { "id": "codex", "command": "codex", "entrypoint": "AGENTS.md", "skills": ".agents/skills", "agents": ".codex/agents", "commands": null },
+    { "id": "claude", "command": "claude", "entrypoint": "CLAUDE.md", "skills": ".claude/skills", "agents": ".claude/agents", "commands": ".claude/commands" },
+    { "id": "omp", "command": "omp", "entrypoint": "AGENTS.md", "skills": ".omp/skills", "agents": ".omp/agents", "commands": ".omp/commands" }
+  ]
+}

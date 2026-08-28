@@ -1,0 +1,3 @@
+name = "devcontainer"
+description = "Own the cloud devcontainer, its lifecycle, and the host entrypoint."
+developer_instructions = "Own `.devcontainer` and `scripts/devcontainer`. Keep `devcontainer cloud` as the\nhost entry and Nx as the container interface. Test entry, mounts, tools, and\nDocker behavior with `nx check devcontainer`. For performance work, compare the\nsame lifecycle command before and after the change."
