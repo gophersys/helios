@@ -24,8 +24,11 @@ if [[ "${1:-}" != "cloud" ]]; then
   exec "$upstream" "$@"
 fi
 
-root="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null || true)"
-[[ -n "$root" && -f "$root/.devcontainer/devcontainer.json" ]] || {
+root="$PWD"
+while [[ "$root" != / && ! -f "$root/.devcontainer/devcontainer.json" ]]; do
+  root="$(dirname "$root")"
+done
+[[ -f "$root/.devcontainer/devcontainer.json" ]] || {
   echo "devcontainer cloud must be run inside the Eden repository" >&2
   exit 2
 }

@@ -6,7 +6,7 @@ socket=/var/run/docker.sock
 gid="$(stat -c %g "$socket")"
 getent group "$gid" >/dev/null || sudo groupadd --gid "$gid" docker-host
 sudo usermod --append --groups "$gid" dev
-sudo git config --system --replace-all safe.directory '*'
+sudo git -C /tmp config --system --replace-all safe.directory '*'
 
 codex_seed=/run/eden/host-codex-auth.json
 codex_home=/home/dev/.codex

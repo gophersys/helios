@@ -1,6 +1,6 @@
 # container-nx-workflow
 
-phase:    green
+phase:    verify
 repo:     gophersys/eden
 branch:   feat/container-nx-workflow
 worktree: /Users/mateo/code/.worktrees/eden-container-nx-workflow
@@ -28,10 +28,14 @@ every command except the explicit Eden `cloud` extension straight through unchan
 - GREEN: `bash .devcontainer/ctl.sh test` printed `devcontainer entrypoint contract: PASS`.
 - `shellcheck -S style scripts/devcontainer .devcontainer/ctl.sh .devcontainer/post-start.sh .devcontainer/test-entrypoint.sh` exited 0.
 - `jq empty .devcontainer/devcontainer.json` and `git diff --check` exited 0.
+- `devcontainer up --workspace-folder <worktree>` completed in 22.5 seconds using the existing image; the cold workspace dependency install took 19.1 seconds.
+- Inside the container, `nx test devcontainer` completed successfully and printed `devcontainer entrypoint contract: PASS`.
+- Inside the container, `codex login status` printed `Logged in using ChatGPT`.
+- `uv run --with pyyaml .../quick_validate.py` printed `Skill is valid!` for both `.agents/skills/dev` and `.claude/skills/dev`.
 
 ## Blocked
 
 
 ## Next
 
-Prove the Nx target and Codex login inside the cloud devcontainer.
+Validate both skill adapters, commit the final slice, and submit it.
