@@ -1,7 +1,0 @@
-{
-  "//": "The devcontainer.json of the fixture image `first`, and it is CORRECT in every property the contract states: it parses, it names its OWN image, and it carries the dev user and /workspace. Every stimulus of _ctl/tests/devcontainer-contract.test.sh is a departure from this file.",
-  "name": "first",
-  "image": "ghcr.io/gophersys/first:latest",
-  "remoteUser": "dev",
-  "workspaceFolder": "/workspace"
-}

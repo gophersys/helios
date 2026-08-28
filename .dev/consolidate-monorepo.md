@@ -1,6 +1,6 @@
 # consolidate-monorepo
 
-phase:    plan
+phase:    green
 repo:     gophersys/eden
 branch:   chore/consolidate-monorepo
 worktree: ~/code/.worktrees/eden-consolidate-monorepo
@@ -42,6 +42,14 @@ submodules and development-container variants without losing work.
   `.devcontainer`, `infrastructure`, and `libs`.
 - `git status` across active worktrees — dirty feature work exists and must be
   snapshotted before cleanup.
+- Seven dirty worktrees were committed and pushed before migration; the source
+  repositories then received their active branches through merge commits.
+- `.devcontainer` main `d98409d`, libs main `7cf4c7c`, infrastructure main
+  `73e7929`, cictl main `ac8eb06`, hnslint main `088f25c`, and all three
+  research main histories were imported as parents of Eden subtree commits.
+- `bash -n ctl.sh .devcontainer/{ctl.sh,base/ctl.sh,cloud/ctl.sh,post-create.sh,post-start.sh}`
+  — the consolidated command surface is syntactically valid.
+- `./ctl.sh image list` prints exactly `base`, `cloud`, and `buildkit`.
 
 ## Blocked
 
@@ -50,4 +58,4 @@ None. The repository-deletion/architecture decision was approved by Mateo on
 
 ## Next
 
-Create and push a machine-readable preservation inventory before merging source work.
+Commit and push the consolidated tree, then prove source histories and the Nx graph.

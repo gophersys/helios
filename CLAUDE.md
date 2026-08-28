@@ -6,8 +6,8 @@ the repository. Its machine-readable contract is
 
 ## Work here
 
-- Eden is the deployable product. `libs/`, `infrastructure/`, and
-  `.devcontainer/` are separate pinned repositories.
+- Eden is the deployable product and the organization workspace. Libraries,
+  infrastructure, tools, research, and development images live here directly.
 - Use the nearest named process when it is active. Until then, use the existing
   `ctl.sh` and Nx targets and record the proof you actually ran.
 - Work in an isolated Git worktree. Preserve uncommitted and unpublished work.

@@ -1,5 +1,0 @@
-{
-  "//": "The repo-level project.json of the staged fixture root. `validate` runs `jq empty` over it and reads nothing else from it, so it carries the 1 property that matters here: it parses.",
-  "name": "dispatcher-mode-fixture",
-  "targets": {}
-}

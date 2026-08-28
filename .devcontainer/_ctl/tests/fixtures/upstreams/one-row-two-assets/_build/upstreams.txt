@@ -1,9 +1,0 @@
-# Fixture world for _ctl/tests/resolve-upstream.test.sh — the upstream table of
-# the one-row-two-assets world.
-#
-# The coordinate is stubowner/stubdual on purpose: the VERSION half of this pin
-# must resolve cleanly, so the failure the case reads can only be the asset half.
-# A world whose index 404s would fail for a reason that says nothing about the
-# row.
-
-STUBONEROW_VERSION|github-release|stubowner/stubdual|bump to the newest non-prerelease tag

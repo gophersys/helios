@@ -1,7 +1,0 @@
-{
-  "//": "The devcontainer.json of the fixture image `second`, correct in every property the contract states. The ABSENCE stimulus of _ctl/tests/devcontainer-contract.test.sh is this file not being staged at all: images.yaml still declares `second`, so the manifest and the devcontainer set stop being equal.",
-  "name": "second",
-  "image": "ghcr.io/gophersys/second:latest",
-  "remoteUser": "dev",
-  "workspaceFolder": "/workspace"
-}

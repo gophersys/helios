@@ -1,5 +1,5 @@
 {
-  "name": "devcontainer",
+  "name": "research-embedded-concord-devcontainer",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": ".devcontainer",
   "projectType": "application",

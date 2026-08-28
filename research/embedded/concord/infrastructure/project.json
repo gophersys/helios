@@ -1,5 +1,5 @@
 {
-  "name": "infrastructure",
+  "name": "research-embedded-concord-infrastructure",
   "$schema": "../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "infrastructure",
   "projectType": "application",

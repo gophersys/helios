@@ -1,5 +1,0 @@
-{
-  "//": "A fixture project.json. `validate` runs `jq empty` over it and reads nothing else, so no gate of THIS repository can see the name. A CONSUMER can: gophersys/eden carries this repository as a submodule and builds an Nx graph over the whole tree, and Nx refuses a graph that holds 2 projects of 1 name. `first` and `second` each appeared twice — here and under dispatcher-mode/ — and that collision failed eden's `affected-gate (fast)` with `NX Failed to process project graph`. The name is therefore NAMESPACED to its fixture tree: `<fixture-tree>-fixture-<directory>`. Spell a new fixture directory the same way.",
-  "name": "devcontainer-contract-fixture-second",
-  "targets": {}
-}
