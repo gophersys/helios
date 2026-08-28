@@ -1,6 +1,6 @@
 # consolidate-monorepo
 
-phase:    green
+phase:    submit
 repo:     gophersys/eden
 branch:   chore/consolidate-monorepo
 worktree: ~/code/.worktrees/eden-consolidate-monorepo
@@ -50,6 +50,14 @@ submodules and development-container variants without losing work.
 - `bash -n ctl.sh .devcontainer/{ctl.sh,base/ctl.sh,cloud/ctl.sh,post-create.sh,post-start.sh}`
   — the consolidated command surface is syntactically valid.
 - `./ctl.sh image list` prints exactly `base`, `cloud`, and `buildkit`.
+- `git ls-files -s | awk '$1 == 160000'` returns no entries: Eden contains no
+  gitlinks, including the 19 deleted Bitbucket-era pointers in embedded research.
+- `find ... devcontainer.json` finds one active configuration outside archived
+  research; `devcontainer read-configuration --workspace-folder "$PWD"` parses
+  it and reports configuration name `eden`.
+- Project-name enumeration over every `project.json` reports no duplicates.
+- `gh api repos/gophersys/eden/actions/permissions` reports `enabled: false`;
+  automatic CI is disabled under Mateo's explicit waiver.
 
 ## Blocked
 
@@ -58,4 +66,4 @@ None. The repository-deletion/architecture decision was approved by Mateo on
 
 ## Next
 
-Commit and push the consolidated tree, then prove source histories and the Nx graph.
+Delete this ledger, merge the pull request to main, and prove the source commits remain ancestors.
