@@ -1,6 +1,6 @@
 # root-workspace
 
-phase:    plan
+phase:    verify
 repo:     gophersys/eden
 branch:   refactor/root-workspace
 worktree: ~/code/.worktrees/eden-root-workspace
@@ -29,11 +29,25 @@ configuration that describes the former submodule/workflow estate.
 - `cat package.json nx.json .nxignore ctl.sh` — the root still described imported
   repositories as submodules and `.nxignore` did not exclude research or PoCs.
 - `find . -name project.json` — research currently contributes 29 Nx projects.
+- RED: `bash scripts/root-workspace_test.sh` exited 1 with four failures:
+  missing `research/**`, missing `poc/**`, retired-estate prose, and inactive
+  project definitions able to enter the graph.
+- GREEN: `bash scripts/root-workspace_test.sh` prints
+  `root-workspace contract: PASS` after the two explicit boundaries replaced
+  85 lines of submodule-era exceptions.
+- `bash scripts/ctl.sh lint` shellchecked 11 scripts and passed.
+- `bash scripts/ctl.sh test` ran two suites successfully, then stopped because
+  `assert-no-skipped-tests_test.sh` deliberately refuses BSD `mktemp` and names
+  the devcontainer as required. No build or container start was authorized for
+  this root-only slice.
+- `.ci/` and seven tests whose sole subject was deleted workflows, duplicated
+  provider files, or the 834-line `.ci/ctl.sh` were removed together.
 
 ## Blocked
 
-None.
+The full scripts suite requires the Eden devcontainer. Targeted structural and
+shell checks are green; no container was started under the no-build scope.
 
 ## Next
 
-Write and run the failing root-workspace contract test.
+Commit the root slice, open its PR, and merge while GitHub Actions remain disabled.

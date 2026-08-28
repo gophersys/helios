@@ -43,8 +43,14 @@ case "${1:-help}" in
     ;;
   down)
     require_devcontainer
-    container_ids="$(docker ps --all --quiet --filter "label=devcontainer.local_folder=$root")"
-    [[ -n "$container_ids" ]] && docker rm --force $container_ids >/dev/null
+    command -v docker >/dev/null 2>&1 || {
+      echo "missing docker CLI" >&2
+      exit 127
+    }
+    docker ps --all --quiet --filter "label=devcontainer.local_folder=$root" |
+      while IFS= read -r container_id; do
+        [[ -n "$container_id" ]] && docker rm --force "$container_id" >/dev/null
+      done
     ;;
   run)
     shift

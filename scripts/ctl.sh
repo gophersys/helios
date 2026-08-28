@@ -1,22 +1,7 @@
 #!/usr/bin/env bash
 #
-# scripts/ctl.sh — control script for the repository-level shell scripts in scripts/.
-#
-# scripts/ belonged to no Nx project, so the canonical gate ran nothing for a change here — the
-# dead gate behind scripts/assert-no-skipped-tests.sh. `lint` and `test` are the missing ownership:
-# they are the target names `.ci/ctl.sh affected-check` already asks for.
-#
-# `test` runs mktemp-template_test.sh, which scans every shell file git knows about, tracked or
-# untracked, so that target's Nx inputs are {workspaceRoot} globs rather than this directory. Nx
-# reads a {workspaceRoot} input as a reverse file -> project mapping, so a shell file anywhere
-# marks this project affected and no other. The globs sit on the target rather than in an nx.json
-# namedInput because nx.json is itself a global implicit dependency — editing it marks all 49
-# projects affected — and because the target is the only consumer.
-#
-# That mapping has 2 limits. An Nx diff lists tracked paths only, so an untracked script is caught
-# when the scan runs, never by triggering it. And the globs cover *.sh, *.bash and .githooks/**, so
-# an extension-less shell file added OUTSIDE .githooks/ would be scanned but would not trigger the
-# scan: a glob cannot ask whether a file starts with a shell shebang.
+# Repository-level shell checks. Nx owns this directory through project.json;
+# this script owns only the small lint and test verbs below.
 #
 # Usage: ./ctl.sh <command> [args...]
 #
