@@ -5,7 +5,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 images=(base cloud)
 
 usage() {
-  echo "Usage: .devcontainer/ctl.sh <list|build|push|pull|inspect|verify-published|mirror-buildkit> [image] [arguments]"
+  echo "Usage: .devcontainer/ctl.sh <list|test|build|push|pull|inspect|verify-published|mirror-buildkit> [image] [arguments]"
 }
 
 image_command() {
@@ -20,6 +20,9 @@ image_command() {
 case "${1:-help}" in
   list)
     printf '%s\n' "${images[@]}" buildkit
+    ;;
+  test)
+    exec bash "$root/test-entrypoint.sh"
     ;;
   build|push|pull|inspect|verify-published)
     verb="$1"

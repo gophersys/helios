@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+self="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/$(basename "${BASH_SOURCE[0]}")"
+
+find_upstream() {
+  if [[ -n "${DEVCONTAINER_UPSTREAM:-}" ]]; then
+    printf '%s\n' "$DEVCONTAINER_UPSTREAM"
+    return
+  fi
+
+  local candidate
+  while IFS= read -r candidate; do
+    [[ "$candidate" == "$self" ]] || { printf '%s\n' "$candidate"; return; }
+  done < <(type -aP devcontainer)
+
+  echo "upstream devcontainer CLI not found" >&2
+  exit 127
+}
+
+upstream="$(find_upstream)"
+
+if [[ "${1:-}" != "cloud" ]]; then
+  exec "$upstream" "$@"
+fi
+
+root="$PWD"
+while [[ "$root" != / && ! -f "$root/.devcontainer/devcontainer.json" ]]; do
+  root="$(dirname "$root")"
+done
+[[ -f "$root/.devcontainer/devcontainer.json" ]] || {
+  echo "devcontainer cloud must be run inside the Eden repository" >&2
+  exit 2
+}
+[[ -f "$HOME/.codex/auth.json" ]] || {
+  echo "Codex is not authenticated on the host; run: codex login" >&2
+  exit 2
+}
+
+"$upstream" up --workspace-folder "$root"
+exec "$upstream" exec --workspace-folder "$root" zsh -l
