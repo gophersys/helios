@@ -4,6 +4,11 @@ set -Eeuo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 shim="$root/scripts/devcontainer"
 
+[[ "$(jq -r '.containerEnv.COREPACK_ENABLE_DOWNLOAD_PROMPT // empty' "$root/.devcontainer/devcontainer.json")" == 0 ]] || {
+  echo "Corepack download prompt is not disabled" >&2
+  exit 1
+}
+
 [[ -x "$shim" ]] || {
   echo "missing executable scripts/devcontainer" >&2
   exit 1

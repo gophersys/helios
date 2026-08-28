@@ -2,6 +2,9 @@
   "name": "eden",
   "image": "ghcr.io/gophersys/cloud:latest",
   "remoteUser": "dev",
+  "containerEnv": {
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
+  },
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
   "runArgs": ["--init"],
