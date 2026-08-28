@@ -1,3 +1,0 @@
-# example.helios/logfan
-# [example.helios/logfan]
-vet: ./logfan_test.go:336:19: cannot use slog.String("a", "1") (value of struct type slog.Attr) as []slog.Attr value in argument to r.WithAttrs

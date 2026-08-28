@@ -1,6 +1,0 @@
-&i2c0 {
-    fakesensor@76 {
-        compatible = "test,fakesensor";
-        reg = <0x76>;
-    };
-};

@@ -6,8 +6,8 @@ the repository. Its machine-readable contract is
 
 ## Work here
 
-- Eden is the deployable product and the organization workspace. Libraries,
-  infrastructure, tools, research, and development images live here directly.
+- Eden starts as a framework-neutral Nx workspace. Add applications, libraries,
+  tools, and infrastructure only when a concrete slice needs them.
 - Enter from the host with `devcontainer cloud`, then use Nx for every public
   development action. Read [`.agents/skills/dev/SKILL.md`](.agents/skills/dev/SKILL.md)
   when changing the repository. `ctl.sh` is a private Nx implementation detail.
@@ -25,6 +25,6 @@ the repository. Its machine-readable contract is
 
 - `AGENTS.md` contains only always-loaded routing and safety guidance.
 - Reusable workflows belong in `.agents/skills/`; mechanical checks belong in
-  hooks, scripts, linters, or `ctl.sh`.
+  Nx targets backed by small scripts or tools.
 - Use subagents only for independent work with explicit ownership. Each writing
   agent gets its own worktree.

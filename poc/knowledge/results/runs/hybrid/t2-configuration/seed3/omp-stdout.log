@@ -1,7 +1,0 @@
-All done. Deliverables:
-
-- **`configuration.go`** — `Source` type, `Config` struct, `Load` function. Uses `%w` to wrap parse errors (preserving `*strconv.NumError` for bad port, `*strconv.NumError` for bad debug syntax). No env/file/network calls in the library package.
-- **`cmd/configprint/main.go`** — reads from `os.LookupEnv`, prints `port=N name=S debug=T`.
-- **`configuration_test.go`** — tests: defaults, port range (0, 1, 65535, 65536, -1, abc, empty), name non-empty, debug ParseBool variants, `errors.AsType` check for NumError preservation, multi-key integration.
-
-`go build ./...`, `go vet ./...`, `go test ./... -v`, and `bash ./check.sh` all exit 0.

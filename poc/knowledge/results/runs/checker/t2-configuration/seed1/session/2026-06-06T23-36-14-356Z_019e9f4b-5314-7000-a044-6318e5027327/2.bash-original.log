@@ -1,2 +1,0 @@
-# example.helios/configuration
-./configuration.go:28:21: cannot use strconv.NumError{…} (value of struct type "strconv".NumError) as error value in return statement: "strconv".NumError does not implement error (method Error has pointer receiver)

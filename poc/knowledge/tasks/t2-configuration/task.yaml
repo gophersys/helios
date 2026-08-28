@@ -1,5 +1,0 @@
-id: t2-configuration
-package: configuration
-tempts:
-  - go/environment-confinement
-  - go/error-wrapping

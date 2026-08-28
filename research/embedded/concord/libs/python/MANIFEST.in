@@ -1,4 +1,0 @@
-include LICENSE
-include README.md
-recursive-include corekinect *.py *.yaml *.json
-recursive-exclude corekinect/test/tests *

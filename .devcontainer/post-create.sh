@@ -16,9 +16,6 @@ for specification in \
     echo "note: image has $command_name '$actual'; repository pin is $expected" >&2
 done
 
-# Workspace dependencies change with the checkout and therefore are installed at
-# container creation rather than baked into the shared image.
-yarn install --immutable
 sudo ln -sfn /workspace/node_modules/.bin/nx /usr/local/bin/nx
 
 grep -qs "alias c=" "$HOME/.zshrc" ||

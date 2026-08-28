@@ -1,5 +1,0 @@
-if(CONFIG_CK_CIPHER_LIB)
-  zephyr_include_directories(include)
-  zephyr_library()
-  add_subdirectory(src)
-endif()

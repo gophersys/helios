@@ -1,3 +1,0 @@
-# example.helios/fetchall
-# [example.helios/fetchall]
-vet: ./fetchall.go:74:24: undefined: entry

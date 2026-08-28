@@ -8,18 +8,15 @@ find_upstream() {
     printf '%s\n' "$DEVCONTAINER_UPSTREAM"
     return
   fi
-
   local candidate
   while IFS= read -r candidate; do
     [[ "$candidate" == "$self" ]] || { printf '%s\n' "$candidate"; return; }
   done < <(type -aP devcontainer)
-
   echo "upstream devcontainer CLI not found" >&2
   exit 127
 }
 
 upstream="$(find_upstream)"
-
 if [[ "${1:-}" != "cloud" ]]; then
   exec "$upstream" "$@"
 fi

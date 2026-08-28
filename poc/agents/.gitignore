@@ -1,6 +1,0 @@
-# Built binaries are regenerable (go build ./cmd/...) and never tracked — matches the
-# knowledge/bin/ pattern and the poc README invariant.
-/agentd
-/cpuload
-/cpuload-balancer
-/cpuload-client

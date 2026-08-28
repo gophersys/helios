@@ -1,8 +1,0 @@
-# SPDX-License-Identifier: Apache-2.0
-
-if BOARD_ICLE_V1_0_PROCPU
-
-config BOARD
-	default "icle_v1_0"
-
-endif # BOARD_ICLE_V1_0_PROCPU

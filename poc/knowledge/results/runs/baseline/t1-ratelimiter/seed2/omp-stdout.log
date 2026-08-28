@@ -1,4 +1,0 @@
-Done. Two files at module root:
-
-- `ratelimiter.go` — token-bucket implementation (`Clock` interface, `Config`, `Dependencies`, `New`, `Allow`). Uses `sync.Mutex` for concurrent safety, fractional accumulation with `float64`, caps at `Capacity`. Nil clock falls back to `time.Now()`.
-- `ratelimiter_test.go` — 17 tests covering all contract points: invalid configs, nil clock, non-positive tokens, cancelled/deadline-exceeded context, basic consumption and partial consumption, deterministic refill over time, capacity cap, zero refill rate, fractional accumulation, concurrent safety, bucket starts full, and no token leak on deny.

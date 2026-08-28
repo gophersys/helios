@@ -1,13 +1,13 @@
 {
-  "name": "devcontainer",
+  "name": "workspace",
   "$schema": "node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
+  "root": ".",
   "targets": {
-    "test": {
+    "check": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "bash ctl.sh test",
-        "cwd": "{projectRoot}"
+        "command": "bash scripts/check-workspace.sh"
       },
       "cache": false
     }

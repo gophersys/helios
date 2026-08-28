@@ -1,5 +1,0 @@
-board:
-  name: testboard
-  vendor: testvendor
-  socs:
-    - name: testsoc1

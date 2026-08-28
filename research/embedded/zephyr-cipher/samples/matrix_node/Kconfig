@@ -1,5 +1,0 @@
-mainmenu "matrix_node"
-config CIPHER_DEVICE_ID
-	hex "Cipher device id for this node"
-	default 0x000A
-source "Kconfig.zephyr"

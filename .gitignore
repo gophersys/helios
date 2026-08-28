@@ -1,71 +1,7 @@
-# Node / Yarn
 node_modules/
-.yarn/install-state.gz
 .yarn/cache/
-.yarn/*.log
-.pnp.*
-# yarn 4 is the workspace package manager (yarn.lock is canonical); a root bun.lock is a
-# container-side artifact of `bun install` materializing the frontend's linux-arm64 native
-# bindings — environment-specific, never committed.
-bun.lock
-
-# Nx
-.nx/cache/
-.nx/workspace-data/
-
-# Build output
-dist/
-build/
-out/
-coverage/
-tmp/
-
-# TypeScript
-*.tsbuildinfo
-
-# Python
-__pycache__/
-*.pyc
-.venv/
-.pytest_cache/
-.mypy_cache/
-*.egg-info/
-
-# Rust
-target/
-
-# Go (ADR-0009 C: dev-only workspace override, never committed)
-go.work
-go.work.sum
-
-# Editor state
-.vscode/.history/
-.idea/
-
-# OS cruft
-.DS_Store
-Thumbs.db
-
-# Secrets — NEVER commit a real env file. Only the .example templates (placeholders, no values)
-# are tracked. `.env`, `.env.development`, `.env.production`, `.env.*.local`, etc. all hold real
-# values and are ignored; the `!` lines re-include the committed templates.
+.yarn/install-state.gz
+.nx/
 .env
 .env.*
-!.env.example
-!.env.*.example
-
-# Deploy local state — the Vault init output (unseal key + root token) + the demo process pids/logs.
-# Operator-only, machine-local, NEVER committed (it holds the Vault root token).
-deploy/plane/local/.state/
-
-# Claude Code harness state
-.claude/scheduled_tasks.lock
-
-# Generated reading copies (regenerate: node docs/tools/render-html.mjs)
-docs/architecture/eden-architecture.html
-docs/eden-atlas.html
-**/documents.html
-.audit/
-
-# Local-demo materialized project worktrees (under /workspace so the read-only code-server can mount them)
-.eden-runtime/
+.DS_Store

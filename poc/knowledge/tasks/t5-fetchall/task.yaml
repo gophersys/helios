@@ -1,6 +1,0 @@
-id: t5-fetchall
-package: fetchall
-tempts:
-  - go/waitgroup-go
-  - go/error-wrapping
-  - go/context-first
