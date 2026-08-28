@@ -1,6 +1,6 @@
 # container-nx-workflow
 
-phase:    plan
+phase:    green
 repo:     gophersys/eden
 branch:   feat/container-nx-workflow
 worktree: /Users/mateo/code/.worktrees/eden-container-nx-workflow
@@ -24,10 +24,14 @@ every command except the explicit Eden `cloud` extension straight through unchan
 
 ## Proven
 
+- RED: `.devcontainer/test-entrypoint.sh` exited 1 with `missing executable scripts/devcontainer`.
+- GREEN: `bash .devcontainer/ctl.sh test` printed `devcontainer entrypoint contract: PASS`.
+- `shellcheck -S style scripts/devcontainer .devcontainer/ctl.sh .devcontainer/post-start.sh .devcontainer/test-entrypoint.sh` exited 0.
+- `jq empty .devcontainer/devcontainer.json` and `git diff --check` exited 0.
 
 ## Blocked
 
 
 ## Next
 
-Write and run the failing entrypoint contract test.
+Prove the Nx target and Codex login inside the cloud devcontainer.

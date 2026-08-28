@@ -8,8 +8,9 @@ the repository. Its machine-readable contract is
 
 - Eden is the deployable product and the organization workspace. Libraries,
   infrastructure, tools, research, and development images live here directly.
-- Use the nearest named process when it is active. Until then, use the existing
-  `ctl.sh` and Nx targets and record the proof you actually ran.
+- Enter from the host with `devcontainer cloud`, then use Nx for every public
+  development action. Read [`.agents/skills/dev/SKILL.md`](.agents/skills/dev/SKILL.md)
+  when changing the repository. `ctl.sh` is a private Nx implementation detail.
 - Work in an isolated Git worktree. Preserve uncommitted and unpublished work.
 - Use Conventional Commits and the real agent identity. Never impersonate Mateo
   or another harness.

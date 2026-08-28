@@ -10,8 +10,9 @@ flowchart LR
     Human[Developer] --> Process[Named process]
     Claude[Claude Code] --> Process
     Codex[Codex] --> Process
-    Process --> Control[ctl.sh / Nx]
-    Control --> Gate[Mechanical gate]
+    Process --> Control[Nx target]
+    Control --> Private[private script or tool]
+    Private --> Gate[Mechanical gate]
     Process --> Session[agentsession]
     Session --> Claude
     Session --> OMP[OMP / OpenRouter]
@@ -52,7 +53,8 @@ gates remain authoritative.
 2. Put reusable execution in a skill; keep reference material out of startup context.
 3. Put deterministic enforcement in code, never in a prompt alone.
 4. Keep harness-specific adapters only for genuine capability differences.
-5. Run development and CI through the pinned devcontainer toolchain.
+5. Enter through `devcontainer cloud`; inside the pinned container, expose every
+   development and CI action as an Nx target. Scripts and tools stay behind Nx.
 6. Preserve user work before cleanup; never infer permission to destroy history.
 7. Prefer the smallest change and the narrowest useful proof.
 
