@@ -28,10 +28,9 @@
         "{workspaceRoot}/**/*.bash",
         "{workspaceRoot}/.githooks/**",
         "{workspaceRoot}/.nxignore",
-        "{workspaceRoot}/.ci/graph-roster.txt",
-        "{workspaceRoot}/.ci/ctl.sh",
-        "{workspaceRoot}/.github/workflows/**",
-        "{workspaceRoot}/.ci/providers/**"
+        "{workspaceRoot}/ctl.sh",
+        "{workspaceRoot}/nx.json",
+        "{workspaceRoot}/package.json"
       ],
       "cache": false
     }
