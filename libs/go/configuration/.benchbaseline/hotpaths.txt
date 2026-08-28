@@ -1,0 +1,59 @@
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/configuration
+BenchmarkParse-8             	  210091	      7035 ns/op	    6696 B/op	     163 allocs/op
+BenchmarkParse-8             	  201272	      6216 ns/op	    6696 B/op	     163 allocs/op
+BenchmarkParse-8             	  199040	      6423 ns/op	    6696 B/op	     163 allocs/op
+BenchmarkParse-8             	  200592	      6199 ns/op	    6696 B/op	     163 allocs/op
+BenchmarkParse-8             	  191762	      6069 ns/op	    6696 B/op	     163 allocs/op
+BenchmarkParse-8             	  211186	      6072 ns/op	    6696 B/op	     163 allocs/op
+BenchmarkParse-8             	  197719	      6050 ns/op	    6696 B/op	     163 allocs/op
+BenchmarkParse-8             	  201009	      6137 ns/op	    6696 B/op	     163 allocs/op
+BenchmarkParse-8             	  207228	      5997 ns/op	    6696 B/op	     163 allocs/op
+BenchmarkParse-8             	  202987	      6157 ns/op	    6696 B/op	     163 allocs/op
+BenchmarkLookup-8            	 7442185	       159.4 ns/op	     216 B/op	       4 allocs/op
+BenchmarkLookup-8            	 7636302	       162.0 ns/op	     216 B/op	       4 allocs/op
+BenchmarkLookup-8            	 7839817	       161.3 ns/op	     216 B/op	       4 allocs/op
+BenchmarkLookup-8            	 7340034	       160.4 ns/op	     216 B/op	       4 allocs/op
+BenchmarkLookup-8            	 7500993	       159.1 ns/op	     216 B/op	       4 allocs/op
+BenchmarkLookup-8            	 8121808	       153.5 ns/op	     216 B/op	       4 allocs/op
+BenchmarkLookup-8            	 7619736	       160.4 ns/op	     216 B/op	       4 allocs/op
+BenchmarkLookup-8            	 7718182	       153.6 ns/op	     216 B/op	       4 allocs/op
+BenchmarkLookup-8            	 7648242	       158.0 ns/op	     216 B/op	       4 allocs/op
+BenchmarkLookup-8            	 7425754	       157.9 ns/op	     216 B/op	       4 allocs/op
+BenchmarkMerge-8             	 1383855	       860.9 ns/op	    1360 B/op	      16 allocs/op
+BenchmarkMerge-8             	 1381096	       867.2 ns/op	    1360 B/op	      16 allocs/op
+BenchmarkMerge-8             	 1376103	       872.8 ns/op	    1360 B/op	      16 allocs/op
+BenchmarkMerge-8             	 1415950	       855.5 ns/op	    1360 B/op	      16 allocs/op
+BenchmarkMerge-8             	 1372405	       860.3 ns/op	    1360 B/op	      16 allocs/op
+BenchmarkMerge-8             	 1382224	       865.9 ns/op	    1360 B/op	      16 allocs/op
+BenchmarkMerge-8             	 1417389	       852.9 ns/op	    1360 B/op	      16 allocs/op
+BenchmarkMerge-8             	 1490040	       822.1 ns/op	    1360 B/op	      16 allocs/op
+BenchmarkMerge-8             	 1423254	       842.2 ns/op	    1360 B/op	      16 allocs/op
+BenchmarkMerge-8             	 1468983	       828.3 ns/op	    1360 B/op	      16 allocs/op
+BenchmarkAppendMany-8        	     754	   1494829 ns/op	 3579803 B/op	      20 allocs/op
+BenchmarkAppendMany-8        	     850	   1325033 ns/op	 3579797 B/op	      20 allocs/op
+BenchmarkAppendMany-8        	     909	   1312679 ns/op	 3579800 B/op	      20 allocs/op
+BenchmarkAppendMany-8        	     924	   1311151 ns/op	 3579798 B/op	      20 allocs/op
+BenchmarkAppendMany-8        	     915	   1298168 ns/op	 3579799 B/op	      20 allocs/op
+BenchmarkAppendMany-8        	     931	   1321132 ns/op	 3579799 B/op	      20 allocs/op
+BenchmarkAppendMany-8        	     914	   1330439 ns/op	 3579798 B/op	      20 allocs/op
+BenchmarkAppendMany-8        	     856	   1303280 ns/op	 3579805 B/op	      20 allocs/op
+BenchmarkAppendMany-8        	     957	   1354995 ns/op	 3579799 B/op	      20 allocs/op
+BenchmarkAppendMany-8        	     922	   1345812 ns/op	 3579798 B/op	      20 allocs/op
+BenchmarkConvertMismatch-8   	10779750	       114.5 ns/op	     160 B/op	       4 allocs/op
+BenchmarkConvertMismatch-8   	 9454606	       113.4 ns/op	     160 B/op	       4 allocs/op
+BenchmarkConvertMismatch-8   	10649264	       117.7 ns/op	     160 B/op	       4 allocs/op
+BenchmarkConvertMismatch-8   	10629612	       118.9 ns/op	     160 B/op	       4 allocs/op
+BenchmarkConvertMismatch-8   	10139538	       112.9 ns/op	     160 B/op	       4 allocs/op
+BenchmarkConvertMismatch-8   	10632892	       118.5 ns/op	     160 B/op	       4 allocs/op
+BenchmarkConvertMismatch-8   	 9612232	       117.3 ns/op	     160 B/op	       4 allocs/op
+BenchmarkConvertMismatch-8   	 8940477	       123.7 ns/op	     160 B/op	       4 allocs/op
+BenchmarkConvertMismatch-8   	 9465498	       119.7 ns/op	     160 B/op	       4 allocs/op
+BenchmarkConvertMismatch-8   	 9893592	       123.6 ns/op	     160 B/op	       4 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/configuration	60.570s
+PASS
+ok  	github.com/gophersys/libs/go/configuration/configurationtest	0.001s
+?   	github.com/gophersys/libs/go/configuration/internal/docbuild	[no test files]
+?   	github.com/gophersys/libs/go/configuration/internal/tree	[no test files]

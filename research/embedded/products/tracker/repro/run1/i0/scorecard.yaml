@@ -1,0 +1,34 @@
+# Scorecard #1 — tracker. Scored by the session agent (instance-0) against
+# 40-p1-registry.yaml, BEFORE the reproduction instances reported (blind).
+schema: sfd.scorecard/v0
+pir: {ref: products/tracker/pir.yaml, hash: pending-commit}
+scores:
+  - {id: metric.viability.clarity,        score: green, evidence: ["one sentence states product and purpose"]}
+  - {id: metric.viability.outcome,        score: green, evidence: ["success measurable: installed + notifying + cloud-tracking"]}
+  - {id: metric.viability.economics,      score: amber, evidence: ["build ≤$100 @10qty vs cellular+GNSS+IMU+PCB+battery BOM — plausible, tight", "no sell price: non-commercial (registry scale assumes margin — traversal finding 5)"]}
+  - {id: metric.viability.novelty,        score: amber, evidence: ["differentiation stated but incremental vs existing trackers; personal build"]}
+  - {id: metric.tech.exists,              score: amber, evidence: ["no magic claimed (quote: 'not really')", "catalog gap: no cellular/GNSS part in catalog/ — path proven upstream (e.g. Zephyr nRF91 family) but unproven HERE → per scale: amber", "research task: source cellular+GNSS part via component process"]}
+  - {id: metric.feasibility.env-risk,     score: amber, evidence: ["hard conditions: vibration, washing-or-hosing, heat/cold — known art, costed", "precision limited by UNKNOWN pir.environment.limits"], blocked_by: []}
+  - {id: metric.feasibility.connectivity, score: amber, evidence: ["derived link: cellular WAN (hard constraint) + BLE local — achievable, but outside current catalog lanes (esp32c6/rt1052 carry no cellular)"]}
+  - {id: metric.feasibility.power-risk,   score: amber, evidence: ["1mo+ guard on PC1 with 1h fixes + motion wake: proven device class, needs aggressive sleep (cellular PSM/eDRX)", "race mode hours: accepted by founder"]}
+  - {id: metric.feasibility.head-start,   score: amber, evidence: ["assets: nothing — but no timeline pressure (scale's red requires a timeline that assumes otherwise)"]}
+  - {id: metric.risk.schedule,            score: green, evidence: ["no dates; correctness over speed — slack by definition"]}
+  - {id: metric.risk.self-assessed,       score: amber, evidence: ["fear list matches the actual hard parts (antenna, protocols, phone UX, power) but no plan yet — scale: real but unplanned-for"]}
+  - {id: metric.risk.safety,              score: green, evidence: ["answer: none ('just hopefully not explode lol')", "scorer note: LiPo + heat + vibration deserves pack/thermal care in P5 — noted, not a gate"]}
+  - {id: metric.risk.privacy,             score: amber, evidence: ["location data, known regime, personal use, US-only"]}
+  - {id: metric.platform.edge-autonomy,   score: amber, evidence: ["degrades acceptably offline: buffer + backfill, no offline alerts required"]}
+  - {id: metric.platform.hmi-class,       score: green, evidence: ["LED + one button — lane B territory"]}
+  - {id: metric.platform.compute-demand,  score: amber, evidence: ["30s fixes + seconds motion-wake + race-mode high-rate logging — MCU-comfortable but size carefully"]}
+derived:
+  needs_hardware: true
+  needs_firmware: true
+human_gates: []
+recommendation:
+  verdict: go
+  blockers: []
+  reasons:
+    - "amber tech.exists/connectivity: cellular+GNSS not in catalog — first P4 task is sourcing that part through the component process"
+    - "amber power-risk: month+ guard mode requires aggressive sleep design; proven class"
+    - "amber economics: $100 @10qty is tight with a cellular module"
+    - "minor ambers: env conditions, novelty, self-assessed risk (no plan yet), privacy(location), edge-autonomy, compute"
+decision: {}   # F4 — Mateo's, recorded verbatim when made

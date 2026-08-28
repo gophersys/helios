@@ -1,0 +1,25 @@
+{{- /*
+  templates/deployment.yaml — stateless-app
+
+  STATUS: stub. Real template lands when the first app adopts the archetype.
+
+  When implemented, this template emits a Deployment with:
+    - canonical labels via {{ include "common.labels" . }}
+    - selectorLabels matching .Values.app.name + release
+    - restricted PSS security context via common.podSecurityContext / common.containerSecurityContext
+    - resources.{requests,limits} from .Values.resources (required by schema)
+    - startup + readiness + liveness probes from .Values.probes
+    - dedicated ServiceAccount from serviceaccount.yaml
+    - nodeSelector / tolerations from .Values.scheduling, pre-populated from .Values.nodeRole
+    - ExternalSecret-sourced envFrom + volumeMounts from .Values.secrets
+    - OTEL_* env injected from cluster-level downward API
+    - podLabels + podAnnotations merged on top of common.labels
+    - RollingUpdate strategy per .Values.rollout
+
+  Sidecars from .Values.sidecars, initContainers from .Values.initContainers,
+  tmpfs volumes from .Values.tmpfs (emptyDir medium=Memory).
+
+  See charts/CONVENTIONS.md §3–§13 for the authoritative enumeration of
+  what this template emits. Keep this template's behavior in lockstep
+  with that doc.
+*/ -}}

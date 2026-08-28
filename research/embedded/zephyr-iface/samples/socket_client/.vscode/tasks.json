@@ -1,0 +1,57 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "West Build",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "command": "west",
+            "args": [
+                "build",
+                "-p",
+                "auto",
+                "-b",
+                "nucleo_h743zi"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+        },
+        {
+            "label": "West Flash",
+            "type": "shell",
+            "command": "west",
+            "args": [
+                "flash",
+                "-r",
+                "openocd",
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ]
+        },
+        {
+            "label": "West Clean Build",
+            "type": "shell",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "command": "west",
+            "args": [
+                "build",
+                "-p",
+                "always",
+                "-b",
+                "nucleo_h743zi"
+            ],
+            "problemMatcher": [
+                "$gcc"
+            ],
+        }
+    ],
+    "inputs": []
+}

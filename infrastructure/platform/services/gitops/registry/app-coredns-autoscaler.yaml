@@ -1,0 +1,23 @@
+# CoreDNS capacity, held proportional to the node count (ledger #114). k3s
+# re-applies its own coredns manifest at replicas:1 on every server start;
+# this autoscaler rewrites the scale continuously, so the floor of 2 holds
+# through restarts. The incident: one DNS pod on a busy node cost a CI build
+# (.devcontainer run 32062015200, 2026-08-17).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: coredns-autoscaler
+  namespace: argocd
+spec:
+  project: platform
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: main
+    path: platform/services/dns/coredns-autoscaler/manifests
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kube-system
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true

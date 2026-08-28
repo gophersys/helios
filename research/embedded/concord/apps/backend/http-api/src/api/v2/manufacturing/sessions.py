@@ -1,0 +1,1906 @@
+"""Manufacturing sessions v2 — /v2/manufacturing/sessions (TestRun-based).
+
+Replaces the old panel/unit model with the shared TestRun hierarchy:
+ManufacturingSession -> TestRun -> RunTarget -> TestExecution -> TestStep.
+
+Each panel scan creates a TestRun within the session. Each run has RunTarget
+records (one per fixture slot) and each target has TestExecution records
+(manufacturing steps).
+"""
+
+import base64
+import csv as _csv
+import io
+import logging
+import math
+import re
+import zipfile
+from datetime import datetime, timezone
+
+from flask import Response, g, jsonify, request
+
+from config.env import env_config
+from corekinect.core_ops.client import CoreOpsClient
+from database import Json
+from src.api.v2.manufacturing.runner import deploy_manufacturing_runner, teardown_manufacturing_runner
+from src.lib.audit import log_audit
+from src.lib.decorators import require_permissions
+from src.lib.errors import bad_request, conflict, not_found
+from src.lib.permissions import Permissions
+from src.lib.types import ApiResponse
+from src.api.v2.products.test_package_resolver import assert_purpose_match, resolve_test_package
+from src.services.database.prisma import get_db_client
+from src.services.fixtures.reservation import is_fixture_busy
+from src.services.kubernetes.mtib_deployments import wait_for_mtibs_healthy
+
+logger = logging.getLogger(__name__)
+
+# SocketIO instance — set by register_v2_routes()
+_socketio = None
+
+# CoreOps client — lazy-initialized singleton
+_coreops_client = None
+_coreops_init_attempted = False
+
+
+def _find_latest_complete_asset_set_id(db, product_id: str, board_revision_id: str | None) -> str | None:
+    """Return the id of the latest COMPLETE AssetSet for ``(product, board)``.
+
+    Used by the create-session auto-resolve as a last-resort when neither
+    an explicit ``assetSetId`` nor a ``ManufacturingConfig`` row resolves
+    firmware. Covers every product that hasn't been wired via
+    ManufacturingConfig (which is all of them today).
+
+    Matching on ``boardRevisionId`` prevents picking an asset set built
+    for a different board revision — a flashing-wrong-firmware footgun.
+    If the fixture has no board revision assigned, falls back to any
+    COMPLETE asset set on the product.
+    """
+    where: dict = {"productId": product_id, "status": "COMPLETE"}
+    if board_revision_id:
+        where["boardRevisionId"] = board_revision_id
+    latest = db.assetset.find_first(where=where, order={"createdAt": "desc"})
+    return latest.id if latest else None
+
+
+def _get_coreops_client():
+    """Get or initialize the CoreOps client. Returns None if credentials not configured."""
+    global _coreops_client, _coreops_init_attempted
+    if _coreops_init_attempted:
+        return _coreops_client
+    _coreops_init_attempted = True
+    try:
+        _coreops_client = CoreOpsClient()
+        logger.info("CoreOps client initialized: %s", _coreops_client._config.server_url)
+    except Exception as e:
+        logger.warning("CoreOps client not available: %s", e)
+        _coreops_client = None
+    return _coreops_client
+
+
+def set_manufacturing_socketio(sio):
+    """Assign the SocketIO instance used for real-time events."""
+    global _socketio
+    _socketio = sio
+
+
+def _emit(event: str, data: dict, room: str | None = None):
+    """Emit an event on the /runs namespace."""
+    if not _socketio:
+        return
+    kwargs = {"namespace": "/runs"}
+    if room:
+        kwargs["room"] = room
+    _socketio.emit(event, data, **kwargs)
+
+
+# ---------------------------------------------------------------------------
+# Serializers
+# ---------------------------------------------------------------------------
+
+
+def _serialize_step(step) -> dict:
+    return {
+        "id": step.id,
+        "executionId": step.executionId,
+        "stepIndex": step.stepIndex,
+        "name": step.name,
+        "status": step.status,
+        "passed": step.passed,
+        "durationMs": step.durationMs,
+        "errorMessage": step.errorMessage,
+        "measurements": step.measurements,
+        "startedAt": step.startedAt.isoformat() if step.startedAt else None,
+        "completedAt": step.completedAt.isoformat() if step.completedAt else None,
+    }
+
+
+def _serialize_execution(ex) -> dict:
+    d = {
+        "id": ex.id,
+        "targetId": ex.targetId,
+        "executionIndex": ex.executionIndex,
+        "name": ex.name,
+        "module": ex.module,
+        "status": ex.status,
+        "durationMs": ex.durationMs,
+        "errorMessage": ex.errorMessage,
+        "measurements": ex.measurements,
+        "startedAt": ex.startedAt.isoformat() if ex.startedAt else None,
+        "completedAt": ex.completedAt.isoformat() if ex.completedAt else None,
+    }
+    if hasattr(ex, "steps") and ex.steps:
+        d["steps"] = [_serialize_step(s) for s in ex.steps]
+    else:
+        d["steps"] = []
+    return d
+
+
+def _serialize_target(t) -> dict:
+    d = {
+        "id": t.id,
+        "runId": t.runId,
+        "slotIndex": t.slotIndex,
+        "slotId": t.slotId,
+        "serialNumber": t.serialNumber,
+        "deviceId": t.deviceId,
+        "status": t.status,
+        "metadata": t.metadata,
+        "errorMessage": t.errorMessage,
+        "startedAt": t.startedAt.isoformat() if t.startedAt else None,
+        "completedAt": t.completedAt.isoformat() if t.completedAt else None,
+        "durationMs": t.durationMs,
+    }
+    if hasattr(t, "executions") and t.executions:
+        d["executions"] = [_serialize_execution(e) for e in t.executions]
+    else:
+        d["executions"] = []
+    return d
+
+
+def _serialize_run(run, include_targets=False) -> dict:
+    d = {
+        "id": run.id,
+        "type": run.type,
+        "name": run.name,
+        "productId": run.productId,
+        "fixtureId": run.fixtureId,
+        "testPackageId": run.testPackageId,
+        "manufacturingSessionId": run.manufacturingSessionId,
+        "panelIdentifier": run.panelIdentifier,
+        "status": run.status,
+        "operatorId": run.operatorId,
+        "targetCount": run.targetCount,
+        "completedCount": getattr(run, "completedCount", 0),
+        "passedCount": run.passedCount,
+        "failedCount": run.failedCount,
+        "config": run.config,
+        "notes": run.notes,
+        "errorMessage": run.errorMessage,
+        "startedAt": run.startedAt.isoformat() if run.startedAt else None,
+        "completedAt": run.completedAt.isoformat() if run.completedAt else None,
+        "durationMs": run.durationMs,
+        "createdAt": run.createdAt.isoformat() if run.createdAt else None,
+    }
+    if hasattr(run, "testPackage") and run.testPackage:
+        d["testPackageVersion"] = run.testPackage.version
+    if include_targets and hasattr(run, "targets") and run.targets:
+        d["targets"] = [_serialize_target(t) for t in run.targets]
+    elif include_targets:
+        d["targets"] = []
+    return d
+
+
+def _compute_board_counts(s) -> dict:
+    """Compute unique board pass/fail counts from targets across all runs.
+
+    Deduplicates by serialNumber — keeps the latest result per board.
+    A board is PASSED if its target status is PASSED, FAILED if FAILED/ERROR.
+    """
+    if not hasattr(s, "runs") or not s.runs:
+        return {"totalUnits": 0, "passedUnits": 0, "failedUnits": 0}
+
+    # Collect latest target status per unique SNR
+    board_status: dict = {}  # snr → status
+    # Process runs newest-first so first-seen SNR is the latest result
+    sorted_runs = sorted(s.runs, key=lambda r: r.createdAt or r.id, reverse=True)
+    for run in sorted_runs:
+        targets = run.targets if hasattr(run, "targets") and run.targets else []
+        for t in targets:
+            snr = t.serialNumber or t.id
+            if snr not in board_status:
+                board_status[snr] = t.status
+
+    total = len(board_status)
+    passed = sum(1 for st in board_status.values() if st == "PASSED")
+    failed = sum(1 for st in board_status.values() if st in ("FAILED", "ERROR"))
+    return {"totalUnits": total, "passedUnits": passed, "failedUnits": failed}
+
+
+def _serialize_session(s, include_runs=False) -> dict:
+    d = {
+        "id": s.id,
+        "productId": s.productId,
+        "fixtureId": s.fixtureId,
+        "status": s.status,
+        "operatorId": s.operatorId,
+        "assetSetId": s.assetSetId if hasattr(s, "assetSetId") else None,
+        "assetSet": (
+            {
+                "id": s.assetSet.id,
+                "version": s.assetSet.version,
+                "variant": s.assetSet.variant,
+                "status": s.assetSet.status,
+            }
+            if hasattr(s, "assetSet") and s.assetSet
+            else None
+        ),
+        "config": s.config,
+        "notes": s.notes,
+        "testPackageId": getattr(s, "testPackageId", None),
+        "testPackage": (
+            {
+                "id": s.testPackage.id,
+                "version": s.testPackage.version,
+                "status": s.testPackage.status,
+            }
+            if hasattr(s, "testPackage") and s.testPackage
+            else None
+        ),
+        "startedAt": s.startedAt.isoformat() if s.startedAt else None,
+        "endedAt": s.endedAt.isoformat() if hasattr(s, "endedAt") and s.endedAt else None,
+        "createdAt": s.createdAt.isoformat() if s.createdAt else None,
+        "product": (
+            {"id": s.product.id, "name": s.product.name}
+            if hasattr(s, "product") and s.product
+            else None
+        ),
+        "fixture": (
+            {
+                "id": s.fixture.id,
+                "name": s.fixture.name,
+                "panelRows": s.fixture.panelRows,
+                "panelCols": s.fixture.panelCols,
+                "metadata": s.fixture.metadata,
+                "boardRevision": (
+                    {
+                        "id": s.fixture.boardRevision.id,
+                        "version": s.fixture.boardRevision.version,
+                        "snrLength": getattr(s.fixture.boardRevision, "snrLength", None),
+                    }
+                    if hasattr(s.fixture, "boardRevision") and s.fixture.boardRevision
+                    else None
+                ),
+            }
+            if hasattr(s, "fixture") and s.fixture
+            else None
+        ),
+        "operator": (
+            {"id": s.operator.id, "name": s.operator.name, "email": s.operator.email}
+            if hasattr(s, "operator") and s.operator
+            else None
+        ),
+        "runCount": len(s.runs) if hasattr(s, "runs") and s.runs else 0,
+        **_compute_board_counts(s),
+        "runnerStatus": getattr(s, "runnerStatus", None),
+        "runnerDeploymentName": getattr(s, "runnerDeploymentName", None),
+        "runnerLastHeartbeat": (
+            s.runnerLastHeartbeat.isoformat()
+            if getattr(s, "runnerLastHeartbeat", None)
+            else None
+        ),
+    }
+    if include_runs and hasattr(s, "runs") and s.runs:
+        d["runs"] = [_serialize_run(r) for r in s.runs]
+    elif include_runs:
+        d["runs"] = []
+    return d
+
+
+# ---------------------------------------------------------------------------
+# GET /v2/manufacturing/fixtures — list manufacturing fixtures
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_VIEW)
+def list_manufacturing_fixtures():
+    """List active MANUFACTURING-type fixtures with pagination."""
+    db = get_db_client()
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = min(max(1, request.args.get("limit", 50, type=int)), 100)
+    skip = (page - 1) * limit
+
+    where = {"type": "MANUFACTURING", "active": True}
+
+    fixtures = db.fixture.find_many(
+        where=where,
+        include={"product": True},
+        skip=skip,
+        take=limit,
+        order={"name": "asc"},
+    )
+    total = db.fixture.count(where=where)
+
+    # Derive lockState/lockedBy live from active sessions/runs — no DB column.
+    from src.api.v2.fixtures.fixtures import _compute_lock_state, _load_active_holders
+    sess_by, run_by = _load_active_holders(db, [f.id for f in fixtures])
+
+    def _serialize_fixture(f) -> dict:
+        lock_state, locked_by, _ = _compute_lock_state(f, sess_by, run_by)
+        return {
+            "id": f.id,
+            "name": f.name,
+            "productId": f.productId,
+            "type": f.type,
+            "lockState": lock_state,
+            "lockedBy": locked_by,
+            "disabled": bool(getattr(f, "disabled", False)),
+            "active": f.active,
+            "product": {"id": f.product.id, "name": f.product.name} if hasattr(f, "product") and f.product else None,
+        }
+
+    return jsonify(ApiResponse.ok({
+        "data": [_serialize_fixture(f) for f in fixtures],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": math.ceil(total / limit) if total > 0 else 0,
+        },
+    }).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions -- create session
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def create_manufacturing_session():
+    """Create a manufacturing session, locking the fixture."""
+    db = get_db_client()
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body must contain JSON data")
+
+    product_id = (body.get("productId") or "").strip()
+    if not product_id:
+        return bad_request("productId is required")
+    fixture_id = (body.get("fixtureId") or "").strip()
+    if not fixture_id:
+        return bad_request("fixtureId is required")
+
+    # Concurrency gate — prevent all fixtures from being consumed by manufacturing
+    max_sessions = getattr(env_config, "MAX_CONCURRENT_MANUFACTURING_SESSIONS", 4)
+    active_sessions = db.manufacturingsession.count(where={"status": "ACTIVE"})
+    if active_sessions >= max_sessions:
+        return conflict(
+            f"Maximum concurrent manufacturing sessions ({max_sessions}) reached. "
+            f"End an active session before starting a new one."
+        )
+
+    # Validate fixture — include slots+nodes so we can compute live health.
+    fixture = db.fixture.find_unique(
+        where={"id": fixture_id},
+        include={
+            "boardRevision": True,
+            "slots": {"include": {"node": True}},
+        },
+    )
+    if not fixture:
+        return not_found("Fixture not found")
+
+    # Reservation gate — refuses the session if any active TestRun,
+    # ManufacturingSession, OR FixtureClaim (DEV_HOLD) holds the fixture.
+    # The legacy ``_compute_assignable`` check below also catches the
+    # session/run cases, but it doesn't know about FixtureClaim — running
+    # the shared helper first keeps both sources in lockstep.
+    busy, reason = is_fixture_busy(db, fixture_id)
+    if busy and reason == "CLAIM_ACTIVE":
+        return conflict("Fixture is held by an active DEV_HOLD claim")
+
+    # ``assignable`` collapses lock-state and health into one gate. The
+    # reason string is surfaced verbatim — see _compute_assignable in
+    # api/v2/fixtures/fixtures.py for the canonical predicate. lockState is
+    # derived live from active sessions/runs (never persisted).
+    from src.api.v2.fixtures.fixtures import (
+        _compute_assignable,
+        _compute_fixture_health,
+        _compute_lock_state,
+        _get_mtib_status_map,
+        _load_active_holders,
+    )
+
+    fixture_health = _compute_fixture_health(fixture, _get_mtib_status_map(None))
+    sess_by, run_by = _load_active_holders(db, [fixture_id])
+    lock_state, _, _ = _compute_lock_state(fixture, sess_by, run_by)
+    assignable, reason = _compute_assignable(lock_state, fixture_health["health"])
+    if not assignable:
+        return conflict(reason or "Fixture is not assignable")
+
+    # Validate product
+    product = db.product.find_unique(where={"id": product_id})
+    if not product:
+        return not_found("Product not found")
+
+    operator_id = g.current_user["sub"]
+
+    # ── Resolve firmware AssetSet ──
+    #
+    # A manufacturing session MUST have a firmware asset set — the fw_flash
+    # stage is going to try to upload a .hex file to the MTIB, and "None"
+    # is not a valid path. Historically this endpoint silently accepted
+    # sessions with assetSetId=None when no ManufacturingConfig row
+    # existed for the product: the session got created, the operator
+    # scanned a panel, the runner booted, and the FIRST flash test
+    # failed with "File not found" — a waste of ~3 min per panel plus
+    # operator confusion. Gate it at the API instead.
+    asset_set_id = (body.get("assetSetId") or "").strip() or None
+    if asset_set_id:
+        # Explicit selection — validate it end-to-end.
+        asset_set = db.assetset.find_unique(where={"id": asset_set_id})
+        if not asset_set:
+            return not_found("AssetSet not found")
+        if asset_set.productId != product_id:
+            return bad_request("AssetSet does not belong to this product")
+        if asset_set.status != "COMPLETE":
+            return bad_request(
+                f"AssetSet is not ready (current status: {asset_set.status}). "
+                "Pick a COMPLETE asset set or build a new one."
+            )
+        # Warn if the board revision doesn't match the fixture — common
+        # mistake that would flash wrong firmware onto the DUTs.
+        if (
+            asset_set.boardRevisionId
+            and fixture.boardRevisionId
+            and asset_set.boardRevisionId != fixture.boardRevisionId
+        ):
+            return bad_request(
+                "AssetSet board revision does not match the fixture's "
+                "board revision. Select an asset set built for the same "
+                "board revision as the fixture."
+            )
+    else:
+        # ── Auto-resolve. Order of precedence: ──
+        #   1. ManufacturingConfig.firmwareSetId — explicit pin by ops
+        #   2. ManufacturingConfig.firmwareSource == "latest_build"
+        #   3. Last-resort: latest COMPLETE AssetSet for (product, board)
+        #
+        # The last-resort case covers products that haven't been wired up
+        # through ManufacturingConfig yet. Better than silently failing
+        # at flash time; still explicit enough that an ops config matters.
+        config_where: dict = {"productId": product_id}
+        if fixture.boardRevisionId:
+            config_where["boardRevisionId"] = fixture.boardRevisionId
+        mfg_config = db.manufacturingconfig.find_first(where=config_where)
+        if mfg_config:
+            if mfg_config.firmwareSetId:
+                asset_set_id = mfg_config.firmwareSetId
+            elif mfg_config.firmwareSource == "latest_build":
+                asset_set_id = _find_latest_complete_asset_set_id(
+                    db, product_id, fixture.boardRevisionId,
+                )
+        if not asset_set_id:
+            # Last-resort: no config (or config didn't resolve). Look for
+            # any COMPLETE asset set that matches the product + board —
+            # covers products where ops hasn't wired a ManufacturingConfig
+            # row yet (which is every product today, until that feature is
+            # retired or repurposed).
+            asset_set_id = _find_latest_complete_asset_set_id(
+                db, product_id, fixture.boardRevisionId,
+            )
+
+    # Hard gate — never let a session start with no firmware.
+    if not asset_set_id:
+        return bad_request(
+            "No firmware asset set available for this product and board "
+            "revision. Upload or build a COMPLETE AssetSet first, or pass "
+            "assetSetId explicitly in the request."
+        )
+
+    # ── Resolve test package ──
+    #
+    # The wizard passes testPackageId when the operator picks a specific
+    # package (released or dev). When omitted, the fallback depends on
+    # the fixture's purpose:
+    #
+    # * RELEASE fixture (production floor) — only accept the latest
+    #   RELEASED package. Failing loud here keeps dev code off
+    #   customer hardware even when a release was forgotten.
+    # * DEV fixture (sandbox rig) — prefer the latest RELEASED package
+    #   when one exists, otherwise fall back to the latest DEVELOPMENT
+    #   package. The iteration loop ("upload dev pkg, run on dev rig")
+    #   shouldn't require a manual pick when there's only one candidate.
+    test_package_id_input = (body.get("testPackageId") or "").strip() or None
+    test_package, tp_err = resolve_test_package(
+        db, product_id, "MANUFACTURING",
+        explicit_id=test_package_id_input,
+        mode="RELEASED",
+    )
+    if tp_err:
+        return tp_err
+    if test_package is None and not test_package_id_input:
+        if getattr(fixture, "purpose", None) == "DEV":
+            test_package, tp_err = resolve_test_package(
+                db, product_id, "MANUFACTURING", mode="DEV",
+            )
+            if tp_err:
+                return tp_err
+    if test_package is None:
+        return conflict(
+            "No released manufacturing test package for this product. "
+            "Release a package or pass testPackageId in the request."
+        )
+    purpose_err = assert_purpose_match(test_package, fixture)
+    if purpose_err:
+        return purpose_err
+
+    create_data: dict = {
+        "productId": product_id,
+        "fixtureId": fixture_id,
+        "operatorId": operator_id,
+        "testPackageId": test_package.id,
+    }
+    if asset_set_id:
+        create_data["assetSetId"] = asset_set_id
+    if body.get("config") is not None:
+        create_data["config"] = Json(body["config"])
+    if body.get("notes"):
+        create_data["notes"] = body["notes"]
+
+    session = db.manufacturingsession.create(
+        data=create_data,
+        include={
+            "product": True,
+            "fixture": True,
+            "operator": True,
+            "assetSet": True,
+            "testPackage": True,
+            "runs": True,
+        },
+    )
+
+    # No fixture-locking write — the live IN_USE state is derived from
+    # this row (status=ACTIVE) at serialize time. End the session and the
+    # fixture is FREE again. See _compute_lock_state in fixtures/fixtures.py.
+
+    log_audit("manufacturing_session.create", "ManufacturingSession", session.id, {
+        "productId": product_id,
+        "fixtureId": fixture_id,
+    })
+
+    # Deploy persistent manufacturing runner
+    # Re-fetch fixture with slot→node relations for MTIB address resolution
+    fixture_with_slots = db.fixture.find_unique(
+        where={"id": fixture_id},
+        include={
+            "slots": {
+                "where": {"active": True},
+                "order_by": {"slotIndex": "asc"},
+                "include": {"node": True},
+            },
+        },
+    )
+    if fixture_with_slots:
+        # Snapshot the fixture configuration at session start for traceability.
+        # This preserves the exact slot→node mapping even if nodes are reassigned later.
+        snapshot_slots = []
+        for s in (fixture_with_slots.slots or []):
+            node = s.node if hasattr(s, "node") and s.node else None
+            node_meta = node.metadata if node and isinstance(node.metadata, dict) else {}
+            snapshot_slots.append({
+                "slotIndex": s.slotIndex,
+                "slotId": s.id,
+                "label": s.label,
+                "nodeId": s.nodeId,
+                "nodeName": node.name if node else None,
+                "nodeHostname": node.hostname if node else None,
+                "nodeIp": node.ipAddress if node else None,
+                "dutSnr": s.dutSnr if hasattr(s, "dutSnr") else None,
+                "dutDeviceId": s.dutDeviceId if hasattr(s, "dutDeviceId") else None,
+                # MTIB traceability — record exact deployment + image at session start
+                "mtibDeploymentName": node_meta.get("deployment_name"),
+                "mtibImageSha": node_meta.get("mtibImageSha"),
+            })
+
+        snapshot = {
+            "fixtureId": fixture_with_slots.id,
+            "fixtureName": fixture_with_slots.name,
+            "fixtureType": fixture_with_slots.type,
+            "panelRows": fixture_with_slots.panelRows,
+            "panelCols": fixture_with_slots.panelCols,
+            "slots": snapshot_slots,
+            "capturedAt": datetime.now(timezone.utc).isoformat(),
+        }
+        existing_config = session.config if isinstance(session.config, dict) else {}
+        existing_config["fixtureSnapshot"] = snapshot
+
+        # ── MTIB health check — verify all nodes are reachable before deploying runner ──
+        db.manufacturingsession.update(
+            where={"id": session.id},
+            data={"runnerStatus": "CHECKING_MTIBS", "config": Json(existing_config)},
+        )
+
+        mtib_check = wait_for_mtibs_healthy(snapshot_slots, timeout_s=30)
+        if mtib_check["unhealthy"]:
+            unhealthy_names = [
+                s.get("nodeHostname") or f"slot-{s['slotIndex']}"
+                for s in mtib_check["unhealthy"]
+            ]
+            logger.warning(
+                "MTIB health check failed for session %s: %s",
+                session.id, unhealthy_names,
+            )
+            # Don't block — set warning in config but continue with runner deploy
+            existing_config["mtibHealthWarning"] = {
+                "unhealthyNodes": unhealthy_names,
+                "checkedAt": datetime.now(timezone.utc).isoformat(),
+            }
+            db.manufacturingsession.update(
+                where={"id": session.id},
+                data={"config": Json(existing_config)},
+            )
+
+        # ── Deploy persistent manufacturing runner ──
+        runner_name = deploy_manufacturing_runner(db, session, fixture_with_slots, product)
+        if not runner_name:
+            logger.warning("Failed to deploy runner for session %s", session.id)
+        # Re-fetch session to include updated runner fields
+        refreshed = db.manufacturingsession.find_unique(
+            where={"id": session.id},
+            include={
+                "product": True,
+                "fixture": True,
+                "operator": True,
+                "assetSet": True,
+                "runs": True,
+            },
+        )
+        if refreshed:
+            session = refreshed
+
+    payload = _serialize_session(session, include_runs=True)
+    _emit("manufacturing_session_start", payload, f"mfg-session:{session.id}")
+    return jsonify(ApiResponse.ok(payload).to_dict()), 201
+
+
+# ---------------------------------------------------------------------------
+# GET /v2/manufacturing/sessions — list sessions
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_VIEW)
+def list_manufacturing_sessions():
+    """List manufacturing sessions with pagination and optional filters."""
+    db = get_db_client()
+    page = max(1, request.args.get("page", 1, type=int))
+    limit = min(max(1, request.args.get("limit", 20, type=int)), 100)
+    skip = (page - 1) * limit
+
+    where: dict = {}
+    product_id = request.args.get("productId")
+    if product_id:
+        where["productId"] = product_id
+    fixture_id = request.args.get("fixtureId")
+    if fixture_id:
+        where["fixtureId"] = fixture_id
+    status = request.args.get("status")
+    if status:
+        where["status"] = status
+
+    sessions = db.manufacturingsession.find_many(
+        where=where,
+        include={
+            "product": True,
+            "fixture": True,
+            "operator": True,
+            "assetSet": True,
+            "runs": {"include": {"targets": True}},
+        },
+        skip=skip,
+        take=limit,
+        order={"startedAt": "desc"},
+    )
+    total = db.manufacturingsession.count(where=where)
+
+    return jsonify(ApiResponse.ok({
+        "data": [_serialize_session(s) for s in sessions],
+        "pagination": {
+            "page": page,
+            "limit": limit,
+            "total": total,
+            "pages": math.ceil(total / limit) if total > 0 else 0,
+        },
+    }).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# GET /v2/manufacturing/sessions/<id> — get session detail
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_VIEW)
+def get_manufacturing_session(session_id: str):
+    """Return a session with nested runs, targets, executions, and steps."""
+    db = get_db_client()
+    session = db.manufacturingsession.find_unique(
+        where={"id": session_id},
+        include={
+            "product": True,
+            "fixture": {"include": {"boardRevision": True}},
+            "operator": True,
+            "assetSet": True,
+            "runs": {
+                "include": {
+                    "testPackage": True,
+                    "boardRevision": True,
+                    "targets": {
+                        "include": {
+                            "executions": {
+                                "include": {"steps": True},
+                            },
+                        },
+                    },
+                },
+                "order_by": {"createdAt": "asc"},
+            },
+        },
+    )
+    if not session:
+        return not_found("Manufacturing session not found")
+
+    payload = _serialize_session(session, include_runs=True)
+    # Enrich runs with full target tree
+    if hasattr(session, "runs") and session.runs:
+        payload["runs"] = [
+            _serialize_run(r, include_targets=True) for r in session.runs
+        ]
+
+    return jsonify(ApiResponse.ok(payload).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# Panel SNR resolution helpers
+# ---------------------------------------------------------------------------
+
+def _parse_position_map(raw) -> dict[int, int] | None:
+    """Parse a panelPositionMap from fixture metadata.
+
+    Accepts either a dict of string keys {"0": 1, "1": 0, ...}
+    or a list [1, 0, 3, 2] (index = CoreOps position, value = fixture slot).
+    Returns {coreops_position: fixture_slot_index} or None if not configured.
+    """
+    if not raw:
+        return None
+    if isinstance(raw, list):
+        return {i: int(v) for i, v in enumerate(raw)}
+    if isinstance(raw, dict):
+        return {int(k): int(v) for k, v in raw.items()}
+    return None
+
+
+def _resolve_panel_snrs(
+    primary_snr: str,
+    slot_count: int,
+    position_map: dict | None = None,
+) -> list[dict]:
+    """Resolve per-slot SNRs for a panel from a scanned barcode.
+
+    Calls CoreOps boards/assemblies/search to look up the panel assembly.
+    CoreOps returns each board's serial number and its panel position.
+
+    For singletons (slot_count=1), the scanned SNR is the DUT's SNR.
+    For panels, CoreOps returns all board SNRs at their positions.
+
+    Args:
+        primary_snr: Scanned barcode (one board's SNR from the panel).
+        slot_count: Number of panel slots on the fixture.
+        position_map: Optional mapping from CoreOps panelPosition (int) to
+            fixture slotIndex (int). Needed when the physical panel layout
+            doesn't match CoreOps's position numbering.
+            Example: {0: 1, 1: 0, 2: 3, 3: 2} swaps positions 0↔1 and 2↔3.
+
+    Returns a list of dicts: [{"slotIndex": 0, "snr": "0A2J", "deviceId": None}, ...].
+    """
+    result = [{"slotIndex": i, "snr": None, "deviceId": None} for i in range(slot_count)]
+
+    # Singleton: scanned SNR is the DUT
+    if slot_count == 1:
+        result[0]["snr"] = primary_snr
+        return result
+
+    # Panel: look up assembly in CoreOps
+    coreops = _get_coreops_client()
+    if not coreops:
+        logger.warning("CoreOps not available — using scanned SNR on slot-0 only")
+        result[0]["snr"] = primary_snr
+        return result
+
+    try:
+        assembly = coreops.search_board_assembly(primary_snr)
+        boards = assembly.get("boards", [])
+
+        if not boards:
+            logger.warning("No boards found in CoreOps for SNR %s", primary_snr)
+            result[0]["snr"] = primary_snr
+            return result
+
+        # Map each board to its fixture slot.
+        # CoreOps returns panelPosition (assembly order).
+        # position_map translates CoreOps position → fixture slotIndex.
+        for board in boards:
+            coreops_position = board.get("panelPosition")
+            board_snr = board.get("boardSerialNumber")
+            if coreops_position is None or not board_snr:
+                continue
+
+            # Apply position remap if configured
+            slot_idx = position_map.get(coreops_position, coreops_position) if position_map else coreops_position
+
+            if 0 <= slot_idx < slot_count:
+                result[slot_idx]["snr"] = board_snr
+
+        logger.info(
+            "Resolved panel %s → %s%s",
+            primary_snr,
+            ", ".join(f"slot-{r['slotIndex']}={r['snr']}" for r in result if r["snr"]),
+            f" (position_map={position_map})" if position_map else "",
+        )
+
+    except Exception as e:
+        logger.warning("CoreOps assembly search failed for %s: %s", primary_snr, e)
+        result[0]["snr"] = primary_snr
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/<id>/resolve-panel
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def resolve_panel(session_id: str):
+    """Resolve panel SNRs from a primary SNR based on fixture slot layout."""
+    db = get_db_client()
+
+    session = db.manufacturingsession.find_unique(
+        where={"id": session_id},
+        include={
+            "fixture": {
+                "include": {
+                    "slots": {"order_by": {"slotIndex": "asc"}},
+                },
+            },
+        },
+    )
+    if not session:
+        return not_found("Manufacturing session not found")
+    if session.status != "ACTIVE":
+        return bad_request("Session is not active")
+
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body must contain JSON data")
+
+    snr = (body.get("snr") or "").strip()
+    if not snr:
+        return bad_request("snr is required")
+
+    run_type = (body.get("runType") or "panel").strip().lower()
+
+    fixture = session.fixture
+    all_slots = [
+        s for s in (fixture.slots if hasattr(fixture, "slots") and fixture.slots else [])
+        if s.active
+    ]
+
+    if not all_slots:
+        return bad_request("Fixture has no active slots")
+
+    # Split panel vs standalone slots
+    panel_slots = [s for s in all_slots if not (s.label or "").lower().startswith("standalone")]
+    standalone_slots = [s for s in all_slots if (s.label or "").lower().startswith("standalone")]
+
+    coreops_client = _get_coreops_client()
+    result_slots = []
+
+    if run_type == "standalone":
+        # Standalone: scanned SNR is the DUT directly
+        slots = standalone_slots if standalone_slots else all_slots[-1:]
+        for slot in slots:
+            device_id = None
+            coreops_error = None
+            if coreops_client:
+                try:
+                    device_id = coreops_client.assign_device_id(snr)
+                except Exception as e:
+                    coreops_error = str(e)
+                    logger.warning("CoreOps assign_device_id failed for SNR %s: %s", snr, e)
+            result_slots.append({
+                "slotIndex": slot.slotIndex,
+                "snr": snr,
+                "deviceId": device_id,
+                "label": slot.label if hasattr(slot, "label") and slot.label else f"Slot {slot.slotIndex + 1}",
+                "coreopsError": coreops_error,
+            })
+    else:
+        # Panel: resolve via CoreOps assembly lookup
+        slots = panel_slots if panel_slots else all_slots
+        fixture_meta = fixture.metadata if hasattr(fixture, "metadata") and isinstance(fixture.metadata, dict) else {}
+        position_map = _parse_position_map(fixture_meta.get("panelPositionMap"))
+        resolved = _resolve_panel_snrs(snr, len(slots), position_map=position_map)
+
+        for slot, r in zip(slots, resolved):
+            slot_snr = r.get("snr")
+            device_id = None
+            coreops_error = None
+
+            if slot_snr and coreops_client:
+                try:
+                    device_id = coreops_client.assign_device_id(slot_snr)
+                except Exception as e:
+                    coreops_error = str(e)
+                    logger.warning("CoreOps assign_device_id failed for SNR %s: %s", slot_snr, e)
+
+            result_slots.append({
+                "slotIndex": slot.slotIndex,
+                "snr": slot_snr,
+                "deviceId": device_id,
+                "label": slot.label if hasattr(slot, "label") and slot.label else f"Slot {slot.slotIndex + 1}",
+                "coreopsError": coreops_error,
+            })
+
+    return jsonify(ApiResponse.ok({
+        "primarySnr": snr,
+        "coreopsAvailable": coreops_client is not None,
+        "slots": result_slots,
+    }).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/<id>/runs — add a run (panel scan)
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def add_manufacturing_run(session_id: str):
+    """Scan a panel QR code to create a TestRun within the session."""
+    db = get_db_client()
+
+    session = db.manufacturingsession.find_unique(
+        where={"id": session_id},
+        include={"fixture": {"include": {"slots": {"order_by": {"slotIndex": "asc"}}}}},
+    )
+    if not session:
+        return not_found("Manufacturing session not found")
+    if session.status != "ACTIVE":
+        return bad_request("Session is not active")
+
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body must contain JSON data")
+
+    qr_code = (body.get("qrCode") or "").strip()
+    if not qr_code:
+        return bad_request("qrCode is required")
+
+    run_type = (body.get("runType") or "panel").strip().lower()
+    if run_type not in ("panel", "standalone"):
+        return bad_request("runType must be 'panel' or 'standalone'")
+
+    slot_snrs = body.get("slotSnrs")  # optional pre-resolved SNRs
+    if slot_snrs is not None:
+        if not isinstance(slot_snrs, list):
+            return bad_request("slotSnrs must be an array")
+        for entry in slot_snrs:
+            if not isinstance(entry, dict) or "slotIndex" not in entry or "snr" not in entry:
+                return bad_request("Each slotSnrs entry must have 'slotIndex' and 'snr'")
+
+    # Resolve test package. The session may carry an explicit testPackageId
+    # set at creation time (wizard pick); per-run callers can also override
+    # via testPackageVersion. Otherwise: latest released, then any as a
+    # dev fallback so an operator can scan a panel against an unreleased
+    # candidate when no released package exists yet.
+    explicit_version = body.get("testPackageVersion")
+    explicit_id = getattr(session, "testPackageId", None) if not explicit_version else None
+    tp, tp_error = resolve_test_package(
+        db, session.productId, "MANUFACTURING",
+        explicit_id=explicit_id,
+        explicit_version=explicit_version,
+        mode="RELEASED",
+    )
+    if tp_error:
+        return tp_error
+    if tp is None and explicit_id is None and explicit_version is None:
+        tp, tp_error = resolve_test_package(
+            db, session.productId, "MANUFACTURING", mode="ANY",
+        )
+        if tp_error:
+            return tp_error
+
+    operator_id = g.current_user["sub"]
+
+    # Determine active slots from the fixture, split by panel vs standalone
+    fixture = session.fixture
+    all_slots = [s for s in (fixture.slots if hasattr(fixture, "slots") and fixture.slots else []) if s.active]
+
+    # Standalone slot is identified by label (set by the fixture wizard)
+    panel_slots = [s for s in all_slots if not (s.label or "").lower().startswith("standalone")]
+    standalone_slots = [s for s in all_slots if (s.label or "").lower().startswith("standalone")]
+
+    if run_type == "standalone":
+        slots = standalone_slots if standalone_slots else all_slots[-1:]
+    else:
+        slots = panel_slots if panel_slots else all_slots
+
+    target_count = len(slots)
+
+    # Build a lookup for pre-resolved SNRs by slotIndex
+    snr_lookup: dict[int, str] = {}
+    if slot_snrs:
+        for entry in slot_snrs:
+            snr_lookup[entry["slotIndex"]] = entry["snr"]
+
+    # ── Resolve per-slot SNRs + device IDs UP FRONT ──────────────────────
+    # We validate every slot before creating the TestRun so a bad SNR (CoreOps
+    # rejects it, returns no deviceId, or returns nothing) blocks the run with
+    # a clear 400 instead of letting the run start against bogus data.
+    #
+    # "Bad SNR" definition (causes the run to be blocked when CoreOps is
+    # reachable):
+    #   1. CoreOps returns 4xx/5xx (raises HTTPError) — likely unknown SNR.
+    #   2. CoreOps returns no `deviceId` in the response payload — raises
+    #      ValueError from the client.
+    #   3. The resolved per-slot SNR is empty/None for any slot in a panel.
+    #
+    # When CoreOps is unreachable (no proxy configured), device-id assignment
+    # is skipped entirely and the run proceeds with whatever SNRs are present
+    # — operators can run offline. An empty SNR is still a hard fail.
+    coreops_client = _get_coreops_client()
+    fixture_meta = fixture.metadata if hasattr(fixture, "metadata") and isinstance(fixture.metadata, dict) else {}
+    position_map = _parse_position_map(fixture_meta.get("panelPositionMap"))
+
+    # Per-slot resolution: produce (snr, device_id) for every active slot.
+    slot_resolutions: dict[int, dict] = {}
+
+    if run_type == "panel" and not slot_snrs:
+        resolved = _resolve_panel_snrs(qr_code, len(slots), position_map=position_map)
+        resolved_lookup = {r["slotIndex"]: r for r in resolved}
+        for slot in slots:
+            r = resolved_lookup.get(slot.slotIndex, {})
+            slot_resolutions[slot.slotIndex] = {"snr": r.get("snr")}
+    else:
+        for slot in slots:
+            if run_type == "standalone":
+                slot_snr = snr_lookup.get(slot.slotIndex, qr_code)
+            else:
+                slot_snr = snr_lookup.get(
+                    slot.slotIndex,
+                    slot.dutSnr if hasattr(slot, "dutSnr") else None,
+                )
+            slot_resolutions[slot.slotIndex] = {"snr": slot_snr}
+
+    # Validate SNRs are all present before any external calls.
+    missing_snr_slots = [
+        idx for idx, r in slot_resolutions.items()
+        if not (r.get("snr") or "").strip()
+    ]
+    if missing_snr_slots:
+        if run_type == "panel":
+            return bad_request(
+                "Cannot start run: serial number missing for slot(s) "
+                f"{', '.join(str(i + 1) for i in sorted(missing_snr_slots))}. "
+                "Re-scan the panel or check that CoreOps recognizes the panel SNR."
+            )
+        return bad_request("Cannot start run: serial number is empty.")
+
+    # When CoreOps is reachable, assign device IDs for every slot. Any failure
+    # blocks the run — the operator must fix the SNR before running tests.
+    if coreops_client:
+        coreops_failures: list[str] = []
+        for slot in slots:
+            slot_snr = slot_resolutions[slot.slotIndex]["snr"]
+            try:
+                device_id = coreops_client.assign_device_id(slot_snr)
+            except Exception as e:
+                logger.warning(
+                    "CoreOps assign_device_id failed for slot %s SNR %s: %s",
+                    slot.slotIndex, slot_snr, e,
+                )
+                coreops_failures.append(
+                    f"slot {slot.slotIndex + 1} (SNR {slot_snr})"
+                )
+                continue
+            if not device_id:
+                coreops_failures.append(
+                    f"slot {slot.slotIndex + 1} (SNR {slot_snr}) — no deviceId returned"
+                )
+                continue
+            slot_resolutions[slot.slotIndex]["deviceId"] = device_id
+
+        if coreops_failures:
+            return bad_request(
+                "Cannot start run: CoreOps rejected one or more serial numbers. "
+                f"Affected: {'; '.join(coreops_failures)}. "
+                "Verify the SNR is correct and registered in CoreOps."
+            )
+
+    # ── All SNRs validated. Create the TestRun and per-slot targets. ─────
+    run_data: dict = {
+        "type": "MANUFACTURING",
+        "productId": session.productId,
+        "fixtureId": session.fixtureId,
+        "manufacturingSessionId": session_id,
+        "panelIdentifier": qr_code,
+        "operatorId": operator_id,
+        "status": "PENDING",
+        "targetCount": target_count,
+    }
+    # Populate board revision from the fixture
+    if hasattr(fixture, "boardRevisionId") and fixture.boardRevisionId:
+        run_data["boardRevisionId"] = fixture.boardRevisionId
+    if session.assetSetId:
+        run_data["assetSetId"] = session.assetSetId
+    if tp:
+        run_data["testPackageId"] = tp.id
+        logger.info("Manufacturing run using test package %s (v%s)", tp.id, tp.version)
+
+    run = db.testrun.create(data=run_data)
+
+    for slot in slots:
+        resolution = slot_resolutions[slot.slotIndex]
+        device_id = resolution.get("deviceId") or (
+            slot.dutDeviceId if hasattr(slot, "dutDeviceId") else None
+        )
+        db.runtarget.create(
+            data={
+                "runId": run.id,
+                "slotIndex": slot.slotIndex,
+                "slotId": slot.id,
+                "serialNumber": resolution.get("snr"),
+                "deviceId": device_id,
+            },
+        )
+
+    # Re-fetch run with targets and test package for the response
+    run = db.testrun.find_unique(
+        where={"id": run.id},
+        include={
+            "testPackage": True,
+            "targets": {"order_by": {"slotIndex": "asc"}},
+        },
+    )
+
+    log_audit("manufacturing_run.create", "TestRun", run.id, {
+        "sessionId": session_id,
+        "panelIdentifier": qr_code,
+        "testPackageId": tp.id if tp else None,
+        "targetCount": target_count,
+    })
+
+    payload = _serialize_run(run, include_targets=True)
+    _emit("manufacturing_run_start", payload, f"mfg-session:{session_id}")
+    return jsonify(ApiResponse.ok(payload).to_dict()), 201
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/<id>/redeploy-runner — retry runner deploy
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def redeploy_manufacturing_runner(session_id: str):
+    """Tear down the current runner (if any) and redeploy for an active session."""
+    db = get_db_client()
+    session = db.manufacturingsession.find_unique(
+        where={"id": session_id},
+        include={
+            "product": True,
+            "fixture": {
+                "include": {
+                    "slots": {
+                        "where": {"active": True},
+                        "order_by": {"slotIndex": "asc"},
+                        "include": {"node": True},
+                    },
+                },
+            },
+        },
+    )
+    if not session:
+        return not_found("Manufacturing session not found")
+    if session.status != "ACTIVE":
+        return bad_request("Session is not active")
+
+    # Tear down existing runner if any
+    teardown_manufacturing_runner(db, session)
+
+    # Redeploy
+    runner_name = deploy_manufacturing_runner(db, session, session.fixture, session.product)
+    if not runner_name:
+        return internal_error("Runner deployment failed — check Docker/K8s availability")
+
+    # Re-fetch with updated runner fields
+    refreshed = db.manufacturingsession.find_unique(
+        where={"id": session_id},
+        include={
+            "product": True,
+            "fixture": True,
+            "operator": True,
+            "assetSet": True,
+            "runs": True,
+        },
+    )
+    payload = _serialize_session(refreshed or session, include_runs=True)
+    return jsonify(ApiResponse.ok(payload).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/<id>/end — end session
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def end_manufacturing_session(session_id: str):
+    """End an active manufacturing session and unlock the fixture."""
+    db = get_db_client()
+    session = db.manufacturingsession.find_unique(where={"id": session_id})
+    if not session:
+        return not_found("Manufacturing session not found")
+    if session.status != "ACTIVE":
+        return bad_request("Session is not active")
+
+    # Teardown the persistent manufacturing runner
+    teardown_manufacturing_runner(db, session)
+
+    now = datetime.now(timezone.utc)
+    updated = db.manufacturingsession.update(
+        where={"id": session_id},
+        data={"status": "COMPLETED", "endedAt": now},
+        include={
+            "product": True,
+            "fixture": True,
+            "operator": True,
+            "assetSet": True,
+            "runs": True,
+        },
+    )
+
+    # Clean up orphaned PENDING runs — they'll never execute now
+    db.testrun.update_many(
+        where={"manufacturingSessionId": session_id, "status": "PENDING"},
+        data={"status": "FAILED", "errorMessage": "Session ended before run started"},
+    )
+
+    # Reconcile orphaned ACTIVE runs. When the runner pod exits without
+    # calling ``/report/finish`` (SIGTERM from the deployment tearing
+    # down, pytest-timeout kill before the reporter's session-finish
+    # hook, OOM, etc.), the TestRun row stays ``ACTIVE`` forever and
+    # clients polling for a terminal status hang until their own
+    # watchdog fires. Ending the session is the authoritative signal
+    # that no further /report/* callbacks will land for these runs, so
+    # we close them here with a clear reason so dashboards and
+    # ``corectl runs watch`` stop spinning.
+    reconciled_at = now
+    reconciled = db.testrun.update_many(
+        where={"manufacturingSessionId": session_id, "status": "ACTIVE"},
+        data={
+            "status": "CANCELLED",
+            "completedAt": reconciled_at,
+            "errorMessage": (
+                "Session ended while run was still ACTIVE — runner never "
+                "reported /finish (likely SIGTERM or pytest-timeout kill). "
+                "Reconciled by end_session."
+            ),
+        },
+    )
+    if reconciled:
+        logger.info(
+            "Reconciled %d orphan ACTIVE run(s) to CANCELLED for session %s",
+            reconciled, session_id,
+        )
+        # Also transition their targets to terminal. Leaving them RUNNING
+        # would still misrender per-slot progress bars as in-flight.
+        db.runtarget.update_many(
+            where={
+                "run": {"manufacturingSessionId": session_id},
+                "status": {"in": ["PENDING", "RUNNING"]},
+            },
+            data={"status": "ERROR", "completedAt": reconciled_at},
+        )
+
+    # No fixture-unlocking write — the session row's status=COMPLETED
+    # already makes the live IN_USE → FREE transition (derived state).
+
+    log_audit("manufacturing_session.end", "ManufacturingSession", session_id, {
+        "status": "COMPLETED",
+    })
+
+    payload = _serialize_session(updated)
+    _emit("manufacturing_session_end", payload, f"mfg-session:{session_id}")
+    return jsonify(ApiResponse.ok(payload).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/<id>/archive — archive session
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_MANAGE)
+def archive_session(session_id: str):
+    """Archive a completed manufacturing session."""
+    db = get_db_client()
+    session = db.manufacturingsession.find_unique(where={"id": session_id})
+    if not session:
+        return not_found("Session not found")
+    if session.status == "ARCHIVED":
+        return bad_request("Session is already archived")
+    if session.status == "ACTIVE":
+        return bad_request("Cannot archive an active session. End it first.")
+
+    updated = db.manufacturingsession.update(
+        where={"id": session_id},
+        data={"status": "ARCHIVED"},
+        include={"product": True, "fixture": True, "operator": True},
+    )
+    log_audit("manufacturing.session.archive", "ManufacturingSession", session_id, {})
+    return jsonify(ApiResponse.ok(_serialize_session(updated)).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# DELETE /v2/manufacturing/sessions/<id> — delete session
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_MANAGE)
+def delete_session(session_id: str):
+    """Delete an archived manufacturing session and its cascaded test runs."""
+    db = get_db_client()
+    session = db.manufacturingsession.find_unique(where={"id": session_id})
+    if not session:
+        return not_found("Session not found")
+    if session.status != "ARCHIVED":
+        return bad_request("Session must be archived before it can be deleted")
+
+    # Check no active runs
+    active_runs = db.testrun.count(
+        where={"manufacturingSessionId": session_id, "status": {"in": ["PENDING", "ACTIVE"]}}
+    )
+    if active_runs > 0:
+        return conflict(f"Cannot delete — {active_runs} test run(s) still active")
+
+    # Delete session (TestRuns cascade via schema onDelete)
+    db.manufacturingsession.delete(where={"id": session_id})
+    log_audit("manufacturing.session.delete", "ManufacturingSession", session_id, {})
+    return jsonify(ApiResponse.ok({"deleted": True}).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# POST /v2/manufacturing/sessions/batch — batch archive or delete
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_MANAGE)
+def batch_sessions_action():
+    """Apply an action to multiple manufacturing sessions at once."""
+    db = get_db_client()
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    action = (body.get("action") or "").strip().lower()
+    session_ids = body.get("sessionIds", [])
+
+    if action not in ("archive", "delete"):
+        return bad_request("action must be 'archive' or 'delete'")
+    if not isinstance(session_ids, list) or not session_ids:
+        return bad_request("sessionIds must be a non-empty array")
+
+    succeeded = []
+    failed = []
+
+    for sid in session_ids:
+        session = db.manufacturingsession.find_unique(where={"id": sid})
+        if not session:
+            failed.append({"id": sid, "reason": "Not found"})
+            continue
+
+        if action == "archive":
+            if session.status == "ACTIVE":
+                failed.append({"id": sid, "reason": "Cannot archive active session"})
+                continue
+            if session.status == "ARCHIVED":
+                succeeded.append(sid)
+                continue
+            db.manufacturingsession.update(
+                where={"id": sid}, data={"status": "ARCHIVED"},
+            )
+            log_audit("manufacturing.session.archive", "ManufacturingSession", sid, {"batch": True})
+            succeeded.append(sid)
+
+        elif action == "delete":
+            if session.status not in ("ARCHIVED", "COMPLETED", "CANCELLED"):
+                failed.append({"id": sid, "reason": f"Cannot delete {session.status} session"})
+                continue
+            active_runs = db.testrun.count(
+                where={"manufacturingSessionId": sid, "status": {"in": ["ACTIVE", "PENDING"]}}
+            )
+            if active_runs > 0:
+                failed.append({"id": sid, "reason": f"{active_runs} active run(s)"})
+                continue
+            db.manufacturingsession.delete(where={"id": sid})
+            log_audit("manufacturing.session.delete", "ManufacturingSession", sid, {"batch": True})
+            succeeded.append(sid)
+
+    return jsonify(ApiResponse.ok({
+        "action": action,
+        "succeeded": succeeded,
+        "failed": failed,
+    }).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# GET /v2/manufacturing/sessions/<id>/results — aggregate results
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_VIEW)
+def get_manufacturing_results(session_id: str):
+    """Return session results with all runs, targets, and executions."""
+    db = get_db_client()
+    session = db.manufacturingsession.find_unique(
+        where={"id": session_id},
+        include={
+            "product": True,
+            "fixture": True,
+            "operator": True,
+            "assetSet": True,
+            "runs": {
+                "include": {
+                    "testPackage": True,
+                    "targets": {
+                        "include": {
+                            "executions": {
+                                "include": {"steps": True},
+                            },
+                        },
+                    },
+                },
+                "order_by": {"createdAt": "asc"},
+            },
+        },
+    )
+    if not session:
+        return not_found("Manufacturing session not found")
+
+    payload = _serialize_session(session, include_runs=True)
+    # Enrich runs with full target tree
+    if hasattr(session, "runs") and session.runs:
+        payload["runs"] = [
+            _serialize_run(r, include_targets=True) for r in session.runs
+        ]
+
+    # Aggregate counts across all runs
+    total_targets = 0
+    total_passed = 0
+    total_failed = 0
+    for run in (session.runs or []):
+        total_targets += run.targetCount
+        total_passed += run.passedCount
+        total_failed += run.failedCount
+
+    payload["aggregates"] = {
+        "runCount": len(session.runs) if session.runs else 0,
+        "totalTargets": total_targets,
+        "totalPassed": total_passed,
+        "totalFailed": total_failed,
+        "passRate": (
+            round(total_passed / total_targets * 100, 1)
+            if total_targets > 0
+            else None
+        ),
+    }
+
+    return jsonify(ApiResponse.ok(payload).to_dict()), 200
+
+
+# ---------------------------------------------------------------------------
+# CoreOps proxy — used by manufacturing test runners
+# ---------------------------------------------------------------------------
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def coreops_assign_device_id():
+    """POST /v2/manufacturing/coreops/devices/assign
+
+    Proxy to CoreOps: assign a device ID from a board serial number.
+    """
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    snr = (body.get("snr") or "").strip()
+    if not snr:
+        return bad_request("snr is required")
+
+    client = _get_coreops_client()
+    if not client:
+        return jsonify(ApiResponse.ok({
+            "error": "CoreOps not configured",
+            "snr": snr,
+        }).to_dict()), 503
+
+    try:
+        device_id = client.assign_device_id(snr)
+        return jsonify(ApiResponse.ok({
+            "deviceId": device_id,
+            "snr": snr,
+        }).to_dict()), 200
+    except Exception as e:
+        logger.error("CoreOps assign_device_id failed for SNR %s: %s", snr, e)
+        return jsonify(ApiResponse.ok({
+            "error": str(e),
+            "snr": snr,
+        }).to_dict()), 502
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def coreops_upload_key():
+    """POST /v2/manufacturing/coreops/devices/keys
+
+    Proxy to CoreOps: upload a public key for a device.
+    """
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    device_id = (body.get("deviceId") or "").strip()
+    pub_key = (body.get("pubKey") or "").strip()
+    if not device_id or not pub_key:
+        return bad_request("deviceId and pubKey are required")
+
+    client = _get_coreops_client()
+    if not client:
+        return jsonify(ApiResponse.ok({"error": "CoreOps not configured"}).to_dict()), 503
+
+    try:
+        client.upload_public_key(device_id, pub_key)
+        return jsonify(ApiResponse.ok({"success": True}).to_dict()), 200
+    except Exception as e:
+        logger.error("CoreOps upload_public_key failed: %s", e)
+        return jsonify(ApiResponse.ok({"error": str(e)}).to_dict()), 502
+
+
+@require_permissions(Permissions.MANUFACTURING_RUN)
+def coreops_save_iccid():
+    """POST /v2/manufacturing/coreops/devices/iccids
+
+    Proxy to CoreOps: register an ICCID/SIM.
+    """
+    body = request.get_json()
+    if not body:
+        return bad_request("Request body required")
+
+    iccid = (body.get("iccid") or "").strip()
+    carrier = (body.get("carrier") or "").strip()
+    snr = (body.get("snr") or "").strip()
+    imei = (body.get("imei") or "").strip()
+    if not iccid or not snr:
+        return bad_request("iccid and snr are required")
+
+    client = _get_coreops_client()
+    if not client:
+        return jsonify(ApiResponse.ok({"error": "CoreOps not configured"}).to_dict()), 503
+
+    try:
+        client.save_iccid(iccid, carrier, snr, imei)
+        return jsonify(ApiResponse.ok({"success": True}).to_dict()), 200
+    except Exception as e:
+        logger.error("CoreOps save_iccid failed: %s", e)
+        return jsonify(ApiResponse.ok({"error": str(e)}).to_dict()), 502
+
+
+# ---------------------------------------------------------------------------
+# GET /v2/manufacturing/sessions/<id>/report — downloadable batch zip
+# ---------------------------------------------------------------------------
+
+_REPORT_STEP_NAMES = ("Personalize device with CoreOps", "Verify IMEI and ICCIDs")
+
+
+def _pub_key_hex(b64: str) -> str:
+    """Convert a base64 public key to its hex representation, or empty."""
+    if not b64:
+        return ""
+    try:
+        return base64.b64decode(b64).hex()
+    except Exception:
+        return ""
+
+
+def _csv_bytes(header: list[str], rows: list[list]) -> bytes:
+    """Serialize a list of rows to CSV bytes with the given header."""
+    buf = io.StringIO()
+    w = _csv.writer(buf)
+    w.writerow(header)
+    for r in rows:
+        w.writerow(r)
+    return buf.getvalue().encode("utf-8")
+
+
+@require_permissions(Permissions.MANUFACTURING_VIEW)
+def get_session_report(session_id: str):
+    """GET /v2/manufacturing/sessions/<id>/report — batch CSV bundle.
+
+    Streams a zip with six standard files:
+        1_failed_snrs.csv, 2_successful_snrs.csv, 3_successful_full_info.csv,
+        4_device_imei_iccid.csv, 5_activation_verizon.csv, 6_activation_onomondo.csv
+
+    Rules (hardcoded):
+    - Valid serial numbers are exactly 4 characters. Anything else (fixture
+      self-test QR codes, standalone dev boards, typos) is dropped.
+    - A serial is **successful** only if it has, across all its attempts in
+      this session: device_id, public_key, imei, iccid_0, iccid_1 — AND at
+      least one Personalize-with-CoreOps step PASSED with info_uploaded=true.
+    - Otherwise it lands in 1_failed_snrs.csv with the first-failed-step
+      name (+ message) from its latest attempt as the reason.
+    """
+    db = get_db_client()
+    session = db.manufacturingsession.find_unique(
+        where={"id": session_id},
+        include={"product": True},
+    )
+    if not session:
+        return not_found("Session not found")
+
+    if session.status in ("PENDING", "ACTIVE"):
+        return bad_request("Session must be completed before a report can be generated")
+
+    # 1) Runs in this session → target IDs.
+    runs = db.testrun.find_many(
+        where={"manufacturingSessionId": session_id},
+        order={"createdAt": "asc"},
+    )
+    run_ids = [r.id for r in runs]
+    if not run_ids:
+        # No runs — return an empty but well-formed zip so the UX is consistent.
+        return _build_zip_response(session, [], [])
+
+    targets = db.runtarget.find_many(where={"runId": {"in": run_ids}})
+    # Filter valid SNRs (exactly 4 chars) up front. Keep a lookup for run startedAt.
+    run_started_at: dict[str, datetime] = {r.id: (r.createdAt or r.createdAt) for r in runs}
+    valid_targets = [t for t in targets if t.serialNumber and len(t.serialNumber) == 4]
+    target_ids = [t.id for t in valid_targets]
+    if not target_ids:
+        return _build_zip_response(session, [], [])
+
+    executions = db.testexecution.find_many(where={"targetId": {"in": target_ids}})
+    exec_to_target = {e.id: e.targetId for e in executions}
+    exec_ids = list(exec_to_target.keys())
+
+    # Only the steps we actually need for the report fields + failure reasons.
+    steps = db.teststep.find_many(where={"executionId": {"in": exec_ids}}) if exec_ids else []
+
+    # Index steps by target + name for the Personalize / IMEI lookups, and
+    # keep the first failed step per target for the failure reason column.
+    personalize_by_target: dict[str, list] = {}
+    imei_by_target: dict[str, list] = {}
+    first_failed_by_target: dict[str, tuple[str, str]] = {}
+    for s in steps:
+        target_id = exec_to_target.get(s.executionId)
+        if not target_id:
+            continue
+        if s.name == "Personalize device with CoreOps":
+            personalize_by_target.setdefault(target_id, []).append(s)
+        elif s.name == "Verify IMEI and ICCIDs":
+            imei_by_target.setdefault(target_id, []).append(s)
+        if s.status == "FAILED" and target_id not in first_failed_by_target:
+            msg = (getattr(s, "errorMessage", None) or "").splitlines()[0][:200]
+            first_failed_by_target[target_id] = (s.name, msg)
+
+    # Collapse targets → per-SNR attempts with merged fields.
+    per_snr: dict[str, dict] = {}
+    for t in valid_targets:
+        snr = t.serialNumber
+        started_at = run_started_at.get(t.runId) or datetime.min.replace(tzinfo=timezone.utc)
+
+        personalized_ok = False
+        device_id = pub_key_b64 = imei = iccid_0 = iccid_1 = ""
+
+        for s in personalize_by_target.get(t.id, []):
+            m = s.measurements or {}
+            if isinstance(m, dict):
+                di = (m.get("device_id") or {}).get("value")
+                # The test app's test_14_personalize records the EC public
+                # key under several names depending on the test package
+                # version: legacy `public_key` (older alpha-style apps),
+                # `public_key_base64` (current sigma5 — the canonical full
+                # base64 string), or `public_key_prefix` (truncated dev
+                # marker — not useful for the report). Prefer the full
+                # base64 value, fall back to the legacy name. Without
+                # this, every unit ends up in 1_failed_snrs.csv with
+                # "missing pub_key_b64" even after a clean run.
+                pk = (
+                    (m.get("public_key_base64") or {}).get("value")
+                    or (m.get("public_key") or {}).get("value")
+                )
+                uploaded = (m.get("info_uploaded") or {}).get("value")
+                if di and not device_id:
+                    device_id = di
+                if pk and not pub_key_b64:
+                    pub_key_b64 = pk
+                if s.status == "PASSED" and uploaded is True:
+                    personalized_ok = True
+
+        eid_0 = eid_1 = ""
+        for s in imei_by_target.get(t.id, []):
+            m = s.measurements or {}
+            if isinstance(m, dict):
+                if not imei:
+                    imei = (m.get("imei") or {}).get("value") or ""
+                if not iccid_0:
+                    iccid_0 = (m.get("iccid_0") or {}).get("value") or ""
+                if not iccid_1:
+                    iccid_1 = (m.get("iccid_1") or {}).get("value") or ""
+                if not eid_0:
+                    eid_0 = (m.get("eid_0") or {}).get("value") or ""
+                if not eid_1:
+                    eid_1 = (m.get("eid_1") or {}).get("value") or ""
+
+        entry = per_snr.setdefault(snr, {
+            "snr": snr,
+            "personalized_ok": False,
+            "device_id": "",
+            "pub_key_b64": "",
+            "imei": "",
+            "iccid_0": "",
+            "iccid_1": "",
+            "eid_0": "",
+            "eid_1": "",
+            "last_target_id": t.id,
+            "last_target_error": getattr(t, "errorMessage", None) or "",
+            "last_started_at": started_at,
+        })
+        # Merge: keep "ever personalized" and the best-available field values.
+        entry["personalized_ok"] = entry["personalized_ok"] or personalized_ok
+        for field, val in (("device_id", device_id), ("pub_key_b64", pub_key_b64),
+                           ("imei", imei),
+                           ("iccid_0", iccid_0), ("iccid_1", iccid_1),
+                           ("eid_0", eid_0), ("eid_1", eid_1)):
+            if val and not entry[field]:
+                entry[field] = val
+        # Track the latest attempt for the fallback failure reason.
+        if started_at >= entry["last_started_at"]:
+            entry["last_started_at"] = started_at
+            entry["last_target_id"] = t.id
+            entry["last_target_error"] = getattr(t, "errorMessage", None) or ""
+
+    REQUIRED = ("device_id", "pub_key_b64", "imei", "iccid_0", "iccid_1")
+    successful: list[dict] = []
+    failed: list[dict] = []
+    for snr, entry in sorted(per_snr.items()):
+        if entry["personalized_ok"] and all(entry[f] for f in REQUIRED):
+            successful.append(entry)
+        else:
+            # Reason: first failed step of the latest attempt, else target error, else generic.
+            step_info = first_failed_by_target.get(entry["last_target_id"])
+            if step_info and step_info[1]:
+                reason = f"{step_info[0]}: {step_info[1]}"
+            elif step_info:
+                reason = step_info[0]
+            elif entry["last_target_error"]:
+                reason = entry["last_target_error"].splitlines()[0][:200]
+            else:
+                missing = [f for f in REQUIRED if not entry[f]]
+                reason = (
+                    f"Incomplete info: missing {', '.join(missing)}"
+                    if missing else "Personalization never completed"
+                )
+            failed.append({"snr": snr, "reason": reason})
+
+    return _build_zip_response(session, successful, failed)
+
+
+def _resolve_carrier_for_iccid(iccid: str) -> str | None:
+    """Return the carrier name for an ICCID, or None if no known prefix matches.
+
+    Imports the canonical CARRIER_PREFIXES table from corekinect so the
+    backend stays in lockstep with the test framework's SIM
+    classifier — adding a new carrier prefix in
+    libs/python/corekinect/utils/device/identifiers.py automatically
+    surfaces a new per-carrier activation CSV here.
+    """
+    if not iccid:
+        return None
+    try:
+        from corekinect.utils.device.identifiers import CARRIER_PREFIXES
+    except Exception:
+        return None
+    for prefix, name in CARRIER_PREFIXES.items():
+        if iccid.startswith(prefix):
+            return name
+    return None
+
+
+def _build_zip_response(session, successful: list[dict], failed: list[dict]):
+    """Bundle the report CSVs into an in-memory zip and return as a Flask Response.
+
+    Always produces:
+      1_failed_snrs.csv
+      2_successful_snrs.csv
+      3_successful_full_info.csv
+      4_device_imei_iccid.csv
+
+    Plus one ``N_activation_<carrier>.csv`` per UNIQUE carrier observed
+    in the successful entries' ICCIDs (both iccid_0 and iccid_1 are
+    classified, deduplicated, and grouped). Carriers are emitted in
+    alphabetical order, numbered starting at 5. Unknown-prefix ICCIDs
+    are dropped (and visible in 4_device_imei_iccid.csv as the raw
+    string for the operator to investigate).
+    """
+    # 1_failed_snrs.csv
+    csv1 = _csv_bytes(["snr", "reason"], [[f["snr"], f["reason"]] for f in failed])
+    # 2_successful_snrs.csv
+    csv2 = _csv_bytes(["snr"], [[s["snr"]] for s in successful])
+    # 3_successful_full_info.csv — EIDs appended after ICCIDs in SIM-slot order
+    csv3 = _csv_bytes(
+        ["snr", "device_id", "pub_key_hex", "pub_key_base64",
+         "imei", "iccid1", "iccid2", "eid1", "eid2"],
+        [[s["snr"], s["device_id"], _pub_key_hex(s["pub_key_b64"]), s["pub_key_b64"],
+          s["imei"], s["iccid_0"], s["iccid_1"],
+          s.get("eid_0", ""), s.get("eid_1", "")] for s in successful],
+    )
+    # 4_device_imei_iccid.csv — only successful rows have all fields; EIDs appended.
+    csv4 = _csv_bytes(
+        ["device_id", "imei", "iccid1", "iccid2", "eid1", "eid2"],
+        [[s["device_id"], s["imei"], s["iccid_0"], s["iccid_1"],
+          s.get("eid_0", ""), s.get("eid_1", "")] for s in successful],
+    )
+
+    # Per-carrier activation CSVs. Each (imei, iccid) pair is filed
+    # under the carrier whose IIN prefix matches the iccid. A device
+    # with two SIMs lands once in EACH of its two carriers' files —
+    # carriers are activated independently. Pairs are deduped per
+    # carrier so re-personalized devices don't double-list.
+    by_carrier: dict[str, list[tuple[str, str]]] = {}
+    for s in successful:
+        for iccid_field in ("iccid_0", "iccid_1"):
+            iccid = s.get(iccid_field, "")
+            carrier = _resolve_carrier_for_iccid(iccid)
+            if not carrier:
+                continue
+            by_carrier.setdefault(carrier, []).append((s["imei"], iccid))
+    carrier_files: list[tuple[str, bytes]] = []
+    for idx, carrier in enumerate(sorted(by_carrier.keys()), start=5):
+        # dedupe (imei, iccid) pairs while preserving insertion order
+        seen: set[tuple[str, str]] = set()
+        rows: list[list[str]] = []
+        for pair in by_carrier[carrier]:
+            if pair in seen:
+                continue
+            seen.add(pair)
+            rows.append(list(pair))
+        safe_name = re.sub(r"[^a-z0-9_-]", "_", carrier.lower())
+        fname = f"{idx}_activation_{safe_name}.csv"
+        carrier_files.append((fname, _csv_bytes(["imei", "iccid"], rows)))
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("1_failed_snrs.csv", csv1)
+        z.writestr("2_successful_snrs.csv", csv2)
+        z.writestr("3_successful_full_info.csv", csv3)
+        z.writestr("4_device_imei_iccid.csv", csv4)
+        for fname, data in carrier_files:
+            z.writestr(fname, data)
+    buf.seek(0)
+
+    # Filename: <product>-<session-id-short>-<YYYYMMDD>.zip
+    product = re.sub(r"[^A-Za-z0-9_-]", "_", (session.product.name if session.product else "session"))
+    date = session.startedAt.strftime("%Y%m%d") if session.startedAt else "session"
+    filename = f"manufacturing-{product.lower()}-{date}-{session.id[-6:]}.zip"
+
+    resp = Response(buf.getvalue(), mimetype="application/zip")
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    resp.headers["X-Report-Successful"] = str(len(successful))
+    resp.headers["X-Report-Failed"] = str(len(failed))
+    return resp

@@ -1,0 +1,150 @@
+{{- if .Values.buildService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: concord-build-service
+  labels:
+    {{- include "concord.labels" . | nindent 4 }}
+    {{- include "concord.buildService.selectorLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.buildService.replicas | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "concord.buildService.selectorLabels" . | nindent 6 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        {{- include "concord.labels" . | nindent 8 }}
+        {{- include "concord.buildService.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        rollme: {{ randAlphaNum 10 | quote }}
+    spec:
+      terminationGracePeriodSeconds: 2400  # 40 min — builds take up to 30 min
+      initContainers:
+        - name: wait-for-api
+          image: busybox:1.36
+          command: ['sh', '-c', 'until wget -qO- http://concord-http-api:9001/v2/docs >/dev/null 2>&1; do echo "Waiting for http-api..."; sleep 3; done']
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
+      containers:
+        - name: build-service
+          image: "{{ .Values.buildService.image.repository }}:{{ .Values.buildService.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy | default "IfNotPresent" }}
+          command: ["python3", "-u", "-m", "src.main"]
+          securityContext:
+            privileged: true
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "curl -sf -X POST http://localhost:9002/drain || true"]
+          env:
+            - name: CONCORD_API_URL
+              value: "http://concord-http-api:9001"
+            - name: CONCORD_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: concord-build-service-secrets
+                  key: api-key
+            - name: BUILD_SERVICE_PORT
+              value: "9002"
+            - name: POLL_INTERVAL
+              value: "60"
+            - name: WORKER_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            # Dynamic container builder — reads image from repo devcontainer.json
+            - name: BUILDER_MODE
+              value: "docker"
+            - name: DEFAULT_BUILDER_IMAGE
+              value: "containers.ad.corekinect.com/ncs-fw-dev:2.7.0"
+            - name: BUILDER_NETWORK
+              value: "host"
+            - name: BUILDER_TIMEOUT
+              value: "1800"
+            - name: WORKSPACE_DIR
+              value: "/tmp/builds"
+            # In K8s, builder containers share workspace via hostPath
+            # The build service and builder containers both see /tmp/concord-builds on the host
+            - name: WORKSPACE_VOLUME
+              value: ""
+            - name: CCACHE_VOLUME
+              value: ""
+            - name: WORKSPACE_HOST_PATH
+              value: "/tmp/concord-builds"
+            - name: CCACHE_HOST_PATH
+              value: "/tmp/concord-ccache"
+            - name: SSH_KEY_PATH
+              value: "/home/appuser/.ssh/id_rsa"
+            - name: BITBUCKET_SSH_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: bitbucket-ssh-key
+                  key: ssh-private-key
+                  optional: true
+          ports:
+            - containerPort: 9002
+              name: http
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 9002
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 9002
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: {{ .Values.buildService.resources.requests.cpu | default "500m" | quote }}
+              memory: {{ .Values.buildService.resources.requests.memory | default "512Mi" | quote }}
+            limits:
+              cpu: {{ .Values.buildService.resources.limits.cpu | default "2" | quote }}
+              memory: {{ .Values.buildService.resources.limits.memory | default "2Gi" | quote }}
+          volumeMounts:
+            - name: docker-socket
+              mountPath: /var/run/docker.sock
+            - name: ssh-key
+              mountPath: /home/appuser/.ssh
+              readOnly: true
+            - name: workspace
+              mountPath: /tmp/builds
+            - name: ccache
+              mountPath: /ccache
+      volumes:
+        - name: docker-socket
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket
+        - name: ssh-key
+          secret:
+            secretName: bitbucket-ssh-key
+            defaultMode: 0444
+            items:
+              - key: ssh-private-key
+                path: id_rsa
+        - name: workspace
+          hostPath:
+            path: /tmp/concord-builds
+            type: DirectoryOrCreate
+        - name: ccache
+          hostPath:
+            path: /tmp/concord-ccache
+            type: DirectoryOrCreate
+      {{- include "concord.workloadNodeSelector" (dict "workload" "build" "extra" .Values.buildService.nodeSelector) | nindent 6 }}
+{{- end }}

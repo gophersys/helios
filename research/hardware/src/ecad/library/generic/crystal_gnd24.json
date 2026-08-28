@@ -1,0 +1,64 @@
+{
+  "class_name": "Crystal_GND24",
+  "datasheet": "",
+  "default_value": "40MHz",
+  "description": "Four pin crystal, GND on pins 2 and 4",
+  "evidence_summary": {
+    "agreed": 1,
+    "claims": 2,
+    "conflicts": 0,
+    "datasheet": "none - ingested without a datasheet",
+    "single_source": 1,
+    "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "unverified": 0,
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "Crystal",
+    "name": "Crystal_SMD_3225-4Pin_3.2x2.5mm",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "d07952c0ec03247cacdf81f1049059fe884818dab6ba7d97233c7ad4e3e4aca9",
+    "md_sha256": "edf7e387198758d7f0dad524b1f1d57627ba2c7b7683102b587b7cf1e144c93d",
+    "py_sha256": "ceb1ceefcc5f693e8a2d93c2880e294205c7e42cb3971594b313af2a5f11b95a"
+  },
+  "id": "crystal_gnd24",
+  "lib_id": "Device:Crystal_GND24",
+  "part_name": "Crystal_GND24",
+  "pin_count": 4,
+  "provenance": {
+    "datasheet": "none - ingested without a datasheet",
+    "evidence_mode": "2-source: official symbol pins x installed footprint pads",
+    "footprint_has_step": true,
+    "footprint_is_default_only": true,
+    "footprint_source": "PackageSpec(family='Crystal_SMD_3225-4Pin_3.2x2.5mm')",
+    "ingest": "src/ecad/ingest/library_parts.py",
+    "notes": [
+      "Pads 2 and 4 are the can/shield ground (named 'G' in the symbol), pads 1 and 3 the resonator terminals."
+    ],
+    "official_symbol": "Device:Crystal_GND24",
+    "pin_source": "official-symbol",
+    "synthesized_pin_names": []
+  },
+  "source_hashes": {
+    "footprint_sha256": "7648bca15399a8bd7856b5da6a1d2bc3a87049dc63958f8e8a3ab7409941a8e4",
+    "pdf_sha256": "",
+    "symbol_sha256": "8e029f1986f0cf8b7de84657d60df0a1c0575aa2b90032901c0d5336e413cf71"
+  },
+  "sourcing": null,
+  "unit_plan": [
+    {
+      "name": "Crystal_GND24",
+      "pads": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    }
+  ]
+}

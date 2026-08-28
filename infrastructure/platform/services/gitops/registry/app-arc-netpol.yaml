@@ -1,0 +1,23 @@
+# NetworkPolicy floor for the arc-runners namespace (the runner scale set itself
+# is Helm-deployed by app-arc-runners-org.yaml; this raw-manifest Application
+# carries the policy objects the chart doesn't manage).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-netpol
+  namespace: argocd
+spec:
+  project: ci
+  source:
+    repoURL: https://github.com/gophersys/infrastructure.git
+    targetRevision: main
+    path: platform/services/ci/arc-runners
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-runners
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,42 @@
+{
+  "name": "libs",
+  "$schema": "node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "tags": ["scope:shared", "type:libs"],
+  "targets": {
+    "status": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh status",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "validate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh validate",
+        "cwd": "{projectRoot}"
+      },
+      "cache": true,
+      "inputs": [
+        "{projectRoot}/ctl.sh",
+        "{projectRoot}/project.json",
+        "{projectRoot}/**/ctl.sh",
+        "{projectRoot}/**/project.json",
+        "{projectRoot}/**/_ctl/*.sh",
+        "{projectRoot}/**/*_test.sh",
+        "{projectRoot}/.golangci.yml",
+        "{projectRoot}/**/testdata/**/*"
+      ]
+    },
+    "propagate": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "bash ./ctl.sh propagate",
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    }
+  }
+}

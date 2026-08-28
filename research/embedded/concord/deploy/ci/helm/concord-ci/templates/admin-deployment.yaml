@@ -1,0 +1,92 @@
+{{- if .Values.admin.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: concord-ci-admin
+  labels:
+    {{- include "concord-ci.labels" . | nindent 4 }}
+    {{- include "concord-ci.admin.selectorLabels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.admin.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      {{- include "concord-ci.admin.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "concord-ci.labels" . | nindent 8 }}
+        {{- include "concord-ci.admin.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- include "concord-ci.nodeSelector" . | nindent 6 }}
+      terminationGracePeriodSeconds: 15
+      containers:
+        - name: admin
+          image: "{{ .Values.admin.image.repository }}:{{ .Values.admin.image.tag }}"
+          imagePullPolicy: {{ .Values.global.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.admin.port }}
+          env:
+            - name: PORT
+              value: {{ .Values.admin.port | quote }}
+            - name: CI_DATA_DIR
+              value: "/data"
+            - name: MINIO_ENDPOINT
+              value: {{ include "concord-ci.minioEndpoint" . | quote }}
+            - name: MINIO_BUCKET
+              value: {{ .Values.config.minioBucket | quote }}
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: concord-ci-secrets
+                  key: MINIO_ACCESS_KEY
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: concord-ci-secrets
+                  key: MINIO_SECRET_KEY
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          resources:
+            {{- toYaml .Values.admin.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.admin.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.admin.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 30
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: concord-ci-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: concord-ci-admin
+  labels:
+    {{- include "concord-ci.labels" . | nindent 4 }}
+    {{- include "concord-ci.admin.selectorLabels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "concord-ci.admin.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.admin.port }}
+      targetPort: {{ .Values.admin.port }}
+{{- end }}

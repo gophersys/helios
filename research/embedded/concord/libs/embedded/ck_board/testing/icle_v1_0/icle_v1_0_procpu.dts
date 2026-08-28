@@ -1,0 +1,240 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * CoreKinect ICLE v1.0 - In-Circuit Loop-back Equipment
+ *
+ * Hardware: ESP32-WROOM-32 based test fixture
+ * Peripherals:
+ *   - INA209AIPW current monitor (I2C @ 0x40)
+ *   - TPS63021DSJ voltage regulator
+ *   - Micro SD card (SPI)
+ *   - CP2102N USB-UART converter
+ *   - 2x NTB0104BQ UART level shifters (DUT UARTs)
+ *   - 4-line MUX control
+ *   - P-FET gate for power switching
+ *   - Status LEDs (Green, Red)
+ */
+/dts-v1/;
+
+#include <espressif/esp32/esp32_wroom_32ue_n4.dtsi>
+#include "icle_v1_0-pinctrl.dtsi"
+#include <zephyr/dt-bindings/input/input-event-codes.h>
+
+/ {
+	model = "CoreKinect ICLE v1.0";
+	compatible = "corekinect,icle-v1-0", "espressif,esp32";
+
+	aliases {
+		uart-0 = &uart0;
+		uart-1 = &uart1;
+		uart-2 = &uart2;
+		i2c-0 = &i2c0;
+		watchdog0 = &wdt0;
+		led0 = &led_green;
+		led1 = &led_red;
+		sw0 = &button_boot;
+	};
+
+	chosen {
+		zephyr,sram = &sram0;
+		zephyr,console = &uart0;
+		zephyr,shell-uart = &uart0;
+		zephyr,flash = &flash0;
+		zephyr,code-partition = &slot0_partition;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+
+		led_green: led_green {
+			gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+			label = "Green LED";
+		};
+
+		led_red: led_red {
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;  /* GPIO32 area */
+			label = "Red LED";
+		};
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+
+		button_boot: button_boot {
+			gpios = <&gpio0 0 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+			label = "BOOT Button";
+			zephyr,code = <INPUT_KEY_0>;
+		};
+	};
+
+	/* ICLE-specific GPIO controls */
+	icle_controls {
+		compatible = "gpio-keys";
+
+		/* MUX control lines */
+		mux0: mux0 {
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+			label = "MUX0";
+		};
+
+		mux1: mux1 {
+			gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;
+			label = "MUX1";
+		};
+
+		mux2: mux2 {
+			gpios = <&gpio0 23 GPIO_ACTIVE_HIGH>;
+			label = "MUX2";
+		};
+
+		/* Power FET gate control */
+		pfet_gate: pfet_gate {
+			gpios = <&gpio0 19 GPIO_ACTIVE_LOW>;
+			label = "PFET Gate";
+		};
+
+		/* ADC inhibit */
+		adc_inh: adc_inh {
+			gpios = <&gpio1 0 GPIO_ACTIVE_HIGH>;  /* GPIO32 */
+			label = "ADC Inhibit";
+		};
+	};
+
+	/* SD Card chip select */
+	sdhc0_cs: sdhc0_cs {
+		compatible = "gpio-keys";
+		sd_cs: sd_cs {
+			gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;
+			label = "SD Card CS";
+		};
+	};
+};
+
+&cpu0 {
+	clock-frequency = <ESP32_CLK_CPU_240M>;
+	cpu-power-states = <&light_sleep &deep_sleep>;
+};
+
+&cpu1 {
+	clock-frequency = <ESP32_CLK_CPU_240M>;
+};
+
+/* Console UART via CP2102N USB-UART */
+&uart0 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart0_default>;
+	pinctrl-names = "default";
+};
+
+/* DUT UART 1 via NTB0104BQ level shifter */
+&uart1 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart1_default>;
+	pinctrl-names = "default";
+};
+
+/* DUT UART 2 via NTB0104BQ level shifter */
+&uart2 {
+	status = "okay";
+	current-speed = <115200>;
+	pinctrl-0 = <&uart2_default>;
+	pinctrl-names = "default";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+/* I2C bus for INA209 current monitor */
+&i2c0 {
+	status = "okay";
+	clock-frequency = <I2C_BITRATE_STANDARD>;
+	sda-gpios = <&gpio0 21 GPIO_OPEN_DRAIN>;
+	scl-gpios = <&gpio0 22 GPIO_OPEN_DRAIN>;
+	pinctrl-0 = <&i2c0_default>;
+	pinctrl-names = "default";
+
+	/* INA209AIPW current/power monitor */
+	ina209: ina209@40 {
+		compatible = "ti,ina219";  /* Compatible driver */
+		reg = <0x40>;
+		brng = <0>;       /* 16V bus voltage range */
+		pg = <3>;         /* +-320mV shunt voltage range */
+		sadc = <13>;      /* 12-bit, 532us */
+		badc = <13>;      /* 12-bit, 532us */
+		shunt-resistor = <100000>;  /* 100 mOhm in micro-ohms */
+	};
+};
+
+/* SPI for SD Card */
+&spi2 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	pinctrl-0 = <&spim2_default>;
+	pinctrl-names = "default";
+
+	sdhc0: sdhc@0 {
+		compatible = "zephyr,sdhc-spi-slot";
+		reg = <0>;
+		spi-max-frequency = <24000000>;
+		status = "okay";
+		mmc {
+			compatible = "zephyr,sdmmc-disk";
+			status = "okay";
+		};
+	};
+};
+
+&trng0 {
+	status = "okay";
+};
+
+/* WiFi - ESP32 built-in */
+&wifi {
+	status = "okay";
+};
+
+&flash0 {
+	status = "okay";
+	partitions {
+		compatible = "fixed-partitions";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		/* Reserve 60kB for the bootloader */
+		boot_partition: partition@1000 {
+			label = "mcuboot";
+			reg = <0x00001000 0x0000F000>;
+			read-only;
+		};
+
+		/* Reserve 1024kB for the application in slot 0 */
+		slot0_partition: partition@10000 {
+			label = "image-0";
+			reg = <0x00010000 0x00100000>;
+		};
+
+		/* Reserve 1024kB for the application in slot 1 */
+		slot1_partition: partition@110000 {
+			label = "image-1";
+			reg = <0x00110000 0x00100000>;
+		};
+
+		/* Reserve 256kB for the scratch partition */
+		scratch_partition: partition@210000 {
+			label = "image-scratch";
+			reg = <0x00210000 0x00040000>;
+		};
+
+		storage_partition: partition@250000 {
+			label = "storage";
+			reg = <0x00250000 0x00006000>;
+		};
+	};
+};

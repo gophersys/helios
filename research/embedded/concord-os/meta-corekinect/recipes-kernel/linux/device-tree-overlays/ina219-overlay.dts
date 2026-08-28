@@ -1,0 +1,256 @@
+/dts-v1/;
+/plugin/;
+
+/*
+ * Reserved I2C addresses on i2c4 (Verdin I2C_1):
+ * 0x21 - GPIO Expander (PCAL6416)
+ * 0x2C - LVDS Bridge (SN65DSI84)
+ * 0x40 - INA219 Current Sensor (hwmon)
+ * 0x48 - HDMI Bridge (LT8912)
+ * 0x49 - ADC
+ * 0x4A - Touch Controller (Atmel MaxTouch)
+ * 0x4F - Temperature Sensor (TMP75C)
+ * 0x50 - Display Adapter EEPROM
+ * 0x57 - Carrier Board EEPROM
+ *
+ * From i2cdetect, these addresses show as in use (UU):
+ * 0x40, 0x49, 0x4F, 0x50, 0x57
+ */
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/interrupt-controller/irq.h>
+
+/ {
+	compatible = "toradex,verdin-imx8mm";
+};
+
+// Enable &i2c2
+&i2c4 {   
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+	
+	ina219@40 {
+		compatible = "ti,ina219";
+		reg = <0x40>;
+		status = "okay";
+		shunt-resistor = <100000>;
+		vdd-supply = <&reg_vdd_3v3>;
+		vddio-supply = <&reg_vdd_3v3>;
+	};
+
+	ina219@41 {
+		compatible = "ti,ina219";
+		reg = <0x41>;
+		status = "okay";
+		shunt-resistor = <100000>;
+		vdd-supply = <&reg_vdd_3v3>;
+		vddio-supply = <&reg_vdd_3v3>;
+	}; 
+
+	accel@19 {
+		compatible = "st,lis2de12";
+		reg = <0x19>;
+		status = "okay";
+		vdd-supply = <&reg_vdd_3v3>;
+		vddio-supply = <&reg_vdd_3v3>;
+	};
+
+	adc@48 {
+		compatible = "ti,ads1115";
+		reg = <0x48>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#io-channel-cells = <1>;
+
+		/* Verdin I2C_1 (ADC_4 - ADC_3) */
+		channel@0 {
+			reg = <0>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 (ADC_4 - ADC_1) */
+		channel@1 {
+			reg = <1>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 (ADC_3 - ADC_1) */
+		channel@2 {
+			reg = <2>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 (ADC_2 - ADC_1) */
+		channel@3 {
+			reg = <3>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_4 */
+		channel@4 {
+			reg = <4>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_3 */
+		channel@5 {
+			reg = <5>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_2 */
+		channel@6 {
+			reg = <6>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_1 */
+		channel@7 {
+			reg = <7>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+	};
+
+	adc@49 {
+		compatible = "ti,ads1115";
+		reg = <0x49>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#io-channel-cells = <1>;
+
+		/* Verdin I2C_1 (ADC_4 - ADC_3) */
+		channel@0 {
+			reg = <0>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 (ADC_4 - ADC_1) */
+		channel@1 {
+			reg = <1>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 (ADC_3 - ADC_1) */
+		channel@2 {
+			reg = <2>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 (ADC_2 - ADC_1) */
+		channel@3 {
+			reg = <3>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_4 */
+		channel@4 {
+			reg = <4>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_3 */
+		channel@5 {
+			reg = <5>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_2 */
+		channel@6 {
+			reg = <6>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_1 */
+		channel@7 {
+			reg = <7>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+	};
+};
+
+&i2c3 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	adc@48 {
+		compatible = "ti,ads1115";
+		reg = <0x48>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		#io-channel-cells = <1>;
+
+		/* Verdin I2C_1 (ADC_4 - ADC_3) */
+		channel@0 {
+			reg = <0>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 (ADC_4 - ADC_1) */
+		channel@1 {
+			reg = <1>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 (ADC_3 - ADC_1) */
+		channel@2 {
+			reg = <2>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 (ADC_2 - ADC_1) */
+		channel@3 {
+			reg = <3>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_4 */
+		channel@4 {
+			reg = <4>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_3 */
+		channel@5 {
+			reg = <5>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_2 */
+		channel@6 {
+			reg = <6>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+
+		/* Verdin I2C_1 ADC_1 */
+		channel@7 {
+			reg = <7>;
+			ti,datarate = <4>;
+			ti,gain = <2>;
+		};
+	};
+};

@@ -1,0 +1,24 @@
+# AppProject: apps — RESERVED for Mateo's own codebases (future).
+#
+# Argo CD is the single deploy control-plane for everything, not just the media
+# stack. When you want to deploy your own applications through GitOps, they live
+# here — sourced from your own repos, deployed into `apps-*` namespaces, fully
+# isolated from `platform` and `media`. Nothing uses this project yet; it exists
+# so adding your codebases later is additive, not a refactor.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: apps
+  namespace: argocd
+spec:
+  description: "RESERVED — Mateo's own codebases (own repos → apps-* namespaces)"
+  sourceRepos:
+    - https://github.com/gophersys/*
+  destinations:
+    - namespace: apps-*
+      server: https://kubernetes.default.svc
+    - namespace: eden               # the Eden platform (apps/eden — backing stack, RBAC, seed, ingress)
+      server: https://kubernetes.default.svc
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

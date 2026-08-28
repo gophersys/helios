@@ -1,0 +1,38 @@
+{
+ "disagreements": [
+  {
+   "field": "constraints",
+   "values": {
+    "iG": "cellular:hard,usb-c:hard,zephyr-rtos:unknown",
+    "iH": "cellular:hard,usb-c:hard,zephyr rtos:unknown",
+    "iI": "cellular:hard,usb-c:hard,zephyr-rtos:unknown"
+   }
+  },
+  {
+   "field": "score.metric.viability.economics",
+   "values": {
+    "iG": "amber",
+    "iH": "unknown",
+    "iI": "unknown"
+   }
+  },
+  {
+   "field": "unknown_fields",
+   "values": {
+    "iG": "pir.constraints[zephyr-rtos].strength,pir.environment.limits",
+    "iH": "pir.constraints[zephyr rtos].strength,pir.environment.limits,pir.functions[sensing.tilt].rate.configurable,pir.targets.unit_cost.sell",
+    "iI": "pir.constraints[zephyr-rtos].strength,pir.environment.limits,pir.targets.unit_cost.sell"
+   }
+  },
+  {
+   "field": "verdict",
+   "values": {
+    "iG": "go",
+    "iH": "blocked",
+    "iI": "blocked"
+   }
+  }
+ ],
+ "unanimous": 32,
+ "total": 36
+}

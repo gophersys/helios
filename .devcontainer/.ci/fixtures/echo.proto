@@ -1,0 +1,17 @@
+// The fixture buf compiles and grpcurl reads back. One service, one method:
+// enough for a descriptor set that names something a check can look for.
+syntax = "proto3";
+
+package smoke.v1;
+
+message EchoRequest {
+  string text = 1;
+}
+
+message EchoResponse {
+  string text = 1;
+}
+
+service EchoService {
+  rpc Echo(EchoRequest) returns (EchoResponse);
+}

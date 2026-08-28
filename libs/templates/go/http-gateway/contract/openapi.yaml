@@ -1,0 +1,277 @@
+# http-gateway OpenAPI contract — GENERATED, DO NOT EDIT BY HAND (ADR-0023; OD-16-openapi=go-first-emit).
+#
+# This file is EMITTED from the five-file route packages' Go Request/Response types by
+# tools/openapi (`bash ./ctl.sh openapi`). The Go routes are the authoring surface; this YAML
+# is their projection — edit a route's types and re-emit, never edit here. `bash ./ctl.sh
+# verify-openapi` fails CI if this file drifts from the routes; `bash ./ctl.sh gen-client` emits
+# the typed Go client from it (clients/go), which the integration lane drives through the handlers.
+openapi: 3.0.3
+info:
+  title: http-gateway
+  version: 0.1.0
+  description: >-
+    An Eden http-gateway application (ADR-0023). The contract is EMITTED from the Go route types
+    (go-first-emit); sqlc/pgx data layer; the 5-files-per-route handler pipeline; behind the
+    edenhttp dev-JWT identity gate.
+servers:
+  - url: /v1
+    description: The versioned API surface (mounted behind the authentication Middleware).
+security:
+  - bearerAuth: []
+paths:
+  /ping:
+    get:
+      operationId: ping
+      summary: "Authenticated round-trip probe — echoes the caller's subject and a server timestamp."
+      description: "Requires the `ping:read` grant. Proves the authenticated request pipeline end to end (authenticate -> authorize -> execute)."
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_PingPayload"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `ping:read` grant.
+  /resources:
+    post:
+      operationId: createResource
+      summary: "Create a resource."
+      description: "Requires the `resource:create` grant. Mints the resource id server-side and returns the persisted resource at 201."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateResourceRequest"
+      responses:
+        "201":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_Resource"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `resource:create` grant.
+    get:
+      operationId: listResources
+      summary: "List resources (paginated, newest-first)."
+      description: "Requires the `resource:read` grant. Returns a page of resources with the resolved limit/offset window."
+      parameters:
+        - in: query
+          name: limit
+          required: false
+          description: "Page size (default 50, max 200)."
+          schema:
+            type: integer
+        - in: query
+          name: offset
+          required: false
+          description: "Page offset (0-based)."
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_ListResourcesPayload"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `resource:read` grant.
+  /resources/{id}:
+    get:
+      operationId: getResource
+      summary: "Get a resource by id."
+      description: "Requires the `resource:read` grant. A missing resource is a 404."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: "The resource id (a uuid)."
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_Resource"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `resource:read` grant.
+        "404":
+          description: The resource does not exist.
+    put:
+      operationId: updateResource
+      summary: "Update a resource's name."
+      description: "Requires the `resource:update` grant. A missing resource is a 404."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: "The resource id (a uuid)."
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateResourceRequest"
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_Resource"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `resource:update` grant.
+        "404":
+          description: The resource does not exist.
+    delete:
+      operationId: deleteResource
+      summary: "Delete a resource by id."
+      description: "Requires the `resource:delete` grant. A delete of an absent resource is a 404 (never a silent success)."
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: "The resource id (a uuid)."
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Envelope_DeleteResourcePayload"
+        "401":
+          description: Missing or invalid bearer token (the gateway is behind auth even locally).
+        "403":
+          description: The caller does not hold the `resource:delete` grant.
+        "404":
+          description: The resource does not exist.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    CreateResourceRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+    DeleteResourcePayload:
+      type: object
+      required: [id]
+      properties:
+        id:
+          type: string
+    Envelope_DeleteResourcePayload:
+      type: object
+      description: "The uniform edenhttp success Envelope wrapping the resource payload."
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/DeleteResourcePayload"
+        errors:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+    Envelope_ListResourcesPayload:
+      type: object
+      description: "The uniform edenhttp success Envelope wrapping the resource payload."
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/ListResourcesPayload"
+        errors:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+    Envelope_PingPayload:
+      type: object
+      description: "The uniform edenhttp success Envelope wrapping the resource payload."
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/PingPayload"
+        errors:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+    Envelope_Resource:
+      type: object
+      description: "The uniform edenhttp success Envelope wrapping the resource payload."
+      required: [data]
+      properties:
+        data:
+          $ref: "#/components/schemas/Resource"
+        errors:
+          type: array
+          items:
+            type: string
+        kind:
+          type: string
+    ListResourcesPayload:
+      type: object
+      required: [items, limit, offset]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Resource"
+        limit:
+          type: integer
+          format: int32
+        offset:
+          type: integer
+          format: int32
+    PingPayload:
+      type: object
+      required: [observedAt, subject]
+      properties:
+        subject:
+          type: string
+        observedAt:
+          type: string
+    Resource:
+      type: object
+      required: [createdAt, id, name, updatedAt]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+    UpdateResourceRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string

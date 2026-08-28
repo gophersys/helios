@@ -1,0 +1,62 @@
+{
+  "class_name": "LED",
+  "datasheet": "",
+  "default_value": "LED",
+  "description": "Light emitting diode",
+  "evidence_summary": {
+    "agreed": 1,
+    "claims": 2,
+    "conflicts": 0,
+    "datasheet": "none - ingested without a datasheet",
+    "single_source": 1,
+    "source_mode": "2-source: official symbol pins x installed footprint pads",
+    "unverified": 0,
+    "waived": 0
+  },
+  "footprint": {
+    "lib": "LED_SMD",
+    "name": "LED_0603_1608Metric",
+    "path": null,
+    "source": "kicad"
+  },
+  "generated": {
+    "codegen_version": 1,
+    "generator": "src/ecad/ingest/codegen.py",
+    "kicad_sym_sha256": "1d09c50ab1c42ef8e91de38ca0d11c7613a267d04150d5393712cb179a4392c5",
+    "md_sha256": "e83d32df0ee3510f54565a80a85de5e766a820b1e523f11b638cf6ead5b970b9",
+    "py_sha256": "f104faf044f110e773a070c09781bdf03b09bef18440135bcc8bb639b0804f4f"
+  },
+  "id": "led",
+  "lib_id": "Device:LED",
+  "part_name": "LED",
+  "pin_count": 2,
+  "provenance": {
+    "datasheet": "none - ingested without a datasheet",
+    "evidence_mode": "2-source: official symbol pins x installed footprint pads",
+    "footprint_has_step": true,
+    "footprint_is_default_only": true,
+    "footprint_source": "PackageSpec(family='LED_0603')",
+    "ingest": "src/ecad/ingest/library_parts.py",
+    "notes": [
+      "POLARITY: pad 1 = K (cathode), pad 2 = A (anode). Both names come from the installed symbol, not from this ingest \u2014 wire by name (led.A / led.K), never by position."
+    ],
+    "official_symbol": "Device:LED",
+    "pin_source": "official-symbol",
+    "synthesized_pin_names": []
+  },
+  "source_hashes": {
+    "footprint_sha256": "7931ed1efba34cb13c8d74a60eb1dca4b0be57d950c38e08c3e7f007db500a1c",
+    "pdf_sha256": "",
+    "symbol_sha256": "04ad062aef5b21b6583671de7f6a1eb0ab8248a6ca4627555ffe464b5a633844"
+  },
+  "sourcing": null,
+  "unit_plan": [
+    {
+      "name": "LED",
+      "pads": [
+        "1",
+        "2"
+      ]
+    }
+  ]
+}

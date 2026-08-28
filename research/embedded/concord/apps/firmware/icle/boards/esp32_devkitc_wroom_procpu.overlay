@@ -1,0 +1,89 @@
+/*
+ * SPDX-License-Identifier: Apache-2.0
+ * ICLE overlay for ESP32 DevKitC WROOM
+ * Enables WiFi and adds ICLE-specific GPIO definitions
+ */
+
+/* Enable WiFi */
+&wifi {
+	status = "okay";
+};
+
+/* ICLE-specific GPIO controls - add as aliases since this board
+ * doesn't have the custom ICLE DTS. These map to safe GPIOs for testing.
+ */
+/ {
+	aliases {
+		led0 = &led_status;
+		led1 = &led_status;  /* Map both to same LED on devkit */
+		sw0 = &user_button;  /* Main button for ICLE control */
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		led_status: led_status {
+			gpios = <&gpio0 2 GPIO_ACTIVE_HIGH>;  /* Built-in LED on devkit */
+			label = "Status LED";
+		};
+	};
+
+	buttons {
+		compatible = "gpio-keys";
+		user_button: user_button {
+			gpios = <&gpio0 0 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;  /* BOOT button on GPIO0 */
+			label = "User Button";
+			zephyr,code = <0>;
+		};
+	};
+
+	/* Placeholder GPIO controls for testing on devkit */
+	icle_controls {
+		compatible = "gpio-keys";
+
+		mux0: mux0 {
+			gpios = <&gpio0 15 GPIO_ACTIVE_HIGH>;
+			label = "MUX0";
+		};
+
+		mux1: mux1 {
+			gpios = <&gpio0 4 GPIO_ACTIVE_HIGH>;
+			label = "MUX1";
+		};
+
+		mux2: mux2 {
+			gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+			label = "MUX2";
+		};
+
+		pfet_gate: pfet_gate {
+			gpios = <&gpio0 17 GPIO_ACTIVE_LOW>;
+			label = "PFET Gate";
+		};
+
+		adc_inh: adc_inh {
+			gpios = <&gpio0 25 GPIO_ACTIVE_HIGH>;
+			label = "ADC Inhibit";
+		};
+	};
+
+};
+
+/* Configure VSPI (SPI3) for SD card */
+&spi3 {
+	status = "okay";
+	pinctrl-0 = <&spim3_default>;
+	pinctrl-names = "default";
+	cs-gpios = <&gpio0 5 GPIO_ACTIVE_LOW>;  /* GPIO5 as CS */
+
+	sdhc_slot: sdhc@0 {
+		compatible = "zephyr,sdhc-spi-slot";
+		reg = <0>;
+		status = "okay";
+		spi-max-frequency = <24000000>;
+		mmc {
+			compatible = "zephyr,sdmmc-disk";
+			disk-name = "SD";
+			status = "okay";
+		};
+	};
+};

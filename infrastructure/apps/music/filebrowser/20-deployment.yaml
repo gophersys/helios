@@ -1,0 +1,140 @@
+# Filebrowser — web UI to browse / download / upload media from any computer's
+# browser. Mounts the same storage the media stack writes to:
+#   /srv/downloads  <- qBittorrent's downloads (hostPath /mnt/media/downloads, read-only)
+#   /srv/media      <- /mnt/media on the node (the 100GB NVMe volume, read-write)
+#
+# Node pinning: explicit hostname pin to k3s-w-1 — both mounts are hostPaths
+# that only exist there. (Historically the pin was implicit via the RWO
+# qbittorrent-downloads PVC; that PVC became a hostPath on 2026-07-09, so the
+# pin must be explicit.) Downloads are mounted read-only so there's no chance
+# of racing qBit's writes.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: filebrowser
+  namespace: media
+  labels:
+    app: filebrowser
+    app.kubernetes.io/part-of: music
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: filebrowser
+  template:
+    metadata:
+      labels:
+        app: filebrowser
+        app.kubernetes.io/part-of: music
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: k3s-w-1
+      securityContext:
+        runAsUser: 0          # read files owned by qBit's abc(1000) + node root
+      initContainers:
+        # Bootstrap the admin user BEFORE the server starts — so the BoltDB is
+        # unlocked (no separate Job / lock-timeout dance) and the password is set
+        # deterministically from the filebrowser-admin Secret on every start
+        # (survives a PVC rebuild). Idempotent: update if admin exists, else add.
+        - name: bootstrap-admin
+          image: filebrowser/filebrowser:v2.31.2
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              DB=/database/filebrowser.db
+              [ -f "$DB" ] || /filebrowser config init -d "$DB"
+              if /filebrowser users ls -d "$DB" 2>/dev/null | grep -qw admin; then
+                /filebrowser users update admin --password "$(cat /secret/password)" -d "$DB"
+              else
+                /filebrowser users add admin "$(cat /secret/password)" --perm.admin -d "$DB"
+              fi
+              echo "filebrowser admin bootstrapped"
+          volumeMounts:
+            - { name: database, mountPath: /database }
+            - { name: secret, mountPath: /secret, readOnly: true }
+      containers:
+        - name: filebrowser
+          image: filebrowser/filebrowser:v2.31.2  # pinned: v2.63 "quantum" rewrite broke auth/config (login /api/login 403s CLI-set passwords)
+          env:
+            - name: FB_DATABASE
+              value: /database/filebrowser.db
+            - name: FB_ROOT
+              value: /srv
+            - name: FB_PORT
+              value: "80"
+            - name: FB_ADDRESS
+              value: 0.0.0.0
+            - name: FB_LOG
+              value: stdout
+          ports:
+            - name: fb
+              containerPort: 80
+          resources:
+            requests:
+              cpu: 25m
+              memory: 64Mi
+            limits:
+              memory: 256Mi
+          volumeMounts:
+            - name: database
+              mountPath: /database
+            - name: downloads
+              mountPath: /srv/downloads
+              readOnly: true
+            - name: media
+              mountPath: /srv/media
+        # ---------- cd-proxy: add an ASCII filename= fallback to downloads ----------
+        - name: cd-proxy
+          image: openresty/openresty:1.29.2.5-alpine
+          ports:
+            - name: http
+              containerPort: 8090
+          readinessProbe:
+            tcpSocket:
+              port: 8090
+            initialDelaySeconds: 3
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 10m
+              memory: 24Mi
+            limits:
+              memory: 64Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+              # openresty's root master chowns its temp dirs (CHOWN) and setuids
+              # its workers down to `nobody` (SETUID/SETGID) at startup — a bare
+              # drop-ALL makes it abort with "chown ... Operation not permitted".
+              # These 3 keep the unprivileged-worker posture while dropping ~35 others.
+              add: ["CHOWN", "SETUID", "SETGID"]
+            seccompProfile:
+              type: RuntimeDefault
+            # runAsNonRoot/readOnlyRootFilesystem deferred: openresty needs a
+            # writable pid/temp tree, which would need emptyDir wiring first.
+          volumeMounts:
+            - name: cd-proxy-conf
+              mountPath: /usr/local/openresty/nginx/conf/nginx.conf
+              subPath: nginx.conf
+      volumes:
+        - name: cd-proxy-conf
+          configMap:
+            name: filebrowser-cd-proxy
+        - name: database
+          persistentVolumeClaim:
+            claimName: filebrowser-config
+        - name: downloads
+          hostPath:
+            path: /mnt/media/downloads   # qBit's download dir (moved off the PVC 2026-07-09)
+            type: Directory
+        - name: media
+          hostPath:
+            path: /mnt/media
+            type: Directory
+        - name: secret
+          secret:
+            secretName: filebrowser-admin

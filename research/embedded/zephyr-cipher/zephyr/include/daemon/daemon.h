@@ -1,0 +1,219 @@
+#ifndef DAEMON_CONFIG_H
+#define DAEMON_CONFIG_H
+
+// Cipher includes
+#include <corekinect/cipher/config.h>
+#include <corekinect/cipher/iface.h>
+#include <corekinect/cipher/registry/rpc.h>
+#include <corekinect/cipher/registry/service.h>
+#include <corekinect/cipher/service/types.h>
+#include <corekinect/cipher/stream.h>
+
+#include "config/default.h"
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                          Stream state
+ *---------------------------------------------------------------------------------------------------*/
+
+/**
+ * @brief Per-daemon stream reassembly + completion state.
+ *
+ * Owned by the daemon (not file-scope globals) so multiple daemon instances in
+ * one image each track their own inbound stream independently.
+ */
+/**
+ * @brief Number of concurrent inbound stream reassemblies a daemon can track.
+ *
+ * Each in-flight (source_id, stream_id) transfer occupies one slot. A START
+ * from a new pair claims a free slot; when the pool is full the new START is
+ * dropped and logged rather than clobbering another peer's in-flight transfer.
+ */
+#define CIPHER_STREAM_MAX_CONCURRENT 4
+
+/**
+ * @brief One in-flight inbound stream reassembly, keyed by (source_id, stream_id).
+ */
+typedef struct {
+    bool in_progress;
+    uint16_t source_id;   /*!< Peer that sent START — owns this reassembly */
+    uint16_t stream_id;   /*!< Stream id (carried in header.service_id) */
+    uint32_t total_len;
+    uint32_t received_len;
+    uint32_t num_chunks;
+    uint32_t checksum;
+    int64_t start_time;
+} cipher_stream_rx_slot_t;
+
+typedef struct {
+    /* Fixed pool of concurrent inbound reassemblies. Each transfer is matched
+     * by BOTH source_id and stream_id, so interleaved streams from different
+     * peers (or different streams from one peer) no longer corrupt each other's
+     * reassembly or checksum. */
+    cipher_stream_rx_slot_t rx[CIPHER_STREAM_MAX_CONCURRENT];
+
+    cipher_stream_rx_stats_t last_rx;  /*!< Last completed stream, published to readers */
+    bool last_rx_valid;
+    uint32_t completion_id;            /*!< Monotonic id so readers can dedupe completions */
+    struct k_mutex mutex;              /*!< Guards rx[] + last_rx */
+
+    cipher_stream_rx_sink_t rx_sink;   /*!< Optional consumer of stream bytes (e.g. OTA) */
+    void *rx_sink_ctx;
+} cipher_stream_state_t;
+
+/*-----------------------------------------------------------------------------------------------------
+ *                                                                                               Deamon
+ *---------------------------------------------------------------------------------------------------*/
+
+/**
+ * @brief Object to encapsulate all service discovery functionality
+ */
+typedef struct {
+    k_tid_t t_id;
+    struct k_thread t_data;
+    K_KERNEL_STACK_MEMBER(t_stack, SD_THREAD_STACK_SIZE);
+
+    struct k_fifo packets_event_queue;
+
+    // TODO: Consolidate both queues below into a single event queue
+    struct k_fifo iface_conn_queue;  ///< Queue used by the service discovery thread to
+                                     ///< receive connected interface updates
+                                     ///< @param cipher_iface_t *
+                                     ///< @heap No heap, passing pointer
+
+    struct k_fifo iface_disconn_queue;  ///< Queue used by the service discovery thread to
+                                        ///< receive disconnected interface updates
+                                        ///< @param cipher_iface_t *
+                                        ///< @heap No heap, passing pointer
+
+} cipher_daemon_sd_info_t;
+
+typedef struct {
+    k_tid_t t_id;
+    struct k_thread t_data;
+    K_KERNEL_STACK_MEMBER(t_stack, RPC_THREAD_STACK_SIZE);
+
+    bool in_use;
+    struct k_fifo packets_event_queue;
+
+} cipher_rpc_worker_thread_t;
+
+/**
+ * @brief Object to encapsulate all remote procedure calls (RPC) functionality
+ */
+typedef struct {
+    k_tid_t t_id;
+    struct k_thread t_data;
+    K_KERNEL_STACK_MEMBER(t_stack, RPC_THREAD_STACK_SIZE);
+
+    struct k_fifo packets_event_queue;
+    struct k_fifo ctrl_event_queue;
+    struct k_fifo local_request_event_queue;
+
+    cipher_rpc_worker_thread_t workers[2];
+
+    struct k_heap heap;
+    uint8_t __aligned(8) heap_mem[CONFIG_RPC_EVENTS_HEAP_SIZE];
+} cipher_daemon_rpc_info_t;
+
+/**
+ * @brief Object to encapsulate the Cipher application daemon
+ */
+typedef struct cipher_daemon {
+    // user config
+    cipher_daemon_config_t *cfg;
+
+    // Device Unique Id
+    uint16_t device_id;
+
+    // Daemon Instance Id
+    uint8_t id;
+
+    /*-----------------------------------------------
+     *                                        Threads
+     *---------------------------------------------*/
+
+    k_tid_t ctrl_t_id;
+    struct k_thread ctrl_t_data;
+    K_KERNEL_STACK_MEMBER(ctrl_t_stack, CTRL_THREAD_STACK_SIZE);
+
+    k_tid_t event_t_id;
+    struct k_thread event_t_data;
+    K_KERNEL_STACK_MEMBER(event_t_stack, EVENT_THREAD_STACK_SIZE);
+
+    k_tid_t stream_t_id;
+    struct k_thread stream_t_data;
+    K_KERNEL_STACK_MEMBER(stream_t_stack, STREAM_THREAD_STACK_SIZE);
+
+    // Inbound-stream reassembly + last-completion state (per instance).
+    cipher_stream_state_t stream_state;
+
+    /*-----------------------------------------------
+     *                                         Ifaces
+     *---------------------------------------------*/
+
+    // Uplink thread groups
+    cipher_iface_thread_group_t uplink_t_g[CONFIG_CK_CIPHER_CLIENT_IFACE_COUNT];
+
+    // Downlink thread groups
+    cipher_iface_thread_group_t downlink_t_g[CONFIG_CK_CIPHER_SERVER_IFACE_COUNT];
+
+    /*-----------------------------------------------
+     *                                         Queues
+     *---------------------------------------------*/
+
+    // Controller
+    struct k_fifo ctrl_event_queue;
+    struct k_fifo admin_packet_queue;
+
+    // Events
+    struct k_fifo events_packet_event_queue;
+
+    // Streams
+    struct k_fifo stream_packet_event_queue;
+
+    cipher_daemon_sd_info_t sd;
+    cipher_daemon_rpc_info_t rpc;
+
+    /*-----------------------------------------------
+     *                                          Heaps
+     *---------------------------------------------*/
+
+    /**
+     * @brief Heap pool to send events to daemon controller thread
+     */
+    struct k_heap ctrl_events_heap;
+    uint8_t __aligned(8) ctrl_events_heap_mem[CONFIG_CTRL_EVENTS_HEAP_SIZE];
+
+    /**
+     * @brief Heap pool to receive and send network packets using send() and recv()
+     */
+    struct k_heap net_buffers_heap;
+    uint8_t __aligned(8) net_buffers_heap_mem[CONFIG_NET_PACKET_HEAP_SIZE];
+
+    /**
+     * @brief Heap pool to keep local deserialized packets ready for processing
+     */
+    struct k_heap local_packets_heap;
+    uint8_t __aligned(8) local_packets_heap_mem[CONFIG_LOCAL_PACKETS_HEAP_SIZE];
+
+    /**
+     * @brief Heap pool to keep partial packets stored, until the rest arrives on the network
+     */
+    struct k_heap partial_packets_heap;
+    uint8_t __aligned(8) net_partial_packets_heap_mem[CONFIG_NET_PART_PACKET_HEAP_SIZE];
+
+    /**
+     * @brief Heap pool to keep unrouted packets until they're routed on the network again
+     */
+    struct k_heap unrouted_packets_heap;
+    uint8_t __aligned(8) unrouted_packets_heap_mem[CONFIG_UNROUTED_PACKETS_HEAP_SIZE];
+
+    /*-----------------------------------------------
+     *                                     Registries
+     *---------------------------------------------*/
+    cipher_service_registry_t service_registry;
+    cipher_registry_rpc_t rpc_registry;
+
+} cipher_daemon_t;
+
+#endif  // DAEMON_CONFIG_H

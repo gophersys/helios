@@ -1,0 +1,181 @@
+{
+  "name": "build-service",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/backend/build-service/src",
+  "implicitDependencies": [
+    "protocols"
+  ],
+  "targets": {
+    "get-build-info": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "parallel": false,
+        "commands": [
+          "echo \"APP_VERSION=$(git describe --tags --always 2>/dev/null || echo dev)\"",
+          "echo \"GIT_COMMIT=$(git rev-parse --short=7 HEAD)\"",
+          "echo \"GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)\"",
+          "echo \"GIT_DIRTY=$([ -n \"$(git status --porcelain)\" ] && echo true || echo false)\"",
+          "echo \"BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)\"",
+          "echo \"BUILD_HOST=$(hostname)\""
+        ]
+      }
+    },
+    "build": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "dependsOn": [
+        "get-build-info"
+      ],
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "nx run build-service:containerize -c development"
+        },
+        "staging": {
+          "command": "nx run build-service:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run build-service:containerize -c production"
+        }
+      },
+      "cache": false
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "defaultConfiguration": "development",
+      "dependsOn": [
+        "protocols:create"
+      ],
+      "options": {
+        "file": "apps/backend/build-service/deploy/Dockerfile",
+        "context": "{workspaceRoot}",
+        "cwd": "{workspaceRoot}",
+        "push": false,
+        "load": true,
+        "build-args": [
+          "APP_VERSION",
+          "ENVIRONMENT",
+          "GIT_COMMIT",
+          "GIT_BRANCH",
+          "BUILD_TIME",
+          "BUILD_HOST"
+        ]
+      },
+      "configurations": {
+        "development": {
+          "tags": [
+            "concord/build-service:development"
+          ],
+          "platforms": []
+        },
+        "staging": {
+          "tags": [
+            "concord/build-service:staging",
+            "containers.ad.corekinect.com/concord-build-service:staging"
+          ]
+        },
+        "production": {
+          "tags": [
+            "concord/build-service:production",
+            "containers.ad.corekinect.com/concord-build-service:production"
+          ],
+          "platforms": [
+            "linux/amd64"
+          ]
+        }
+      },
+      "cache": false
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "echo 'Skipping push for development'"
+        },
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-build-service:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-build-service:production"
+        }
+      }
+    },
+    "deploy": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "push"
+      ],
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "echo 'Skipping deploy for development'"
+        },
+        "staging": {
+          "command": "./deploy/ctl.sh staging deploy"
+        },
+        "production": {
+          "command": "./deploy/ctl.sh production deploy"
+        }
+      }
+    },
+    "test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/build-service",
+        "command": "python3 -m pytest"
+      }
+    },
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "python3 -c \"import py_compile, glob; [py_compile.compile(f, doraise=True) for f in glob.glob('src/**/*.py', recursive=True)]\"",
+        "cwd": "apps/backend/build-service"
+      }
+    },
+    "check": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "npx nx typecheck build-service",
+          "npx nx test build-service"
+        ],
+        "parallel": false
+      }
+    },
+    "coverage": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/build-service",
+        "command": "python3 -m pytest --cov=src --cov-fail-under=90 --cov-report=term-missing -q --tb=no"
+      }
+    },
+    "complexity": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "python3 .ci/lib/check_complexity.py apps/backend/build-service/src --allowlist=.ci/complexity-allowlist.json"
+      }
+    },
+    "security": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "apps/backend/build-service",
+        "command": "python3 -m bandit -r src/ -lll -iii -q --exclude src/tests"
+      }
+    }
+  }
+}

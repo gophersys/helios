@@ -1,0 +1,131 @@
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/agentsession
+BenchmarkLedgerFold_Usage-8      	14418686	        91.76 ns/op	     144 B/op	       1 allocs/op
+BenchmarkLedgerFold_Usage-8      	12808333	        94.15 ns/op	     144 B/op	       1 allocs/op
+BenchmarkLedgerFold_Usage-8      	13507966	        93.35 ns/op	     144 B/op	       1 allocs/op
+BenchmarkLedgerFold_Usage-8      	13545368	        89.93 ns/op	     144 B/op	       1 allocs/op
+BenchmarkLedgerFold_Usage-8      	13082440	        96.47 ns/op	     144 B/op	       1 allocs/op
+BenchmarkLedgerFold_Usage-8      	12820221	        98.40 ns/op	     144 B/op	       1 allocs/op
+BenchmarkLedgerFold_Usage-8      	12374700	        94.96 ns/op	     144 B/op	       1 allocs/op
+BenchmarkLedgerFold_Usage-8      	12744326	        97.41 ns/op	     144 B/op	       1 allocs/op
+BenchmarkLedgerFold_Usage-8      	12564956	        95.48 ns/op	     144 B/op	       1 allocs/op
+BenchmarkLedgerFold_Usage-8      	13292427	        96.12 ns/op	     144 B/op	       1 allocs/op
+BenchmarkLedgerFold_FullTurn-8   	 6004194	       180.2 ns/op	     256 B/op	       2 allocs/op
+BenchmarkLedgerFold_FullTurn-8   	 6275385	       182.2 ns/op	     256 B/op	       2 allocs/op
+BenchmarkLedgerFold_FullTurn-8   	 6960339	       179.1 ns/op	     256 B/op	       2 allocs/op
+BenchmarkLedgerFold_FullTurn-8   	 6600422	       179.8 ns/op	     256 B/op	       2 allocs/op
+BenchmarkLedgerFold_FullTurn-8   	 6184826	       183.2 ns/op	     256 B/op	       2 allocs/op
+BenchmarkLedgerFold_FullTurn-8   	 6649801	       177.4 ns/op	     256 B/op	       2 allocs/op
+BenchmarkLedgerFold_FullTurn-8   	 6418633	       180.4 ns/op	     256 B/op	       2 allocs/op
+BenchmarkLedgerFold_FullTurn-8   	 6696486	       189.1 ns/op	     256 B/op	       2 allocs/op
+BenchmarkLedgerFold_FullTurn-8   	 6918946	       163.2 ns/op	     256 B/op	       2 allocs/op
+BenchmarkLedgerFold_FullTurn-8   	 6897616	       167.5 ns/op	     256 B/op	       2 allocs/op
+BenchmarkEventKind_String-8      	719677585	         1.653 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEventKind_String-8      	725881454	         1.650 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEventKind_String-8      	726036450	         1.649 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEventKind_String-8      	727033502	         1.648 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEventKind_String-8      	729250356	         1.647 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEventKind_String-8      	727613382	         1.647 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEventKind_String-8      	727396164	         1.647 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEventKind_String-8      	728864632	         1.645 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEventKind_String-8      	728508435	         1.646 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEventKind_String-8      	729769240	         1.646 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvent_IsTerminal-8      	582021241	         2.060 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvent_IsTerminal-8      	582500823	         2.061 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvent_IsTerminal-8      	588445022	         2.052 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvent_IsTerminal-8      	582571994	         2.061 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvent_IsTerminal-8      	582125235	         2.061 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvent_IsTerminal-8      	582157831	         2.061 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvent_IsTerminal-8      	584714823	         2.075 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvent_IsTerminal-8      	587271741	         2.050 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvent_IsTerminal-8      	589777196	         2.043 ns/op	       0 B/op	       0 allocs/op
+BenchmarkEvent_IsTerminal-8      	588317602	         2.036 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/agentsession	48.155s
+PASS
+ok  	github.com/gophersys/libs/go/agentsession/agentsessiontest	0.003s
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/agentsession/claudeadapter
+BenchmarkNormalizeAssistant-8   	  177147	      7209 ns/op	    5600 B/op	      44 allocs/op
+BenchmarkNormalizeAssistant-8   	  172784	      7408 ns/op	    5600 B/op	      44 allocs/op
+BenchmarkNormalizeAssistant-8   	  176145	      7310 ns/op	    5600 B/op	      44 allocs/op
+BenchmarkNormalizeAssistant-8   	  162352	      7011 ns/op	    5600 B/op	      44 allocs/op
+BenchmarkNormalizeAssistant-8   	  167881	      7069 ns/op	    5600 B/op	      44 allocs/op
+BenchmarkNormalizeAssistant-8   	  176324	      7313 ns/op	    5600 B/op	      44 allocs/op
+BenchmarkNormalizeAssistant-8   	  168505	      7458 ns/op	    5600 B/op	      44 allocs/op
+BenchmarkNormalizeAssistant-8   	  140469	      7408 ns/op	    5600 B/op	      44 allocs/op
+BenchmarkNormalizeAssistant-8   	  161316	      7169 ns/op	    5600 B/op	      44 allocs/op
+BenchmarkNormalizeAssistant-8   	  161887	      7361 ns/op	    5600 B/op	      44 allocs/op
+BenchmarkNormalizeResult-8      	  552801	      2281 ns/op	     992 B/op	      20 allocs/op
+BenchmarkNormalizeResult-8      	  533593	      2323 ns/op	     992 B/op	      20 allocs/op
+BenchmarkNormalizeResult-8      	  521100	      2280 ns/op	     992 B/op	      20 allocs/op
+BenchmarkNormalizeResult-8      	  528963	      2313 ns/op	     992 B/op	      20 allocs/op
+BenchmarkNormalizeResult-8      	  536096	      2333 ns/op	     992 B/op	      20 allocs/op
+BenchmarkNormalizeResult-8      	  525139	      2305 ns/op	     992 B/op	      20 allocs/op
+BenchmarkNormalizeResult-8      	  524380	      2289 ns/op	     992 B/op	      20 allocs/op
+BenchmarkNormalizeResult-8      	  548280	      2293 ns/op	     992 B/op	      20 allocs/op
+BenchmarkNormalizeResult-8      	  480012	      2295 ns/op	     992 B/op	      20 allocs/op
+BenchmarkNormalizeResult-8      	  557037	      2317 ns/op	     992 B/op	      20 allocs/op
+BenchmarkBuildArguments-8       	 1968476	       619.2 ns/op	     896 B/op	       8 allocs/op
+BenchmarkBuildArguments-8       	 1887255	       636.8 ns/op	     896 B/op	       8 allocs/op
+BenchmarkBuildArguments-8       	 1958218	       633.4 ns/op	     896 B/op	       8 allocs/op
+BenchmarkBuildArguments-8       	 1878350	       638.6 ns/op	     896 B/op	       8 allocs/op
+BenchmarkBuildArguments-8       	 1850574	       633.5 ns/op	     896 B/op	       8 allocs/op
+BenchmarkBuildArguments-8       	 1936303	       619.6 ns/op	     896 B/op	       8 allocs/op
+BenchmarkBuildArguments-8       	 1930194	       615.5 ns/op	     896 B/op	       8 allocs/op
+BenchmarkBuildArguments-8       	 1910456	       613.4 ns/op	     896 B/op	       8 allocs/op
+BenchmarkBuildArguments-8       	 1991384	       604.8 ns/op	     896 B/op	       8 allocs/op
+BenchmarkBuildArguments-8       	 1905727	       610.8 ns/op	     896 B/op	       8 allocs/op
+BenchmarkChildEnvironment-8     	 8816341	       129.9 ns/op	     176 B/op	       2 allocs/op
+BenchmarkChildEnvironment-8     	 9067246	       128.8 ns/op	     176 B/op	       2 allocs/op
+BenchmarkChildEnvironment-8     	 9295830	       127.2 ns/op	     176 B/op	       2 allocs/op
+BenchmarkChildEnvironment-8     	 9436326	       124.9 ns/op	     176 B/op	       2 allocs/op
+BenchmarkChildEnvironment-8     	 9442567	       127.2 ns/op	     176 B/op	       2 allocs/op
+BenchmarkChildEnvironment-8     	 9334936	       126.1 ns/op	     176 B/op	       2 allocs/op
+BenchmarkChildEnvironment-8     	 9723642	       127.6 ns/op	     176 B/op	       2 allocs/op
+BenchmarkChildEnvironment-8     	 9244098	       129.0 ns/op	     176 B/op	       2 allocs/op
+BenchmarkChildEnvironment-8     	 9381342	       127.4 ns/op	     176 B/op	       2 allocs/op
+BenchmarkChildEnvironment-8     	 9610411	       126.5 ns/op	     176 B/op	       2 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/agentsession/claudeadapter	48.229s
+?   	github.com/gophersys/libs/go/agentsession/claudeadapter/internal/stubharness	[no test files]
+PASS
+ok  	github.com/gophersys/libs/go/agentsession/internal/controlframe	0.003s
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/agentsession/ompadapter
+BenchmarkNormalizeTerminal-8   	  323598	      3767 ns/op	    1648 B/op	      30 allocs/op
+BenchmarkNormalizeTerminal-8   	  322676	      3777 ns/op	    1648 B/op	      30 allocs/op
+BenchmarkNormalizeTerminal-8   	  309878	      3776 ns/op	    1648 B/op	      30 allocs/op
+BenchmarkNormalizeTerminal-8   	  292492	      3783 ns/op	    1648 B/op	      30 allocs/op
+BenchmarkNormalizeTerminal-8   	  333234	      3736 ns/op	    1648 B/op	      30 allocs/op
+BenchmarkNormalizeTerminal-8   	  305814	      3825 ns/op	    1648 B/op	      30 allocs/op
+BenchmarkNormalizeTerminal-8   	  327403	      3734 ns/op	    1648 B/op	      30 allocs/op
+BenchmarkNormalizeTerminal-8   	  324434	      3782 ns/op	    1648 B/op	      30 allocs/op
+BenchmarkNormalizeTerminal-8   	  312388	      3752 ns/op	    1648 B/op	      30 allocs/op
+BenchmarkNormalizeTerminal-8   	  296013	      3811 ns/op	    1648 B/op	      30 allocs/op
+BenchmarkNormalizeStream-8     	   99842	     12728 ns/op	    9432 B/op	     152 allocs/op
+BenchmarkNormalizeStream-8     	   96016	     12947 ns/op	    9432 B/op	     152 allocs/op
+BenchmarkNormalizeStream-8     	   94972	     12649 ns/op	    9432 B/op	     152 allocs/op
+BenchmarkNormalizeStream-8     	   92098	     12939 ns/op	    9432 B/op	     152 allocs/op
+BenchmarkNormalizeStream-8     	   91422	     13234 ns/op	    9432 B/op	     152 allocs/op
+BenchmarkNormalizeStream-8     	   91946	     12568 ns/op	    9432 B/op	     152 allocs/op
+BenchmarkNormalizeStream-8     	   92919	     12634 ns/op	    9432 B/op	     152 allocs/op
+BenchmarkNormalizeStream-8     	   98575	     13043 ns/op	    9432 B/op	     152 allocs/op
+BenchmarkNormalizeStream-8     	   91968	     13117 ns/op	    9432 B/op	     152 allocs/op
+BenchmarkNormalizeStream-8     	   88779	     12814 ns/op	    9432 B/op	     152 allocs/op
+BenchmarkBuildArguments-8      	 3155330	       392.0 ns/op	     560 B/op	       6 allocs/op
+BenchmarkBuildArguments-8      	 3090601	       396.2 ns/op	     560 B/op	       6 allocs/op
+BenchmarkBuildArguments-8      	 2904812	       407.7 ns/op	     560 B/op	       6 allocs/op
+BenchmarkBuildArguments-8      	 3022995	       402.8 ns/op	     560 B/op	       6 allocs/op
+BenchmarkBuildArguments-8      	 2977477	       393.7 ns/op	     560 B/op	       6 allocs/op
+BenchmarkBuildArguments-8      	 3021621	       390.5 ns/op	     560 B/op	       6 allocs/op
+BenchmarkBuildArguments-8      	 3173782	       381.8 ns/op	     560 B/op	       6 allocs/op
+BenchmarkBuildArguments-8      	 3027811	       396.0 ns/op	     560 B/op	       6 allocs/op
+BenchmarkBuildArguments-8      	 3088269	       389.9 ns/op	     560 B/op	       6 allocs/op
+BenchmarkBuildArguments-8      	 3092940	       395.4 ns/op	     560 B/op	       6 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/agentsession/ompadapter	36.041s
+?   	github.com/gophersys/libs/go/agentsession/ompadapter/internal/stubharness	[no test files]

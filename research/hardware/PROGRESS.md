@@ -1,0 +1,279 @@
+# Hardware Pipeline — Progress Tracker
+
+> **North Star:** Parse 100+ open-source KiCad projects, extract circuit design
+> patterns, and build reusable templates that enable AI-driven hardware design.
+>
+> **This file drives autonomous work.** A loop runs every hour, reads this file,
+> and continues from the current phase. Update status after completing each task.
+
+---
+
+## Current Phase: ALL PHASES COMPLETE — rebased to KiCad 10 (2026-07-30)
+
+**1005 tests passing. 110 projects parsed. 343 clean IC families. Real multi-pin symbols for ESP32/STM32. 0 ERC errors. Full manufacturing pipeline (BOM/CPL/Gerber/Drill/STEP/VRML).**
+
+### KiCad 10 rebase (branch feat/kicad10-rebase, 2026-07-30)
+- [x] Full suite validated against kicad-cli 10.0.4 on macOS (all prior failures were missing gitignored data, not KiCad 10)
+- [x] Tests resolve kicad-cli from PATH (was hardcoded /usr/bin from devcontainer)
+- [x] kiutils Fix 7: KiCad 10 boards drop the numbered net table — pads use name-only `(net "GND")`; Net.from_sexpr now accepts both forms (+4 tests, equivalence-verified vs KiCad 9 parse of same board)
+- [x] KiCad 10 files verified end-to-end: flat + hierarchical schematics upgraded via `kicad-cli sch upgrade` round-trip 37/37 and 131/131 vs kicad-cli 10 netlists
+- [x] Devcontainer bumped to KiCad 10 PPA
+- [x] Pilot restore fixed: bitcraze/crazyflie2-pcb removed upstream → crazyflie-electronics; dumbpad + VESC-controller added to clone_pilots.sh (test dependencies)
+- [x] Finding: kicad-cli 10 refuses paltatech VESC-controller's 20170922-format board ("Failed to load board", `pcb upgrade` also fails) while v9 loaded it and even (version 4)/2016 boards still load — narrow legacy-dialect regression; 3D-export tests now use dumbpad as second project
+### ecad rework (2026-07-30, PRs #2/#3 + feat/layout-engine)
+- [x] Phase A: typed design model (src/ecad) — Component/Pin/Net/Design + unified SymbolModel; 26 adversarial-review findings fixed
+- [x] Phase B: footprint index/resolver (15k installed footprints) + official-symbol ingestion with extends-resolution
+- [x] Phase C: layout engine — graph_build/rank/order/place/route/engine/lints; hard gates green (ERC 0, netlist == intended, geometric lints, byte-determinism); found+fixed latent unloadable-lib_symbols bug (lib-prefixed child names)
+- [x] Pure emitters extracted to src/ecad/emit.py (pipeline→ecad layering enforced); CI added (.github/workflows/ci.yml); docs/ecad-architecture.md
+- [x] Stage 1 de-legacy (branch feat/de-legacy): legacy-parity tests replaced by golden-file snapshots (tests/ecad/golden/, byte-exact, 3 registry chips); deleted _generate_symbol_legacy + _generate_lib_symbol_sexp_legacy + 4 orphaned symbol_gen helpers; chip_library factories/lookup_chip kept as data (seed the factory until Phase D). datasheet_parser fallbacks + to_inline_sexp/flatten single-unit path deliberately left (Stage 2/3 ordering)
+- [x] Phase D: ingestion factory — 8-stage machine with recomputable gates (self-healing demotion), Zephyr-LTS cross-verification (v3.7.2 pinned; esp32h2 via the v4.4.1 fallback policy), targeted PDF extraction (section finder sends ~40% of pages to the LLM), evidence ledger with cited waivers (waivers now persist across rebuilds), clobber-safe codegen emitting class + sidecar + readable .kicad_sym + per-part .md, `factory status|step|waive` CLI, COMPONENTS.md projection. **13/15 Espressif parts validated** (6 SoCs + 7 modules, ERC 0 each); found upstream KiCad ESP32-S2 symbol pin-name typos (MTD0/MDTI). Blocked: esp32-c3-mini-1 + esp32-c6-wroom-1 — no matching footprint exists in the installed KiCad libraries (needs the custom-footprint escape hatch)
+- [x] Phase E: composer migration onto Design→layout→emit (branch feat/composer-migration-wf1): compose_design builds a typed src.ecad Design per sheet (power/mcu/per-peripheral), the layout engine places+routes+emits each one, and the root sheet wires its sheet pins so the hierarchy really connects. Deleted every hardcoded coordinate, `Custom:` 2-pin stub and empty IC footprint on that path. Part resolution = generated registry → seed chip_library → warned `Unverified:<part>` placeholder. Gates per project: geometric lint clean, kicad-cli loads each sub-sheet, project ERC errors == 0, exported netlist == `Design.intended_netlist()` (MCU sheet checked separately for the ESP32-S3-WROOM-1 + NEO-6M GPS tracker), byte-determinism. Engine gained `label_anchors()`, `emit(hier_labels=, flag_rails=)`; fixed two engine bugs found on the way (single-port nets were dropped by the router; middle caps of a satellite rail row had no junction dot). Known gap: a sub-sheet ERC'd ALONE reports hierarchical-label + undriven-rail errors by construction — the project-level ERC is the oracle
+
+- [x] Phase F: draughting (branch feat/draughting) — the output was electrically correct and visually unsignable. Four fixes, all at the geometry source. (1) Official-symbol artwork is preserved through `kicad_official` → `codegen` → the generated `.kicad_sym` and the inline `lib_symbols` (`Component.symbol_art`): a `Device:R` is drawn with KiCad's own draw commands and KiCad's own pin coordinates, and the layout engine consumes THOSE coordinates; two-terminal parts are laid flat by rotating the source art a quarter turn, decoupling caps keep the upright variant. Synthesized pin names (`P1`/`P2`) are no longer drawn — the source draws those pins unnamed. (2) Reference/Value are placed from the real body extent and the pins that leave it, power-symbol names sit on the free side of their glyph, and every movable text item is stepped clear of the ones already drawn. (3) `layout/page.py` picks the smallest standard sheet that holds the drawing (border + title block honoured) and warns `PageOverflow` when nothing does — `(paper "A3")` was hardcoded while content ran to 308 mm. (4) Placement normalises onto the frame corner (the y refinement had been emitting negative coordinates) and wraps a rank's edge-less nodes into extra sub-columns; the engine tries each wrap budget and keeps the first that passes `lint_placed`, so wrapping can never introduce a short. Measured on the two examples: text overlaps 19 → 2, every sheet A4 (was A3 with the MCU sheet clipped), ESP32-S3 MCU sheet 75x308 mm → 90x166 mm. Remaining known-ugly is in the PR body.
+- [ ] Follow-up: replace hand-rolled manufacturing exports with kicad-cli 10 jobsets (works as-is; refactor is optional code-deletion, not a fix)
+- [ ] Follow-up: use `kicad-cli sch/pcb upgrade` (new in 10) as the corpus ingest normalizer — removes the old "open in GUI to convert" constraint from docs/thesis.md §4
+
+## Phase Overview
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| **PHASE 1** | Build + test the parser (kiutils fixes, discovery, hierarchy, board, export) | **COMPLETE** — netlist round-trip validated on 3 pilots (0 mismatches) |
+| **PHASE 2** | Clone + parse 100 projects at scale | **COMPLETE** (110/110 parsed, 779 units, 100% success) |
+| **PHASE 3** | Extract circuit patterns (subcircuit clustering, decoupling rules, templates) | **COMPLETE** — 30 clusters labeled via Claude CLI |
+| **PHASE 4** | Build generation tools (datasheet→symbol, template instantiation, schematic gen) | **COMPLETE** — real IC symbols, wires, 0 ERC. Novel MCU e2e test passing (TASK-024 done) |
+| **PHASE 5** | Manufacturing integration (BOM, CPL, Gerber, 3D) | **COMPLETE** (5/5 tasks) |
+
+---
+
+## PHASE 1: Foundation (Parser + Tests)
+
+### 1.1 Vendor kiutils + fix known issues
+- [x] Vendor kiutils v1.4.8 into tools/kiutils/
+- [x] Fix KiCad 8/9 tstamp→uuid rename
+- [x] Fix (effects (hide yes)) syntax
+- [x] Fix symbol name regex bug (_digit_digit misparse)
+- [x] Fix scientific notation in S-expr parser
+- [x] Add generator_version token support
+- [x] Add embedded_fonts/embedded_files tolerance
+- [x] Tests for all fixes (tests/test_kiutils_fixes.py)
+
+### 1.2 Core kiutils test coverage
+- [x] Schematic parsing tests (10 test cases)
+- [x] Board parsing tests (6 test cases)
+- [x] Cross-version tests (5 test cases)
+- [x] Edge case tests (2 test cases)
+- [x] conftest.py with pilot project fixtures
+
+### 1.3 Project discovery module
+- [x] src/pipeline/models.py — data model
+- [x] src/pipeline/discovery.py — find all design units in a repo
+- [x] tests/test_discovery.py (33 test cases)
+- [x] All tests passing
+
+### 1.4 Hierarchy walker module
+- [x] src/pipeline/hierarchy.py — recursive sheet loading
+- [x] Version-aware ref designator resolution (v6 vs v7+)
+- [x] Power symbol detection
+- [x] Sheet caching for shared sheets
+- [x] tests/test_hierarchy.py (12 test cases)
+- [x] All tests passing
+
+### 1.5 Board parser + JSON export
+- [x] src/pipeline/board.py — .kicad_pcb parsing
+- [x] src/pipeline/export.py — JSON export
+- [x] tests/test_board.py (13 test cases)
+- [x] tests/test_export.py (3 test cases)
+- [x] All tests passing
+
+### 1.6 Net tracer module
+- [x] src/pipeline/nets.py — net connectivity across hierarchical sheets
+- [x] tests/test_nets.py (51 test cases)
+- [x] All tests passing
+
+### 1.7 Integration + review
+- [x] src/pipeline/parse_project.py — unified entry point (discovery → hierarchy → board → nets → export)
+- [x] tests/test_integration.py — end-to-end tests on all 10 pilots
+- [x] Delete old src/pipeline/parser.py (replaced by new modules)
+- [x] Run full test suite: pytest tests/ -v — 228+ tests passing
+- [x] All 10 pilot projects parse without errors
+- [x] Commit and push
+
+### PHASE 1 COMPLETE
+All tests pass. All 10 pilot projects parse into valid JSON. No crashes on
+any KiCad version (3-9). Hierarchical projects resolve correctly with
+components from all sub-sheets.
+Netlist round-trip validated: our parser matches kicad-cli netlist export
+with 0 mismatches on nrfmicro (flat), STM32F7 FC (hierarchical), dumbpad (KiCad 9).
+
+---
+
+## PHASE 2: Scale Data Collection
+
+### 2.1 Bulk acquisition
+- [x] Clone RepoRecon JSON database (~48K repos index)
+- [x] Filter: stars >= 3, pushed within 3 years → 3811 candidates
+- [x] Hardware keyword filter → 2118 hardware-specific candidates
+- [x] Output: data/candidates.json + data/hardware_candidates.json
+
+### 2.2 Triage scoring
+- [x] Run scripts/triage.py on all 110 cloned projects — 0 errors
+- [x] Rank by complexity score (top: Gameboy HW 17.0, Neotron 15.2, Antmicro 15.0)
+- [x] Output: data/scored_projects.json (110 entries)
+- [x] Score distribution: >15: 2, 10-15: 26, 5-10: 33, <5: 24
+
+### 2.3 Bulk clone
+- [x] Sparse checkout (KiCad files only) for top 100 by stars
+- [x] Verified each repo has actual KiCad files (non-hardware repos removed)
+- [x] Output: data/raw/ populated with 110 projects (10 pilot + 100 bulk)
+
+### 2.4 Bulk parse
+- [x] Run parser on all 110 cloned projects — **110/110 success (100%)**
+- [x] Output: data/parsed/{project}/project.json — 779 design units, 290MB
+- [x] Log: data/parse_report.json
+- [x] Target: >90% → achieved **100%**
+
+### PHASE 2 DONE ✓
+110 projects parsed into normalized JSON. 779 design units. 100% success rate.
+Parse time: 137s total.
+
+---
+
+## PHASE 3: Pattern Extraction
+
+### 3.1 Subcircuit detection
+- [x] Graph algorithm: for each IC, find all passives within 2 net hops
+- [x] Group as subcircuit (center IC + supporting components)
+- [x] Fingerprinting + clustering implemented
+- [x] tests/test_subcircuits.py (20 tests)
+- [x] Run on all 110 projects → 1014 subcircuits, 761 clusters
+- [x] Fixed: exclude MountingHoles, switches, normalize fingerprints
+
+### 3.2 Subcircuit clustering
+- [x] Fingerprint: sorted passive type counts per IC
+- [x] Cluster by fingerprint identity
+- [x] Label clusters with Claude (~$0.01/cluster)
+- [x] Output: data/patterns/subcircuit_clusters.json
+
+### 3.3 Decoupling pattern extraction
+- [x] For each MCU: find all caps connected to power pins
+- [x] Statistical summary per IC family — 437 families, 48,905 caps
+- [x] Output: data/patterns/decoupling_rules.json
+- [x] tests/test_patterns.py (79 tests)
+- [x] Re-extracted: 437 → 343 families, 0 connectors remaining (improved classify_component)
+
+### 3.4 Hierarchical sheet organization patterns
+- [x] Record: sheet name → functional domains (power, mcu, comm, sensor, etc.)
+- [x] Record: components per sheet, hierarchy depth distribution
+- [x] Output: data/patterns/sheet_organization.json
+
+### 3.5 Template generation
+- [x] Build canonical templates from largest clusters — 30 cluster + 223 decoupling = 253 templates
+- [x] Output: data/patterns/templates/ (summary + individual JSON)
+- [x] Validate templates (ERC + netlist check via kicad-cli) — 253/253 validated
+
+### PHASE 3 MOSTLY DONE
+Circuit pattern database populated. 253 reusable templates generated and ERC validated.
+TASK-014 complete: 30 clusters labeled via Claude CLI (src/pipeline/cluster_label.py).
+
+---
+
+## PHASE 4: Generation Tools
+
+### 4.1 Datasheet → structured data
+- [x] PDF ingestion → pin tables, power requirements, reference circuits
+- [x] Hardcoded fallbacks for ESP32-S3-WROOM-1, ESP32-C3-MINI-1, ESP32-WROOM-32
+- [x] Claude CLI integration for unknown chips (untested in production)
+- [x] Output: ParsedDatasheet with ChipDef, PinDef, power specs, reference circuits
+
+### 4.2 Symbol + footprint generator
+- [x] src/pipeline/symbol_gen.py — multi-unit .kicad_sym from structured pin data
+- [x] Functional grouping (power, GPIO, USB, etc.)
+- [x] kicad-cli validated output
+- [x] tests/test_symbol_gen.py (6 tests)
+
+### 4.3 Schematic generator
+- [x] src/pipeline/schematic_gen.py — .kicad_sch from components + nets
+- [x] Hierarchical sheet composition with sub-sheet refs + hierarchical labels
+- [x] kicad-cli validated output
+- [x] tests/test_schematic_gen.py (6 tests)
+- [x] Decoupling cap auto-generation from rules (src/pipeline/decoupling_gen.py, 7 tests)
+
+### 4.4 kicad-cli validation module
+- [x] src/pipeline/validate.py — ERC, DRC, netlist export, BOM export
+- [x] tests/test_validate.py (9 tests)
+
+### 4.5 End-to-end test
+- [x] "GPS tracker" → generates KiCad project with 0 ERC errors, wires for passives, spread hlabels
+- [x] Template-driven decoupling cap generation (STM32F4xx bypass caps)
+- [x] Novel MCU (from datasheet PDF only) → valid project (ESP32-C6-WROOM-1, no fallback, Claude CLI extraction)
+
+### 4.6 Known generation gaps (from 2026-03-14 audit)
+- [x] Wire segments — passives now have wires connecting pins to nearby labels
+- [x] Real IC symbols — chip_library.py: ESP32-S3 (36 pins), STM32F411 (48 pins), NEO-6M (10 pins)
+- [x] Component placement — hierarchical labels now spread vertically (7.62mm spacing)
+- [x] Missing project files — .kicad_pro, sym-lib-table, fp-lib-table now generated
+- [x] ERC clean — GPS tracker now has 0 ERC errors
+- [x] Netlist round-trip — our parser matches kicad-cli on 3 pilots (0 mismatches)
+
+---
+
+## PHASE 5: Manufacturing Integration
+
+### 5.1 Parts inventory (TASK-025)
+- [x] InventoryItem dataclass with mpn, description, package, quantity, feeder_slot
+- [x] load_inventory() — load from JSON
+- [x] save_inventory() — save to JSON
+- [x] Roundtrip tests (4 tests)
+
+### 5.2 BOM matching (TASK-026)
+- [x] BomEntry dataclass with ref, value, footprint, qty, dnp, mpn
+- [x] export_bom() — kicad-cli BOM export + CSV parsing
+- [x] match_bom_to_inventory() — package-based matching with quantity tracking
+- [x] Tests on real STM32F7 FC project (10 tests)
+
+### 5.3 CPL generation for LumenPNP (TASK-027)
+- [x] CplEntry dataclass with ref, x_mm, y_mm, rotation, side, feeder_slot
+- [x] export_placement() — kicad-cli pos export + CSV parsing
+- [x] generate_lumen_pnp_csv() — LumenPNP-compatible CSV output
+- [x] assign_feeders() — map CPL entries to inventory feeder slots
+- [x] Tests on real STM32F7 FC project (8 tests)
+
+### 5.4 Gerber + drill export (TASK-028)
+- [x] GerberOutput dataclass with output_dir, gerber_files, drill_files, success, errors
+- [x] export_gerbers() — kicad-cli Gerber export
+- [x] export_drill() — kicad-cli drill export
+- [x] export_manufacturing_package() — complete package (Gerbers + drill + BOM + CPL)
+- [x] Tests on real STM32F7 FC project (12 tests)
+
+### 5.5 3D model export (TASK-029)
+- [x] Model3dOutput dataclass with output_path, file_size_bytes, success, errors
+- [x] export_step() — kicad-cli STEP export with board_only and no_dnp options
+- [x] export_vrml() — kicad-cli VRML export with configurable units
+- [x] Integrated into export_manufacturing_package() (board.step + board.wrl)
+- [x] Tests on real STM32F7 FC + VESC controller projects (12 tests)
+
+### PHASE 5 COMPLETE
+Manufacturing pipeline complete: BOM, CPL, Gerber, drill, STEP, VRML exports all working.
+46 tests passing on real projects. Full manufacturing package generates all outputs.
+
+---
+
+## How To Continue (for autonomous loop)
+
+1. Read this file to determine current phase and next incomplete task
+2. Check if tests exist and are passing: `cd ~/hardware && python3 -m pytest tests/ -v 2>&1 | tail -20`
+3. If tests are failing, fix the code until they pass
+4. If all tasks in current phase are complete, move to next phase
+5. Mark completed tasks with [x] in this file
+6. Commit progress: `cd ~/hardware && git add -A && git commit -m "progress: <what was done>"`
+7. If stuck on something, document the blocker in a BLOCKERS section at the bottom
+8. Key files:
+   - Architecture spec: docs/parser-architecture.md
+   - Thesis/research: docs/thesis.md
+   - Vendored kiutils: tools/kiutils/
+   - Pipeline code: src/pipeline/
+   - Tests: tests/
+   - Pilot data: data/raw/ (10 pilot + 100 bulk cloned KiCad projects)
+   - kicad-cli: resolve from PATH (v10 verified; macOS: /Applications/KiCad.app/Contents/MacOS) — use for ERC, DRC, netlist export, BOM, Gerber, and `sch|pcb upgrade`
+     Example: `kicad-cli sch erc file.kicad_sch --format json -o report.json`
+   - Bulk parse script: `python3 -m src.pipeline.parse_project data/raw/project_name/`

@@ -1,0 +1,262 @@
+# P1 feasibility scorecard for the PIR of product `tracker`.
+# Contract: docs/sfd/40-p1-metrics.md (F1-F5, scale semantics, verdict
+# precedence, catalog seam) + docs/sfd/40-p1-registry.yaml (16 metrics).
+# All 16 registry metrics are scored. Catalog citations are paths + depth
+# at the SHA the records pin. F4: the DECISION is the human's, not here.
+schema: sfd.scorecard/v0
+pir:
+  ref: repro/run3/iI/pir.yaml
+  hash: sha256:08cd6596c4cbb9d13728fb8a66a50ab6ce1261e9118c41cb640931fb10ccb9ea
+
+# The catalog as it stands when this scorecard was computed — stated so the
+# evidence lines are auditable and the gaps are not mistaken for silence.
+catalog_state:
+  records: 3
+  zephyr_sha: 413b789deb391d3a37d06b463288a5fe765ee57e
+  inventory:
+    - {path: catalog/socs/esp32c6.yaml, depth: D1}
+    - {path: catalog/socs/mimxrt1052.yaml, depth: D1}
+    - {path: catalog/components/bosch,bme280.yaml, depth: D2}
+  note: "No GNSS receiver, no cellular modem, no IMU/accelerometer and no battery-charger/PMIC record exists. Every such gap is named as a research task on the metric it touches, per F3 and the catalog seam."
+
+scores:
+  # ── VIABILITY ───────────────────────────────────────────────────────
+  - id: metric.viability.clarity
+    score: green
+    scored_by: agent
+    verdict_weight: minor
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "q.intent.what: 'a motorcycle gps tracker so that i know where my bike is at all times' — one sentence, and it carries both halves the green level asks for: WHAT (a GPS tracker for a motorcycle) and FOR WHOM (the bike's owner, wanting continuous knowledge of its location)."
+      - "No contradiction anywhere in the record: the success target (q.intent.win), the functions and the physical form all restate the same product. Nothing in the transcript has to be reconciled away."
+  - id: metric.viability.outcome
+    score: green
+    scored_by: agent
+    verdict_weight: minor
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "q.intent.win: 'it must be installed and running in my bike sending notificaitons to my phone and tracking the bikes locaiton in the cloud' — three observable, checkable conditions (installed and running on the bike; notifications arriving at the phone; location visible in the cloud)."
+      - "Plausible for a working product of this class: it is the ordinary behaviour of a shipped moto tracker, not a stretch outcome. Success does not depend on volume, revenue or adoption — the user population is one person (pir.users), so the outcome is fully within the founder's control."
+  - id: metric.viability.economics
+    score: unknown
+    scored_by: derived
+    verdict_weight: core
+    consumer: P1-verdict
+    blocked_by: [pir.targets.unit_cost.sell]
+    evidence:
+      - "DERIVATION INPUTS: pir.targets.volume = {y1: 2, y3: 10} (q.scale.units); pir.targets.unit_cost.build = 100 USD at-most, at qty 10, covering components + pcb + assembly (q.scale.cost); pir.targets.unit_cost.sell = UNKNOWN."
+      - "Every branch of this metric's scale needs the sell value or its ABSENCE: the sell>build branches need a number, and the not-for-sale branches need sell to be ABSENT. sell is neither — it is UNKNOWN (conditional_fields: silence on sale intent is UNKNOWN and the runner must ask; the runner did not — PIR runner_error RE-003). The metric cannot be scored without inventing the founder's intent, which R5 forbids."
+      - "WHAT THE NOT-FOR-SALE BRANCH WOULD YIELD IF THE FOUNDER DECLARES IT (stated so the block is informative, NOT applied to the score): amber. A 100 USD all-in budget at qty 10 must buy a cellular modem, a GNSS receiver, an IMU, an MCU, a Li-ion cell + charger, an antenna set, a weather-sealed enclosure, PCB fabrication and assembly. At 10 units there is no volume pricing and assembly is at its most expensive per unit. That is the scale's 'budget tight for the BOM class', not 'plausible' — and not 'cannot buy the required parts' either, since the class is buildable at that budget with careful module choices."
+      - "P4 has not run, so no BOM exists to measure the budget against; the amber above is the agent's read of the part classes the PIR's functions force, not a costed BOM."
+  - id: metric.viability.novelty
+    score: amber
+    scored_by: agent
+    verdict_weight: minor
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "q.intent.exists: 'yes, others exist, but i wanna just build my own to be more powerful and use cool technologies to get accurate locations and alamr and things like that' — the founder concedes the category is occupied and names no existing product, so the difference cannot be measured against a named baseline."
+      - "The stated difference — 'more powerful', 'cool technologies', 'accurate locations', an alarm — is incremental and unverified: every one of those attributes is claimed by shipped motorcycle trackers. That is exactly the amber level."
+      - "NOT red: red is 'an existing product already is this', which would require the founder's own stated differentiation to be void. It is not void, only unproven — and the differentiation he actually cares about (q.novel.magic: Zephyr RTOS as a proof of concept for AI-assisted hardware building) is about the BUILD METHOD, which no competitor's product embodies."
+      - "Weight note: the user population is one person (pir.users: 'its just for me'), and pir.novelty.moat is 'no compettiors'. Differentiation against a market is close to irrelevant to whether this product should be built — hence minor weight, and this amber does not move the verdict."
+  # ── TECH-EXISTS (catalog seam) ──────────────────────────────────────
+  - id: metric.tech.exists
+    score: amber
+    scored_by: agent+catalog
+    verdict_weight: core
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "FEED — q.novel.magic: 'not really. i just wanan use the latest tech avialnle in the embedded world and using zephyr rtos as a poc for ai hardware building'. The founder claims NO unproven capability. The scorer therefore checks each capability the PIR's functions demand against the catalog."
+      - "CATALOG HIT — compute: catalog/socs/esp32c6.yaml, compatible `espressif,riscv`, depth D1 @ zephyr 413b789deb391d3a37d06b463288a5fe765ee57e; catalog/socs/mimxrt1052.yaml, compatible `arm,cortex-m7`, depth D1 @ same SHA."
+      - "CATALOG HIT — storage (pir.functions storage: retain across power loss): catalog/socs/esp32c6.yaml, compatibles `espressif,esp32-flash-controller`, `soc-nv-flash`, `fixed-partitions`, depth D1."
+      - "CATALOG HIT — hmi (a-light + one-button): catalog/socs/esp32c6.yaml, compatibles `espressif,esp32-ledc` (LED control) and `espressif,esp32-gpio` (button), depth D1."
+      - "CATALOG HIT — security (derived baseline): catalog/socs/esp32c6.yaml, compatible `espressif,esp32-trng`, depth D1; catalog/socs/mimxrt1052.yaml, compatibles `nxp,kinetis-trng` and `nxp,mcux-dcp`, depth D1."
+      - "CATALOG HIT — time (derived, wakes-on-schedule): catalog/socs/esp32c6.yaml, compatibles `espressif,esp32-rtc_timer` and `espressif,esp32-systimer`, depth D1."
+      - "CATALOG HIT — power (PC1 + sleep modes): catalog/socs/esp32c6.yaml power_states standby (min_residency 200 us / exit 60 us) and soft-off (2000 us / 212 us), depth D1. Note the record schema's own limit: power_states does not follow cpu-power-states phandles, so a state cannot be attributed to a CPU cluster — the evidence supports 'sleep states are declared', not 'this current is achievable'."
+      - "CATALOG HIT — sensing/altitude: catalog/components/bosch,bme280.yaml, depth D2 (binding + driver drivers/sensor/bosch/bme280, 19 exercised_by entries incl. boards/ruuvi/ruuvitag/ruuvi_ruuvitag.dts). Barometric pressure gives the altitude sense the founder named. This is the ONLY D2 record in the catalog and the only capability of this product that reaches the seam's green bar."
+      - "CATALOG GAP — sensing/position (GNSS): no record. This is the product's core sense. RESEARCH TASK RT-1: extract a GNSS receiver component record. Known example NAMED per the evidence bar: Zephyr carries an upstream GNSS subsystem with in-tree receiver drivers (u-blox M-series and Quectel modules) — UNVERIFIED against 413b789d by this scorer, which is precisely what RT-1 must settle. Shipped product class also named: commercial motorcycle GPS trackers (Monimoto, Invoxia) do exactly this."
+      - "CATALOG GAP — sensing/tilt (IMU/accelerometer wake-on-motion): no record. RESEARCH TASK RT-2. Known example NAMED: Zephyr's sensor class carries in-tree IMU drivers (Bosch BMI-series among them) and the same drivers/sensor/bosch/ tree that the bme280 record already proves exists at D2 — UNVERIFIED at this SHA by this scorer."
+      - "CATALOG GAP — connectivity/far-away-anywhere (cellular; a HARD constraint per pir.constraints): no record, and NEITHER catalogued SoC carries a cellular compatible. RESEARCH TASK RT-3. Known example NAMED: Zephyr's in-tree modem drivers and the Nordic nRF91-class LTE-M/NB-IoT parts with upstream board support — UNVERIFIED at this SHA. Shipped product class: every commercial moto tracker cited above."
+      - "CATALOG GAP — power/USB-C rechargeable Li-ion (a HARD constraint): no charger/PMIC record. `espressif,esp32-usb-serial` (D1) is a USB serial peripheral, NOT charging or power delivery — cited here only to state plainly that it does not cover this. RESEARCH TASK RT-4."
+      - "SCORE = amber, per the catalog seam read literally: the catalog covers this product at D1 (declared inventory — the schema states declared != supported) with exactly one D2 record, and the seam says D1 coverage is amber. The gaps are amber rather than red because the evidence bar is met: for every gap the scorer can NAME an upstream Zephyr implementation and a shipped product class. Red requires that the scorer searched and can name nothing; that is not the case here."
+      - "NOT green: green demands 'every needed capability has a proven path (catalog D2+ or a shipped product)'. Four needed capabilities have zero catalog coverage and the named upstream examples are unverified at the pinned SHA — a claim at D0 by the depth scale, which cannot carry a green."
+    research_tasks:
+      - {id: RT-1, task: "Extract a GNSS receiver component record (binding + driver) at the pinned SHA", fills: "sensing/position — the product's core sense", raised_by: metric.tech.exists}
+      - {id: RT-2, task: "Extract an IMU/accelerometer component record with wake-on-motion evidence", fills: "sensing/tilt + the wakes-on-event duty mode", raised_by: metric.tech.exists}
+      - {id: RT-3, task: "Extract a cellular modem component record and a SoC/module lane that carries it", fills: "connectivity/far-away-anywhere + the HARD `cellular` constraint", raised_by: [metric.tech.exists, metric.feasibility.connectivity]}
+      - {id: RT-4, task: "Extract a Li-ion charger / PMIC component record", fills: "PC1 recharge over the HARD `usb-c` constraint", raised_by: metric.tech.exists}
+      - {id: RT-5, task: "Raise catalog/socs/esp32c6.yaml above D1, or record why it cannot rise", fills: "every capability currently resting on declared-only inventory", raised_by: [metric.tech.exists, metric.feasibility.connectivity]}
+  # ── FEASIBILITY ─────────────────────────────────────────────────────
+  - id: metric.feasibility.env-risk
+    score: amber
+    scored_by: agent
+    verdict_weight: minor
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "q.env.where = vehicle; q.env.conditions = [water, dust, heat, cold, vibration, washing-or-hosing]. The scale's amber level names three of these by id — `washing-or-hosing`, `vibration`, and extremes (heat, cold) — and this product carries all of them at once."
+      - "The placement makes each harder rather than easier: pir.physical.carry = mounted, concealed inside a motorcycle, which is the hottest, most vibration-exposed and least serviceable location on the vehicle, and pir.physical.notes records that the founder expects the antenna to 'just work' from there."
+      - "NOT red: red is 'conditions demand engineering this team/process has no path to'. Sealed, potted, vibration-tolerant vehicle electronics is known art with off-the-shelf enclosure and gasket options — costed, not invented."
+      - "RISK RAISED (R5): pir.environment.limits is UNKNOWN — q.followup.range was asked ('how hot / how cold') and left blank. No operating temperature range exists, so the extremes are uncalibrated: the difference between a 0..50 C part set and a -30..85 C part set is a component-class decision that P4 cannot make from this PIR. The metric is not scored `unknown` because its own feeds (q.env.where, q.env.conditions) are both answered."
+  - id: metric.feasibility.connectivity
+    score: amber
+    scored_by: agent+catalog
+    verdict_weight: core
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "FEED — q.fn.talks = [phone-nearby, far-away-anywhere]: 'from anywehre, ideally i want my pohone to easily connect to it nearby, but also always know the locaiton based on cellular or smth like that'. Two counterparts at two distances, so two links must both close."
+      - "LINK 1, phone-nearby — CATALOG: catalog/socs/esp32c6.yaml declares `espressif,esp32-bt-hci` (Bluetooth) and `espressif,esp32-wifi`, depth D1 @ 413b789deb391d3a37d06b463288a5fe765ee57e, with in-tree boards boards/espressif/esp32c6_devkitc and boards/seeed/xiao_esp32c6. The seam is explicit that D1-only coverage is amber, and the SoC schema states declared != supported."
+      - "LINK 2, far-away-anywhere — CATALOG GAP: no cellular coverage anywhere in the catalog. Neither catalogued SoC carries a modem compatible (esp32c6: wifi/bt/ieee802154 only; mimxrt1052: `nxp,enet` wired ethernet only). This link is entirely outside the current supported-SoC lanes — the scale's amber condition, word for word: 'achievable but outside current lanes'. RESEARCH TASK RT-3 (see metric.tech.exists)."
+      - "CONSTRAINT — pir.constraints holds `cellular` at strength HARD, volunteered in this very answer and classified 'requiemrnt'. Per the constraints channel this FILTERS the P4 fit matrix: a fit candidate without a cellular path is excluded, it does not merely lose a tie-break. Combined with the gap above, P4 cannot currently be run for this product from the catalog as it stands."
+      - "NOT red: red is 'no radio/link reaches the stated counterpart at the stated distance and power'. Both links are ordinary — BLE to a phone at arm's length, LTE-M/NB-IoT to anywhere with coverage — and both are shipped daily in this exact product class. The difficulty is coexistence and antennas in a concealed metal-rich mount (which the founder himself named in q.novel.hard), not reach."
+      - "NOT green: green requires the derived link covered by the supported-SoC lanes at D2+. One link sits at D1, the other at zero coverage."
+  - id: metric.feasibility.power-risk
+    score: amber
+    scored_by: derived
+    verdict_weight: core
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "DERIVATION INPUTS: q.power.source = charges-on-dock-or-cable -> pir.power_class = PC1 (rechargeable, USB-C, with an optional on-bike charger from the bike's battery); q.power.life -> delight = 1 month at least, floor = none-declared ('no lowest threshold ... expected batter y life in the hours, could be used for racing'); q.power.duty -> pir.modes = [wakes-on-event, wakes-on-schedule, only-when-used], with always-on NOT selected."
+      - "FLOOR TEST (the red condition): red is 'floor target violates the stated power class'. There is no floor to violate — the founder explicitly declared none, and named an hours-scale racing mode as acceptable. The red level cannot be reached on this record. This is the declared-none convention doing real work: a declared absence of a floor is an ANSWER, and it answers this test in the negative."
+      - "DELIGHT TEST (the amber condition): amber is 'delight target requires aggressive sleep design; floor reachable'. One month on a rechargeable pack while taking a GNSS fix every 30 s when moving and every hour when parked, holding a wake-on-motion tilt trigger armed continuously, and pushing over a cellular uplink, is achievable only with aggressive design — GNSS duty-cycling, modem power-saving modes, a hardware motion interrupt rather than a polled loop, and the whole system spending nearly all of its time in a deep state. That is the amber sentence exactly."
+      - "NOT green: green is 'floor target comfortably plausible for the power class and duty'. The floor is trivially satisfied, but scoring green on a vacuous floor would report the physics as settled when the target the founder actually stated (1 month) is the one that binds the design. The metric is derived, and the derivation that reads the whole feed set — source AND life AND duty — lands on amber."
+      - "SUPPORTING CATALOG NOTE (not the basis of the score, which is derived): catalog/socs/esp32c6.yaml declares power_states standby and soft-off at depth D1 — sleep states are DECLARED, and the schema's own limits say attribution to a CPU and driver PM coverage are not extracted. Nothing in the catalog yet supports a current figure for any state."
+      - "MITIGATION ON RECORD: the founder volunteered an on-bike charger from the bike's battery to USB-C, which in that configuration removes the budget entirely. It is optional, so it cannot lift the score, but it caps the consequence of missing the 1-month delight target."
+  - id: metric.feasibility.head-start
+    score: amber
+    scored_by: agent
+    verdict_weight: minor
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "q.time.exists = [nothing] — no sketches, no model, no prototype, no software, no app, no factory contact, no funding."
+      - "The scale's amber level has a second branch written for exactly this shape: 'nothing exists but the timeline carries no pressure'. Both timeline fields are none-declared — q.time.proto: 'no rush we are just testing out the system, correctness over speed, can optimize later'; q.time.prod: 'no deadline'."
+      - "NOT red: red is 'nothing — AND the timeline assumes otherwise'. The second conjunct is false, so red cannot fire. Nothing existing is a cost in schedule, and this product has declined to spend a schedule."
+  # ── RISK ────────────────────────────────────────────────────────────
+  - id: metric.risk.schedule
+    score: green
+    scored_by: derived
+    verdict_weight: minor
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "DERIVATION INPUTS: pir.timeline.proto = none-declared; pir.timeline.production = none-declared. Both are ANSWERS under the declared-none convention, not UNKNOWNs — the founder said 'no rush' and 'no deadline' explicitly."
+      - "The green level's second branch is stated for this case and is stated here as it requires: 'no dates declared (none-declared: no schedule risk asserted, stated as such in evidence)'. NO SCHEDULE RISK IS ASSERTED BY THIS SCORE — this green means no dates were given to be missed, not that a schedule was examined and found comfortable."
+      - "Consequence to carry forward: with no dates, schedule cannot be the constraint that forces a scope cut later. The pressure on this product will come from the BOM budget and the antenna work, not the calendar."
+  - id: metric.risk.self-assessed
+    score: amber
+    scored_by: agent
+    verdict_weight: minor
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "q.novel.hard: 'antenna placement, multipel protocols, pjone connecton and poower'. The fears are placed RIGHT: for a concealed multi-radio tracker, antenna placement (GNSS needs sky view, cellular needs a ground plane, BLE needs to escape the same metal), radio coexistence, phone pairing and the power budget are precisely the four hard parts, and three of them are independently confirmed by other metrics on this scorecard (connectivity amber, power-risk amber, env-risk amber)."
+      - "But amber, not green, because green demands 'the fear matches the actual hard part AND HAS A PLAN'. There is no plan on the record: q.time.exists = [nothing], no assets, no prior art in hand, and pir.physical.notes records the expectation that the antenna will 'just work' from a hidden position — which is the opposite of a plan for the fear he named first."
+      - "NOT red: red is 'the feared part is not the hard part — the hard part is unseen'. He sees the hard parts."
+      - "UNSEEN ITEMS WORTH NAMING (they do not change the level, since the named fears are real): the 100 USD budget against a cellular+GNSS+IMU BOM at 10 units (metric.viability.economics), the uncalibrated temperature extremes (pir.environment.limits UNKNOWN), and Li-ion cell safety inside a hot, vibrating vehicle — which the founder touched on only as a joke ('hopefully not explode lol')."
+  - id: metric.risk.safety
+    score: green
+    scored_by: derived
+    verdict_weight: core
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "DERIVATION INPUT: q.comp.safety = none — 'no, just hopefully not explode lol'. The answer to 'could a failure hurt someone or damage property?' is no; the explosion remark is a joke, not a stated harm path, and the enum value recorded in pir.compliance.safety is `none`."
+      - "human_gate_when on this metric is `serious`. The answer is `none`, so NO human gate is raised and precedence rule 1 does not fire. F5's guarantee held as authored: q.comp.safety is required tier, so this could not have been skipped into silence."
+      - "green = 'no plausible harm path', per the derivation from the stated value. RECORDED FOR THE HUMAN, NOT SCORED: the device is a rechargeable Li-ion pack concealed inside a motorcycle, exposed to heat and vibration, and the founder's own joke names that hazard. A derived metric may not overrule the founder's stated value, so this stays green — but if the G1 human wishes to reopen q.comp.safety as `minor`, this line is where that conversation starts."
+  - id: metric.risk.privacy
+    score: amber
+    scored_by: derived
+    verdict_weight: minor
+    consumer: P1-verdict
+    blocked_by: []
+    evidence:
+      - "DERIVATION INPUT: q.comp.data = [location] — 'yes, whatver info it has about location bascially'."
+      - "The amber level names this data class explicitly: 'personal data with known regimes (location, voice)'. `location` is present, so amber is mechanical."
+      - "NOT red: red is 'health/identity data without a compliance plan'; neither `health` nor `identity` was selected. NOT green: green is 'no personal data', and `none` was not selected."
+      - "Scope softener carried forward, not applied to the level: pir.users is the founder himself plus possibly ~10 friends, and pir.compliance.regions = [us]. Continuous vehicle location for a handful of known people is the mildest form of this amber — but it is still the data class that a stolen-vehicle tracker exists to hold, and cloud retention (q.intent.win, q.fn.stores) means it leaves the device."
+  # ── PLATFORM (consumer P2 — NEVER the P1 verdict) ───────────────────
+  - id: metric.platform.edge-autonomy
+    score: amber
+    scored_by: agent
+    consumer: P2-class
+    blocked_by: []
+    evidence:
+      - "absent_when check: this metric is ABSENT only when q.fn.talks == nothing. q.fn.talks = [phone-nearby, far-away-anywhere], so the feed is OPEN and the metric is scored, not absent."
+      - "q.fn.offline: 'no alerts but yes everything else'. Sensing, fixing, logging and the local phone link survive; only the alert path dies with the uplink. q.fn.stores confirms the offline design is already in the founder's head: 'save things if no location, then backtrack to the cloud' — buffer locally, backfill on reconnect."
+      - "amber = 'degrades offline in acceptable ways', and the founder himself declared the degradation acceptable. NOT green ('device is fine offline'): alerting is the anti-theft core of the product and it is exactly what stops. NOT red ('product is dead without the cloud'): the device keeps its whole record and hands it over later."
+      - "FOR P2: the offline requirement is a real constraint on the platform — non-volatile buffering with enough capacity for an outage at a 30 s moving cadence, plus reconnect-and-backfill logic. Not a cloud-thin-client design."
+    verdict_bearing: false
+  - id: metric.platform.hmi-class
+    score: green
+    scored_by: derived
+    consumer: P2-class
+    blocked_by: []
+    evidence:
+      - "DERIVATION INPUTS: q.fn.shows = a-light ('no screen, maybe a multicolo led to signal states, simople is best'); q.phys.controls = one-button ('1 button and 1 led/led ring')."
+      - "green = 'none/LED/sound — lane B territory'. a-light is in that set and one button is not 'many controls', so neither the amber condition (small screen or many controls) nor the red condition (rich screen) is met."
+      - "FOR P2: no display stack, no graphics memory, no framebuffer. An LED (or an addressable LED ring) plus one multi-purpose button is the whole HMI, which keeps the MCU lane open and removes the strongest MPU argument."
+    verdict_bearing: false
+  - id: metric.platform.compute-demand
+    score: green
+    scored_by: derived
+    consumer: P2-class
+    blocked_by: []
+    evidence:
+      - "absent_when check: ABSENT only when q.fn.rate never spawned. It spawned twice (position; tilt/motion), so the metric is scored, not absent."
+      - "DERIVATION, applied as written — 'green when every stated rate period >= 1 s and no continuous stream processing': stated periods are 1 hour (parked position), 30 s (moving position) and 'within seconds' (tilt/motion detection). All three are >= 1 s. There is no continuous stream: no audio, no vision, no high-rate sampling declared."
+      - "Neither amber trigger fires (no sub-second loop, no high-rate streaming) and neither red trigger fires (no vision/audio pipeline, no hard real time). green is mechanical."
+      - "TWO HONEST CAVEATS FOR P2, neither of which changes the derivation: (a) the alert half of the tilt answer is 'as quick as possible', an unbounded latency wish rather than a stated period — the stated period is 'within seconds', which is what the rule reads; alert responsiveness here is a wake-on-motion hardware interrupt plus modem attach time, not a compute loop. (b) pir.functions records rate ABSENT for the altitude and speed/velocity senses (PIR runner_error RE-004), so this green rests on two of the five named senses; both missing senses are GNSS/baro-derived and share the position cadence, so no plausible answer for them would move the level."
+    verdict_bearing: false
+
+# ── derived flags (consumer P2) — F3 applies to these too ─────────────
+derived:
+  needs_hardware: true
+  needs_firmware: true
+derived_evidence:
+  needs_hardware:
+    - "RULE: 'any sensing, actuation, on-device HMI, or physical function in pir.functions'."
+    - "SENSING (4 items): position, altitude, speed/velocity, tilt/motion — q.fn.senses."
+    - "ON-DEVICE HMI (1 item): a-light, a multicolour LED signalling state — q.fn.shows; plus one physical button in pir.physical.controls."
+    - "PHYSICAL: pir.physical.size_class = phone, carry = mounted (concealed on a motorcycle), and a PC1 rechargeable power path over USB-C. Actuation is the one clause that does NOT fire (q.fn.acts: 'it does not do anything to the bike'); three of the four suffice."
+  needs_firmware:
+    - "RULE: 'needs_hardware AND any on-device logic (always true when needs_hardware, unless purely passive/analog)'."
+    - "needs_hardware is true, and the device is emphatically not passive/analog: q.fn.offline requires everything but alerts to keep working with no internet; q.fn.stores requires buffering with later backfill to the cloud; q.fn.rate requires a configurable sampling policy ('a configurable thing where the software can change it based on power prefeernces'); pir.modes requires three distinct duty behaviours (wakes-on-event, wakes-on-schedule, only-when-used)."
+    - "The founder also states the software platform intent directly (q.novel.magic: Zephyr RTOS as the proof of concept) — recorded as an unclassified constraint in the PIR, not as evidence for this flag."
+
+# ── F5 — human gates ─────────────────────────────────────────────────
+human_gates: []      # q.comp.safety = none; the only v0 gate
+                     # (human_gate_when: serious on metric.risk.safety)
+                     # is not raised. Precedence rule 1 does not fire.
+
+# ── F4 — the machine recommends ──────────────────────────────────────
+recommendation:
+  verdict: blocked
+  rule_applied: 2    # "Any core metric `unknown` -> verdict blocked" — the
+                     # first matching rule in the precedence list. Rule 1 was
+                     # evaluated first and did not match (no human gate open).
+  blockers:
+    - metric: metric.viability.economics
+      score: unknown
+      blocking_field: pir.targets.unit_cost.sell
+      answered_by: "The founder stating a sell price, OR explicitly declaring the product not-for-sale. A not-for-sale declaration makes the field ABSENT (declared-none convention), which unblocks this metric through its own not-for-sale scale branch and would score it amber on the reasoning recorded under that metric — flipping this verdict to `go` with one more amber."
+      note: "A DESIGNED outcome, not a defect: metric.viability.economics is core but fed by scoring-tier questions, so this UNKNOWN passed G0's tier test and stopped the verdict here instead. The contract names economics as exactly this case."
+  reasons:
+    - "G0 STATE — the PIR being scored FAILED G0. g0.status = blocked, on one blocker: pir.constraints[zephyr-rtos].strength is UNKNOWN. 'zephyr rtos' is a volunteered technology the constraint_oracle explicitly includes (operating systems), q.constraint.strength is REQUIRED tier, and the runner never spawned the ask-back (PIR runner_error RE-002). A PIR that failed G0 is still scoreable; this line carries that state rather than hiding it. Also unverified: G0 condition 4 (`sfd graph lint`) was NOT RUN by this stage."
+    - "RULE 3 EVALUATED, DID NOT FIRE — no core metric is red. Core set: metric.viability.economics = unknown, metric.tech.exists = amber, metric.feasibility.connectivity = amber, metric.feasibility.power-risk = amber, metric.risk.safety = green. Neither pivot nor kill is indicated. The kill test is doubly false: metric.tech.exists is not red, and the founder claims no magic (q.novel.magic: 'not really'), so no red metric could BE the product's stated differentiation."
+    - "RULE 4 WOULD HAVE SAID — go, with these ambers named. (1) metric.tech.exists amber: catalog coverage is D1 declared-inventory with a single D2 record, and four needed capabilities — GNSS, cellular, IMU, battery charging — have ZERO coverage; research tasks RT-1..RT-5 raised. (2) metric.feasibility.connectivity amber: BLE at D1 on catalog/socs/esp32c6.yaml, cellular entirely outside current lanes, and `cellular` is a HARD constraint that filters the P4 fit matrix — P4 cannot be run for this product until RT-3 lands. (3) metric.feasibility.power-risk amber: the 1-month delight target against a 30 s moving fix cadence, an armed motion trigger and a cellular uplink demands aggressive sleep design; the floor is none-declared so nothing is violated. (4) metric.feasibility.env-risk amber: washing-or-hosing, vibration and heat/cold together, in the least serviceable spot on a motorcycle — known art, but pir.environment.limits is UNKNOWN so the extremes are uncalibrated. (5) metric.risk.self-assessed amber: the founder's four named fears are the right four and none of them has a plan. (6) metric.risk.privacy amber: continuous vehicle location, retained in the cloud. (7) metric.viability.novelty amber: an occupied category and an unverified, incremental difference — near-irrelevant here, since the user population is one person."
+    - "MINOR-METRIC UNKNOWNS — none. Every minor metric scored a level; the only `unknown` on the scorecard is the core economics metric named in blockers."
+    - "P2-CLASS AMBERS, APPENDED AND MARKED NON-VERDICT-BEARING — metric.platform.edge-autonomy amber: the alert path dies with the uplink while everything else survives, so P2 must budget non-volatile buffering plus reconnect-and-backfill. (metric.platform.hmi-class green and metric.platform.compute-demand green both keep the MCU lane open for P2.)"
+    - "OTHER UNKNOWNS ON THE PIR, CARRIED FORWARD (R5) — pir.environment.limits UNKNOWN (heat/cold follow-up asked, unanswered; blocks no metric but leaves env extremes uncalibrated for P4 part classes)."
+    - "RUNNER DEFECTS AFFECTING THIS SCORECARD — RE-001 (q.env.conditions presented 6 of 8 values; `drops` and \"none\" never presented, so env-risk is scored on an incomplete condition set); RE-003 (the sell half of q.scale.cost was never asked, which is the direct cause of this blocked verdict); RE-004 (q.fn.rate spawned for 2 of 5 named senses, so metric.platform.compute-demand rests on a partial rate set); RE-005 (the 'akwas on schel' reading — the alternative reading would add always-on to pir.modes and push metric.feasibility.power-risk toward red)."
+
+# ── F4 — the human decides G1 ────────────────────────────────────────
+decision: {}   # LEFT EMPTY BY THE SCORER, deliberately. G1 is the human's
+               # call: {verdict, by, quote, at}, recorded with their
+               # verbatim words (R4). The machine recommends; it never
+               # decides, and it never pre-fills this block.

@@ -1,0 +1,35 @@
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/envelope
+BenchmarkSeal-8          	  914533	      1271 ns/op	    2944 B/op	      11 allocs/op
+BenchmarkSeal-8          	  921081	      1272 ns/op	    2943 B/op	      11 allocs/op
+BenchmarkSeal-8          	  845655	      1324 ns/op	    2931 B/op	      11 allocs/op
+BenchmarkSeal-8          	  869838	      1295 ns/op	    2928 B/op	      11 allocs/op
+BenchmarkSeal-8          	  901550	      1293 ns/op	    2945 B/op	      11 allocs/op
+BenchmarkSeal-8          	  880231	      1288 ns/op	    2927 B/op	      11 allocs/op
+BenchmarkSeal-8          	  870714	      1307 ns/op	    2928 B/op	      11 allocs/op
+BenchmarkSeal-8          	  935140	      1260 ns/op	    2942 B/op	      11 allocs/op
+BenchmarkSeal-8          	  946480	      1237 ns/op	    2940 B/op	      11 allocs/op
+BenchmarkSeal-8          	  962077	      1222 ns/op	    2939 B/op	      11 allocs/op
+BenchmarkUnseal-8        	 1242210	       909.3 ns/op	    2824 B/op	       8 allocs/op
+BenchmarkUnseal-8        	 1298224	       859.9 ns/op	    2820 B/op	       8 allocs/op
+BenchmarkUnseal-8        	 1237105	       878.6 ns/op	    2825 B/op	       8 allocs/op
+BenchmarkUnseal-8        	 1231761	       897.9 ns/op	    2825 B/op	       8 allocs/op
+BenchmarkUnseal-8        	 1133127	       973.5 ns/op	    2833 B/op	       8 allocs/op
+BenchmarkUnseal-8        	 1232721	       921.4 ns/op	    2825 B/op	       8 allocs/op
+BenchmarkUnseal-8        	 1180246	       967.0 ns/op	    2829 B/op	       8 allocs/op
+BenchmarkUnseal-8        	 1151527	       993.7 ns/op	    2831 B/op	       8 allocs/op
+BenchmarkUnseal-8        	 1086274	      1027 ns/op	    2817 B/op	       8 allocs/op
+BenchmarkUnseal-8        	  871532	      1254 ns/op	    2816 B/op	       8 allocs/op
+BenchmarkFingerprint-8   	 8356162	       130.6 ns/op	     128 B/op	       2 allocs/op
+BenchmarkFingerprint-8   	 9199137	       119.9 ns/op	     128 B/op	       2 allocs/op
+BenchmarkFingerprint-8   	 9620529	       124.3 ns/op	     128 B/op	       2 allocs/op
+BenchmarkFingerprint-8   	 9435420	       122.5 ns/op	     128 B/op	       2 allocs/op
+BenchmarkFingerprint-8   	11410924	       111.7 ns/op	     128 B/op	       2 allocs/op
+BenchmarkFingerprint-8   	10879177	       114.9 ns/op	     128 B/op	       2 allocs/op
+BenchmarkFingerprint-8   	10474722	       111.7 ns/op	     128 B/op	       2 allocs/op
+BenchmarkFingerprint-8   	11158578	       109.6 ns/op	     128 B/op	       2 allocs/op
+BenchmarkFingerprint-8   	11137346	       109.8 ns/op	     128 B/op	       2 allocs/op
+BenchmarkFingerprint-8   	11026236	       112.2 ns/op	     128 B/op	       2 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/envelope	34.681s

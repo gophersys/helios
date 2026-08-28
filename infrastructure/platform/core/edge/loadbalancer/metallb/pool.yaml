@@ -1,0 +1,21 @@
+# MetalLB address pool — hands LAN IPs to `type: LoadBalancer` services.
+# The range MUST be on your home LAN subnet and OUTSIDE the router's DHCP pool
+# and outside the node static IPs. Adjust to match your network.
+---
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: homelab-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 10.168.0.240-10.168.0.250
+---
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: homelab-l2
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - homelab-pool

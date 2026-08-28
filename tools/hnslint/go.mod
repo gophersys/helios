@@ -1,4 +1,4 @@
-module github.com/gophersys/eden/tools/hnslint
+module github.com/gophersys/hnslint
 
 go 1.26
 

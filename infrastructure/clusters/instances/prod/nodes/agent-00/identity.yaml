@@ -1,0 +1,51 @@
+# identity.yaml — agent-00 (prod cluster agent — ARM apps)
+#
+# OCI VM.Standard.A1.Flex (Ampere ARM) — always-free tier, irreplaceable.
+# Stateless apps-role workloads (codectl, fintel backends, etc.).
+
+name: agent-00
+os: linux-debian
+purpose: "prod k3s agent — apps-role ARM workloads"
+tailscale_hostname: agent-00
+status: active
+location: oracle-phoenix
+owner: mateo.segura413@gmail.com
+
+roles:
+  - common
+  - platform-linux-debian
+  - networking-tailscale
+  - secrets-bitwarden-client
+  - cluster-node-labels
+
+hardware:
+  provider: oracle
+  compute_unit:
+    arch: arm64
+    cores: 2
+    memory_gb: 12
+    storage_gb: 47
+    storage_class: ssd
+    network: tailnet
+  oracle:
+    shape: VM.Standard.A1.Flex
+    availability_domain: "FEQI:PHX-AD-1"
+    instance_ocid: "ocid1.instance.oc1.phx.anyhqljrslzce6ac7d27624sykwd5p2drqx4cvx5tqc6djuqbpcw3cxlb7mq"
+
+kubernetes:
+  role: agent
+  cluster_role: apps
+  labels:
+    role: apps
+  taints: []
+  extra_flags: []
+
+# Irreplaceable A1.Flex free-tier node — Terraform MUST set
+# prevent_destroy. See providers/oracle/modules/compute/README.md
+# "A1.Flex protection".
+irreplaceable: true
+
+ssh:
+  port: 22
+  allowed_tailnet_tags:
+    - "tag:admin"

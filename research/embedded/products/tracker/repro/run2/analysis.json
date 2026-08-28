@@ -1,0 +1,14 @@
+{
+ "disagreements": [
+  {
+   "field": "assets",
+   "values": {
+    "iD": "nothing",
+    "iE": "",
+    "iF": "nothing"
+   }
+  }
+ ],
+ "unanimous": 35,
+ "total": 36
+}

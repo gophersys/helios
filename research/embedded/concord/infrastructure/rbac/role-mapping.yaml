@@ -1,0 +1,84 @@
+# Concord Platform Role → Kubernetes RBAC Mapping
+#
+# This is the canonical source of truth for how the 4 platform roles
+# (defined in prisma/schema.prisma) map to K8s ClusterRoles.
+#
+# Each cluster under infrastructure/clusters/<name>/rbac/ implements
+# these mappings as concrete ClusterRole + RoleBinding manifests.
+
+roles:
+  admin:
+    platformRole: ADMIN
+    clusterRole: concord-super-admin
+    k8sGroup: concord-admins
+    scope: cluster-wide
+    description: >
+      Full cluster access. All namespaces, all resources, all verbs.
+      Maps to cluster-admin equivalent.
+    namespaces: all
+    capabilities:
+      - Full CRUD on all K8s resources
+      - Manage RBAC roles and bindings
+      - Exec into any pod
+      - Access secrets in all namespaces
+      - Delete/scale any deployment
+
+  maintainer:
+    platformRole: MAINTAINER
+    clusterRole: concord-namespace-admin
+    k8sGroup: concord-maintainers
+    scope: namespace
+    description: >
+      Full namespace access in staging, production, validation, and devops.
+      Cannot modify cluster-level resources or RBAC.
+    namespaces: [staging, production, validation, devops]
+    capabilities:
+      - Full CRUD on workloads (deployments, statefulsets, jobs)
+      - Full CRUD on services, configmaps, secrets
+      - Exec into pods, port-forward
+      - Manage ingresses and network policies
+      - Cannot modify ClusterRoles or ClusterRoleBindings
+
+  developer:
+    platformRole: DEVELOPER
+    clusterRole: concord-namespace-readonly
+    k8sGroup: concord-developers
+    scope: namespace
+    description: >
+      Full access in staging for development workflow.
+      Read-only in production, validation, and devops.
+    namespaces: [staging, production, validation, devops]
+    capabilities:
+      - Full CRUD in staging namespace
+      - Read-only in production and validation
+      - View pods, logs, services, configmaps
+      - No exec in production
+      - No secret access in production
+
+  operator:
+    platformRole: OPERATOR
+    clusterRole: concord-namespace-readonly
+    k8sGroup: concord-operators
+    scope: namespace
+    description: >
+      Read-only access to staging namespace only.
+      For manufacturing floor operators monitoring workloads.
+    namespaces: [staging]
+    capabilities:
+      - View pods and logs
+      - View services and events
+      - No exec, no secrets, no mutations
+
+serviceAccounts:
+  concord-api:
+    clusterRole: concord-api-system-monitor
+    scope: cluster-wide
+    description: >
+      HTTP API service account. Monitors cluster state, creates
+      validation K8s Jobs, manages pod lifecycle for build workers.
+    capabilities:
+      - Read nodes, namespaces, pods, services, events
+      - Create/delete batch jobs
+      - Exec into pods (validation runners)
+      - Patch deployments (rolling restarts)
+      - Read RBAC (display in admin UI)

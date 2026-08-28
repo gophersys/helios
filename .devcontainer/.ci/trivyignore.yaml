@@ -1,0 +1,123 @@
+# .ci/trivyignore.yaml — the waiver file the nightly security scan reads.
+#
+# The scan gates CRITICAL and sets no --ignore-unfixed, so an unfixed CRITICAL
+# has to become an entry HERE — a visible line in a diff — and never a silent
+# skip. ONE package is the exception: linux-libc-dev takes the class rule in
+# .ci/trivy-ignore-policy.rego (Mateo, 2026-08-24) instead of per-CVE entries,
+# because it accrues unfixed kernel CVEs faster than dated waivers can follow
+# — 5 in the 5 days to 2026-08-24 — and its findings resurface the moment a
+# fix exists. Every OTHER package still takes a dated entry here.
+#
+# Trivy loads this file only because .ci/providers/github/security-nightly.yml
+# names it with --ignorefile. The YAML ignore file is experimental, and without
+# that flag every entry here is dead text.
+#
+# Each entry carries 3 fields, which are trivy's own:
+#
+#   id           the finding, for example CVE-2026-00001. Trivy requires it.
+#   statement    WHY the finding is accepted. A waiver with no reason says what
+#                is ignored and never why.
+#   expired_at   yyyy-mm-dd, the date it comes back for review. Trivy enforces
+#                the date itself, so a dated waiver reopens on its own. A waiver
+#                with no expiry is a permanent exception written as a temporary
+#                one.
+#
+# _ctl/tests/scheduled-workflows.test.sh fails a waiver that is missing 1 of the
+# 3, in the pull request gate.
+#
+# EVERY entry also carries `paths`, and that is not optional here. A bare id
+# waives the finding in every file of every image: `CVE-2025-68121` alone would
+# have covered gitleaks AND yq AND k9s AND any binary added tomorrow, so the
+# 2 pins that were BUMPED for that CVE would have been silently un-checked
+# instead. trivy matches `paths` with doublestar against the finding path, so a
+# path scopes the waiver to the artifact that was actually analysed.
+#
+# A `secrets:` section exists, with exactly 1 entry. Of the 3 CRITICAL secret
+# findings base carried — 2 gosec regex rules and 1 ansible docs sample — the
+# gosec rules lived only in the Go module cache and ARE removed at the source
+# by the in-layer cache cleanup. The ansible sample has 2 copies: the uv cache
+# copy (removed by that same cleanup) and the INSTALLED venv copy under
+# home/dev/.local/share/uv/tools/ansible-core/, which survives — it is the
+# tool's own source, not cache — and is waived below, path-scoped and
+# expiring. A NEW secret finding anywhere else is a new fact and gets read,
+# never blanket-waived.
+#
+# The shape of an entry:
+#
+#   vulnerabilities:
+#     - id: CVE-2026-00001
+#       paths:
+#         - "usr/local/bin/tool"
+#       statement: no fix upstream; the package is not reachable from any entrypoint
+#       expired_at: 2026-09-30
+#
+vulnerabilities:
+  # gitleaks — the pin is ALREADY the latest release. 8.30.1 (2026-03-21) is the
+  # newest upstream tag, and `go version -m` on its published asset reports
+  # go1.24.11; the fix needs go1.24.13. There is no version to bump to.
+  - id: CVE-2025-68121
+    paths:
+      - "usr/local/bin/gitleaks"
+    statement: "gitleaks 8.30.1 is the latest upstream release and its published binary is built with go1.24.11, while the fix needs go1.24.13. No release carries it yet, so no pin bump can clear this finding."
+    expired_at: 2026-11-05
+
+  # grpcurl — 3 findings, 1 dormant upstream. 1.9.3 (2025-03-11) is the newest
+  # release and `go version -m` reports go1.21.1 and grpc v1.61.0, which is the
+  # exact content of all 3 findings. cloud is the only image that installs it.
+  - id: CVE-2026-33186
+    paths:
+      - "usr/local/bin/grpcurl"
+    statement: "grpcurl 1.9.3 is the latest upstream release (2025-03-11) and links grpc v1.61.0. Upstream has been dormant for about 17 months, so no pin bump can clear this finding."
+    expired_at: 2026-11-05
+  - id: CVE-2025-68121
+    paths:
+      - "usr/local/bin/grpcurl"
+    statement: "grpcurl 1.9.3 is the latest upstream release (2025-03-11) and its published binary is built with go1.21.1. Upstream has been dormant for about 17 months, so no pin bump can clear this finding."
+    expired_at: 2026-11-12
+  - id: CVE-2024-24790
+    paths:
+      - "usr/local/bin/grpcurl"
+    statement: "grpcurl 1.9.3 is the latest upstream release (2025-03-11) and its published binary is built with go1.21.1. Upstream has been dormant for about 17 months, so no pin bump can clear this finding."
+    expired_at: 2026-11-12
+
+  # actions/runner externals — the runner ships its OWN node20 and node24 trees,
+  # each with a bundled npm. 2.336.0 is the latest release and extraction of its
+  # asset confirms tar 6.2.1 in node20 and tar 7.5.15 in node24. The paths are
+  # scoped to the externals tree, so the npm WE install (NPM_VERSION, bumped to
+  # 11.19.0 for this same CVE) is still scanned.
+  - id: CVE-2026-59873
+    paths:
+      - "home/runner/externals/node20/**/node_modules/tar/package.json"
+      - "home/runner/externals/node24/**/node_modules/tar/package.json"
+    statement: "actions/runner 2.336.0 is the latest upstream release and bundles its own node20 and node24 runtimes carrying tar 6.2.1 and 7.5.15. The bundled tree is not ours to patch and no pin bump can clear this finding."
+    expired_at: 2026-11-12
+
+  # Android SDK bcprov — verified against the NEWEST cmdline-tools Google
+  # advertises, not only against the pin: channel 22.0 (build 15859902) still
+  # ships bcprov-jdk18on 1.79. Bumping ANDROID_CMDLINE_TOOLS_VERSION changes
+  # nothing here. The jar version stays in the path, so a future SDK that ships
+  # a different bcprov is scanned rather than waived.
+  - id: CVE-2025-14813
+    paths:
+      - "opt/android-sdk/**/bcprov-jdk18on-1.79.jar"
+    statement: "The newest Android cmdline-tools Google publishes (channel 22.0, build 15859902) still ships bcprov-jdk18on 1.79, verified by extracting that archive. No pin bump can clear this finding."
+    expired_at: 2026-11-19
+
+# The secret scanner's one finding: a documentation example inside the ansible
+# community.aws collection, installed as source by `uv tool install`. The
+# in-layer cache cleanup removed the CACHED copy; this is the live venv copy.
+# It is an example key in upstream docs, not a credential.
+secrets:
+  - id: aws-access-key-id
+    # Secret findings report ABSOLUTE container paths (leading slash), unlike
+    # vulnerability findings, which report unslashed layer paths — measured on
+    # run 32010926390, where the unslashed form failed to match. Both forms
+    # stay, each scoped to the one file.
+    paths:
+      - "/home/dev/.local/share/uv/tools/ansible-core/**/sts_session_token.py"
+      - "home/dev/.local/share/uv/tools/ansible-core/**/sts_session_token.py"
+    statement: >-
+      A documentation example AWS key id inside ansible's community.aws
+      collection source (module docstring). Upstream ships it in every
+      release; it is not a credential. Re-check at expiry.
+    expired_at: 2026-11-26

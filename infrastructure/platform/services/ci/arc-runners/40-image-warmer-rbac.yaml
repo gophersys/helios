@@ -1,0 +1,46 @@
+# RBAC for the ci-image-warmer — two identities, least privilege each.
+#
+# The DaemonSet's ServiceAccount holds NOTHING: warming is the kubelet pulling
+# initContainer images, so the pod needs no API access at all, and the token
+# is not even mounted. The account exists (rather than `default`) so the
+# identity is explicit and auditable per the platform baseline.
+#
+# The refresher CronJob's account can do exactly one thing: patch this one
+# DaemonSet, which is what `kubectl rollout restart` is. It cannot read
+# secrets, list pods, or touch any other object in the namespace.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-image-warmer
+  namespace: arc-runners
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ci-image-warmer-refresher
+  namespace: arc-runners
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ci-image-warmer-refresher
+  namespace: arc-runners
+rules:
+  - apiGroups: [apps]
+    resources: [daemonsets]
+    resourceNames: [ci-image-warmer]
+    verbs: [get, patch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ci-image-warmer-refresher
+  namespace: arc-runners
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ci-image-warmer-refresher
+subjects:
+  - kind: ServiceAccount
+    name: ci-image-warmer-refresher
+    namespace: arc-runners

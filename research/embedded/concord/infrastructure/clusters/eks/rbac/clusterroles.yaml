@@ -1,0 +1,132 @@
+# Concord Platform ClusterRoles
+# Maps to platform roles: ADMIN, MAINTAINER, DEVELOPER, OPERATOR
+# Plus the service account role for the HTTP API.
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: concord-super-admin
+  labels:
+    app.kubernetes.io/part-of: concord
+    concord.corekinect.com/platform-role: admin
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  - nonResourceURLs: ["*"]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: concord-namespace-admin
+  labels:
+    app.kubernetes.io/part-of: concord
+    concord.corekinect.com/platform-role: maintainer
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - pods/exec
+      - pods/portforward
+      - services
+      - endpoints
+      - configmaps
+      - secrets
+      - persistentvolumeclaims
+      - events
+      - serviceaccounts
+    verbs: ["*"]
+  - apiGroups: ["apps"]
+    resources: [deployments, replicasets, statefulsets, daemonsets]
+    verbs: ["*"]
+  - apiGroups: ["batch"]
+    resources: [jobs, cronjobs]
+    verbs: ["*"]
+  - apiGroups: ["networking.k8s.io"]
+    resources: [ingresses, networkpolicies]
+    verbs: ["*"]
+  - apiGroups: ["autoscaling"]
+    resources: [horizontalpodautoscalers]
+    verbs: ["*"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: concord-namespace-readonly
+  labels:
+    app.kubernetes.io/part-of: concord
+    concord.corekinect.com/platform-role: developer
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/log
+      - services
+      - endpoints
+      - configmaps
+      - persistentvolumeclaims
+      - events
+      - serviceaccounts
+    verbs: [get, list, watch]
+  - apiGroups: ["apps"]
+    resources: [deployments, replicasets, statefulsets, daemonsets]
+    verbs: [get, list, watch]
+  - apiGroups: ["batch"]
+    resources: [jobs, cronjobs]
+    verbs: [get, list, watch]
+  - apiGroups: ["networking.k8s.io"]
+    resources: [ingresses, networkpolicies]
+    verbs: [get, list, watch]
+  - apiGroups: ["autoscaling"]
+    resources: [horizontalpodautoscalers]
+    verbs: [get, list, watch]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: concord-api-system-monitor
+  labels:
+    app.kubernetes.io/part-of: concord
+    concord.corekinect.com/platform-role: service-account
+rules:
+  - apiGroups: [""]
+    resources: [nodes, namespaces]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods, services, endpoints, configmaps, secrets, events, serviceaccounts]
+    verbs: [get, list, watch]
+  - apiGroups: [""]
+    resources: [pods/log]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [pods/exec]
+    verbs: [create]
+  - apiGroups: [""]
+    resources: [pods]
+    verbs: [delete]
+  - apiGroups: ["apps"]
+    resources: [deployments, replicasets, statefulsets, daemonsets]
+    verbs: [get, list, watch, patch]
+  - apiGroups: ["apps"]
+    resources: [deployments/scale]
+    verbs: [get, patch, update]
+  - apiGroups: ["batch"]
+    resources: [jobs]
+    verbs: [get, list, watch, delete, create]
+  - apiGroups: ["networking.k8s.io"]
+    resources: [ingresses]
+    verbs: [get, list, watch, patch]
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources: [roles, clusterroles, rolebindings, clusterrolebindings]
+    verbs: [get, list]
+  - apiGroups: [""]
+    resources: [configmaps, secrets, services]
+    verbs: [patch, delete]
+  # Nodes: allow patch for the MTIB onboarding flow — POST /v2/devices/mtibs/<id>/register
+  # applies edge labels (corekinect.com/role=edge, corekinect.com/purpose=<type>) and
+  # the NoSchedule taint so the right MTIB Deployment lands on the right hardware.
+  - apiGroups: [""]
+    resources: [nodes]
+    verbs: [patch]

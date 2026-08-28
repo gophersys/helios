@@ -1,0 +1,148 @@
+# values.yaml — stateful-app
+
+project: ""                         # required; kebab-case (codectl, fintel, ...)
+env: ""                             # required; prod | staging | dev | lab
+
+app:
+  name: ""                          # required; sub-app within the project
+
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+tenant: gophersys
+nodeRole: data                     # default to data — stateful workloads prefer data nodes
+dataClassification: internal
+
+replicas: 1
+
+# --------------------------- storage -------------------------------------
+storage:
+  class: standard
+  size: 10Gi
+  accessMode: ReadWriteOnce
+  retain: true                     # emit platform.gophersys/retain=true label
+
+# --------------------------- backup --------------------------------------
+backup:
+  enabled: true
+  schedule: "0 2 * * *"            # Velero will pick this up (platform/services/backup/)
+  retention: 30d
+
+# --------------------------- pod shape -----------------------------------
+resources:
+  requests: { cpu: 200m, memory: 512Mi }
+  limits:   { cpu: 1000m, memory: 512Mi }
+
+securityContext:
+  pod:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    seccompProfile: { type: RuntimeDefault }
+  container:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities: { drop: ["ALL"] }
+
+tmpfs:
+  - { name: tmp, mountPath: /tmp, sizeLimit: 32Mi }
+
+# --------------------------- StatefulSet knobs ---------------------------
+podManagementPolicy: OrderedReady  # OrderedReady | Parallel
+updateStrategy:
+  type: RollingUpdate
+  rollingUpdate:
+    partition: 0                   # bump to stage rolling upgrades (N-1, N-2, ...)
+
+# --------------------------- probes --------------------------------------
+probes:
+  startup:
+    tcp: { port: http }
+    periodSeconds: 5
+    failureThreshold: 120
+  readiness:
+    tcp: { port: http }
+    periodSeconds: 10
+  liveness:
+    tcp: { port: http }
+    periodSeconds: 10
+
+# --------------------------- service (headless + optional ClusterIP) -----
+service:
+  headless:
+    enabled: true                  # clusterIP: None — stable per-pod DNS
+    port: 80
+    targetPort: http
+  discovery:
+    enabled: false                 # ClusterIP for load-balanced reads
+    port: 80
+    targetPort: http
+  ports:
+    - { name: http, containerPort: 8080, protocol: TCP }
+    - { name: metrics, containerPort: 9090, protocol: TCP }
+
+# --------------------------- disruption budget ---------------------------
+pdb:
+  enabled: true
+  minAvailable: 1                  # never drop to zero via voluntary evictions
+
+# --------------------------- observability -------------------------------
+observability:
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+  logs:
+    format: json
+    level: info
+  traces:
+    enabled: true
+    samplingRatio: 0.1
+
+secrets: []
+
+networkPolicy:
+  enabled: true
+  allowIngressFrom: []
+  allowEgressTo: []
+
+slo:
+  tier: critical
+  availability: { target: 99.95, window: 30d }
+
+rollout:
+  strategy: RollingUpdate
+  minReadySeconds: 30
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+rbac:
+  create: false
+  rules: []
+
+scheduling:
+  nodeSelector: { role: data }
+  tolerations:
+    - { key: data, operator: Equal, value: "true", effect: NoSchedule }
+  affinity: {}
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: ""
+
+env: []
+envFrom: []
+volumes: []
+volumeMounts: []
+initContainers: []
+sidecars: []

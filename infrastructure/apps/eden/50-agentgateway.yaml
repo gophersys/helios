@@ -1,0 +1,116 @@
+# Eden agentgateway — the agent-session API (deploy design §1 / ADR-0022).
+# Promoted from the eden Helm chart (deploy/plane/production/chart) on release
+# v0.1.4; image digest-pinned so Argo reconciles the EXACT artifact (the release
+# workflow re-pins the digest on each cut). Mounts a COMBINED surface: the stateless
+# NATS→SSE bridge AND the FULL REST/record plane the UI consumes (propose · projects
+# · insight · agent-configs · sessions). Talks to nats:4222 + postgres:5432, resolves
+# its JWT signing key + the record/dashboard Postgres DSN + the propose credential
+# from vault://eden/production, and mounts the eden-vault-token Secret at
+# /vault/secrets/token. STATELESS: POST /sessions writes desired state; the
+# orchestrator reconciles the pod. serviceAccountName eden-agent (declared in
+# 20-rbac.yaml). Picked up by the app-eden Application (recurse:false, flat dir);
+# Argo selfHeal + prune reconciles.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agentgateway
+  namespace: eden
+  labels:
+    app.kubernetes.io/name: agentgateway
+    app.kubernetes.io/part-of: eden
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agentgateway
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agentgateway
+    spec:
+      serviceAccountName: eden-agent
+      containers:
+        - name: agentgateway
+          # v0.1.10
+          image: "ghcr.io/gophersys/eden/agentgateway@sha256:d948c9afac321f99079db5ca9fd54d03c844deddd23257291e11f5c31ef27ae0"
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: EDEN_GATEWAY_ADDRESS
+              value: ":8080"
+            - name: EDEN_NATS_URL
+              value: "nats://nats:4222"
+            - name: EDEN_VAULT_MODE
+              value: "token-file"
+            - name: EDEN_VAULT_TOKEN_FILE
+              value: "/vault/secrets/token"
+            - name: VAULT_ADDR
+              value: "http://vault:8200"
+            - name: EDEN_HARNESS
+              value: "claude-code"
+            - name: EDEN_GATEWAY_JWT_SECRET_REF
+              value: "vault://eden/production#agentgateway-jwt-signing-key"
+            # The FULL REST/record plane (prodserve): the record + dashboard Postgres DSN and the
+            # propose harness credential, resolved from Vault at boot (the manifest carries the
+            # REFERENCE, never the value). When the DSN ref is present the gateway wires prodserve
+            # in addition to the NATS bridge; absent it, it serves the bridge alone (partial-rollout
+            # degrade-honest). The generic database-dsn field points at the SAME eden Postgres the
+            # orchestrator's DesiredStore runs on (seeded by 08-vault-seed-job.yaml).
+            - name: EDEN_GATEWAY_DATABASE_DSN_REF
+              value: "vault://eden/production#database-dsn"
+            # A3 (ADR-0029 §4): the connector-credential resolution plane — the sealed rows live in
+            # the platformgateway DB; the KEK unseals them. References only, never values.
+            - name: EDEN_GATEWAY_CONNECTORS_DSN_REF
+              value: "vault://eden/production#platformgateway-database-dsn"
+            - name: EDEN_GATEWAY_CONNECTORS_KEK_REF
+              value: "vault://eden/production#connectors-kek"
+            - name: EDEN_CREDENTIAL_REF
+              value: "vault://eden/production#setup-token"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+              ephemeral-storage: 1024Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          volumeMounts:
+            - name: eden-vault-token
+              mountPath: /vault/secrets
+              readOnly: true
+      volumes:
+        - name: eden-vault-token
+          secret:
+            secretName: eden-vault-token
+            items:
+              - key: token
+                path: token
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: agentgateway
+  namespace: eden
+  labels:
+    app.kubernetes.io/name: agentgateway
+    app.kubernetes.io/part-of: eden
+spec:
+  selector:
+    app.kubernetes.io/name: agentgateway
+  ports:
+    - name: http
+      port: 8080
+      targetPort: 8080

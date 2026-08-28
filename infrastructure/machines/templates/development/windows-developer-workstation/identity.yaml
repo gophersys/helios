@@ -1,0 +1,36 @@
+# identity.yaml — windows-developer-workstation
+#
+# Windows 11 Pro host used for development. This entry describes the Windows
+# host itself; if it runs WSL distros, each distro gets its own entry using
+# the wsl-developer-workstation template.
+
+name: __HOST_NAME__
+os: windows-client
+purpose: "TODO: short free-text (e.g. primary Windows dev machine)"
+tailscale_hostname: __HOST_NAME__
+status: planned
+location: "TODO"
+owner: mateo.segura413@gmail.com
+
+roles:
+  - common
+  - platform-windows
+  - networking-tailscale
+  - secrets-bitwarden-client
+
+# Ansible talks to Windows over WinRM by default. Fill in connection details
+# when enrolling.
+connection:
+  ansible_connection: winrm
+  ansible_winrm_transport: ntlm
+  ansible_port: 5986
+  ansible_winrm_server_cert_validation: ignore   # TODO: enable after CA trust
+
+hardware:
+  cpu_arch: amd64
+  cpu_cores: 0
+  memory_gb: 0
+
+# WSL distros hosted by this machine (free-form list, for human reference
+# only — each distro has its own identity.yaml).
+wsl_children: []

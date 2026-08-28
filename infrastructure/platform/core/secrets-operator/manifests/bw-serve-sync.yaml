@@ -1,0 +1,123 @@
+# bw-serve-sync — periodic vault sync for the bw-serve cache.
+#
+# WHY (build ledger #89): The bw-serve bridge caches the vault at login. It
+# never syncs again on its own. A new or rotated Vaultwarden item stays
+# invisible to ESO until the pod restarts. That broke the arc-netpol work for
+# one day: the vault item existed, but the cache was 4 days stale. This CronJob
+# sends POST /sync to the bridge every 10 minutes, so the cache is at most 10
+# minutes old. The job is fail-loud: a non-200 response, or a 200 response
+# without "success":true in the body, makes the Job fail. No retry loop hides
+# an outage: restartPolicy Never, backoffLimit 1. The one sanctioned retry is
+# INSIDE curl (--retry 5 --retry-connrefused, ~15 s worst case): measured on
+# 2026-08-19 (ledger #127), a fresh pod's first connect is refused in ~24 ms
+# while ESO through the same Service stays green — a cold-pod dataplane race,
+# not a bridge outage. The retry outlives the race; a real outage still
+# exhausts it and fails the Job loudly.
+#
+# HONEST LIMIT: "fail" means a Failed Job object (the last 3 are kept), not an
+# alert. Nothing in this cluster alerts on a CronJob that stops working
+# (debt-register D16). Check with: kubectl get jobs -n external-secrets.
+# scripts/verify-bw-sync-wiring.sh guards this file's wiring in CI, so the
+# known silent-failure paths (selector typo, wrong port, a swallowed exit
+# code) cannot land unnoticed.
+#
+# Image: rule 50 §7 allows "the official upstreams". curl.se publishes
+# curlimages/curl as the curl project's official image, and this exact image
+# and tag already runs on main (apps/music/qbittorrent, port-sync sidecar).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: bw-serve-sync
+  namespace: external-secrets
+  labels:
+    app: bw-serve-sync
+automountServiceAccountToken: false
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bw-serve-sync
+  namespace: external-secrets
+  labels:
+    app: bw-serve-sync
+spec:
+  schedule: "*/10 * * * *"
+  # Never two syncs at once, and a missed slot older than 5 minutes is dropped
+  # (the next slot is at most 10 minutes away; a backlog adds nothing).
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 300
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 120
+      template:
+        metadata:
+          labels:
+            app: bw-serve-sync
+        spec:
+          restartPolicy: Never
+          # The pod needs no Kubernetes API access. Rule 50 §7: a dedicated
+          # ServiceAccount per app, and no token mounted 144 times a day into
+          # the namespace that holds the unlocked vault bridge.
+          serviceAccountName: bw-serve-sync
+          automountServiceAccountToken: false
+          containers:
+            - name: sync
+              image: curlimages/curl:8.11.0
+              command: ["/bin/sh", "-ec"]
+              # -e aborts on the first failure. `curl -f` fails on any HTTP
+              # error status. The grep fails on a 200 body without
+              # "success": true (spacing-tolerant, so a bridge upgrade that
+              # reformats its JSON does not start a failure loop). The body is
+              # echoed first, so the log always shows what the bridge
+              # answered. No `|| true` anywhere.
+              args:
+                - |
+                  date -u +%Y-%m-%dT%H:%M:%SZ
+                  out="$(curl -fsS --max-time 60 \
+                    --retry 5 --retry-delay 3 --retry-connrefused -X POST \
+                    http://bw-serve.external-secrets.svc.cluster.local:8087/sync)"
+                  echo "$out"
+                  printf '%s' "$out" | grep -Eq '"success"[[:space:]]*:[[:space:]]*true'
+              securityContext:
+                # uid/gid of curl_user in the image, set numerically so the
+                # kubelet can verify runAsNonRoot.
+                runAsUser: 100
+                runAsGroup: 101
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: RuntimeDefault
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 32Mi
+---
+# Ingress to bw-serve is default-denied (networkpolicy.yaml), and the only
+# other allow admits ESO. Without this allow the sync Job fails on every run.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: bw-serve-allow-sync
+  namespace: external-secrets
+spec:
+  podSelector:
+    matchLabels:
+      app: bw-serve
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: bw-serve-sync
+      ports:
+        - protocol: TCP
+          port: 8087

@@ -1,0 +1,45 @@
+schema: "1.0"
+
+package:
+  type: validation
+  version: "0.1.0"
+  framework: ">=0.3.0"
+
+product:
+  slug: {{product}}
+  board: {{board}}
+  device:
+    type_id: {{device_type_id}}
+    variant_id: {{device_variant_id}}
+
+testbed:
+  module: {{testbed_module}}
+  multi_slot: false
+
+stages:
+  smoke:
+    directory: tests/smoke
+    timeout_s: 300
+    hardware: [mtib]
+
+  driver:
+    directory: tests/driver
+    timeout_s: 600
+    hardware: [mtib]
+    enabled: false
+
+  integration:
+    directory: tests/integration
+    timeout_s: 1800
+    hardware: [mtib]
+
+  regression:
+    directory: tests/regression
+    timeout_s: 3600
+    hardware: [mtib]
+
+  fuota:
+    directory: tests/fuota
+    timeout_s: 7200
+    hardware: [mtib]
+    enabled: false

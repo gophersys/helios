@@ -1,0 +1,57 @@
+# identity.yaml — server-00 (prod cluster server)
+#
+# OCI VM.Standard.A1.Flex (Ampere ARM) — always-free tier, irreplaceable.
+# Hosts the prod cluster's K3s control plane AND runs data-role workloads
+# (Postgres + NATS) per clusters/instances/prod/identity.yaml
+# node_role_assignments.
+
+name: server-00
+os: linux-debian
+purpose: "prod k3s server + data-role workloads (Postgres, NATS)"
+tailscale_hostname: server-00
+status: active
+location: oracle-phoenix
+owner: mateo.segura413@gmail.com
+
+roles:
+  - common
+  - platform-linux-debian
+  - networking-tailscale
+  - secrets-bitwarden-client
+  - cluster-node-labels
+
+# Cloud / hardware shape. Matches compute-unit v1 contract.
+hardware:
+  provider: oracle
+  compute_unit:
+    arch: arm64
+    cores: 2
+    memory_gb: 12
+    storage_gb: 47
+    storage_class: ssd
+    network: tailnet
+  oracle:
+    shape: VM.Standard.A1.Flex
+    availability_domain: "FEQI:PHX-AD-1"
+    instance_ocid: "ocid1.instance.oc1.phx.anyhqljrslzce6ac2h7h5npmdwa3rdxf5b5zhkldocnwi3vsjr5polrdadfa"
+
+kubernetes:
+  role: server
+  cluster_role: data
+  labels:
+    role: data
+  taints:
+    - key: data
+      value: "true"
+      effect: NoSchedule
+  extra_flags: []
+
+# Irreplaceable A1.Flex free-tier node — Terraform MUST set
+# prevent_destroy. See providers/oracle/modules/compute/README.md
+# "A1.Flex protection".
+irreplaceable: true
+
+ssh:
+  port: 22
+  allowed_tailnet_tags:
+    - "tag:admin"

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "supervisor",
+  "version": "0.1.0",
+  "description": "Eden supervisor operating manual: the deterministic .claude harness that turns an LLM project-manager into a repeatable finite-state machine — deny-by-default permissions, git-as-state, typed slash-commands per legal transition, and lifecycle gating hooks. Ships the template under template/.claude/.",
+  "author": {
+    "name": "Mateo Segura",
+    "email": "mateo.segura413@gmail.com"
+  },
+  "homepage": "https://github.com/gophersys/libs/tree/main/plugins/supervisor",
+  "keywords": ["eden", "supervisor", "orchestration", "fsm", "agent-template", "determinism", "project-manager"],
+  "hooks": "./hooks/hooks.json",
+  "skills": ["./skills/supervisor-operating-manual"]
+}

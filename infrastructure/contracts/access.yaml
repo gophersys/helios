@@ -1,0 +1,63 @@
+# Every machine, how to reach it, and which vault item holds its secret.
+# THIS FILE IS THE SOURCE OF TRUTH for machine facts.
+#
+# The split that keeps this honest:
+#   REPO  (here)   facts — hostname, address, user, method, parent hypervisor
+#   VAULT          secrets ONLY — passwords and private keys, never topology
+#   LINK           `secret:` names a vault item; the value never appears here
+#
+# Facts drift. The vault has no diff, no review and no CI, so facts stored there
+# rot silently — the same failure that let grafana sit publicly exposed while the
+# docs claimed it was private. Facts belong in git where a change is reviewable.
+#
+# `bash ctl.sh verify-access` attempts the declared method against every machine
+# and fails on divergence. Documentation describes; that asserts.
+#
+# methods:
+#   tailscale-ssh   over the tailnet by identity — no key, no password
+#   ssh-key         local private key at `key:`
+#   password        vault item at `secret:` — break-glass, not the happy path
+#   local           this machine
+
+machines:
+  # ---- workstations ----
+  macbook-air:
+    address: 100.89.71.64
+    user: mateo
+    method: local
+    secret: shared/ssh/macbook-air
+    role: "primary workstation — holds every kubeconfig, bw/oci/aws CLIs"
+  # One machine, one name: `macos-ci-runner`, the same name as
+  # machines/services/macos-ci-runner/. The old entry `macbook-mini` named the
+  # same Mac mini a second time, and it was wrong twice: the machine is a
+  # Macmini9,1, not a MacBook, and it now accepts key authentication.
+  # The address is a LAN address, not a 100.x tailnet address, because the
+  # machine is not on the tailnet yet.
+  macos-ci-runner:
+    address: 10.168.0.92
+    user: mateo
+    method: ssh-key
+    key: ~/.ssh/macos-ci-runner              # dedicated automation key, ed25519
+    secret: shared/ssh/macos-ci-runner        # break-glass account, name only
+    role: "Mac mini (Macmini9,1) — macOS CI host; the Actions runner is not registered yet"
+
+  # ---- hypervisors (tag:home) ----
+  pve-00: { address: 100.77.217.116, user: root, method: tailscale-ssh, secret: shared/ssh/pve-00, role: "Proxmox — MS-A2" }
+  pve-01: { address: 100.124.246.39, user: root, method: tailscale-ssh, secret: shared/ssh/pve-01, role: "Proxmox — ThinkPad P1" }
+  pve-03: { address: 100.126.209.124, user: root, method: tailscale-ssh, secret: shared/ssh/pve-03, role: "Proxmox — Yoga" }
+
+  # ---- homelab k3s VMs ----
+  # `hypervisor:` is declared ONCE, on the VM. Never list "VMs on pve-00"
+  # anywhere — the hypervisor's own `qm list` is authoritative and any copy rots.
+  k3s-cp-0: { address: 10.168.0.211, user: ubuntu, method: ssh-key, key: ~/.ssh/id_ed25519, hypervisor: pve-00, role: control-plane }
+  k3s-cp-1: { address: 10.168.0.212, user: ubuntu, method: ssh-key, key: ~/.ssh/id_ed25519, hypervisor: pve-01, role: control-plane }
+  k3s-cp-2: { address: 10.168.0.213, user: ubuntu, method: ssh-key, key: ~/.ssh/id_ed25519, hypervisor: pve-03, role: control-plane }
+  k3s-w-0:  { address: 10.168.0.221, user: ubuntu, method: ssh-key, key: ~/.ssh/id_ed25519, hypervisor: pve-00, role: devops }
+  k3s-w-1:  { address: 10.168.0.222, user: ubuntu, method: ssh-key, key: ~/.ssh/id_ed25519, hypervisor: pve-00, role: "media — NVMe, MinIO" }
+  k3s-w-2:  { address: 10.168.0.223, user: ubuntu, method: ssh-key, key: ~/.ssh/id_ed25519, hypervisor: pve-00, role: apps }
+  k3s-w-3:  { address: 10.168.0.224, user: ubuntu, method: ssh-key, key: ~/.ssh/id_ed25519, hypervisor: pve-01, role: apps }
+  k3s-w-4:  { address: 10.168.0.225, user: ubuntu, method: ssh-key, key: ~/.ssh/id_ed25519, hypervisor: pve-01, role: apps }
+
+  # ---- cloud (OCI, tag:cloud) ----
+  server-00: { address: 100.72.160.20,  user: ubuntu, method: tailscale-ssh, role: "OCI control-plane + etcd (k8s node name is still code-kit-server)" }
+  agent-00:  { address: 100.81.203.110, user: ubuntu, method: tailscale-ssh, role: "OCI worker — Vaultwarden + all storage" }

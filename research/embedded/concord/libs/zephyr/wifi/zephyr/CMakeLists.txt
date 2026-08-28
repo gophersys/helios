@@ -1,0 +1,5 @@
+if(CONFIG_CK_ESP32_WIFI_LIB)
+  zephyr_include_directories(include)
+  zephyr_library()
+  add_subdirectory(src)
+endif()

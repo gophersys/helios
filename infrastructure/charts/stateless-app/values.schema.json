@@ -1,0 +1,352 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "stateless-app values",
+  "description": "Enforced contract for the stateless-app archetype. Helm 3 validates on install/upgrade.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project", "env", "app", "image", "resources"],
+  "properties": {
+    "project": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{1,20}$",
+      "description": "Project this app belongs to. Determines namespace prefix <project>-<env>. MUST be listed in the target cluster's projects_hosted."
+    },
+    "app": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$", "description": "Sub-app within the project (e.g., 'api', 'dashboard'). Full identifier becomes <project>-<app.name>; that's app.kubernetes.io/name." }
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "tag"],
+      "properties": {
+        "repository": { "type": "string", "minLength": 1, "description": "Fully-qualified image repo (registry/namespace/name)." },
+        "tag":        { "type": "string", "minLength": 1, "maxLength": 128, "description": "Immutable tag or digest. Avoid 'latest'." },
+        "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] },
+        "pullSecrets": { "type": "array", "items": { "type": "string" }, "maxItems": 8 }
+      }
+    },
+    "tenant":              { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,30}$", "default": "gophersys" },
+    "env":                 { "type": "string", "enum": ["prod", "staging", "dev", "lab"] },
+    "nodeRole":            { "type": "string", "enum": ["apps", "data", "devops", "build", "batch"], "default": "apps" },
+    "dataClassification":  { "type": "string", "enum": ["public", "internal", "confidential", "pii"], "default": "internal" },
+    "replicas":            { "type": "integer", "minimum": 0, "maximum": 100, "default": 2 },
+
+    "resources": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requests", "limits"],
+      "properties": {
+        "requests": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cpu", "memory"],
+          "properties": {
+            "cpu":    { "type": "string", "pattern": "^([0-9]+m?|[0-9]+\\.[0-9]+)$" },
+            "memory": { "type": "string", "pattern": "^[0-9]+(Mi|Gi|M|G|Ki|K)$" }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["cpu", "memory"],
+          "properties": {
+            "cpu":    { "type": "string", "pattern": "^([0-9]+m?|[0-9]+\\.[0-9]+)$" },
+            "memory": { "type": "string", "pattern": "^[0-9]+(Mi|Gi|M|G|Ki|K)$", "description": "MUST equal requests.memory (no memory overcommit)." }
+          }
+        }
+      }
+    },
+
+    "podAnnotations": { "type": "object", "additionalProperties": { "type": "string" } },
+    "podLabels":      { "type": "object", "additionalProperties": { "type": "string" } },
+
+    "securityContext": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pod":       { "type": "object", "additionalProperties": true },
+        "container": { "type": "object", "additionalProperties": true }
+      }
+    },
+
+    "tmpfs": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "mountPath"],
+        "properties": {
+          "name":      { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$" },
+          "mountPath": { "type": "string", "pattern": "^/" },
+          "sizeLimit": { "type": "string", "pattern": "^[0-9]+(Mi|Gi|M|G|Ki|K)$" }
+        }
+      }
+    },
+
+    "probes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "startup":   { "$ref": "#/definitions/probe" },
+        "readiness": { "$ref": "#/definitions/probe" },
+        "liveness":  { "$ref": "#/definitions/probe" }
+      }
+    },
+
+    "service": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":    { "type": "boolean", "default": true },
+        "type":       { "type": "string", "enum": ["ClusterIP", "NodePort", "LoadBalancer", "Headless"] },
+        "port":       { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "targetPort": { "oneOf": [{ "type": "integer" }, { "type": "string" }] },
+        "ports":      { "type": "array", "items": { "$ref": "#/definitions/containerPort" }, "maxItems": 16 }
+      }
+    },
+
+    "ingress": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":          { "type": "boolean", "default": false },
+        "scope":            { "type": "string", "enum": ["public", "tailnet"], "default": "public", "description": "Selects which edge stack on the cluster serves this ingress (edge.public vs edge.tailnet)." },
+        "ingressClassName": { "type": "string", "default": "platform" },
+        "host":             { "type": "string" },
+        "paths":            { "type": "array", "items": { "$ref": "#/definitions/ingressPath" }, "maxItems": 16 },
+        "tls":              { "$ref": "#/definitions/ingressTls" }
+      }
+    },
+
+    "autoscale": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":     { "type": "boolean", "default": true },
+        "minReplicas": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "maxReplicas": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "cpuTarget":   { "type": "integer", "minimum": 1, "maximum": 100 },
+        "memTarget":   { "type": "integer", "minimum": 1, "maximum": 100 }
+      }
+    },
+
+    "pdb": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":         { "type": "boolean", "default": true },
+        "minAvailable":    { "oneOf": [{ "type": "integer" }, { "type": "string" }] },
+        "maxUnavailable":  { "oneOf": [{ "type": "integer" }, { "type": "string" }] }
+      }
+    },
+
+    "observability": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "metrics": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled":       { "type": "boolean" },
+            "port":          { "type": "integer", "minimum": 1, "maximum": 65535 },
+            "path":          { "type": "string", "pattern": "^/" },
+            "interval":      { "type": "string", "pattern": "^[0-9]+(s|m|h)$" },
+            "scrapeTimeout": { "type": "string", "pattern": "^[0-9]+(s|m|h)$" }
+          }
+        },
+        "logs": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "format": { "type": "string", "enum": ["json", "text"] },
+            "level":  { "type": "string", "enum": ["debug", "info", "warn", "error"] }
+          }
+        },
+        "traces": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled":       { "type": "boolean" },
+            "samplingRatio": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    },
+
+    "secrets": {
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "bwItem"],
+        "properties": {
+          "key":         { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{0,62}$", "description": "Env var name (mode=env) or file name (mode=file)." },
+          "bwItem":      { "type": "string", "minLength": 1 },
+          "bwProperty":  { "type": "string", "default": "password" },
+          "mode":        { "type": "string", "enum": ["env", "file"], "default": "env" },
+          "optional":    { "type": "boolean", "default": false }
+        }
+      }
+    },
+
+    "networkPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":          { "type": "boolean", "default": true },
+        "allowIngressFrom": { "type": "array", "items": { "$ref": "#/definitions/npPeer" }, "maxItems": 32 },
+        "allowEgressTo":    { "type": "array", "items": { "$ref": "#/definitions/npPeer" }, "maxItems": 32 }
+      }
+    },
+
+    "slo": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tier":         { "type": "string", "enum": ["critical", "high", "standard", "best-effort"] },
+        "availability": { "$ref": "#/definitions/sloAvailability" },
+        "latency":      { "$ref": "#/definitions/sloLatency" },
+        "errorBudget":  { "$ref": "#/definitions/sloErrorBudget" }
+      }
+    },
+
+    "rollout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "strategy":        { "type": "string", "enum": ["RollingUpdate", "Recreate", "canary"] },
+        "maxSurge":        { "oneOf": [{ "type": "integer" }, { "type": "string" }] },
+        "maxUnavailable":  { "oneOf": [{ "type": "integer" }, { "type": "string" }] },
+        "minReadySeconds": { "type": "integer", "minimum": 0, "maximum": 3600 }
+      }
+    },
+
+    "serviceAccount": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create":      { "type": "boolean", "default": true },
+        "name":        { "type": "string" },
+        "annotations": { "type": "object", "additionalProperties": { "type": "string" } }
+      }
+    },
+
+    "rbac": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "create": { "type": "boolean", "default": false },
+        "rules":  { "type": "array", "items": { "type": "object" }, "maxItems": 32 }
+      }
+    },
+
+    "scheduling": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "nodeSelector":              { "type": "object", "additionalProperties": { "type": "string" } },
+        "tolerations":               { "type": "array", "items": { "type": "object" }, "maxItems": 16 },
+        "affinity":                  { "type": "object", "additionalProperties": true },
+        "topologySpreadConstraints": { "type": "array", "items": { "type": "object" }, "maxItems": 16 }
+      }
+    },
+
+    "env":             { "type": "array", "items": { "type": "object" }, "maxItems": 64 },
+    "envFrom":         { "type": "array", "items": { "type": "object" }, "maxItems": 16 },
+    "volumes":         { "type": "array", "items": { "type": "object" }, "maxItems": 16 },
+    "volumeMounts":    { "type": "array", "items": { "type": "object" }, "maxItems": 32 },
+    "initContainers":  { "type": "array", "items": { "type": "object" }, "maxItems": 8 },
+    "sidecars":        { "type": "array", "items": { "type": "object" }, "maxItems": 8 }
+  },
+
+  "definitions": {
+    "probe": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "http":               { "type": "object", "additionalProperties": true },
+        "tcp":                { "type": "object", "additionalProperties": true },
+        "exec":               { "type": "object", "additionalProperties": true },
+        "initialDelaySeconds":{ "type": "integer", "minimum": 0 },
+        "periodSeconds":      { "type": "integer", "minimum": 1 },
+        "timeoutSeconds":     { "type": "integer", "minimum": 1 },
+        "successThreshold":   { "type": "integer", "minimum": 1 },
+        "failureThreshold":   { "type": "integer", "minimum": 1 }
+      }
+    },
+    "containerPort": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "containerPort"],
+      "properties": {
+        "name":          { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,14}$" },
+        "containerPort": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "protocol":      { "type": "string", "enum": ["TCP", "UDP", "SCTP"] }
+      }
+    },
+    "ingressPath": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "port"],
+      "properties": {
+        "path":     { "type": "string" },
+        "pathType": { "type": "string", "enum": ["Prefix", "Exact", "ImplementationSpecific"] },
+        "port":     { "oneOf": [{ "type": "integer" }, { "type": "string" }] }
+      }
+    },
+    "ingressTls": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":       { "type": "boolean" },
+        "clusterIssuer": { "type": "string", "enum": ["letsencrypt-prod", "letsencrypt-staging", "internal-ca"] }
+      }
+    },
+    "npPeer": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "namespace": { "type": "string" },
+        "pods":      { "type": "object", "additionalProperties": { "type": "string" } },
+        "dns":       { "type": "object", "additionalProperties": false, "properties": { "hosts": { "type": "array", "items": { "type": "string" }, "maxItems": 32 } } },
+        "ports":     { "type": "array", "items": { "type": "object" }, "maxItems": 8 },
+        "external":  { "type": "boolean" }
+      }
+    },
+    "sloAvailability": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "window"],
+      "properties": {
+        "target": { "type": "number", "minimum": 0, "maximum": 100 },
+        "window": { "type": "string", "pattern": "^[0-9]+(d|h|m)$" }
+      }
+    },
+    "sloLatency": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_ms"],
+      "properties": {
+        "target_ms":  { "type": "integer", "minimum": 1 },
+        "window":     { "type": "string", "pattern": "^[0-9]+(d|h|m)$" },
+        "percentile": { "type": "integer", "enum": [50, 90, 95, 99] }
+      }
+    },
+    "sloErrorBudget": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "burnRateFast": { "type": "number", "minimum": 0 },
+        "burnRateSlow": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

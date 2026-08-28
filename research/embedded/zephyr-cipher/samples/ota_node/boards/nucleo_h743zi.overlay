@@ -1,0 +1,12 @@
+/* Resize the H743's mostly-unused 2 MB flash: 512 KB A/B slots fit the full
+ * cipher+net stack (256 KB default did not). */
+&flash0 {
+	partitions {
+		/delete-node/ partition@40000;
+		/delete-node/ partition@80000;
+		/delete-node/ partition@c0000;
+		slot0_partition: partition@40000 { compatible = "zephyr,mapped-partition"; label = "image-0"; reg = <0x00040000 DT_SIZE_K(512)>; };
+		slot1_partition: partition@c0000 { compatible = "zephyr,mapped-partition"; label = "image-1"; reg = <0x000c0000 DT_SIZE_K(512)>; };
+		scratch_partition: partition@140000 { compatible = "zephyr,mapped-partition"; label = "image-scratch"; reg = <0x00140000 DT_SIZE_K(128)>; };
+	};
+};

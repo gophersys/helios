@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "stateful-app values",
+  "description": "Enforced contract for the stateful-app archetype. Differs from stateless-app in required storage block + volume protection labels.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["project", "env", "app", "image", "resources", "storage"],
+  "properties": {
+    "project":             { "type": "string", "pattern": "^[a-z][a-z0-9-]{1,20}$", "description": "Project this app belongs to. Namespace is <project>-<env>." },
+    "app":                 { "type": "object", "required": ["name"], "additionalProperties": false,
+                              "properties": { "name": { "type": "string", "pattern": "^[a-z][a-z0-9-]{0,62}$", "description": "Sub-app within the project." } } },
+    "image":               { "type": "object", "required": ["repository", "tag"], "additionalProperties": false,
+                              "properties": { "repository": { "type": "string" }, "tag": { "type": "string" }, "pullPolicy": { "type": "string", "enum": ["Always", "IfNotPresent", "Never"] }, "pullSecrets": { "type": "array", "items": { "type": "string" } } } },
+    "tenant":              { "type": "string", "default": "gophersys" },
+    "env":                 { "type": "string", "enum": ["prod", "staging", "dev", "lab"] },
+    "nodeRole":            { "type": "string", "enum": ["apps", "data", "devops", "build", "batch"], "default": "data" },
+    "dataClassification":  { "type": "string", "enum": ["public", "internal", "confidential", "pii"] },
+    "replicas":            { "type": "integer", "minimum": 1, "maximum": 100, "default": 1,
+                              "description": "Stateful replicas are expensive to add — start small." },
+
+    "storage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "size", "accessMode"],
+      "properties": {
+        "class":      { "type": "string", "enum": ["standard", "fast", "replicated"] },
+        "size":       { "type": "string", "pattern": "^[0-9]+(Mi|Gi|Ti)$" },
+        "accessMode": { "type": "string", "enum": ["ReadWriteOnce", "ReadWriteMany", "ReadOnlyMany"] },
+        "retain":     { "type": "boolean", "default": true, "description": "Emit platform.gophersys/retain=true. On a cluster running platform/core/policy, the apiserver REFUSES a DELETE of that PVC unless it is annotated platform.gophersys/allow-delete. On a cluster without it, the label is inert metadata." }
+      }
+    },
+
+    "backup": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled":   { "type": "boolean", "default": true },
+        "schedule":  { "type": "string", "description": "Cron expression in UTC." },
+        "retention": { "type": "string", "pattern": "^[0-9]+d$" }
+      }
+    },
+
+    "resources": {
+      "type": "object", "additionalProperties": false, "required": ["requests", "limits"],
+      "properties": {
+        "requests": { "type": "object", "required": ["cpu", "memory"], "additionalProperties": false, "properties": { "cpu": { "type": "string" }, "memory": { "type": "string" } } },
+        "limits":   { "type": "object", "required": ["cpu", "memory"], "additionalProperties": false, "properties": { "cpu": { "type": "string" }, "memory": { "type": "string" } } }
+      }
+    },
+
+    "securityContext": { "type": "object", "additionalProperties": true },
+    "tmpfs":           { "type": "array", "items": { "type": "object" }, "maxItems": 8 },
+
+    "podManagementPolicy": { "type": "string", "enum": ["OrderedReady", "Parallel"], "default": "OrderedReady" },
+    "updateStrategy":      { "type": "object", "additionalProperties": true },
+
+    "probes": { "type": "object", "additionalProperties": true },
+    "service": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "headless":  { "type": "object", "additionalProperties": true },
+        "discovery": { "type": "object", "additionalProperties": true },
+        "ports":     { "type": "array", "items": { "type": "object" }, "maxItems": 16 }
+      }
+    },
+
+    "pdb":             { "type": "object", "additionalProperties": true },
+    "observability":   { "type": "object", "additionalProperties": true },
+    "secrets":         { "type": "array", "items": { "type": "object" }, "maxItems": 32 },
+    "networkPolicy":   { "type": "object", "additionalProperties": true },
+    "slo":             { "type": "object", "additionalProperties": true },
+    "rollout":         { "type": "object", "additionalProperties": true },
+    "serviceAccount":  { "type": "object", "additionalProperties": true },
+    "rbac":            { "type": "object", "additionalProperties": true },
+    "scheduling":      { "type": "object", "additionalProperties": true },
+    "env":             { "type": "array", "items": { "type": "object" }, "maxItems": 64 },
+    "envFrom":         { "type": "array", "items": { "type": "object" }, "maxItems": 16 },
+    "volumes":         { "type": "array", "items": { "type": "object" }, "maxItems": 16 },
+    "volumeMounts":    { "type": "array", "items": { "type": "object" }, "maxItems": 32 },
+    "initContainers":  { "type": "array", "items": { "type": "object" }, "maxItems": 8 },
+    "sidecars":        { "type": "array", "items": { "type": "object" }, "maxItems": 8 }
+  }
+}

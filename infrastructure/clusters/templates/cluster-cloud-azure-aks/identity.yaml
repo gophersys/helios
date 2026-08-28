@@ -1,0 +1,37 @@
+# cluster-identity.yaml.template — Azure AKS
+
+name: __CLUSTER_NAME__
+template: cluster-cloud-azure-aks
+distribution: aks
+distribution_version: "TODO"
+
+purpose: "TODO"
+status: planned
+owner: mateo.segura413@gmail.com
+domain: "TODO"
+
+azure:
+  location: "TODO: e.g. eastus"
+  node_pools:
+    - name: default
+      vm_size: Standard_B2pls_v2           # ARM burstable default
+      min_count: 1
+      count: 2
+      max_count: 4
+
+network:
+  cni: azure-cni
+  tailnet_joined: false
+
+platform_services:
+  observability:    { enabled: true }
+  databases:
+    postgresql:     { enabled: false }     # often use Azure DB for Postgres
+  messaging:
+    nats:           { enabled: false }
+  backup:           { enabled: false }
+  cost:             { enabled: true }
+
+cost_envelope:
+  monthly_usd_target: 0
+  monthly_usd_ceiling: 0

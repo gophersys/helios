@@ -1,0 +1,38 @@
+## github.com/gophersys/libs/go/observability
+    const PlaneUnset Plane = iota ...
+    const SeverityDebug Severity = iota ...
+    func Any(key string, v Valuer) Field
+    func Bool(key string, value bool) Field
+    func Dur(key string, value time.Duration) Field
+    func Err(err error) Field
+    func Float64(key string, value float64) Field
+    func Int64(key string, value int64) Field
+    func LedgerEvent(now time.Time, l Ledger) Event
+    func LedgerFrom(e Event) (Ledger, bool)
+    func New(configuration Config, dependencies Deps) (Provider, error)
+    func String(key, value string) Field
+const LedgerName = "cost.ledger"
+type Clock interface{ ... }
+type Config struct{ ... }
+type ConfigError struct{ ... }
+type Deps struct{ ... }
+type Event struct{ ... }
+type Exporter interface{ ... }
+type Field struct{ ... }
+type Ledger struct{ ... }
+type Outcome struct{ ... }
+type Plane uint8
+type Provider interface{ ... }
+type Record struct{ ... }
+type Severity uint8
+type Valuer interface{ ... }
+## github.com/gophersys/libs/go/observability/observabilitytest
+    func New(clock func() time.Time) *Provider
+func RunProviderSuite(t *testing.T, newProvider providerFactory)
+func RunProviderSuiteWithFake(t *testing.T)
+type FailingExporter struct{ ... }
+type Provider struct{ ... }
+## github.com/gophersys/libs/go/observability/slogadapter
+    func New(w io.Writer) *Adapter
+    func NewWithLogger(logger *slog.Logger) *Adapter
+type Adapter struct{ ... }

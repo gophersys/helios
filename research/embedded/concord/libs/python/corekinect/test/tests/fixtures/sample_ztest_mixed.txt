@@ -1,0 +1,33 @@
+*** Booting Zephyr OS build v3.6.0 ***
+[00:00:00.001,000] <inf> os: init
+Running TESTSUITE lsm6dso_driver
+===================================================================
+START - test_chip_id
+ PASS - test_chip_id in 0.010 seconds
+START - test_xl_odr
+[00:00:00.500,000] <wrn> lsm6dso: ODR mismatch
+ FAIL - test_xl_odr in 0.122 seconds
+START - test_int_pin
+ SKIP - test_int_pin in 0.000 seconds
+===================================================================
+TESTSUITE lsm6dso_driver failed
+Running TESTSUITE lsm6dso_motion
+===================================================================
+START - test_wakeup
+ PASS - test_wakeup in 1.234 seconds
+===================================================================
+TESTSUITE lsm6dso_motion succeeded
+
+------ TESTSUITE SUMMARY START ------
+
+SUITE FAIL - 33.33% [lsm6dso_driver]: pass = 1, fail = 1, skip = 1, total = 3 duration = 0.132 seconds
+ - PASS - [lsm6dso_driver.test_chip_id] duration = 0.010 seconds
+ - FAIL - [lsm6dso_driver.test_xl_odr] duration = 0.122 seconds
+ - SKIP - [lsm6dso_driver.test_int_pin] duration = 0.000 seconds
+SUITE PASS - 100.00% [lsm6dso_motion]: pass = 1, fail = 0, skip = 0, total = 1 duration = 1.234 seconds
+ - PASS - [lsm6dso_motion.test_wakeup] duration = 1.234 seconds
+
+------ TESTSUITE SUMMARY END ------
+
+===================================================================
+PROJECT EXECUTION FAILED

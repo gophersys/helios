@@ -1,0 +1,38 @@
+goos: darwin
+goarch: arm64
+pkg: github.com/gophersys/libs/go/errors
+cpu: Apple M5
+BenchmarkNew-10       	95680112	        12.31 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-10       	100000000	        11.81 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-10       	100000000	        11.82 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-10       	97601308	        11.88 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-10       	100000000	        11.74 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-10       	100000000	        11.88 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-10       	100000000	        11.85 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-10       	99793485	        11.88 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-10       	100000000	        11.89 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-10       	100000000	        11.93 ns/op	      64 B/op	       1 allocs/op
+BenchmarkWrap-10      	90147331	        13.09 ns/op	      64 B/op	       1 allocs/op
+BenchmarkWrap-10      	88707642	        13.01 ns/op	      64 B/op	       1 allocs/op
+BenchmarkWrap-10      	94361260	        12.99 ns/op	      64 B/op	       1 allocs/op
+BenchmarkWrap-10      	94204152	        13.00 ns/op	      64 B/op	       1 allocs/op
+BenchmarkWrap-10      	90069804	        13.01 ns/op	      64 B/op	       1 allocs/op
+BenchmarkWrap-10      	93421869	        12.96 ns/op	      64 B/op	       1 allocs/op
+BenchmarkWrap-10      	92556290	        12.99 ns/op	      64 B/op	       1 allocs/op
+BenchmarkWrap-10      	93836446	        13.09 ns/op	      64 B/op	       1 allocs/op
+BenchmarkWrap-10      	91241167	        13.03 ns/op	      64 B/op	       1 allocs/op
+BenchmarkWrap-10      	92953294	        13.09 ns/op	      64 B/op	       1 allocs/op
+BenchmarkKindOf-10    	483366243	         2.515 ns/op	       0 B/op	       0 allocs/op
+BenchmarkKindOf-10    	479379762	         2.505 ns/op	       0 B/op	       0 allocs/op
+BenchmarkKindOf-10    	482059759	         2.481 ns/op	       0 B/op	       0 allocs/op
+BenchmarkKindOf-10    	481661893	         2.496 ns/op	       0 B/op	       0 allocs/op
+BenchmarkKindOf-10    	482767221	         2.489 ns/op	       0 B/op	       0 allocs/op
+BenchmarkKindOf-10    	478226815	         2.508 ns/op	       0 B/op	       0 allocs/op
+BenchmarkKindOf-10    	482857792	         2.473 ns/op	       0 B/op	       0 allocs/op
+BenchmarkKindOf-10    	487877928	         2.477 ns/op	       0 B/op	       0 allocs/op
+BenchmarkKindOf-10    	481131940	         2.503 ns/op	       0 B/op	       0 allocs/op
+BenchmarkKindOf-10    	479101286	         2.506 ns/op	       0 B/op	       0 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/errors	36.098s
+PASS
+ok  	github.com/gophersys/libs/go/errors/errorstest	0.287s

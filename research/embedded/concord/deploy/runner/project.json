@@ -1,0 +1,113 @@
+{
+  "name": "test-runner",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "deploy/runner",
+  "projectType": "application",
+  "tags": [
+    "scope:platform",
+    "type:runner"
+  ],
+  "implicitDependencies": [
+    "corekinect",
+    "protocols",
+    "corectl"
+  ],
+  "targets": {
+    "build": {
+      "executor": "nx:run-commands",
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "nx run test-runner:containerize -c development"
+        },
+        "staging": {
+          "command": "nx run test-runner:containerize -c staging"
+        },
+        "production": {
+          "command": "nx run test-runner:containerize -c production"
+        }
+      },
+      "cache": false
+    },
+    "containerize": {
+      "executor": "@nx-tools/nx-container:build",
+      "defaultConfiguration": "development",
+      "dependsOn": [
+        "protocols:create"
+      ],
+      "options": {
+        "context": "{workspaceRoot}",
+        "cwd": "{workspaceRoot}",
+        "file": "deploy/runner/Dockerfile",
+        "push": false,
+        "load": true,
+        "platforms": [
+          "linux/amd64"
+        ]
+      },
+      "configurations": {
+        "development": {
+          "tags": [
+            "concord/test-runner:development"
+          ]
+        },
+        "staging": {
+          "tags": [
+            "concord/test-runner:staging",
+            "containers.ad.corekinect.com/concord-test-runner:staging"
+          ]
+        },
+        "production": {
+          "tags": [
+            "concord/test-runner:production",
+            "containers.ad.corekinect.com/concord-test-runner:production"
+          ]
+        }
+      },
+      "cache": false
+    },
+    "push": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "build"
+      ],
+      "defaultConfiguration": "development",
+      "options": {
+        "cwd": "{workspaceRoot}"
+      },
+      "configurations": {
+        "development": {
+          "command": "echo 'Skipping push for development'"
+        },
+        "staging": {
+          "command": "docker push containers.ad.corekinect.com/concord-test-runner:staging"
+        },
+        "production": {
+          "command": "docker push containers.ad.corekinect.com/concord-test-runner:production"
+        }
+      }
+    },
+
+    "unit-test": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "python3 -m pytest deploy/runner/tests/ -v"
+      }
+    },
+
+    "test": {
+      "executor": "nx:run-commands",
+      "dependsOn": [
+        "unit-test"
+      ],
+      "options": {
+        "cwd": "{workspaceRoot}",
+        "command": "echo 'test-runner: unit tests passed'"
+      }
+    }
+  }
+}

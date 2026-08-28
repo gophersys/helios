@@ -1,0 +1,8 @@
+# Relaxed baseline — style is advisory; correctness (kubeconform) is what blocks.
+extends: relaxed
+rules:
+  line-length: disable
+  document-start: disable
+  comments: { min-spaces-from-content: 1 }
+  truthy: { check-keys: false }
+  indentation: { spaces: consistent, indent-sequences: whatever }

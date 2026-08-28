@@ -1,0 +1,180 @@
+# The review pool. It runs the pull request review agent and NOTHING else.
+#
+# WHY A SEPARATE POOL, and not a job on arc-org
+# The reviewer holds a Claude credential in its environment. An environment
+# variable on a pool is readable by EVERY job on that pool, so putting it on the
+# general pool would hand the token to every build in the organization. This pool
+# runs 1 workflow, from repositories that are all private and all owned by 1
+# person.
+#
+# It also has NO dind sidecar. The reviewer reads a diff and writes comments; it
+# builds nothing. A privileged Docker daemon beside a credentialed agent is the
+# pairing to avoid, not to replicate.
+#
+# runs-on: arc-review
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: arc-runners-review
+  namespace: argocd
+spec:
+  project: ci
+  source:
+    repoURL: ghcr.io/actions/actions-runner-controller-charts
+    chart: gha-runner-scale-set
+    targetRevision: 0.14.2
+    helm:
+      releaseName: arc-review
+      values: |
+        githubConfigUrl: https://github.com/gophersys
+        githubConfigSecret: arc-github-app
+        runnerScaleSetName: arc-review
+        minRunners: 0
+        maxRunners: 2
+        controllerServiceAccount:
+          namespace: arc-systems
+          name: arc-gha-rs-controller
+
+        template:
+          spec:
+            # One DNS pod serves this cluster, and the default resolver
+            # posture multiplies every external lookup against it: ndots:5
+            # walks ~5 search-domain suffixes, twice (A + AAAA), before
+            # asking for `ghcr.io` verbatim — ~20 queries where 2 would do —
+            # and glibc's attempts:2 gives up after a single retry. A build
+            # wave plus warmer churn produced exactly that failure on
+            # 2026-08-17 (run 32062015200: `lookup ghcr.io on 10.43.0.10:53:
+            # read udp` timeout). These pods resolve EXTERNAL names only —
+            # the API server arrives as an IP in env — so ndots:1 removes
+            # the amplification outright, and attempts:4 at timeout:2 rides
+            # out a busy DNS pod instead of failing a 40-minute build on one
+            # lost UDP read.
+            dnsConfig:
+              options:
+                - name: ndots
+                  value: "1"
+                - name: timeout
+                  value: "2"
+                - name: attempts
+                  value: "4"
+            # Same reasoning as arc-org: keep jobs off the 3 etcd control planes
+            # that no taint protects (D45). k3s-w-4 left this list on 2026-08-19
+            # when the USB-passthrough embedded lab was retired and the node
+            # returned to general capacity.
+            affinity:
+              nodeAffinity:
+                requiredDuringSchedulingIgnoredDuringExecution:
+                  nodeSelectorTerms:
+                    - matchExpressions:
+                        - key: kubernetes.io/hostname
+                          operator: NotIn
+                          values: ["k3s-cp-0", "k3s-cp-1", "k3s-cp-2"]
+
+            imagePullSecrets:
+              - name: ghcr-pull
+
+            initContainers:
+              # Kubernetes Secret volumes are read-only, while Codex may refresh
+              # its ChatGPT credential. Seed a pod-private writable profile and
+              # discard it with the runner instead of exposing the source Secret
+              # or sharing refreshed state across jobs.
+              - name: init-codex-home
+                image: ghcr.io/gophersys/cloud@sha256:470a117514e6d1ab23ab937b46e0fabe087ffdb1cd39b4345cfa3aa25a194a8a
+                securityContext:
+                  runAsUser: 0
+                command:
+                  - /bin/bash
+                  - -euc
+                  - |
+                    cp /var/run/codex-seed/auth.json /home/runner/.codex/auth.json
+                    chmod 600 /home/runner/.codex/auth.json
+                volumeMounts:
+                  - name: codex-auth-seed
+                    mountPath: /var/run/codex-seed
+                    readOnly: true
+                  - name: codex-home
+                    mountPath: /home/runner/.codex
+
+              # Seeds /home/runner/externals, which is the runner's own bundled
+              # Node. It must be the SAME image as the runner container.
+              - name: init-dind-externals
+                image: ghcr.io/gophersys/cloud@sha256:470a117514e6d1ab23ab937b46e0fabe087ffdb1cd39b4345cfa3aa25a194a8a
+                command: ["cp", "-r", "/home/runner/externals/.", "/home/runner/tmpDir/"]
+                volumeMounts:
+                  - name: dind-externals
+                    mountPath: /home/runner/tmpDir
+
+            containers:
+              - name: runner
+                # Pinned by digest, same ref as arc-org and arc-build. The three
+                # preconditions before changing it are written out once, in
+                # app-arc-runners-org.yaml.
+                image: ghcr.io/gophersys/cloud@sha256:470a117514e6d1ab23ab937b46e0fabe087ffdb1cd39b4345cfa3aa25a194a8a
+                command: ["/home/runner/run.sh"]
+                # This pool mounts no secret volume, so nothing here NEEDS root.
+                # It is declared to keep the repoint a single variable: this pool
+                # ran as root under `base-runner`, and `cloud` ends `USER dev`,
+                # so leaving it off would change the image AND the user in one
+                # step. The image ships RUNNER_ALLOW_RUNASROOT=1, without which
+                # run.sh refuses to start as root.
+                securityContext:
+                  runAsUser: 0
+                env:
+                  # The Claude credential. It reaches this pod from Vaultwarden
+                  # through External Secrets, and never touches GitHub: there is
+                  # no Actions secret to copy into 20 repositories and no token to
+                  # rotate in 20 places.
+                  #
+                  # It is an OAuth setup token, NOT an API key. The Eden adapter
+                  # scrubs ANTHROPIC_API_KEY and ANTHROPIC_AUTH_TOKEN from a child
+                  # environment for exactly this reason: a stray API key silently
+                  # takes precedence.
+                  - name: CLAUDE_CODE_OAUTH_TOKEN
+                    valueFrom:
+                      secretKeyRef:
+                        name: claude-review-token
+                        key: token
+                  - name: CODEX_HOME
+                    value: /home/runner/.codex
+                resources:
+                  requests:
+                    cpu: 500m
+                    memory: 1Gi
+                    ephemeral-storage: 2Gi
+                  limits:
+                    # No CPU limit, for the same reason as arc-org: CFS throttling
+                    # makes a job slow and intermittently flaky.
+                    memory: 4Gi
+                    ephemeral-storage: 8Gi
+                volumeMounts:
+                  - name: work
+                    mountPath: /home/runner/_work
+                  - name: codex-home
+                    mountPath: /home/runner/.codex
+
+            volumes:
+              - name: work
+                emptyDir:
+                  sizeLimit: 4Gi
+              - name: dind-externals
+                emptyDir:
+                  sizeLimit: 2Gi
+              - name: codex-home
+                emptyDir:
+                  sizeLimit: 64Mi
+              - name: codex-auth-seed
+                secret:
+                  secretName: codex-review-auth
+                  defaultMode: 0400
+                  items:
+                    - key: auth.json
+                      path: auth.json
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: arc-runners
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true

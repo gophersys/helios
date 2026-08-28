@@ -1,0 +1,61 @@
+# 2026/08/27 03:58:16.986395 [TestProperty_DigestChangesWhenAnyBodyChanges] [rapid] draw defaults-instruction: " "
+# 2026/08/27 03:58:16.986399 [TestProperty_DigestChangesWhenAnyBodyChanges] [rapid] draw defaults-rules-count: 1
+# 2026/08/27 03:58:16.986402 [TestProperty_DigestChangesWhenAnyBodyChanges] [rapid] draw defaults-rules-name: []string{"a"}
+# 2026/08/27 03:58:16.986407 [TestProperty_DigestChangesWhenAnyBodyChanges] [rapid] draw defaults-rules-body: " "
+# 2026/08/27 03:58:16.986408 [TestProperty_DigestChangesWhenAnyBodyChanges] [rapid] draw defaults-skills-count: 0
+# 2026/08/27 03:58:16.986410 [TestProperty_DigestChangesWhenAnyBodyChanges] [rapid] draw role-instruction: " "
+# 2026/08/27 03:58:16.986411 [TestProperty_DigestChangesWhenAnyBodyChanges] [rapid] draw role-rules-count: 1
+# 2026/08/27 03:58:16.986414 [TestProperty_DigestChangesWhenAnyBodyChanges] [rapid] draw role-rules-name: []string{"a"}
+# 2026/08/27 03:58:16.986416 [TestProperty_DigestChangesWhenAnyBodyChanges] [rapid] draw role-rules-body: " "
+# 2026/08/27 03:58:16.986417 [TestProperty_DigestChangesWhenAnyBodyChanges] [rapid] draw role-skills-count: 0
+# 2026/08/27 03:58:16.986430 [TestProperty_DigestChangesWhenAnyBodyChanges] [rapid] draw edited-rule: 0
+# 2026/08/27 03:58:16.986446 [TestProperty_DigestChangesWhenAnyBodyChanges] appending a byte to rule "a" left the Digest at sha256:36e44611ee9c8d1727e298fbc360d48385a082387094633c0d5179d6211211da
+# 
+v0.4.8#8377372313006055342
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x1
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x1
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0
+0x0

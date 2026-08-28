@@ -4,6 +4,13 @@
 - **Date:** 2026-06-12
 - **Deciders:** Mateo (intake C25)
 
+> **Note (2026-08-11) — `hnslint` moved. The decision below does not change.** The Layer-1 list
+> names `tools/hnslint`, which was its home in this monorepo. `hnslint` is now the public
+> repository `gophersys/hnslint`, and `.devcontainer/base/Dockerfile` installs it pinned by
+> `HNSLINT_VERSION`. This monorepo holds no copy. To change the check, cut a release there and
+> raise the pin. The reason for the move is in `gophersys/infrastructure`
+> `docs/debt-register.md` D39: no image carried the tool, so `gophersys/libs` could not gate.
+
 ## Context
 
 The core Go libraries are Eden's crown-jewel asset (C25): if they are stale, non-uniform, or

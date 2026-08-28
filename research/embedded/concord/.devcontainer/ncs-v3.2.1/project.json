@@ -1,0 +1,36 @@
+{
+  "name": "devcontainer-ncs-v3.2.1",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": ".devcontainer/ncs-v3.2.1",
+  "projectType": "application",
+  "tags": ["type:devcontainer"],
+  "implicitDependencies": ["devcontainer-base"],
+  "targets": {
+    "build": {
+      "executor": "@nx-tools/nx-container:build",
+      "options": {
+        "context": ".devcontainer",
+        "file": ".devcontainer/ncs/Dockerfile",
+        "platforms": ["linux/amd64"],
+        "load": true,
+        "push": false,
+        "build-args": ["NCS_VERSION=v3.2.1"],
+        "tags": ["containers.ad.corekinect.com/concord-devcontainer-ncs:v3.2.1"]
+      }
+    },
+    "push": {
+      "executor": "@nx-tools/nx-container:build",
+      "options": {
+        "context": ".devcontainer",
+        "file": ".devcontainer/ncs/Dockerfile",
+        "platforms": ["linux/amd64"],
+        "load": false,
+        "push": true,
+        "build-args": ["NCS_VERSION=v3.2.1"],
+        "tags": ["containers.ad.corekinect.com/concord-devcontainer-ncs:v3.2.1"],
+        "cache-from": ["type=registry,ref=containers.ad.corekinect.com/concord-devcontainer-ncs:v3.2.1-cache"],
+        "cache-to": ["type=registry,ref=containers.ad.corekinect.com/concord-devcontainer-ncs:v3.2.1-cache,mode=max"]
+      }
+    }
+  }
+}

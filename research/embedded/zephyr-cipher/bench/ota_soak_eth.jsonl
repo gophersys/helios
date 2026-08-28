@@ -1,0 +1,9 @@
+{"run":1,"version":"v2","ts":1783460744,"build_s":40.0,"fw_bytes":  161056,"ota_s":7.9,"kib_s":28.4,"ota_attempts":1,"csum_ok":true,"swap_ok":true,"flash_writes":1,"disk_pct":80}
+{"run":2,"version":"v3","ts":1783460804,"build_s":30.1,"fw_bytes":  161056,"ota_s":8.0,"kib_s":28.1,"ota_attempts":1,"csum_ok":true,"swap_ok":true,"flash_writes":2,"disk_pct":78}
+{"run":3,"version":"v4","ts":1783460854,"build_s":29.4,"fw_bytes":  161056,"ota_s":7.9,"kib_s":28.1,"ota_attempts":1,"csum_ok":true,"swap_ok":true,"flash_writes":3,"disk_pct":78}
+{"run":4,"version":"v5","ts":1783460908,"build_s":29.0,"fw_bytes":  161056,"ota_s":7.9,"kib_s":28.1,"ota_attempts":1,"csum_ok":true,"swap_ok":true,"flash_writes":4,"disk_pct":78}
+{"run":5,"version":"v6","ts":1783460954,"build_s":29.8,"fw_bytes":  161056,"ota_s":8.0,"kib_s":28.1,"ota_attempts":1,"csum_ok":true,"swap_ok":true,"flash_writes":5,"disk_pct":78}
+{"run":6,"version":"v7","ts":1783461008,"build_s":29.9,"fw_bytes":  161056,"ota_s":7.9,"kib_s":28.6,"ota_attempts":1,"csum_ok":true,"swap_ok":true,"flash_writes":6,"disk_pct":78}
+{"run":7,"version":"v8","ts":1783461060,"build_s":31.3,"fw_bytes":  161056,"ota_s":7.9,"kib_s":28.5,"ota_attempts":1,"csum_ok":true,"swap_ok":true,"flash_writes":7,"disk_pct":80}
+{"run":8,"version":"v9","ts":1783461116,"build_s":29.1,"fw_bytes":  161056,"ota_s":8.0,"kib_s":28.2,"ota_attempts":1,"csum_ok":true,"swap_ok":true,"flash_writes":8,"disk_pct":79}
+{"run":9,"version":"v10","ts":1783461169,"build_s":28.9,"fw_bytes":  161056,"ota_s":8.0,"kib_s":28.1,"ota_attempts":1,"csum_ok":true,"swap_ok":true,"flash_writes":9,"disk_pct":78}

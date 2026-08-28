@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gophersys/eden/tools/hnslint/internal/checker"
+	"github.com/gophersys/hnslint/internal/checker"
 )
 
 // fixture returns the absolute path to a testdata library directory.

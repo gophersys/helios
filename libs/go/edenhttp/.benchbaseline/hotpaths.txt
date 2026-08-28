@@ -1,0 +1,48 @@
+goos: linux
+goarch: arm64
+pkg: github.com/gophersys/libs/go/edenhttp
+BenchmarkNew-8           	30374779	        44.95 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-8           	24107539	        51.16 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-8           	21281500	        53.21 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-8           	24118966	        52.57 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-8           	24966234	        48.71 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-8           	23498961	        47.15 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-8           	24590247	        48.13 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-8           	27190408	        50.38 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-8           	24865634	        51.73 ns/op	      64 B/op	       1 allocs/op
+BenchmarkNew-8           	23503086	        48.21 ns/op	      64 B/op	       1 allocs/op
+BenchmarkVerify-8        	  552546	      2121 ns/op	    1640 B/op	      31 allocs/op
+BenchmarkVerify-8        	  612291	      2148 ns/op	    1640 B/op	      31 allocs/op
+BenchmarkVerify-8        	  500586	      2178 ns/op	    1640 B/op	      31 allocs/op
+BenchmarkVerify-8        	  564416	      2147 ns/op	    1640 B/op	      31 allocs/op
+BenchmarkVerify-8        	  579976	      2110 ns/op	    1640 B/op	      31 allocs/op
+BenchmarkVerify-8        	  517558	      2091 ns/op	    1640 B/op	      31 allocs/op
+BenchmarkVerify-8        	  529087	      2088 ns/op	    1640 B/op	      31 allocs/op
+BenchmarkVerify-8        	  652237	      2101 ns/op	    1640 B/op	      31 allocs/op
+BenchmarkVerify-8        	  614952	      2074 ns/op	    1640 B/op	      31 allocs/op
+BenchmarkVerify-8        	  561681	      2020 ns/op	    1640 B/op	      31 allocs/op
+BenchmarkGrantCovers-8   	722906084	         1.632 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGrantCovers-8   	737911318	         1.625 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGrantCovers-8   	740241534	         1.622 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGrantCovers-8   	740303568	         1.621 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGrantCovers-8   	741048559	         1.621 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGrantCovers-8   	740683209	         1.626 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGrantCovers-8   	739132251	         1.621 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGrantCovers-8   	741098709	         1.621 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGrantCovers-8   	741053515	         1.620 ns/op	       0 B/op	       0 allocs/op
+BenchmarkGrantCovers-8   	740931498	         1.619 ns/op	       0 B/op	       0 allocs/op
+BenchmarkSign-8          	 1000000	      1015 ns/op	    1408 B/op	      20 allocs/op
+BenchmarkSign-8          	 1208550	      1002 ns/op	    1408 B/op	      20 allocs/op
+BenchmarkSign-8          	 1000000	      1032 ns/op	    1408 B/op	      20 allocs/op
+BenchmarkSign-8          	 1000000	      1040 ns/op	    1408 B/op	      20 allocs/op
+BenchmarkSign-8          	 1000000	      1032 ns/op	    1408 B/op	      20 allocs/op
+BenchmarkSign-8          	 1000000	      1043 ns/op	    1408 B/op	      20 allocs/op
+BenchmarkSign-8          	 1000000	      1038 ns/op	    1408 B/op	      20 allocs/op
+BenchmarkSign-8          	 1000000	      1006 ns/op	    1408 B/op	      20 allocs/op
+BenchmarkSign-8          	 1206745	       999.1 ns/op	    1408 B/op	      20 allocs/op
+BenchmarkSign-8          	 1000000	      1022 ns/op	    1408 B/op	      20 allocs/op
+PASS
+ok  	github.com/gophersys/libs/go/edenhttp	46.946s
+?   	github.com/gophersys/libs/go/edenhttp/edenhttptest	[no test files]
+PASS
+ok  	github.com/gophersys/libs/go/edenhttp/natssse	0.003s

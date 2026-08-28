@@ -1,0 +1,94 @@
+# values.yaml — job
+
+project: ""                         # required; kebab-case project name
+env: ""                             # required; prod | staging | dev | lab
+
+app:
+  name: ""                          # required; sub-app within the project
+
+image:
+  repository: ""
+  tag: ""
+  pullPolicy: IfNotPresent
+  pullSecrets: []
+
+tenant: gophersys
+nodeRole: apps
+dataClassification: internal
+
+# --------------------------- job body ------------------------------------
+job:
+  command: []                      # required
+  args: []
+
+  # Optional Helm hook integration.
+  helmHook:
+    enabled: false
+    events: []                     # pre-install | post-install | pre-upgrade | post-upgrade | pre-delete
+    weight: 0
+    deletePolicy: "before-hook-creation,hook-succeeded"
+
+# --------------------------- run semantics -------------------------------
+activeDeadlineSeconds: 3600
+backoffLimit: 2
+ttlSecondsAfterFinished: 3600
+completions: 1
+parallelism: 1
+completionMode: NonIndexed         # NonIndexed | Indexed (work-queue)
+
+# --------------------------- pod shape -----------------------------------
+resources:
+  requests: { cpu: 100m, memory: 128Mi }
+  limits:   { cpu: 500m, memory: 128Mi }
+
+securityContext:
+  pod:
+    runAsNonRoot: true
+    runAsUser: 10001
+    runAsGroup: 10001
+    fsGroup: 10001
+    seccompProfile: { type: RuntimeDefault }
+  container:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities: { drop: ["ALL"] }
+
+tmpfs:
+  - { name: tmp, mountPath: /tmp, sizeLimit: 32Mi }
+
+# --------------------------- observability -------------------------------
+observability:
+  metrics:
+    enabled: false                 # most one-shot jobs skip metrics
+    pushgateway:
+      enabled: false
+  logs:
+    format: json
+    level: info
+
+secrets: []
+
+networkPolicy:
+  enabled: true
+  allowIngressFrom: []
+  allowEgressTo: []
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+rbac:
+  create: false
+  rules: []
+
+scheduling:
+  nodeSelector: { role: apps }
+  tolerations: []
+  affinity: {}
+
+env: []
+envFrom: []
+volumes: []
+volumeMounts: []
+initContainers: []

@@ -1,0 +1,320 @@
+<meta charset="utf-8">
+<title>Operator, Rebuilt</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* @FONTS_CSS@ */
+:root {
+  --bg: #F4F1E8;          /* Bone */
+  --ink: #1A1A1A;         /* Ink */
+  --accent: #5C7F5C;      /* Moss */
+  --support: #A8B89C;     /* Sage */
+  --dim: #6b675c;
+  --rule: #d9d4c4;
+}
+:root:not([data-theme="light"]) { }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #243D2C;        /* Deep Forest */
+    --ink: #F4F1E8;
+    --accent: #A8B89C;    /* Sage carries the accent on dark */
+    --support: #5C7F5C;
+    --dim: #b9c4ad;
+    --rule: #35513f;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #243D2C; --ink: #F4F1E8; --accent: #A8B89C; --support: #5C7F5C;
+  --dim: #b9c4ad; --rule: #35513f;
+}
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: Inter, system-ui, sans-serif;
+  min-height: 100vh;
+}
+.page {
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 40px 16px 56px;
+}
+header.pg { margin-bottom: 26px; }
+header.pg h1 {
+  font-family: Fraunces, Georgia, serif;
+  font-weight: 560;
+  font-size: 30px;
+  letter-spacing: 0.2px;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+header.pg p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--dim);
+  max-width: 62ch;
+}
+.stage { /* scaled container for the fixed-size device */
+  margin: 0 auto;
+}
+.stagewrap { transform-origin: top left; }
+
+/* ————— the device: fixed Ableton Live 12 look, deliberately single-theme —————
+   Every dimension below comes from the measured ratio table (spec/ratios.md),
+   taken from the reference screenshot at its native scale: device 1253×333,
+   rows 67, knobs Ø20, text ~15px. Nothing is a widget-library default. */
+.device {
+  width: 1253px;
+  height: 333px;
+  background: #9b9b9b;
+  border-radius: 3px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.28);
+  display: grid;
+  grid-template-rows: 26px 1fr;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: "Ableton Sans Small", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #1f1f1f;
+}
+.titlebar {
+  display: flex; align-items: center; gap: 7px;
+  padding: 0 8px 0 6px;
+  background: #9b9b9b;
+}
+.titlebar .led {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: #e98c29; border: 1px solid #6e4d15;
+  cursor: pointer;
+}
+.titlebar .led.off { background: #858585; border-color: #616161; }
+.titlebar .prev {
+  width: 13px; height: 13px; border-radius: 50%;
+  border: 1.5px solid #3a3a3a; background: transparent;
+  display: grid; place-items: center; cursor: pointer; padding: 0;
+}
+.titlebar .prev::after {
+  content: ""; display: block;
+  border-left: 5px solid #1f1f1f;
+  border-top: 3px solid transparent; border-bottom: 3px solid transparent;
+  margin-left: 1px;
+}
+.titlebar .prev.on { background: #7cccf6; border-color: #2d6a96; }
+.titlebar .name { font-weight: 700; font-size: 12.5px; }
+.titlebar .spacer { flex: 1; }
+.titlebar .ticon {
+  width: 14px; height: 14px; border: 1px solid #6f6f6f; border-radius: 3px;
+  display: grid; place-items: center; font-size: 9px; color: #3a3a3a;
+  background: #a8a8a8;
+}
+.dbody {
+  display: grid;
+  grid-template-columns: 19px 361px 1fr 376px 8px;
+  gap: 0 2px;
+  padding: 11px 3px 4px 3px;
+  min-height: 0;
+}
+.grip {
+  background: #3f3f3f; border-radius: 2px;
+  margin: -11px 0 -4px; /* the grip strip runs the full body height */
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 5px;
+}
+.grip i { width: 3px; height: 3px; border-radius: 50%; background: #9a9a9a; }
+.rack { display: grid; grid-template-rows: repeat(4, 1fr); gap: 5px; min-height: 0; }
+.plate {
+  background: #7b7b7b;
+  border-radius: 2px;
+  display: flex; align-items: center;
+  padding: 0 10px;
+  gap: 12px;
+  cursor: pointer;
+  min-height: 0;
+}
+.plate.selected { background: #9b9b9b; }
+.plate.off > * { opacity: .4; }
+/* Arc/checkbox accent (widgets resolve --op-accent first, then --accent):
+   grey on unselected osc rows, Live-blue on the selected row and on enabled
+   right-rack sections. Needle stays near-white everywhere. */
+.plate { --op-accent: #bababa; --op-needle: #5a5a5a; --op-track: rgba(0,0,0,.16); --op-ring-w: 4.4; --op-needle-w: 4.4; }
+.plate.selected, #rackR .plate:not(.off) { --op-accent: #79cdfa; --op-needle: #24282c; }
+#rackR .plate { --op-track: #4a4a4a; }
+/* Checked boxes: sky fill inside a slate border (sampled #79cdfa / #3d4f59). */
+.device .op-check.is-on .op-check-box { background: #79cdfa; border-color: #3d4f59; }
+.plate .badge {
+  margin-left: auto;
+  box-sizing: border-box; width: 18px; height: 18px; border-radius: 2px;
+  border: 2px solid #4f4f4f; color: #262626;
+  display: grid; place-items: center;
+  font-size: 12px; font-weight: 700; background: transparent;
+}
+.plate.selected .badge { background: #63bd36; border-color: #3f7d20; color: #123307; }
+.display {
+  background: #242424; border-radius: 2px;
+  margin-top: -23px;           /* measured: the display top sits at y≈14, inside the title zone */
+  position: relative; z-index: 2;
+  display: grid; grid-template-rows: 151px 1fr;
+  min-width: 0; min-height: 0;
+}
+.display canvas { width: 100%; height: 151px; display: block; }
+.dgrid {
+  padding: 4px 14px 4px;
+  display: grid; grid-template-columns: 292px 1fr; gap: 0 21px;
+  min-height: 0; overflow: hidden;
+}
+.dcol { min-width: 0; }
+.dhead {
+  display: flex; align-items: center; gap: 6px;
+  color: #d6d6d6; font-size: 12px; font-weight: 700;
+  border-bottom: 1px solid #454545; padding-bottom: 1px; margin-bottom: 2px;
+}
+.dhead .sq { width: 10px; height: 10px; border: 1.5px solid #7cccf6; }
+.dhead .sq.fill { background: #7cccf6; }
+.cells { display: grid; grid-template-columns: 76px 76px 68px 1fr; gap: 7px 6px; }
+.cells.two { grid-template-columns: 90px 1fr; }
+.cell { min-width: 0; }
+.cell .clabel {
+  color: #8f8f8f; font-size: 15.5px; line-height: 1.05;
+  white-space: nowrap; overflow: visible;   /* Time<Vel / Osc<Vel spill into the gap, as in Live */
+}
+.cell .cval { display: flex; align-items: center; gap: 6px; }
+.meterlane { display: grid; align-items: stretch; background: #414141; border-radius: 1px; }
+
+/* ————— widget metric overrides: measured, not library defaults —————
+   text:knob height ratio in the reference is ~0.8 (15px text on Ø20 knobs);
+   labels left-align at the knob's left edge, values sit below-right. */
+.device .op-knob-label { font-size: 16px; margin-bottom: 2px; color: #2b2b2b; }
+.device .op-knob-value {
+  font-size: 16px; margin-top: 3px;
+  color: #1a1a1a; font-variant-numeric: tabular-nums;
+}
+#rackL .op-knob-label { text-align: left; }
+/* fixed-mode ticks hug the text, and the value carries its corner tick too */
+#rackL .op-knob--swapped .op-knob-label { display: inline-block; }
+.op-knob--swapped .op-knob-value::before {
+  content: ""; position: absolute; left: -7px; bottom: 1px; width: 5px; height: 7px;
+  border-left: 1px solid currentColor; border-bottom: 1px solid currentColor;
+}
+#rackL .op-knob-dial { margin: 0; }
+#rackL .op-knob { position: relative; }
+#rackL .op-knob { align-self: flex-start; }
+#rackL .op-knob-value { position: absolute; left: 24px; top: 48px; text-align: left; white-space: nowrap; }
+/* right rack: label centred over the dial, value tucked into its lower right */
+#rackR .op-knob { position: relative; }
+#rackR .op-knob-label { text-align: center; }
+#rackR .op-knob-value { position: absolute; left: calc(50% + 10px); top: 47px; white-space: nowrap; }
+.device .op-check-label { font-size: 16px; color: #1f1f1f; }
+.device .op-check-box { width: 12px; height: 12px; }
+#rackR .op-check-box { width: 17px; height: 17px; border-width: 2px; }
+#rackR .op-chip { height: 19px; min-width: 19px; font-size: 12px; }
+#rackR .op-dd { height: 19px; box-sizing: border-box; font-size: 14px; justify-content: space-between; }
+#rackR .op-dd--icon .op-dd-icon { width: 36px; height: 16px; stroke: #1f1f1f; stroke-width: 2; }
+.device .op-dd-caret { width: 9px; height: 6px; opacity: 1; }
+#rackR .op-pair-opt { height: 19px; min-width: 27px; font-size: 14px; box-sizing: border-box;
+  background: #a4a4a4; border: 1.5px solid #4a4a4a; color: #2a2a2a; }
+#rackR .op-pair-opt.is-active { background: #eeab48; border-color: #7a5d34; color: #3a2c10; }
+#rackR .op-led { width: 12px; height: 12px; border: 1.5px solid #1c1c1c; border-radius: 2px; }
+.device .op-num { font-size: 16px; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.device .op-dd { font-size: 14px; }
+.device .op-dd--compact { font-size: 13px; }
+.device .op-chip { font-size: 11.5px; }
+.device .op-pair { font-size: 12px; }
+/* the display's two value families (measured): envelope blue, oscillator amber */
+.device .blue-vals .op-num, .device .blue-vals .op-dd { color: #7cc0f0; }
+.device .amber-vals .op-num, .device .amber-vals .op-dd { color: #f7a827; }
+
+/* right rack structure (positions come from the solver) */
+#rackR .plate { display: block; position: relative; padding: 0; }
+#rackR .plate > * { position: absolute; }
+
+/* SOLVED POSITIONS — generated by build/solve_layout.py from font metrics
+   and measured anchors; hand-editing this block is a defect. */
+/* @SOLVED_POSITIONS@ */
+#rackL .c-fixed  { align-self: flex-start; margin-top: 4px;
+                   display: flex; flex-direction: column-reverse; align-items: flex-start; gap: 4px; }
+
+/* census: amber is the value accent of the Oscillator display group */
+.device .amber-vals .op-dd { color: #f7a827; }
+/* before the first note there is no engine — the meter must not claim "0" */
+.meter-off { opacity: .45; }
+
+/* ————— help strip + footer: page voice, brand ————— */
+.help {
+  margin: 22px auto 0;
+  max-width: 1253px;
+  border-top: 1px solid var(--rule);
+  padding-top: 16px;
+  display: flex; flex-wrap: wrap; gap: 8px 28px;
+  font-size: 13px; color: var(--dim);
+}
+.help b { color: var(--ink); font-weight: 600; }
+.help kbd {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  background: color-mix(in srgb, var(--support) 28%, var(--bg));
+  border: 1px solid var(--rule);
+  border-radius: 4px; padding: 1px 5px;
+  color: var(--ink);
+}
+footer.pg {
+  margin: 30px auto 0; max-width: 1500px;
+  font-size: 12.5px; color: var(--dim);
+  border-top: 1px solid var(--rule); padding-top: 14px;
+}
+footer.pg em { color: var(--accent); font-style: normal; font-weight: 600; }
+/* @WIDGETS_CSS@ */
+</style>
+
+<div class="page">
+  <header class="pg">
+    <h1>Operator, Rebuilt</h1>
+    <p>A working replica of Ableton Live 12&rsquo;s Operator — four FM operators,
+    envelopes, LFO, filter and pitch — rendered in plain HTML and played by a Web
+    Audio engine. Every control binds to one address in one parameter tree; the
+    panel is the front end, the tree is the instrument.</p>
+  </header>
+
+  <div class="stage" id="stage">
+    <div class="stagewrap" id="stagewrap">
+      <div class="device" id="device">
+        <div class="titlebar" id="titlebar">
+          <div class="led" id="dev-led" title="Device On"></div>
+          <button class="prev" id="dev-prev" title="Preview"></button>
+          <span class="name">Operator</span>
+          <span class="spacer"></span>
+          <span class="ticon" title="Hot-Swap">&#10227;</span>
+          <span class="ticon" title="Save">&#9636;</span>
+        </div>
+        <div class="dbody">
+          <div class="grip"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="rack" id="rackL"></div>
+          <div class="display">
+            <canvas id="dcanvas"></canvas>
+            <div class="dgrid op-on-dark" id="dgrid"></div>
+          </div>
+          <div class="rack" id="rackR"></div>
+          <div class="meterlane" id="meterlane"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="help">
+    <span><b>Play</b> <kbd>A</kbd><kbd>W</kbd><kbd>S</kbd><kbd>E</kbd><kbd>D</kbd><kbd>F</kbd><kbd>T</kbd><kbd>G</kbd><kbd>Y</kbd><kbd>H</kbd><kbd>U</kbd><kbd>J</kbd><kbd>K</kbd> &nbsp;octave <kbd>Z</kbd>/<kbd>X</kbd></span>
+    <span><b>Knobs</b> drag &middot; <kbd>Shift</kbd> fine &middot; double-click resets &middot; wheel steps</span>
+    <span><b>Sections</b> click any row to edit it in the display; click the algorithm in the bottom-right row&rsquo;s display</span>
+    <span><b>Audio</b> starts on your first key press</span>
+  </div>
+
+  <footer class="pg">
+    Built as the worked example of the <em>ui research</em> framework: a parameter
+    census before any layout, a layout committed in six layers, and a per-control
+    contract binding the panel to its engine.
+  </footer>
+</div>
+
+<script>/* @PARAMS_JS@ */</script>
+<script>/* @ENGINE_JS@ */</script>
+<script>/* @WIDGETS_JS@ */</script>
+<script>/* @DISPLAY_JS@ */</script>
+<script>/* @APP_JS@ */</script>

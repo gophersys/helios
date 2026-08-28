@@ -9,9 +9,9 @@
 # no go.work — still resolves the unpublished `v0.0.0` sibling libraries to their in-repo source
 # instead of dropping into module mode and failing the lookup on the proxy.
 #
-# The module list is CURATED, never a blind `find -name go.mod`: poc/knowledge and the hnslint
-# checker carry deliberately-isolated go.mod test FIXTURES (bad module paths, conflicting names) that
-# must NEVER enter the workspace, and the other poc/ donor modules (poc/agents, poc/codeinsight)
+# The module list is CURATED, never a blind `find -name go.mod`: poc/knowledge carries
+# deliberately-isolated go.mod test FIXTURES (bad module paths, conflicting names) that must NEVER
+# enter the workspace, and the other poc/ donor modules (poc/agents, poc/codeinsight)
 # stay out too — poc/ is reference-only material (ADR-0009 D), never workspace members. The three
 # GOWORK=off build-time renderers are also EXCLUDED on purpose so they keep resolving in module
 # mode (their go.mod docs say so):
@@ -60,7 +60,6 @@ USE_DIRS=(
   libs/go/workspaceprovider
   poc/codingharness
   tools/documentvalidator
-  tools/hnslint
 )
 
 # ── The curated list is checked against the tree BEFORE go.work is touched, so a failure never

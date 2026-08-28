@@ -1,0 +1,25 @@
+# PCR #1 — tracker. The first Platform Class Record; fully derived per
+# docs/sfd/60-p2-platform.md — zero judgment, zero conflicts.
+schema: sfd.pcr/v0
+product: tracker
+class: mcu-zephyr
+lane: B                      # hmi-class green + compute-demand green + PC1
+derived: true
+rules_fired: [3]             # hard zephyr-rtos constraint -> mcu-zephyr;
+                             # rule 4's condition false (no red hmi/compute),
+                             # so no conflict; rule 5 would agree anyway
+derived_from:
+  - pir.constraints[zephyr-rtos]        # strength hard
+  - metric.platform.hmi-class           # green (LED + one button)
+  - metric.platform.compute-demand      # green (all rate periods >= 1 s)
+  - pir.power_class                     # PC1 -> lane B
+  - derived.needs_hardware              # true
+  - derived.needs_firmware              # true
+conflicts: []
+decision: {}                # clean derivation — binding without a human
+context:
+  edge_autonomy: amber — buffer-and-backfill offline; logic placement is a
+    P3 concern, not a class selector
+provenance:
+  pir: {ref: products/tracker/pir.yaml, hash: "sha256:dfcab1b177474769249021ee43ce5f3c06caad10819b7f856d6d36f2c54a40ca"}
+  scorecard: {ref: products/tracker/scorecard.yaml, hash: "sha256:4739d28195220c50219f1941d7127220049be4de67d96604cd82a7746111f246"}

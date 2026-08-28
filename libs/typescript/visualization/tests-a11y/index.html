@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@eden/visualization — hotspot-map a11y evidence harness</title>
+  </head>
+  <body>
+    <!--
+      The hotspot-map a11y-evidence harness page (ADR-0024 / codeinsight contract §6). Injects the Eden
+      tokens at/above the document level (so they cascade to the component) and mounts the HotspotMap
+      over a real Eden-libs Report slice, so Playwright can run axe on the REAL Chromium AND WebKit
+      engines and assert keyboard operability + the offscreen data-table fallback + the 44px hit floor
+      through the browser.
+    -->
+    <main id="harness"></main>
+    <script type="module" src="/harness/main.ts"></script>
+  </body>
+</html>

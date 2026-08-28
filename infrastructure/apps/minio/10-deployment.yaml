@@ -1,0 +1,71 @@
+# In-cluster MinIO — the S3 backup target. Its one live consumer since the
+# Longhorn removal (2026-08-19) is the music-studio restic repository in the
+# music-backups bucket. Storage lives on k3s-w-1's NVMe (hostPath
+# /mnt/media/minio) and never on a PVC, so backups don't depend on the thing they
+# protect. Root creds from the minio-creds secret (vaulted at
+# shared/minio/longhorn-backups — a historical item name; see apps/minio/README.md).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio
+  namespace: minio
+  labels:
+    app: minio
+    app.kubernetes.io/part-of: platform
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: minio
+  template:
+    metadata:
+      labels:
+        app: minio
+    spec:
+      nodeSelector:
+        kubernetes.io/hostname: k3s-w-1
+      securityContext:
+        runAsUser: 0        # write to the hostPath NVMe
+      containers:
+        - name: minio
+          image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+          args: ["server", "/data", "--console-address", ":9001"]
+          envFrom:
+            - secretRef:
+                name: minio-creds
+          ports:
+            - name: api
+              containerPort: 9000
+            - name: console
+              containerPort: 9001
+          readinessProbe:
+            httpGet:
+              path: /minio/health/ready
+              port: api
+            initialDelaySeconds: 5
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]          # MinIO needs no caps
+            seccompProfile:
+              type: RuntimeDefault
+            # runAsNonRoot / readOnlyRootFilesystem deliberately NOT set: MinIO
+            # writes the hostPath /data as root; that hardening needs a pre-chown
+            # and a writable /tmp — deferred (see docs/debt-register.md).
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          hostPath:
+            path: /mnt/media/minio
+            type: DirectoryOrCreate

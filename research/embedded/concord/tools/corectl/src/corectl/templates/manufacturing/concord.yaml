@@ -1,0 +1,27 @@
+schema: "1.0"
+
+package:
+  type: manufacturing
+  version: "0.1.0"
+  framework: ">=0.3.0"
+
+product:
+  slug: {{product}}
+  board: {{board}}
+  device:
+    type_id: {{device_type_id}}
+    variant_id: {{device_variant_id}}
+
+testbed:
+  module: {{testbed_module}}
+  multi_slot: true
+
+# Manufacturing stages run in order. Rename ``stage_01`` to the operation
+# it represents (``electrical``, ``fw_flash``, ``post``, …) and add more
+# entries as your line grows. Each stage points at its own tests/<stage>/
+# directory; the runner executes everything inside.
+stages:
+  stage_01:
+    directory: tests/stage_01
+    timeout_s: 600
+    hardware: [mtib, fixture]

@@ -1,0 +1,104 @@
+# identity.yaml.template — manual K3s cluster
+#
+# Scaffolded into clusters/instances/<name>/identity.yaml when you run:
+#   bash clusters/ctl.sh new-cluster cluster-kubernetes-manual-k3s <name>
+#
+# Fill every TODO before committing. See clusters/CONVENTIONS.md for
+# field semantics.
+
+name: __CLUSTER_NAME__
+template: cluster-kubernetes-manual-k3s
+distribution: k3s
+distribution_version: "TODO: pin (e.g., v1.31.3+k3s1)"
+
+purpose: "TODO: short free-text (e.g. 'production — runs customer apps')"
+status: planned
+owner: mateo.segura413@gmail.com
+domain: "TODO: public DNS zone for ingress"
+
+network:
+  cni: cilium
+  tailnet_joined: true
+  pod_cidr: 10.42.0.0/16
+  service_cidr: 10.43.0.0/16
+
+# Map of hostname → cluster_role. Every hostname must have a matching
+# nodes/<hostname>/identity.yaml. Valid roles: apps | data | devops |
+# build | batch.
+node_role_assignments: {}
+  # server-00: data
+  # agent-00:  apps
+
+# Admission policy profile installed on this cluster.
+# none | delete-protection
+#   delete-protection — platform/core/policy/: 2 in-tree ValidatingAdmissionPolicies
+#     that refuse DELETE of a protected PVC and of a protected Namespace. 0 pods.
+#   none — the cluster has no Argo root from this repo to apply them.
+# The old enum (baseline | strict | audit-only) named a Kyverno profile catalog
+# that never existed. See .claude/rules/50-cluster-architecture.md §4.
+policy_profile: delete-protection
+
+# Projects hosted on this cluster. Every <project>-<env> namespace
+# created on this cluster must have <project> listed here.
+projects_hosted: []
+  # - codectl
+  # - fintel
+
+namespace_provisioning:
+  default_quota_tier_by_env:
+    prod:     medium
+    staging:  small
+    dev:      small
+    lab:      small
+  auto_netpol: true
+  auto_pss_label: true
+  quota_overrides: {}            # map <project>-<env>: <tier>
+
+# Edge stack — see platform/core/edge/ + edge/CATALOG.md.
+# Default (free-tier): Cloudflare Tunnel + CF DNS + CF Origin Cert for
+# public; Tailscale for tailnet-scoped services.
+edge:
+  public:
+    tunnel:
+      provider: cloudflare-tunnel           # cloudflare-tunnel | tailscale-funnel | cloud-loadbalancer
+    dns:
+      provider: cloudflare                   # cloudflare | route53 | external-dns
+      zones: []                              # e.g. - brain.example.com
+    tls:
+      provider: cloudflare-origin            # cloudflare-origin | letsencrypt-dns01 | letsencrypt-http01 | acm
+  tailnet:
+    tunnel:
+      provider: tailscale
+      tailnet: "TODO.ts.net"
+    dns:
+      provider: tailscale-magicdns
+    tls:
+      provider: tailscale-cert
+
+# platform/services/* opt-ins — platform/core/* is always on.
+platform_services:
+  observability: { enabled: true,  version: "TODO" }
+  databases:
+    postgresql:     { enabled: false, version: "TODO" }
+    redis:          { enabled: false }
+  messaging:
+    nats:           { enabled: false }
+  registry:         { enabled: false }
+  admin-dashboard:  { enabled: false }
+  identity-sso:     { enabled: false }
+  backup:           { enabled: false }
+  cost:             { enabled: false }
+
+chart_archetypes: []
+
+cluster_slo:
+  control_plane_availability: { target: 99.5, window: 30d }
+
+cost_envelope:
+  monthly_usd_target: 0
+  monthly_usd_ceiling: 0
+
+protection:
+  irreplaceable_nodes: []
+  prod_volume_delete_requires_override: false
+  namespace_delete_requires_override: false

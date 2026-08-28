@@ -1,0 +1,16 @@
+# Registry of all .env.example files in the repo.
+# tools/env/setup.sh validates that every .env.example in the repo appears here.
+# When you add a new service or app, add its .env.example path below.
+#
+# Paths are relative to the repo root.
+
+.env.example
+prisma/.env.example
+apps/backend/http-api/.env.example
+apps/backend/build-service/.env.example
+apps/backend/git-poller/.env.example
+apps/edge/mtib-server/.env.example
+apps/frontend/app/.env.example
+deploy/development/.env.example
+infrastructure/clusters/office/secrets/.env.example
+infrastructure/clusters/eks/secrets/.env.example
