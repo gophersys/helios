@@ -1,6 +1,6 @@
 # container-nx-workflow
 
-phase:    verify
+phase:    pr
 repo:     gophersys/eden
 branch:   feat/container-nx-workflow
 worktree: /Users/mateo/code/.worktrees/eden-container-nx-workflow
@@ -38,4 +38,4 @@ every command except the explicit Eden `cloud` extension straight through unchan
 
 ## Next
 
-Validate both skill adapters, commit the final slice, and submit it.
+Push the branch and open the pull request.

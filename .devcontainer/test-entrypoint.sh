@@ -20,6 +20,9 @@ chmod +x "$tmp/devcontainer"
 
 export DEVCONTAINER_UPSTREAM="$tmp/devcontainer"
 export DEVCONTAINER_CALLS="$tmp/calls"
+export HOME="$tmp/home"
+mkdir -p "$HOME/.codex"
+touch "$HOME/.codex/auth.json"
 
 (cd "$root" && "$shim" cloud)
 

@@ -32,6 +32,10 @@ done
   echo "devcontainer cloud must be run inside the Eden repository" >&2
   exit 2
 }
+[[ -f "$HOME/.codex/auth.json" ]] || {
+  echo "Codex is not authenticated on the host; run: codex login" >&2
+  exit 2
+}
 
 "$upstream" up --workspace-folder "$root"
 exec "$upstream" exec --workspace-folder "$root" zsh -l
