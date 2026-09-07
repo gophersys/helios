@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-versions=/workspace/harnesses/versions.env
+versions=/workspace/.agents/versions.env
 # shellcheck disable=SC1090
 source "$versions"
 

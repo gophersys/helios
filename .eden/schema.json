@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eden.practice/v1",
+  "type": "object",
+  "required": ["schemaVersion", "name", "purpose", "standardBasis", "states", "transitions"],
+  "properties": {
+    "schemaVersion": { "const": "eden.practice/v1" },
+    "name": { "enum": ["research", "software"] },
+    "purpose": { "type": "string" },
+    "standardBasis": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+    "states": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["name", "outcome", "evidence"],
+        "properties": {
+          "name": { "type": "string" },
+          "outcome": { "type": "string" },
+          "evidence": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "transitions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "decision"],
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "decision": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

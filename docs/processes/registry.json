@@ -1,9 +1,0 @@
-{
-  "schemaVersion": "eden.process-registry/v1",
-  "requests": {
-    "feature": "feature.json"
-  },
-  "questions": {
-    "question": "question.json"
-  }
-}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": "eden.system/v1",
+  "kernel": ["intent", "plan", "work", "evidence", "decision"],
+  "tracks": {
+    "research": "practices/research.json",
+    "software": "practices/software.json"
+  },
+  "evidenceTypes": [
+    "decision",
+    "observation",
+    "requirement",
+    "result",
+    "risk",
+    "source",
+    "verification"
+  ]
+}

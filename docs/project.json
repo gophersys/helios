@@ -1,0 +1,14 @@
+{
+  "name": "docs",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "root": "docs",
+  "tags": ["kind:leaf"],
+  "targets": {
+    "check": {
+      "command": "./ctl.sh check",
+      "options": { "cwd": "{projectRoot}" },
+      "cache": false
+    }
+  }
+}

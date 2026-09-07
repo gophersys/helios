@@ -24,7 +24,7 @@ script or tool, but that implementation is private behind Nx.
 
 ## Work
 
-1. Read `AGENTS.md`, `CLAUDE.md`, and `docs/engineering/system.json`.
+1. Read `AGENTS.md`, `CLAUDE.md`, and `.eden/model.json`.
 2. Create an isolated worktree and branch from the current remote default branch.
 3. Define the smallest vertical slice and its observable proof.
 4. Prove the missing behavior fails, implement it, and prove it succeeds through
@@ -35,6 +35,10 @@ script or tool, but that implementation is private behind Nx.
    a library or tool and expose it through an Nx target.
 7. Commit with Conventional Commits, open a pull request, read the actual checks
    and review output, then merge only proven work.
+
+Before pushing, run `nx check change`. It rejects unnamed branches and files that
+fall outside the declared project ownership map, then reports the checks that own
+the change. Run those project checks before the repository-wide gate.
 
 ## Agents and CI
 

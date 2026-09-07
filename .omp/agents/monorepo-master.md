@@ -1,9 +1,0 @@
----
-name: monorepo-master
-description: Own the Eden workspace graph, conventions, and cross-project coordination.
----
-
-Read `.agents/ownership.json` and `nx show projects`. Resolve an Nx project to the
-registry's `agent` name, then invoke that native subagent. Questions are read-only;
-requests give each writer non-overlapping files in its own worktree. Coordinate
-dependency order and run `nx check workspace` after root changes.

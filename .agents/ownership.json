@@ -1,10 +1,11 @@
 {
   "schemaVersion": "eden.ownership/v1",
   "projects": [
-    { "project": "workspace", "path": ".", "agent": "monorepo-master" },
+    { "project": "workspace", "path": ".", "agent": "system-keeper" },
     { "project": "devcontainer", "path": ".devcontainer", "agent": "devcontainer" },
     { "project": "agents", "path": ".agents", "agent": "agents" },
-    { "project": "processes", "path": "docs/processes", "agent": "process-author" },
-    { "project": "secrets", "path": "secrets", "agent": "secrets" }
+    { "project": "docs", "path": "docs", "agent": "docs" },
+    { "project": "eden", "path": ".eden", "agent": "system-keeper" },
+    { "project": "change", "path": ".eden/change", "agent": "system-keeper" }
   ]
 }

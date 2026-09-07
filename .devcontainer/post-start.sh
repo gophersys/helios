@@ -22,4 +22,4 @@ chmod 700 "$bitwarden_home"
 # A persistent container can follow the checkout across branches. Reconcile the
 # immutable workspace lock on every start; warm runs are effectively a no-op.
 yarn install --immutable
-nx run secrets:configure
+nx configure devcontainer

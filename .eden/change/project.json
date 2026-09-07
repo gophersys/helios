@@ -1,0 +1,14 @@
+{
+  "name": "change",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "root": ".eden/change",
+  "tags": ["kind:leaf"],
+  "targets": {
+    "check": {
+      "command": "./ctl.sh check",
+      "options": { "cwd": "{projectRoot}" },
+      "cache": false
+    }
+  }
+}

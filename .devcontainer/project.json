@@ -4,12 +4,24 @@
   "projectType": "application",
   "targets": {
     "check": {
-      "dependsOn": ["test"]
+      "command": "./ctl.sh check",
+      "options": { "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "configure": {
+      "command": "./ctl.sh configure",
+      "options": { "cwd": "{projectRoot}" },
+      "cache": false
+    },
+    "status": {
+      "command": "./ctl.sh status",
+      "options": { "cwd": "{projectRoot}" },
+      "cache": false
     },
     "test": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "bash ctl.sh test",
+        "command": "./ctl.sh test",
         "cwd": "{projectRoot}"
       },
       "cache": false

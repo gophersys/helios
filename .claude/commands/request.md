@@ -1,6 +1,7 @@
 ---
-description: Classify a request and run its registered process.
+description: Route requested work through Eden's research or software practice.
 ---
 
-Read `docs/processes/registry.json`. Select exactly one request type, load its
-process, and follow its steps in order for: $ARGUMENTS
+Read `.eden/model.json`. Classify the work as research when producing knowledge
+or reducing material uncertainty; otherwise classify it as software. Read the
+selected practice and follow its evidence states for: $ARGUMENTS

@@ -5,16 +5,16 @@
   "root": ".",
   "targets": {
     "setup": {
-      "executor": "nx:run-commands",
+      "command": "./ctl.sh setup",
       "options": {
-        "command": "node scripts/setup-workspace.mjs"
+        "cwd": "{projectRoot}"
       },
       "cache": false
     },
     "check": {
-      "executor": "nx:run-commands",
+      "command": "./ctl.sh check",
       "options": {
-        "command": "bash scripts/check-workspace.sh"
+        "cwd": "{projectRoot}"
       },
       "cache": false
     }

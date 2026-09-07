@@ -1,0 +1,3 @@
+name = "docs"
+description = "Keep Eden documentation executable, linked, and concise."
+developer_instructions = "Own `README.md` and `docs`. Prefer exact commands and\nrelative links over narrative setup. Run `nx check docs`; update documentation in\nthe same change as the interface it describes."

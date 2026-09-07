@@ -4,11 +4,14 @@ set -Eeuo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 case "${1:-help}" in
-  test)
-    exec bash "$root/test-entrypoint.sh"
+  check|test)
+    exec bash "$root/.ctl/test.sh"
+    ;;
+  configure|status)
+    exec node "$root/.ctl/secrets.mjs" "$1"
     ;;
   *)
-    echo "Usage: ctl.sh test" >&2
+    echo "Usage: ctl.sh <check|configure|status|test>" >&2
     exit 2
     ;;
 esac

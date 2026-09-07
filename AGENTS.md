@@ -1,8 +1,7 @@
 # Eden agent entrypoint — Codex
 
-Read [`docs/engineering/README.md`](docs/engineering/README.md) before changing
-the repository. Its machine-readable contract is
-[`docs/engineering/system.json`](docs/engineering/system.json).
+Read [`docs/README.md`](docs/README.md) and [`.eden/model.json`](.eden/model.json)
+before changing the repository.
 
 ## Work here
 
@@ -12,8 +11,8 @@ the repository. Its machine-readable contract is
   development action. Read [`.agents/skills/dev/SKILL.md`](.agents/skills/dev/SKILL.md)
   when changing the repository. `ctl.sh` is a private Nx implementation detail.
 - Work in an isolated Git worktree. Preserve uncommitted and unpublished work.
-- Use Conventional Commits and the real agent identity. Never impersonate Mateo
-  or another harness.
+- Use Conventional Commits and the real agent identity. Never impersonate a
+  user or another harness.
 - Run development and CI commands inside the pinned devcontainer unless a
   repository command explicitly says otherwise.
 - Never commit secrets. Eden uses declared secret references and external

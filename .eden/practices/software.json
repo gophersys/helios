@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "eden.practice/v1",
+  "name": "software",
+  "purpose": "Deliver software that satisfies an accepted need and remains safe to change, operate, and retire.",
+  "standardBasis": ["ISO/IEC/IEEE 15288:2023", "ISO/IEC/IEEE 12207:2026", "ISO/IEC/IEEE 29148:2018", "NIST SP 800-218", "DORA continuous delivery"],
+  "states": [
+    { "name": "need", "outcome": "The stakeholder, intended use, system boundary, owner, and acceptance evidence are explicit.", "evidence": ["need", "system boundary", "owner", "acceptance evidence"] },
+    { "name": "define", "outcome": "Requirements, architecture, interfaces, risks, and verification approach are traceable.", "evidence": ["requirements", "architecture decision", "interfaces", "risks", "verification plan"] },
+    { "name": "build", "outcome": "The smallest vertical increment is implemented and remains releasable.", "evidence": ["implementation", "tests", "change record"] },
+    { "name": "verify", "outcome": "Requirements are verified and intended use is validated in representative conditions.", "evidence": ["verification result", "validation result", "anomalies", "residual risk"] },
+    { "name": "release", "outcome": "The change is approved, reproducible, observable, and recoverable.", "evidence": ["release decision", "artifact identity", "deployment record", "rollback evidence"] },
+    { "name": "operate", "outcome": "Operation, feedback, maintenance, and retirement remain owned.", "evidence": ["service evidence", "feedback", "maintenance decision", "retirement decision"] }
+  ],
+  "transitions": [
+    { "from": "need", "to": "define", "decision": "The need and acceptance evidence justify engineering." },
+    { "from": "define", "to": "build", "decision": "The increment is bounded and verifiable." },
+    { "from": "build", "to": "verify", "decision": "Automated checks pass for the increment." },
+    { "from": "verify", "to": "build", "decision": "Evidence exposes a defect or unmet requirement." },
+    { "from": "verify", "to": "release", "decision": "Verification, validation, and residual risk are accepted." },
+    { "from": "release", "to": "operate", "decision": "The artifact is deployed or made available." },
+    { "from": "operate", "to": "need", "decision": "Feedback creates a new need." }
+  ]
+}

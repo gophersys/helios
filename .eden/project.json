@@ -1,0 +1,16 @@
+{
+  "name": "eden",
+  "$schema": "../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "root": ".eden",
+  "tags": ["kind:group"],
+  "implicitDependencies": ["change"],
+  "targets": {
+    "check": {
+      "command": "./ctl.sh check",
+      "options": { "cwd": "{projectRoot}" },
+      "dependsOn": ["^check"],
+      "cache": false
+    }
+  }
+}
