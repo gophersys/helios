@@ -1,6 +1,0 @@
-# Sample-level options
-config CIPHER_SAMPLE_SERVER_HOST
-    string "Cipher server host (mDNS/DNS name or IPv4 literal)"
-    default "cipher-server.local"
-
-source "Kconfig.zephyr"

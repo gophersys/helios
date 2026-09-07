@@ -1,0 +1,22 @@
+{
+  "name": "workspace",
+  "$schema": "node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "root": ".",
+  "targets": {
+    "setup": {
+      "command": "./ctl.sh setup",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    },
+    "check": {
+      "command": "./ctl.sh check",
+      "options": {
+        "cwd": "{projectRoot}"
+      },
+      "cache": false
+    }
+  }
+}

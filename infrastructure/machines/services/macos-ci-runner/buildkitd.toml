@@ -1,9 +1,0 @@
-[dns]
-  nameservers = ["1.1.1.1", "8.8.8.8"]
-  options = ["edns0"]
-
-[worker.oci]
-  gc = true
-  reservedSpace = "8GB"
-  maxUsedSpace = "20GB"
-  minFreeSpace = "12GB"

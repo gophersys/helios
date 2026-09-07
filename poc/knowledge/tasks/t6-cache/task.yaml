@@ -1,6 +1,0 @@
-id: t6-cache
-package: cache
-tempts:
-  - go/benchmark-loop
-  - go/return-concrete
-  - go/interface-size

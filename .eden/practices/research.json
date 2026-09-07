@@ -1,0 +1,20 @@
+{
+  "schemaVersion": "eden.practice/v1",
+  "name": "research",
+  "purpose": "Produce transferable knowledge or reduce material uncertainty through systematic investigation.",
+  "standardBasis": ["OECD Frascati Manual 2015", "NASA Technology Readiness Levels"],
+  "states": [
+    { "name": "question", "outcome": "The novelty, uncertainty, prior knowledge, and research classification are explicit.", "evidence": ["question", "sources", "Frascati classification"] },
+    { "name": "plan", "outcome": "A reproducible method and decision rule are approved before execution.", "evidence": ["hypothesis or objective", "protocol", "measurements", "decision rule", "risk review"] },
+    { "name": "investigate", "outcome": "The planned work and deviations are recorded without rewriting history.", "evidence": ["inputs", "environment", "observations", "failures", "deviations"] },
+    { "name": "conclude", "outcome": "Findings, uncertainty, limitations, and reproducibility are evaluated.", "evidence": ["analysis", "result", "limitations", "reproduction status", "maturity assessment"] },
+    { "name": "transfer", "outcome": "Knowledge is preserved and a repeat, continue, stop, publish, or engineering decision is made.", "evidence": ["decision", "knowledge record", "linked software need when applicable"] }
+  ],
+  "transitions": [
+    { "from": "question", "to": "plan", "decision": "The work qualifies as research and may proceed." },
+    { "from": "plan", "to": "investigate", "decision": "Method, evidence, and risk are adequate." },
+    { "from": "investigate", "to": "conclude", "decision": "The decision rule can be evaluated." },
+    { "from": "conclude", "to": "plan", "decision": "Evidence requires another iteration." },
+    { "from": "conclude", "to": "transfer", "decision": "The result is ready to preserve or apply." }
+  ]
+}

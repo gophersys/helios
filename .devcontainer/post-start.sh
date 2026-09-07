@@ -14,3 +14,12 @@ if [[ -f "$codex_seed" && ! -f "$codex_home/auth.json" ]]; then
   install -d -m 700 "$codex_home"
   install -m 600 "$codex_seed" "$codex_home/auth.json"
 fi
+
+bitwarden_home=/home/dev/.config/eden-bitwarden
+sudo chown dev:dev "$bitwarden_home"
+chmod 700 "$bitwarden_home"
+
+# A persistent container can follow the checkout across branches. Reconcile the
+# immutable workspace lock on every start; warm runs are effectively a no-op.
+yarn install --immutable
+nx configure devcontainer

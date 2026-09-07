@@ -1,2 +1,0 @@
-# example.helios/logfan
-./ring.go:65:50: cannot use attrs (variable of type []slog.Attr) as []any value in argument to slog.Group

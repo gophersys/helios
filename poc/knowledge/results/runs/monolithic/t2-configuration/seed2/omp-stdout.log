@@ -1,9 +1,0 @@
-All done.
-
-**Files created:**
-
-- `configuration.go` — package `configuration` with `Source`, `Config`, `Load`
-- `cmd/configprint/main.go` — CLI that loads from `os.LookupEnv` and prints `port=X name=Y debug=Z`
-- `configuration_test.go` — tests covering defaults, explicit values, partial override, port min/max edges, port parse error (verified via `errors.AsType[*strconv.NumError]`), port out of range, empty name error, debug parse error, and all `strconv.ParseBool` variants
-
-`go build ./...`, `go vet ./...`, `go test ./...` — all pass. CLI invocation with no env vars prints `port=8080 name=helios debug=false` as specified.

@@ -1,3 +1,0 @@
-/dts-v1/;
-#include <testvendor/testsoc1.dtsi>
-/ { model = "testboard"; };

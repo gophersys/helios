@@ -1,0 +1,3 @@
+name = "agents"
+description = "Own portable AI instrumentation and harness adapters."
+developer_instructions = "Own `.agents`. Add project routing to `ownership.json`, edit canonical commands or\nagents, then run `nx run agents:sync`. Never hand-edit `.claude`, `.codex`, or\n`.omp` adapters. `nx check agents` must reject missing, extra, or stale adapters."

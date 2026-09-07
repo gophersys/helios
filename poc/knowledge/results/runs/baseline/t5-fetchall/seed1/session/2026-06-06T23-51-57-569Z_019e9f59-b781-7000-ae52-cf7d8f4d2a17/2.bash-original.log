@@ -1,3 +1,0 @@
-# example.helios/fetchall
-# [example.helios/fetchall]
-vet: ./fetchall_test.go:143:2: declared and not used: failAt

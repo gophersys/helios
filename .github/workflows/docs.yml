@@ -1,0 +1,28 @@
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install Dev Container CLI
+        run: npm install --global @devcontainers/cli@0.88.0
+      - name: Select Eden wrapper
+        run: echo "$GITHUB_WORKSPACE/.devcontainer" >> "$GITHUB_PATH"
+      - name: Check the change in the cloud container
+        run: |
+          mkdir -p "$HOME/.codex"
+          touch "$HOME/.codex/auth.json"
+          devcontainer cloud -- nx run-many -t check

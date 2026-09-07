@@ -1,2 +1,0 @@
-# example.helios/configuration/cmd/configprint
-cmd/configprint/main.go:11:54: cannot convert os.Getenv (value of type func(key string) string) to type configuration.Source

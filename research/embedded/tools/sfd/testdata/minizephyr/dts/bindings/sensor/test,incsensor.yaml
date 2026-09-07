@@ -1,3 +1,0 @@
-description: Sensor whose bus comes only via include
-compatible: "test,incsensor"
-include: [i2c-device.yaml]

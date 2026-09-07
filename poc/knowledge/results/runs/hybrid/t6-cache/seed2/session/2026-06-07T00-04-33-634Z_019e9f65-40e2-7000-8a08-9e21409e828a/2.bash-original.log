@@ -1,8 +1,0 @@
-goos: darwin
-goarch: arm64
-pkg: example.helios/cache
-cpu: Apple M5
-BenchmarkGet-10    	181890831	         6.502 ns/op	       0 B/op	       0 allocs/op
-BenchmarkPut-10    	13812439	        88.18 ns/op	      87 B/op	       2 allocs/op
-PASS
-ok  	example.helios/cache	2.575s

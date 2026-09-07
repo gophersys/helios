@@ -1,3 +1,0 @@
-# example.helios/fetchall
-# [example.helios/fetchall]
-vet: ./fetchall_test.go:167:3: declared and not used: te

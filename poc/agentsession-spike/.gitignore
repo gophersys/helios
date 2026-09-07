@@ -1,6 +1,0 @@
-# The OAuth token lives here at runtime — NEVER commit it.
-.env
-.env.*
-
-# The agent's writable mount; runtime artifacts, not source.
-/workspace/

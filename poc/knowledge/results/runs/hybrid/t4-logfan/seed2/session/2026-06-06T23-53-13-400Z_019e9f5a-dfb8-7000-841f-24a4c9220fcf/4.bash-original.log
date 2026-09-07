@@ -1,5 +1,0 @@
-# example.helios/logfan
-# [example.helios/logfan]
-vet: ./ring_test.go:131:18: too many arguments in call to a.Value.Group
-	have (func(ga slog.Attr) bool)
-	want ()

@@ -1,2 +1,0 @@
-# base binding for i2c devices
-on-bus: i2c

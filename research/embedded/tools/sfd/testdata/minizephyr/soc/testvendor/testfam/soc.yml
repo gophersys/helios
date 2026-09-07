@@ -1,6 +1,0 @@
-family:
-  - name: testfam
-    series:
-      - name: tseries
-        socs:
-          - name: testsoc1

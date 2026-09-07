@@ -1,7 +1,0 @@
-description: Fake test sensor
-compatible: "test,fakesensor"
-include: sensor-device.yaml
-on-bus: i2c
-properties:
-  int-gpios:
-    type: phandle-array

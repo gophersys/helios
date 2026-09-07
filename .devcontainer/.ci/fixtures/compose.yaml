@@ -1,6 +1,0 @@
-# The fixture `docker compose config` reads. It starts nothing: the check is
-# that the compose cli-plugin parses and resolves a file, which needs no daemon.
-services:
-  echo:
-    image: busybox:1.36
-    command: ["echo", "the compose plugin resolved this file"]

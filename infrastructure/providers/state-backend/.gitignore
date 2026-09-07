@@ -1,9 +1,0 @@
-# Never commit local terraform state artifacts — all state lives in
-# OCI Object Storage per backend.hcl.
-.terraform/
-.terraform.lock.hcl
-*.tfstate
-*.tfstate.*
-*.tfplan
-crash.log
-crash.*.log

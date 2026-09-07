@@ -1,7 +1,0 @@
-Done. Here's what was delivered:
-
-**`configuration.go`** — package with `Source` type, `Config` struct, and `Load` function. Reads `HELIOS_PORT` (int 1–65535, default 8080), `HELIOS_NAME` (non-empty string, default "helios"), `HELIOS_DEBUG` (ParseBool, default false). Parse errors preserve underlying error (`*strconv.NumError` reachable via `errors.As`).
-
-**`cmd/configprint/main.go`** — CLI that loads from `os.LookupEnv` and prints `port=<port> name=<name> debug=<debug>\n`.
-
-**`configuration_test.go`** — 9 tests covering: defaults, empty source, port parsing (boundary + error), parse error preservation via `errors.As`, name validation, empty name error, debug parsing, all fields set, source returning not-found.

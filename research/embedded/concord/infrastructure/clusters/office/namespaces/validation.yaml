@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: validation
-  labels:
-    app.kubernetes.io/part-of: concord
-    concord.corekinect.com/environment: validation

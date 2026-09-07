@@ -1,6 +1,0 @@
-if(CONFIG_CK_PKT_ANALYZER)
-  zephyr_include_directories(include)
-  zephyr_library()
-  zephyr_library_sources(src/core.c)
-  zephyr_library_sources_ifdef(CONFIG_CK_PKT_ANALYZER_BACKEND_NET src/backend_net.c)
-endif()

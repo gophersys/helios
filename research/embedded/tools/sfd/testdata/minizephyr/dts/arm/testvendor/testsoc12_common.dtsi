@@ -1,3 +1,0 @@
-/ {
-    soc { adc0: adc@7000 { compatible = "othervendor,adc"; }; };
-};

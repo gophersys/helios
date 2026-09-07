@@ -1,6 +1,0 @@
-Delivered:
-
-- **`cache.go`** — `cache` package with `Config`, `New`, `Get`, `Put`, `Len`. Uses `container/list` + `map` for O(1) LRU operations, `sync.Mutex` for concurrency safety. Evicts LRU entry on insert when at capacity; `Get` and `Put` (update) both promote the key to MRU.
-- **`cache_test.go`** — 9 unit tests covering: invalid capacity, valid init, empty get, put/get round-trip, value update, eviction, get-marks-MRU, put-marks-MRU, concurrent safety. Two benchmarks (`BenchmarkGet` on hit, `BenchmarkPut` with eviction).
-
-`go build ./...` / `go vet ./...` / `go test -bench=. ./...` all pass.

@@ -3,7 +3,10 @@
   "image": "ghcr.io/gophersys/cloud:latest",
   "remoteUser": "dev",
   "containerEnv": {
-    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0"
+    "COREPACK_ENABLE_DOWNLOAD_PROMPT": "0",
+    "BITWARDENCLI_APPDATA_DIR": "/home/dev/.config/eden-bitwarden",
+    "EDEN_SECRETS_SERVER": "${localEnv:EDEN_SECRETS_SERVER}",
+    "EDEN_SECRETS_PROVIDER": "${localEnv:EDEN_SECRETS_PROVIDER}"
   },
   "workspaceFolder": "/workspace",
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached",
@@ -11,6 +14,7 @@
   "mounts": [
     "source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind",
     "source=eden-codex-home,target=/home/dev/.codex,type=volume",
+    "source=eden-bitwarden-home,target=/home/dev/.config/eden-bitwarden,type=volume",
     "source=${localEnv:HOME}/.codex/auth.json,target=/run/eden/host-codex-auth.json,type=bind,readonly"
   ],
   "postCreateCommand": "bash .devcontainer/post-create.sh",

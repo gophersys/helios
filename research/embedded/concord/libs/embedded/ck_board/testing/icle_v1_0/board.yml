@@ -1,5 +1,0 @@
-board:
-  name: icle_v1_0
-  vendor: corekinect
-  socs:
-  - name: esp32

@@ -1,5 +1,0 @@
-Delivered:
-
-- **`configuration.go`** — `Source` type, `Config` struct, `Load` function. Reads `HELIOS_PORT` (int, 1-65535, default 8080), `HELIOS_NAME` (non-empty, default "helios"), `HELIOS_DEBUG` (ParseBool, default false). Errors wrap underlying parse errors via `%w`.
-- **`cmd/configprint/main.go`** — reads from `os.LookupEnv`, prints `port=N name=S debug=T|F`.
-- **`configuration_test.go`** — 8 tests covering defaults, custom values, bad port (non-numeric + out-of-range bounds), empty name, bad debug, all ParseBool variants, partial key presence.

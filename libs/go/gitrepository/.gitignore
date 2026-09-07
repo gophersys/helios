@@ -1,6 +1,0 @@
-# pgregory.net/rapid writes a failure-replay seed to testdata/rapid/<TestName>/*.fail
-# whenever a property test falsifies. These are LOCAL replay fossils, never an artifact:
-# a committed .fail pins a stale seed the property test replays forever (a green that hides
-# the real, freshly-shrunk counterexample). Reproduce a failure locally, fix the code, let
-# rapid delete the seed on the next green — never commit it.
-/testdata/rapid/
